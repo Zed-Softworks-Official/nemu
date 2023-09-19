@@ -1,7 +1,7 @@
 import './globals.css'
 import type { Metadata, } from 'next'
 
-import Navbar from '../components/Navbar'
+import Navbar from '../components/Navigation/Navbar'
 import Footer from '../components/Footer'
 
 export const metadata: Metadata = {
@@ -20,7 +20,7 @@ export default function RootLayout({
                 <link href="https://necolas.github.io/normalize.css/8.0.1/normalize.css" rel="stylesheet" />
                 <link rel="stylesheet" href="https://use.typekit.net/tru7say.css" />
             </head>
-            <body className='bg-white text-charcoal font-nunito container'>
+            <body className='bg-white text-charcoal font-nunito container mx-auto'>
                 <Navbar />
                 { children }
                 <Footer />
