@@ -18,7 +18,7 @@ export default function RootLayout({ children, } : { children: React.ReactNode }
                 <link rel="stylesheet" href="https://use.typekit.net/tru7say.css" />
             </head>
             <UserProvider>
-                <body className='bg-white text-charcoal font-nunito container mx-auto'>
+                <body className='bg-white text-charcoal font-nunito'>
                     <Navbar />
                         { children }
                     <Footer />

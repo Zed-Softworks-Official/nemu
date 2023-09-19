@@ -40,7 +40,7 @@ export default function Artist() {
                         </Menu.Item>
                         <Menu.Item>
                             {({ active }) => (
-                                <a href="/"
+                                <a href="/dashboard"
                                 className={classNames(active ? 'bg-white text-charcoal' : 'text-charcoal', 'block px-5 py-2 text.sm')}>
                                     <ChartBarIcon className="h-6 w-6 text-charcoal inline mr-5" />
                                     Artist Dashboard                                           
@@ -58,7 +58,7 @@ export default function Artist() {
                         </Menu.Item>
                         <Menu.Item>
                             {({ active }) => (
-                                <a href="/"
+                                <a href="/dashboard/settings"
                                 className={classNames(active ? 'bg-white text-charcoal' : 'text-charcoal', 'block px-5 py-2 text.sm')}>
                                     <Cog6ToothIcon className="h-6 w-6 text-charcoal inline mr-5" />
                                     Account Settings                                           
