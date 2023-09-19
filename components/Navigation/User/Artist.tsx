@@ -3,7 +3,7 @@
 import React, { Fragment } from "react";
 
 import { Menu, Transition } from "@headlessui/react";
-import { ArrowRightOnRectangleIcon, ChartBarIcon, Cog6ToothIcon, EnvelopeIcon, PaintBrushIcon, UserIcon } from "@heroicons/react/20/solid";
+import { ArrowRightOnRectangleIcon, ChartBarIcon, Cog6ToothIcon, EnvelopeIcon, PaintBrushIcon, StarIcon, UserIcon } from "@heroicons/react/20/solid";
 
 import classNames from "./classnames";
 
@@ -44,6 +44,15 @@ export default function Artist() {
                                 className={classNames(active ? 'bg-white text-charcoal' : 'text-charcoal', 'block px-5 py-2 text.sm')}>
                                     <ChartBarIcon className="h-6 w-6 text-charcoal inline mr-5" />
                                     Artist Dashboard                                           
+                                </a>
+                            )}
+                        </Menu.Item>
+                        <Menu.Item>
+                            {({ active }) => (
+                                <a href="/favourites"
+                                className={classNames(active ? 'bg-white text-charcoal' : 'text-charcoal', 'block px-5 py-2 text.sm')}>
+                                    <StarIcon className="h-6 w-6 text-charcoal inline mr-5" />
+                                    Favourites                                           
                                 </a>
                             )}
                         </Menu.Item>
