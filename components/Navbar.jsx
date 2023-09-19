@@ -2,7 +2,7 @@
 
 import React, { Fragment } from "react";
 import { Menu, Transition } from "@headlessui/react";
-import { BellIcon, ChartBarIcon, Cog6ToothIcon, EnvelopeIcon, MagnifyingGlassIcon, PaintBrushIcon, UserIcon } from "@heroicons/react/20/solid";
+import { ArrowRightOnRectangleIcon, BellIcon, ChartBarIcon, Cog6ToothIcon, EnvelopeIcon, MagnifyingGlassIcon, PaintBrushIcon, UserIcon } from "@heroicons/react/20/solid";
 
 function classNames(...classes) {
     return classes.filter(Boolean).join(' ');
@@ -83,6 +83,7 @@ export default function Navbar() {
                                 {({ active }) => (
                                     <a href="/"
                                     className={classNames(active ? 'bg-white text-charcoal' : 'text-charcoal', 'block px-5 py-2 text.sm')}>
+                                        <ArrowRightOnRectangleIcon className="h-6 w-6 text-charcoal inline mr-5" />
                                         Sign Out                                           
                                     </a>
                                 )}
