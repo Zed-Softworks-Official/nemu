@@ -1,14 +1,19 @@
-"use client"
-
 import React  from "react";
 
-import { useUser } from '@auth0/nextjs-auth0/client'
+import { getSession } from '@auth0/nextjs-auth0'
 
 import Artist from './Artist'
 import Standard from "./Standard";
+import prisma from "@/prisma/prisma";
 
-export default function UserInfo() {
-    const { user, error } = useUser();
+export default async function UserInfo() {
+    const { user } = await getSession();
+
+    let artist_info = await prisma.artist.findFirst({
+        where: {
+            auth0id: user.sub
+        }
+    });
 
     if (!user) {
         return (
@@ -17,6 +22,6 @@ export default function UserInfo() {
     }
 
     return (
-        <Artist />
+        <Artist artist_handle={artist_info?.handle!} />
     )
 }

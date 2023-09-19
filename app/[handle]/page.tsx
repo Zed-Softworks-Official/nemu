@@ -1,18 +1,15 @@
 import React from "react";
 import { notFound } from 'next/navigation';
-
-import { NemuPrismaClient } from "@/prisma/prisma";
+import prisma from "@/prisma/prisma";
 
 export default async function ArtistPage({params}: { params: { handle: string}}) {
-    let artist_info = await NemuPrismaClient.artist.findFirst({
+    let artist_info = await prisma.artist.findFirst({
         where: {
             handle: params.handle
         }
     }).catch((error) => {
         console.log(error);
     });
-
-    NemuPrismaClient.$disconnect();
 
     if (!artist_info) {
         notFound();

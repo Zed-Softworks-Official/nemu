@@ -7,9 +7,9 @@ import { ArrowRightOnRectangleIcon, ChartBarIcon, Cog6ToothIcon, EnvelopeIcon, P
 
 import classNames from "./classnames";
 
-export default function Artist() {
+export default function Artist({ artist_handle }: { artist_handle: string}) {
 
-    let artist_link = '/Test';
+    let artist_link = '/' + artist_handle;
 
     return (
         <Menu as="div" className="relative inline-block text-left mt-5 ml-20">
