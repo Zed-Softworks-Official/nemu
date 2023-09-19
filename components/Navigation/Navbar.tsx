@@ -2,7 +2,7 @@ import React from "react";
 
 import Logo from './Logo'
 import Search from './Search'
-import UserInfo from './UserInfo'
+import UserInfo from './User/UserInfo'
 
 export default function Navbar() {
     return (

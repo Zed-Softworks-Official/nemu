@@ -1,17 +1,15 @@
 "use client"
 
-import React, { Fragment }  from "react";
+import React, { Fragment } from "react";
 
 import { Menu, Transition } from "@headlessui/react";
-import { ArrowRightOnRectangleIcon, BellIcon, ChartBarIcon, Cog6ToothIcon, EnvelopeIcon, PaintBrushIcon, UserIcon } from "@heroicons/react/20/solid";
+import { ArrowRightOnRectangleIcon, ChartBarIcon, Cog6ToothIcon, EnvelopeIcon, PaintBrushIcon, UserIcon } from "@heroicons/react/20/solid";
 
-function classNames(...classes) {
-    return classes.filter(Boolean).join(' ');
-}
+import classNames from "./classnames";
 
-export default function UserInfo() {
+export default function Artist() {
     return (
-        <Menu as="div" className="relative inline-block text-left ml-20">
+        <Menu as="div" className="relative inline-block text-left mt-5 ml-20">
             <div>
                 <Menu.Button className="inline-flex w-full justify-center gap-x-1.5 rounded-md bg-white font-semibold">
                     <UserIcon className="h-6 w-6 text-black"/>
@@ -66,7 +64,7 @@ export default function UserInfo() {
                         </Menu.Item>
                         <Menu.Item>
                             {({ active }) => (
-                                <a href="/"
+                                <a href="/api/auth/logout"
                                 className={classNames(active ? 'bg-white text-charcoal' : 'text-charcoal', 'block px-5 py-2 text.sm')}>
                                     <ArrowRightOnRectangleIcon className="h-6 w-6 text-charcoal inline mr-5" />
                                     Sign Out                                           

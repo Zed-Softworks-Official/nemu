@@ -10,6 +10,7 @@ const config: Config = {
     colors: {
       white: '#f3f3f3',
       charcoal: '#333333',
+      primarylight: '#0e90f9',
       primary: '#2185d5',
       azure: '#1B72BA',
       fullwhite: '#fff'

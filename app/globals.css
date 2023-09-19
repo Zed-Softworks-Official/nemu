@@ -5,3 +5,11 @@
 .logo {
     @apply font-semibold;
 }
+
+.searchbar {
+    @apply bg-fullwhite border-white rounded-lg py-5 w-full font-semibold rounded-r-none pl-4;
+}
+
+.searchbar-button {
+    @apply relative right-0 bg-gradient-to-r from-azure to-primary text-white p-5 rounded-l-none rounded-xl
+}
