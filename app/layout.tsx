@@ -3,7 +3,11 @@ import type { Metadata, } from 'next'
 
 import Navbar from '@/components/Navigation/Navbar'
 import Footer from '@/components/Footer'
+
 import { UserProvider } from '@auth0/nextjs-auth0/client'
+import { ToastContainer } from 'react-toastify';
+
+import 'react-toastify/ReactToastify.min.css';
 
 export const metadata: Metadata = {
     title: 'Nemu',
@@ -21,6 +25,9 @@ export default function RootLayout({ children, } : { children: React.ReactNode }
                 <body className='bg-white text-charcoal font-nunito'>
                     <Navbar />
                         { children }
+                        <ToastContainer
+                            position='bottom-right' 
+                        />
                     <Footer />
                 </body>
             </UserProvider>

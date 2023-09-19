@@ -2,7 +2,11 @@ import { PrismaClient } from "@prisma/client";
 import { PrismaArtistInfo, PrismaArtistVerificationInfo, PrismaDeviceInfo, PrismaModel, PrismaPortfolioInfo, PrismaStoreItemInfo } from "./prisma-interface";
 import { PrismaCreateArtist, PrismaCreateArtistVerification, PrismaCreateDevice, PrismaCreatePortfolio, PrismaCreateStoreItem } from "./prisma-create";
 
-export const NemuPrismaClient = new PrismaClient();
+export var NemuPrismaClient: PrismaClient = new PrismaClient();
+
+export function InitializeNemuClient() {
+    NemuPrismaClient = new PrismaClient();
+}
 
 //////////////////////////////////////////
 // PrismaCreate
