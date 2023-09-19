@@ -8,6 +8,9 @@ import { ArrowRightOnRectangleIcon, ChartBarIcon, Cog6ToothIcon, EnvelopeIcon, P
 import classNames from "./classnames";
 
 export default function Artist() {
+
+    let artist_link = '/Test';
+
     return (
         <Menu as="div" className="relative inline-block text-left mt-5 ml-20">
             <div>
@@ -28,7 +31,7 @@ export default function Artist() {
                     <div className="py-2">
                         <Menu.Item>
                             {({ active }) => (
-                                <a href="/"
+                                <a href={artist_link}
                                 className={classNames(active ? 'bg-white text-charcoal' : 'text-charcoal', 'block px-5 py-2 text.sm')}>
                                     <PaintBrushIcon className="h-6 w-6 text-charcoal inline mr-5" />
                                     My Page                                            

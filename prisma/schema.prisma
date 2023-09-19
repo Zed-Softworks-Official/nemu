@@ -1,0 +1,60 @@
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "mongodb"
+    url      = env("DATABASE_URL")
+}
+
+model Portfolio {
+    id                  String          @id @default(auto()) @map("_id") @db.ObjectId
+    auth0id             String                  
+    image               String
+    name                String
+}
+
+model ArtistVerification {
+    id                  String          @id @default(auto()) @map("_id") @db.ObjectId
+    auth0id             String          @unique
+    requestedHandle     String          @unique
+    username            String
+    twitter             String
+    pixiv               String
+    location            String          
+}
+
+model Device {
+    id                  String          @id @default(auto()) @map("_id") @db.ObjectId
+    auth0id             String
+    browser             String
+    os                  String
+    platform            String
+    ip                  String
+    location            String
+    isDesktop           Boolean
+    isMobile            Boolean          
+}
+
+model Artist {
+    id                  String          @id @default(auto()) @map("_id") @db.ObjectId
+    auth0id             String
+    stripeAccId         String
+    handle              String          
+    about               String          @default("Peko Peko")
+    location            String          @default("Nemu's basement")
+    store               Boolean         @default(false)
+    twitter             String
+    pixiv               String
+    website             String
+    terms               String          @default("Pls Feed Nemu")
+    headerPhoto         String
+    profilePhoto        String
+}
+
+model StoreItem {
+    id                  String          @id @default(auto()) @map("_id") @db.ObjectId
+    auth0id             String
+    product             String
+    stripeAccId         String
+}

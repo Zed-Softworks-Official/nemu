@@ -1,8 +1,8 @@
 import './globals.css'
 import type { Metadata, } from 'next'
 
-import Navbar from '../components/Navigation/Navbar'
-import Footer from '../components/Footer'
+import Navbar from '@/components/Navigation/Navbar'
+import Footer from '@/components/Footer'
 import { UserProvider } from '@auth0/nextjs-auth0/client'
 
 export const metadata: Metadata = {
@@ -10,11 +10,7 @@ export const metadata: Metadata = {
     description: 'An Artists Best Friend',
 }
 
-export default function RootLayout({
-    children,
-} : {
-    children: React.ReactNode
-}) {
+export default function RootLayout({ children, } : { children: React.ReactNode }) {
     return (
         <html lang="en">
             <head>
@@ -24,7 +20,7 @@ export default function RootLayout({
             <UserProvider>
                 <body className='bg-white text-charcoal font-nunito container mx-auto'>
                     <Navbar />
-                    { children }
+                        { children }
                     <Footer />
                 </body>
             </UserProvider>
