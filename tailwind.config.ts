@@ -7,6 +7,13 @@ const config: Config = {
     './app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
+    colors: {
+      white: '#f3f3f3',
+      charcoal: '#333333',
+      primary: '#2185d5',
+      azure: '#1B72BA',
+      fullwhite: '#fff'
+    },
     extend: {
       fontFamily: {
         'nunito': ['nunito', 'sans']

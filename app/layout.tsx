@@ -2,6 +2,7 @@ import './globals.css'
 import type { Metadata, } from 'next'
 
 import Navbar from '../components/Navbar'
+import Footer from '../components/Footer'
 
 export const metadata: Metadata = {
     title: 'Nemu',
@@ -19,9 +20,10 @@ export default function RootLayout({
                 <link href="https://necolas.github.io/normalize.css/8.0.1/normalize.css" rel="stylesheet" />
                 <link rel="stylesheet" href="https://use.typekit.net/tru7say.css" />
             </head>
-            <body className='bg-slate'>
+            <body className='bg-white text-charcoal font-nunito container'>
                 <Navbar />
-                {children}
+                { children }
+                <Footer />
             </body>
         </html>
   )
