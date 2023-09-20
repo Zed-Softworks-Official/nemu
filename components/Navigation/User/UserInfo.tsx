@@ -4,6 +4,7 @@ import { getSession } from '@auth0/nextjs-auth0'
 
 import Artist from './Artist'
 import Standard from "./Standard";
+
 import prisma from "@/prisma/prisma";
 
 export default async function UserInfo() {
@@ -22,6 +23,6 @@ export default async function UserInfo() {
     }
 
     return (
-        <Artist artist_handle={artist_info?.handle!} />
+        <Artist artist_handle={artist_info!.handle!} />
     )
 }
