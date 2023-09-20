@@ -60,15 +60,15 @@ export default function ArtistProfileTabs() {
   return (
     <div className="w-[100rem] max-w-md px-2 sm:px-0 ">
       <Tab.Group>
-        <Tab.List className="flex space-x-1 rounded-xl shadow-sm p-1">
+        <Tab.List className="flex space-x-1 rounded-xl p-1">
           {Object.keys(categories).map((category) => (
             <Tab
               key={category}
               className={({ selected }) =>
                 classNames(
-                  'w-full rounded-lg py-2.5 ring-0 text-lg font-semibold leading-5 p-16 shadow-sm',
+                  'w-full rounded-lg py-2.5 ring-0 focus:ring-0 text-lg font-semibold leading-5 p-16',
                   selected
-                    ? 'bg-fullwhite shadow-sm'
+                    ? 'bg-fullwhite focus:ring-0'
                     : 'ring-0'
                 )
               }

@@ -5,11 +5,13 @@ import React, { Fragment } from "react";
 import { Menu, Transition } from "@headlessui/react";
 import { ArrowRightOnRectangleIcon, ChartBarIcon, Cog6ToothIcon, EnvelopeIcon, PaintBrushIcon, StarIcon, UserIcon } from "@heroicons/react/20/solid";
 
+import Link from "next/link";
+
 import classNames from "./classnames";
 
 export default function Artist({ artist_handle }: { artist_handle: string}) {
 
-    let artist_link = '/' + artist_handle;
+    let artist_link = '/@' + artist_handle;
 
     return (
         <Menu as="div" className="relative inline-block text-left mt-5 ml-20">
@@ -31,56 +33,58 @@ export default function Artist({ artist_handle }: { artist_handle: string}) {
                     <div className="py-2">
                         <Menu.Item>
                             {({ active }) => (
-                                <a href={artist_link}
+                                <Link href={artist_link} 
                                 className={classNames(active ? 'bg-white text-charcoal' : 'text-charcoal', 'block px-5 py-2 text.sm')}>
                                     <PaintBrushIcon className="h-6 w-6 text-charcoal inline mr-5" />
-                                    My Page                                            
-                                </a>
+                                    My Page  
+                                </Link>
                             )}
                         </Menu.Item>
                         <Menu.Item>
                             {({ active }) => (
-                                <a href="/dashboard"
+                                <Link href={"/dashboard"}
                                 className={classNames(active ? 'bg-white text-charcoal' : 'text-charcoal', 'block px-5 py-2 text.sm')}>
                                     <ChartBarIcon className="h-6 w-6 text-charcoal inline mr-5" />
-                                    Artist Dashboard                                           
-                                </a>
+                                    Artist Dashboard  
+                                </Link>
                             )}
                         </Menu.Item>
                         <Menu.Item>
                             {({ active }) => (
-                                <a href="/favourites"
-                                className={classNames(active ? 'bg-white text-charcoal' : 'text-charcoal', 'block px-5 py-2 text.sm')}>
+                                <Link href={"/favourites"}
+                                className={classNames(active ? 'bg-white text-charcoal' : 'text-charcoal', 'block px-5 py-2 text.sm')}
+                                >
                                     <StarIcon className="h-6 w-6 text-charcoal inline mr-5" />
-                                    Favourites                                           
-                                </a>
+                                    Favourites
+                                </Link>
                             )}
                         </Menu.Item>
                         <Menu.Item>
                             {({ active }) => (
-                                <a href="/"
-                                className={classNames(active ? 'bg-white text-charcoal' : 'text-charcoal', 'block px-5 py-2 text.sm')}>
+                                <Link href={"/"}
+                                className={classNames(active ? 'bg-white text-charcoal' : 'text-charcoal', 'block px-5 py-2 text.sm')}
+                                >
                                     <EnvelopeIcon className="h-6 w-6 text-charcoal inline mr-5" />
-                                    Messages                                           
-                                </a>
+                                    Messages 
+                                </Link>
                             )}
                         </Menu.Item>
                         <Menu.Item>
                             {({ active }) => (
-                                <a href="/dashboard/settings"
+                                <Link href={"/dashboard/settings"}
                                 className={classNames(active ? 'bg-white text-charcoal' : 'text-charcoal', 'block px-5 py-2 text.sm')}>
                                     <Cog6ToothIcon className="h-6 w-6 text-charcoal inline mr-5" />
-                                    Account Settings                                           
-                                </a>
+                                    Account Settings  
+                                </Link>
                             )}
                         </Menu.Item>
                         <Menu.Item>
                             {({ active }) => (
-                                <a href="/api/auth/logout"
+                                <Link href={"/api/auth/logout"}
                                 className={classNames(active ? 'bg-white text-charcoal' : 'text-charcoal', 'block px-5 py-2 text.sm')}>
                                     <ArrowRightOnRectangleIcon className="h-6 w-6 text-charcoal inline mr-5" />
-                                    Sign Out                                           
-                                </a>
+                                    Sign Out  
+                                </Link>
                             )}
                         </Menu.Item>
                     </div>

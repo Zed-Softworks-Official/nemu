@@ -8,21 +8,25 @@ import Standard from "./Standard";
 import prisma from "@/prisma/prisma";
 
 export default async function UserInfo() {
-    const { user } = await getSession();
+    const session = await getSession();
 
-    let artist_info = await prisma.artist.findFirst({
-        where: {
-            auth0id: user.sub
-        }
-    });
-
-    if (!user) {
+    if (!session) {
         return (
             <Standard />
         )
     }
 
+    let user = session.user!;
+    console.log(user);
+
+
+    // let artist_info = await prisma.artist.findFirst({
+    //     where: {
+    //         auth0id: user.sub
+    //     }
+    // });
+
     return (
-        <Artist artist_handle={artist_info!.handle!} />
+        <Artist artist_handle={session['user'].handle} />
     )
 }
