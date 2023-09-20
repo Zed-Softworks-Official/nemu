@@ -3,7 +3,7 @@ import React  from "react";
 import { getSession } from '@auth0/nextjs-auth0'
 
 import Artist from './Artist'
-import Standard from "./Standard";
+import SignedOut from "./SignedOut";
 
 import prisma from "@/prisma/prisma";
 
@@ -12,21 +12,17 @@ export default async function UserInfo() {
 
     if (!session) {
         return (
-            <Standard />
+            <SignedOut />
         )
     }
 
-    let user = session.user!;
-    console.log(user);
-
-
-    // let artist_info = await prisma.artist.findFirst({
-    //     where: {
-    //         auth0id: user.sub
-    //     }
-    // });
+    let artist_info = await prisma.artist.findFirst({
+        where: {
+            auth0id: session.user!.sub!
+        }
+    });
 
     return (
-        <Artist artist_handle={session['user'].handle} />
+        <Artist artist_handle={artist_info!.handle} />
     )
 }

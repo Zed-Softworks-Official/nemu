@@ -14,7 +14,7 @@ export default function Artist({ artist_handle }: { artist_handle: string}) {
     let artist_link = '/@' + artist_handle;
 
     return (
-        <Menu as="div" className="relative inline-block text-left mt-5 ml-20">
+        <Menu as="div" className="relative inline-block text-left mt-3 ml-20">
             <div>
                 <Menu.Button className="inline-flex w-full justify-center gap-x-1.5 rounded-md bg-white font-semibold">
                     <UserIcon className="h-6 w-6 text-black"/>
@@ -29,7 +29,7 @@ export default function Artist({ artist_handle }: { artist_handle: string}) {
                 leaveFrom="transform opacity-100 scale-100"
                 leaveTo="transform opacity-0 scale-95"
             >
-                <Menu.Items className="absolute right-0 z-10 mt-10 w-56 scale-0 origin-top rounded-md bg-fullwhite shadow-lg focus:outline-none">
+                <Menu.Items className="absolute right-0 z-10 mt-5 w-56 scale-0 origin-top rounded-md bg-fullwhite shadow-lg focus:outline-none">
                     <div className="py-2">
                         <Menu.Item>
                             {({ active }) => (
