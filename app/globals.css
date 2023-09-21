@@ -13,3 +13,9 @@
 .searchbar-button {
     @apply relative right-0 bg-gradient-to-r from-azure to-primary text-white p-5 rounded-l-none rounded-xl
 }
+
+.social-icon-scaled {
+    @apply mx-2;
+    width: 35px !important;
+    height: 35px !important;
+}
