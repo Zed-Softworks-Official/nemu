@@ -5,7 +5,7 @@ import useSWR from "swr";
 import Image from "next/image"
 import ArtistProfileTabs from "@/components/ArtistPage/Tabs";
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json())
+const fetcher = (...args: Parameters<typeof fetch>) => fetch(...args).then((res) => res.json())
 
 export default function ArtistHeader({handle, id}: {handle: string, id: string}) {
     const { data, error } = useSWR('/api/user/info/' + id, fetcher)
