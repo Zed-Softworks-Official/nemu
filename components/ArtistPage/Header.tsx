@@ -7,8 +7,8 @@ import ArtistProfileTabs from "@/components/ArtistPage/Tabs";
 
 const fetcher = (...args) => fetch(...args).then((res) => res.json())
 
-export default function ArtistHeader({handle}: {handle: string}) {
-    const { data, error } = useSWR('/api/user/info/' + handle, fetcher)
+export default function ArtistHeader({handle, id}: {handle: string, id: string}) {
+    const { data, error } = useSWR('/api/user/info/' + id, fetcher)
 
     return  (
         <div className="container mx-auto">
@@ -20,7 +20,7 @@ export default function ArtistHeader({handle}: {handle: string}) {
                         <Image src="/2eb4f4a30934c1948546215fd138f7de.png" alt="Profile Photo" width={100} height={100} className="rounded-3xl ml-10 inline-flex" />
                         <div className="text-left mt-3 px-10">
                             <h2 className="pb-2 font-bold text-2xl">@{handle}</h2>
-                            <h3 className="text-lg">{data.message}</h3>
+                            <h3 className="text-lg">{data.username}</h3>
                         </div>
                     </div>
                     <div className="absolute end-0 top-20 right-60">

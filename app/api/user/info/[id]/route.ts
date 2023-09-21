@@ -1,5 +1,7 @@
-import { NextResponse, NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 
-export function GET(req: NextRequest, res: NextResponse) {
-    return NextResponse.json({message: "Hello, World!"});
+import { GetUser } from "@/helpers/auth0";
+
+export async function GET(req: Request, { params }: { params: { id: string }}) {
+    return NextResponse.json({ username: (await GetUser(params.id)).username });
 }

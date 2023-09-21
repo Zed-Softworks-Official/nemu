@@ -33,6 +33,6 @@ export default async function ArtistPage({params}: { params: { handle: string}})
     // Pass data somehow
 
     return (
-        <ArtistHeader handle={handle} />
+        <ArtistHeader handle={handle} id={artist_info!.auth0id!} />
     )
 }
