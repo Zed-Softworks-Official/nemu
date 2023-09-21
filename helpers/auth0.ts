@@ -1,4 +1,7 @@
 
+//////////////////////////////////////////
+// Get Access Token from Auth0
+//////////////////////////////////////////
 export var GetAccessToken = async () => {
     let accessToken = await fetch(process.env.AUTH0_ISSUER_BASE_URL + '/oauth/token', {
         method: 'POST',
@@ -18,7 +21,9 @@ export var GetAccessToken = async () => {
 }
 
 
-
+//////////////////////////////////////////
+// Get User Data from Auth0
+//////////////////////////////////////////
 export var GetUser = async (user_id: string) => {
     let user = await fetch (process.env.AUTH0_ISSUER_BASE_URL + '/api/v2/users/' + user_id, {
         headers: {
