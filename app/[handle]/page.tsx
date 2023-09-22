@@ -8,7 +8,6 @@ import ArtistHeader from "@/components/ArtistPage/Header";
 import ArtistBody from "@/components/ArtistPage/Body";
 
 export var metadata: Metadata = {
-    title: 'Nemu | @',
     description: 'An Artists Best Friend',
 }
 
@@ -18,7 +17,7 @@ export default async function ArtistPage({params}: { params: { handle: string}})
     let handle = params.handle.substring(3, params.handle.length + 1);
 
     // Set handle to part of the title
-    metadata.title += handle;
+    metadata.title = 'Nemu | @' + handle;
 
     // Get the artist from the handle
     let artist_info = await prisma.artist.findFirst({
