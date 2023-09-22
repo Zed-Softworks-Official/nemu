@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Tab } from '@headlessui/react'
 
-import classNames from '../Navigation/User/classnames'
+import classNames from '@/helpers/classnames'
 
 export default function ArtistProfileTabs() {
   let [categories] = useState([

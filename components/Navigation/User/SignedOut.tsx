@@ -5,7 +5,7 @@ import React, { Fragment }  from "react";
 import { Menu, Transition } from "@headlessui/react";
 import { ArrowLeftOnRectangleIcon, UserIcon } from "@heroicons/react/20/solid";
 
-import classNames from "./classnames";
+import classNames from "@/helpers/classnames";
 
 export default function SignedOut() {
     return (

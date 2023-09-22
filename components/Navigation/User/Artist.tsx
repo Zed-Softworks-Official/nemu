@@ -7,7 +7,7 @@ import { ArrowRightOnRectangleIcon, ChartBarIcon, Cog6ToothIcon, EnvelopeIcon, P
 
 import Link from "next/link";
 
-import classNames from "./classnames";
+import classNames from "../../../helpers/classnames";
 
 export default function Artist({ artist_handle }: { artist_handle: string}) {
 

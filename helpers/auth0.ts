@@ -20,7 +20,6 @@ export var GetAccessToken = async () => {
     return data.token_type + ' ' + data.access_token;
 }
 
-
 //////////////////////////////////////////
 // Get User Data from Auth0
 //////////////////////////////////////////

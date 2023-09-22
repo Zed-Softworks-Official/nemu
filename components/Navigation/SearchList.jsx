@@ -4,7 +4,7 @@ import { useState, Fragment } from "react";
 import { Listbox, Transition } from "@headlessui/react";
 import { ChevronDownIcon } from "@heroicons/react/20/solid";
 
-import classNames from "./User/classnames";
+import classNames from "@/helpers/classnames";
 
 const options = [
     {id: 1, name: 'Artists', unavailable: false },
