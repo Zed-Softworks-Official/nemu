@@ -32,15 +32,7 @@ export default function ArtistBody({artist_info}: {artist_info: PrismaArtistInfo
             <div className="bg-fullwhite p-10 rounded-3xl col-span-9">
                 <h1 className="font-bold text-2xl">Portfolio</h1>
                 <Suspense fallback={<Loading />}>
-                    <div className="columns-1 md:columns-2 lg:columns-3 xl:columns-4">
-                        {data?.portfolio_items.map((item: PortfolioItem) => {
-                        (
-                            <div className="w-fit h-fit m-5">
-                                <img src={item.signed_url} alt={item.name} className="rounded-3xl" />
-                            </div>
-                        )
-                        })}
-                    </div>
+                    <Portfolio handle={artist_info.handle} id={artist_info.auth0id} />
                 </Suspense>
             </div>
         </div>
