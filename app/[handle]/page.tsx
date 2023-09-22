@@ -20,8 +20,6 @@ export default async function ArtistPage({params}: { params: { handle: string}})
     // Set handle to part of the title
     metadata.title += handle;
 
-    console.log(handle);
-
     // Get the artist from the handle
     let artist_info = await prisma.artist.findFirst({
         where: {

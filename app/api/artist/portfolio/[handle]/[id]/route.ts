@@ -14,13 +14,13 @@ export async function GET(req: Request, { params }: { params: { handle: string, 
     });
 
     let items: PortfolioItem[] = [];
-    // for (let i = 0; i < portfolio.length; i++) {
-    //     let url = await S3GetSignedURL(params.handle, AWSLocations.Portfolio, portfolio[i].image);
-    //     items.push({
-    //         signed_url: url,
-    //         name: portfolio[i].name
-    //     });
-    // }
+    for (let i = 0; i < portfolio.length; i++) {
+        let url = await S3GetSignedURL(params.handle, AWSLocations.Portfolio, portfolio[i].image);
+        items.push({
+            signed_url: url,
+            name: portfolio[i].name
+        });
+    }
     
     return NextResponse.json({portfolio_items: items});
 }

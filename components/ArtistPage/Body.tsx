@@ -30,7 +30,7 @@ export default function ArtistBody({artist_info}: {artist_info: PrismaArtistInfo
             </div>
             <div className="bg-fullwhite p-10 rounded-3xl col-span-9">
                 <h1 className="font-bold text-2xl">Portfolio</h1>
-                
+                <img src={data?.portfolio_items[0]?.signed_url} alt="test image" className="rounded-3xl" />
             </div>
         </div>
     )
