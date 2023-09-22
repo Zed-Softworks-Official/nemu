@@ -11,7 +11,7 @@ import { PortfolioItem } from "@/helpers/portfolio";
 import Image from "next/image";
 
 export default function ArtistBody({artist_info}: {artist_info: PrismaArtistInfo}) {
-    let { data } = useSWR('/api/artist/portfolio/' + artist_info.handle + '/' + artist_info.auth0id, fetcher);
+    //let { data } = useSWR('/api/artist/portfolio/' + artist_info.handle + '/' + artist_info.auth0id, fetcher);
 
     return (
         <div className="grid grid-cols-12 gap-10 xl:max-w-[85%] mx-auto mt-36">
@@ -30,7 +30,50 @@ export default function ArtistBody({artist_info}: {artist_info: PrismaArtistInfo
             </div>
             <div className="bg-fullwhite p-10 rounded-3xl col-span-9">
                 <h1 className="font-bold text-2xl">Portfolio</h1>
-                <img src={data?.portfolio_items[0]?.signed_url} alt="test image" className="rounded-3xl" />
+                {/* {data?.portfolio_items.map((item: PortfolioItem) => {
+                    (<img src={item?.signed_url} alt="test image" className="rounded-3xl" />)
+                })} */}
+                <div className="columns-1 md:columns-2 lg:columns-3 xl:columns-4">
+                    <div className="w-fit h-fit m-5">
+                        <img src="1.png" className="rounded-3xl"/>
+                    </div>
+                    <div className="w-fit h-fit m-5">
+                        <img src="2.png" className="rounded-3xl"/>
+                    </div>
+                    <div className="w-fit h-fit m-5">
+                        <img src="3.png" className="rounded-3xl"/>
+                    </div> 
+                    <div className="w-fit h-fit m-5">
+                        <img src="4.png" className="rounded-3xl"/>
+                    </div>
+                    <div className="w-fit h-fit m-5">
+                        <img src="5.png" className="rounded-3xl"/>
+                    </div>
+                    <div className="w-fit  h-fit m-5">
+                        <img src="6.png" className="rounded-3xl"/>
+                    </div>
+                    <div className="w-fit h-fit m-5">
+                        <img src="6.png" className="rounded-3xl"/>
+                    </div>
+                    <div className="w-fit h-fit m-5">
+                        <img src="5.png" className="rounded-3xl"/>
+                    </div>
+                    <div className="w-fit h-fit m-5">
+                        <img src="4.png" className="rounded-3xl"/>
+                    </div> 
+                    <div className="w-fit h-fit m-5">
+                        <img src="3.png" className="rounded-3xl"/>
+                    </div>
+                    <div className="w-fit h-fit m-5">
+                        <img src="2.png" className="rounded-3xl"/>
+                    </div>
+                    <div className="w-fit  h-fit m-5">
+                        <img src="1.png" className="rounded-3xl"/>
+                    </div>
+                    
+                </div>
+
+
             </div>
         </div>
     )
