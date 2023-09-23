@@ -7,7 +7,7 @@
 }
 
 .searchbar {
-    @apply bg-fullwhite border-white py-5 w-full font-semibold pl-4;
+    @apply bg-fullwhite border-primary py-5 w-full font-semibold pl-4 dark:bg-fullblack;
 }
 
 .searchbar-button {

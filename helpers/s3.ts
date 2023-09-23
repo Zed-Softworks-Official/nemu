@@ -10,11 +10,11 @@ const client = new S3Client({ region: 'us-west-1' });
 ///////////////////////////////
 export enum AWSLocations {
     Default,
-    Profile,
     Portfolio,
+    Commission,
+    Profile,
     Store,
-    StoreDownload,
-    Commission
+    StoreDownload
 }
 
 var AWSLocationEnumToString = (location: AWSLocations) => {
@@ -24,7 +24,7 @@ var AWSLocationEnumToString = (location: AWSLocations) => {
         case AWSLocations.Portfolio:
             return 'Portfolio';
         case AWSLocations.Commission:
-            return 'Store';
+            return 'Commission';
         case AWSLocations.Profile:
             return 'Profile';
         case AWSLocations.Store:
@@ -32,6 +32,26 @@ var AWSLocationEnumToString = (location: AWSLocations) => {
         case AWSLocations.StoreDownload:
             return 'StoreDownload';
     }
+}
+
+export var StringToAWSLocationsEnum = (location: string) => {
+    location = location.toLocaleLowerCase();
+    switch (location) {
+        case 'default':
+            return AWSLocations.Default;
+        case 'portfolio':
+            return AWSLocations.Portfolio;
+        case 'commission':
+            return AWSLocations.Commission;
+        case 'profile':
+            return AWSLocations.Profile;
+        case 'store':
+            return AWSLocations.Store;
+        case 'storedownload':
+            return AWSLocations.StoreDownload;
+    }
+
+    return AWSLocations.Default;
 }
 
 

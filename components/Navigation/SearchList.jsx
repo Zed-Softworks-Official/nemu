@@ -21,7 +21,7 @@ export default function SearchListBox() {
       {({ open }) => (
         <>
           <div className="relative">
-            <Listbox.Button className="relative w-full cursor-default rounded-md rounded-r-none bg-fullwhite py-5 pr-16 pl-3 text-left text-charcoal focus:outline-none focus:ring-2 sm:text-sm sm:leading-6">
+            <Listbox.Button className="relative w-full cursor-default rounded-md rounded-r-none bg-fullwhite py-5 pr-16 pl-3 text-left text-charcoal focus:outline-none focus:ring-2 sm:text-sm sm:leading-6 dark:bg-fullblack dark:text-white">
               <span className="flex items-center">
                 <span className="ml-3 block truncate font-bold">{selected.name}</span>
               </span>
@@ -37,13 +37,13 @@ export default function SearchListBox() {
               leaveFrom="opacity-100"
               leaveTo="opacity-0"
             >
-              <Listbox.Options className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-md bg-fullwhite py-5 ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+              <Listbox.Options className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-md bg-fullwhite dark:bg-fullblack dark:text-white py-5 ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
                 {options.map((person) => (
                   <Listbox.Option
                     key={person.id}
                     className={({ active }) =>
                       classNames(
-                        active ? 'bg-indigo-600 text-primary' : 'text-charcoal',
+                        active ? 'bg-indigo-600 text-primary' : 'text-charcoal dark:text-white',
                         'relative cursor-default select-none py-2 pl-3 pr-2'
                       )
                     }

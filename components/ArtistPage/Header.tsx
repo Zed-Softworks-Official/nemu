@@ -15,7 +15,7 @@ export default function ArtistHeader({handle, id}: {handle: string, id: string})
             <div className="mx-auto xl:max-w-[85%] lg:max-w-[100rem] h-96 bg-[url('/curved0.jpg')] rounded-3xl bg-no-repeat bg-center bg-cover">
             </div>
             <div className="mx-20">
-                <div className="mx-auto xl:max-w-[84%] lg:max-w-[90rem] -my-28 py-14 backdrop-blur-xl bg-fullwhite/60 shadow-lg rounded-3xl px-10">
+                <div className="mx-auto xl:max-w-[84%] lg:max-w-[90rem] -my-28 py-14 backdrop-blur-xl bg-fullwhite/60 dark:bg-fullblack/60 shadow-lg rounded-3xl px-10">
                     <div className="flex justify-start">
                         <Image src="/2eb4f4a30934c1948546215fd138f7de.png" alt="Profile Photo" width={100} height={100} className="rounded-3xl ml-10 inline-flex" />
                         <div className="text-left mt-3 px-10">

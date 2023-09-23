@@ -22,7 +22,7 @@ export default function RootLayout({ children, } : { children: React.ReactNode }
                 <link rel="stylesheet" href="https://use.typekit.net/tru7say.css" />
             </head>
             <UserProvider>
-                <body className='bg-white text-charcoal font-nunito'>
+                <body className='bg-white text-charcoal font-nunito dark:bg-charcoal dark:text-white'>
                     <Navbar />
                         { children }
                         <ToastContainer

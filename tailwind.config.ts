@@ -13,7 +13,8 @@ const config: Config = {
       primarylight: '#0e90f9',
       primary: '#2185d5',
       azure: '#1B72BA',
-      fullwhite: '#fff'
+      fullwhite: '#fff',
+      fullblack: '#262626'
     },
     extend: {
       fontFamily: {
@@ -21,6 +22,7 @@ const config: Config = {
       }
     },
   },
+  darkMode: 'class',
   plugins: [],
 }
 export default config

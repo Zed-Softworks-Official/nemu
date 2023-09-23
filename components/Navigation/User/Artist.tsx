@@ -16,7 +16,7 @@ export default function Artist({ artist_handle }: { artist_handle: string}) {
     return (
         <Menu as="div" className="relative inline-block text-left mt-3 ml-20">
             <div>
-                <Menu.Button className="inline-flex w-full justify-center gap-x-1.5 rounded-md bg-white font-semibold">
+                <Menu.Button className="inline-flex w-full justify-center gap-x-1.5 rounded-md bg-white dark:bg-charcoal font-semibold">
                     <UserIcon className="h-6 w-6 text-black"/>
                 </Menu.Button>
             </div>
@@ -29,13 +29,13 @@ export default function Artist({ artist_handle }: { artist_handle: string}) {
                 leaveFrom="transform opacity-100 scale-100"
                 leaveTo="transform opacity-0 scale-95"
             >
-                <Menu.Items className="absolute right-0 z-10 mt-5 w-56 scale-0 origin-top rounded-md bg-fullwhite shadow-lg focus:outline-none">
+                <Menu.Items className="absolute right-0 z-10 mt-5 w-56 scale-0 origin-top rounded-md bg-fullwhite dark:bg-fullblack shadow-lg focus:outline-none">
                     <div className="py-2">
                         <Menu.Item>
                             {({ active }) => (
                                 <Link href={artist_link} 
-                                className={classNames(active ? 'bg-white text-charcoal' : 'text-charcoal', 'block px-5 py-2 text.sm')}>
-                                    <PaintBrushIcon className="h-6 w-6 text-charcoal inline mr-5" />
+                                className={classNames(active ? 'bg-white text-charcoal dark:bg-charcoal dark:text-white' : 'text-charcoal dark:text-white', 'block px-5 py-2 text.sm')}>
+                                    <PaintBrushIcon className="h-6 w-6 text-charcoal dark:text-white inline mr-5" />
                                     My Page  
                                 </Link>
                             )}
@@ -43,8 +43,8 @@ export default function Artist({ artist_handle }: { artist_handle: string}) {
                         <Menu.Item>
                             {({ active }) => (
                                 <Link href={"/dashboard"}
-                                className={classNames(active ? 'bg-white text-charcoal' : 'text-charcoal', 'block px-5 py-2 text.sm')}>
-                                    <ChartBarIcon className="h-6 w-6 text-charcoal inline mr-5" />
+                                className={classNames(active ? 'bg-white text-charcoal dark:bg-charcoal dark:text-white' : 'text-charcoal dark:text-white', 'block px-5 py-2 text.sm')}>
+                                    <ChartBarIcon className="h-6 w-6 text-charcoal dark:text-white inline mr-5" />
                                     Artist Dashboard  
                                 </Link>
                             )}
@@ -52,9 +52,9 @@ export default function Artist({ artist_handle }: { artist_handle: string}) {
                         <Menu.Item>
                             {({ active }) => (
                                 <Link href={"/favourites"}
-                                className={classNames(active ? 'bg-white text-charcoal' : 'text-charcoal', 'block px-5 py-2 text.sm')}
+                                className={classNames(active ? 'bg-white text-charcoal dark:bg-charcoal dark:text-white' : 'text-charcoal dark:text-white', 'block px-5 py-2 text.sm')}
                                 >
-                                    <StarIcon className="h-6 w-6 text-charcoal inline mr-5" />
+                                    <StarIcon className="h-6 w-6 text-charcoal dark:text-white inline mr-5" />
                                     Favourites
                                 </Link>
                             )}
@@ -62,9 +62,9 @@ export default function Artist({ artist_handle }: { artist_handle: string}) {
                         <Menu.Item>
                             {({ active }) => (
                                 <Link href={"/"}
-                                className={classNames(active ? 'bg-white text-charcoal' : 'text-charcoal', 'block px-5 py-2 text.sm')}
+                                className={classNames(active ? 'bg-white text-charcoal dark:bg-charcoal dark:text-white' : 'text-charcoal dark:text-white', 'block px-5 py-2 text.sm')}
                                 >
-                                    <EnvelopeIcon className="h-6 w-6 text-charcoal inline mr-5" />
+                                    <EnvelopeIcon className="h-6 w-6 text-charcoal dark:text-white inline mr-5" />
                                     Messages 
                                 </Link>
                             )}
@@ -72,8 +72,8 @@ export default function Artist({ artist_handle }: { artist_handle: string}) {
                         <Menu.Item>
                             {({ active }) => (
                                 <Link href={"/dashboard/settings"}
-                                className={classNames(active ? 'bg-white text-charcoal' : 'text-charcoal', 'block px-5 py-2 text.sm')}>
-                                    <Cog6ToothIcon className="h-6 w-6 text-charcoal inline mr-5" />
+                                className={classNames(active ? 'bg-white text-charcoal dark:bg-charcoal dark:text-white' : 'text-charcoal dark:text-white', 'block px-5 py-2 text.sm')}>
+                                    <Cog6ToothIcon className="h-6 w-6 text-charcoal dark:text-white inline mr-5" />
                                     Account Settings  
                                 </Link>
                             )}
@@ -81,8 +81,8 @@ export default function Artist({ artist_handle }: { artist_handle: string}) {
                         <Menu.Item>
                             {({ active }) => (
                                 <Link href={"/api/auth/logout"}
-                                className={classNames(active ? 'bg-white text-charcoal' : 'text-charcoal', 'block px-5 py-2 text.sm')}>
-                                    <ArrowRightOnRectangleIcon className="h-6 w-6 text-charcoal inline mr-5" />
+                                className={classNames(active ? 'bg-white text-charcoal dark:bg-charcoal dark:text-white' : 'text-charcoal dark:text-white', 'block px-5 py-2 text.sm')}>
+                                    <ArrowRightOnRectangleIcon className="h-6 w-6 text-charcoal dark:text-white inline mr-5" />
                                     Sign Out  
                                 </Link>
                             )}
