@@ -1,8 +1,11 @@
+import DefaultPageLayout from "./(default)/layout";
 
 export default function Home() {
     return (
-        <main className='flex-wrap'>
-            <h1>Hello, World!</h1>
-        </main>
+        <DefaultPageLayout>
+            <main className='flex-wrap'>
+                <h1>Hello, World!</h1>
+            </main>
+        </DefaultPageLayout>
   )
 }

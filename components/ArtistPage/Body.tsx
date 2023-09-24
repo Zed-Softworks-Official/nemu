@@ -44,13 +44,13 @@ export default function ArtistBody({artist_info}: {artist_info: PrismaArtistInfo
             <div className="bg-fullwhite dark:bg-fullblack p-10 rounded-3xl col-span-3 text-center">
                 <h1 className="font-bold text-2xl text-center">About</h1>
                 <p>{artist_info.about}</p>
-                <hr className="w-48 h-1 mx-auto my-4 bg-charcoal dark:bg-white border-0 rounded md:my-10"/>
+                <hr className="seperation"/>
                 <div className="my-10">
                     <SocialIcon url="https://twitter.com/JackSchitt404" className="social-icon-scaled"/>
                     <SocialIcon url="https://www.pixiv.net/en/users/29694453" className="social-icon-scaled"/>
                 </div>
                 <p>Location: {artist_info.location}</p>
-                <hr className="w-48 h-1 mx-auto my-4 bg-charcoal dark:bg-white border-0 rounded md:my-10"/>
+                <hr className="seperation"/>
                 <h1 className="font-bold text-2xl text-center">Commission Terms</h1>
                 <p>{artist_info.terms}</p>
             </div>

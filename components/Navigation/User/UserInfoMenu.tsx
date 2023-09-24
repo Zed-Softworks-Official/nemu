@@ -9,57 +9,64 @@ import { UserInfoIcon, UserInfoLink, UserInfoObject } from '@/helpers/userinfo-l
 
 import classNames from "@/helpers/classnames";
 
-function GetCurrentNavbarItems(session: boolean, artist: boolean, artist_handle: string | undefined) {
-    // Check if we have a session
-    if (session) {
-        // If we're not an artist then we're a standard user
-        if (!artist) {
-            return UserInfoObject.Standard;
-        }
-
-        let infoObject = UserInfoObject.Artist
-        infoObject[0].path = `/@${artist_handle}`;
-
-        return infoObject;
-    }
-
-    return UserInfoObject.SignedOut;
-}
-
-function ConvertUserIconEnumToReactDOM(icon: UserInfoIcon) {
-    switch (icon) {
-        case UserInfoIcon.Page:
-            return (
-                <PaintBrushIcon className="user-menu-item-icon" />
-            );
-        case UserInfoIcon.Dashboard:
-            return (
-                <ChartBarIcon className="user-menu-item-icon" />
-            );
-        case UserInfoIcon.Favourite:
-            return (
-                <StarIcon className="user-menu-item-icon" />
-            );
-        case UserInfoIcon.Messages:
-            return (
-                <EnvelopeIcon className="user-menu-item-icon" />
-            );
-        case UserInfoIcon.Settings:
-            return (
-                <Cog6ToothIcon className="user-menu-item-icon" />
-            );
-        case UserInfoIcon.SignIn:
-            return (
-                <ArrowLeftOnRectangleIcon className="user-menu-item-icon" />
-            );
-        case UserInfoIcon.SignOut:
-            return (
-                <ArrowRightOnRectangleIcon className="user-menu-item-icon" />
-            );
-    }
-}
-
 export default function UserInfoMenu({ session, artist, artist_handle } : { session: boolean, artist: boolean, artist_handle: string | undefined}) {
+    /////////////////////////////////
+    // Get the correct Navbar items
+    /////////////////////////////////
+    function GetCurrentNavbarItems(session: boolean, artist: boolean, artist_handle: string | undefined) {
+        // Check if we have a session
+        if (session) {
+            // If we're not an artist then we're a standard user
+            if (!artist) {
+                return UserInfoObject.Standard;
+            }
+    
+            let infoObject = UserInfoObject.Artist
+            infoObject[0].path = `/@${artist_handle}`;
+    
+            return infoObject;
+        }
+    
+        return UserInfoObject.SignedOut;
+    }
+    
+    /////////////////////////////////
+    // Convert Enum to Component
+    /////////////////////////////////
+    function ConvertUserIconEnumToReactDOM(icon: UserInfoIcon) {
+        switch (icon) {
+            case UserInfoIcon.Page:
+                return (
+                    <PaintBrushIcon className="user-menu-item-icon" />
+                );
+            case UserInfoIcon.Dashboard:
+                return (
+                    <ChartBarIcon className="user-menu-item-icon" />
+                );
+            case UserInfoIcon.Favourite:
+                return (
+                    <StarIcon className="user-menu-item-icon" />
+                );
+            case UserInfoIcon.Messages:
+                return (
+                    <EnvelopeIcon className="user-menu-item-icon" />
+                );
+            case UserInfoIcon.Settings:
+                return (
+                    <Cog6ToothIcon className="user-menu-item-icon" />
+                );
+            case UserInfoIcon.SignIn:
+                return (
+                    <ArrowLeftOnRectangleIcon className="user-menu-item-icon" />
+                );
+            case UserInfoIcon.SignOut:
+                return (
+                    <ArrowRightOnRectangleIcon className="user-menu-item-icon" />
+                );
+        }
+    }
+
+    // initialize the navbar items
     let navbar_items: UserInfoLink[] = GetCurrentNavbarItems(session, artist, artist_handle);
 
     return (
@@ -81,7 +88,7 @@ export default function UserInfoMenu({ session, artist, artist_handle } : { sess
                 <Menu.Items className="absolute right-0 z-10 mt-5 w-56 scale-0 origin-top rounded-md bg-fullwhite dark:bg-fullblack shadow-lg focus:outline-none">
                     <div className="py-2">
                         {navbar_items.map((item: UserInfoLink) => {
-                            return (<Menu.Item>
+                            return (<Menu.Item key={item.title}>
                                 {({ active }) => (
                                     <Link href={item.path} 
                                     className={classNames(active ? 'bg-white text-charcoal dark:bg-charcoal dark:text-white' : 'text-charcoal dark:text-white', 'block px-5 py-2 text-sm')}>

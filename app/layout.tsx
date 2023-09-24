@@ -1,7 +1,6 @@
 import './globals.css'
 import type { Metadata, } from 'next'
 
-import Navbar from '@/components/Navigation/Navbar'
 import Footer from '@/components/Footer'
 
 import { UserProvider } from '@auth0/nextjs-auth0/client'
@@ -23,11 +22,8 @@ export default function RootLayout({ children, } : { children: React.ReactNode }
             </head>
             <UserProvider>
                 <body className='bg-white text-charcoal font-nunito dark:bg-charcoal dark:text-white'>
-                    <Navbar />
-                        { children }
-                        <ToastContainer
-                            position='bottom-right' 
-                        />
+                    { children }
+                    <ToastContainer position='bottom-right' />
                     <Footer />
                 </body>
             </UserProvider>

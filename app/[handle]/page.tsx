@@ -7,6 +7,7 @@ import { PrismaClient } from "@prisma/client";
 import { TabsProvider } from "@/components/ArtistPage/TabsContext";
 import ArtistHeader from "@/components/ArtistPage/Header";
 import ArtistBody from "@/components/ArtistPage/Body";
+import DefaultPageLayout from "../(default)/layout";
 
 export var metadata: Metadata = {
     description: 'An Artists Best Friend',
@@ -41,11 +42,11 @@ export default async function ArtistPage({params}: { params: { handle: string}})
 
     // Render View
     return (
-        <div>
+        <DefaultPageLayout>
             <TabsProvider>
                 <ArtistHeader handle={handle} id={artist_info!.auth0id!} />
                 <ArtistBody artist_info={artist_info} />
             </TabsProvider>
-        </div>
+        </DefaultPageLayout>
     )
 }
