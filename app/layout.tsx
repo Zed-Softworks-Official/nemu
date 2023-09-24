@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children, } : { children: React.ReactNode }) {
     return (
-        <html lang="en">
+        <html lang="en" className='dark'>
             <head>
                 <link href="https://necolas.github.io/normalize.css/8.0.1/normalize.css" rel="stylesheet" />
                 <link rel="stylesheet" href="https://use.typekit.net/tru7say.css" />

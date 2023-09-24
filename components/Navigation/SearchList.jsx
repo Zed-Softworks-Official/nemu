@@ -26,7 +26,7 @@ export default function SearchListBox() {
                 <span className="ml-3 block truncate font-bold">{selected.name}</span>
               </span>
               <span className="pointer-events-none absolute inset-y-0 right-0 ml-3 flex items-center pr-2">
-                <ChevronDownIcon className="h-5 w-5 text-charcoal" aria-hidden="true" />
+                <ChevronDownIcon className="h-5 w-5 text-charcoal dark:text-white" aria-hidden="true" />
               </span>
             </Listbox.Button>
 

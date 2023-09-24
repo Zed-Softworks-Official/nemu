@@ -19,3 +19,7 @@
     width: 35px !important;
     height: 35px !important;
 }
+
+.user-menu-item-icon {
+    @apply h-6 w-6 text-charcoal dark:text-white inline mr-5;
+}
