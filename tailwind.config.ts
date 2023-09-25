@@ -14,7 +14,8 @@ const config: Config = {
       primary: '#2185d5',
       azure: '#1B72BA',
       fullwhite: '#fff',
-      fullblack: '#262626'
+      fullblack: '#262626',
+      error: '#d82750'
     },
     extend: {
       fontFamily: {

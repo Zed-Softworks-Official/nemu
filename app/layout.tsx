@@ -14,6 +14,7 @@ export const metadata: Metadata = {
 }
 
 export default function RootLayout({ children, } : { children: React.ReactNode }) {
+
     return (
         <html lang="en" className='dark'>
             <head>
@@ -23,7 +24,7 @@ export default function RootLayout({ children, } : { children: React.ReactNode }
             <UserProvider>
                 <body className='bg-white text-charcoal font-nunito dark:bg-charcoal dark:text-white'>
                     { children }
-                    <ToastContainer position='bottom-right' />
+                    <ToastContainer position='top-right' />
                     <Footer />
                 </body>
             </UserProvider>

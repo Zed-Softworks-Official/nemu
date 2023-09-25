@@ -1,12 +1,13 @@
 import React from 'react';
 
 import Navbar from '@/components/Navigation/Standard/Navbar';
+import StandardLayoutBody from '@/components/StandardLayoutBody';
 
 export default function DefaultPageLayout({ children, } : { children: React.ReactNode }) {
     return (
-        <div>
+        <StandardLayoutBody>
             <Navbar />
             { children }
-        </div>
+        </StandardLayoutBody>
   )
 }

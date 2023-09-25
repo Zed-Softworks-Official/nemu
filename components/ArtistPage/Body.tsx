@@ -46,8 +46,8 @@ export default function ArtistBody({artist_info}: {artist_info: PrismaArtistInfo
                 <p>{artist_info.about}</p>
                 <hr className="seperation"/>
                 <div className="my-10">
-                    <SocialIcon url="https://twitter.com/JackSchitt404" className="social-icon-scaled"/>
-                    <SocialIcon url="https://www.pixiv.net/en/users/29694453" className="social-icon-scaled"/>
+                    <SocialIcon url="https://twitter.com/JackSchitt404" className="social-icon-scaled" target="_blank"/>
+                    <SocialIcon url="https://www.pixiv.net/en/users/29694453" className="social-icon-scaled" target="_blank"/>
                 </div>
                 <p>Location: {artist_info.location}</p>
                 <hr className="seperation"/>
