@@ -66,19 +66,19 @@ export var AsKey = (handle: string, location: AWSLocations, file_key: string) =>
 ///////////////////////////////
 // Upload File to S3
 ///////////////////////////////
-// export var S3Upload = async (handle: string, location: AWSLocations, file: Express.Multer.File) => {
-//     const filestream = fs.createReadStream(file.path);
+export var S3Upload = async (handle: string, location: AWSLocations, file: File) => {
+    let filename = crypto.randomUUID();
 
-//     const uploadParams = {
-//         Bucket: 'nemuart',
-//         Body: filestream,
-//         Key: AsKey(handle, location, file.filename)
-//     };
+    const uploadParams = {
+        Bucket: 'nemuart',
+        Body: file.stream(),
+        Key: AsKey(handle, location, filename)
+    };
 
-//     var command = new PutObjectCommand(uploadParams);
+    var command = new PutObjectCommand(uploadParams);
     
-//     return await client.send(command);
-// };
+    return await client.send(command);
+};
 
 
 ///////////////////////////////

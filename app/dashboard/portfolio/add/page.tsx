@@ -2,12 +2,15 @@
 
 import React, { FormEvent, useEffect, useState } from "react"
 import { useDropzone } from 'react-dropzone';
+import { toast } from "react-toastify";
 
 import { CheckCircleIcon } from "@heroicons/react/20/solid";
+import { useDashboardContext } from "@/components/Navigation/Dashboard/DashboardContext";
 
 export default function AddPortfolioItem() {
     const [filePreview, setfilePreview] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const { handle } = useDashboardContext();
 
     const { acceptedFiles, getRootProps, getInputProps } = useDropzone({
         maxFiles: 1,
@@ -37,9 +40,22 @@ export default function AddPortfolioItem() {
 
         try {
             const formData = new FormData(event.currentTarget);
-
             let filename = crypto.randomUUID();
-            console.log(acceptedFiles);
+            console.log(handle);
+
+            toast.promise(fetch(`/api/artist/${handle}/portfolio/${filename}`, {
+                method: 'POST',
+                headers: {
+                    'content-type': 'application/json'
+                },
+                body: formData
+            }), {
+                pending: 'Uploading Image',
+                success: 'Upload Successful',
+                error: 'Upload Failed',
+            }, {
+                theme: 'dark'
+            });
 
         } catch (error) {
             console.log(error);

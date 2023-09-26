@@ -16,9 +16,9 @@ type DashboardContextType = {
 
 const DashboardContext = createContext<DashboardContextType>({});
 
-export const DashboardProvider = ({ children }: { children: React.ReactNode }) => {
-    const [handle, setHandle] = useState('');
-    const [id, setId] = useState('');
+export const DashboardProvider = ({ children, artist_handle, artist_id }: { children: React.ReactNode, artist_handle: string, artist_id: string }) => {
+    const [handle, setHandle] = useState(artist_handle);
+    const [id, setId] = useState(artist_id);
 
     useEffect(() => {
         document.body.classList.add('background-pattern');

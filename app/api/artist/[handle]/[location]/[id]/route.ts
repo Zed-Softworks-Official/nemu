@@ -30,3 +30,11 @@ export async function GET(req: Request, { params }: { params: { handle: string, 
     
     return NextResponse.json({portfolio_items: items});
 }
+
+
+//////////////////////////////////////////
+// POST Item To AWS API Route
+//////////////////////////////////////////
+export async function POST(req: Request, { params }: { params: { handle: string, location: string, id: string }}) {
+    return NextResponse.json({test: 'Hello, World!'});
+}
