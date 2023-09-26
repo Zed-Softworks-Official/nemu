@@ -25,25 +25,25 @@ export default function Navbar() {
                 <div className='my-10'>
                     <Link href={'/dashboard'} className={classNames(pathname == '/dashboard' ? 'bg-primary text-white' : 'hover:bg-primary/60', 'p-4 px-10 rounded-3xl')}>
                         <HomeIcon className='sidenav-icon' />
-                        <h3 className='inline mt-6 align-top text-lg font-bold'>Home</h3>
+                        <h3 className='inline mt-6 text-lg font-bold'>Home</h3>
                     </Link>
                 </div>
                 <div className='my-10'>
                     <Link href={'/commissions'} className={classNames(pathname.includes('commissions') ? 'bg-primary text-white' : 'hover:bg-primary/60', 'p-4 px-10 rounded-3xl')}>
                         <PaintBrushIcon className='sidenav-icon' />
-                        <h3 className='inline mt-6 align-top text-lg font-bold'>Commissions</h3>
+                        <h3 className='inline mt-6 text-lg font-bold'>Commissions</h3>
                     </Link>
                 </div>
                 <div className='my-10'>
                     <Link href={'/dashboard'} className={classNames(pathname.includes('shop') ? 'bg-primary text-white' : 'hover:bg-primary/60', 'p-4 px-10 rounded-3xl')}>
                         <BuildingStorefrontIcon className='sidenav-icon' />
-                        <h3 className='inline mt-6 align-top text-lg font-bold'>Shop</h3>
+                        <h3 className='inline mt-6 text-lg font-bold'>Shop</h3>
                     </Link>
                 </div>
                 <div className='my-10'>
                     <Link href={'/dashboard/portfolio'} className={classNames(pathname.includes('portfolio') ? 'bg-primary text-white' : 'hover:bg-primary/60', 'p-4 px-10 rounded-3xl')}>
                         <PhotoIcon className='sidenav-icon' />
-                        <h3 className='inline mt-6 align-top text-lg font-bold'>Portfolio</h3>
+                        <h3 className='inline mt-6 text-lg font-bold'>Portfolio</h3>
                     </Link>
                 </div>
             </div>
@@ -52,19 +52,19 @@ export default function Navbar() {
                 <div className='my-10'>
                     <Link href={'/dashboard'} className='p-4 px-10 hover:bg-primary/60 rounded-3xl'>
                         <CurrencyDollarIcon className='sidenav-icon' />
-                        <h3 className='inline mt-6 align-top text-lg font-bold'>Income</h3>
+                        <h3 className='inline mt-6 text-lg font-bold'>Income</h3>
                     </Link>
                 </div>
                 <div className='my-10'>
                     <Link href={'/dashboard/messages'} className={classNames(pathname.includes('messages') ? 'bg-primary text-white' : 'hover:bg-primary/60', 'p-4 px-10 rounded-3xl')}>
                         <EnvelopeIcon className='sidenav-icon' />
-                        <h3 className='inline mt-6 align-top text-lg font-bold'>Messages</h3>
+                        <h3 className='inline mt-6 text-lg font-bold'>Messages</h3>
                     </Link>
                 </div>
                 <div className='my-10'>
                     <Link href={'/dashboard/settings'} className={classNames(pathname.includes('settings') ? 'bg-primary text-white' : 'hover:bg-primary/60', 'p-4 px-10 rounded-3xl')}>
                         <Cog6ToothIcon className='sidenav-icon' />
-                        <h3 className='inline mt-6 align-top text-lg font-bold'>Settings</h3>
+                        <h3 className='inline mt-6 text-lg font-bold'>Settings</h3>
                     </Link>
                 </div>
             </div>

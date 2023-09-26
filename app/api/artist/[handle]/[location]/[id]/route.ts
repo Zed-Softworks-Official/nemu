@@ -4,6 +4,10 @@ import { PrismaClient } from "@prisma/client";
 import { PortfolioItem } from "@/helpers/portfolio";
 import { S3GetSignedURL, StringToAWSLocationsEnum } from "@/helpers/s3";
 
+
+//////////////////////////////////////////
+// GET Item From AWS API Route
+//////////////////////////////////////////
 export async function GET(req: Request, { params }: { params: { handle: string, location: string, id: string }}) {
     let prisma = new PrismaClient();
 
