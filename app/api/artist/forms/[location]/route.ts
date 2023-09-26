@@ -6,8 +6,9 @@ import { NextResponse } from "next/server";
 export async function POST(req: Request, { params }: { params: {location: string} }) {
     const data = await req.formData();
 
+    console.log(JSON.stringify(data.));
+
     return NextResponse.json({
         title: data.get('title'),
-        file: data.get('dropzone-file')
     });
 }
