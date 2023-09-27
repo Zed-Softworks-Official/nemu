@@ -6,6 +6,7 @@ import { toast } from "react-toastify";
 
 import { CheckCircleIcon } from "@heroicons/react/20/solid";
 import { useDashboardContext } from "@/components/Navigation/Dashboard/DashboardContext";
+import { redirect } from "next/navigation";
 
 export default function AddPortfolioItem() {
     const [filePreview, setfilePreview] = useState('');
@@ -40,14 +41,12 @@ export default function AddPortfolioItem() {
 
         try {
             const formData = new FormData(event.currentTarget);
+            formData.set('dropzone-file', acceptedFiles[0]);
+
             let filename = crypto.randomUUID();
-            console.log(handle);
 
             toast.promise(fetch(`/api/artist/${handle}/portfolio/${filename}`, {
                 method: 'POST',
-                headers: {
-                    'content-type': 'application/json'
-                },
                 body: formData
             }), {
                 pending: 'Uploading Image',
@@ -55,6 +54,10 @@ export default function AddPortfolioItem() {
                 error: 'Upload Failed',
             }, {
                 theme: 'dark'
+            }).then(() => {
+                setIsLoading(false);
+                
+                redirect('/dashboard/portfolio');
             });
 
         } catch (error) {
@@ -67,7 +70,7 @@ export default function AddPortfolioItem() {
             <div className="dark:bg-fullblack bg-fullwhite p-10 mx-auto rounded-3xl">
                 <h1 className="font-bold text-2xl text-center">Add Portfolio Item</h1>
                 <hr className="seperation" />
-                <form className="max-w-lg mx-auto" onSubmit={handleSubmit}>
+                <form className="max-w-lg mx-auto" onSubmit={handleSubmit} encType="multipart/form-data">
                     <div>
                         <label htmlFor="title" className="block mb-5">Title: </label>
                         <input name="title" placeholder="Title" type="text" className="bg-charcoal p-5 rounded-xl w-full" />
