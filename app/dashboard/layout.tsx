@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 export default async function DashboardLayout({ children, } : { children: React.ReactNode }) {
     const session = await getSession();
 
-    let artist_fetch = await fetch(`${process.env.BASE_URL}/api/artist/prisma/${session!.user!.sub!}`, { method: 'GET'});
+    let artist_fetch = await fetch(`${process.env.BASE_URL}/api/user/info/prisma/${session!.user!.sub!}`, { method: 'GET'});
     let artist = await artist_fetch.json();    
 
     return (

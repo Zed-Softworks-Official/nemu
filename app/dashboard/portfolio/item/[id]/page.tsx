@@ -1,11 +1,17 @@
 'use client'
 
 import { CheckCircleIcon, XCircleIcon } from "@heroicons/react/20/solid";
+import { usePathname } from "next/navigation";
 import { toast } from "react-toastify"
+import useSWR from "swr";
 
 export default function PortfolioItem() {
-        const successClick = () => toast('Portfolio Item Saved!', {type: 'success', theme: 'dark'});
-        const errorClick = () => toast('Portfolio Item Not Saved :chibiLOL:', {type: 'error', theme: 'dark'});
+    const successClick = () => toast('Portfolio Item Saved!', {type: 'success', theme: 'dark'});
+    const errorClick = () => toast('Portfolio Item Not Saved :chibiLOL:', {type: 'error', theme: 'dark'});
+
+    const pathname = usePathname();
+    let lastSlash = pathname.lastIndexOf('/');
+    let item_id = pathname.substring(lastSlash + 1, pathname.length + 1);
 
     return (
         <main className="py-14 justify-around mr-24 ml-[26rem]">
@@ -13,7 +19,7 @@ export default function PortfolioItem() {
                 <div className="flex flex-wrap">
                     <div className="mx-auto">
                         <img src="/1.png" className="rounded-3xl" />
-                        <h1 className="font-bold text-2xl text-center">Pout</h1>
+                        <h1 className="font-bold text-2xl text-center">{item_id}</h1>
                     </div>
                 </div>
                 <div className="flex flex-row items-center justify-center">

@@ -3,7 +3,7 @@ import React from "react";
 import { PortfolioItem } from "@/helpers/portfolio";
 
 export default async function Portfolio({ handle, id }: { handle: string, id: string }) {
-    let res = await fetch(`/api/artist/${handle}/portfolio/${id}`);
+    let res = await fetch(`/api/artist/items/${handle}/portfolio/${id}`);
     let data = await res.json();
 
     return (
@@ -11,7 +11,7 @@ export default async function Portfolio({ handle, id }: { handle: string, id: st
         {data.portfolio_items.map( (item: PortfolioItem) => {
         return (
             <div className="w-fit h-fit m-5">
-                <img src={item.signed_url} alt={item.name} className="rounded-3xl max-w-md" />
+                <img src={item.signed_url} alt={item.name} className="rounded-3xl w-full" />
             </div>
         )
         })}

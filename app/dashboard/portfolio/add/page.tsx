@@ -45,7 +45,7 @@ export default function AddPortfolioItem() {
 
             let filename = crypto.randomUUID();
 
-            toast.promise(fetch(`/api/artist/${handle}/portfolio/${filename}`, {
+            toast.promise(fetch(`/api/artist/item/${handle}/portfolio/${filename}`, {
                 method: 'POST',
                 body: formData
             }), {

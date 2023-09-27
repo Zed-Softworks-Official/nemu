@@ -9,6 +9,8 @@ export async function GET(req: Request, { params }: {params: { id: string }}) {
         }
     });
 
+    prisma.$disconnect();
+
     return NextResponse.json({
         info: artist
     });

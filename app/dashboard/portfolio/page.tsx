@@ -1,9 +1,19 @@
-import React from "react";
+'use client'
 
+import React from "react";
+import useSWR from "swr";
 import Link from 'next/link';
+
+import { useDashboardContext } from "@/components/Navigation/Dashboard/DashboardContext";
+import { PortfolioItem } from "@/helpers/portfolio";
+import { fetcher } from "@/helpers/fetcher";
+
 import { PlusCircleIcon } from "@heroicons/react/20/solid";
 
 export default function PortfolioComponent() {
+    const { handle, id } = useDashboardContext();
+    const { data } = useSWR(`/api/artist/items/${handle}/portfolio/${id}`, fetcher);
+
     return (
         <main className="py-14 justify-around mr-24 ml-[26rem]">
             <div className="dark:bg-fullblack bg-fullwhite p-10 mx-auto rounded-3xl">
@@ -17,20 +27,18 @@ export default function PortfolioComponent() {
                     <hr className="seperation" />
                 </div>
                 <div className="grid grid-cols-4">
-                    <Link href={'/dashboard/portfolio/item'}>
-                        <div className="w-fit h-fit m-5 dark:bg-charcoal bg-white rounded-3xl pb-5">
-                            <img src="/1.png" className="rounded-3xl rounded-b-none" />
-                            <div className="pt-5">
-                                <h2 className="text-center font-bold text-2xl">Pout</h2>
-                            </div>
-                        </div>
-                    </Link>
-                    <div className="w-fit h-fit m-5 dark:bg-charcoal bg-white rounded-3xl pb-5">
-                        <img src="/4.png" className="rounded-3xl rounded-b-none" />
-                        <div className="pt-5">
-                            <h2 className="text-center font-bold text-2xl">Lurk</h2>
-                        </div>
-                    </div>
+                    {data?.portfolio_items.map( (item: PortfolioItem) => {
+                        return (
+                            <Link href={`/dashboard/portfolio/item/${item.key}`} key={item.key}>
+                                <div className="w-fit h-fit m-5 dark:bg-charcoal bg-white rounded-3xl pb-5">
+                                    <img src={item.signed_url} className="rounded-3xl rounded-b-none" />
+                                    <div className="pt-5">
+                                        <h2 className="text-center font-bold text-2xl">{item.name}</h2>
+                                    </div>
+                                </div>
+                            </Link>
+                        )
+                    } )}
                 </div>
             </div>
         </main>

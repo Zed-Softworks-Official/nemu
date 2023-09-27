@@ -8,7 +8,7 @@ import ArtistProfileTabs from "@/components/ArtistPage/Tabs";
 import { fetcher } from "@/helpers/fetcher";
 
 export default function ArtistHeader({handle, id}: {handle: string, id: string}) {
-    const { data, error } = useSWR('/api/artist/info/' + id, fetcher);
+    const { data, error } = useSWR('/api/user/info/auth0/' + id, fetcher);
 
     return  (
         <div className="flex-wrap">
