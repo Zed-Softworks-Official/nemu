@@ -65,7 +65,6 @@ export var AsKey = (handle: string, location: AWSLocations, file_key: string) =>
 // Upload File to S3
 ///////////////////////////////
 export var S3Upload = async (handle: string, location: AWSLocations, file: File, filename: string) => {
-
     const uploadParams: PutObjectCommandInput = {
         Bucket: 'nemuart',
         Body: Buffer.from(await file.arrayBuffer()),
