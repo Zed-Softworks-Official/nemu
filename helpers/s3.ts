@@ -1,8 +1,6 @@
 import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, PutObjectCommandInput, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
-import fs from 'fs';
-
 const client = new S3Client({ region: 'us-west-1' });
 
 ///////////////////////////////
@@ -67,11 +65,10 @@ export var AsKey = (handle: string, location: AWSLocations, file_key: string) =>
 // Upload File to S3
 ///////////////////////////////
 export var S3Upload = async (handle: string, location: AWSLocations, file: File, filename: string) => {
-    let fileBuffer = Buffer.from(await file.arrayBuffer());
 
     const uploadParams: PutObjectCommandInput = {
         Bucket: 'nemuart',
-        Body: fileBuffer,
+        Body: Buffer.from(await file.arrayBuffer()),
         Key: AsKey(handle, location, filename),
         ContentLength: file.size
     };
