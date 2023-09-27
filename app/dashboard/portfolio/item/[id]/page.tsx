@@ -1,5 +1,7 @@
 'use client'
 
+import { useDashboardContext } from "@/components/Navigation/Dashboard/DashboardContext";
+import { fetcher } from "@/helpers/fetcher";
 import { CheckCircleIcon, XCircleIcon } from "@heroicons/react/20/solid";
 import { usePathname } from "next/navigation";
 import { toast } from "react-toastify"
@@ -13,13 +15,16 @@ export default function PortfolioItem() {
     let lastSlash = pathname.lastIndexOf('/');
     let item_id = pathname.substring(lastSlash + 1, pathname.length + 1);
 
+    const { handle } = useDashboardContext();
+    const { data } = useSWR(`/api/artist/item/${handle}/portfolio/${item_id}`, fetcher);
+
     return (
         <main className="py-14 justify-around mr-24 ml-[26rem]">
             <div className="dark:bg-fullblack bg-fullwhite p-10 mx-auto rounded-3xl">
                 <div className="flex flex-wrap">
                     <div className="mx-auto">
                         <img src="/1.png" className="rounded-3xl" />
-                        <h1 className="font-bold text-2xl text-center">{item_id}</h1>
+                        <h1 className="font-bold text-2xl text-center">{data?.item.name}</h1>
                     </div>
                 </div>
                 <div className="flex flex-row items-center justify-center">

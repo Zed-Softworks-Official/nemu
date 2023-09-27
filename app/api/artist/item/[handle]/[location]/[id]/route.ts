@@ -2,6 +2,22 @@ import { PrismaClient } from "@prisma/client";
 import { AWSLocations, S3Upload, StringToAWSLocationsEnum } from "@/helpers/s3";
 import { PrismaCreate } from "@/prisma/prisma";
 import { PrismaModel } from "@/prisma/prisma-interface";
+import { NextResponse } from "next/server";
+
+export async function GET(req: Request, { params }: { params: { handle: string, location: string, id: string }}) {
+    let prisma = new PrismaClient();
+    let item = await prisma.portfolio.findFirst({
+        where: {
+            image: params.id
+        }
+    });
+
+    prisma.$disconnect();
+
+    return NextResponse.json({
+        item: item
+    });
+}
 
 //////////////////////////////////////////
 // POST Item To AWS API Route
