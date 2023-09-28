@@ -1,8 +1,9 @@
 import { PrismaClient } from "@prisma/client";
-import { AWSLocations, S3Upload, StringToAWSLocationsEnum } from "@/helpers/s3";
+import { AWSLocations, S3GetSignedURL, S3Upload, StringToAWSLocationsEnum } from "@/helpers/s3";
 import { PrismaCreate } from "@/prisma/prisma";
 import { PrismaModel } from "@/prisma/prisma-interface";
 import { NextResponse } from "next/server";
+import { PortfolioItem } from "@/helpers/data-inerfaces";
 
 export async function GET(req: Request, { params }: { params: { handle: string, location: string, id: string }}) {
     let prisma = new PrismaClient();
@@ -12,10 +13,16 @@ export async function GET(req: Request, { params }: { params: { handle: string, 
         }
     });
 
+    let portfolio_item: PortfolioItem = {
+        name: item!.name,
+        signed_url: await S3GetSignedURL(params.handle, StringToAWSLocationsEnum(params.location), params.id),
+        key: params.id
+    }
+
     prisma.$disconnect();
 
     return NextResponse.json({
-        item: item
+        item: portfolio_item
     });
 }
 
