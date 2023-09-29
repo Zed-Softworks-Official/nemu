@@ -4,13 +4,14 @@ import useSWR from "swr";
 import { fetcher } from "@/helpers/fetcher";
 
 import { useDashboardContext } from "@/components/Navigation/Dashboard/DashboardContext";
+import { useDropzone } from 'react-dropzone';
 import { usePathname, useRouter } from "next/navigation";
-import { FormEvent } from "react";
+import { FormEvent, useState } from "react";
 import { toast } from "react-toastify"
-import { CheckCircleIcon, XCircleIcon } from "@heroicons/react/20/solid";
+import { CheckCircleIcon, FireIcon, XCircleIcon } from "@heroicons/react/20/solid";
 
 export default function PortfolioItem() {
-    const { replace } = useRouter();
+    const { push } = useRouter();
     const pathname = usePathname();
     let lastSlash = pathname.lastIndexOf('/');
     let item_id = pathname.substring(lastSlash + 1, pathname.length + 1);
@@ -18,11 +19,22 @@ export default function PortfolioItem() {
     const { handle } = useDashboardContext();
     const { data } = useSWR(`/api/artist/item/${handle}/portfolio/${item_id}`, fetcher);
 
+    const [filePreview, setfilePreview] = useState('');
+    const { acceptedFiles, getRootProps, getInputProps } = useDropzone({
+        maxFiles: 1,
+        accept: {
+            'image/*': []
+        },
+        onDrop: acceptedFiles => {
+            setfilePreview(URL.createObjectURL(acceptedFiles[0]));
+        }
+    });
+
     // Form Cancellation
     const errorClick = () => {
         toast('Action Canceled!', {type: 'error', theme: 'dark'});
 
-        replace('/dashboard/portfolio');
+        push('/dashboard/portfolio');
     }
 
     // Form Submit
@@ -30,20 +42,24 @@ export default function PortfolioItem() {
         event.preventDefault();
         const formData = new FormData(event.currentTarget);
 
-        toast.promise(fetch(`/api/artist/item/${handle}/portfolio/${item_id}/update`, {
-            method: 'POST',
-            body: formData
-        }),
-        {
-            pending: 'Updating Portfolio Item',
-            success: 'Portfolio Item Updated',
-            error: 'Portfolio Item Failed to Update'
-        },
-        {
-            theme: 'dark'
-        });
+        try {
+            toast.promise(fetch(`/api/artist/item/${handle}/portfolio/${item_id}/update`, {
+                method: 'POST',
+                body: formData
+            }),
+            {
+                pending: 'Updating Portfolio Item',
+                success: 'Portfolio Item Updated',
+                error: 'Portfolio Item Failed to Update'
+            },
+            {
+                theme: 'dark'
+            });
+        }  catch (error) {
+            console.log(error);
+        }
 
-        replace('/dashboard/portfolio');
+        push('/dashboard/portfolio');
     }
 
     return (
@@ -62,6 +78,10 @@ export default function PortfolioItem() {
                             </div>
                             <div className="mb-5">
                                 <label className="block mb-5">Upload New Image:</label>
+                                <div className="mx-auto p-10 border-dashed border-white border-opacity-50 border-4 focus:border-primary bg-charcoal text-center border-spacing-28" {...getRootProps()}>
+                                    <input name="dropzone-file" type="file" {...getInputProps()} />
+                                    <p>Drag a file to upload!</p>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -73,6 +93,12 @@ export default function PortfolioItem() {
                         <button type="button" onClick={errorClick} className="bg-error p-5 rounded-3xl m-5">
                             <XCircleIcon className="w-6 h-6 inline mr-3" />
                             Cancel
+                        </button>
+                    </div>
+                    <div className="flex flex-row items-center justify-center">
+                        <button type="button" onClick={errorClick} className=" bg-gradient-to-r from-error to-error/80 p-5 rounded-3xl m-5">
+                            <FireIcon className="w-6 h-6 inline mr-3" />
+                            Delete Item
                         </button>
                     </div>
                 </form>

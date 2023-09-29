@@ -6,12 +6,13 @@ import { toast } from "react-toastify";
 
 import { CheckCircleIcon } from "@heroicons/react/20/solid";
 import { useDashboardContext } from "@/components/Navigation/Dashboard/DashboardContext";
-import { redirect } from "next/navigation";
+import { useRouter } from "next/router";
 
 export default function AddPortfolioItem() {
     const [filePreview, setfilePreview] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const { handle } = useDashboardContext();
+    const { push } = useRouter();
 
     const { acceptedFiles, getRootProps, getInputProps } = useDropzone({
         maxFiles: 1,
@@ -57,7 +58,7 @@ export default function AddPortfolioItem() {
             }).then(() => {
                 setIsLoading(false);
                 
-                redirect('/dashboard/portfolio');
+                push('/dashboard/portfolio');
             });
 
         } catch (error) {

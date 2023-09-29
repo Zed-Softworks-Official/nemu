@@ -1,3 +1,4 @@
+import { S3Delete, StringToAWSLocationsEnum } from "@/helpers/s3";
 import { PrismaClient } from "@prisma/client";
 import { NextResponse } from "next/server";
 
@@ -17,14 +18,24 @@ export async function POST(req: Request, { params }: { params: { handle: string,
         } 
     });
 
-    // prisma.$disconnect();
+    //await S3Delete(params.handle, StringToAWSLocationsEnum(params.location), params.id);
+    let title: string;
+    if (data.get('title') != '') {
+        title = data.get('title') as string;
+    } else {
+        title = image?.name!
+    }
 
-    return prisma.portfolio.update({
+    await prisma.portfolio.update({
         where: {
             id: image!.id
         },
         data: {
-            name: data.get('title') as string
+            name: title
         }
     });
+
+    // prisma.$disconnect();
+
+    return 
 }
