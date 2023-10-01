@@ -5,7 +5,7 @@ import useSWR from "swr";
 import Link from 'next/link';
 
 import { useDashboardContext } from "@/components/Navigation/Dashboard/DashboardContext";
-import { PortfolioItem } from "@/helpers/data-inerfaces";
+import { PortfolioItem } from "@/helpers/api/request-inerfaces";
 import { fetcher } from "@/helpers/fetcher";
 
 import { PlusCircleIcon } from "@heroicons/react/20/solid";

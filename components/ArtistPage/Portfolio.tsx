@@ -1,6 +1,6 @@
 import React from "react";
 
-import { PortfolioItem } from "@/helpers/data-inerfaces";
+import { PortfolioItem } from "@/helpers/api/request-inerfaces";
 
 export default async function Portfolio({ handle, id }: { handle: string, id: string }) {
     let res = await fetch(`/api/artist/items/${handle}/portfolio/${id}`);

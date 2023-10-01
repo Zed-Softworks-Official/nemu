@@ -1,7 +1,8 @@
-
-//////////////////////////////////////////
-// Get Access Token from Auth0
-//////////////////////////////////////////
+/**
+ * Gets the Access Token from Auth0 for further use within the application
+ * 
+ * @returns {Promise<string>} Token Type + The Access Token (Ex. Berear kICtxytHAkEuGCreaP1piS4kwzkis0ddmi99FPmjY8G1ytGxlpEPq23s6vjTirsW...)
+ */
 export var GetAccessToken = async () => {
     let accessToken = await fetch(process.env.AUTH0_ISSUER_BASE_URL + '/oauth/token', {
         method: 'POST',
@@ -20,9 +21,12 @@ export var GetAccessToken = async () => {
     return data.token_type + ' ' + data.access_token;
 }
 
-//////////////////////////////////////////
-// Get User Data from Auth0
-//////////////////////////////////////////
+/**
+ * Gets the full user object from Auth0
+ * 
+ * @param {string} user_id - Auth0 Id for the user 
+ * @returns {Promise<any>} JSON Data from Auth0 containing ALL information on the user requested
+ */
 export var GetUser = async (user_id: string) => {
     let user = await fetch (process.env.AUTH0_ISSUER_BASE_URL + '/api/v2/users/' + user_id, {
         headers: {

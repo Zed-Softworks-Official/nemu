@@ -33,5 +33,6 @@ export var PrismaCreate = async (prismaModel: PrismaModel, createInfo: PrismaPor
             return await PrismaCreateArtist(prisma, createInfo as PrismaArtistInfo);
         case PrismaModel.Store:
             return await PrismaCreateStoreItem(prisma, createInfo as PrismaStoreItemInfo);
+
     };
 };

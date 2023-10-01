@@ -1,11 +1,13 @@
-import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, PutObjectCommandInput, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, DeleteObjectCommandOutput, GetObjectCommand, PutObjectCommand, PutObjectCommandInput, PutObjectCommandOutput, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 const client = new S3Client({ region: 'us-west-1' });
 
-///////////////////////////////
-// AWS Storage Helpers
-///////////////////////////////
+/**
+ * Locations for AWS Storage
+ * 
+ * @enum {number} Default, Portfolio, Commission, Profile, Store, StoreDownload
+ */
 export enum AWSLocations {
     Default,
     Portfolio,
@@ -15,6 +17,12 @@ export enum AWSLocations {
     StoreDownload
 }
 
+/**
+ * Converts the AWS Location Enum to a String for use with the Amazon SDK
+ * 
+ * @param {AWSLocations} location - The desired location of the object
+ * @returns {string} The Location in string form for AWS S3
+ */
 var AWSLocationEnumToString = (location: AWSLocations) => {
     switch (location) {
         case AWSLocations.Default:
@@ -32,6 +40,12 @@ var AWSLocationEnumToString = (location: AWSLocations) => {
     }
 }
 
+/**
+ * Converts a string to the correct AWS Location Enum Version for use inside of the application
+ * 
+ * @param {string} location - The desired location of the object 
+ * @returns {AWSLocations} The location in an AWS Enum for use inside of the application
+ */
 export var StringToAWSLocationsEnum = (location: string) => {
     location = location.toLocaleLowerCase();
     switch (location) {
@@ -53,17 +67,28 @@ export var StringToAWSLocationsEnum = (location: string) => {
 }
 
 
-///////////////////////////////
-// As Key
-///////////////////////////////
+/**
+ * Takes in the handle, location, and file_key of a file and converts it into a single string to be used with the AWS SDK
+ * 
+ * @param {string} handle - The handle of the artist
+ * @param {AWSLocations} location - The desired location for the content
+ * @param {string} file_key - The name of the file
+ * @returns {string} A string with all three paramaters combined into an AWS Key
+ */
 export var AsKey = (handle: string, location: AWSLocations, file_key: string) => {
         return '@' + handle + '/' + AWSLocationEnumToString(location) + '/' + file_key;
 }
 
 
-///////////////////////////////
-// Upload File to S3
-///////////////////////////////
+/**
+ * Uploads a file to AWS S3
+ * 
+ * @param {string} handle - The handle of the artist
+ * @param {AWSLocations} location - The desired location to place it
+ * @param {File} file - The file requested to upload
+ * @param {string} filename - The filename to be used with AWS S3
+ * @returns {Promise<PutObjectCommandOutput>} A promise determining wether the upload failed or succedded
+ */
 export var S3Upload = async (handle: string, location: AWSLocations, file: File, filename: string) => {
     const uploadParams: PutObjectCommandInput = {
         Bucket: 'nemuart',
@@ -78,9 +103,14 @@ export var S3Upload = async (handle: string, location: AWSLocations, file: File,
 };
 
 
-///////////////////////////////
-// Download File to S3
-///////////////////////////////
+/**
+ * Gets a file from AWS S3 and returns a presigned URL to the client for the client to view/get the object
+ * 
+ * @param {string} handle - The handle of the artist
+ * @param {AWSLocations} location - The desired location to find the object
+ * @param {string} key - The filename of the object
+ * @returns {Promise<string>} A promise containing a string which is a signed url to the object the user requested
+ */
 export var S3GetSignedURL = async (handle: string, location: AWSLocations, key: string) => {
     const downloadParams = {
         Bucket: 'nemuart',
@@ -93,9 +123,14 @@ export var S3GetSignedURL = async (handle: string, location: AWSLocations, key: 
 };
 
 
-///////////////////////////////
-// Delete File From S3
-///////////////////////////////
+/**
+ * Deletes a file from AWS S3
+ * 
+ * @param {string} handle - The handle of the artist
+ * @param {AWSLocations} location - The desired location to find the object
+ * @param {string} key - The filename within AWS S3
+ * @returns {Promise<DeleteObjectCommandOutput>} A promise contains whether the object was successfully deleted or not
+ */
 export var S3Delete = async (handle: string, location: AWSLocations, key: string) => {
     const deleteParams = {
         Bucket: 'nemuart',

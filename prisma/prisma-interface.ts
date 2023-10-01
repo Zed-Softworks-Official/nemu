@@ -2,11 +2,29 @@
 // Prisma Model
 //////////////////////////////////////////
 export enum PrismaModel {
+    None,
     Portfolio,
     Store,
     Artist,
     ArtistVerification,
     Device
+}
+
+export function StringToPrismaModelEnum(location: string) {
+    switch (location) {
+        case 'portfolio':
+            return PrismaModel.Portfolio;
+        case 'store':
+            return PrismaModel.Store;
+        case 'artist':
+            return PrismaModel.Artist;
+        case 'artistverification':
+            return PrismaModel.ArtistVerification;
+        case 'device':
+            return PrismaModel.Device;
+        default:
+            return PrismaModel.None;
+    }
 }
 
 

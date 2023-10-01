@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { PrismaClient } from "@prisma/client";
-import { PortfolioItem } from "@/helpers/data-inerfaces";
+import { PortfolioItem } from "@/helpers/api/request-inerfaces";
 import { S3GetSignedURL, StringToAWSLocationsEnum } from "@/helpers/s3";
 
 
