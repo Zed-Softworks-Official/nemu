@@ -6,7 +6,7 @@ import { toast } from "react-toastify";
 
 import { CheckCircleIcon } from "@heroicons/react/20/solid";
 import { useDashboardContext } from "@/components/Navigation/Dashboard/DashboardContext";
-import { useRouter } from "next/router";
+import { useRouter } from "next/navigation";
 
 export default function AddPortfolioItem() {
     const [filePreview, setfilePreview] = useState('');

@@ -1,4 +1,4 @@
-import { S3Delete, StringToAWSLocationsEnum } from "@/helpers/s3";
+import { S3Delete, S3Upload, StringToAWSLocationsEnum } from "@/helpers/s3";
 import { PrismaClient } from "@prisma/client";
 import { NextResponse } from "next/server";
 
@@ -8,7 +8,7 @@ import { NextResponse } from "next/server";
 //////////////////////////////////////////
 export async function POST(req: Request, { params }: { params: { handle: string, location: string, id: string }}) {
     let data = await req.formData();
-    //const file: File | null = data.get('dropzone-file') as unknown as File
+    const file: File | null = data.get('dropzone-file') as unknown as File
 
     let prisma = new PrismaClient();
 
@@ -18,7 +18,7 @@ export async function POST(req: Request, { params }: { params: { handle: string,
         } 
     });
 
-    //await S3Delete(params.handle, StringToAWSLocationsEnum(params.location), params.id);
+    await S3Delete(params.handle, StringToAWSLocationsEnum(params.location), params.id);
     let title: string;
     if (data.get('title') != '') {
         title = data.get('title') as string;
@@ -35,7 +35,11 @@ export async function POST(req: Request, { params }: { params: { handle: string,
         }
     });
 
-    // prisma.$disconnect();
+    prisma.$disconnect();
 
-    return 
+    if (file != null) {
+        return S3Upload(params.handle, StringToAWSLocationsEnum(params.location), file, params.id);
+    }
+
+    return NextResponse.json({success: true});
 }
