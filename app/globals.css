@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+.active-scroll-spy {
+    @apply bg-primary p-5 rounded-3xl;
+}
+
 .logo {
     @apply font-semibold;
 }
