@@ -6,13 +6,15 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import classNames from '@/helpers/classnames';
 
-import { BuildingStorefrontIcon, Cog6ToothIcon, CurrencyDollarIcon, EnvelopeIcon, HomeIcon, PaintBrushIcon, PhotoIcon } from '@heroicons/react/20/solid';
+import { BuildingStorefrontIcon, Cog6ToothIcon, CurrencyDollarIcon, EnvelopeIcon, HomeIcon, PaintBrushIcon, PhotoIcon, RectangleStackIcon } from '@heroicons/react/20/solid';
+import { useDashboardContext } from './DashboardContext';
 
 export default function Navbar() {
     let pathname = usePathname();
+    const { handle } = useDashboardContext();
 
     return (
-        <aside className='absolute h-full top-0 w-80 z-0 backdrop-blur-xl bg-fullwhite/60 dark:bg-fullblack/60'>
+        <aside className='fixed h-full top-0 bottom-0 w-80 backdrop-blur-xl overflow-y-auto bg-fullwhite/60 dark:bg-fullblack/60'>
             <div className='mt-10'>
                 <Link href={'/'}>
                     <h1 className='text-center'>
@@ -30,7 +32,7 @@ export default function Navbar() {
                 </div>
                 <div className='my-10'>
                     <Link href={'/commissions'} className={classNames(pathname.includes('commissions') ? 'bg-primary text-white' : 'hover:bg-primary/60', 'p-4 px-10 rounded-3xl')}>
-                        <PaintBrushIcon className='sidenav-icon' />
+                        <RectangleStackIcon className='sidenav-icon' />
                         <h3 className='inline mt-6 text-lg font-bold'>Commissions</h3>
                     </Link>
                 </div>
@@ -47,6 +49,7 @@ export default function Navbar() {
                     </Link>
                 </div>
             </div>
+
             <hr className='seperation' />
             <div className='ml-[20%]'>
                 <div className='my-10'>
@@ -59,6 +62,16 @@ export default function Navbar() {
                     <Link href={'/dashboard/messages'} className={classNames(pathname.includes('messages') ? 'bg-primary text-white' : 'hover:bg-primary/60', 'p-4 px-10 rounded-3xl')}>
                         <EnvelopeIcon className='sidenav-icon' />
                         <h3 className='inline mt-6 text-lg font-bold'>Messages</h3>
+                    </Link>
+                </div>
+            </div>
+
+            <hr className='seperation' />
+            <div className='ml-[20%]'>
+                <div className='my-10'>
+                    <Link href={`/@${handle}`} className={classNames(pathname.includes('messages') ? 'bg-primary text-white' : 'hover:bg-primary/60', 'p-4 px-10 rounded-3xl')}>
+                        <PaintBrushIcon className='sidenav-icon' />
+                        <h3 className='inline mt-6 text-lg font-bold'>My Page</h3>
                     </Link>
                 </div>
                 <div className='my-10'>

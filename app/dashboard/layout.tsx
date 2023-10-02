@@ -5,6 +5,7 @@ import Navbar from '@/components/Navigation/Dashboard/Navbar';
 import 'react-toastify/ReactToastify.min.css';
 import { DashboardProvider } from '@/components/Navigation/Dashboard/DashboardContext';
 import { getSession } from '@auth0/nextjs-auth0';
+import Footer from '@/components/Footer';
 
 export const metadata: Metadata = {
     title: 'Nemu | Artist Dashboard',

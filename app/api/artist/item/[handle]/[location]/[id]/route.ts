@@ -1,46 +1,46 @@
+import { NextResponse } from "next/server";
+import { S3Upload, StringToAWSLocationsEnum } from "@/helpers/s3";
+
 import { PrismaClient } from "@prisma/client";
-import { S3GetSignedURL, S3Upload, StringToAWSLocationsEnum } from "@/helpers/s3";
 import { PrismaCreate } from "@/prisma/prisma";
 import { PrismaModel, StringToPrismaModelEnum } from "@/prisma/prisma-interface";
-import { NextResponse } from "next/server";
-import { PortfolioItem } from "@/helpers/api/request-inerfaces";
+import { RequestItem } from "@/helpers/api/request-item";
 
 
-//////////////////////////////////////////
-// POST Item To AWS API Route
-//
-// Get Item
-//////////////////////////////////////////
+/**
+ * GET Method for API for a SINGLE item
+ * 
+ * Gets the requeted item from S3 and our database
+ */
 export async function GET(req: Request, { params }: { params: { handle: string, location: string, id: string }}) {
-    let prisma = new PrismaClient();
-    let item = await prisma.portfolio.findFirst({
-        where: {
-            image: params.id
-        }
-    });
+    ////////////////////////////
+    // Determine where the
+    // object is and retrieve it
+    ////////////////////////////
+    let item = await RequestItem(params.handle, params.location, params.id);
 
-    let portfolio_item: PortfolioItem = {
-        name: item!.name,
-        signed_url: await S3GetSignedURL(params.handle, StringToAWSLocationsEnum(params.location), params.id),
-        key: params.id
-    }
-
-    prisma.$disconnect();
-
+    // Return item data
     return NextResponse.json({
-        item: portfolio_item
+        item: item
     });
 }
 
-//////////////////////////////////////////
-// POST Item To AWS API Route
-//
-// Create Item
-//////////////////////////////////////////
+
+/**
+ * POST Method for API for a SINGLE item
+ * 
+ * Creates the requested item in S3 and our Database
+ */
 export async function POST(req: Request, { params }: { params: { handle: string, location: string, id: string }}) {
+    ////////////////////////////
+    // Get Form Data
+    ////////////////////////////
     let data = await req.formData();
     const file: File | null = data.get('dropzone-file') as unknown as File
     
+    ////////////////////////////
+    // Get Artist Information
+    ////////////////////////////
     let prisma = new PrismaClient();
     let artist = await prisma.artist.findFirst({
         where: {
@@ -48,6 +48,9 @@ export async function POST(req: Request, { params }: { params: { handle: string,
         } 
     });
 
+    ////////////////////////////
+    // Check for Prisma Model
+    ////////////////////////////
     // Determine whether we should and where to create the new Item in our database
     switch (StringToPrismaModelEnum(params.location)) {
         case PrismaModel.Portfolio:
