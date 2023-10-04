@@ -9,9 +9,14 @@ import classNames from '@/helpers/classnames';
 import { BuildingStorefrontIcon, Cog6ToothIcon, CurrencyDollarIcon, EnvelopeIcon, HomeIcon, PaintBrushIcon, PhotoIcon, RectangleStackIcon } from '@heroicons/react/20/solid';
 import { useDashboardContext } from './DashboardContext';
 
+import useSWR from 'swr';
+import { fetcher } from '@/helpers/fetcher';
+
 export default function Navbar() {
     let pathname = usePathname();
-    const { handle } = useDashboardContext();
+    const { handle, stripe_id } = useDashboardContext();
+
+    const { data } = useSWR(`/api/stripe/${stripe_id}/dashboard`, fetcher);
 
     return (
         <aside className='fixed h-full top-0 bottom-0 w-80 backdrop-blur-xl overflow-y-auto bg-fullwhite/60 dark:bg-fullblack/60'>
@@ -37,7 +42,7 @@ export default function Navbar() {
                     </Link>
                 </div>
                 <div className='my-10'>
-                    <Link href={'/dashboard'} className={classNames(pathname.includes('shop') ? 'bg-primary text-white' : 'hover:bg-primary/60', 'p-4 px-10 rounded-3xl')}>
+                    <Link href={'/dashboard/shop'} className={classNames(pathname.includes('shop') ? 'bg-primary text-white' : 'hover:bg-primary/60', 'p-4 px-10 rounded-3xl')}>
                         <BuildingStorefrontIcon className='sidenav-icon' />
                         <h3 className='inline mt-6 text-lg font-bold'>Shop</h3>
                     </Link>
@@ -53,9 +58,9 @@ export default function Navbar() {
             <hr className='seperation' />
             <div className='ml-[20%]'>
                 <div className='my-10'>
-                    <Link href={'/dashboard'} className='p-4 px-10 hover:bg-primary/60 rounded-3xl'>
+                    <Link href={`${data?.dashboard_url}`} target='_blank' className='p-4 px-10 hover:bg-primary/60 rounded-3xl'>
                         <CurrencyDollarIcon className='sidenav-icon' />
-                        <h3 className='inline mt-6 text-lg font-bold'>Income</h3>
+                        <h3 className='inline mt-6 text-lg font-bold'>Payout</h3>
                     </Link>
                 </div>
                 <div className='my-10'>

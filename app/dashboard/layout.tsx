@@ -16,10 +16,10 @@ export default async function DashboardLayout({ children, } : { children: React.
     const session = await getSession();
 
     let artist_fetch = await fetch(`${process.env.BASE_URL}/api/user/info/prisma/${session!.user!.sub!}`, { method: 'GET'});
-    let artist = await artist_fetch.json();    
+    let artist = await artist_fetch.json();
 
     return (
-        <DashboardProvider artist_handle={artist.info.handle} artist_id={artist.info.auth0id}>
+        <DashboardProvider artist_handle={artist.info.handle} artist_id={artist.info.auth0id} artist_stripe_id={artist.info.stripeAccId}>
             <Navbar />
             { children }
         </DashboardProvider>
