@@ -66,9 +66,25 @@ export interface PrismaDeviceInfo {
 }
 
 
-//////////////////////////////////////////
-// Artist Interface
-//////////////////////////////////////////
+/**
+ * Artist Interface for prisma
+ * 
+ * @prop {string} auth0id - Auth0 Id of the artist
+ * @prop {string} stripeAccId - The Stripe Id for the artist if there is one
+ * 
+ * @prop {string} handle - The handle of the artist
+ * @prop {string} about - The artists about section
+ * @prop {string} terms - The terms and conditions for the artist
+ * @prop {string} location - The location of the artist
+ * @prop {boolean} store - If the store is turned on for the artist
+ * 
+ * @prop {string} twitter - Twitter url for the artist
+ * @prop {string} pixiv - Pixiv url for the artist
+ * @prop {string} website - Website url for the artist
+ * 
+ * @prop {string} headerPhoto - The header photo key for the artists page header
+ * @prop {string} profilePhoto - The profile photo key for the artist
+ */
 export interface PrismaArtistInfo {
     auth0id: string
     stripeAccId: string
