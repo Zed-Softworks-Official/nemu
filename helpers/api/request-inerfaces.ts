@@ -21,18 +21,18 @@ export interface PortfolioItem {
 * 
 * @property {string} name - The name of the shop item
 * @property {string} description - The description of the shop item
-* @property {number} price - The price of the shop item
+* @property {string} price - The price of the shop item
 *
 * @property {string} stripe_id - Stripe ID of the user selling the product
 * @property {string} prod_id - Product ID of product on stripe
 */
 export interface ShopItem {
-    image_urls: string[]
+    image_urls?: string[]
     download_url?: string
     
     name: string,
     description: string
-    price: number
+    price: string
 
     stripe_id: string
     prod_id: string

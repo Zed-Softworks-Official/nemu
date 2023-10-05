@@ -1,5 +1,7 @@
 import Stripe from 'stripe';
 import { ShopItem } from './api/request-inerfaces';
+import { AWSLocations, S3GetSignedURL } from './s3';
+import { PrismaClient } from '@prisma/client';
 const stripe = new Stripe(process.env.STRIPE_API_KEY!, {
     apiVersion: '2023-08-16'
 });
@@ -14,16 +16,33 @@ const stripe = new Stripe(process.env.STRIPE_API_KEY!, {
 export async function StripeGetStoreProductInfo(proudct_id: string, stripe_account: string) {
     let product = await stripe.products.retrieve(proudct_id, { stripeAccount: stripe_account });
     
+    // Get the artist handle
+    let prisma = new PrismaClient();
+    let artist = await prisma.artist.findFirst({
+        where: {
+            stripeAccId: stripe_account
+        }
+    });
+
+    // Get general information on store product
+    // TODO: Change so the download url only gets created when requested by a user that purchased the item
     let result: ShopItem = {
-        image_urls: [],
-        download_url: '',
+        download_url: await S3GetSignedURL(artist!.handle, AWSLocations.StoreDownload, product.metadata.download_link),
 
         name: product.name,
         description: product.description!,
-        price: 0,
+        price: product.default_price!.toString(),
 
         prod_id: proudct_id,
         stripe_id: stripe_account
+    }
+
+    // Set the featured photo to be the first photo
+    result.image_urls = [await S3GetSignedURL(artist!.handle, AWSLocations.Store, product.metadata.featured_photo)];
+    
+    // Loop through product images and convert them into signed urls for s3
+    for (var i: number = 1; i < product.images.length + 1; i++) {
+        result.image_urls.push(await S3GetSignedURL(artist!.handle, AWSLocations.Store, product.images[i - 1]));
     }
 
     return result;
