@@ -74,12 +74,12 @@ export default function AddPortfolioItem() {
                 <form className="max-w-lg mx-auto" onSubmit={handleSubmit} encType="multipart/form-data">
                     <div>
                         <label htmlFor="title" className="block mb-5">Title: </label>
-                        <input name="title" placeholder="Title" type="text" className="bg-charcoal p-5 rounded-xl w-full" />
+                        <input name="title" placeholder="Title" type="text" className="bg-white dark:bg-charcoal p-5 rounded-xl w-full" />
                     </div>
                     <div className="mt-16">
                         <label className="block mb-5">Image:</label>
 
-                        <div className="mx-auto p-10 border-dashed border-white border-opacity-50 border-4 focus:border-primary bg-charcoal text-center border-spacing-28" {...getRootProps()}>
+                        <div className="mx-auto p-10 border-dashed border-white border-opacity-50 border-4 focus:border-primary bg-white dark:bg-charcoal text-center border-spacing-28" {...getRootProps()}>
                             <input name="dropzone-file" type="file" {...getInputProps()} />
                             <p>Drag a file to upload!</p>
                         </div>

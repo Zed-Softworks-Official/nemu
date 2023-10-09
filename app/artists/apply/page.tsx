@@ -11,7 +11,9 @@ export default function ArtistVerify() {
                     <h2 className="text-center">Fill out this form to start the verification process!</h2>
                     <hr className="seperation" />
                 </div>
-                <VerificationForm />
+                <div className="py-16 px-4 flex justify-center items-center w-full">
+                    <VerificationForm />
+                </div>
             </div>
         </DefaultPageLayout>
     )

@@ -1,5 +1,7 @@
-export default function VerificationStepTwo() {
+
+
+export default function VerificationStepTwo( title: { title: string }) {
     return (
-        <h1>Step 2</h1>
+            <h1>Step 2</h1>
     )
 }
