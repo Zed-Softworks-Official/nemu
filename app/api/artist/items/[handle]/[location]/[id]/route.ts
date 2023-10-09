@@ -1,16 +1,13 @@
-import { NextResponse } from "next/server";
-
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/prisma/prisma";
 import { PortfolioItem } from "@/helpers/api/request-inerfaces";
 import { S3GetSignedURL, StringToAWSLocationsEnum } from "@/helpers/s3";
 
+import { NextResponse } from "next/server";
 
 //////////////////////////////////////////
 // GET Item From AWS API Route
 //////////////////////////////////////////
 export async function GET(req: Request, { params }: { params: { handle: string, location: string, id: string }}) {
-    let prisma = new PrismaClient();
-
     let portfolio = await prisma.portfolio.findMany({
         where: {
             auth0id: params.id
@@ -26,8 +23,6 @@ export async function GET(req: Request, { params }: { params: { handle: string, 
             key: portfolio[i].image
         });
     }
-
-    prisma.$disconnect();
     
     return NextResponse.json({portfolio_items: items});
 }

@@ -1,9 +1,7 @@
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/prisma/prisma";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request, { params }: { params: { id: string }}) {
-    let prisma = new PrismaClient();
-
     // Delete User from database
     await prisma.artistVerification.delete({
         where: {

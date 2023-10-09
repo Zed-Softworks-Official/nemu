@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { S3Upload, StringToAWSLocationsEnum } from "@/helpers/s3";
 
-import { PrismaClient } from "@prisma/client";
-import { PrismaCreate } from "@/prisma/prisma";
+import { PrismaCreate, prisma } from "@/prisma/prisma";
 import { PrismaModel, StringToPrismaModelEnum } from "@/prisma/prisma-interface";
 import { RequestItem } from "@/helpers/api/request-item";
 
@@ -41,7 +40,6 @@ export async function POST(req: Request, { params }: { params: { handle: string,
     ////////////////////////////
     // Get Artist Information
     ////////////////////////////
-    let prisma = new PrismaClient();
     let artist = await prisma.artist.findFirst({
         where: {
             handle: params.handle
@@ -67,8 +65,6 @@ export async function POST(req: Request, { params }: { params: { handle: string,
             break;
     }
 
-    // Disconnect Prisma
-    prisma.$disconnect();
     
     // Return the promise for the uploading file
     return S3Upload(params.handle, StringToAWSLocationsEnum(params.location), file, params.id);

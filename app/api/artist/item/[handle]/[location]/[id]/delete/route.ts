@@ -1,11 +1,10 @@
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/prisma/prisma";
 import { S3Delete, StringToAWSLocationsEnum } from "@/helpers/s3";
 
 //////////////////////////////////////
 // Delete Object From S3
 //////////////////////////////////////
 export async function GET(req: Request, { params }: { params: { handle: string, location: string, id: string}}) {
-    let prisma = new PrismaClient();
     let portfolio_item = await prisma.portfolio.findFirst({
         where: {
             image: params.id

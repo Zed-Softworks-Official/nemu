@@ -2,7 +2,7 @@ import React from "react";
 import type { Metadata, } from 'next'
 import { notFound } from "next/navigation";
 
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/prisma/prisma";
 
 import { TabsProvider } from "@/components/ArtistPage/TabsContext";
 import ArtistHeader from "@/components/ArtistPage/Header";
@@ -15,7 +15,6 @@ export var metadata: Metadata = {
 
 export default async function ArtistPage({params}: { params: { handle: string}}) {
     // Create new prisma client and get the handle from the params
-    let prisma = new PrismaClient();
     let handle = params.handle.substring(3, params.handle.length + 1);
     // Set handle to part of the title
     metadata.title = 'Nemu | @' + handle;
@@ -28,9 +27,6 @@ export default async function ArtistPage({params}: { params: { handle: string}})
     }).catch((error) => {
         console.log(error);
     });
-
-    // Destroy Prisma client
-    prisma.$disconnect();
 
     // If the artist is not found then go to a not found page
     if (!artist_info) {

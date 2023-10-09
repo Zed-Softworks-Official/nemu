@@ -1,7 +1,7 @@
 import Stripe from 'stripe';
 import { ShopItem } from './api/request-inerfaces';
 import { AWSLocations, S3GetSignedURL } from './s3';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/prisma/prisma';
 const stripe = new Stripe(process.env.STRIPE_API_KEY!, {
     apiVersion: '2023-08-16'
 });
@@ -17,7 +17,6 @@ export async function StripeGetStoreProductInfo(proudct_id: string, stripe_accou
     let product = await stripe.products.retrieve(proudct_id, { stripeAccount: stripe_account });
     
     // Get the artist handle
-    let prisma = new PrismaClient();
     let artist = await prisma.artist.findFirst({
         where: {
             stripeAccId: stripe_account

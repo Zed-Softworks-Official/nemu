@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/prisma/prisma";
 import { PortfolioItem, ShopItem } from "./request-inerfaces";
 import { S3GetSignedURL, StringToAWSLocationsEnum } from "@/helpers/s3";
 
@@ -48,9 +48,6 @@ export var RequestItem = async (handle: string, location: string, id: string) =>
     if (loc == RequestItemEnum.None) {
         return result;
     }
-
-    // Create Prisma Client
-    let prisma = new PrismaClient();
     
     // Fill the result variable with data
     switch (loc) {
@@ -71,9 +68,6 @@ export var RequestItem = async (handle: string, location: string, id: string) =>
         case RequestItemEnum.Store:
             break;
     }
-
-    // Diconnect Prisma
-    prisma.$disconnect();
 
     // Return the result
     return result;
