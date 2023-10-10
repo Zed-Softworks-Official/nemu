@@ -6,7 +6,7 @@ export default function Artists() {
     return (
         <DefaultPageLayout>
             <h1>Hello, World!</h1>
-            <Link href={'/artists/verify'}>Click here to become an artist</Link>
+            <Link href={'/artists/apply/step-one'}>Click here to become an artist</Link>
         </DefaultPageLayout>
         
     )
