@@ -1,12 +1,13 @@
-import Link from "next/link"
-import React from "react"
-import DefaultPageLayout from "../(default)/layout"
+import React from "react";
 
-export default function Artists() {
+import DefaultPageLayout from "@/app/(default)/layout";
+import ArtistApplyButton from "@/components/ArtistVerification/ArtistApplyButton";
+
+export default async function Artists() {
     return (
         <DefaultPageLayout>
             <h1>Hello, World!</h1>
-            <Link href={'/artists/apply/step-one'}>Click here to become an artist</Link>
+            <ArtistApplyButton />
         </DefaultPageLayout>
         
     )

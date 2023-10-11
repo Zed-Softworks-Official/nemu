@@ -1,4 +1,3 @@
-import NavigationButtons from "@/components/ArtistVerification/NavigationButtons";
 import TextInput from "@/components/ArtistVerification/TextInput";
 import VertificationStep from "@/components/ArtistVerification/VerificationStep";
 

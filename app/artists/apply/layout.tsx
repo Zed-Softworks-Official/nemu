@@ -3,7 +3,16 @@ import React from "react";
 import DefaultPageLayout from "@/app/(default)/layout";
 import StepsLayout from "@/components/ArtistVerification/Layout/StepsLayout";
 
-export default function VerificationLayout({ children, } : { children: React.ReactNode }) {
+import { getSession } from "@auth0/nextjs-auth0";
+import { redirect } from 'next/navigation'
+
+export default async function VerificationLayout({ children, } : { children: React.ReactNode }) {
+    const session = await getSession();
+
+    if (!session?.user) {
+        return redirect('/api/auth/login');
+    }
+
     return (
         <DefaultPageLayout>
             <div className="container mx-auto bg-fullwhite dark:bg-fullblack p-5 rounded-3xl">
