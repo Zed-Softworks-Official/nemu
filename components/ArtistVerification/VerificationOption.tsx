@@ -26,7 +26,7 @@ const methods = [
     }
 ]
 
-export default function CheckboxInput() {
+export default function VerificationOption() {
     const [selected, setSelected] = useState(methods[0])
 
     return (
@@ -54,17 +54,17 @@ export default function CheckboxInput() {
                                 {({ active, checked }) => (
                                     <>
                                         <div className='flex w-full justify-center'>
-                                            <div className='flex items-center'>
-                                                <RadioGroup.Label as='p' className={`font-medium ${checked ? 'text-white' : 'text-white/40'}`}>
+                                            <div className='flex flex-col items-center'>
+                                                <RadioGroup.Label as='p' className={`font-medium my-5 ${checked ? 'text-white' : 'text-white/40'}`}>
                                                     {ConvertIconToReact(method.icon)}
                                                 </RadioGroup.Label>
-                                                <RadioGroup.Description as='p' className={`block`}>
+                                                <RadioGroup.Description as='p' className={`mb-5`}>
                                                     {method.name}
                                                 </RadioGroup.Description>
                                             </div>
                                         </div>
                                         { checked && (
-                                            <div className='shrink-0 text-white'>
+                                            <div className='shrink-0 text-white absolute right-5 top-14'>
                                                 <CheckIcon className='h-10 w-10' />
                                             </div>
                                         )}
@@ -99,7 +99,7 @@ function ConvertIconToReact(icon: SocialIcon) {
         case SocialIcon.Twitter:
             return (<FontAwesomeIcon className='w-10 h-10' icon={faXTwitter} />)
         case SocialIcon.Pixiv:
-            return (<></>)
+            return (<FontAwesomeIcon className='w-10 h-10' icon={faCode} />)
         case SocialIcon.ArtistCode:
             return (<FontAwesomeIcon className='w-10 h-10' icon={faCode} />)
     }
