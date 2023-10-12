@@ -1,4 +1,5 @@
-import { CurrencyDollarIcon } from "@heroicons/react/20/solid";
+'use client'
+// TODO: Make this into a radio group component
 
 export default function ArtistPoints() {
     return (
@@ -13,7 +14,7 @@ export default function ArtistPoints() {
                     <p>Built in Kanban, Client Messaging, and SOMETHING</p>
                 </div>
                 <div className="verification-info-card">
-                    <h1 className="inline-block font-bold">Commission Queues (with a cap)</h1>
+                    <h1 className="inline-block font-bold">Commission Queues</h1>
                     <p>Blurb</p>
                 </div>
             </div>
