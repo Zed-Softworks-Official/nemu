@@ -2,7 +2,6 @@ import React from "react";
 
 import DefaultPageLayout from "@/app/(default)/layout";
 import ArtistApplyButton from "@/components/ArtistVerification/ArtistApplyButton";
-import { CurrencyDollarIcon } from "@heroicons/react/20/solid";
 import ArtistPoints from "@/components/ArtistVerification/ArtistPoints";
 
 export default async function Artists() {

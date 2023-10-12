@@ -20,6 +20,7 @@ export default function RootLayout({ children, } : { children: React.ReactNode }
             <head>
                 <link href="https://necolas.github.io/normalize.css/8.0.1/normalize.css" rel="stylesheet" />
                 <link rel="stylesheet" href="https://use.typekit.net/tru7say.css" />
+                <link rel="stylesheet" href="https://r2.font.la/01260-nemu/iconsbio.css" />
             </head>
             <UserProvider>
                 <body className='bg-white text-charcoal font-nunito dark:bg-charcoal dark:text-white'>

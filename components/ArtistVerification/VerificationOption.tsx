@@ -4,11 +4,11 @@ import { useState } from 'react'
 import { RadioGroup } from '@headlessui/react'
 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faCode } from '@fortawesome/free-solid-svg-icons'
+import { faCode, faEnvelope } from '@fortawesome/free-solid-svg-icons'
 import { faXTwitter } from '@fortawesome/free-brands-svg-icons'
 
 enum SocialIcon {
-    Twitter, Pixiv, ArtistCode
+    Twitter, Email, ArtistCode
 }
 
 const methods = [
@@ -17,8 +17,8 @@ const methods = [
         icon: SocialIcon.Twitter
     },
     {
-        name: 'Pixiv',
-        icon: SocialIcon.Pixiv
+        name: 'Email',
+        icon: SocialIcon.Email
     },
     {
         name: 'Artist Code',
@@ -98,8 +98,8 @@ function ConvertIconToReact(icon: SocialIcon) {
     switch (icon) {
         case SocialIcon.Twitter:
             return (<FontAwesomeIcon className='w-10 h-10' icon={faXTwitter} />)
-        case SocialIcon.Pixiv:
-            return (<FontAwesomeIcon className='w-10 h-10' icon={faCode} />)
+        case SocialIcon.Email:
+            return (<FontAwesomeIcon className='w-10 h-10' icon={faEnvelope} />)
         case SocialIcon.ArtistCode:
             return (<FontAwesomeIcon className='w-10 h-10' icon={faCode} />)
     }

@@ -1,26 +1,86 @@
 'use client'
-// TODO: Make this into a radio group component
+
+import { useState, Fragment } from "react";
+import { RadioGroup, Transition } from "@headlessui/react";
+import { useTimeoutFn } from "react-use";
+
+const points = [
+    {
+        name: '95/5 Revenue Split',
+        blurb: 'Blurb',
+        desc: 'more desctiption'
+    },
+    {
+        name: 'Streamlined Workflow',
+        blurb: 'Built in Kanban, Client Messaging, and SOMETHING',
+        desc: 'even more description'
+    },
+    {
+        name: 'Commission Queues',
+        blurb: 'Something Cool',
+        desc: 'Wow More Description'
+    }
+]
 
 export default function ArtistPoints() {
+    const [selected, setSelected] = useState(points[0]);
+    const [isShowing, setIsShowing] = useState(true);
+    const [, , resetIsShowing] = useTimeoutFn(() => setIsShowing(true), 500);
+
     return (
         <div className="grid grid-cols-3 grid-flow-cols gap-10 my-10 max-w-6xl mx-auto">
-            <div>
-                <div className="verification-info-card">
-                    <h1 className="font-bold">95/5 Revenue Split</h1>
-                    <p>Blurb</p>
+            <RadioGroup value={selected} onChange={setSelected} onClick={() => { setIsShowing(false); resetIsShowing()}}>
+                <RadioGroup.Label className='sr-only'>Verification Method</RadioGroup.Label>
+                <div className='space-y-2'>
+                    { points.map( (point) => (
+                        <RadioGroup.Option
+                            key={point.name}
+                            value={point}
+                            className={ ({active, checked}) => 
+                                `${
+                                    active
+                                    ? 'ring-2 ring-white ring-opacity-60 ring-offset-2 ring-offset-primary'
+                                    : ''
+                                }
+                                ${
+                                    checked ? 'bg-primary bg-opacity-75 text-white' : 'bg-charcoal'
+                                }
+                                relative flex cursor-pointer rounded-3xl px-5 py-4 shadown-md focus:outline-none`
+                            }
+                        >
+                            {({ active, checked }) => (
+                                <>
+                                    <div className='flex w-full justify-center'>
+                                        <div className='flex flex-col items-center'>
+                                            <RadioGroup.Label as='p' className={`font-medium my-5 text-white`}>
+                                                {point.name}
+                                            </RadioGroup.Label>
+                                            <RadioGroup.Description as='p' className={`mb-5 text-white/40`}>
+                                                {point.blurb}
+                                            </RadioGroup.Description>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+                        </RadioGroup.Option>
+                    ))}
                 </div>
-                <div className="verification-info-card">
-                    <h1 className="inline-block font-bold">Streamlined Workflow</h1>
-                    <p>Built in Kanban, Client Messaging, and SOMETHING</p>
+            </RadioGroup>
+            
+            <Transition 
+                as={Fragment}
+                show={isShowing}
+                enter="transform transition duration-[400ms]"
+                enterFrom="opacity-0 scale-50"
+                enterTo="opacity-100 scale-100"
+                leave="transform duration-200 transition ease-in-out"
+                leaveFrom="opacity-100 scale-100 "
+                leaveTo="opacity-0 scale-95 "
+            >
+                <div className="bg-charcoal col-span-2 p-10 rounded-3xl text-left text-lg">
+                    {selected.desc}
                 </div>
-                <div className="verification-info-card">
-                    <h1 className="inline-block font-bold">Commission Queues</h1>
-                    <p>Blurb</p>
-                </div>
-            </div>
-            <div className="bg-charcoal col-span-2 p-10 rounded-3xl text-left text-lg">
-                <p>Wow Super Cool</p>
-            </div>
+            </Transition>
         </div>
     )
 }
