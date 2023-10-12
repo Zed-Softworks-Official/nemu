@@ -1,4 +1,4 @@
-import VerificationOption from "@/components/ArtistVerification/VerificationOption";
+import VerificationOption from "@/components/ArtistVerification/Steps/VerificationOption";
 import VertificationStep from "@/components/ArtistVerification/VerificationStep";
 
 export default function VerificationStepTwo() {

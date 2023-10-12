@@ -23,6 +23,8 @@ export async function POST(req: Request, { params }: { params: { id: string }}) 
 
     // Send the approved email
 
+    // TODO: Update Search Database
+
     return NextResponse.json({
         success: true
     });

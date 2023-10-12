@@ -6,12 +6,13 @@ import { RadioGroup } from '@headlessui/react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faCode, faEnvelope } from '@fortawesome/free-solid-svg-icons'
 import { faXTwitter } from '@fortawesome/free-brands-svg-icons'
+import useVerificationFormStore, { VerificationMethod } from '@/store/VerificationForm'
 
 enum SocialIcon {
     Twitter, Email, ArtistCode
 }
 
-const methods = [
+const methods: VerificationMethod[] = [
     {
         name: 'X (Twitter)',
         icon: SocialIcon.Twitter
@@ -27,12 +28,12 @@ const methods = [
 ]
 
 export default function VerificationOption() {
-    const [selected, setSelected] = useState(methods[0])
+    const { verificationMethod, setVerificationMethod } = useVerificationFormStore()
 
     return (
         <div className='w-full mb-10'>
             <div className='mx-auto w-full max-w-md'>
-                <RadioGroup value={selected} onChange={setSelected}>
+                <RadioGroup value={verificationMethod} onChange={setVerificationMethod}>
                     <RadioGroup.Label className='sr-only'>Verification Method</RadioGroup.Label>
                     <div className='space-y-2'>
                         { methods.map( (method) => (
