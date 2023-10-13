@@ -8,28 +8,30 @@ const points = [
     {
         name: '95/5 Revenue Split',
         blurb: 'Blurb',
-        desc: 'more desctiption'
+        desc: 'description 1'
     },
     {
         name: 'Streamlined Workflow',
         blurb: 'Built in Kanban, Client Messaging, and SOMETHING',
-        desc: 'even more description'
+        desc: 'description 2'
     },
     {
         name: 'Commission Queues',
         blurb: 'Something Cool',
-        desc: 'Wow More Description'
+        desc: 'description 3'
     }
 ]
 
 export default function ArtistPoints() {
     const [selected, setSelected] = useState(points[0]);
     const [isShowing, setIsShowing] = useState(true);
-    const [, , resetIsShowing] = useTimeoutFn(() => setIsShowing(true), 500);
+    const [currentDesc, setCurrentDesc] = useState(points[0].desc);
 
+    const [, , resetIsShowing] = useTimeoutFn(() => {setIsShowing(true); setCurrentDesc(selected.desc); }, 500);
+    
     return (
         <div className="grid grid-cols-3 grid-flow-cols gap-10 my-10 max-w-6xl mx-auto">
-            <RadioGroup value={selected} onChange={setSelected} onClick={() => { setIsShowing(false); resetIsShowing()}}>
+            <RadioGroup value={selected} onChange={setSelected} onClick={() => { setIsShowing(false); resetIsShowing();}}>
                 <RadioGroup.Label className='sr-only'>Verification Method</RadioGroup.Label>
                 <div className='space-y-2'>
                     { points.map( (point) => (
@@ -78,7 +80,7 @@ export default function ArtistPoints() {
                 leaveTo="opacity-0 scale-95 "
             >
                 <div className="bg-charcoal col-span-2 p-10 rounded-3xl text-left text-lg">
-                    {selected.desc}
+                    {currentDesc}
                 </div>
             </Transition>
         </div>

@@ -6,7 +6,7 @@ import { RadioGroup } from '@headlessui/react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faCode, faEnvelope } from '@fortawesome/free-solid-svg-icons'
 import { faXTwitter } from '@fortawesome/free-brands-svg-icons'
-import useVerificationFormStore, { VerificationMethod } from '@/store/VerificationForm'
+import useVerificationFormStore, { MethodEnum, VerificationMethod } from '@/store/VerificationForm'
 
 enum SocialIcon {
     Twitter, Email, ArtistCode
@@ -15,15 +15,18 @@ enum SocialIcon {
 const methods: VerificationMethod[] = [
     {
         name: 'X (Twitter)',
-        icon: SocialIcon.Twitter
+        icon: SocialIcon.Twitter,
+        method: MethodEnum.Twitter
     },
     {
         name: 'Email',
-        icon: SocialIcon.Email
+        icon: SocialIcon.Email,
+        method: MethodEnum.Email
     },
     {
         name: 'Artist Code',
-        icon: SocialIcon.ArtistCode
+        icon: SocialIcon.ArtistCode,
+        method: MethodEnum.ArtistCode
     }
 ]
 

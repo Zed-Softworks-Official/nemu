@@ -4,9 +4,14 @@ export enum SocialIcon {
     Twitter, Email, ArtistCode
 }
 
+export enum MethodEnum {
+    Twitter, Email, ArtistCode
+}
+
 export interface VerificationMethod {
     name: string
-    icon: SocialIcon
+    icon: SocialIcon,
+    method: MethodEnum
 }
 
 type VerificationFormStore = {
@@ -39,7 +44,7 @@ const useVerificationFormStore = create<VerificationFormStore>((set) => ({
     location: '',
     setLocation: ((value) => set({location: value})),
 
-    verificationMethod: {name: 'X (Twitter)', icon: SocialIcon.Twitter},
+    verificationMethod: {name: 'X (Twitter)', icon: SocialIcon.Twitter, method: MethodEnum.Twitter},
     setVerificationMethod: ((value) => set({verificationMethod: value})),
 }))
 
