@@ -58,3 +58,8 @@ model StoreItem {
     product             String
     stripeAccId         String
 }
+
+model AritstCode {
+    id                  String         @id @default(auto()) @map("_id") @db.ObjectId
+    code                String
+}

@@ -23,8 +23,8 @@ export default function ArtistAction( { method }: { method: VerificationMethod} 
     }
 
     return (
-        <div>
+        <>
             {determineNextStep(method.method)}
-        </div>
+        </>
     )
 }

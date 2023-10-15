@@ -1,5 +1,5 @@
 import VerificationInfo from "@/components/ArtistVerification/Steps/VerificationInfo";
-import VertificationStep from "@/components/ArtistVerification/VerificationStep";
+import VertificationStep from "@/components/ArtistVerification/Layout/VerificationStep";
 
 export default function VerificationStepOne() {
     return (

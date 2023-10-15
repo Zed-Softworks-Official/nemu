@@ -1,4 +1,4 @@
-import NavigationButtons from "./NavigationButtons";
+import NavigationButtons from "../NavigationButtons";
 
 export default function VertificationStep( { children, back, next, home, end }: { children: React.ReactNode, back: string, next: string, home?: boolean, end?: boolean }) {
 

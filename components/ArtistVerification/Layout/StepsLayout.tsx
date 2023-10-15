@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 
-import Dot from "@/components/ArtistVerification/Dot";
-import VerticalLine from "@/components/ArtistVerification/VerticalLine";
+import Dot from "@/components/ArtistVerification/UI/Dot";
+import VerticalLine from "@/components/ArtistVerification/UI/VerticalLine";
 import { usePathname } from "next/navigation";
-import StepTitle from "../StepTitle";
+import StepTitle from "../UI/StepTitle";
 
 export default function StepsLayout({ children }: { children: React.ReactNode}) {
     const pathname = usePathname();
