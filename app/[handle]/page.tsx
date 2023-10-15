@@ -14,7 +14,7 @@ export var metadata: Metadata = {
 }
 
 export default async function ArtistPage({params}: { params: { handle: string}}) {
-    // Create new prisma client and get the handle from the params
+    // Get Params from URL
     let handle = params.handle.substring(3, params.handle.length + 1);
     // Set handle to part of the title
     metadata.title = 'Nemu | @' + handle;

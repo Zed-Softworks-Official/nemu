@@ -9,6 +9,6 @@ export async function POST(req: Request, { params }: { params: { code: string }}
     }) != null;
 
     return NextResponse.json({
-        succuess: result
+        success: result
     });
 }
