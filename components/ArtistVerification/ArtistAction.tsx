@@ -1,4 +1,7 @@
 import { MethodEnum, VerificationMethod } from "@/store/VerificationForm";
+import TwitterVerificationMethod from "./Methods/TwitterVerificationMethod";
+import EmailVerificationMethod from "./Methods/EmailVerificationMethod";
+import ArtistCodeVerificiationMethod from "./Methods/ArtistCodeVerificationMethod";
 
 export default function ArtistAction( { method }: { method: VerificationMethod} ) {
 
@@ -6,15 +9,15 @@ export default function ArtistAction( { method }: { method: VerificationMethod} 
         switch (method) {
             case MethodEnum.Twitter:
                 return (
-                    <h1>Twitter Chosen</h1>
+                    <TwitterVerificationMethod />
                 )
             case MethodEnum.Email:
                 return (
-                    <h1>Email Chosen</h1>
+                    <EmailVerificationMethod />
                 )
             case MethodEnum.ArtistCode:
                 return (
-                    <h1>Artist Code Chosen</h1>
+                    <ArtistCodeVerificiationMethod />
                 )
         }
     }

@@ -29,6 +29,9 @@ type VerificationFormStore = {
 
     verificationMethod: VerificationMethod
     setVerificationMethod: (value: VerificationMethod) => void
+
+    artistCode?: string | undefined
+    setArtistCode: (value: string) => void
 }
 
 const useVerificationFormStore = create<VerificationFormStore>((set) => ({
@@ -46,6 +49,8 @@ const useVerificationFormStore = create<VerificationFormStore>((set) => ({
 
     verificationMethod: {name: 'X (Twitter)', icon: SocialIcon.Twitter, method: MethodEnum.Twitter},
     setVerificationMethod: ((value) => set({verificationMethod: value})),
+
+    setArtistCode: ((value) => set({artistCode: value}))
 }))
 
 export default useVerificationFormStore
