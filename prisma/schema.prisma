@@ -16,7 +16,7 @@ model Portfolio {
 
 model ArtistVerification {
   id              String @id @default(auto()) @map("_id") @db.ObjectId
-  auth0id         String @unique
+  userId          String @unique
   requestedHandle String @unique
   username        String
   twitter         String
@@ -38,7 +38,7 @@ model Device {
 
 model Artist {
   id          String @id @default(auto()) @map("_id") @db.ObjectId
-  userId      String @db.ObjectId
+  userId      String @unique @db.ObjectId
   stripeAccId String
 
   handle   String
@@ -97,13 +97,14 @@ model Session {
 
 model User {
   id            String    @id @default(auto()) @map("_id") @db.ObjectId
-  name          String?
-  email         String?
+  name          String?   @unique
+  email         String?   @unique
   emailVerified DateTime?
+  password      String?
   image         String?
   accounts      Account[]
   sessions      Session[]
-  Artist        Artist[]
+  Artist        Artist?
   Social        Social[]
 }
 
@@ -121,6 +122,6 @@ model Social {
   userId String @db.ObjectId
   agent  String
   url    String
-  
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

@@ -56,7 +56,7 @@ export default function ArtistProvider({ children }: { children: React.ReactNode
     const [user_id, setUserId] = useState('')
 
     // Get the user from the session
-    const {data: session } = useSession()
+    const { data: session } = useSession()
 
     // Check if they're an artist
 

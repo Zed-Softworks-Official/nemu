@@ -21,7 +21,7 @@ export const authOptions: NextAuthOptions = {
             },
             async authorize(credentials, req) {
                 // 
-                const res = await fetch('/api/user/auth', {
+                const res = await fetch('/api/user', {
                     method: 'POST',
                     body: JSON.stringify(credentials),
                     headers: {
