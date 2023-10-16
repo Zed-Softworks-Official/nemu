@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useState, Dispatch, SetStateAction, useEffect } from 'react';
+import { createContext, useContext, useState, Dispatch, SetStateAction, useEffect } from 'react'
 
 type DashboardContextType = {
     handle?: string | null

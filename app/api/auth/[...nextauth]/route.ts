@@ -9,6 +9,9 @@ import Credentials from 'next-auth/providers/credentials'
 
 export const authOptions: NextAuthOptions = {
     adapter: PrismaAdapter(prisma),
+    session: {
+        strategy: 'jwt'
+    },
     providers: [
         Credentials({
             name: 'credentials',
@@ -39,7 +42,8 @@ export const authOptions: NextAuthOptions = {
         }),
         TwitterProvider({
             clientId: process.env.TWITTER_CLIENT_ID!,
-            clientSecret: process.env.TWITTER_CLIENT_SECRET!
+            clientSecret: process.env.TWITTER_CLIENT_SECRET!,
+            version: '2.0'
         }),
         AppleProvider({
             clientId: process.env.APPLE_CLIENT_ID!,

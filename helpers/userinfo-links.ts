@@ -62,7 +62,7 @@ export const UserInfoObject: Record<string, UserInfoLink[]> = {
         },
         {
             title: 'Sign Out',
-            path: '/api/auth/logout',
+            path: '/api/auth/signout',
             icon: UserInfoIcon.SignOut
         }
     ],
@@ -80,7 +80,7 @@ export const UserInfoObject: Record<string, UserInfoLink[]> = {
         },
         {
             title: 'Sign Out',
-            path: '/api/auth/logout',
+            path: '/api/auth/signout',
             icon: UserInfoIcon.SignOut
         }
     ]

@@ -104,13 +104,23 @@ model User {
   accounts      Account[]
   sessions      Session[]
   Artist        Artist[]
+  Social        Social[]
 }
 
 model VerificationToken {
   id         String   @id @default(auto()) @map("_id") @db.ObjectId
   identifier String
   token      String   @unique
-  expiers    DateTime
+  expires    DateTime
 
   @@unique([identifier, token])
+}
+
+model Social {
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  userId String @db.ObjectId
+  agent  String
+  url    String
+  
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

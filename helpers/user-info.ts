@@ -1,3 +1,8 @@
+export interface Social {
+    agent?: string
+    url?: string
+}
+
 export enum Role {
     Standard,
     Artist,

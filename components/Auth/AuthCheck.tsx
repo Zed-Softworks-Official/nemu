@@ -1,6 +1,7 @@
 'use client' 
 
 import { useSession } from 'next-auth/react'
+import { redirect } from 'next/navigation'
 
 export default function AuthCheck({ children }: { children: React.ReactNode }) {
     const {data: session, status } = useSession();
@@ -14,8 +15,6 @@ export default function AuthCheck({ children }: { children: React.ReactNode }) {
     }
     else
     {
-        return (
-            <></>
-        )
+        redirect('/api/auth/signin')
     }
 }
