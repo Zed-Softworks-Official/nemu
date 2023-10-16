@@ -1,5 +1,5 @@
 import { S3Delete, S3Upload, StringToAWSLocationsEnum } from "@/helpers/s3";
-import { prisma } from "@/prisma/prisma";
+import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
 

@@ -2,7 +2,7 @@ import React from "react";
 import type { Metadata, } from 'next'
 import { notFound } from "next/navigation";
 
-import { prisma } from "@/prisma/prisma";
+import { prisma } from "@/lib/prisma";
 
 import { TabsProvider } from "@/components/ArtistPage/TabsContext";
 import ArtistHeader from "@/components/ArtistPage/Header";

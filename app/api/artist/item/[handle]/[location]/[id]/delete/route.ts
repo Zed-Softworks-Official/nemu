@@ -1,4 +1,4 @@
-import { prisma } from "@/prisma/prisma";
+import { prisma } from "@/lib/prisma";
 import { S3Delete, StringToAWSLocationsEnum } from "@/helpers/s3";
 
 //////////////////////////////////////

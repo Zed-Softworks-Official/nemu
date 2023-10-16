@@ -1,6 +1,6 @@
-import { PrismaCreate } from "@/prisma/prisma";
+import { PrismaCreate } from "@/lib/prisma";
 import { PrismaArtistInfo, PrismaModel } from "@/prisma/prisma-interface";
-import { prisma } from "@/prisma/prisma";
+import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request, { params }: { params: { id: string }}) {

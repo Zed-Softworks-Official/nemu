@@ -1,4 +1,4 @@
-import { prisma } from "@/prisma/prisma";
+import { prisma } from "@/lib/prisma";
 
 /**
  * Destroys a specific artist code from the database

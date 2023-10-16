@@ -1,4 +1,4 @@
-import { prisma } from "@/prisma/prisma";
+import { prisma } from "@/lib/prisma";
 import { PortfolioItem, ShopItem } from "./request-inerfaces";
 import { S3GetSignedURL, StringToAWSLocationsEnum } from "@/helpers/s3";
 

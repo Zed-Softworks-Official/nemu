@@ -29,7 +29,7 @@ export const UserInfoObject: Record<string, UserInfoLink[]> = {
     SignedOut: [
         {
             title: 'Sign In',
-            path: '/api/auth/login',
+            path: '/api/auth/signin',
             icon: UserInfoIcon.SignIn
         }
     ],

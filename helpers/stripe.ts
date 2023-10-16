@@ -1,7 +1,7 @@
 import Stripe from 'stripe';
 import { ShopItem } from './api/request-inerfaces';
 import { AWSLocations, S3GetSignedURL } from './s3';
-import { prisma } from '@/prisma/prisma';
+import { prisma } from '@/lib/prisma';
 const stripe = new Stripe(process.env.STRIPE_API_KEY!, {
     apiVersion: '2023-08-16'
 });

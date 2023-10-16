@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { S3Upload, StringToAWSLocationsEnum } from "@/helpers/s3";
 
-import { PrismaCreate, prisma } from "@/prisma/prisma";
+import { PrismaCreate, prisma } from "@/lib/prisma";
 import { PrismaModel, StringToPrismaModelEnum } from "@/prisma/prisma-interface";
 import { RequestItem } from "@/helpers/api/request-item";
 

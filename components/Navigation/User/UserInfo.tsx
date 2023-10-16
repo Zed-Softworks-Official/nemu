@@ -1,20 +1,13 @@
 import React  from "react";
 
-import { getSession } from '@auth0/nextjs-auth0'
+import { getServerSession } from 'next-auth'
 
 import UserInfoMenu from "./UserInfoMenu";
-import { prisma } from "@/prisma/prisma";
 
 export default async function UserInfo() {
-    const session = await getSession();
-
-    let artist_info = await prisma.artist.findFirst({
-        where: {
-            auth0id: session?.user?.sub
-        }
-    });
+    const session = await getServerSession();
 
     return (
-        <UserInfoMenu session={session ? true : false} artist={artist_info ? true : false} artist_handle={artist_info?.handle} />
+        <UserInfoMenu session={session ? true : false} artist={false} artist_handle={''} />
     )
 }

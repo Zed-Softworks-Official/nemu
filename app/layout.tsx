@@ -3,7 +3,7 @@ import type { Metadata, } from 'next'
 
 import Footer from '@/components/Footer'
 
-import { UserProvider } from '@auth0/nextjs-auth0/client'
+import AuthProvider from '@/components/Auth/AuthProvider';
 import { ToastContainer } from 'react-toastify';
 
 import 'react-toastify/ReactToastify.min.css';
@@ -22,13 +22,13 @@ export default function RootLayout({ children, } : { children: React.ReactNode }
                 <link rel="stylesheet" href="https://use.typekit.net/tru7say.css" />
                 <link rel="stylesheet" href="https://r2.font.la/01260-nemu/iconsbio.css" />
             </head>
-            <UserProvider>
+            <AuthProvider>
                 <body className='bg-white text-charcoal font-nunito dark:bg-charcoal dark:text-white'>
                     { children }
                     <ToastContainer position='top-right' />
                     <Footer />
                 </body>
-            </UserProvider>
+            </AuthProvider>
         </html>
   )
 }
