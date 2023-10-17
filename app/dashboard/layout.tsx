@@ -5,6 +5,7 @@ import Navbar from '@/components/Navigation/Dashboard/Navbar';
 
 import { DashboardProvider } from '@/components/Navigation/Dashboard/DashboardContext';
 import { getSession } from '@auth0/nextjs-auth0';
+import Footer from '@/components/Footer';
 
 export const metadata: Metadata = {
     title: 'Nemu | Artist Dashboard',
@@ -21,6 +22,7 @@ export default async function DashboardLayout({ children, } : { children: React.
         <DashboardProvider artist_handle={artist.info.handle} artist_id={artist.info.auth0id} artist_stripe_id={artist.info.stripeAccId}>
             <Navbar />
             { children }
+            <Footer />
         </DashboardProvider>
   )
 }
