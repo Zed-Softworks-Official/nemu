@@ -1,19 +1,20 @@
-import OAuthProviders from "@/components/Auth/OAuthProviders";
-import { getSession, getProviders, getCsrfToken } from "next-auth/react";
-import { redirect } from "next/navigation";
+import OAuthProviders from '@/components/Auth/OAuthProviders'
+
+import { getSession, getProviders, getCsrfToken } from 'next-auth/react'
+import { redirect } from 'next/navigation'
 
 export default async function Login() {
     // If the user is already signed in then redirect them to the home page
-    let session = await getSession();
+    let session = await getSession()
     if (session?.user) {
         redirect('/')
     }
 
     // Get the providers
-    const providers = await getProviders();
+    const providers = await getProviders()
 
     // Get the csrtToken
-    const csrfToken = await getCsrfToken();
+    const csrfToken = await getCsrfToken()
 
     return (
         <>
