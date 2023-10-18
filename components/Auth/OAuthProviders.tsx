@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { signIn } from 'next-auth/react'
 
 import { BuiltInProviderType } from 'next-auth/providers/index'
@@ -8,17 +9,17 @@ import { ClientSafeProvider, LiteralUnion } from 'next-auth/react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faTwitter, faGoogle, faApple } from '@fortawesome/free-brands-svg-icons'
 
-import Link from 'next/link'
+export default function OAuthProviders({ providers }: { providers: Record<LiteralUnion<BuiltInProviderType, string>, ClientSafeProvider> } ) {
+    const [email, setEmail] = useState('')
 
-export default function OAuthProviders({ providers, csrfToken }: { providers: Record<LiteralUnion<BuiltInProviderType, string>, ClientSafeProvider>, csrfToken: string } ) {
     function getIcon(provider_name: string) {
         switch (provider_name) {
             case 'Twitter':
-                return (<FontAwesomeIcon icon={faTwitter} className='mr-5' />)
+                return (<FontAwesomeIcon icon={faTwitter} className='mr-5 w-5 h-5 align-bottom' />)
             case 'Apple':
-                return (<FontAwesomeIcon icon={faApple} className='mr-5' />)
+                return (<FontAwesomeIcon icon={faApple} className='mr-5 w-5 h-5 align-bottom' />)
             case 'Google':
-                return (<FontAwesomeIcon icon={faGoogle} className='mr-5' />)
+                return (<FontAwesomeIcon icon={faGoogle} className='mr-5 w-5 h-5 align-bottom' />)
         }
     }
 
@@ -27,38 +28,32 @@ export default function OAuthProviders({ providers, csrfToken }: { providers: Re
             {Object.values(providers!).map((provider) => (
                 <div key={provider.name} className='my-5'>
                     {provider.name == 'credentials' && (
-                        <form method='post' action={`/api/auth/callback/credentials`}>
-                            <div>
-                                <input name='csrfToken' type='hidden' defaultValue={csrfToken} />
+                        <div>
+                            <div className='mt-5'>
+                                <label htmlFor='email' className='block mb-5'>Email</label>
+                                <input name='email' id='email' type='email' className='bg-white dark:bg-charcoal p-5 rounded-xl w-full' placeholder='Email' onChange={(e) => setEmail(e.target.value)} />
                             </div>
                             <div className='mt-5'>
-                                <label htmlFor='name' className='block mb-5'>Username</label>
-                                <input name='name' type='text' className='bg-white dark:bg-charcoal p-5 rounded-xl w-full' placeholder='Username' />
-                            </div>
-                            <div className='mt-5'>
-                                <label htmlFor='password' className='block mb-5'>Password</label>
-                                <input name='password' type='password' className='bg-white dark:bg-charcoal p-5 rounded-xl w-full' placeholder='Password' />
-                            </div>
-                            <div className='mt-5'>
-                                <button className='dark:bg-charcoal bg-white p-5 rounded-3xl w-full' type='submit'>
+                                <button className='dark:bg-charcoal bg-white p-5 rounded-3xl w-full' onClick={() => signIn('email', { email: email})}>
                                     Sign In
                                 </button>
                             </div>
-                            <hr className='seperation' />
-                        </form>
+                            <div className='flex items-center justify-center space-x-2 my-5'>
+                                <span className='h-px w-16 dark:bg-white bg-charcoal'></span>
+                                <p className='uppercase text-center'>or</p>
+                                <span className='h-px w-16 dark:bg-white bg-charcoal'></span>
+                            </div>
+                        </div>
                     )}
 
                     {provider.name != 'credentials' && (
-                        <button onClick={() => { signIn(provider.id) }} className='dark:bg-charcoal bg-white p-5 rounded-3xl w-full'>
+                        <button onClick={() => { signIn(provider.id) }} className='dark:bg-charcoal bg-white p-5 rounded-3xl w-full hover:bg-primary'>
                             { getIcon(provider.name) }
                             Sign in with {provider.name}
                         </button>
                      )}
                 </div>
             ))}
-            <p className='text-center pt-5'>
-                Don&apos;t have an account? <Link href={'/u/signup'}>Sign Up Here!</Link>
-            </p>
         </>
     )    
 }

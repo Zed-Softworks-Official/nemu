@@ -1,11 +1,13 @@
 import NextAuth, { NextAuthOptions } from 'next-auth'
+import { JWT } from 'next-auth/jwt'
+
 import { prisma } from '@/lib/prisma'
 import { PrismaAdapter } from '@next-auth/prisma-adapter'
 
 import GoogleProvider from 'next-auth/providers/google'
 import AppleProvider from 'next-auth/providers/apple'
 import TwitterProvider from 'next-auth/providers/twitter'
-import Credentials from 'next-auth/providers/credentials'
+import EmailProvider from 'next-auth/providers/email'
 
 export const authOptions: NextAuthOptions = {
     adapter: PrismaAdapter(prisma),
@@ -13,31 +15,20 @@ export const authOptions: NextAuthOptions = {
         strategy: 'jwt'
     },
     pages: {
-        signIn: '/u/login'
+        signIn: '/u/login',
+        verifyRequest: '/u/verify-request'
     },
     providers: [
-        Credentials({
-            name: 'credentials',
-            credentials: {
-                username: { label: 'Username', type: 'text', placeholder: 'Username' },
-                password: { label: 'Password', type: 'password', placeholder: 'Password' }
-            },
-            async authorize(credentials, req) {
-                // 
-                const res = await fetch('/api/user', {
-                    method: 'POST',
-                    body: JSON.stringify(credentials),
-                    headers: {
-                        'content-type': 'application/json'
-                    }
-                });
-                const user = await res.json();
-                if (res.ok && user) {
-                    return user;
+        EmailProvider({
+            server: {
+                host: process.env.EMAIL_SERVER_HOST,
+                port: process.env.EMAIL_SERVER_PORT,
+                auth: {
+                    user: process.env.EMAIL_SERVER_USER,
+                    pass: process.env.EMAIL_SERVER_PASSWORD
                 }
-
-                return null;
-            }
+            },
+            from: process.env.EMAIL_FROM
         }),
         GoogleProvider({
             clientId: process.env.GOOGLE_CLIENT_ID!,

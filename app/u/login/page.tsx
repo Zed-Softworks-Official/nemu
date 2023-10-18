@@ -12,13 +12,10 @@ export default async function Login() {
 
     // Get the providers
     const providers = await getProviders()
-
-    // Get the csrtToken
-    const csrfToken = await getCsrfToken()
-
+    
     return (
         <>
-            <OAuthProviders providers={providers!} csrfToken={csrfToken!} />
+            <OAuthProviders providers={providers!} />
         </>
     )
 }
