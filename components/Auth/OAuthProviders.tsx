@@ -34,7 +34,7 @@ export default function OAuthProviders({ providers }: { providers: Record<Litera
                                 <input name='email' id='email' type='email' className='bg-white dark:bg-charcoal p-5 rounded-xl w-full' placeholder='Email' onChange={(e) => setEmail(e.target.value)} />
                             </div>
                             <div className='mt-5'>
-                                <button className='dark:bg-charcoal bg-white p-5 rounded-3xl w-full' onClick={() => signIn('email', { email: email})}>
+                                <button className='dark:bg-charcoal bg-white p-5 rounded-3xl w-full' onClick={() => signIn('email', { email: email })}>
                                     Sign In
                                 </button>
                             </div>

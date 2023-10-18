@@ -1,6 +1,6 @@
 import OAuthProviders from '@/components/Auth/OAuthProviders'
 
-import { getSession, getProviders, getCsrfToken } from 'next-auth/react'
+import { getSession, getProviders } from 'next-auth/react'
 import { redirect } from 'next/navigation'
 
 export default async function Login() {
@@ -12,7 +12,7 @@ export default async function Login() {
 
     // Get the providers
     const providers = await getProviders()
-    
+
     return (
         <>
             <OAuthProviders providers={providers!} />
