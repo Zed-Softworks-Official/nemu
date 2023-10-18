@@ -1,3 +1,4 @@
+import AuthError from '@/components/Auth/AuthError'
 import AuthRedirect from '@/components/Auth/AuthRedirect'
 import OAuthProviders from '@/components/Auth/OAuthProviders'
 
@@ -9,6 +10,7 @@ export default async function Login() {
 
     return (
         <AuthRedirect>
+            <AuthError />
             <OAuthProviders providers={providers!} />
         </AuthRedirect>
     )
