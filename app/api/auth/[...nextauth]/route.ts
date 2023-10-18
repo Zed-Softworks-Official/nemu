@@ -43,7 +43,14 @@ export const authOptions: NextAuthOptions = {
             clientId: process.env.APPLE_CLIENT_ID!,
             clientSecret: process.env.APPLE_CLIENT_SECRET!
         })
-    ]
+    ],
+    // callbacks: {
+    //     async session({ session, token, user }) {
+    //         session.user.id = token.sub
+
+    //         return session
+    //     }
+    // }
 }
 
 const handler = NextAuth(authOptions);

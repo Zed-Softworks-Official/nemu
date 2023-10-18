@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { signIn } from 'next-auth/react'
 
 import { BuiltInProviderType } from 'next-auth/providers/index'
