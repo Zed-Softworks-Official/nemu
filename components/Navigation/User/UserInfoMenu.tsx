@@ -1,33 +1,39 @@
 'use client'
 
-import React, { Fragment } from 'react';
-import Link from "next/link";
+import Link from 'next/link'
+import React, { Fragment } from 'react'
+import { useSession } from 'next-auth/react'
 
-import { Menu, Transition } from "@headlessui/react";
-import { ArrowRightOnRectangleIcon, ChartBarIcon, Cog6ToothIcon, EnvelopeIcon, PaintBrushIcon, StarIcon, UserIcon, ArrowLeftOnRectangleIcon } from "@heroicons/react/20/solid";
-import { UserInfoIcon, UserInfoLink, UserInfoObject } from '@/helpers/userinfo-links';
+import { Menu, Transition } from '@headlessui/react'
+import { ArrowRightOnRectangleIcon, ChartBarIcon, Cog6ToothIcon, EnvelopeIcon, PaintBrushIcon, StarIcon, UserIcon, ArrowLeftOnRectangleIcon, UsersIcon } from '@heroicons/react/20/solid'
 
-import classNames from "@/helpers/classnames";
+import classNames from '@/helpers/classnames'
+import { Role } from '@/helpers/user-info'
+import { UserInfoIcon, UserInfoLink, UserInfoObject } from '@/helpers/userinfo-links'
 
-export default function UserInfoMenu({ session, artist, artist_handle } : { session: boolean, artist: boolean, artist_handle: string | undefined}) {
+export default function UserInfoMenu() {
+    const { data: session } = useSession()
+    console.log(`Role: ${session?.user.role}`)
+
     /////////////////////////////////
     // Get the correct Navbar items
     /////////////////////////////////
-    function GetCurrentNavbarItems(session: boolean, artist: boolean, artist_handle: string | undefined) {
+    function GetCurrentNavbarItems(session: boolean, role: Role) {
         // Check if we have a session
         if (session) {
             // If we're not an artist then we're a standard user
-            if (!artist) {
-                return UserInfoObject.Standard;
+            switch (role) {
+                case Role.Artist:
+                    let infoObject = UserInfoObject.Artist
+                    infoObject[0].path = `/@JackSchitt404`
+
+                    return infoObject
             }
     
-            let infoObject = UserInfoObject.Artist
-            infoObject[0].path = `/@${artist_handle}`;
-    
-            return infoObject;
+            return UserInfoObject.Standard
         }
     
-        return UserInfoObject.SignedOut;
+        return UserInfoObject.SignedOut
     }
     
     /////////////////////////////////
@@ -38,42 +44,46 @@ export default function UserInfoMenu({ session, artist, artist_handle } : { sess
             case UserInfoIcon.Page:
                 return (
                     <PaintBrushIcon className="user-menu-item-icon" />
-                );
+                )
             case UserInfoIcon.Dashboard:
                 return (
                     <ChartBarIcon className="user-menu-item-icon" />
-                );
+                )
             case UserInfoIcon.Favourite:
                 return (
                     <StarIcon className="user-menu-item-icon" />
-                );
+                )
             case UserInfoIcon.Messages:
                 return (
                     <EnvelopeIcon className="user-menu-item-icon" />
-                );
+                )
             case UserInfoIcon.Settings:
                 return (
                     <Cog6ToothIcon className="user-menu-item-icon" />
-                );
+                )
             case UserInfoIcon.SignIn:
                 return (
                     <ArrowLeftOnRectangleIcon className="user-menu-item-icon" />
-                );
+                )
             case UserInfoIcon.SignOut:
                 return (
                     <ArrowRightOnRectangleIcon className="user-menu-item-icon" />
-                );
+                )
         }
     }
 
     // initialize the navbar items
-    let navbar_items: UserInfoLink[] = GetCurrentNavbarItems(session, artist, artist_handle);
+    let navbar_items: UserInfoLink[] = GetCurrentNavbarItems(session ? true : false, session?.user.role!);
 
     return (
         <Menu as="div" className="relative inline-block text-left mt-3 ml-20">
             <div>
                 <Menu.Button className="inline-flex w-full justify-center gap-x-1.5 rounded-md bg-white dark:bg-charcoal font-semibold">
-                    <UserIcon className="h-6 w-6 text-black"/>
+                    {session?.user?.image ? (
+                        <img src={session?.user?.image!} className='rounded-full' />
+                    ) : (
+                        <UserIcon className="h-6 w-6 text-black"/>
+                    ) }
                 </Menu.Button>
             </div>
             <Transition 

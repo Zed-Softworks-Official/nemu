@@ -26,7 +26,7 @@ model ArtistVerification {
 
 model Device {
   id        String  @id @default(auto()) @map("_id") @db.ObjectId
-  auth0id   String
+  userId    String
   browser   String
   os        String
   platform  String
@@ -58,7 +58,7 @@ model Artist {
 
 model StoreItem {
   id          String @id @default(auto()) @map("_id") @db.ObjectId
-  auth0id     String
+  userId      String
   product     String
   stripeAccId String
 }
@@ -92,20 +92,23 @@ model Session {
   sessionToken String   @unique
   userId       String   @db.ObjectId
   expires      DateTime
+
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model User {
   id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String    @unique @db.ObjectId
   name          String?   @unique
   email         String?   @unique
   emailVerified DateTime?
-  password      String?
   image         String?
+  role          Int?
+
   accounts      Account[]
   sessions      Session[]
-  Artist        Artist?
   Social        Social[]
+  Artist        Artist?
 }
 
 model VerificationToken {

@@ -1,5 +1,4 @@
 import NextAuth, { NextAuthOptions } from 'next-auth'
-import { JWT } from 'next-auth/jwt'
 
 import { prisma } from '@/lib/prisma'
 import { PrismaAdapter } from '@next-auth/prisma-adapter'
@@ -8,6 +7,7 @@ import GoogleProvider from 'next-auth/providers/google'
 import AppleProvider from 'next-auth/providers/apple'
 import TwitterProvider from 'next-auth/providers/twitter'
 import EmailProvider from 'next-auth/providers/email'
+import { Role } from '@/helpers/user-info'
 
 export const authOptions: NextAuthOptions = {
     adapter: PrismaAdapter(prisma),
@@ -44,14 +44,35 @@ export const authOptions: NextAuthOptions = {
             clientSecret: process.env.APPLE_CLIENT_SECRET!
         })
     ],
-    // callbacks: {
-    //     async jwt({ token, user }) {
-    //         return { ...token, user_id: user.id }
-    //     },
-    //     async session({ session, token, user }) {
-    //         return {...session, user_id: {...token.user_id} }
-    //     }
-    // }
+    callbacks: {
+        async jwt({ token, user, account }) {
+            if (account && user) {
+                token.provider = account.provider
+            }
+
+            return token
+        },
+        async session({ session, token }) {
+            try {
+                // Get User Role
+                let db_user = await prisma.user.findFirst({
+                    where: {
+                        id: token.sub
+                    }
+                })
+
+                // Add Extra Session Data
+                session.user.user_id = token.sub
+                session.user.provider = token.provider ? token.provider as string : undefined
+                session.user.role = db_user?.role as Role       
+
+            } catch (e) {
+                console.log(e)
+            }
+
+            return session
+        }
+    }
 }
 
 const handler = NextAuth(authOptions);

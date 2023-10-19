@@ -1,10 +1,14 @@
 'use client'
 
-import { ArtistCodeVerification } from "@/helpers/artist-verification";
-import useVerificationFormStore, { MethodEnum } from "@/store/VerificationForm";
-import { useUser } from "@auth0/nextjs-auth0/client";
-import { useRouter } from "next/navigation";
-import { MouseEvent } from "react";
+import { MouseEvent } from 'react'
+
+import { useSession } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
+
+import useVerificationFormStore, { MethodEnum } from '@/store/VerificationForm'
+import { ArtistCodeVerification } from '@/helpers/artist-verification'
+import { toast } from 'react-toastify'
+
 
 export default function ArtistSubmitButton() {
     const { 
@@ -14,20 +18,26 @@ export default function ArtistSubmitButton() {
         location,
         verificationMethod,
         artistCode
-    } = useVerificationFormStore();
+    } = useVerificationFormStore()
 
-    const { user } = useUser();
-    const { replace } = useRouter(); 
+    const { data: session } = useSession()
+    const { replace } = useRouter() 
 
     async function handleSubmit(event: MouseEvent<HTMLButtonElement>) {
-        event.preventDefault();
+        event.preventDefault()
 
         try {
             // Check to see what method was used
             switch (verificationMethod.method) {
                 // If they used an artist code
                 case MethodEnum.ArtistCode:
-                    await ArtistCodeVerification(artistCode!, user!.sub!);
+                    await ArtistCodeVerification(artistCode!, session?.user.user_id!, {
+                        user_id: session?.user.user_id!,
+                        requested_handle: requestedHandle,
+                        twitter: twitter,
+                        pixiv: pixiv,
+                        location: location
+                    })
                     break;
                 // If they used twitter
                 case MethodEnum.Twitter:
@@ -37,10 +47,18 @@ export default function ArtistSubmitButton() {
                     break;
             }
 
-            //replace('/');
+            // Send Toast Message
+
+            // If they used an artist code take them to their new profile
+            if (artistCode) {
+                replace(`/@${requestedHandle}`)
+            }
+
+            // Go Back to homepage
+            replace('/');
 
         } catch (error) {
-            console.log(error);
+            console.log(error)
         }
     }
 

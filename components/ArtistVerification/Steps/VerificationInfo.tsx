@@ -1,6 +1,7 @@
 'use client'
 
-import useVerificationFormStore from "@/store/VerificationForm"
+import useVerificationFormStore from '@/store/VerificationForm'
+import { useSession } from 'next-auth/react'
 
 export default function VerificationInfo() {
     const { 
@@ -12,7 +13,10 @@ export default function VerificationInfo() {
         setPixiv,
         location,
         setLocation
-     } = useVerificationFormStore()
+    } = useVerificationFormStore()
+
+    const { data: session } = useSession()
+    let twitterDefaultValue = session?.user.provider == 'twitter' ? `https://x.com/${session.user.name}` : ''
 
     return (
         <div className="w-full">
@@ -47,6 +51,7 @@ export default function VerificationInfo() {
                     placeholder={twitter} 
                     className="bg-white dark:bg-charcoal p-5 rounded-xl w-full" 
                     onChange={(e) => setTwitter(e.target.value)} 
+                    defaultValue={twitterDefaultValue}
                 />
             </div>
 
