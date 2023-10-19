@@ -1,9 +1,7 @@
-
 import Link from "next/link";
 import DefaultPageLayout from "./(default)/layout";
 
 export default function Home() {
-
     return (
         <DefaultPageLayout>
             <main className='flex flex-wrap container mx-auto'>

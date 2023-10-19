@@ -44,13 +44,14 @@ export const authOptions: NextAuthOptions = {
             clientSecret: process.env.APPLE_CLIENT_SECRET!
         })
     ],
-    callbacks: {
-        async session({ session, token, user }) {
-            
-
-            return session
-        }
-    }
+    // callbacks: {
+    //     async jwt({ token, user }) {
+    //         return { ...token, user_id: user.id }
+    //     },
+    //     async session({ session, token, user }) {
+    //         return {...session, user_id: {...token.user_id} }
+    //     }
+    // }
 }
 
 const handler = NextAuth(authOptions);

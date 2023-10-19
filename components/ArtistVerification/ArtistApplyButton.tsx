@@ -1,14 +1,14 @@
 'use client'
 
-import { useUser } from "@auth0/nextjs-auth0/client";
-import { useRouter } from "next/navigation";
+import { useSession } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
 
 export default function ArtistApplyButton() {
-    const { user } = useUser();
+    const session = useSession();
     const { push, replace } = useRouter();
 
     function routeUser() {
-        if (!user) {
+        if (!session.data?.user) {
             return push('/api/auth/login');
         }
  
@@ -16,6 +16,9 @@ export default function ArtistApplyButton() {
      }
 
     return (
-        <button onClick={routeUser} className="border-2 border-white p-5 hover:underline rounded-3xl m-5" >Click here to become an artist</button>
+        <>
+            <p>{session.data?.user?.email}</p>
+            <button onClick={routeUser} className="border-2 border-white p-5 hover:underline rounded-3xl m-5" >Click here to become an artist</button>
+        </>
     )
 }
