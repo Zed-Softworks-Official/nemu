@@ -55,7 +55,7 @@ export const authOptions: NextAuthOptions = {
         async session({ session, token }) {
             try {
                 // Get User Role
-                let db_user = await prisma.user.findFirst({
+                const db_user = await prisma.user.findFirst({
                     where: {
                         id: token.sub
                     }
@@ -64,7 +64,22 @@ export const authOptions: NextAuthOptions = {
                 // Add Extra Session Data
                 session.user.user_id = token.sub
                 session.user.provider = token.provider ? token.provider as string : undefined
-                session.user.role = db_user?.role as Role       
+                session.user.role = db_user?.role as Role
+                
+                // If the user's role is an artist we need some additional information
+                if (db_user?.role) {
+                    switch ((db_user?.role as Role)) {
+                        case Role.Artist:
+                            {
+                                const db_artist = await prisma.artist.findFirst({
+                                    where: {
+                                        userId: db_user?.id
+                                    }
+                                })
+                                session.user.handle = db_artist?.handle
+                            } break;
+                    }
+                }
 
             } catch (e) {
                 console.log(e)

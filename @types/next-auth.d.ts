@@ -7,6 +7,7 @@ declare module 'next-auth' {
             user_id?: string
             role?: Role
             provider?: string
+            handle?: string
         } & DefaultSession['user']
     }
 }

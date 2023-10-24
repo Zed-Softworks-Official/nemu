@@ -7,6 +7,7 @@ export interface ArtistVerificationData {
     pixiv: string
     location: string
     user_id: string
+    profile_photo?: string
 }
 
 /**
@@ -23,7 +24,7 @@ export async function ArtistCodeVerification(code: string, id: string, verificat
     });
     
     // Check so see if it's a valid code and return if it doesn't
-    let validCode: boolean = (await response.json()).success;
+    let validCode: boolean = (await response.json()).success
     if (validCode == false) {
         return false;
     }
@@ -38,14 +39,19 @@ export async function ArtistCodeVerification(code: string, id: string, verificat
     }
 
     // Create artist inside database
-    let artistCreated = await fetch(`/api/artist/`, {
+    let artistCreated = await fetch(`/api/artist`, {
         method: 'post',
         body: JSON.stringify(verification_data)
     })
 
+    if (!artistCreated) {
+        return false
+    }
 
     // Send Email to user
 
 
     // Delete the code
+
+    return true
 } 

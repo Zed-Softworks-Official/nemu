@@ -7,25 +7,24 @@ import { useSession } from 'next-auth/react'
 import { Menu, Transition } from '@headlessui/react'
 import { ArrowRightOnRectangleIcon, ChartBarIcon, Cog6ToothIcon, EnvelopeIcon, PaintBrushIcon, StarIcon, UserIcon, ArrowLeftOnRectangleIcon, UsersIcon } from '@heroicons/react/20/solid'
 
-import classNames from '@/helpers/classnames'
 import { Role } from '@/helpers/user-info'
+import classNames from '@/helpers/classnames'
 import { UserInfoIcon, UserInfoLink, UserInfoObject } from '@/helpers/userinfo-links'
 
 export default function UserInfoMenu() {
     const { data: session } = useSession()
-    console.log(`Role: ${session?.user.role}`)
 
     /////////////////////////////////
     // Get the correct Navbar items
     /////////////////////////////////
-    function GetCurrentNavbarItems(session: boolean, role: Role) {
+    function GetCurrentNavbarItems(session: boolean, role: Role, handle?: string) {
         // Check if we have a session
         if (session) {
             // If we're not an artist then we're a standard user
             switch (role) {
                 case Role.Artist:
                     let infoObject = UserInfoObject.Artist
-                    infoObject[0].path = `/@JackSchitt404`
+                    infoObject[0].path = `/@${handle}`
 
                     return infoObject
             }
@@ -73,7 +72,7 @@ export default function UserInfoMenu() {
     }
 
     // initialize the navbar items
-    let navbar_items: UserInfoLink[] = GetCurrentNavbarItems(session ? true : false, session?.user.role!);
+    let navbar_items: UserInfoLink[] = GetCurrentNavbarItems(session ? true : false, session?.user.role!, session?.user.handle);
 
     return (
         <Menu as="div" className="relative inline-block text-left mt-3 ml-20">

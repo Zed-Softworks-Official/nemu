@@ -33,14 +33,11 @@ export default async function ArtistPage({params}: { params: { handle: string}})
         notFound();
     }
 
-    // Need Context For Profile Tabs
-    // Pass data somehow
-
     // Render View
     return (
         <DefaultPageLayout>
             <TabsProvider>
-                <ArtistHeader handle={handle} id={artist_info!.auth0id!} />
+                <ArtistHeader handle={handle} id={artist_info.userId} />
                 <ArtistBody artist_info={artist_info} />
             </TabsProvider>
         </DefaultPageLayout>
