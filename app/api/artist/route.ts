@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
-    let verification_data: ArtistVerificationData = await req.json()
+    const verification_data: ArtistVerificationData = await req.json()
     let user_created: boolean = false
 
     try {
@@ -22,6 +22,8 @@ export async function POST(req: Request) {
                 profilePhoto: ''
             }
         })
+
+        user_created = true
     } catch (e) {
         console.log(e)
     }

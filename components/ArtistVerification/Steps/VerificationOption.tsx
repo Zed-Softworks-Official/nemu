@@ -18,11 +18,11 @@ const methods: VerificationMethod[] = [
         icon: SocialIcon.Twitter,
         method: MethodEnum.Twitter
     },
-    {
-        name: 'Email',
-        icon: SocialIcon.Email,
-        method: MethodEnum.Email
-    },
+    // {
+    //     name: 'Email',
+    //     icon: SocialIcon.Email,
+    //     method: MethodEnum.Email
+    // },
     {
         name: 'Artist Code',
         icon: SocialIcon.ArtistCode,

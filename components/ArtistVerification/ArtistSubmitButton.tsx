@@ -2,13 +2,13 @@
 
 import { MouseEvent } from 'react'
 
-import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 
-import useVerificationFormStore, { MethodEnum } from '@/store/VerificationForm'
-import { ArtistCodeVerification } from '@/helpers/artist-verification'
 import { toast } from 'react-toastify'
 
+import useVerificationFormStore, { MethodEnum } from '@/store/VerificationForm'
+import { ArtistCodeVerification, ArtistTwitterVerification } from '@/helpers/artist-verification'
 
 export default function ArtistSubmitButton() {
     const { 
@@ -33,6 +33,7 @@ export default function ArtistSubmitButton() {
                 case MethodEnum.ArtistCode:
                     await ArtistCodeVerification(artistCode!, session?.user.user_id!, {
                         user_id: session?.user.user_id!,
+                        username: session?.user.name!,
                         requested_handle: requestedHandle,
                         twitter: twitter,
                         pixiv: pixiv,
@@ -41,6 +42,14 @@ export default function ArtistSubmitButton() {
                     break;
                 // If they used twitter
                 case MethodEnum.Twitter:
+                    await ArtistTwitterVerification(session?.user.user_id!, {
+                        user_id: session?.user.user_id!,
+                        username: session?.user.name!,
+                        requested_handle: requestedHandle,
+                        twitter: twitter,
+                        pixiv: pixiv,
+                        location: location
+                    })
                     break;
                 // If they used email
                 case MethodEnum.Email:

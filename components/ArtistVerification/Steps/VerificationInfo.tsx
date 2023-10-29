@@ -3,15 +3,13 @@
 import useVerificationFormStore from '@/store/VerificationForm'
 import { useSession } from 'next-auth/react'
 
+// TODO: Debounce input field and also do a quick data search to make sure the requeted params for (requested_handle) don't already exist in the users table
+
 export default function VerificationInfo() {
     const { 
-        requestedHandle, 
         setRequestedHandle,
-        twitter,
         setTwitter,
-        pixiv,
         setPixiv,
-        location,
         setLocation
     } = useVerificationFormStore()
 
@@ -31,7 +29,7 @@ export default function VerificationInfo() {
                 <input 
                     type="text"
                     name="requested_handle"
-                    placeholder={requestedHandle} 
+                    placeholder="Handle" 
                     className="bg-white dark:bg-charcoal p-5 rounded-xl w-full" 
                     onChange={(e) => setRequestedHandle(e.target.value)} 
                 />
@@ -48,7 +46,7 @@ export default function VerificationInfo() {
                 <input 
                     type="text"
                     name="twitter"
-                    placeholder={twitter} 
+                    placeholder="Twitter URL"
                     className="bg-white dark:bg-charcoal p-5 rounded-xl w-full" 
                     onChange={(e) => setTwitter(e.target.value)} 
                     defaultValue={twitterDefaultValue}
@@ -66,7 +64,7 @@ export default function VerificationInfo() {
                 <input 
                     type="text"
                     name="pixiv"
-                    placeholder={pixiv} 
+                    placeholder="Pixiv URL (optional)"
                     className="bg-white dark:bg-charcoal p-5 rounded-xl w-full" 
                     onChange={(e) => setPixiv(e.target.value)} 
                 />
@@ -83,7 +81,7 @@ export default function VerificationInfo() {
                 <input 
                     type="text"
                     name="location"
-                    placeholder={location} 
+                    placeholder="location (optional)" 
                     className="bg-white dark:bg-charcoal p-5 rounded-xl w-full" 
                     onChange={(e) => setLocation(e.target.value)} 
                 />

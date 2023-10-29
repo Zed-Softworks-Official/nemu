@@ -4,7 +4,7 @@ import useVerificationFormStore from "@/store/VerificationForm";
 import ArtistAction from "../ArtistAction";
 
 export default function VerificationConfirmation() {
-    const { requestedHandle, twitter, pixiv, location, verificationMethod } = useVerificationFormStore()
+    const { verificationMethod } = useVerificationFormStore()
 
     return (
         <div className="py-5">
