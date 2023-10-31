@@ -26,7 +26,7 @@ export default async function DashboardLayout({ children, } : { children: React.
     const artist = await artist_fetch.json();
 
     return (
-        <DashboardProvider artist_handle={artist.info.handle} artist_stripe_id={artist.info.stripeAccId}>
+        <DashboardProvider artist_handle={artist.info.handle} artist_user_id={artist.info.userId} artist_stripe_id={artist.info.stripeAccId}>
             <Navbar />
             { children }
             <Footer />

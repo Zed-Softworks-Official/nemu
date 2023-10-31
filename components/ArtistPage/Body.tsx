@@ -4,7 +4,6 @@ import React, { Suspense } from "react";
 
 import { notFound } from "next/navigation";
 import { SocialIcon } from "react-social-icons";
-import { PrismaArtistInfo } from "@/prisma/prisma-interface";
 
 import Loading from "@/app/[handle]/loading";
 import Portfolio from "./Portfolio";

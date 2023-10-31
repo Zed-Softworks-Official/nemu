@@ -10,7 +10,7 @@ import { NextResponse } from "next/server";
 export async function GET(req: Request, { params }: { params: { handle: string, location: string, id: string }}) {
     let portfolio = await prisma.portfolio.findMany({
         where: {
-            auth0id: params.id
+            userId: params.id
         }
     });
 

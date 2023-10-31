@@ -14,6 +14,12 @@ const nextConfig = {
                 hostname: 'pbs.twimg.com',
                 port: '',
                 pathname: '/profile_images/**'
+            },
+            {
+                protocol: 'https',
+                hostname: 'nemuart.s3.us-west-1.amazonaws.com',
+                port: '',
+                pathname: '/**'
             }
         ]
     }

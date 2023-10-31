@@ -8,10 +8,10 @@ datasource db {
 }
 
 model Portfolio {
-  id      String @id @default(auto()) @map("_id") @db.ObjectId
-  auth0id String
-  image   String
-  name    String
+  id     String  @id @default(auto()) @map("_id") @db.ObjectId
+  userId String?
+  image  String
+  name   String
 }
 
 model ArtistVerification {
@@ -93,22 +93,21 @@ model Session {
   userId       String   @db.ObjectId
   expires      DateTime
 
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model User {
   id            String    @id @default(auto()) @map("_id") @db.ObjectId
-  userId        String    @unique @db.ObjectId
   name          String?   @unique
   email         String?   @unique
   emailVerified DateTime?
   image         String?
   role          Int?
 
-  accounts      Account[]
-  sessions      Session[]
-  Social        Social[]
-  Artist        Artist?
+  accounts Account[]
+  sessions Session[]
+  Social   Social[]
+  Artist   Artist?
 }
 
 model VerificationToken {
