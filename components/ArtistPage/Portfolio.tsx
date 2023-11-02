@@ -21,6 +21,8 @@ export default async function Portfolio({
                         <Image
                             src={item.signed_url}
                             alt={item.name}
+                            width={300}
+                            height={300}
                             className="rounded-3xl w-full"
                         />
                     </div>

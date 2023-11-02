@@ -1,6 +1,6 @@
-import { S3Delete, S3Upload, StringToAWSLocationsEnum } from '@/helpers/s3'
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
+import { S3Delete, S3Upload, StringToAWSLocationsEnum } from '@/helpers/s3'
 
 //////////////////////////////////////////
 // POST Item To AWS API Route
@@ -9,9 +9,10 @@ export async function POST(
     req: Request,
     { params }: { params: { handle: string; location: string; id: string } }
 ) {
+
     // Get the form data
     let data = await req.formData()
-    const file: File | null = data.get('dropzone-file') as unknown as File
+    const file = data.get('dropzone-file') as unknown as File
 
     // Get the original portfolio item
     let image = await prisma.portfolio.findFirst({
@@ -37,7 +38,9 @@ export async function POST(
         }
     })
 
-    if (file != null) {
+    // TODO: Temporary Fix, Figure out why file has a length of 9 when it's undefined, in other words figure out why an undefined item is not undefined
+
+    if (file.name) {
         // Delete the portfolio item
         await S3Delete(
             params.handle,

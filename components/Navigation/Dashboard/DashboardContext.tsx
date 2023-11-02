@@ -22,7 +22,7 @@ type DashboardContextType = {
 
 const DashboardContext = createContext<DashboardContextType>({})
 
-export const DashboardProvider = async ({
+export const DashboardProvider = ({
     children,
     artist_handle,
     artist_user_id,

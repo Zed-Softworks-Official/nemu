@@ -8,8 +8,9 @@ import { SocialIcon } from "react-social-icons";
 import Loading from "@/app/[handle]/loading";
 import Portfolio from "./Portfolio";
 import { useTabsContext } from "./TabsContext";
+import { Artist } from "@prisma/client";
 
-export default function ArtistBody({artist_info}: {artist_info: PrismaArtistInfo}) {
+export default function ArtistBody({artist_info}: {artist_info: Artist}) {
     const { currentIndex, setCurrentIndex } = useTabsContext();
 
     function renderCorrectBody(index: number) {
@@ -30,7 +31,7 @@ export default function ArtistBody({artist_info}: {artist_info: PrismaArtistInfo
                 return (
                     <Suspense fallback={<Loading />}>
                         <h1 className="font-bold text-2xl">Portfolio</h1>
-                        <Portfolio handle={artist_info.handle} id={artist_info.auth0id} />
+                        <Portfolio handle={artist_info.handle} id={artist_info.userId} />
                     </Suspense>
                 )
             default:
