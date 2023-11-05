@@ -8,6 +8,8 @@ export enum UserInfoIcon {
     Messages,
     Settings,
 
+    Verify,
+
     SignIn,
     SignOut,
 }
@@ -67,7 +69,35 @@ export const UserInfoObject: Record<string, UserInfoLink[]> = {
         }
     ],
 
+    Admin: [
+        {
+            title: 'Verify Artists',
+            path: '/artists/verify',
+            icon: UserInfoIcon.Verify
+        },
+        {
+            title: 'Favourites',
+            path: '/favourites',
+            icon: UserInfoIcon.Favourite
+        },
+        {
+            title: 'Account Settings',
+            path: '/dashboard/settings',
+            icon: UserInfoIcon.Settings
+        },
+        {
+            title: 'Sign Out',
+            path: '/api/auth/signout',
+            icon: UserInfoIcon.SignOut
+        }
+    ],
+
     Standard: [
+        {
+            title: 'Favourites',
+            path: '/favourites',
+            icon: UserInfoIcon.Favourite
+        },
         {
             title: 'Messages',
             path: '/dashboard/messages',

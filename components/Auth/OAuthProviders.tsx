@@ -8,6 +8,7 @@ import { ClientSafeProvider, LiteralUnion } from 'next-auth/react'
 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faTwitter, faGoogle, faApple } from '@fortawesome/free-brands-svg-icons'
+import { faEnvelope } from '@fortawesome/free-solid-svg-icons'
 
 export default function OAuthProviders({ providers }: { providers: Record<LiteralUnion<BuiltInProviderType, string>, ClientSafeProvider> } ) {
     const [email, setEmail] = useState('')
@@ -27,14 +28,14 @@ export default function OAuthProviders({ providers }: { providers: Record<Litera
         <>
             {Object.values(providers!).map((provider) => (
                 <div key={provider.name} className='my-5'>
-                    {provider.name == 'credentials' && (
+                    {provider.name == 'Email' && (
                         <div>
                             <div className='mt-5'>
-                                <label htmlFor='email' className='block mb-5'>Email</label>
                                 <input name='email' id='email' type='email' className='bg-white dark:bg-charcoal p-5 rounded-xl w-full' placeholder='Email' onChange={(e) => setEmail(e.target.value)} />
                             </div>
                             <div className='mt-5'>
                                 <button className='dark:bg-charcoal bg-white p-5 rounded-3xl w-full' onClick={() => signIn('email', { email: email })}>
+                                    <FontAwesomeIcon icon={faEnvelope} className='mr-5 w-5 h-5 align-bottom' />
                                     Sign In
                                 </button>
                             </div>
@@ -46,7 +47,7 @@ export default function OAuthProviders({ providers }: { providers: Record<Litera
                         </div>
                     )}
 
-                    {provider.name != 'credentials' && (
+                    {provider.name != 'Email' && (
                         <button onClick={() => { signIn(provider.id) }} className='dark:bg-charcoal bg-white p-5 rounded-3xl w-full hover:bg-primary'>
                             { getIcon(provider.name) }
                             Sign in with {provider.name}
