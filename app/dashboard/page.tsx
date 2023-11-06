@@ -1,13 +1,16 @@
+import DashboardContainer from "@/components/Dashboard/DashboardContainer";
 import React from "react";
 
 
 export default function Dashboard() {
 
     return (
-        <main className="flex flex-wrap py-14">
-            <div className="dark:bg-fullblack bg-fullwhite p-10 mx-auto rounded-3xl">
-                <h2>Dashboard</h2>
+        <DashboardContainer title="Artist's Dashboard">
+            <div className="grid grid-cols-6">
+                <div className="bg-charcoal p-10 rounded-3xl">
+                    <h1>New Orders</h1>
+                </div>
             </div>
-        </main>
+        </DashboardContainer>
     )
 }

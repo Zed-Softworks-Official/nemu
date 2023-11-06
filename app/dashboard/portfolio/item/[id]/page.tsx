@@ -13,6 +13,8 @@ import {
     FireIcon,
     XCircleIcon
 } from '@heroicons/react/20/solid'
+import DashboardContainer from '@/components/Dashboard/DashboardContainer'
+import TextInput from '@/components/Form/TextInput'
 
 export default function PortfolioItem() {
     const { push, replace } = useRouter()
@@ -115,26 +117,16 @@ export default function PortfolioItem() {
     }
 
     return (
-        <main className="py-14 justify-around mr-24 ml-[26rem]">
-            <div className="dark:bg-fullblack bg-fullwhite p-10 mx-auto rounded-3xl">
-                <form
+        <DashboardContainer title={`Edit ${data?.item.name}`}>
+            <form
                     className="max-w-lg mx-auto"
                     encType="multipart/form-data"
                     onSubmit={handleSubmit}
                 >
                     <div className="flex flex-wrap">
                         <div className="mx-auto">
-                            <div className="mb-5">
-                                <label htmlFor="title" className="block mb-5">
-                                    Title:
-                                </label>
-                                <input
-                                    name="title"
-                                    type="text"
-                                    placeholder={data?.item.name}
-                                    className="bg-charcoal p-5 rounded-xl w-full"
-                                />
-                            </div>
+                            <TextInput label="Title" name="title" placeholder={data?.item.name} />
+                            
                             <div className="mb-5">
                                 <label className="block mb-5">
                                     Current Image:{' '}
@@ -197,7 +189,6 @@ export default function PortfolioItem() {
                         </button>
                     </div>
                 </form>
-            </div>
-        </main>
+        </DashboardContainer>
     )
 }

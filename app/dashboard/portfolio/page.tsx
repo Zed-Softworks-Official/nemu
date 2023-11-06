@@ -9,7 +9,7 @@ import { useDashboardContext } from '@/components/Navigation/Dashboard/Dashboard
 import { PortfolioItem } from '@/helpers/api/request-inerfaces'
 import { fetcher } from '@/helpers/fetcher'
 
-import { PlusCircleIcon } from '@heroicons/react/20/solid'
+import DashboardContainer from '@/components/Dashboard/DashboardContainer'
 
 export default function PortfolioComponent() {
     const { handle, userId } = useDashboardContext()
@@ -19,48 +19,35 @@ export default function PortfolioComponent() {
     )
 
     return (
-        <main className="py-14 justify-around mr-24 ml-[26rem]">
-            <div className="dark:bg-fullblack bg-fullwhite p-10 mx-auto rounded-3xl">
-                <div className="pb-10">
-                    <h1 className="font-bold text-2xl text-center">
-                        Portfolio
-                    </h1>
-                    <div className="absolute bottom-20 right-20">
+        <DashboardContainer
+            title="Portfolio"
+            addButtonUrl="/dashboard/portfolio/add"
+        >
+            <div className="grid grid-cols-4">
+                {data?.portfolio_items.map((item: PortfolioItem) => {
+                    return (
                         <Link
-                            href={'/dashboard/portfolio/add'}
-                            className="bg-gradient-to-r from-primarylight to-primary/80 px-5 py-10 rounded-3xl hover:from-primarylight/80 hover:to-primary/60"
+                            href={`/dashboard/portfolio/item/${item.key}`}
+                            key={item.key}
                         >
-                            <PlusCircleIcon className="w-14 h-14 inline " />
-                        </Link>
-                    </div>
-                    <hr className="seperation" />
-                </div>
-                <div className="grid grid-cols-4">
-                    {data?.portfolio_items.map((item: PortfolioItem) => {
-                        return (
-                            <Link
-                                href={`/dashboard/portfolio/item/${item.key}`}
-                                key={item.key}
-                            >
-                                <div className="w-fit h-fit m-5 dark:bg-charcoal bg-white rounded-3xl pb-5">
-                                    <Image
-                                        src={item.signed_url}
-                                        alt={item.name}
-                                        width={400}
-                                        height={400}
-                                        className="rounded-3xl rounded-b-none"
-                                    />
-                                    <div className="pt-5">
-                                        <h2 className="text-center font-bold text-2xl">
-                                            {item.name}
-                                        </h2>
-                                    </div>
+                            <div className="w-fit h-fit m-5 dark:bg-charcoal bg-white rounded-3xl pb-5">
+                                <Image
+                                    src={item.signed_url}
+                                    alt={item.name}
+                                    width={400}
+                                    height={400}
+                                    className="rounded-3xl rounded-b-none"
+                                />
+                                <div className="pt-5">
+                                    <h2 className="text-center font-bold text-2xl">
+                                        {item.name}
+                                    </h2>
                                 </div>
-                            </Link>
-                        )
-                    })}
-                </div>
+                            </div>
+                        </Link>
+                    )
+                })}
             </div>
-        </main>
+        </DashboardContainer>
     )
 }

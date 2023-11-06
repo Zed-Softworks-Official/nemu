@@ -7,6 +7,8 @@ import { toast } from 'react-toastify'
 import { CheckCircleIcon } from '@heroicons/react/20/solid'
 import { useDashboardContext } from '@/components/Navigation/Dashboard/DashboardContext'
 import { useRouter } from 'next/navigation'
+import DashboardContainer from '@/components/Dashboard/DashboardContainer'
+import TextInput from '@/components/Form/TextInput'
 
 export default function AddPortfolioItem() {
     const [filePreview, setfilePreview] = useState('')
@@ -72,60 +74,44 @@ export default function AddPortfolioItem() {
     }
 
     return (
-        <main className="py-14 justify-around mr-24 ml-[26rem]">
-            <div className="dark:bg-fullblack bg-fullwhite p-10 mx-auto rounded-3xl">
-                <h1 className="font-bold text-2xl text-center">
-                    Add Portfolio Item
-                </h1>
-                <hr className="seperation" />
-                <form
-                    className="max-w-lg mx-auto"
-                    onSubmit={handleSubmit}
-                    encType="multipart/form-data"
-                >
-                    <div>
-                        <label htmlFor="title" className="block mb-5">
-                            Title:{' '}
-                        </label>
+        <DashboardContainer title="Add Portfolio Item">
+            <form
+                className="max-w-lg mx-auto"
+                onSubmit={handleSubmit}
+                encType="multipart/form-data"
+            >
+                <TextInput label="Title" name="title" />
+                <div className="mt-16">
+                    <label className="block mb-5">Image:</label>
+
+                    <div
+                        className="mx-auto p-10 border-dashed border-white border-opacity-50 border-4 focus:border-primary bg-white dark:bg-charcoal text-center border-spacing-28"
+                        {...getRootProps()}
+                    >
                         <input
-                            name="title"
-                            placeholder="Title"
-                            type="text"
-                            className="bg-white dark:bg-charcoal p-5 rounded-xl w-full"
+                            name="dropzone-file"
+                            type="file"
+                            {...getInputProps()}
                         />
+                        <p>Drag a file to upload!</p>
                     </div>
-                    <div className="mt-16">
-                        <label className="block mb-5">Image:</label>
 
-                        <div
-                            className="mx-auto p-10 border-dashed border-white border-opacity-50 border-4 focus:border-primary bg-white dark:bg-charcoal text-center border-spacing-28"
-                            {...getRootProps()}
-                        >
-                            <input
-                                name="dropzone-file"
-                                type="file"
-                                {...getInputProps()}
-                            />
-                            <p>Drag a file to upload!</p>
-                        </div>
-
-                        <aside className="flex flex-col flex-wrap mt-16">
-                            <label className="block mb-5">Preview: </label>
-                            {thumbs}
-                        </aside>
-                    </div>
-                    <div className="flex flex-row items-center justify-center my-5">
-                        <button
-                            type="submit"
-                            className="bg-primary p-5 rounded-3xl m-5"
-                            disabled={isLoading}
-                        >
-                            <CheckCircleIcon className="w-6 h-6 inline mr-3" />
-                            Create Item
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </main>
+                    <aside className="flex flex-col flex-wrap mt-16">
+                        <label className="block mb-5">Preview: </label>
+                        {thumbs}
+                    </aside>
+                </div>
+                <div className="flex flex-row items-center justify-center my-5">
+                    <button
+                        type="submit"
+                        className="bg-primary p-5 rounded-3xl m-5"
+                        disabled={isLoading}
+                    >
+                        <CheckCircleIcon className="w-6 h-6 inline mr-3" />
+                        Create Item
+                    </button>
+                </div>
+            </form>
+        </DashboardContainer>
     )
 }
