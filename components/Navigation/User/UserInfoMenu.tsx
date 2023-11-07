@@ -26,18 +26,10 @@ import {
     UserInfoLink,
     UserInfoObject
 } from '@/helpers/userinfo-links'
+import Image from 'next/image'
 
 export default function UserInfoMenu() {
     const { data: session } = useSession()
-
-    function AddToBase(add: UserInfoLink[]) {
-        const base = UserInfoObject.Standard
-        for (let i = 0; i < base.length; i++) {
-            add.push(base[i])
-        }
-
-        return add
-    }
 
     /////////////////////////////////
     // Get the correct Navbar items
@@ -55,9 +47,9 @@ export default function UserInfoMenu() {
                     let infoObject = UserInfoObject.Artist
                     infoObject[0].path = `/@${handle}`
 
-                    return AddToBase(infoObject)
+                    return infoObject.concat(UserInfoObject.Standard)
                 case Role.Admin:
-                    return AddToBase(UserInfoObject.Admin)
+                    return UserInfoObject.Admin.concat(UserInfoObject.Standard)
             }
 
             return UserInfoObject.Standard
@@ -82,9 +74,13 @@ export default function UserInfoMenu() {
             case UserInfoIcon.Settings:
                 return <Cog6ToothIcon className="user-menu-item-icon" />
             case UserInfoIcon.SignIn:
-                return <ArrowLeftOnRectangleIcon className="user-menu-item-icon" />
+                return (
+                    <ArrowLeftOnRectangleIcon className="user-menu-item-icon" />
+                )
             case UserInfoIcon.SignOut:
-                return <ArrowRightOnRectangleIcon className="user-menu-item-icon" />
+                return (
+                    <ArrowRightOnRectangleIcon className="user-menu-item-icon" />
+                )
             case UserInfoIcon.Verify:
                 return <CheckCircleIcon className="user-menu-item-icon" />
             case UserInfoIcon.Code:
@@ -104,8 +100,11 @@ export default function UserInfoMenu() {
             <div>
                 <Menu.Button className="inline-flex w-full justify-center gap-x-1.5 rounded-md bg-white dark:bg-charcoal font-semibold">
                     {session?.user?.image ? (
-                        <img
+                        <Image
                             src={session?.user?.image!}
+                            alt="profile image"
+                            width={50}
+                            height={50}
                             className="rounded-full"
                         />
                     ) : (
