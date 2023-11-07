@@ -6,36 +6,22 @@ import { usePathname } from 'next/navigation'
 
 import { fetcher } from '@/helpers/fetcher'
 import classNames from '@/helpers/classnames'
-
 import { useDashboardContext } from '../DashboardContext'
 
-import { CurrencyDollarIcon, EnvelopeIcon } from '@heroicons/react/20/solid'
+import {
+    ClipboardDocumentIcon,
+    CurrencyDollarIcon,
+    EnvelopeIcon
+} from '@heroicons/react/20/solid'
+import DashboardArtistManagmentSection from './ArtistManagementSection'
 
 export default function DashboardUserSection() {
     const pathname = usePathname()
-    const { stripe_id } = useDashboardContext()
-
-    const { data: stripe_account } = useSWR(
-        `/api/stripe/${stripe_id}/dashboard`,
-        fetcher
-    )
+    const { handle } = useDashboardContext()
 
     return (
         <div>
-            {stripe_id && (
-                <div className="my-10">
-                    <Link
-                        href={`${stripe_account?.dashboard_url}`}
-                        target="_blank"
-                        className="p-4 px-10 hover:bg-primary/60 rounded-3xl"
-                    >
-                        <CurrencyDollarIcon className="sidenav-icon" />
-                        <h3 className="inline mt-6 text-lg font-bold">
-                            Merchant's Home
-                        </h3>
-                    </Link>
-                </div>
-            )}
+            {handle && <DashboardArtistManagmentSection />}
             <div className="my-10">
                 <Link
                     href={'/dashboard/messages'}

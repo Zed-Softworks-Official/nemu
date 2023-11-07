@@ -15,7 +15,7 @@ export async function GET(res: NextApiResponse, {params}: { params: {id: string}
     // Check if they already have a stripe account
     if (artist?.stripeAccId) {
         return NextResponse.json({
-            account_link: undefined
+            account_link: (await StripeCreateAccountLink(artist.stripeAccId)).url
         })
     }
 
