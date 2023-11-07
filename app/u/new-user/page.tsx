@@ -13,6 +13,10 @@ export default function NewUser() {
 
     const { push } = useRouter()
 
+    if (session?.user.name) {
+        return push('/')
+    }
+
     async function createUsername(event: FormEvent<HTMLFormElement>) {
         event.preventDefault()
 

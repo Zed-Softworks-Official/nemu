@@ -9,6 +9,7 @@ export enum UserInfoIcon {
     Settings,
 
     Verify,
+    Code,
 
     SignIn,
     SignOut,
@@ -46,49 +47,19 @@ export const UserInfoObject: Record<string, UserInfoLink[]> = {
             title: 'Artist Dashboard',
             path: '/dashboard',
             icon: UserInfoIcon.Dashboard
-        },
-        {
-            title: 'Favourites',
-            path: '/favourites',
-            icon: UserInfoIcon.Favourite
-        },
-        {
-            title: 'Messages',
-            path: '/dashboard/messages',
-            icon: UserInfoIcon.Messages
-        },
-        {
-            title: 'Account Settings',
-            path: '/dashboard/settings',
-            icon: UserInfoIcon.Settings
-        },
-        {
-            title: 'Sign Out',
-            path: '/api/auth/signout',
-            icon: UserInfoIcon.SignOut
         }
     ],
 
     Admin: [
         {
+            title: 'Generate Artist Code',
+            path: '/artists/verify/generate',
+            icon: UserInfoIcon.Code
+        },
+        {
             title: 'Verify Artists',
             path: '/artists/verify',
             icon: UserInfoIcon.Verify
-        },
-        {
-            title: 'Favourites',
-            path: '/favourites',
-            icon: UserInfoIcon.Favourite
-        },
-        {
-            title: 'Account Settings',
-            path: '/dashboard/settings',
-            icon: UserInfoIcon.Settings
-        },
-        {
-            title: 'Sign Out',
-            path: '/api/auth/signout',
-            icon: UserInfoIcon.SignOut
         }
     ],
 

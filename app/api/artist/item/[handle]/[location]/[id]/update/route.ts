@@ -40,7 +40,7 @@ export async function POST(
 
     // TODO: Temporary Fix, Figure out why file has a length of 9 when it's undefined, in other words figure out why an undefined item is not undefined
 
-    if (file.name) {
+    if (file.size != 0) {
         // Delete the portfolio item
         await S3Delete(
             params.handle,
@@ -49,7 +49,7 @@ export async function POST(
         )
 
         // Upload the new item
-        return S3Upload(
+        await S3Upload(
             params.handle,
             StringToAWSLocationsEnum(params.location),
             file,

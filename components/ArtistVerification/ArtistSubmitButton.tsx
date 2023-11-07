@@ -21,7 +21,7 @@ export default function ArtistSubmitButton() {
     } = useVerificationFormStore()
 
     const { data: session } = useSession()
-    const { replace } = useRouter() 
+    const { push } = useRouter() 
 
     async function handleSubmit(event: MouseEvent<HTMLButtonElement>) {
         event.preventDefault()
@@ -60,11 +60,11 @@ export default function ArtistSubmitButton() {
 
             // If they used an artist code take them to their new profile
             if (artistCode) {
-                replace(`/@${requestedHandle}`)
+                push(`/@${requestedHandle}`)
             }
 
             // Go Back to homepage
-            replace('/');
+            push('/');
 
         } catch (error) {
             console.log(error)

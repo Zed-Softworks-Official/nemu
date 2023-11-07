@@ -1,12 +1,12 @@
 import { FormProvider } from '@/components/Form/FormContext'
+import ShopAddForm from '@/components/Dashboard/Forms/ShopAddForm'
 import DashboardContainer from '@/components/Dashboard/DashboardContainer'
-import ShopForm from '@/components/Dashboard/Forms/ShopForm'
 
 export default function ShopAdd() {
     return (
         <DashboardContainer title="Add to Artist's Corner">
             <FormProvider>
-                <ShopForm />
+                <ShopAddForm />
             </FormProvider>
         </DashboardContainer>
     )

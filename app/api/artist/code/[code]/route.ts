@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request, { params }: { params: { code: string }}) {
-    let result = await prisma.aritstCode.findFirst({
+    const result = await prisma.aritstCode.findFirst({
         where: {
             code: params.code
         }

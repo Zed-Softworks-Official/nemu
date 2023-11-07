@@ -15,7 +15,8 @@ import {
     UserIcon,
     ArrowLeftOnRectangleIcon,
     UsersIcon,
-    CheckCircleIcon
+    CheckCircleIcon,
+    CodeBracketIcon
 } from '@heroicons/react/20/solid'
 
 import { Role } from '@/helpers/user-info'
@@ -28,6 +29,15 @@ import {
 
 export default function UserInfoMenu() {
     const { data: session } = useSession()
+
+    function AddToBase(add: UserInfoLink[]) {
+        const base = UserInfoObject.Standard
+        for (let i = 0; i < base.length; i++) {
+            add.push(base[i])
+        }
+
+        return add
+    }
 
     /////////////////////////////////
     // Get the correct Navbar items
@@ -45,9 +55,9 @@ export default function UserInfoMenu() {
                     let infoObject = UserInfoObject.Artist
                     infoObject[0].path = `/@${handle}`
 
-                    return infoObject
+                    return AddToBase(infoObject)
                 case Role.Admin:
-                    return UserInfoObject.Admin
+                    return AddToBase(UserInfoObject.Admin)
             }
 
             return UserInfoObject.Standard
@@ -77,6 +87,8 @@ export default function UserInfoMenu() {
                 return <ArrowRightOnRectangleIcon className="user-menu-item-icon" />
             case UserInfoIcon.Verify:
                 return <CheckCircleIcon className="user-menu-item-icon" />
+            case UserInfoIcon.Code:
+                return <CodeBracketIcon className="user-menu-item-icon" />
         }
     }
 

@@ -1,5 +1,7 @@
 'use client'
 
+import Image from 'next/image'
+
 import { useEffect, useState } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { useFormContext } from './FormContext'
@@ -21,7 +23,7 @@ export default function FormDropzone({ label }: { label: string }) {
     const thumbs = (
         <div className="inline-flex border-2 border-solid border-white mb-8 mr-8 w-full h-full box-border">
             <div className="flex min-w-0 overflow-hidden">
-                <img className="block w-auto h-full" src={filePreview} />
+                <Image className="block w-auto h-full" width={500} height={500} alt="Image Preview" src={filePreview} />
             </div>
         </div>
     )

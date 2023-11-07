@@ -53,6 +53,9 @@ export async function ArtistCodeVerification(code: string, id: string, verificat
 
 
     // Delete the code
+    await fetch(`/api/artist/code/${code}/delete`, {
+        method: 'post'
+    })
 
     return true
 }
