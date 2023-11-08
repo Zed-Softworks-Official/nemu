@@ -1,14 +1,16 @@
 'use client'
 
 import useSWR from 'swr'
-import { useDashboardContext } from '../DashboardContext'
-import { fetcher } from '@/helpers/fetcher'
 import Link from 'next/link'
-import { ClipboardDocumentIcon, CurrencyDollarIcon } from '@heroicons/react/20/solid'
+
+import { fetcher } from '@/helpers/fetcher'
 import { StripeAccountResponse } from '@/helpers/stripe'
+import { useDashboardContext } from '../DashboardContext'
+
+import { ClipboardDocumentIcon, CurrencyDollarIcon } from '@heroicons/react/20/solid'
 
 export default function DashboardArtistManagmentSection() {
-    const { stripe_id, userId } = useDashboardContext()
+    const { userId } = useDashboardContext()
 
     const { data: stripe_account } = useSWR<StripeAccountResponse>(`/api/stripe/${userId}/`, fetcher)
 

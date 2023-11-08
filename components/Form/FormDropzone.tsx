@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { useFormContext } from './FormContext'
 
-export default function FormDropzone({ label }: { label: string }) {
+export default function FormDropzone({ label, name = 'dropzone-file' }: { label: string, name?: string }) {
     const [filePreview, setfilePreview] = useState('')
     const { setImage } = useFormContext()
     const { acceptedFiles, getRootProps, getInputProps } = useDropzone({
@@ -34,12 +34,12 @@ export default function FormDropzone({ label }: { label: string }) {
 
     return (
         <div className="mb-5">
-            <label className="block mb-5">Upload New Image:</label>
+            <label className="block mb-5">{label}:</label>
             <div
                 className="mx-auto p-10 border-dashed border-white border-opacity-50 border-4 rounded-xl focus:border-primary bg-charcoal text-center border-spacing-28"
                 {...getRootProps()}
             >
-                <input name="dropzone-file" type="file" {...getInputProps()} />
+                <input name={name} type="file" {...getInputProps()} />
                 <p>Drag a file to upload!</p>
             </div>
 

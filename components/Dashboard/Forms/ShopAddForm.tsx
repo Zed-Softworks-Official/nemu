@@ -10,35 +10,55 @@ import FormDropzone from '@/components/Form/FormDropzone'
 import { useFormContext } from '@/components/Form/FormContext'
 import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/20/solid'
 import { useRouter } from 'next/navigation'
+import { toast } from 'react-toastify'
+import { useDashboardContext } from '@/components/Navigation/Dashboard/DashboardContext'
 
 export default function ShopAddForm() {
+    const { stripe_id } = useDashboardContext()
     const { image } = useFormContext()
     const { replace, push } = useRouter()
 
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault()
+        const formData = new FormData(event.currentTarget)
+        formData.set('featured_image', image!)
+
+        toast.promise(
+            fetch(`/api/stripe/${stripe_id}/product`, {
+                method: 'post',
+                body: formData
+            }),
+            {
+                pending: "Adding to Artist's Corner",
+                success: 'Successfully Added',
+                error: "Failed to add item to Artist's Corner"
+            },
+            {
+                theme: 'dark'
+            }
+        )
     }
 
     return (
-        <form className="max-w-lg mx-auto" onSubmit={handleSubmit}>
+        <form
+            className="max-w-lg mx-auto"
+            onSubmit={handleSubmit}
+            encType="multipart/form-data"
+        >
             <TextInput
                 label="Product Name"
                 placeholder="Your product name here!"
                 name="product_name"
             />
-            <TextField label="Product Description" markdown="" />
+            <TextField label="Product Description" markdown="" name="product_description" />
             <TextInput
                 label="Price"
                 name="product_price"
                 placeholder="Let's give the product a price!"
                 type="number"
             />
-            <FormDropzone label="Featured Store Image" />
-            <FileInput
-                label="Additional Photos"
-                name="product_images"
-                multiple
-            />
+            <FormDropzone label="Featured Store Image" name="featured_image" />
+            <FileInput label="Additional Photos (8 Max)" name="product_images" multiple max_length={8}/>
             <FileInput label="Asset" name="download_file" />
             <div className="grid grid-cols-2 w-full gap-5">
                 <button

@@ -2,9 +2,9 @@
 * Portfolio Item
 * Interface for API Calls on Portfolio Items
 * 
-* @property {string} signed_url - S3 Signed URL that contains the Portfolio Item
-* @property {string} name - Name of the portfolio Item
-* @property {string} key - Portfolio Image Name inside of the Database
+* @prop {string} signed_url - S3 Signed URL that contains the Portfolio Item
+* @prop {string} name - Name of the portfolio Item
+* @prop {string} key - Portfolio Image Name inside of the Database
 */
 export interface PortfolioItem {
     signed_url: string
@@ -16,24 +16,24 @@ export interface PortfolioItem {
 * Shop Item
 * Interface for API Calls on Shop Items
 * 
-* @property {string[]} image_urls - Contains (at most) 8 Image S3 Signed URLs
-* @property {string | null} download_url - Contains S3 Signed Download URL for the item
+* @prop {string} name - The name of the shop item
+* @prop {string} description - The description of the shop item
+* @prop {number} price - The price of the shop item
 * 
-* @property {string} name - The name of the shop item
-* @property {string} description - The description of the shop item
-* @property {string} price - The price of the shop item
+* @prop {string} featured_image - Contains featured image for product
+* @prop {string[] | undefined} images - Contains (at most) 8 Images
+* @prop {string | undefined} asset - Contains S3 Signed Download URL for the item
 *
-* @property {string} stripe_id - Stripe ID of the user selling the product
-* @property {string} prod_id - Product ID of product on stripe
+* @prop {string} prod_id - Product ID of product on stripe
 */
 export interface ShopItem {
-    image_urls?: string[]
-    download_url?: string
-    
     name: string,
     description: string
-    price: string
+    price: number
 
-    stripe_id: string
-    prod_id: string
+    featured_image: string
+    images?: string[]
+    asset?: string
+
+    prod_id?: string
 }

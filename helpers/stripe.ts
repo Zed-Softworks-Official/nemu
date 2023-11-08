@@ -7,11 +7,42 @@ const stripe = new Stripe(process.env.STRIPE_API_KEY!, {
     apiVersion: '2023-10-16'
 })
 
-
+/**
+ * Raw Stripe Account Interface
+ */
 export interface StripeAccountResponse {
     raw?: Stripe.Account
     onboarding_url?: string
     dashboard_url?: string
+}
+
+/**
+ *
+ * @param stripe_account
+ * @param item_info
+ */
+export async function StripeCreateStoreProduct(
+    stripe_account: string,
+    product: ShopItem
+) {
+    return await stripe.products.create(
+        {
+            name: product.name,
+            description: product.description,
+            images: product.images,
+            metadata: {
+                featured_image: product.featured_image,
+                asset: product.asset!
+            },
+            default_price_data: {
+                currency: 'usd',
+                unit_amount: product.price * 100
+            }
+        },
+        {
+            stripeAccount: stripe_account
+        }
+    )
 }
 
 /**
@@ -126,9 +157,10 @@ export async function StripeCreateAccountLink(stripe_account: string) {
 }
 
 /**
+ * Gets the stripe account for an artist given a stripe id
  *
- * @param {stripe} stripe_account -
- * @returns
+ * @param {stripe} stripe_account - The Id of the account to get
+ * @returns Stripe Account Information
  */
 export async function StripeGetAccount(stripe_account: string) {
     return await stripe.accounts.retrieve({

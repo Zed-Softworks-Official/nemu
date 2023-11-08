@@ -36,6 +36,6 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     // Return the dashboard url if the artist has completed onboarding and has an account
     return NextResponse.json({
         raw: stripe_account,
-        dashboard_url: await StripeCreateLoginLink(stripe_account.id)
+        dashboard_url: (await StripeCreateLoginLink(stripe_account.id)).url
     })
 }
