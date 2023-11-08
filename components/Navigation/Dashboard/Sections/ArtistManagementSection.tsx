@@ -22,7 +22,7 @@ export default function DashboardArtistManagmentSection() {
                         className="p-4 px-10 hover:bg-primary/60 rounded-3xl"
                     >
                         <CurrencyDollarIcon className="sidenav-icon" />
-                        <h3 className="inline mt-6 text-lg font-bold">Merchant's Home</h3>
+                        <h3 className="inline mt-6 text-lg font-bold">Merchant&apos;s Home</h3>
                     </Link>
                 </div>
             ) : (
