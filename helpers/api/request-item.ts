@@ -66,6 +66,11 @@ export var RequestItem = async (handle: string, location: string, id: string) =>
             };
             break;
         case RequestItemEnum.Store:
+            let db_store_item = await prisma.storeItem.findFirst({
+                where: {
+                    product: id
+                }
+            })
             break;
     }
 

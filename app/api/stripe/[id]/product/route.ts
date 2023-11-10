@@ -83,20 +83,3 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         success: true
     })
 }
-
-/**
- * Gets all the products from a particular user
- *
- * @param id - The ID for the user
- */
-export async function GET(req: Request, { params }: { params: { id: string } }) {
-    const product = await prisma.storeItem.findFirst({
-        where: {
-            userId: params.id
-        }
-    })
-
-    return NextResponse.json({
-        product: await StripeGetStoreProductInfo(product?.product!, product?.stripeAccId!)
-    })
-}
