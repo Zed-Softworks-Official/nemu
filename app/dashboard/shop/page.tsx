@@ -1,5 +1,6 @@
 import React from 'react'
 import DashboardContainer from '@/components/Dashboard/DashboardContainer'
+import ShopItems from '@/components/Dashboard/Shop/ShopItems'
 
 export default function Store() {
     return (
@@ -7,7 +8,7 @@ export default function Store() {
             title="Aritst's Corner"
             addButtonUrl="/dashboard/shop/add"
         >
-            <div className="grid grid-cols-4"></div>
+            <ShopItems />
         </DashboardContainer>
     )
 }

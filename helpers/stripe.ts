@@ -70,39 +70,43 @@ export async function StripeGetStoreProductInfo(
     // Get general information on store product
     // TODO: Change so the download url only gets created when requested by a user that purchased the item
     let result: ShopItem = {
-        download_url: await S3GetSignedURL(
+        name: product.name,
+        description: product.description!,
+        price: (await StripeGetPriceInfo(product.default_price!.toString(), stripe_account)).unit_amount! / 100,
+
+        asset: await S3GetSignedURL(
             artist!.handle,
             AWSLocations.StoreDownload,
             product.metadata.download_link
         ),
-
-        name: product.name,
-        description: product.description!,
-        price: product.default_price!.toString(),
-
-        prod_id: proudct_id,
-        stripe_id: stripe_account
-    }
-
-    // Set the featured photo to be the first photo
-    result.image_urls = [
-        await S3GetSignedURL(
+        featured_image: await S3GetSignedURL(
             artist!.handle,
             AWSLocations.Store,
-            product.metadata.featured_photo
-        )
-    ]
+            product.metadata.featured_image
+        ),
 
-    // Loop through product images and convert them into signed urls for s3
-    for (var i: number = 1; i < product.images.length + 1; i++) {
-        result.image_urls.push(
-            await S3GetSignedURL(
-                artist!.handle,
-                AWSLocations.Store,
-                product.images[i - 1]
-            )
-        )
+        prod_id: proudct_id,
     }
+
+    // // Set the featured photo to be the first photo
+    // result.images = [
+    //     await S3GetSignedURL(
+    //         artist!.handle,
+    //         AWSLocations.Store,
+    //         product.metadata.featured_photo
+    //     )
+    // ]
+
+    // // Loop through product images and convert them into signed urls for s3
+    // for (var i: number = 1; i < product.images.length + 1; i++) {
+    //     result.images!.push(
+    //         await S3GetSignedURL(
+    //             artist!.handle,
+    //             AWSLocations.Store,
+    //             product.images[i - 1]
+    //         )
+    //     )
+    // }
 
     return result
 }
@@ -114,7 +118,7 @@ export async function StripeGetStoreProductInfo(
  * @param {string} stripe_account - The stripe account to find the price information
  * @returns A price object from stripe
  */
-export async function StipeGetPriceInfo(price_id: string, stripe_account: string) {
+export async function StripeGetPriceInfo(price_id: string, stripe_account: string) {
     return await stripe.prices.retrieve(price_id, {
         stripeAccount: stripe_account
     })
