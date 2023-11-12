@@ -3,7 +3,7 @@
 import useSWR from 'swr'
 
 import Image from 'next/image'
-import ArtistProfileTabs from '@/components/ArtistPage/Tabs'
+import ArtistProfileTabs from '@/components/artist-page/tabs'
 
 import { fetcher } from '@/helpers/fetcher'
 

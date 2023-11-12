@@ -1,8 +1,8 @@
 import React from 'react'
 
 import DefaultPageLayout from '@/app/(default)/layout'
-import StepsLayout from '@/components/ArtistVerification/Layout/StepsLayout'
-import AuthCheck from '@/components/Auth/AuthCheck'
+import StepsLayout from '@/components/ArtistVerification/layout/steps-layout'
+import AuthCheck from '@/components/auth/auth-check'
 
 export default async function VerificationLayout({ children, } : { children: React.ReactNode }) {
 

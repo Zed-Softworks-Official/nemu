@@ -1,7 +1,7 @@
 'use client'
 
-import useVerificationFormStore from "@/store/VerificationForm";
-import ArtistAction from "../ArtistAction";
+import useVerificationFormStore from '@/store/VerificationForm'
+import ArtistAction from '../artist-action'
 
 export default function VerificationConfirmation() {
     const { verificationMethod } = useVerificationFormStore()
@@ -11,5 +11,4 @@ export default function VerificationConfirmation() {
             <ArtistAction method={verificationMethod} />
         </div>
     )
-
 }

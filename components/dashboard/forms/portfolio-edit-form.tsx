@@ -6,11 +6,11 @@ import Image from 'next/image'
 import { FormEvent } from 'react'
 import { toast } from 'react-toastify'
 
-import TextInput from '@/components/Form/TextInput'
+import TextInput from '@/components/form/text-input'
 import { usePathname, useRouter } from 'next/navigation'
-import FormDropzone from '@/components/Form/FormDropzone'
-import { useFormContext } from '@/components/Form/FormContext'
-import { useDashboardContext } from '@/components/Navigation/Dashboard/DashboardContext'
+import FormDropzone from '@/components/form/form-dropzone'
+import { useFormContext } from '@/components/form/form-context'
+import { useDashboardContext } from '@/components/Navigation/Dashboard/dashboard-context'
 import { fetcher } from '@/helpers/fetcher'
 import {
     CheckCircleIcon,

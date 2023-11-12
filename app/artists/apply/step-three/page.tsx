@@ -1,9 +1,9 @@
-import VertificationStep from "@/components/ArtistVerification/Layout/VerificationStep";
-import VerificationConfirmation from "@/components/ArtistVerification/Steps/VerificationConfirm";
+import VertificationStep from '@/components/ArtistVerification/layout/verification-step'
+import VerificationConfirmation from '@/components/ArtistVerification/steps/verification-confirm'
 
 export default function VerificationStepThree() {
     return (
-        <VertificationStep back="/artists/apply/step-two" next=""  end >
+        <VertificationStep back="/artists/apply/step-two" next="" end>
             <VerificationConfirmation />
         </VertificationStep>
     )

@@ -5,7 +5,7 @@ import Link from 'next/link'
 
 import { fetcher } from '@/helpers/fetcher'
 import { StripeAccountResponse } from '@/helpers/stripe'
-import { useDashboardContext } from '../DashboardContext'
+import { useDashboardContext } from '../dashboard-context'
 
 import { ClipboardDocumentIcon, CurrencyDollarIcon } from '@heroicons/react/20/solid'
 

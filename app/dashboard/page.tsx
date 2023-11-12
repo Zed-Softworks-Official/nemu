@@ -1,4 +1,4 @@
-import DashboardContainer from "@/components/Dashboard/DashboardContainer";
+import DashboardContainer from "@/components/Dashboard/dashboard-container";
 import React from "react";
 
 

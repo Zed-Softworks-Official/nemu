@@ -1,9 +1,9 @@
 import React from 'react'
 import Link from 'next/link'
 
-import DashboardUserSection from './Sections/UserSection'
-import DashboardArtistSection from './Sections/ArtistSection'
-import DashboardSettingsSection from './Sections/SettingsSection'
+import DashboardUserSection from './sections/user-section'
+import DashboardArtistSection from './sections/artist-section'
+import DashboardSettingsSection from './sections/settings-section'
 
 export default function Navbar() {
     return (

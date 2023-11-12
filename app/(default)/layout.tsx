@@ -1,16 +1,16 @@
-import React from 'react';
+import React from 'react'
 
-import Navbar from '@/components/Navigation/Standard/Navbar';
-import Footer from '@/components/Footer'
+import Navbar from '@/components/Navigation/standard/navbar'
+import Footer from '@/components/footer'
 
-import StandardLayoutBody from '@/components/StandardLayoutBody';
+import StandardLayoutBody from '@/components/standard-layout-body'
 
-export default function DefaultPageLayout({ children, } : { children: React.ReactNode }) {
+export default function DefaultPageLayout({ children }: { children: React.ReactNode }) {
     return (
         <StandardLayoutBody>
             <Navbar />
-            { children }
+            {children}
             <Footer />
         </StandardLayoutBody>
-  )
+    )
 }

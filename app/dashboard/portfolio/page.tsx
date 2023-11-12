@@ -5,11 +5,11 @@ import React from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 
-import { useDashboardContext } from '@/components/Navigation/Dashboard/DashboardContext'
+import { useDashboardContext } from '@/components/Navigation/Dashboard/dashboard-context'
 import { PortfolioItem } from '@/helpers/api/request-inerfaces'
 import { fetcher } from '@/helpers/fetcher'
 
-import DashboardContainer from '@/components/Dashboard/DashboardContainer'
+import DashboardContainer from '@/components/Dashboard/dashboard-container'
 
 export default function PortfolioComponent() {
     const { handle, userId } = useDashboardContext()

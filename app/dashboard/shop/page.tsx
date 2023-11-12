@@ -1,6 +1,6 @@
 import React from 'react'
-import DashboardContainer from '@/components/Dashboard/DashboardContainer'
-import ShopItems from '@/components/Dashboard/Shop/ShopItems'
+import DashboardContainer from '@/components/Dashboard/dashboard-container'
+import ShopItems from '@/components/Dashboard/shop/shop-items'
 
 export default function Store() {
     return (

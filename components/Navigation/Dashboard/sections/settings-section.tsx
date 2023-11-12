@@ -4,7 +4,7 @@ import Link from 'next/link'
 import classNames from '@/helpers/classnames'
 import { Cog6ToothIcon, PaintBrushIcon } from '@heroicons/react/20/solid'
 import { usePathname } from 'next/navigation'
-import { useDashboardContext } from '../DashboardContext'
+import { useDashboardContext } from '../dashboard-context'
 
 export default function DashboardSettingsSection() {
     const pathname = usePathname()

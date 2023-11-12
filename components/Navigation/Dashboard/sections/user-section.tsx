@@ -4,16 +4,15 @@ import useSWR from 'swr'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
-import { fetcher } from '@/helpers/fetcher'
 import classNames from '@/helpers/classnames'
-import { useDashboardContext } from '../DashboardContext'
+import { useDashboardContext } from '../dashboard-context'
 
 import {
     ClipboardDocumentIcon,
     CurrencyDollarIcon,
     EnvelopeIcon
 } from '@heroicons/react/20/solid'
-import DashboardArtistManagmentSection from './ArtistManagementSection'
+import DashboardArtistManagmentSection from './artist-managment-section'
 
 export default function DashboardUserSection() {
     const pathname = usePathname()

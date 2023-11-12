@@ -1,8 +1,8 @@
 import DefaultPageLayout from '@/app/(default)/layout'
-import { VerifyTable } from '@/components/ArtistVerification/VerifyTable'
-import AuthCheck from '@/components/Auth/AuthCheck'
+import { VerifyTable } from '@/components/ArtistVerification/verify-table'
+import AuthCheck from '@/components/auth/auth-check'
 
-export default function VerifyArtist() {    
+export default function VerifyArtist() {
     return (
         <DefaultPageLayout>
             <AuthCheck admin_only>

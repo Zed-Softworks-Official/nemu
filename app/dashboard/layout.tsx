@@ -1,19 +1,23 @@
 import 'react-toastify/ReactToastify.min.css'
-import type { Metadata, } from 'next'
+import type { Metadata } from 'next'
 
-import Navbar from '@/components/Navigation/Dashboard/Navbar'
+import Navbar from '@/components/Navigation/Dashboard/navbar'
 
-import { DashboardProvider } from '@/components/Navigation/Dashboard/DashboardContext'
-import Footer from '@/components/Footer'
+import { DashboardProvider } from '@/components/Navigation/Dashboard/dashboard-context'
+import Footer from '@/components/footer'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 
 export const metadata: Metadata = {
     title: 'Nemu | Artist Dashboard',
-    description: 'An Artist\'s Best Friend',
+    description: "An Artist's Best Friend"
 }
 
-export default async function DashboardLayout({ children, } : { children: React.ReactNode }) {
+export default async function DashboardLayout({
+    children
+}: {
+    children: React.ReactNode
+}) {
     const session = await getServerSession()
 
     const user = await prisma.user.findFirst({
@@ -22,14 +26,20 @@ export default async function DashboardLayout({ children, } : { children: React.
         }
     })
 
-    const artist_fetch = await fetch(`${process.env.BASE_URL}/api/artist/${user?.id}`, { method: 'GET'});
-    const artist = await artist_fetch.json();
+    const artist_fetch = await fetch(`${process.env.BASE_URL}/api/artist/${user?.id}`, {
+        method: 'GET'
+    })
+    const artist = await artist_fetch.json()
 
     return (
-        <DashboardProvider artist_handle={artist.info.handle} artist_user_id={artist.info.userId} artist_stripe_id={artist.info.stripeAccId}>
+        <DashboardProvider
+            artist_handle={artist.info.handle}
+            artist_user_id={artist.info.userId}
+            artist_stripe_id={artist.info.stripeAccId}
+        >
             <Navbar />
-            { children }
+            {children}
             <Footer />
         </DashboardProvider>
-  )
+    )
 }

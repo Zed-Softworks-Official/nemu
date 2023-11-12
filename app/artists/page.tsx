@@ -1,8 +1,8 @@
-import React from "react";
+import React from 'react'
 
-import DefaultPageLayout from "@/app/(default)/layout";
-import ArtistApplyButton from "@/components/ArtistVerification/ArtistApplyButton";
-import ArtistPoints from "@/components/ArtistVerification/ArtistPoints";
+import DefaultPageLayout from '@/app/(default)/layout'
+import ArtistApplyButton from '@/components/ArtistVerification/artist-apply-button'
+import ArtistPoints from '@/components/ArtistVerification/artist-points'
 
 export default async function Artists() {
     return (
@@ -18,6 +18,5 @@ export default async function Artists() {
                 <hr className="seperation" />
             </main>
         </DefaultPageLayout>
-        
     )
 }

@@ -2,16 +2,16 @@
 
 import { FormEvent } from 'react'
 
-import TextInput from '@/components/Form/TextInput'
-import FileInput from '@/components/Form/FileInput'
-import TextField from '@/components/Form/TextField'
-import FormDropzone from '@/components/Form/FormDropzone'
+import TextInput from '@/components/form/text-input'
+import FileInput from '@/components/form/file-input'
+import TextField from '@/components/form/text-field'
+import FormDropzone from '@/components/form/form-dropzone'
 
-import { useFormContext } from '@/components/Form/FormContext'
+import { useFormContext } from '@/components/form/form-context'
 import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/20/solid'
 import { useRouter } from 'next/navigation'
 import { toast } from 'react-toastify'
-import { useDashboardContext } from '@/components/Navigation/Dashboard/DashboardContext'
+import { useDashboardContext } from '@/components/Navigation/Dashboard/dashboard-context'
 
 export default function ShopAddForm() {
     const { stripe_id } = useDashboardContext()

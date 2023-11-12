@@ -4,11 +4,11 @@ import { toast } from 'react-toastify'
 import { useRouter } from 'next/navigation'
 import React, { FormEvent, useState } from 'react'
 
-import TextInput from '@/components/Form/TextInput'
-import FormDropzone from '@/components/Form/FormDropzone'
+import TextInput from '@/components/form/text-input'
+import FormDropzone from '@/components/form/form-dropzone'
 import { CheckCircleIcon } from '@heroicons/react/20/solid'
-import { useFormContext } from '@/components/Form/FormContext'
-import { useDashboardContext } from '@/components/Navigation/Dashboard/DashboardContext'
+import { useFormContext } from '@/components/form/form-context'
+import { useDashboardContext } from '@/components/Navigation/Dashboard/dashboard-context'
 
 export default function PortfolioAddForm() {
     const { image } = useFormContext()

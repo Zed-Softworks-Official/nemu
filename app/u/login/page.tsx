@@ -1,6 +1,6 @@
-import AuthError from '@/components/Auth/AuthError'
-import AuthRedirect from '@/components/Auth/AuthRedirect'
-import OAuthProviders from '@/components/Auth/OAuthProviders'
+import AuthError from '@/components/auth/auth-error'
+import AuthRedirect from '@/components/auth/auth-redirect'
+import OAuthProviders from '@/components/auth/oauth-provider'
 
 import { getProviders } from 'next-auth/react'
 

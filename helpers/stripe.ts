@@ -88,25 +88,16 @@ export async function StripeGetStoreProductInfo(
         prod_id: proudct_id,
     }
 
-    // // Set the featured photo to be the first photo
-    // result.images = [
-    //     await S3GetSignedURL(
-    //         artist!.handle,
-    //         AWSLocations.Store,
-    //         product.metadata.featured_photo
-    //     )
-    // ]
-
-    // // Loop through product images and convert them into signed urls for s3
-    // for (var i: number = 1; i < product.images.length + 1; i++) {
-    //     result.images!.push(
-    //         await S3GetSignedURL(
-    //             artist!.handle,
-    //             AWSLocations.Store,
-    //             product.images[i - 1]
-    //         )
-    //     )
-    // }
+    // Loop through product images and convert them into signed urls for s3
+    for (var i: number = 1; i < product.images.length + 1; i++) {
+        result.images!.push(
+            await S3GetSignedURL(
+                artist!.handle,
+                AWSLocations.Store,
+                product.images[i - 1]
+            )
+        )
+    }
 
     return result
 }

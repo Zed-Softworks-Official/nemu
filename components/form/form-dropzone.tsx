@@ -4,7 +4,7 @@ import Image from 'next/image'
 
 import { useEffect, useState } from 'react'
 import { useDropzone } from 'react-dropzone'
-import { useFormContext } from './FormContext'
+import { useFormContext } from './form-context'
 
 export default function FormDropzone({ label, name = 'dropzone-file' }: { label: string, name?: string }) {
     const [filePreview, setfilePreview] = useState('')

@@ -1,18 +1,18 @@
 'use client'
 
-import Link from "next/link";
+import Link from 'next/link'
 
-import Dot from "@/components/ArtistVerification/UI/Dot";
-import VerticalLine from "@/components/ArtistVerification/UI/VerticalLine";
-import { usePathname } from "next/navigation";
-import StepTitle from "../UI/StepTitle";
+import Dot from '@/components/ArtistVerification/ui/Dot'
+import VerticalLine from '@/components/ArtistVerification/ui/VerticalLine'
+import { usePathname } from 'next/navigation'
+import StepTitle from '../ui/StepTitle'
 
-export default function StepsLayout({ children }: { children: React.ReactNode}) {
-    const pathname = usePathname();
+export default function StepsLayout({ children }: { children: React.ReactNode }) {
+    const pathname = usePathname()
 
-    const activeOne = pathname.includes('/step-one');
-    const activeTwo = pathname.includes('/step-two');
-    const activeThree = pathname.includes('/step-three');
+    const activeOne = pathname.includes('/step-one')
+    const activeTwo = pathname.includes('/step-two')
+    const activeThree = pathname.includes('/step-three')
 
     return (
         <article className="flex justify-start gap-12 min-w-[82%]">
@@ -20,14 +20,20 @@ export default function StepsLayout({ children }: { children: React.ReactNode}) 
                 <Link href={'/artists/apply/step-one'}>
                     <div className="flex items-center gap-4">
                         <Dot active={activeOne || activeTwo || activeThree} />
-                        <StepTitle active={activeOne || activeTwo || activeThree} title="Artist Information" />
+                        <StepTitle
+                            active={activeOne || activeTwo || activeThree}
+                            title="Artist Information"
+                        />
                     </div>
                 </Link>
                 <VerticalLine active={activeTwo || activeThree} />
                 <Link href={'/artists/apply/step-two'}>
                     <div className="flex items-center gap-4">
                         <Dot active={activeTwo || activeThree} />
-                        <StepTitle active={activeTwo || activeThree} title="Verification Method" />
+                        <StepTitle
+                            active={activeTwo || activeThree}
+                            title="Verification Method"
+                        />
                     </div>
                 </Link>
                 <VerticalLine active={activeThree} />
@@ -38,9 +44,7 @@ export default function StepsLayout({ children }: { children: React.ReactNode}) 
                     </div>
                 </Link>
             </div>
-            <form className="xl:w-[600px] w-200px">
-                {children}
-            </form>
+            <form className="xl:w-[600px] w-200px">{children}</form>
         </article>
     )
 }

@@ -1,8 +1,8 @@
 import React from 'react'
 
-import { FormProvider } from '@/components/Form/FormContext'
-import PortfolioAddForm from '@/components/Dashboard/Forms/PortfolioAddForm'
-import DashboardContainer from '@/components/Dashboard/DashboardContainer'
+import { FormProvider } from '@/components/form/form-context'
+import PortfolioAddForm from '@/components/Dashboard/forms/portfolio-add-form'
+import DashboardContainer from '@/components/Dashboard/dashboard-container'
 
 export default function AddPortfolioItem() {
     return (
