@@ -1,6 +1,6 @@
 import { FormProvider } from '@/components/form/form-context'
-import DashboardContainer from '@/components/Dashboard/dashboard-container'
-import PortfolioEditForm from '@/components/Dashboard/forms/portfolio-edit-form'
+import DashboardContainer from '@/components/dashboard/dashboard-container'
+import PortfolioEditForm from '@/components/dashboard/forms/portfolio-edit-form'
 
 export default function PortfolioItem() {
     return (

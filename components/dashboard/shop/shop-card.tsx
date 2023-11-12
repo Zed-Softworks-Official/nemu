@@ -5,14 +5,20 @@ import { ShopItem } from '@/helpers/api/request-inerfaces'
 
 export default function ShopCard({
     product,
+    handle,
     dashboard = false
 }: {
     product: ShopItem
+    handle?: string
     dashboard?: boolean
 }) {
+    const href = dashboard
+        ? `/dashboard/shop/item/${product.prod_id}`
+        : `/@${handle}/shop/${product.prod_id}`
+
     return (
         <Link
-            href={'/'}
+            href={href}
             key={product.name}
             className="bg-charcoal rounded-xl overflow-hidden"
         >
@@ -25,22 +31,29 @@ export default function ShopCard({
                     draggable={false}
                 />
             </div>
-            <div className="grid grid-cols-2 gap-2 px-5 pb-5">
-                <div>
-                    <h1>{product.name}</h1>
-                    <h2>${product.price}</h2>
-                </div>
-                <div className="flex flex-row items-center justify-center">
-                    {dashboard ? (
-                        <Link
-                            href={`/dashboard/product/${product.prod_id}`}
-                            className="p-5 bg-primary rounded-xl font-bold hover:bg-primarylight"
-                        >
-                            Edit Item
-                        </Link>
-                    ) : (
-                        <h1>Dashboard False</h1>
-                    )}
+            <div className="p-5">
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <p className="font-bold text-2xl pb-2">{product.name}</p>
+                        <p className="text-lg">${product.price}</p>
+                    </div>
+                    <div className="flex flex-col justify-center">
+                        {dashboard ? (
+                            <Link
+                                href={href}
+                                className="p-5 w-full text-center bg-primary rounded-xl font-bold hover:bg-primarylight"
+                            >
+                                Edit Item
+                            </Link>
+                        ) : (
+                            <Link
+                                href={href}
+                                className="p-5 w-full text-center bg-gradient-to-r from-azure to-primarylight rounded-xl font-bold hover:from-primarylight hover:to-azure"
+                            >
+                                View
+                            </Link>
+                        )}
+                    </div>
                 </div>
             </div>
         </Link>

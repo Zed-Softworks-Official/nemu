@@ -1,12 +1,13 @@
 'use client'
 
 import useSWR from 'swr'
-import ShopCard from './shop-card'
 
 import { fetcher } from '@/helpers/fetcher'
 import { useSession } from 'next-auth/react'
 
 import { ShopItem } from '@/helpers/api/request-inerfaces'
+
+import ShopCard from '@/components/dashboard/shop/shop-card'
 
 export default function ShopItems() {
     const { data: session } = useSession()

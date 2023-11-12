@@ -36,7 +36,9 @@ export default function ShopAddForm() {
             {
                 theme: 'dark'
             }
-        )
+        ).then(() => {
+            push('/dashboard/shop')
+        })
     }
 
     return (

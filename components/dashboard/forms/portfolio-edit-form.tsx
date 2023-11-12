@@ -5,31 +5,22 @@ import Image from 'next/image'
 
 import { FormEvent } from 'react'
 import { toast } from 'react-toastify'
+import { fetcher, get_item_id } from '@/helpers/fetcher'
 
 import TextInput from '@/components/form/text-input'
 import { usePathname, useRouter } from 'next/navigation'
 import FormDropzone from '@/components/form/form-dropzone'
 import { useFormContext } from '@/components/form/form-context'
 import { useDashboardContext } from '@/components/Navigation/Dashboard/dashboard-context'
-import { fetcher } from '@/helpers/fetcher'
-import {
-    CheckCircleIcon,
-    FireIcon,
-    XCircleIcon
-} from '@heroicons/react/20/solid'
+import { CheckCircleIcon, FireIcon, XCircleIcon } from '@heroicons/react/20/solid'
 
 export default function PortfolioEditForm() {
-    const { push, replace } = useRouter()
-    const pathname = usePathname()
-    let lastSlash = pathname.lastIndexOf('/')
-    let item_id = pathname.substring(lastSlash + 1, pathname.length + 1)
+    const item_id = get_item_id(usePathname())
 
+    const { push, replace } = useRouter()
     const { image } = useFormContext()
     const { handle } = useDashboardContext()
-    const { data } = useSWR(
-        `/api/artist/item/${handle}/portfolio/${item_id}`,
-        fetcher
-    )
+    const { data } = useSWR(`/api/artist/item/${handle}/portfolio/${item_id}`, fetcher)
 
     // Form Cancellation
     const errorClick = () => {
@@ -49,13 +40,10 @@ export default function PortfolioEditForm() {
         try {
             toast
                 .promise(
-                    fetch(
-                        `/api/artist/item/${handle}/portfolio/${item_id}/update`,
-                        {
-                            method: 'POST',
-                            body: formData
-                        }
-                    ),
+                    fetch(`/api/artist/item/${handle}/portfolio/${item_id}/update`, {
+                        method: 'POST',
+                        body: formData
+                    }),
                     {
                         pending: 'Updating Portfolio Item',
                         success: 'Portfolio Item Updated',
@@ -78,9 +66,7 @@ export default function PortfolioEditForm() {
         try {
             toast
                 .promise(
-                    fetch(
-                        `/api/artist/item/${handle}/portfolio/${item_id}/delete`
-                    ),
+                    fetch(`/api/artist/item/${handle}/portfolio/${item_id}/delete`),
                     {
                         pending: 'Deleting Portfolio Item',
                         success: 'Portfolio Item Deleted',
@@ -106,11 +92,7 @@ export default function PortfolioEditForm() {
         >
             <div className="flex flex-wrap">
                 <div className="mx-auto">
-                    <TextInput
-                        label="Title"
-                        name="title"
-                        placeholder={data?.item.name}
-                    />
+                    <TextInput label="Title" name="title" placeholder={data?.item.name} />
 
                     <div className="mb-5">
                         <label className="block mb-5">Current Image:</label>
@@ -126,10 +108,7 @@ export default function PortfolioEditForm() {
                 </div>
             </div>
             <div className="flex flex-row items-center justify-center">
-                <button
-                    type="submit"
-                    className="bg-primary p-5 rounded-3xl m-5"
-                >
+                <button type="submit" className="bg-primary p-5 rounded-3xl m-5">
                     <CheckCircleIcon className="w-6 h-6 inline mr-3" />
                     Save Item
                 </button>

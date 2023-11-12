@@ -9,6 +9,7 @@ import Loading from '@/app/[handle]/loading'
 import Portfolio from './portfolio'
 import { useTabsContext } from './tabs-context'
 import { Artist } from '@prisma/client'
+import Shop from './shop'
 
 export default function ArtistBody({ artist_info }: { artist_info: Artist }) {
     const { currentIndex, setCurrentIndex } = useTabsContext()
@@ -23,9 +24,10 @@ export default function ArtistBody({ artist_info }: { artist_info: Artist }) {
                 )
             case 1:
                 return (
-                    <div>
+                    <Suspense fallback={<Loading />}>
                         <h1 className="font-bold text-2xl">Store</h1>
-                    </div>
+                        <Shop user_id={artist_info.userId} />
+                    </Suspense>
                 )
             case 2:
                 return (
