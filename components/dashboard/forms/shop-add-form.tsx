@@ -11,7 +11,7 @@ import { useFormContext } from '@/components/form/form-context'
 import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/20/solid'
 import { useRouter } from 'next/navigation'
 import { toast } from 'react-toastify'
-import { useDashboardContext } from '@/components/Navigation/Dashboard/dashboard-context'
+import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
 
 export default function ShopAddForm() {
     const { stripe_id } = useDashboardContext()

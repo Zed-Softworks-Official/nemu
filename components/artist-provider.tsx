@@ -1,7 +1,5 @@
 'use client'
 
-import useSWR from 'swr'
-
 import { createContext, useContext, useState, Dispatch, SetStateAction } from 'react'
 import { getSession, useSession } from 'next-auth/react'
 

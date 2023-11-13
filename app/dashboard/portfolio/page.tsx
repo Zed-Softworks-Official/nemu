@@ -5,7 +5,7 @@ import React from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 
-import { useDashboardContext } from '@/components/Navigation/Dashboard/dashboard-context'
+import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
 import { PortfolioItem } from '@/helpers/api/request-inerfaces'
 import { fetcher } from '@/helpers/fetcher'
 

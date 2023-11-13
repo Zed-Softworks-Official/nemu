@@ -1,6 +1,6 @@
 import React from 'react'
 
-import Navbar from '@/components/Navigation/standard/navbar'
+import Navbar from '@/components/navigation/standard/navbar'
 import Footer from '@/components/footer'
 
 import StandardLayoutBody from '@/components/standard-layout-body'

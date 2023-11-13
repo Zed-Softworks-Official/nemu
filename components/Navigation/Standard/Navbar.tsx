@@ -1,8 +1,8 @@
 import React from 'react'
 
-import Logo from '@/components/Navigation/standard/logo'
-import Search from '@/components/Navigation/standard/search'
-import UserInfoMenu from '@/components/Navigation/user/user-info-menu'
+import Logo from '@/components/navigation/standard/logo'
+import Search from '@/components/navigation/standard/search/search'
+import UserInfoMenu from '@/components/navigation/user/user-info-menu'
 
 export default function Navbar() {
     return (

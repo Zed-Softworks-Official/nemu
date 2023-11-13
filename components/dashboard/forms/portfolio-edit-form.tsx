@@ -11,7 +11,7 @@ import TextInput from '@/components/form/text-input'
 import { usePathname, useRouter } from 'next/navigation'
 import FormDropzone from '@/components/form/form-dropzone'
 import { useFormContext } from '@/components/form/form-context'
-import { useDashboardContext } from '@/components/Navigation/Dashboard/dashboard-context'
+import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
 import { CheckCircleIcon, FireIcon, XCircleIcon } from '@heroicons/react/20/solid'
 
 export default function PortfolioEditForm() {

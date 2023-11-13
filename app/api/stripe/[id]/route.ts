@@ -7,6 +7,12 @@ import {
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 
+/**
+ * Get's the correct response based on wether an artist is onboarded or not
+ * 
+ * @param id - The user id for the artist
+ * @returns A url for either onboarding via stripe or a stripe dashboard
+ */
 export async function GET(req: Request, { params }: { params: { id: string } }) {
     const artist = await prisma.artist.findFirst({
         where: {
