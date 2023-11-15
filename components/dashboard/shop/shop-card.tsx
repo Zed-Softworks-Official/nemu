@@ -1,20 +1,23 @@
+'use client'
+
 import Link from 'next/link'
 import Image from 'next/image'
 
 import { ShopItem } from '@/helpers/api/request-inerfaces'
+import { useShopContext } from '@/components/artist-page/shop-context'
 
 export default function ShopCard({
     product,
-    handle,
     dashboard = false
 }: {
     product: ShopItem
-    handle?: string
     dashboard?: boolean
 }) {
+    const { handle, setProductId } = useShopContext()
+
     const href = dashboard
         ? `/dashboard/shop/item/${product.prod_id}`
-        : `/@${handle}/shop/${product.prod_id}`
+        : `/@${handle}/shop/item`
 
     return (
         <Link
@@ -49,6 +52,7 @@ export default function ShopCard({
                             <Link
                                 href={href}
                                 className="p-5 w-full text-center bg-gradient-to-r from-azure to-primarylight rounded-xl font-bold hover:from-primarylight hover:to-azure"
+                                onClick={() => setProductId!(product.prod_id!)}
                             >
                                 View
                             </Link>

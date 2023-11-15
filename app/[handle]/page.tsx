@@ -1,13 +1,15 @@
 import React from 'react'
+
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 
 import { prisma } from '@/lib/prisma'
 
-import { TabsProvider } from '@/components/artist-page/tabs-context'
-import ArtistHeader from '@/components/artist-page/header'
-import ArtistBody from '@/components/artist-page/body'
 import DefaultPageLayout from '../(default)/layout'
+import ArtistBody from '@/components/artist-page/body'
+import ArtistHeader from '@/components/artist-page/header'
+import { TabsProvider } from '@/components/artist-page/tabs-context'
+import SetShopContext from '@/components/artist-page/set-shop-context'
 
 export var metadata: Metadata = {
     description: 'An Artists Best Friend'
@@ -20,7 +22,7 @@ export default async function ArtistPage({ params }: { params: { handle: string 
     metadata.title = 'Nemu | @' + handle
 
     // Get the artist from the handle
-    let artist_info = await prisma.artist
+    const artist_info = await prisma.artist
         .findFirst({
             where: {
                 handle: handle
@@ -32,13 +34,14 @@ export default async function ArtistPage({ params }: { params: { handle: string 
 
     // If the artist is not found then go to a not found page
     if (!artist_info) {
-        notFound()
+        return notFound()
     }
 
     // Render View
     return (
         <DefaultPageLayout>
             <TabsProvider>
+                <SetShopContext handle={handle} stripe_account={artist_info.stripeAccId} />
                 <ArtistHeader handle={handle} id={artist_info.userId} />
                 <ArtistBody artist_info={artist_info} />
             </TabsProvider>

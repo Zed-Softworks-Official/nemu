@@ -5,6 +5,7 @@ import AuthProvider from '@/components/auth/auth-provider'
 import { ToastContainer } from 'react-toastify'
 
 import 'react-toastify/ReactToastify.min.css'
+import { ShopProvider } from '@/components/artist-page/shop-context'
 
 export const metadata: Metadata = {
     title: 'Nemu',
@@ -22,10 +23,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <link rel="stylesheet" href="https://use.typekit.net/tru7say.css" />
             </head>
             <AuthProvider>
-                <body className="bg-white text-charcoal font-nunito dark:bg-charcoal dark:text-white">
-                    {children}
-                    <ToastContainer position="top-right" />
-                </body>
+                <ShopProvider>
+                    <body className="bg-white text-charcoal font-nunito dark:bg-charcoal dark:text-white">
+                        {children}
+                        <ToastContainer position="top-right" />
+                    </body>
+                </ShopProvider>
             </AuthProvider>
         </html>
     )

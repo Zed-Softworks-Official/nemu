@@ -4,18 +4,24 @@ import useSWR from 'swr'
 import Image from 'next/image'
 import Markdown from 'react-markdown'
 
-import { FormEvent, useState } from 'react'
+import { useState } from 'react'
+import { useShopContext } from './shop-context'
 
-import { useParams } from 'next/navigation'
 import { fetcher } from '@/helpers/fetcher'
 import { ShoppingCartIcon } from '@heroicons/react/20/solid'
 
 import Loading from '@/app/[handle]/loading'
+import { redirect } from 'next/navigation'
 
 export default function ShopItem() {
-    const routeParams = useParams()
+    const { productId, stripeAccount } = useShopContext()
+
+    if (!productId) {
+        redirect('/')
+    }
+
     const { data, isLoading } = useSWR(
-        `/api/stripe/${routeParams['id']}/product`,
+        `/api/stripe/${productId}/product`,
         fetcher
     )
 
@@ -48,6 +54,7 @@ export default function ShopItem() {
                     />
                     {data?.product.images?.map((image: string) => (
                         <Image
+                            key={data?.product.name}
                             src={image}
                             width={100}
                             height={100}
@@ -63,10 +70,21 @@ export default function ShopItem() {
                     <h1>{data?.product.name}</h1>
                     <Markdown>{data?.product.description}</Markdown>
                 </div>
-                <form className="relative bottom-0 my-10" action="/api/stripe/purchase" method="post">
-                    <input name="product_id" type="hidden" value={routeParams['id']} />
-                    <input name="stripe_account" type="hidden" value={'acct_1NpORkPjdXx3ktPl'} />
-                    <button className="bg-primary hover:bg-azure rounded-xl p-5 w-full" type="submit">
+                <form
+                    className="relative bottom-0 my-10"
+                    action="/api/stripe/purchase"
+                    method="post"
+                >
+                    <input name="product_id" type="hidden" value={productId} />
+                    <input
+                        name="stripe_account"
+                        type="hidden"
+                        value={stripeAccount}
+                    />
+                    <button
+                        className="bg-primary hover:bg-azure rounded-xl p-5 w-full"
+                        type="submit"
+                    >
                         <ShoppingCartIcon className="w-6 h-6 inline-block mr-5" />
                         Buy Now
                     </button>

@@ -9,7 +9,9 @@ export default function DefaultPageLayout({ children }: { children: React.ReactN
     return (
         <StandardLayoutBody>
             <Navbar />
+
             {children}
+
             <Footer />
         </StandardLayoutBody>
     )
