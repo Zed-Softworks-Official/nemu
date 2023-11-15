@@ -1,5 +1,5 @@
 import Footer from "@/components/footer";
-import Logo from "@/components/Navigation/standard/logo";
+import Logo from "@/components/navigation/standard/logo";
 
 export default function Layout({ children }: { children: React.ReactNode}) {
     return (

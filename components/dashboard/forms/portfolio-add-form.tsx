@@ -8,7 +8,7 @@ import TextInput from '@/components/form/text-input'
 import FormDropzone from '@/components/form/form-dropzone'
 import { CheckCircleIcon } from '@heroicons/react/20/solid'
 import { useFormContext } from '@/components/form/form-context'
-import { useDashboardContext } from '@/components/Navigation/Dashboard/dashboard-context'
+import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
 
 export default function PortfolioAddForm() {
     const { image } = useFormContext()

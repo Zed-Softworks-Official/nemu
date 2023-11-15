@@ -1,9 +1,9 @@
 import 'react-toastify/ReactToastify.min.css'
 import type { Metadata } from 'next'
 
-import Navbar from '@/components/Navigation/Dashboard/navbar'
+import Navbar from '@/components/navigation/dashboard/navbar'
 
-import { DashboardProvider } from '@/components/Navigation/Dashboard/dashboard-context'
+import { DashboardProvider } from '@/components/navigation/dashboard/dashboard-context'
 import Footer from '@/components/footer'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
