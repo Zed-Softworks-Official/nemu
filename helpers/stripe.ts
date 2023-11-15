@@ -48,15 +48,15 @@ export async function StripeCreateStoreProduct(
 /**
  * Finds a product given an id and a stripe account
  *
- * @param {string} proudct_id - The proudct id for the requested item
+ * @param {string} product_id - The proudct id for the requested item
  * @param {string} stripe_account - The stripe account to find the item
  * @returns {ShopItem} A ShopItem with all of the information on the product
  */
 export async function StripeGetStoreProductInfo(
-    proudct_id: string,
+    product_id: string,
     stripe_account: string
 ) {
-    let product = await stripe.products.retrieve(proudct_id, {
+    let product = await stripe.products.retrieve(product_id, {
         stripeAccount: stripe_account
     })
 
@@ -72,7 +72,9 @@ export async function StripeGetStoreProductInfo(
     let result: ShopItem = {
         name: product.name,
         description: product.description!,
-        price: (await StripeGetPriceInfo(product.default_price!.toString(), stripe_account)).unit_amount! / 100,
+        price:
+            (await StripeGetPriceInfo(product.default_price!.toString(), stripe_account))
+                .unit_amount! / 100,
 
         asset: await S3GetSignedURL(
             artist!.handle,
@@ -84,8 +86,9 @@ export async function StripeGetStoreProductInfo(
             AWSLocations.Store,
             product.metadata.featured_image
         ),
+        images: [],
 
-        prod_id: proudct_id,
+        prod_id: product_id
     }
 
     // Loop through product images and convert them into signed urls for s3
@@ -100,6 +103,51 @@ export async function StripeGetStoreProductInfo(
     }
 
     return result
+}
+
+/**
+ * Gets the raw stripe object instead of changing the data
+ *
+ * @param {string} product_id - The product to get the stripe
+ * @param {string} stripe_account - The stripe account to find the item
+ * @returns A Stripe product object
+ */
+export async function StripeGetRawProductInfo(
+    product_id: string,
+    stripe_account: string
+) {
+    return await stripe.products.retrieve(product_id, {
+        stripeAccount: stripe_account
+    })
+}
+
+/**
+ * Creates a stripe checkout session for a given product
+ *
+ * @param {Stripe.Product} product - The product to get the stripe
+ * @param {string} stripe_account
+ * @returns A stripe checkout session
+ */
+export async function StripeGetPurchasePage(
+    product: Stripe.Product,
+    stripe_account: string
+) {
+    return await stripe.checkout.sessions.create(
+        {
+            line_items: [
+                {
+                    price: product.default_price!.toString(),
+                    quantity: 1
+                }
+            ],
+            mode: 'payment',
+            success_url: `${process.env.BASE_URL}/payments/success`,
+            cancel_url: `${process.env.BASE_URL}/payments/failure`
+        },
+        {
+            stripeAccount: stripe_account
+        }
+    )
 }
 
 /**

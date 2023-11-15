@@ -1,9 +1,12 @@
 import DefaultPageLayout from '@/app/(default)/layout'
+import ShopItem from '@/components/artist-page/shop-item'
 
-export default function ArtistShopView() {
+export default async function ArtistShopView() {
     return (
         <DefaultPageLayout>
-            <h1>Hello, World!</h1>
+            <div className="xl:max-w-[85%] mx-auto">
+                <ShopItem />
+            </div>
         </DefaultPageLayout>
     )
 }

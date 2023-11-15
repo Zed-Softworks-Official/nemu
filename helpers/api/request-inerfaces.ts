@@ -37,3 +37,11 @@ export interface ShopItem {
 
     prod_id?: string
 }
+
+/**
+ * 
+ */
+export interface PurchasePageRequest {
+    product_id: string
+    stripe_account: string
+}
