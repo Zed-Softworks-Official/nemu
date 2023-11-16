@@ -25,7 +25,7 @@ export default function ShopItem() {
         fetcher
     )
 
-    const [currentImage, setCurrentImage] = useState('')
+    const [currentImage, setCurrentImage] = useState<string>(data?.product.featured_image)
 
     if (isLoading) {
         return <Loading />
