@@ -22,5 +22,5 @@ export async function POST(req: Request) {
     const product = await StripeGetRawProductInfo(data.product_id, data.stripe_account)
 
     // Redirect User
-    return NextResponse.redirect((await StripeGetPurchasePage(product, data.stripe_account)).url!)
+    return NextResponse.redirect((await StripeGetPurchasePage(product, data.stripe_account)).url!, 302)
 }

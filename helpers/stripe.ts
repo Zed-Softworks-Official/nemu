@@ -180,7 +180,12 @@ export async function StripeCreateLoginLink(stripe_account: string) {
  */
 export async function StripeCreateAccount() {
     return await stripe.accounts.create({
-        type: 'express'
+        type: 'express',
+        capabilities: {
+            card_payments: {
+                requested: true
+            }
+        }
     })
 }
 
