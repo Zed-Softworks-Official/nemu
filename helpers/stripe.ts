@@ -8,15 +8,6 @@ const stripe = new Stripe(process.env.STRIPE_API_KEY!, {
 })
 
 /**
- * Raw Stripe Account Interface
- */
-export interface StripeAccountResponse {
-    raw?: Stripe.Account
-    onboarding_url?: string
-    dashboard_url?: string
-}
-
-/**
  *
  * @param stripe_account
  * @param item_info
@@ -126,9 +117,9 @@ export async function StripeGetRawProductInfo(
 
 /**
  *
- * @param product_update
- * @param product_id
- * @param stripe_account
+ * @param {Stripe.ProductUpdateParams} product_update
+ * @param {string} product_id
+ * @param {string} stripe_account
  * @returns
  */
 export async function StripeUpdateProduct(

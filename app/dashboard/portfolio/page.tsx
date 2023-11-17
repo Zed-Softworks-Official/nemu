@@ -6,25 +6,19 @@ import Link from 'next/link'
 import Image from 'next/image'
 
 import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
-import { PortfolioItem } from '@/helpers/api/request-inerfaces'
+import { PortfolioItem, PortfolioResponse } from '@/helpers/api/request-inerfaces'
 import { fetcher } from '@/helpers/fetcher'
 
 import DashboardContainer from '@/components/Dashboard/dashboard-container'
 
 export default function PortfolioComponent() {
-    const { handle, userId } = useDashboardContext()
-    const { data } = useSWR(
-        `/api/artist/items/${handle}/portfolio/${userId}`,
-        fetcher
-    )
+    const { handle } = useDashboardContext()
+    const { data } = useSWR<PortfolioResponse>(`/api/portfolio/${handle}/items`, fetcher)
 
     return (
-        <DashboardContainer
-            title="Portfolio"
-            addButtonUrl="/dashboard/portfolio/add"
-        >
+        <DashboardContainer title="Portfolio" addButtonUrl="/dashboard/portfolio/add">
             <div className="grid grid-cols-4">
-                {data?.portfolio_items.map((item: PortfolioItem) => {
+                {data?.items?.map((item: PortfolioItem) => {
                     return (
                         <Link
                             href={`/dashboard/portfolio/item/${item.key}`}

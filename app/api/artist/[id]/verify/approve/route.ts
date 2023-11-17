@@ -1,12 +1,10 @@
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
+import { NemuResponse, StatusCode } from '@/helpers/api/request-inerfaces'
 
-export async function POST(
-    req: Request,
-    { params }: { params: { id: string } }
-) {
+export async function POST(req: Request, { params }: { params: { id: string } }) {
     // Get the artist from the verification section
-    let verify_info = await prisma.artistVerification.findFirst({
+    const verify_info = await prisma.artistVerification.findFirst({
         where: {
             userId: params.id
         }
@@ -17,7 +15,7 @@ export async function POST(
         data: {
             userId: params.id,
             stripeAccId: '',
-            
+
             handle: verify_info?.requestedHandle!,
             about: 'Peko Peko',
             location: verify_info?.location!,
@@ -43,7 +41,7 @@ export async function POST(
 
     // TODO: Update Search Database
 
-    return NextResponse.json({
-        success: true
+    return NextResponse.json<NemuResponse>({
+        status: StatusCode.Success
     })
 }

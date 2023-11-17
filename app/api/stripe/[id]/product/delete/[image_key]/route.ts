@@ -1,8 +1,9 @@
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 
-import { StripeGetRawProductInfo, StripeUpdateProduct } from '@/helpers/stripe'
 import { AWSLocations, S3Delete } from '@/helpers/s3'
+import { NemuResponse, StatusCode } from '@/helpers/api/request-inerfaces'
+import { StripeGetRawProductInfo, StripeUpdateProduct } from '@/helpers/stripe'
 
 /**
  * Handles deletion of an image from a product
@@ -30,8 +31,9 @@ export async function POST(
     // Check if there are images
     if (!product.images) {
         // return failed response
-        return NextResponse.json({
-            success: false
+        return NextResponse.json<NemuResponse>({
+            status: StatusCode.InternalError,
+            message: 'No images are available for this product!'
         })
     }
 
@@ -58,7 +60,8 @@ export async function POST(
     await S3Delete(artist?.handle!, AWSLocations.Store, deleted_images[0])
 
     // Return success response
-    return NextResponse.json({
-        success: true
+    return NextResponse.json<NemuResponse>({
+        status: StatusCode.Success,
+        message: 'Item Deleted Successfully'
     })
 }

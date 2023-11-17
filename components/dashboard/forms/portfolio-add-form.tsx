@@ -37,7 +37,7 @@ export default function PortfolioAddForm() {
 
             toast
                 .promise(
-                    fetch(`/api/artist/item/${handle}/portfolio/${filename}`, {
+                    fetch(`/api/portfolio/${handle}/item/${filename}`, {
                         method: 'POST',
                         body: formData
                     }),

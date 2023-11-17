@@ -1,25 +1,23 @@
+import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 
-import { prisma } from '@/lib/prisma'
 import { StringToRoleEnum } from '@/helpers/user-info'
+import { NemuResponse, StatusCode } from '@/helpers/api/request-inerfaces'
 
-export async function POST(req: Request, { params }: { params: { id: string, role: string }}) {
-    let updated: boolean = false
+export async function POST(
+    req: Request,
+    { params }: { params: { id: string; role: string } }
+) {
+    await prisma.user.update({
+        where: {
+            id: params.id
+        },
+        data: {
+            role: StringToRoleEnum(params.role)
+        }
+    })
 
-    try {
-        await prisma.user.update({
-            where: {
-                id: params.id
-            },
-            data: {
-                role: StringToRoleEnum(params.role)
-            }
-        })
-    } catch (e) {
-        console.log(e)
-    }
-
-    return NextResponse.json({
-        user_updated: updated
+    return NextResponse.json<NemuResponse>({
+        status: StatusCode.Success
     })
 }

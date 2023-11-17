@@ -64,12 +64,14 @@ export const authOptions: NextAuthOptions = {
 
                 // Add Extra Session Data
                 session.user.user_id = token.sub
-                session.user.provider = token.provider ? token.provider as string : undefined
+                session.user.provider = token.provider
+                    ? (token.provider as string)
+                    : undefined
                 session.user.role = db_user?.role as Role
-                
+
                 // If the user's role is an artist we need some additional information
                 if (db_user?.role) {
-                    switch ((db_user?.role as Role)) {
+                    switch (db_user?.role as Role) {
                         case Role.Artist:
                             {
                                 const db_artist = await prisma.artist.findFirst({
@@ -78,10 +80,10 @@ export const authOptions: NextAuthOptions = {
                                     }
                                 })
                                 session.user.handle = db_artist?.handle
-                            } break;
+                            }
+                            break
                     }
                 }
-
             } catch (e) {
                 console.log(e)
             }
@@ -91,5 +93,5 @@ export const authOptions: NextAuthOptions = {
     }
 }
 
-const handler = NextAuth(authOptions);
-export { handler as GET, handler as POST };
+const handler = NextAuth(authOptions)
+export { handler as GET, handler as POST }

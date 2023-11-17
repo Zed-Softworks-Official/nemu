@@ -1,79 +1,25 @@
-import { prisma } from "@/lib/prisma";
-import { PortfolioItem, ShopItem } from "./request-inerfaces";
-import { S3GetSignedURL, StringToAWSLocationsEnum } from "@/helpers/s3";
-
-enum RequestItemEnum {
-    None,
-    Portfolio,
-    Commission,
-    Store,
-    Profile
-}
+import { prisma } from '@/lib/prisma'
+import { PortfolioItem } from './request-inerfaces'
+import { AWSLocations, S3GetSignedURL } from '@/helpers/s3'
 
 /**
- * 
- * @param {string} location - The location of the desired object
- * @returns {RequestItemEnum} Location in Enum Form
- */
-var StringToRequestItemEnum = (location: string) => {
-    switch (location) {
-        case 'portfolio':
-            return RequestItemEnum.Portfolio
-        case 'store':
-            return RequestItemEnum.Store
-        default:
-            return RequestItemEnum.None
-    }
-}
-
-/**
- * Check the desired location of the item and return the correct item from our database
- * 
- * If the location is an invalid database object, the function returns null
- * 
- * Used for API Methods
- * 
+ * Gets a SINGLE portfolio item for a given user with a provided name
+ *
  * @param {string} handle - The artist handle
- * @param {string} location - The location of the desired file
  * @param {string} id - The filename of the destired file
  * @returns An item from the database, Null if location is not inside the database
  */
-export var RequestItem = async (handle: string, location: string, id: string) => {
-    // Create Null Result
-    let result: PortfolioItem | ShopItem | null = null;
-    
-    // Get the current location we're searching for
-    let loc: RequestItemEnum = StringToRequestItemEnum(location);
-    // If there is no location in our database for the item then we return null
-    if (loc == RequestItemEnum.None) {
-        return result;
-    }
-    
-    // Fill the result variable with data
-    switch (loc) {
-        case RequestItemEnum.Portfolio:
-            // Determine the location of the object
-            let database_item = await prisma.portfolio.findFirst({
-                where: {
-                    image: id
-                }
-            });
+export async function GetPortfolioItem(handle: string, id: string): Promise<PortfolioItem> {
+    // Determine the location of the object
+    const database_item = await prisma.portfolio.findFirst({
+        where: {
+            image: id
+        }
+    })
 
-            result = {
-                name: database_item!.name,
-                signed_url: await S3GetSignedURL(handle, StringToAWSLocationsEnum(location), id),
-                key: id
-            };
-            break;
-        case RequestItemEnum.Store:
-            let db_store_item = await prisma.storeItem.findFirst({
-                where: {
-                    product: id
-                }
-            })
-            break;
+    return {
+        name: database_item!.name,
+        signed_url: await S3GetSignedURL(handle, AWSLocations.Portfolio, id),
+        key: id
     }
-
-    // Return the result
-    return result;
 }

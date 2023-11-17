@@ -1,7 +1,9 @@
-import { AWSLocations, S3Upload } from '@/helpers/s3'
-import { StripeCreateStoreProduct, StripeGetStoreProductInfo } from '@/helpers/stripe'
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
+
+import { AWSLocations, S3Upload } from '@/helpers/s3'
+import { StripeCreateStoreProduct, StripeGetStoreProductInfo } from '@/helpers/stripe'
+import { NemuResponse, StatusCode, ShopResponse } from '@/helpers/api/request-inerfaces'
 
 /**
  * Creates a product on stripe, our database, and uploads the data files to S3
@@ -79,8 +81,8 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         }
     })
 
-    return NextResponse.json({
-        success: true
+    return NextResponse.json<NemuResponse>({
+        status: StatusCode.Success
     })
 }
 
@@ -94,7 +96,8 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
         }
     })
 
-    return NextResponse.json({
+    return NextResponse.json<ShopResponse>({
+        status: StatusCode.Success,
         product: await StripeGetStoreProductInfo(product?.product!, product?.stripeAccId!)
     })
 }

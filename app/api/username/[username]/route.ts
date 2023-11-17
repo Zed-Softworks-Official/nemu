@@ -1,8 +1,10 @@
-import { prisma } from "@/lib/prisma";
-import { NextResponse } from "next/server";
+import { prisma } from '@/lib/prisma'
+import { NextResponse } from 'next/server'
 
-export async function GET(req: Request, { params }: { params: { username: string }}) {
-    let error = false
+import { NemuResponse, StatusCode } from '@/helpers/api/request-inerfaces'
+
+export async function GET(req: Request, { params }: { params: { username: string } }) {
+    let status = StatusCode.Success
     let message = ''
 
     // Check if the user already exists
@@ -13,22 +15,22 @@ export async function GET(req: Request, { params }: { params: { username: string
     })
 
     if (user) {
-        error = true
+        status = StatusCode.InternalError
         message = 'Looks like that username exists already!'
     }
 
-    return NextResponse.json({
-        error: error,
+    return NextResponse.json<NemuResponse>({
+        status: status,
         message: message
     })
 }
 
-export async function POST(req: Request, { params }: { params: { username: string }}) {
-    let error = false
+export async function POST(req: Request, { params }: { params: { username: string } }) {
+    let status = StatusCode.Success
     let message = ''
 
     const json = await req.json()
-    
+
     try {
         await prisma.user.update({
             where: {
@@ -40,13 +42,13 @@ export async function POST(req: Request, { params }: { params: { username: strin
         })
     } catch (e) {
         console.log(e)
-        
-        error = true
-        message = 'Couldn\'t set username'
+
+        status = StatusCode.InternalError
+        message = "Couldn't set username"
     }
 
-    return NextResponse.json({
-        error: error,
+    return NextResponse.json<NemuResponse>({
+        status: status,
         message: message
     })
 }

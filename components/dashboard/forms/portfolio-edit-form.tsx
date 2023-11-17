@@ -11,6 +11,8 @@ import TextInput from '@/components/form/text-input'
 import { usePathname, useRouter } from 'next/navigation'
 import FormDropzone from '@/components/form/form-dropzone'
 import { useFormContext } from '@/components/form/form-context'
+import { PortfolioResponse } from '@/helpers/api/request-inerfaces'
+
 import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
 import { CheckCircleIcon, FireIcon, XCircleIcon } from '@heroicons/react/20/solid'
 
@@ -20,7 +22,7 @@ export default function PortfolioEditForm() {
     const { push, replace } = useRouter()
     const { image } = useFormContext()
     const { handle } = useDashboardContext()
-    const { data } = useSWR(`/api/artist/item/${handle}/portfolio/${item_id}`, fetcher)
+    const { data } = useSWR<PortfolioResponse>(`/api/portfolio/${handle}/item/${item_id}`, fetcher)
 
     // Form Cancellation
     const errorClick = () => {
@@ -40,7 +42,7 @@ export default function PortfolioEditForm() {
         try {
             toast
                 .promise(
-                    fetch(`/api/artist/item/${handle}/portfolio/${item_id}/update`, {
+                    fetch(`/api/portfolio/${handle}/item/${item_id}/update`, {
                         method: 'POST',
                         body: formData
                     }),
@@ -66,7 +68,7 @@ export default function PortfolioEditForm() {
         try {
             toast
                 .promise(
-                    fetch(`/api/artist/item/${handle}/portfolio/${item_id}/delete`),
+                    fetch(`/api/portfolio/${handle}/item/${item_id}/delete`),
                     {
                         pending: 'Deleting Portfolio Item',
                         success: 'Portfolio Item Deleted',
@@ -92,12 +94,12 @@ export default function PortfolioEditForm() {
         >
             <div className="flex flex-wrap">
                 <div className="mx-auto">
-                    <TextInput label="Title" name="title" placeholder={data?.item.name} />
+                    <TextInput label="Title" name="title" placeholder={data?.item?.name} />
 
                     <div className="mb-5">
                         <label className="block mb-5">Current Image:</label>
                         <Image
-                            src={data?.item.signed_url}
+                            src={data?.item?.signed_url!}
                             width={500}
                             height={500}
                             alt="Portfolio Item"
