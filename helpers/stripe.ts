@@ -8,9 +8,11 @@ const stripe = new Stripe(process.env.STRIPE_API_KEY!, {
 })
 
 /**
+ * Creates a product on stripe
  *
- * @param stripe_account
- * @param item_info
+ * @param {string} stripe_account - Stripe account to associate the product
+ * @param {ShopItem} product - Product information
+ * @returns The product data from stripe
  */
 export async function StripeCreateStoreProduct(
     stripe_account: string,
@@ -41,7 +43,7 @@ export async function StripeCreateStoreProduct(
  *
  * @param {string} product_id - The proudct id for the requested item
  * @param {string} stripe_account - The stripe account to find the item
- * @returns {ShopItem} A ShopItem with all of the information on the product
+ * @returns A ShopItem with all of the information on the product
  */
 export async function StripeGetStoreProductInfo(
     product_id: string,
@@ -116,11 +118,12 @@ export async function StripeGetRawProductInfo(
 }
 
 /**
+ * Updates a on stripe product with the given values
  *
  * @param {Stripe.ProductUpdateParams} product_update
  * @param {string} product_id
  * @param {string} stripe_account
- * @returns
+ * @returns The updated stripe product
  */
 export async function StripeUpdateProduct(
     product_id: string,
