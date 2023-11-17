@@ -13,6 +13,7 @@ import FormDropzone from '@/components/form/form-dropzone'
 import { FormEvent } from 'react'
 import { fetcher, get_item_id } from '@/helpers/fetcher'
 import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/20/solid'
+import ShopEditCard from '../shop/shop-edit-card'
 
 export default function ShopEditForm() {
     const item_id = get_item_id(usePathname())
@@ -46,10 +47,11 @@ export default function ShopEditForm() {
                     label="Product Name"
                     placeholder={data?.product.name}
                     name="product_name"
+                    defaultValue={data?.product.name}
                 />
                 <TextField
                     label="Product Description"
-                    markdown=""
+                    markdown={data ? data?.product.description : ""}
                     name="product_description"
                 />
                 <TextInput
@@ -57,15 +59,24 @@ export default function ShopEditForm() {
                     name="product_price"
                     placeholder={data?.product.price}
                     type="number"
+                    defaultValue={data?.product.price}
                 />
             </div>
             <div className="col-span-6">
                 <FileInput
-                    label="Additional Photos (8 Max)"
+                    label="Add More Photos (8 Max)"
                     name="product_images"
                     multiple
                     max_length={8}
                 />
+                <label className="block mb-5">Current Images</label>
+                <div className="grid grid-6 grid-flow-col gap-5 mb-5">
+                    {data?.product.images.map((image: string, count: number) => (
+                        <div key={count}>
+                            <ShopEditCard image_src={image} alt_text={count.toString()} index={count} /> 
+                        </div>
+                    ))}
+                </div>
                 <FileInput label="Asset" name="download_file" />
             </div>
             <div className="grid grid-cols-2 w-full gap-5 col-span-6">
@@ -82,7 +93,7 @@ export default function ShopEditForm() {
                     className="bg-gradient-to-r from-primarylight to-azure p-5 rounded-xl w-full mt-5 inline-block"
                 >
                     <CheckCircleIcon className="w-6 h-6 inline-block mr-3" />
-                    Add Product
+                    Save Changes
                 </button>
             </div>
         </form>

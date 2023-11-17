@@ -2,11 +2,13 @@ export default function TextInput({
     name,
     label,
     placeholder,
+    defaultValue,
     type = 'text'
 }: {
     name: string
     label: string,
-    placeholder?: string
+    placeholder?: string,
+    defaultValue?: string
     type?: string
 }) {
     return (
@@ -18,6 +20,7 @@ export default function TextInput({
                 name={name}
                 placeholder={placeholder ? placeholder : label}
                 type={type}
+                defaultValue={defaultValue ? defaultValue : undefined}
                 className="bg-white dark:bg-charcoal p-5 rounded-xl w-full"
             />
         </div>

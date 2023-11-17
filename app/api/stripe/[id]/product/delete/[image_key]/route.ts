@@ -1,0 +1,64 @@
+import { prisma } from '@/lib/prisma'
+import { NextResponse } from 'next/server'
+
+import { StripeGetRawProductInfo, StripeUpdateProduct } from '@/helpers/stripe'
+import { AWSLocations, S3Delete } from '@/helpers/s3'
+
+/**
+ * Handles deletion of an image from a product
+ *
+ * @prop {string} id - The id of the proudct
+ * @prop {string} image_key - The index of the image inside of the stripe array
+ */
+export async function POST(
+    req: Request,
+    { params }: { params: { id: string; image_key: string } }
+) {
+    // Get Product
+    const db_product = await prisma.storeItem.findFirst({
+        where: {
+            product: params.id
+        }
+    })
+
+    // Get the product from stripe
+    const product = await StripeGetRawProductInfo(
+        db_product?.product!,
+        db_product?.stripeAccId!
+    )
+
+    // Check if there are images
+    if (!product.images) {
+        // return failed response
+        return NextResponse.json({
+            success: false
+        })
+    }
+
+    // Delete the image
+    const deleted_images = product.images.splice(Number(params.image_key), 1)
+
+    // Update on stripe
+    await StripeUpdateProduct(
+        db_product?.product!,
+        {
+            images: product.images
+        },
+        db_product?.stripeAccId!
+    )
+
+    // Get Artist
+    const artist = await prisma.artist.findFirst({
+        where: {
+            userId: db_product?.userId
+        }
+    })
+
+    // Delete on AWS
+    await S3Delete(artist?.handle!, AWSLocations.Store, deleted_images[0])
+
+    // Return success response
+    return NextResponse.json({
+        success: true
+    })
+}

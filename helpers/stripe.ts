@@ -54,7 +54,8 @@ export async function StripeCreateStoreProduct(
  */
 export async function StripeGetStoreProductInfo(
     product_id: string,
-    stripe_account: string
+    stripe_account: string,
+    purchased: boolean = false
 ) {
     let product = await stripe.products.retrieve(product_id, {
         stripeAccount: stripe_account
@@ -68,7 +69,6 @@ export async function StripeGetStoreProductInfo(
     })
 
     // Get general information on store product
-    // TODO: Change so the download url only gets created when requested by a user that purchased the item
     let result: ShopItem = {
         name: product.name,
         description: product.description!,
@@ -76,11 +76,6 @@ export async function StripeGetStoreProductInfo(
             (await StripeGetPriceInfo(product.default_price!.toString(), stripe_account))
                 .unit_amount! / 100,
 
-        asset: await S3GetSignedURL(
-            artist!.handle,
-            AWSLocations.StoreDownload,
-            product.metadata.download_link
-        ),
         featured_image: await S3GetSignedURL(
             artist!.handle,
             AWSLocations.Store,
@@ -89,6 +84,14 @@ export async function StripeGetStoreProductInfo(
         images: [],
 
         prod_id: product_id
+    }
+
+    if (purchased) {
+        result.asset = await S3GetSignedURL(
+            artist!.handle,
+            AWSLocations.StoreDownload,
+            product.metadata.download_link
+        )
     }
 
     // Loop through product images and convert them into signed urls for s3
@@ -117,6 +120,23 @@ export async function StripeGetRawProductInfo(
     stripe_account: string
 ) {
     return await stripe.products.retrieve(product_id, {
+        stripeAccount: stripe_account
+    })
+}
+
+/**
+ *
+ * @param product_update
+ * @param product_id
+ * @param stripe_account
+ * @returns
+ */
+export async function StripeUpdateProduct(
+    product_id: string,
+    product_update: Stripe.ProductUpdateParams,
+    stripe_account: string
+) {
+    return await stripe.products.update(product_id, product_update, {
         stripeAccount: stripe_account
     })
 }
