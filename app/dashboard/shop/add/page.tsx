@@ -1,6 +1,6 @@
 import { FormProvider } from '@/components/form/form-context'
-import ShopAddForm from '@/components/Dashboard/forms/shop-add-form'
-import DashboardContainer from '@/components/Dashboard/dashboard-container'
+import ShopAddForm from '@/components/dashboard/forms/shop-add-form'
+import DashboardContainer from '@/components/dashboard/dashboard-container'
 
 export default function ShopAdd() {
     return (

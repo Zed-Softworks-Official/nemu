@@ -9,7 +9,7 @@ import { fetcher } from '@/helpers/fetcher'
 import { PortfolioItem, PortfolioResponse } from '@/helpers/api/request-inerfaces'
 import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
 
-import DashboardContainer from '@/components/Dashboard/dashboard-container'
+import DashboardContainer from '@/components/dashboard/dashboard-container'
 
 export default function PortfolioComponent() {
     const { handle } = useDashboardContext()

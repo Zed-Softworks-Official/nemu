@@ -1,4 +1,4 @@
-import DashboardContainer from "@/components/Dashboard/dashboard-container";
+import DashboardContainer from "@/components/dashboard/dashboard-container";
 import ShopEditForm from "@/components/dashboard/forms/shop-edit-form";
 import { FormProvider } from "@/components/form/form-context";
 
