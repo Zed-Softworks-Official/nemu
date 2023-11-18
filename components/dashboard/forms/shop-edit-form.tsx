@@ -11,9 +11,10 @@ import FileInput from '@/components/form/file-input'
 import FormDropzone from '@/components/form/form-dropzone'
 
 import { FormEvent } from 'react'
-import { fetcher, get_item_id } from '@/helpers/fetcher'
-import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/20/solid'
 import ShopEditCard from '../shop/shop-edit-card'
+import { fetcher, get_item_id } from '@/helpers/fetcher'
+import { CreateToastPromise } from '@/helpers/toast-promise'
+import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/20/solid'
 
 export default function ShopEditForm() {
     const item_id = get_item_id(usePathname())
@@ -23,6 +24,14 @@ export default function ShopEditForm() {
 
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault()
+
+        CreateToastPromise(
+            fetch(`/api/stripe/${item_id}/product/update`, {
+                method: 'post',
+                body: new FormData(event.currentTarget)
+            }),
+            { pending: 'Updating Shop Item!', success: 'Shop Item Updated!' }
+        )
     }
 
     return (
@@ -51,7 +60,7 @@ export default function ShopEditForm() {
                 />
                 <TextField
                     label="Product Description"
-                    markdown={data ? data?.product.description : ""}
+                    markdown={data ? data?.product.description : ''}
                     name="product_description"
                 />
                 <TextInput
@@ -73,7 +82,11 @@ export default function ShopEditForm() {
                 <div className="grid grid-6 grid-flow-col gap-5 mb-5">
                     {data?.product.images.map((image: string, count: number) => (
                         <div key={count}>
-                            <ShopEditCard image_src={image} alt_text={count.toString()} index={count} /> 
+                            <ShopEditCard
+                                image_src={image}
+                                alt_text={count.toString()}
+                                index={count}
+                            />
                         </div>
                     ))}
                 </div>
