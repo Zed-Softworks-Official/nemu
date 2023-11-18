@@ -80,7 +80,7 @@ export enum StatusCode {
  * Nemu Response
  * The generic response from an api route
  *
- * @prop {number} status - The status code
+ * @prop {StatusCode} status - The status code
  * @prop {string} message - Message containing information about what occured
  */
 export interface NemuResponse {

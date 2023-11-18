@@ -31,7 +31,9 @@ export default function ShopEditForm() {
                 body: new FormData(event.currentTarget)
             }),
             { pending: 'Updating Shop Item!', success: 'Shop Item Updated!' }
-        )
+        ).then(() => {
+            replace('/dashboard/shop')
+        })
     }
 
     return (
