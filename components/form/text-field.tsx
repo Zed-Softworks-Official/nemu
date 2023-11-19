@@ -23,7 +23,7 @@ export default function TextField({
     name: string
     editorRef?: ForwardedRef<MDXEditorMethods> | null
 } & MDXEditorProps) {
-    const [markdownContent, setMarkdownContent] = useState('')
+    const [markdownContent, setMarkdownContent] = useState(props.markdown ? props.markdown : '')
 
     return (
         <div className="mb-5">

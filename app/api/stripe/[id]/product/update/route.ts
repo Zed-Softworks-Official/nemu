@@ -36,10 +36,10 @@ export async function POST(req: Request, { params }: { params: { id: string } })
                 updated_values.name = value != product.name ? value as string : undefined
                 break
             case 'product_description':
-                //updated_values.description = value != product.description ? value as string : product.description
+                updated_values.description = value != product.description ? value as string : undefined
                 break
             case 'product_price':
-                console.log((price! / 100).toPrecision(2))
+                //updated_values (price! / 100)
                 break
         }
     })
