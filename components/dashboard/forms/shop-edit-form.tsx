@@ -101,11 +101,17 @@ export default function ShopEditForm() {
                     label="Add More Photos (8 Max)"
                     name="product_images"
                     multiple
-                    max_length={8}
+                    max_length={
+                        data?.product?.images?.length != 0
+                            ? 8 - data?.product?.images?.length!
+                            : 8
+                    }
                 />
                 {data?.product?.images?.length != 0 && (
                     <>
-                        <label className="block mb-5">Current Images</label>
+                        <label className="block mb-5">
+                            Current Images ({data?.product?.images?.length} images)
+                        </label>
                         <div className="grid grid-6 grid-flow-col gap-5 mb-5">
                             {data?.product?.images?.map(
                                 (image: string, count: number) => (

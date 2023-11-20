@@ -11,6 +11,7 @@ import {
     StripeUpdateProduct
 } from '@/helpers/stripe'
 import { NemuResponse, StatusCode } from '@/helpers/api/request-inerfaces'
+import { AWSLocations, S3Upload } from '@/helpers/s3'
 
 /**
  * Updates an item based on a given product id
@@ -48,6 +49,9 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     let create_new_price: boolean = false
     let new_price_value: number | undefined
 
+    let file_count = product.images.length
+    let new_images: string[] = []
+
     // Check to see which values have been updated
     formData.forEach((value, key) => {
         switch (key) {
@@ -76,6 +80,13 @@ export async function POST(req: Request, { params }: { params: { id: string } })
                     new_price_value = Number(value)
                 }
                 break
+            case 'product_images':
+                const file = value as File
+                if (file.size != 0 && file_count < 8) {
+                    new_images.push(crypto.randomUUID())
+                    file_count++
+                }
+                break
         }
     })
     // Create new price object if we need too
@@ -87,6 +98,32 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         ).then((new_price) => {
             updated_values.default_price = new_price.id
         })
+    }
+
+    // Upload New Images if they exist
+    if (new_images.length != 0) {
+        // Get Artist
+        const artist = await prisma.artist.findFirst({
+            where: {
+                userId: db_product?.userId
+            }
+        })
+
+        // Get Images
+        const images_from_field = formData.getAll('product_images') as File[]
+
+        // Upload Images
+        for (let i = 0; i < new_images.length; i++) {
+            await S3Upload(
+                artist?.handle!,
+                AWSLocations.Store,
+                images_from_field[i],
+                new_images[i]
+            )
+        }
+
+        // Add new images to product
+        updated_values.images = product.images.concat(new_images)
     }
 
     // Update changed values on stripe

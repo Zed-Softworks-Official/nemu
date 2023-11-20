@@ -146,6 +146,12 @@ export async function StripeGetPurchasePage(
     product: Stripe.Product,
     stripe_account: string
 ) {
+    const artist = await prisma.artist.findFirst({
+        where: {
+            stripeAccId: stripe_account
+        }
+    })
+
     return await stripe.checkout.sessions.create(
         {
             line_items: [
@@ -156,7 +162,7 @@ export async function StripeGetPurchasePage(
             ],
             mode: 'payment',
             success_url: `${process.env.BASE_URL}/payments/success`,
-            cancel_url: `${process.env.BASE_URL}/payments/failure`
+            cancel_url: `${process.env.BASE_URL}/@${artist?.handle}`
         },
         {
             stripeAccount: stripe_account
