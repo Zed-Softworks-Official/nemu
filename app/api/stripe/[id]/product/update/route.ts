@@ -11,7 +11,7 @@ import {
     StripeUpdateProduct
 } from '@/helpers/stripe'
 import { NemuResponse, StatusCode } from '@/helpers/api/request-inerfaces'
-import { AWSLocations, S3Upload } from '@/helpers/s3'
+import { AWSLocations, RandomNameWithExtension, S3Delete, S3Upload } from '@/helpers/s3'
 
 /**
  * Updates an item based on a given product id
@@ -45,12 +45,24 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     const all_prices = await StripeGetPrices(db_product?.stripeAccId!)
 
     // Create variables for new values
+    const old_asset: string = product.metadata.asset
+    const old_featured_image = product.metadata.featured_image
     let updated_values: Stripe.ProductUpdateParams = {}
+    let new_metadata: Stripe.Metadata = product.metadata
+
+    // Price Variables
     let create_new_price: boolean = false
     let new_price_value: number | undefined
 
-    let file_count = product.images.length
+    // Images Variables
+    let image_count = product.images.length
     let new_images: string[] = []
+
+    // Asset Variables
+    let new_download = false
+
+    // Let Featured Image
+    let new_featured_image = false
 
     // Check to see which values have been updated
     formData.forEach((value, key) => {
@@ -61,7 +73,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
                 break
             case 'product_description':
                 updated_values.description =
-                    value != product.description ? (value as string) : undefined
+                    value != product.description || value != '' ? (value as string) : undefined
                 break
             case 'product_price':
                 // Check if the price changed
@@ -81,14 +93,27 @@ export async function POST(req: Request, { params }: { params: { id: string } })
                 }
                 break
             case 'product_images':
-                const file = value as File
-                if (file.size != 0 && file_count < 8) {
+                const image_file = value as File
+                if (image_file.size != 0 && image_count < 8) {
                     new_images.push(crypto.randomUUID())
-                    file_count++
+                    image_count++
+                }
+                break
+            case 'download_file':
+                const download_file = value as File
+                if (download_file.size != 0) {
+                    new_download = true
+                }
+                break
+            case 'featured_image':
+                const featured_file = value as File
+                if (featured_file.size != 0) {
+                    new_featured_image = true
                 }
                 break
         }
     })
+
     // Create new price object if we need too
     if (create_new_price) {
         await StripeCreatePrice(
@@ -100,8 +125,40 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         })
     }
 
-    // Upload New Images if they exist
+    // Add new featured image if it exists
+    if (new_featured_image) {
+        new_metadata.featured_image = crypto.randomUUID()
+        updated_values.metadata = new_metadata
+    }
+
+    // Add New Images to images array
     if (new_images.length != 0) {
+        // Add new images to product
+        updated_values.images = product.images.concat(new_images)
+    }
+
+    // Check if we have a new asset
+    if (new_download) {
+        // Get New Filename
+        let filename = RandomNameWithExtension(formData.get('download_file') as File, [
+            'application/zip'
+        ])
+
+        // Check if new file name is of the correct type
+        if (filename === 'invalid') {
+            return NextResponse.json<NemuResponse>({
+                status: StatusCode.InternalError,
+                message: 'Invalid File Type (downloadable asset must be zip)'
+            })
+        }
+
+        // Add Asset Value
+        new_metadata.asset = filename
+        updated_values.metadata = new_metadata
+    }
+
+    // Update AWS
+    if (new_download || new_featured_image || new_images.length != 0) {
         // Get Artist
         const artist = await prisma.artist.findFirst({
             where: {
@@ -109,22 +166,67 @@ export async function POST(req: Request, { params }: { params: { id: string } })
             }
         })
 
-        // Get Images
-        const images_from_field = formData.getAll('product_images') as File[]
+        /////////////////////////
+        // Update Download Asset
+        /////////////////////////
+        if (new_download) {
+            // Delete Asset
+            await S3Delete(
+                artist?.handle!,
+                AWSLocations.StoreDownload,
+                old_asset
+            )
 
-        // Upload Images
-        for (let i = 0; i < new_images.length; i++) {
+            // Upload New Asset
             await S3Upload(
                 artist?.handle!,
-                AWSLocations.Store,
-                images_from_field[i],
-                new_images[i]
+                AWSLocations.StoreDownload,
+                formData.get('download_file') as File,
+                crypto.randomUUID()
             )
         }
 
-        // Add new images to product
-        updated_values.images = product.images.concat(new_images)
+        /////////////////////////
+        // Update Product Images
+        /////////////////////////
+        if (new_images.length != 0) {
+            // Get Images
+            const images_from_field = formData.getAll('product_images') as File[]
+
+            // Upload Images
+            for (let i = 0; i < new_images.length; i++) {
+                await S3Upload(
+                    artist?.handle!,
+                    AWSLocations.Store,
+                    images_from_field[i],
+                    new_images[i]
+                )
+            }
+        }
+
+        /////////////////////////
+        // Update Featured Image
+        /////////////////////////
+        if (new_featured_image) {
+            const featured_image = formData.get('featured_image') as File
+
+            // Delete Old Featured Image
+            await S3Delete(
+                artist?.handle!,
+                AWSLocations.Store,
+                old_featured_image
+            )
+
+            // Upload New Featured Image
+            await S3Upload(
+                artist?.handle!,
+                AWSLocations.Store,
+                featured_image,
+                new_metadata.featured_image
+            )
+        }
     }
+
 
     // Update changed values on stripe
     await StripeUpdateProduct(

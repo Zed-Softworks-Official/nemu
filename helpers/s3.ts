@@ -17,6 +17,29 @@ export enum AWSLocations {
     StoreDownload
 }
 
+export function RandomNameWithExtension(file: File, accepted?: string[]) {
+    // Check if we have a specific accepted value
+    if (accepted) {
+        let accepted_file = false
+        for (let i = 0; i < accepted.length; i++) {
+            if (file.type == accepted[i]) {
+                accepted_file = true
+                break
+            }
+        }
+
+        if (!accepted_file) {
+            return 'invalid'
+        }
+
+        // Check if file is of that type
+        return crypto.randomUUID() + '.zip'
+    }
+
+    // Return File name with extension type
+    return crypto.randomUUID()
+}
+
 /**
  * Converts the AWS Location Enum to a String for use with the Amazon SDK
  * 

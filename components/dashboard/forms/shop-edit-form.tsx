@@ -25,9 +25,11 @@ import {
     XCircleIcon
 } from '@heroicons/react/20/solid'
 import Button, { ButtonStyle } from '@/components/button'
+import { useFormContext } from '@/components/form/form-context'
 
 export default function ShopEditForm() {
     const item_id = get_item_id(usePathname())
+    const { image } = useFormContext()
     const description_ref = useRef<MDXEditorMethods>(null)
     let set = false
 
@@ -39,11 +41,15 @@ export default function ShopEditForm() {
 
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault()
+        const formData = new FormData(event.currentTarget)
+        if (image) {
+            formData.set('featured_image', image!)
+        }
 
         CreateToastPromise(
             fetch(`/api/stripe/${item_id}/product/update`, {
                 method: 'post',
-                body: new FormData(event.currentTarget)
+                body: formData
             }),
             { pending: 'Updating Shop Item!', success: 'Shop Item Updated!' }
         ).then(() => {
@@ -54,7 +60,9 @@ export default function ShopEditForm() {
     if (isLoading) {
         return <Loading />
     } else if (!isLoading && !set) {
-        description_ref.current?.setMarkdown(data?.product?.description!)
+        description_ref.current?.setMarkdown(
+            data?.product?.description! ? data?.product?.description! : ''
+        )
         set = true
     }
 

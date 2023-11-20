@@ -2,8 +2,8 @@
 
 import Image from 'next/image'
 import { TrashIcon } from '@heroicons/react/20/solid'
-import { useParams } from 'next/navigation'
-import { toast } from 'react-toastify'
+import { useParams, useRouter } from 'next/navigation'
+import { CreateToastPromise } from '@/helpers/toast-promise'
 
 export default function ShopEditCard({
     image_src,
@@ -15,22 +15,21 @@ export default function ShopEditCard({
     index: number
 }) {
     const param = useParams()
+    const { refresh } = useRouter()
 
     // Handles the deletion of items
     async function deleteItem() {
-        await toast.promise(
+        CreateToastPromise(
             fetch(`/api/stripe/${param.id}/product/delete/${index}`, {
                 method: 'post'
             }),
             {
                 pending: 'Deleting Image',
-                success: 'Deleted Image',
-                error: 'Failed to Delete Image'
-            },
-            {
-                theme: 'dark'
+                success: 'Deleted Image'
             }
-        )
+        ).then(() => {
+            return refresh()
+        })
     }
 
     return (
