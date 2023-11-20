@@ -3,7 +3,7 @@
 import useSwr from 'swr'
 import { fetcher } from '@/helpers/fetcher'
 import { toast } from 'react-toastify'
-import Loading from '@/app/[handle]/loading'
+import Loading from '@/components/loading'
 
 export function VerifyTable() {
     const { data, isLoading } = useSwr('/api/artist/verify', fetcher)

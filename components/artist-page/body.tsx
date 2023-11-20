@@ -5,7 +5,7 @@ import React, { Suspense } from 'react'
 import { notFound } from 'next/navigation'
 import { SocialIcon } from 'react-social-icons'
 
-import Loading from '@/app/[handle]/loading'
+import Loading from '@/components/loading'
 import Portfolio from './portfolio'
 import { useTabsContext } from './tabs-context'
 import { Artist } from '@prisma/client'

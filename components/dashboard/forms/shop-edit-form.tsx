@@ -1,8 +1,10 @@
 'use client'
 
 import useSWR from 'swr'
+import Link from 'next/link'
 import Image from 'next/image'
 import { FormEvent, useRef } from 'react'
+import Loading from '@/components/loading'
 
 import { usePathname, useRouter } from 'next/navigation'
 
@@ -16,7 +18,13 @@ import { MDXEditorMethods } from '@mdxeditor/editor'
 import { fetcher, get_item_id } from '@/helpers/fetcher'
 import { CreateToastPromise } from '@/helpers/toast-promise'
 import { ShopResponse } from '@/helpers/api/request-inerfaces'
-import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/20/solid'
+import {
+    ArrowDownOnSquareIcon,
+    CheckCircleIcon,
+    TrashIcon,
+    XCircleIcon
+} from '@heroicons/react/20/solid'
+import Button, { ButtonStyle } from '@/components/button'
 
 export default function ShopEditForm() {
     const item_id = get_item_id(usePathname())
@@ -43,7 +51,9 @@ export default function ShopEditForm() {
         })
     }
 
-    if (!isLoading && !set) {
+    if (isLoading) {
+        return <Loading />
+    } else if (!isLoading && !set) {
         description_ref.current?.setMarkdown(data?.product?.description!)
         set = true
     }
@@ -93,36 +103,54 @@ export default function ShopEditForm() {
                     multiple
                     max_length={8}
                 />
-                <label className="block mb-5">Current Images</label>
-                <div className="grid grid-6 grid-flow-col gap-5 mb-5">
-                    {data?.product?.images?.map((image: string, count: number) => (
-                        <div key={count}>
-                            <ShopEditCard
-                                image_src={image}
-                                alt_text={count.toString()}
-                                index={count}
-                            />
+                {data?.product?.images?.length != 0 && (
+                    <>
+                        <label className="block mb-5">Current Images</label>
+                        <div className="grid grid-6 grid-flow-col gap-5 mb-5">
+                            {data?.product?.images?.map(
+                                (image: string, count: number) => (
+                                    <div key={count}>
+                                        <ShopEditCard
+                                            image_src={image}
+                                            alt_text={count.toString()}
+                                            index={count}
+                                        />
+                                    </div>
+                                )
+                            )}
                         </div>
-                    ))}
-                </div>
-                <FileInput label="Asset" name="download_file" />
+                    </>
+                )}
             </div>
-            <div className="grid grid-cols-2 w-full gap-5 col-span-6">
-                <button
-                    type="button"
-                    className="bg-error p-5 rounded-xl w-full mt-5 inline-block"
-                    onClick={() => replace('/dashboard/shop')}
-                >
-                    <XCircleIcon className="w-6 h-6 inline-block mr-3" />
-                    Cancel
-                </button>
-                <button
+            <div className="col-span-6">
+                <FileInput label="Update Asset" name="download_file" />
+                <Button
+                    label="Download Current Asset"
+                    icon={
+                        <ArrowDownOnSquareIcon className="w-6 h-6 mr-3 inline-block align-bottom" />
+                    }
+                    href={data?.product?.asset!}
+                />
+            </div>
+            <div className="grid grid-cols-3 w-full gap-5 col-span-6">
+                <Button
+                    label="Cancel"
+                    style={ButtonStyle.Error}
+                    icon={<XCircleIcon className="w-6 h-6 inline-block mr-3" />}
+                    action={() => replace('/dashboard/shop')}
+                />
+                <Button
+                    label="Delete"
+                    style={ButtonStyle.Error}
+                    icon={<TrashIcon className="w-6 h-6 inline-block mr-3" />}
+                    action={() => replace('/dashboard/shop')}
+                />
+                <Button
+                    label="Save Changes"
                     type="submit"
-                    className="bg-gradient-to-r from-primarylight to-azure p-5 rounded-xl w-full mt-5 inline-block"
-                >
-                    <CheckCircleIcon className="w-6 h-6 inline-block mr-3" />
-                    Save Changes
-                </button>
+                    icon={<CheckCircleIcon className="w-6 h-6 inline-block mr-3" />}
+                    action={() => console.log('clicked')}
+                />
             </div>
         </form>
     )

@@ -10,10 +10,18 @@ import { PortfolioItem, PortfolioResponse } from '@/helpers/api/request-inerface
 import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
 
 import DashboardContainer from '@/components/dashboard/dashboard-container'
+import Loading from '@/components/loading'
 
 export default function PortfolioComponent() {
     const { handle } = useDashboardContext()
-    const { data } = useSWR<PortfolioResponse>(`/api/portfolio/${handle}/items`, fetcher)
+    const { data, isLoading } = useSWR<PortfolioResponse>(
+        `/api/portfolio/${handle}/items`,
+        fetcher
+    )
+
+    if (isLoading) {
+        return <Loading />
+    }
 
     return (
         <DashboardContainer title="Portfolio" addButtonUrl="/dashboard/portfolio/add">

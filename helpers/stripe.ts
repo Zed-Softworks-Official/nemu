@@ -83,17 +83,17 @@ export async function StripeGetStoreProductInfo(
         result.asset = await S3GetSignedURL(
             artist!.handle,
             AWSLocations.StoreDownload,
-            product.metadata.download_link
+            product.metadata.asset
         )
     }
 
     // Loop through product images and convert them into signed urls for s3
-    for (var i: number = 1; i < product.images.length + 1; i++) {
+    for (var i: number = 0; i < product.images.length; i++) {
         result.images!.push(
             await S3GetSignedURL(
                 artist!.handle,
                 AWSLocations.Store,
-                product.images[i - 1]
+                product.images[i]
             )
         )
     }

@@ -10,7 +10,7 @@ import { useShopContext } from './shop-context'
 import { fetcher } from '@/helpers/fetcher'
 import { ShoppingCartIcon } from '@heroicons/react/20/solid'
 
-import Loading from '@/app/[handle]/loading'
+import Loading from '@/components/loading'
 import { redirect } from 'next/navigation'
 
 export default function ShopItem() {

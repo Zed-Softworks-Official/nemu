@@ -9,7 +9,10 @@ import { AWSLocations, S3GetSignedURL } from '@/helpers/s3'
  * @param {string} id - The filename of the destired file
  * @returns An item from the database, Null if location is not inside the database
  */
-export async function GetPortfolioItem(handle: string, id: string): Promise<PortfolioItem> {
+export async function GetPortfolioItem(
+    handle: string,
+    id: string
+): Promise<PortfolioItem> {
     // Determine the location of the object
     const database_item = await prisma.portfolio.findFirst({
         where: {
