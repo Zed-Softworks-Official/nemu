@@ -17,6 +17,13 @@ export enum AWSLocations {
     StoreDownload
 }
 
+/**
+ * Creates a random name with the given file extension
+ * 
+ * @param { File } file - File to generate the name of
+ * @param { string[] } accepted - File types accepted
+ * @returns a string with a random name and the file extension
+ */
 export function RandomNameWithExtension(file: File, accepted?: string[]) {
     // Check if we have a specific accepted value
     if (accepted) {
