@@ -7,6 +7,10 @@ const stripe = new Stripe(process.env.STRIPE_API_KEY!, {
     apiVersion: '2023-10-16'
 })
 
+////////////////////////////////////////////////
+// Products
+////////////////////////////////////////////////
+
 /**
  * Creates a product on stripe
  *
@@ -35,6 +39,32 @@ export async function StripeCreateStoreProduct(
         {
             stripeAccount: stripe_account
         }
+    )
+}
+
+/**
+ * Updates a on stripe product with the given values
+ *
+ * @param {Stripe.ProductUpdateParams} product_update
+ * @param {string} product_id
+ * @param {string} stripe_account
+ * @returns The updated stripe product
+ */
+export async function StripeUpdateProduct(
+    product_id: string,
+    product_update: Stripe.ProductUpdateParams,
+    stripe_account: string
+) {
+    return await stripe.products.update(product_id, product_update, {
+        stripeAccount: stripe_account
+    })
+}
+
+export async function StripeDeleteProduct(product_id: string, stripe_account: string) {
+    return await stripe.products.update(
+        product_id,
+        { active: false },
+        { stripeAccount: stripe_account }
     )
 }
 
@@ -90,11 +120,7 @@ export async function StripeGetStoreProductInfo(
     // Loop through product images and convert them into signed urls for s3
     for (var i: number = 0; i < product.images.length; i++) {
         result.images!.push(
-            await S3GetSignedURL(
-                artist!.handle,
-                AWSLocations.Store,
-                product.images[i]
-            )
+            await S3GetSignedURL(artist!.handle, AWSLocations.Store, product.images[i])
         )
     }
 
@@ -113,24 +139,6 @@ export async function StripeGetRawProductInfo(
     stripe_account: string
 ) {
     return await stripe.products.retrieve(product_id, {
-        stripeAccount: stripe_account
-    })
-}
-
-/**
- * Updates a on stripe product with the given values
- *
- * @param {Stripe.ProductUpdateParams} product_update
- * @param {string} product_id
- * @param {string} stripe_account
- * @returns The updated stripe product
- */
-export async function StripeUpdateProduct(
-    product_id: string,
-    product_update: Stripe.ProductUpdateParams,
-    stripe_account: string
-) {
-    return await stripe.products.update(product_id, product_update, {
         stripeAccount: stripe_account
     })
 }
@@ -170,7 +178,15 @@ export async function StripeGetPurchasePage(
     )
 }
 
-export async function StripeCreatePrice(amount: number, product_id: string, stripe_account: string) {
+////////////////////////////////////////////////
+// Prices
+////////////////////////////////////////////////
+
+export async function StripeCreatePrice(
+    amount: number,
+    product_id: string,
+    stripe_account: string
+) {
     return await stripe.prices.create(
         {
             currency: 'usd',
@@ -210,6 +226,10 @@ export async function StripeGetPrices(stripe_account: string) {
         }
     )
 }
+
+////////////////////////////////////////////////
+// Accounts
+////////////////////////////////////////////////
 
 /**
  * Create A Login Link for the artist to access their stripe dashboard

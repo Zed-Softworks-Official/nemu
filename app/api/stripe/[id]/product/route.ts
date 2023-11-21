@@ -58,10 +58,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         }
     }
 
-    images.forEach((value) => {
-        console.log(value)
-    })
-
     // Create the Stripe Product
     const product = await StripeCreateStoreProduct(params.id, {
         name: data.get('product_name')?.toString()!,

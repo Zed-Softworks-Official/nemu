@@ -3,7 +3,7 @@
 import useSWR from 'swr'
 import Link from 'next/link'
 import Image from 'next/image'
-import { FormEvent, useRef } from 'react'
+import { FormEvent, useRef, useState } from 'react'
 import Loading from '@/components/loading'
 
 import { usePathname, useRouter } from 'next/navigation'
@@ -29,10 +29,11 @@ import { useFormContext } from '@/components/form/form-context'
 
 export default function ShopEditForm() {
     const item_id = get_item_id(usePathname())
-    const { image } = useFormContext()
+
     const description_ref = useRef<MDXEditorMethods>(null)
     let set = false
 
+    const { image } = useFormContext()
     const { replace } = useRouter()
     const { data, isLoading } = useSWR<ShopResponse>(
         `/api/stripe/${item_id}/product`,
@@ -52,6 +53,20 @@ export default function ShopEditForm() {
                 body: formData
             }),
             { pending: 'Updating Shop Item!', success: 'Shop Item Updated!' }
+        ).then(() => {
+            replace('/dashboard/shop')
+        })
+    }
+
+    async function handleDelete() {
+        CreateToastPromise(
+            fetch(`/api/stripe/${item_id}/product/delete`, {
+                method: 'post'
+            }),
+            {
+                pending: 'Deleting Product',
+                success: 'Deleted Product'
+            }
         ).then(() => {
             replace('/dashboard/shop')
         })
@@ -157,13 +172,13 @@ export default function ShopEditForm() {
                     label="Delete"
                     style={ButtonStyle.Error}
                     icon={<TrashIcon className="w-6 h-6 inline-block mr-3" />}
-                    action={() => replace('/dashboard/shop')}
+                    action={handleDelete}
                 />
                 <Button
                     label="Save Changes"
                     type="submit"
                     icon={<CheckCircleIcon className="w-6 h-6 inline-block mr-3" />}
-                    action={() => console.log('clicked')}
+                    action={() => {}}
                 />
             </div>
         </form>
