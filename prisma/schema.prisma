@@ -99,15 +99,16 @@ model Session {
 model User {
   id            String    @id @default(auto()) @map("_id") @db.ObjectId
   name          String?   @unique
-  email         String?   
+  email         String?
   emailVerified DateTime?
   image         String?
   role          Int?
 
-  accounts Account[]
-  sessions Session[]
-  Social   Social[]
-  Artist   Artist?
+  accounts  Account[]
+  sessions  Session[]
+  Social    Social[]
+  Artist    Artist?
+  Purchased Purchased[]
 }
 
 model VerificationToken {
@@ -126,4 +127,22 @@ model Social {
   url    String
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Purchased {
+  id          String @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String @db.ObjectId
+  customerId  String
+  productId   String
+  stripeAccId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model CheckoutSession {
+  id          String @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String @db.ObjectId
+  sessionId   String
+  productId   String
+  stripeAccId String
 }

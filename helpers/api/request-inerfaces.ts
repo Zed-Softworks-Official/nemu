@@ -55,7 +55,13 @@ export interface ShopItem {
 export interface PurchasePageData {
     product_id: string
     stripe_account: string
+    user_id: string
 }
+
+
+/////////////////////////////////////////////
+// API
+/////////////////////////////////////////////
 
 /**
  * StatusCode
@@ -70,6 +76,17 @@ export enum StatusCode {
     PaymentRequired = 402,
     InternalError = 500,
     NotImplemented = 501
+}
+
+
+/////////////////////////////////////////////
+// API Requests
+/////////////////////////////////////////////
+
+export interface ProductRequest {
+    product_id?: string
+    user_id?: string
+    purchased?: boolean
 }
 
 /////////////////////////////////////////////

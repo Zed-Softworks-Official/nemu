@@ -94,6 +94,6 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 
     return NextResponse.json<ShopResponse>({
         status: StatusCode.Success,
-        product: await StripeGetStoreProductInfo(product?.product!, product?.stripeAccId!, true)
+        product: await StripeGetStoreProductInfo(product?.product!, product?.stripeAccId!)
     })
 }

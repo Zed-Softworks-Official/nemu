@@ -1,5 +1,5 @@
-import VertificationStep from '@/components/ArtistVerification/layout/verification-step'
-import VerificationConfirmation from '@/components/ArtistVerification/steps/verification-confirm'
+import VertificationStep from '@/components/artist-verification/layout/verification-step'
+import VerificationConfirmation from '@/components/artist-verification/steps/verification-confirm'
 
 export default function VerificationStepThree() {
     return (

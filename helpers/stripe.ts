@@ -178,6 +178,22 @@ export async function StripeGetPurchasePage(
     )
 }
 
+/**
+ * Gets a specified checkout session
+ * 
+ * @param {string} session_id - Checkout session id
+ * @param {string} stripe_account - Stripe account associated with checkout session
+ * @returns A Stripe checkout session
+ */
+export async function StripeGetCheckoutSession(
+    session_id: string,
+    stripe_account: string
+) {
+    return await stripe.checkout.sessions.retrieve(session_id, {
+        stripeAccount: stripe_account
+    })
+}
+
 ////////////////////////////////////////////////
 // Prices
 ////////////////////////////////////////////////

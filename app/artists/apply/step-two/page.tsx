@@ -1,5 +1,5 @@
-import VerificationOption from '@/components/ArtistVerification/steps/verification-option'
-import VertificationStep from '@/components/ArtistVerification/layout/verification-step'
+import VerificationOption from '@/components/artist-verification/steps/verification-option'
+import VertificationStep from '@/components/artist-verification/layout/verification-step'
 
 export default function VerificationStepTwo() {
     return (

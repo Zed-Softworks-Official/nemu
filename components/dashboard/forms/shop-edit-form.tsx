@@ -1,9 +1,8 @@
 'use client'
 
 import useSWR from 'swr'
-import Link from 'next/link'
 import Image from 'next/image'
-import { FormEvent, useRef, useState } from 'react'
+import { FormEvent, useRef } from 'react'
 import Loading from '@/components/loading'
 
 import { usePathname, useRouter } from 'next/navigation'

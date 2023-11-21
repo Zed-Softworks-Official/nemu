@@ -1,8 +1,8 @@
 import React from 'react'
 
 import DefaultPageLayout from '@/app/(default)/layout'
-import ArtistApplyButton from '@/components/ArtistVerification/artist-apply-button'
-import ArtistPoints from '@/components/ArtistVerification/artist-points'
+import ArtistApplyButton from '@/components/artist-verification/artist-apply-button'
+import ArtistPoints from '@/components/artist-verification/artist-points'
 
 export default async function Artists() {
     return (

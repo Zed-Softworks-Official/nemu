@@ -12,18 +12,17 @@ import { ShoppingCartIcon } from '@heroicons/react/20/solid'
 
 import Loading from '@/components/loading'
 import { redirect } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 
 export default function ShopItem() {
     const { productId, stripeAccount } = useShopContext()
+    const { data: session } = useSession()
 
     if (!productId) {
         redirect('/')
     }
 
-    const { data, isLoading } = useSWR(
-        `/api/stripe/${productId}/product`,
-        fetcher
-    )
+    const { data, isLoading } = useSWR(`/api/stripe/${productId}/product`, fetcher)
 
     const [currentImage, setCurrentImage] = useState<string>(data?.product.featured_image)
 
@@ -76,11 +75,8 @@ export default function ShopItem() {
                     method="post"
                 >
                     <input name="product_id" type="hidden" value={productId} />
-                    <input
-                        name="stripe_account"
-                        type="hidden"
-                        value={stripeAccount}
-                    />
+                    <input name="stripe_account" type="hidden" value={stripeAccount} />
+                    <input name="user_id" type="hidden" value={session?.user.user_id} />
                     <button
                         className="bg-primary hover:bg-azure rounded-xl p-5 w-full"
                         type="submit"
