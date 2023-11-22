@@ -151,6 +151,10 @@ export interface PortfolioResponse extends NemuResponse {
     items?: PortfolioItem[] | null
 }
 
+export interface RandomArtistsResponse extends NemuResponse {
+    artists?: Artist[]
+}
+
 /////////////////////////////////////////////
 // Stripe API Responses
 /////////////////////////////////////////////
