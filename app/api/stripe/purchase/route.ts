@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-import { StripeGetPurchasePage, StripeGetRawProductInfo } from '@/helpers/stripe'
+import { StripeGetPriceInfo, StripeGetPurchasePage, StripeGetRawProductInfo } from '@/helpers/stripe'
 import {
     NemuResponse,
     PurchasePageData,
@@ -28,8 +28,11 @@ export async function POST(req: Request) {
     // Get the product
     const product = await StripeGetRawProductInfo(data.product_id, data.stripe_account)
 
+    // Get Price
+    const price = (await StripeGetPriceInfo(product.default_price?.toString()!, data.stripe_account)).unit_amount
+
     // Create checkout session
-    const checkout_session = await StripeGetPurchasePage(product, data.stripe_account)
+    const checkout_session = await StripeGetPurchasePage(product, data.stripe_account, price!)
 
     // Save checkout session to database
     await prisma.checkoutSession.create({
