@@ -6,7 +6,7 @@ export default function Home() {
     return (
         <DefaultPageLayout>
             <main className="flex flex-wrap container mx-auto">
-                <div className="w-full">
+                <div className="w-full text-white">
                     <Link href={'/artists'} className="w-full">
                         <div className="bg-gradient-to-r from-primary to-azure rounded-3xl py-10 px-20">
                             <div className="inline-block">

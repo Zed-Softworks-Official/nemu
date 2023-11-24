@@ -6,6 +6,7 @@ import { ToastContainer } from 'react-toastify'
 
 import 'react-toastify/ReactToastify.min.css'
 import { ShopProvider } from '@/components/artist-page/shop-context'
+import ThemeProvider from '@/components/theme/theme-context'
 
 export const metadata: Metadata = {
     title: 'Nemu',
@@ -14,7 +15,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
     return (
-        <html lang="en" className="dark">
+        <html lang="en">
             <head>
                 <link
                     href="https://necolas.github.io/normalize.css/8.0.1/normalize.css"
@@ -22,14 +23,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 />
                 <link rel="stylesheet" href="https://use.typekit.net/tru7say.css" />
             </head>
-            <AuthProvider>
-                <ShopProvider>
-                    <body className="bg-white text-charcoal font-nunito dark:bg-charcoal dark:text-white">
-                        {children}
-                        <ToastContainer position="top-right" />
-                    </body>
-                </ShopProvider>
-            </AuthProvider>
+            <ThemeProvider initial_theme="dark">
+                <AuthProvider>
+                    <ShopProvider>
+                        <body className="bg-white text-charcoal font-nunito dark:bg-charcoal dark:text-white">
+                            {children}
+                            <ToastContainer position="top-right" />
+                        </body>
+                    </ShopProvider>
+                </AuthProvider>
+            </ThemeProvider>
         </html>
     )
 }

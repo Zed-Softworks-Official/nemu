@@ -23,7 +23,7 @@ export default function RandomArtists() {
             <div className="grid grid-cols-4 gap-5">
                 {data?.artists?.map((artist) => (
                     <Link href={`/@${artist.handle}`} key={artist.handle}>
-                        <div className="bg-white dark:bg-fullblack rounded-3xl overflow-hidden">
+                        <div className="bg-fullwhite dark:bg-fullblack rounded-3xl overflow-hidden">
                             <Image
                                 src={artist.headerPhoto}
                                 width={500}
