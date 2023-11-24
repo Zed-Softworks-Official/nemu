@@ -1,9 +1,8 @@
 'use client'
 
-import { MoonIcon, SunIcon } from '@heroicons/react/20/solid'
-import { useThemeContext } from './theme-context'
 import { ChangeEvent } from 'react'
-import classNames from '@/helpers/classnames'
+import { useThemeContext } from './theme-context'
+import { MoonIcon, SunIcon } from '@heroicons/react/20/solid'
 
 export default function ThemeSwitcher({ active }: { active?: boolean }) {
     const { theme, setTheme } = useThemeContext()
