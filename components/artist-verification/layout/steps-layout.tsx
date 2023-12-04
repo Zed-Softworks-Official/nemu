@@ -2,8 +2,8 @@
 
 import Link from 'next/link'
 
-import Dot from '@/components/ArtistVerification/ui/Dot'
-import VerticalLine from '@/components/ArtistVerification/ui/VerticalLine'
+import Dot from '@/components/artist-verification/ui/Dot'
+import VerticalLine from '@/components/artist-verification/ui/VerticalLine'
 import { usePathname } from 'next/navigation'
 import StepTitle from '../ui/StepTitle'
 

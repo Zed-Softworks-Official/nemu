@@ -21,12 +21,9 @@ import {
 
 import { Role } from '@/helpers/user-info'
 import classNames from '@/helpers/classnames'
-import {
-    UserInfoIcon,
-    UserInfoLink,
-    UserInfoObject
-} from '@/helpers/userinfo-links'
+import { UserInfoIcon, UserInfoLink, UserInfoObject } from '@/helpers/userinfo-links'
 import Image from 'next/image'
+import ThemeSwitcher from '@/components/theme/theme-switcher'
 
 export default function UserInfoMenu() {
     const { data: session } = useSession()
@@ -34,11 +31,7 @@ export default function UserInfoMenu() {
     /////////////////////////////////
     // Get the correct Navbar items
     /////////////////////////////////
-    function GetCurrentNavbarItems(
-        session: boolean,
-        role: Role,
-        handle?: string
-    ) {
+    function GetCurrentNavbarItems(session: boolean, role: Role, handle?: string) {
         // Check if we have a session
         if (session) {
             // If we're not an artist then we're a standard user
@@ -74,13 +67,9 @@ export default function UserInfoMenu() {
             case UserInfoIcon.Settings:
                 return <Cog6ToothIcon className="user-menu-item-icon" />
             case UserInfoIcon.SignIn:
-                return (
-                    <ArrowLeftOnRectangleIcon className="user-menu-item-icon" />
-                )
+                return <ArrowLeftOnRectangleIcon className="user-menu-item-icon" />
             case UserInfoIcon.SignOut:
-                return (
-                    <ArrowRightOnRectangleIcon className="user-menu-item-icon" />
-                )
+                return <ArrowRightOnRectangleIcon className="user-menu-item-icon" />
             case UserInfoIcon.Verify:
                 return <CheckCircleIcon className="user-menu-item-icon" />
             case UserInfoIcon.Code:
@@ -136,15 +125,16 @@ export default function UserInfoMenu() {
                                                 'block px-5 py-2 text-sm'
                                             )}
                                         >
-                                            {ConvertUserIconEnumToReactDOM(
-                                                item.icon
-                                            )}
+                                            {ConvertUserIconEnumToReactDOM(item.icon)}
                                             {item.title}
                                         </Link>
                                     )}
                                 </Menu.Item>
                             )
                         })}
+                        <Menu.Item>
+                            {({ active }) => <ThemeSwitcher active={active} />}
+                        </Menu.Item>
                     </div>
                 </Menu.Items>
             </Transition>

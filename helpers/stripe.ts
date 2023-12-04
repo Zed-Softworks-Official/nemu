@@ -143,6 +143,10 @@ export async function StripeGetRawProductInfo(
     })
 }
 
+////////////////////////////////////////////////
+// Payments
+////////////////////////////////////////////////
+
 /**
  * Creates a stripe checkout session for a given product
  *
@@ -152,13 +156,16 @@ export async function StripeGetRawProductInfo(
  */
 export async function StripeGetPurchasePage(
     product: Stripe.Product,
-    stripe_account: string
+    stripe_account: string,
+    amount: number
 ) {
     const artist = await prisma.artist.findFirst({
         where: {
             stripeAccId: stripe_account
         }
     })
+
+    const application_fee = amount - (amount * 0.95)
 
     return await stripe.checkout.sessions.create(
         {
@@ -168,6 +175,9 @@ export async function StripeGetPurchasePage(
                     quantity: 1
                 }
             ],
+            payment_intent_data: {
+                application_fee_amount: application_fee
+            },
             mode: 'payment',
             success_url: `${process.env.BASE_URL}/payments/success`,
             cancel_url: `${process.env.BASE_URL}/@${artist?.handle}`
@@ -176,6 +186,22 @@ export async function StripeGetPurchasePage(
             stripeAccount: stripe_account
         }
     )
+}
+
+/**
+ * Gets a specified checkout session
+ *
+ * @param {string} session_id - Checkout session id
+ * @param {string} stripe_account - Stripe account associated with checkout session
+ * @returns A Stripe checkout session
+ */
+export async function StripeGetCheckoutSession(
+    session_id: string,
+    stripe_account: string
+) {
+    return await stripe.checkout.sessions.retrieve(session_id, {
+        stripeAccount: stripe_account
+    })
 }
 
 ////////////////////////////////////////////////

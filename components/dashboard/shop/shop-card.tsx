@@ -5,6 +5,7 @@ import Image from 'next/image'
 
 import { ShopItem } from '@/helpers/api/request-inerfaces'
 import { useShopContext } from '@/components/artist-page/shop-context'
+import Button from '@/components/button'
 
 export default function ShopCard({
     product,
@@ -23,7 +24,7 @@ export default function ShopCard({
         <Link
             href={href}
             key={product.name}
-            className="bg-charcoal rounded-xl overflow-hidden"
+            className="dark:bg-charcoal bg-fullwhite rounded-xl overflow-hidden"
         >
             <div>
                 <Image
@@ -40,7 +41,7 @@ export default function ShopCard({
                         <p className="font-bold text-2xl pb-2">{product.name}</p>
                         <p className="text-lg">${product.price}</p>
                     </div>
-                    <div className="flex flex-col justify-center">
+                    <div className="flex flex-col justify-center text-white">
                         {dashboard ? (
                             <Link
                                 href={href}

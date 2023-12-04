@@ -33,7 +33,7 @@ export default function Button({
             <button
                 type={type ? type : 'button'}
                 onClick={action}
-                className={`${buttonStyle} p-5 block w-full rounded-xl text-center`}
+                className={`${buttonStyle} text-white p-5 block w-full rounded-xl text-center`}
             >
                 {icon}
                 {label}
@@ -44,7 +44,7 @@ export default function Button({
     return (
         <Link
             href={href!}
-            className={`${buttonStyle} p-5 block w-full rounded-xl text-center`}
+            className={`${buttonStyle} text-white p-5 block w-full rounded-xl text-center`}
             download={download}
         >
             {icon}
