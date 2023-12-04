@@ -7,7 +7,7 @@
 }
 
 .logo {
-    @apply font-semibold;
+    @apply flex justify-center items-center;
 }
 
 .searchbar {

@@ -18,7 +18,7 @@ export default function ArtistHeader({handle, id}: {handle: string, id: string})
             <div className="mx-20">
                 <div className="mx-auto xl:max-w-[84%] lg:max-w-[90rem] -my-28 py-14 backdrop-blur-xl bg-fullwhite/60 dark:bg-fullblack/60 shadow-lg rounded-3xl px-10">
                     <div className="flex justify-start">
-                        <Image src={artist?.info.profilePhoto ? artist?.info.profilePhoto : '/2eb4f4a30934c1948546215fd138f7de.png'} alt="Profile Photo" width={100} height={100} className="rounded-3xl ml-10 inline-flex" />
+                        <Image src={artist?.info.profilePhoto ? artist?.info.profilePhoto : '/profile.png'} alt="Profile Photo" width={100} height={100} className="rounded-3xl ml-10 inline-flex" />
                         <div className="text-left mt-3 px-10">
                             <h2 className="pb-2 font-bold text-2xl">@{handle}</h2>
                             <h3 className="text-lg">{user?.info.name}</h3>

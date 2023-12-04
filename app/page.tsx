@@ -20,7 +20,7 @@ export default function Home() {
                             </div>
                             <div className="flex justify-end items-end">
                                 <Image
-                                    src={'/artists-wanted.png'}
+                                    src={'/nemu/artists-wanted.png'}
                                     alt='Nemu with a sign that says "artists wanted"'
                                     width={350}
                                     height={350}

@@ -13,9 +13,9 @@ export default function Logo() {
         <div className="logo inline">
             <Link href={'/'}>
                 {theme == 'dark' ? (
-                    <Image src={'/logo-dark.png'} alt="Nemu" width={150} height={200} draggable={false} />
+                    <Image src={'/logos/logo-dark.png'} alt="Nemu" width={150} height={200} draggable={false} />
                 ) : (
-                    <Image src={'/logo-light.png'} alt="Nemu" width={150} height={200} draggable={false}/>
+                    <Image src={'/logos/logo-light.png'} alt="Nemu" width={150} height={200} draggable={false}/>
                 )}
             </Link>
         </div>
