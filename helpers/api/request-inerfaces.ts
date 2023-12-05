@@ -120,6 +120,17 @@ export interface ArtistResponse extends NemuResponse {
 }
 
 /**
+ * ArtistPageRequest
+ * Handles transfering the full artist object with the user
+ *
+ * @prop {Artist | null} info - The artist info from our database
+ */
+export interface ArtistPageResponse extends NemuResponse {
+    artist: Artist | null
+    user: User | null
+}
+
+/**
  * ArtistVerificationResponse
  * Handles transfering all artists inside of the verification table
  *

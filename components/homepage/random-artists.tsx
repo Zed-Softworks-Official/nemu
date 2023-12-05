@@ -33,7 +33,11 @@ export default function RandomArtists() {
                             />
                             <div className="p-5">
                                 <Image
-                                    src={artist.profilePhoto}
+                                    src={
+                                        artist.profilePhoto
+                                            ? artist.profilePhoto
+                                            : '/profile.png'
+                                    }
                                     width={50}
                                     height={50}
                                     alt="profile photo"

@@ -1,23 +1,33 @@
 'use client'
 
-import { ArtistResponse } from '@/helpers/api/request-inerfaces'
-import { fetcher } from '@/helpers/fetcher'
 import useSWR from 'swr'
-import ArtistHeader from './header'
-import ArtistBody from './body'
-import Loading from '../loading'
+import { notFound } from 'next/navigation'
+import { fetcher } from '@/helpers/fetcher'
 
-export default function ArtistPageClient({ id }: { id: string }) {
-    const { data, isLoading } = useSWR<ArtistResponse>(`/api/artist/${id}`, fetcher)
+import ArtistBody from './body'
+import ArtistHeader from './header'
+
+import Loading from '../loading'
+import { ArtistPageResponse, StatusCode } from '@/helpers/api/request-inerfaces'
+
+export default function ArtistPageClient({ handle }: { handle: string }) {
+    const { data, isLoading } = useSWR<ArtistPageResponse>(
+        `/api/artist/page/${handle}`,
+        fetcher
+    )
 
     if (isLoading) {
         return <Loading />
     }
-    
+
+    if (data?.status != StatusCode.Success) {
+        return notFound()
+    }
+
     return (
         <>
-            <ArtistHeader handle={data?.info?.handle!} id={data?.info?.userId!} />
-            <ArtistBody artist_info={data?.info!} />
+            <ArtistHeader data={data} />
+            <ArtistBody artist_info={data?.artist!} />
         </>
     )
 }

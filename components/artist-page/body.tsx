@@ -12,7 +12,7 @@ import { Artist } from '@prisma/client'
 import Shop from './shop'
 
 export default function ArtistBody({ artist_info }: { artist_info: Artist }) {
-    const { currentIndex, setCurrentIndex } = useTabsContext()
+    const { currentIndex } = useTabsContext()
 
     function renderCorrectBody(index: number) {
         switch (index) {

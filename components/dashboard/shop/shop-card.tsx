@@ -18,7 +18,7 @@ export default function ShopCard({
 
     const href = dashboard
         ? `/dashboard/shop/item/${product.prod_id}`
-        : `/@${params[0]}/shop/item`
+        : `/@${params}/shop/item`
 
     return (
         <Link
