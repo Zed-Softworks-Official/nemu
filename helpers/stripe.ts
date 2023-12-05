@@ -81,12 +81,12 @@ export async function StripeGetStoreProductInfo(
     stripe_account: string,
     purchased: boolean = false
 ) {
-    let product = await stripe.products.retrieve(product_id, {
+    const product = await stripe.products.retrieve(product_id, {
         stripeAccount: stripe_account
     })
 
     // Get the artist handle
-    let artist = await prisma.artist.findFirst({
+    const artist = await prisma.artist.findFirst({
         where: {
             stripeAccId: stripe_account
         }
