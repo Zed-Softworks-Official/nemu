@@ -1,25 +1,31 @@
-import React from 'react'
-
-import type { Metadata } from 'next'
+import type { Metadata, ResolvingMetadata } from 'next'
 import { notFound } from 'next/navigation'
 
 import { prisma } from '@/lib/prisma'
 
 import DefaultPageLayout from '../(default)/layout'
-import ArtistBody from '@/components/artist-page/body'
-import ArtistHeader from '@/components/artist-page/header'
 import { TabsProvider } from '@/components/artist-page/tabs-context'
-import SetShopContext from '@/components/artist-page/set-shop-context'
+import ArtistPageClient from '@/components/artist-page/artist-page'
 
-export var metadata: Metadata = {
-    description: 'An Artists Best Friend'
+type Props = {
+    params: { handle: string }
+}
+
+export async function generateMetadata(
+    { params }: Props,
+    parent: ResolvingMetadata
+): Promise<Metadata> {
+    // read route params
+    const handle = params.handle.substring(3, params.handle.length + 1)
+
+    return {
+        title: `Nemu | @${handle}`
+    }
 }
 
 export default async function ArtistPage({ params }: { params: { handle: string } }) {
     // Get Params from URL
-    let handle = params.handle.substring(3, params.handle.length + 1)
-    // Set handle to part of the title
-    metadata.title = 'Nemu | @' + handle
+    const handle = params.handle.substring(3, params.handle.length + 1)
 
     // Get the artist from the handle
     const artist_info = await prisma.artist
@@ -41,9 +47,7 @@ export default async function ArtistPage({ params }: { params: { handle: string 
     return (
         <DefaultPageLayout>
             <TabsProvider>
-                <SetShopContext handle={handle} stripe_account={artist_info.stripeAccId} />
-                <ArtistHeader handle={handle} id={artist_info.userId} />
-                <ArtistBody artist_info={artist_info} />
+                <ArtistPageClient id={artist_info.userId} />
             </TabsProvider>
         </DefaultPageLayout>
     )

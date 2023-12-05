@@ -5,7 +5,6 @@ import AuthProvider from '@/components/auth/auth-provider'
 import { ToastContainer } from 'react-toastify'
 
 import 'react-toastify/ReactToastify.min.css'
-import { ShopProvider } from '@/components/artist-page/shop-context'
 import ThemeProvider from '@/components/theme/theme-context'
 
 export const metadata: Metadata = {
@@ -25,12 +24,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </head>
             <ThemeProvider initial_theme="dark">
                 <AuthProvider>
-                    <ShopProvider>
-                        <body className="bg-white text-charcoal font-nunito dark:bg-charcoal dark:text-white">
-                            {children}
-                            <ToastContainer position="top-right" />
-                        </body>
-                    </ShopProvider>
+                    <body className="bg-white text-charcoal font-nunito dark:bg-charcoal dark:text-white">
+                        {children}
+                        <ToastContainer position="top-right" />
+                    </body>
                 </AuthProvider>
             </ThemeProvider>
         </html>

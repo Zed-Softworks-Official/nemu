@@ -4,8 +4,8 @@ import Link from 'next/link'
 import Image from 'next/image'
 
 import { ShopItem } from '@/helpers/api/request-inerfaces'
-import { useShopContext } from '@/components/artist-page/shop-context'
 import Button from '@/components/button'
+import { useParams } from 'next/navigation'
 
 export default function ShopCard({
     product,
@@ -14,11 +14,11 @@ export default function ShopCard({
     product: ShopItem
     dashboard?: boolean
 }) {
-    const { handle, setProductId } = useShopContext()
+    const { params } = useParams()
 
     const href = dashboard
         ? `/dashboard/shop/item/${product.prod_id}`
-        : `/@${handle}/shop/item`
+        : `/@${params[0]}/shop/item`
 
     return (
         <Link
@@ -53,7 +53,6 @@ export default function ShopCard({
                             <Link
                                 href={href}
                                 className="p-5 w-full text-center bg-gradient-to-r from-azure to-primarylight rounded-xl font-bold hover:from-primarylight hover:to-azure"
-                                onClick={() => setProductId!(product.prod_id!)}
                             >
                                 View
                             </Link>
