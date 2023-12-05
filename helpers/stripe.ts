@@ -29,7 +29,8 @@ export async function StripeCreateStoreProduct(
             images: product.images,
             metadata: {
                 featured_image: product.featured_image,
-                asset: product.asset!
+                asset: product.asset!,
+                slug: product.slug!
             },
             default_price_data: {
                 currency: 'usd',
@@ -106,7 +107,8 @@ export async function StripeGetStoreProductInfo(
         ),
         images: [],
 
-        prod_id: product_id
+        prod_id: product_id,
+        slug: product.metadata.slug
     }
 
     if (purchased) {

@@ -26,7 +26,7 @@ export default function ArtistBody({ artist_info }: { artist_info: Artist }) {
                 return (
                     <Suspense fallback={<Loading />}>
                         <h1 className="font-bold text-2xl">Store</h1>
-                        <Shop user_id={artist_info.userId} />
+                        <Shop user_id={artist_info.userId} handle={artist_info.handle} />
                     </Suspense>
                 )
             case 2:

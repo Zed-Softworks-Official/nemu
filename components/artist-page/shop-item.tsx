@@ -5,7 +5,6 @@ import Image from 'next/image'
 import Markdown from 'react-markdown'
 
 import { useState } from 'react'
-import { useShopContext } from './shop-context'
 
 import { fetcher } from '@/helpers/fetcher'
 import { ShoppingCartIcon } from '@heroicons/react/20/solid'
@@ -14,23 +13,22 @@ import Loading from '@/components/loading'
 import { redirect } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Button from '../button'
+import { ShopResponse } from '@/helpers/api/request-inerfaces'
 
-export default function ShopItem() {
-    const { productId, stripeAccount } = useShopContext()
+export default function ShopItem({handle, slug}: {handle: string, slug: string}) {
     const { data: session } = useSession()
-
-    if (!productId) {
-        redirect('/')
-    }
-
-    const { data, isLoading } = useSWR(`/api/stripe/${productId}/product`, fetcher)
-
-    const [currentImage, setCurrentImage] = useState<string>(data?.product.featured_image)
-
+    const { data, isLoading} = useSWR<ShopResponse>(`/api/stripe/${handle}/product/${slug}`, fetcher)
+    
     if (isLoading) {
         return <Loading />
     }
 
+    if (!data?.product) {
+        redirect('/')
+    }
+    
+    const [currentImage, setCurrentImage] = useState<string>(data?.product.featured_image)
+    
     return (
         <div className="grid grid-cols-12 gap-5 bg-white dark:bg-fullblack rounded-3xl p-5 container mx-auto">
             <div className="col-span-4">
@@ -50,15 +48,15 @@ export default function ShopItem() {
                         height={100}
                         alt={data?.product.name}
                         className="rounded-xl cursor-pointer"
-                        onClick={() => setCurrentImage(data?.product.featured_image)}
+                        onClick={() => setCurrentImage(data?.product?.featured_image!)}
                     />
                     {data?.product.images?.map((image: string) => (
                         <Image
-                            key={data?.product.name}
+                            key={data?.product?.name}
                             src={image}
                             width={100}
                             height={100}
-                            alt={data?.product.name}
+                            alt={data?.product?.name!}
                             className="rounded-xl cursor-pointer"
                             onClick={() => setCurrentImage(image)}
                         />
@@ -75,8 +73,8 @@ export default function ShopItem() {
                     action="/api/stripe/purchase"
                     method="post"
                 >
-                    <input name="product_id" type="hidden" value={productId} />
-                    <input name="stripe_account" type="hidden" value={stripeAccount} />
+                    <input name="product_id" type="hidden" value={data.product.prod_id} />
+                    <input name="stripe_account" type="hidden" value={''} />
                     <input name="user_id" type="hidden" value={session?.user.user_id} />
                     <Button
                         label="Buy Now"

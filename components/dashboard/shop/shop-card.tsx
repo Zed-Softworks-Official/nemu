@@ -5,20 +5,19 @@ import Image from 'next/image'
 
 import { ShopItem } from '@/helpers/api/request-inerfaces'
 import Button from '@/components/button'
-import { useParams } from 'next/navigation'
 
 export default function ShopCard({
     product,
+    handle,
     dashboard = false
 }: {
     product: ShopItem
+    handle: string
     dashboard?: boolean
 }) {
-    const { params } = useParams()
-
     const href = dashboard
         ? `/dashboard/shop/item/${product.prod_id}`
-        : `/@${params}/shop/item`
+        : `/@${handle}/shop/${product.slug}`
 
     return (
         <Link

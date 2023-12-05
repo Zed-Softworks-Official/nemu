@@ -43,6 +43,7 @@ export interface ShopItem {
     asset?: string
 
     prod_id?: string
+    slug?: string
 }
 
 /**

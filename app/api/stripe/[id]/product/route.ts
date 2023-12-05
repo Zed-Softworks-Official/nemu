@@ -58,6 +58,14 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         }
     }
 
+    // Create Slug
+    const slug = data
+        .get('product_name')
+        ?.toString()!
+        .toLowerCase()
+        .replace(/[^a-zA-Z ]/g, '')
+        .replaceAll(' ', '-')
+
     // Create the Stripe Product
     const product = await StripeCreateStoreProduct(params.id, {
         name: data.get('product_name')?.toString()!,
@@ -65,7 +73,8 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         price: Number(data.get('product_price')?.toString()!),
         images: images,
         featured_image: featured_image,
-        asset: asset
+        asset: asset,
+        slug: slug
     })
 
     // Create The Item in The database
@@ -73,7 +82,9 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         data: {
             userId: artist?.userId!,
             stripeAccId: params.id,
-            product: product.id
+            product: product.id,
+            slug: slug!,
+            handle: artist?.handle!
         }
     })
 

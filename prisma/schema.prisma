@@ -61,6 +61,8 @@ model StoreItem {
   userId      String
   product     String
   stripeAccId String
+  handle      String
+  slug        String
 }
 
 model AritstCode {
