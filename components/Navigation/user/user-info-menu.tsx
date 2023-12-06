@@ -87,14 +87,14 @@ export default function UserInfoMenu() {
     return (
         <Menu as="div" className="relative inline-block text-left mt-3 ml-20">
             <div>
-                <Menu.Button className="inline-flex w-full justify-center gap-x-1.5 rounded-md bg-white dark:bg-charcoal font-semibold">
+                <Menu.Button className="inline-flex w-full justify-center gap-x-1.5 rounded-md bg-white dark:bg-charcoal font-semibold btn btn-ghost btn-circle">
                     {session?.user?.image ? (
                         <Image
                             src={session?.user?.image!}
                             alt="profile image"
                             width={50}
                             height={50}
-                            className="rounded-full"
+                            className="rounded-full w-16"
                         />
                     ) : (
                         <UserIcon className="h-6 w-6 text-black" />

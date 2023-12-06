@@ -181,6 +181,7 @@ export interface RandomArtistsResponse extends NemuResponse {
 export interface ShopResponse extends NemuResponse {
     product?: ShopItem
     products?: ShopItem[]
+    stripe_id?: string
 }
 
 /**

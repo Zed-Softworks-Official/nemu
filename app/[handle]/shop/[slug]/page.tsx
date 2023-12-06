@@ -1,12 +1,14 @@
 import DefaultPageLayout from '@/app/(default)/layout'
-import ShopItem from '@/components/artist-page/shop-item'
+import ShopDisplay from '@/components/artist-page/shop-item'
 
-export default async function ArtistShopView({params}: { params: { handle: string, slug: string }}) {
+export default async function ArtistShopView({
+    params
+}: {
+    params: { handle: string; slug: string }
+}) {
     return (
         <DefaultPageLayout>
-            <div className="xl:max-w-[85%] mx-auto">
-                <ShopItem handle={params.handle} slug={params.slug} />
-            </div>
+            <ShopDisplay handle={params.handle} slug={params.slug} />
         </DefaultPageLayout>
     )
 }

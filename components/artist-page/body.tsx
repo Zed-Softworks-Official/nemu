@@ -42,7 +42,7 @@ export default function ArtistBody({ artist_info }: { artist_info: Artist }) {
     }
 
     return (
-        <div className="grid grid-cols-12 gap-10 xl:max-w-[85%] mx-auto mt-36">
+        <div className="grid grid-cols-12 gap-10 w-full mx-auto mt-36">
             <div className="bg-fullwhite dark:bg-fullblack p-10 rounded-3xl col-span-3 text-center">
                 <h1 className="font-bold text-2xl text-center">About</h1>
                 <p>{artist_info.about}</p>

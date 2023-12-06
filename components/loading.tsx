@@ -5,7 +5,7 @@ import React from 'react'
 
 export default function Loading() {
     return (
-        <div className="flex justify-center items-center w-full">
+        <div className="flex justify-center items-center w-full h-full">
             <Image
                 src={'/loading.gif'}
                 alt="Nemu Looking Through Boxes"

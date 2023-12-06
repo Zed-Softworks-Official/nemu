@@ -34,16 +34,6 @@ export async function POST(req: Request) {
     // Create checkout session
     const checkout_session = await StripeGetPurchasePage(product, data.stripe_account, price!)
 
-    // Save checkout session to database
-    await prisma.checkoutSession.create({
-        data: {
-            userId: data.user_id,
-            productId: data.product_id,
-            sessionId: checkout_session.id,
-            stripeAccId: data.stripe_account
-        }
-    })
-
     // Redirect User
     return NextResponse.redirect(checkout_session.url!, StatusCode.Redirect)
 }

@@ -15,25 +15,30 @@ import { useSession } from 'next-auth/react'
 import Button from '../button'
 import { ShopResponse, StatusCode } from '@/helpers/api/request-inerfaces'
 
-export default function ShopItem({handle, slug}: {handle: string, slug: string}) {
+export default function ShopDisplay({ handle, slug }: { handle: string; slug: string }) {
     const { data: session } = useSession()
-    const { data, isLoading} = useSWR<ShopResponse>(`/api/stripe/${handle}/product/${slug}`, fetcher)
+    const { data, isLoading } = useSWR<ShopResponse>(
+        `/api/stripe/${handle}/product/${slug}`,
+        fetcher
+    )
 
     const [currentImage, setCurrentImage] = useState('')
-    
+
     if (isLoading) {
         return <Loading />
     }
-    
+
     if (data?.status != StatusCode.Success) {
         redirect('/')
     }
-    
+
     return (
-        <div className="grid grid-cols-12 gap-5 bg-white dark:bg-fullblack rounded-3xl p-5 container mx-auto">
+        <div className="grid grid-cols-12 gap-5 bg-white dark:bg-fullblack rounded-3xl p-5">
             <div className="col-span-4">
                 <Image
-                    src={currentImage}
+                    src={
+                        currentImage == '' ? data?.product?.featured_image! : currentImage
+                    }
                     width={500}
                     height={500}
                     alt={data?.product?.name!}
@@ -73,8 +78,12 @@ export default function ShopItem({handle, slug}: {handle: string, slug: string})
                     action="/api/stripe/purchase"
                     method="post"
                 >
-                    <input name="product_id" type="hidden" value={data.product?.prod_id} />
-                    <input name="stripe_account" type="hidden" value={''} />
+                    <input
+                        name="product_id"
+                        type="hidden"
+                        value={data.product?.prod_id}
+                    />
+                    <input name="stripe_account" type="hidden" value={data.stripe_id} />
                     <input name="user_id" type="hidden" value={session?.user.user_id} />
                     <Button
                         label="Buy Now"

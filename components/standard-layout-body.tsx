@@ -11,7 +11,7 @@ export default function StandardLayoutBody({children}: {children: React.ReactNod
     })
 
     return (
-        <div>
+        <div className="container mx-auto">
             {children}
         </div>
     )

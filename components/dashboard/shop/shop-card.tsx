@@ -1,10 +1,8 @@
-'use client'
-
 import Link from 'next/link'
 import Image from 'next/image'
 
 import { ShopItem } from '@/helpers/api/request-inerfaces'
-import Button from '@/components/button'
+import ShopDisplay from '@/components/artist-page/shop-item'
 
 export default function ShopCard({
     product,
@@ -12,7 +10,7 @@ export default function ShopCard({
     dashboard = false
 }: {
     product: ShopItem
-    handle: string
+    handle?: string
     dashboard?: boolean
 }) {
     const href = dashboard
@@ -20,11 +18,7 @@ export default function ShopCard({
         : `/@${handle}/shop/${product.slug}`
 
     return (
-        <Link
-            href={href}
-            key={product.name}
-            className="dark:bg-charcoal bg-fullwhite rounded-xl overflow-hidden"
-        >
+        <div key={product.name} className="bg-base-100 card rounded-xl overflow-hidden">
             <div>
                 <Image
                     width={500}
@@ -35,12 +29,12 @@ export default function ShopCard({
                 />
             </div>
             <div className="p-5">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="card-body">
                     <div>
-                        <p className="font-bold text-2xl pb-2">{product.name}</p>
-                        <p className="text-lg">${product.price}</p>
+                        <p className="card-title">{product.name}</p>
+                        <p className="text-lg font-bold">${product.price}</p>
                     </div>
-                    <div className="flex flex-col justify-center text-white">
+                    <div className="card-actions justify-end">
                         {dashboard ? (
                             <Link
                                 href={href}
@@ -49,16 +43,36 @@ export default function ShopCard({
                                 Edit Item
                             </Link>
                         ) : (
-                            <Link
-                                href={href}
-                                className="btn btn-primary"
-                            >
-                                View
-                            </Link>
+                            <>
+                                <button
+                                    type="button"
+                                    className="btn btn-primary"
+                                    onClick={() =>
+                                        (
+                                            document.getElementById(
+                                                `modal-${product.slug}`
+                                            ) as HTMLDialogElement
+                                        ).showModal()
+                                    }
+                                >
+                                    View Item
+                                </button>
+                                <dialog id={`modal-${product.slug}`} className="modal">
+                                    <div className="modal-box max-w-6xl">
+                                        <ShopDisplay
+                                            handle={handle!}
+                                            slug={product.slug!}
+                                        />
+                                    </div>
+                                    <form method="dialog" className="modal-backdrop">
+                                        <button>close</button>
+                                    </form>
+                                </dialog>
+                            </>
                         )}
                     </div>
                 </div>
             </div>
-        </Link>
+        </div>
     )
 }

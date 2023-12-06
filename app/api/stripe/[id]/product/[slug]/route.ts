@@ -28,6 +28,7 @@ export async function GET(
         product: await StripeGetStoreProductInfo(
             db_product?.product!,
             db_product?.stripeAccId!
-        )
+        ),
+        stripe_id: db_product.stripeAccId
     })
 }

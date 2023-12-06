@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+.btn-primary {
+    @apply text-white
+}
+
 .active-scroll-spy {
     @apply bg-primary p-5 rounded-3xl;
 }
