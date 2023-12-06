@@ -51,7 +51,7 @@ export default function ShopCard({
                         ) : (
                             <Link
                                 href={href}
-                                className="p-5 w-full text-center bg-gradient-to-r from-azure to-primarylight rounded-xl font-bold hover:from-primarylight hover:to-azure"
+                                className="btn btn-primary"
                             >
                                 View
                             </Link>

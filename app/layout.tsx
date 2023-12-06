@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
     return (
-        <html lang="en">
+        <html lang="en" data-theme="nemu">
             <head>
                 <link
                     href="https://necolas.github.io/normalize.css/8.0.1/normalize.css"
@@ -24,7 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </head>
             <ThemeProvider initial_theme="dark">
                 <AuthProvider>
-                    <body className="bg-white text-charcoal font-nunito dark:bg-charcoal dark:text-white">
+                    <body className="bg-base-100 text-charcoal font-nunito dark:text-white">
                         {children}
                         <ToastContainer position="top-right" />
                     </body>

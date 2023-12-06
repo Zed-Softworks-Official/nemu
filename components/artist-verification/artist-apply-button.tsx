@@ -19,7 +19,7 @@ export default function ArtistApplyButton() {
         <>
             <button
                 onClick={routeUser}
-                className="border-2 border-white p-5 hover:underline rounded-3xl m-5"
+                className="btn btn-outline btn-accent m-5"
             >
                 Click here to become an artist
             </button>

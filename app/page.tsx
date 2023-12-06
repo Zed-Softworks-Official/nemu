@@ -14,9 +14,9 @@ export default function Home() {
                                 <h1>Artists Wanted!</h1>
                                 <p>Something Clever Here</p>
 
-                                <span className="mt-20 border-white border-2 p-5 hover:underline inline-block">
+                                <button className="mt-20 btn btn-outline btn-accent inline-block">
                                     Click Here to become an artist!
-                                </span>
+                                </button>
                             </div>
                             <div className="flex justify-end items-end">
                                 <Image
