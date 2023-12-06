@@ -167,7 +167,7 @@ export async function StripeGetPurchasePage(
         }
     })
 
-    const application_fee = amount - (amount * 0.95)
+    const application_fee = amount - amount * 0.95
 
     return await stripe.checkout.sessions.create(
         {
@@ -310,4 +310,26 @@ export async function StripeGetAccount(stripe_account: string) {
     return await stripe.accounts.retrieve({
         stripeAccount: stripe_account
     })
+}
+
+////////////////////////////////////////////////
+// Wehhooks
+////////////////////////////////////////////////
+
+/**
+ * Creates a stripe wehbook event
+ * 
+ * @param {string | Buffer} payload  - The body of the request
+ * @param {string | Buffer | string[]} header - The header to look for 
+ * @returns a webhook event from stripe
+ */
+export function StripeGetWebhookEvent(
+    payload: string | Buffer,
+    header: string | Buffer | string[]
+) {
+    return stripe.webhooks.constructEvent(
+        payload,
+        header,
+        process.env.STRIPE_WEHBOOK_SECRET!
+    )
 }

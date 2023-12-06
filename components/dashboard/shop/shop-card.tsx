@@ -1,8 +1,8 @@
 import Link from 'next/link'
-import Image from 'next/image'
 
 import { ShopItem } from '@/helpers/api/request-inerfaces'
 import ShopDisplay from '@/components/artist-page/shop-item'
+import NemuImage from '@/components/nemu-image'
 
 export default function ShopCard({
     product,
@@ -20,12 +20,11 @@ export default function ShopCard({
     return (
         <div key={product.name} className="bg-base-100 card rounded-xl overflow-hidden">
             <div>
-                <Image
+                <NemuImage
                     width={500}
                     height={500}
                     src={product.featured_image}
                     alt={product.name}
-                    draggable={false}
                 />
             </div>
             <div className="p-5">

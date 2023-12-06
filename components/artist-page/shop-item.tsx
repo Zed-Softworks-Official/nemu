@@ -1,7 +1,6 @@
 'use client'
 
 import useSWR from 'swr'
-import Image from 'next/image'
 import Markdown from 'react-markdown'
 
 import { useState } from 'react'
@@ -14,6 +13,7 @@ import { redirect } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Button from '../button'
 import { ShopResponse, StatusCode } from '@/helpers/api/request-inerfaces'
+import NemuImage from '../nemu-image'
 
 export default function ShopDisplay({ handle, slug }: { handle: string; slug: string }) {
     const { data: session } = useSession()
@@ -35,7 +35,7 @@ export default function ShopDisplay({ handle, slug }: { handle: string; slug: st
     return (
         <div className="grid grid-cols-12 gap-5 bg-white dark:bg-fullblack rounded-3xl p-5">
             <div className="col-span-4">
-                <Image
+                <NemuImage
                     src={
                         currentImage == '' ? data?.product?.featured_image! : currentImage
                     }
@@ -47,7 +47,7 @@ export default function ShopDisplay({ handle, slug }: { handle: string; slug: st
             </div>
             <div className="col-span-1">
                 <div className="grid-flow-row grid grid-cols-1 gap-5">
-                    <Image
+                    <NemuImage
                         src={data?.product?.featured_image!}
                         width={100}
                         height={100}
@@ -56,7 +56,7 @@ export default function ShopDisplay({ handle, slug }: { handle: string; slug: st
                         onClick={() => setCurrentImage(data?.product?.featured_image!)}
                     />
                     {data?.product?.images?.map((image: string) => (
-                        <Image
+                        <NemuImage
                             key={data?.product?.name}
                             src={image}
                             width={100}
