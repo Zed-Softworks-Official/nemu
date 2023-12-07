@@ -330,6 +330,6 @@ export function StripeGetWebhookEvent(
     return stripe.webhooks.constructEvent(
         payload,
         header,
-        process.env.STRIPE_WEHBOOK_SECRET!
+        process.env.STRIPE_WEBHOOK_SECRET!
     )
 }

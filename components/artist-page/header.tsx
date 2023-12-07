@@ -1,10 +1,6 @@
-'use client'
+import NemuImage from '../nemu-image'
 
-import useSWR from 'swr'
-
-import Image from 'next/image'
 import ArtistProfileTabs from '@/components/artist-page/tabs'
-
 import { ArtistPageResponse } from '@/helpers/api/request-inerfaces'
 
 export default function ArtistHeader({ data }: { data: ArtistPageResponse }) {
@@ -14,7 +10,7 @@ export default function ArtistHeader({ data }: { data: ArtistPageResponse }) {
             <div className="mx-20">
                 <div className="mx-auto max-w-[98%] -my-28 py-14 backdrop-blur-xl bg-fullwhite/60 dark:bg-fullblack/60 shadow-lg rounded-3xl px-10">
                     <div className="flex justify-start">
-                        <Image
+                        <NemuImage
                             src={
                                 data.artist?.profilePhoto 
                                     ? data.artist.profilePhoto
@@ -28,6 +24,7 @@ export default function ArtistHeader({ data }: { data: ArtistPageResponse }) {
                         <div className="text-left mt-3 px-10">
                             <h2 className="pb-2 font-bold text-2xl">
                                 @{data.artist?.handle}
+                                <NemuImage src={'/nemu/verified.png'} alt='Verified!' width={40} height={40} className="inline-block ml-5 align-top" />
                             </h2>
                             <h3 className="text-lg">{data.user?.name}</h3>
                         </div>
