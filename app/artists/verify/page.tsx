@@ -1,5 +1,5 @@
 import DefaultPageLayout from '@/app/(default)/layout'
-import { VerifyTable } from '@/components/ArtistVerification/verify-table'
+import { VerifyTable } from '@/components/artist-verification/verify-table'
 import AuthCheck from '@/components/auth/auth-check'
 
 export default function VerifyArtist() {

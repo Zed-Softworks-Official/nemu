@@ -1,10 +1,8 @@
-import React from 'react'
-import Link from 'next/link'
-
-import DashboardUserSection from './sections/user-section'
-import DashboardArtistSection from './sections/artist-section'
-import DashboardSettingsSection from './sections/settings-section'
 import Logo from '../standard/logo'
+
+import DashboardUserSection from '@/components/navigation/dashboard/sections/user-section'
+import DashboardArtistSection from '@/components/navigation/dashboard/sections/artist-section'
+import DashboardSettingsSection from '@/components/navigation/dashboard/sections/settings-section'
 
 export default function Navbar() {
     return (
@@ -18,9 +16,9 @@ export default function Navbar() {
             <hr className="seperation" />
 
             <DashboardUserSection />
-            {/* <hr className="seperation" />
+            <hr className="seperation" />
 
-            <DashboardSettingsSection /> */}
+            <DashboardSettingsSection />
         </aside>
     )
 }

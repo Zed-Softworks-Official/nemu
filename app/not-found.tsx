@@ -20,7 +20,7 @@ export default function NotFound() {
                 </div>
                 <div>
                     <h1>Error 404</h1>
-                    <p>Oh Nyo! We couldn't find that</p>
+                    <p>Oh Nyo! We couldn&apos;t find that</p>
                 </div>
             </div>
         </DefaultPageLayout>

@@ -1,9 +1,9 @@
 'use client'
 
-import Image from 'next/image'
 import { TrashIcon } from '@heroicons/react/20/solid'
 import { useParams, useRouter } from 'next/navigation'
 import { CreateToastPromise } from '@/helpers/toast-promise'
+import NemuImage from '@/components/nemu-image'
 
 export default function ShopEditCard({
     image_src,
@@ -38,13 +38,13 @@ export default function ShopEditCard({
                 <button
                     onClick={deleteItem}
                     type="button"
-                    className="bg-error rounded-full p-2 m-2"
+                    className="btn btn-error rounded-full p-2 m-2"
                 >
                     <TrashIcon className="w-6 h-6 inline-block" />
                     <p className="hidden">Delete</p>
                 </button>
             </div>
-            <Image src={image_src} alt={alt_text} width={200} height={200} />
+            <NemuImage src={image_src} alt={alt_text} width={200} height={200} />
         </div>
     )
 }

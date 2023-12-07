@@ -24,7 +24,7 @@ export default function ShopItems() {
     return (
         <div className="grid grid-cols-4 gap-4">
             {data?.products?.map((product: ShopItem) => (
-                <ShopCard product={product} dashboard />
+                <ShopCard key={product.name} product={product} dashboard />
             ))}
         </div>
     )

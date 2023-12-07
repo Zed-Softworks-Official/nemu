@@ -44,8 +44,8 @@ export default function NewUser() {
     return (
         <>
             <div className="pb-5 text-center">
-                <h2 className="text-lg font-bold">It looks like you're new here.</h2>
-                <p>Let's create a username for you.</p>
+                <h2 className="text-lg font-bold">It looks like you&apos;re new here.</h2>
+                <p>Let&apos;s create a username for you.</p>
             </div>
             <form onSubmit={createUsername}>
                 {error && (

@@ -37,7 +37,7 @@ export default function ShopCard({
                         {dashboard ? (
                             <Link
                                 href={href}
-                                className="p-5 w-full text-center bg-primary rounded-xl font-bold hover:bg-primarylight"
+                                className="btn btn-primary"
                             >
                                 Edit Item
                             </Link>

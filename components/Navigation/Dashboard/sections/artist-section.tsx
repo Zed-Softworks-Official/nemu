@@ -58,7 +58,7 @@ export default function DashboardArtistSection() {
                 >
                     <BuildingStorefrontIcon className="sidenav-icon" />
                     <h3 className="inline mt-6 text-lg font-bold">
-                        Artist's Corner
+                        Artist&apos;s Corner
                     </h3>
                 </Link>
             </div>

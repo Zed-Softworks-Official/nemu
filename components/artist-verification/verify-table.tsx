@@ -1,12 +1,18 @@
 'use client'
 
 import useSwr from 'swr'
+
 import { fetcher } from '@/helpers/fetcher'
 import { toast } from 'react-toastify'
 import Loading from '@/components/loading'
 
+import { ArtistVerificationResponse } from '@/helpers/api/request-inerfaces'
+
 export function VerifyTable() {
-    const { data, isLoading } = useSwr('/api/artist/verify', fetcher)
+    const { data, isLoading } = useSwr<ArtistVerificationResponse>(
+        '/api/artist/verify',
+        fetcher
+    )
 
     enum Action {
         Approve = 'approve',
@@ -46,9 +52,7 @@ export function VerifyTable() {
                 <table className="table-fixed w-full">
                     <thead className="bg-primary">
                         <tr>
-                            <th className="p-5 rounded-l-xl">
-                                Requested Handle
-                            </th>
+                            <th className="p-5 rounded-l-xl">Requested Handle</th>
                             <th>Username</th>
                             <th>Socials</th>
                             <th>Location</th>
@@ -56,11 +60,12 @@ export function VerifyTable() {
                         </tr>
                     </thead>
                     <tbody className="m-5">
-                        {data?.artists.map((artist: any) => (
-                            <tr className="border-b border-b-charcoal">
-                                <td className="p-10">
-                                    {artist.requestedHandle}
-                                </td>
+                        {data?.artists?.map((artist) => (
+                            <tr
+                                key={artist.userId}
+                                className="border-b border-b-charcoal"
+                            >
+                                <td className="p-10">{artist.requestedHandle}</td>
                                 <td>{artist.username}</td>
                                 <td>
                                     <div>
@@ -74,10 +79,7 @@ export function VerifyTable() {
                                         <button
                                             className="bg-primary hover:bg-primarylight rounded-xl p-5 inline-block mx-5"
                                             onClick={() =>
-                                                decision(
-                                                    Action.Approve,
-                                                    artist.userId
-                                                )
+                                                decision(Action.Approve, artist.userId)
                                             }
                                         >
                                             Approve
@@ -85,10 +87,7 @@ export function VerifyTable() {
                                         <button
                                             className="bg-error rounded-xl p-5 inline-block"
                                             onClick={() =>
-                                                decision(
-                                                    Action.Reject,
-                                                    artist.userId
-                                                )
+                                                decision(Action.Reject, artist.userId)
                                             }
                                         >
                                             Reject

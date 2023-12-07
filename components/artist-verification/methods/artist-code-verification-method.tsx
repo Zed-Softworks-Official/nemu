@@ -8,7 +8,7 @@ export default function ArtistCodeVerificiationMethod() {
     return (
         <div className="pb-10">
             <h1>What Next?</h1>
-            <p>Please put your artist code that you have in the text field below and press submit. You'll recieve an email to your associated account with your verification status and a link to your onboarding page.</p>
+            <p>Please put your artist code that you have in the text field below and press submit. You&apos;ll recieve an email to your associated account with your verification status and a link to your onboarding page.</p>
 
             <div className="mt-10">
                 <label 

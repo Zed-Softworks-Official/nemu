@@ -140,11 +140,3 @@ model Purchased {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
-
-model CheckoutSession {
-  id          String @id @default(auto()) @map("_id") @db.ObjectId
-  userId      String @db.ObjectId
-  sessionId   String
-  productId   String
-  stripeAccId String
-}

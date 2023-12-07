@@ -23,8 +23,8 @@ import {
     TrashIcon,
     XCircleIcon
 } from '@heroicons/react/20/solid'
-import Button, { ButtonStyle } from '@/components/button'
 import { useFormContext } from '@/components/form/form-context'
+import Link from 'next/link'
 
 export default function ShopEditForm() {
     const item_id = get_item_id(usePathname())
@@ -152,33 +152,31 @@ export default function ShopEditForm() {
             </div>
             <div className="col-span-6">
                 <FileInput label="Update Asset" name="download_file" />
-                <Button
-                    label="Download Current Asset"
-                    icon={
-                        <ArrowDownOnSquareIcon className="w-6 h-6 mr-3 inline-block align-bottom" />
-                    }
-                    href={data?.product?.asset!}
-                />
+                <Link
+                    href={data?.product?.asset ? data?.product?.asset : ''}
+                    className="btn btn-primary btn-lg w-full"
+                >
+                    <ArrowDownOnSquareIcon className="w-6 h-6 mr-3 inline-block align-bottom" />
+                    Download Current Asset
+                </Link>
             </div>
             <div className="grid grid-cols-3 w-full gap-5 col-span-6">
-                <Button
-                    label="Cancel"
-                    style={ButtonStyle.Error}
-                    icon={<XCircleIcon className="w-6 h-6 inline-block mr-3" />}
-                    action={() => replace('/dashboard/shop')}
-                />
-                <Button
-                    label="Delete"
-                    style={ButtonStyle.Error}
-                    icon={<TrashIcon className="w-6 h-6 inline-block mr-3" />}
-                    action={handleDelete}
-                />
-                <Button
-                    label="Save Changes"
-                    type="submit"
-                    icon={<CheckCircleIcon className="w-6 h-6 inline-block mr-3" />}
-                    action={() => {}}
-                />
+                <button
+                    type="button"
+                    onClick={() => replace('/dashboard/shop')}
+                    className="btn btn-error btn-lg"
+                >
+                    Cancel
+                    <XCircleIcon className="w-6 h-6 inline-block mr-3" />
+                </button>
+                <button type="button" onClick={handleDelete} className="btn btn-error btn-lg">
+                    <TrashIcon className="w-6 h-6 inline-block mr-3" />
+                    Delete
+                </button>
+                <button type="submit" className="btn btn-primary btn-lg">
+                    <CheckCircleIcon className="w-6 h-6 inline-block mr-3" />
+                    Save Changes
+                </button>
             </div>
         </form>
     )

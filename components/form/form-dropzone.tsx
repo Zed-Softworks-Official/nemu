@@ -30,7 +30,7 @@ export default function FormDropzone({ label, name = 'dropzone-file' }: { label:
 
     useEffect(() => {
         return () => URL.revokeObjectURL(filePreview)
-    }, [])
+    }, [filePreview])
 
     return (
         <div className="mb-5">
