@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import DefaultPageLayout from './(default)/layout'
 import RandomArtists from '@/components/homepage/random-artists'
-import Image from 'next/image'
+import NemuImage from '@/components/nemu-image'
 
 export default function Home() {
     return (
@@ -19,7 +19,7 @@ export default function Home() {
                                 </button>
                             </div>
                             <div className="flex justify-end items-end">
-                                <Image
+                                <NemuImage
                                     src={'/nemu/artists-wanted.png'}
                                     alt='Nemu with a sign that says "artists wanted"'
                                     width={350}

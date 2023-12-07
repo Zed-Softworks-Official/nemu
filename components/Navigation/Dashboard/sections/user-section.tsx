@@ -18,7 +18,7 @@ export default function DashboardUserSection() {
     return (
         <div>
             {handle && <DashboardArtistManagmentSection />}
-            <div className="my-10">
+            <li className="my-2">
                 <Link
                     href={'/dashboard/favourites'}
                     className={classNames(
@@ -29,10 +29,10 @@ export default function DashboardUserSection() {
                     )}
                 >
                     <StarIcon className="sidenav-icon" />
-                    <h3 className="inline mt-6 text-lg font-bold">Favourites</h3>
+                    <h3 className="inline text-lg font-bold">Favourites</h3>
                 </Link>
-            </div>
-            <div className="my-10">
+            </li>
+            <li className="my-2">
                 <Link
                     href={'/dashboard/messages'}
                     className={classNames(
@@ -43,9 +43,9 @@ export default function DashboardUserSection() {
                     )}
                 >
                     <EnvelopeIcon className="sidenav-icon" />
-                    <h3 className="inline mt-6 text-lg font-bold">Messages</h3>
+                    <h3 className="inline text-lg font-bold">Messages</h3>
                 </Link>
-            </div>
+            </li>
         </div>
     )
 }

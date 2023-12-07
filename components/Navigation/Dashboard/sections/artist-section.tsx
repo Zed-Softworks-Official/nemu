@@ -15,8 +15,8 @@ export default function DashboardArtistSection() {
     const pathname = usePathname()
 
     return (
-        <div>
-            <div className="my-10">
+        <>
+            <li className='my-2'>
                 <Link
                     href={'/dashboard'}
                     className={classNames(
@@ -27,10 +27,10 @@ export default function DashboardArtistSection() {
                     )}
                 >
                     <HomeIcon className="sidenav-icon" />
-                    <h3 className="inline mt-6 text-lg font-bold">Home</h3>
+                    <h3 className="inline text-lg font-bold">Home</h3>
                 </Link>
-            </div>
-            <div className="my-10">
+            </li>
+            <li className='my-2'>
                 <Link
                     href={'/commissions'}
                     className={classNames(
@@ -41,12 +41,12 @@ export default function DashboardArtistSection() {
                     )}
                 >
                     <RectangleStackIcon className="sidenav-icon" />
-                    <h3 className="inline mt-6 text-lg font-bold">
+                    <h3 className="inline text-lg font-bold">
                         Commissions
                     </h3>
                 </Link>
-            </div>
-            <div className="my-10">
+            </li>
+            <li className='my-2'>
                 <Link
                     href={'/dashboard/shop'}
                     className={classNames(
@@ -57,12 +57,12 @@ export default function DashboardArtistSection() {
                     )}
                 >
                     <BuildingStorefrontIcon className="sidenav-icon" />
-                    <h3 className="inline mt-6 text-lg font-bold">
+                    <h3 className="inline text-lg font-bold">
                         Artist&apos;s Corner
                     </h3>
                 </Link>
-            </div>
-            <div className="my-10">
+            </li>
+            <li className='my-2'>
                 <Link
                     href={'/dashboard/portfolio'}
                     className={classNames(
@@ -73,9 +73,9 @@ export default function DashboardArtistSection() {
                     )}
                 >
                     <PhotoIcon className="sidenav-icon" />
-                    <h3 className="inline mt-6 text-lg font-bold">Portfolio</h3>
+                    <h3 className="inline text-lg font-bold">Portfolio</h3>
                 </Link>
-            </div>
-        </div>
+            </li>
+        </>
     )
 }

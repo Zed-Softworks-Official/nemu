@@ -1,7 +1,7 @@
 import 'react-toastify/ReactToastify.min.css'
 import type { Metadata } from 'next'
 
-import Navbar from '@/components/navigation/Dashboard/navbar'
+import Navbar from '@/components/navigation/dashboard/navbar'
 
 import { DashboardProvider } from '@/components/navigation/dashboard/dashboard-context'
 import Footer from '@/components/footer'
@@ -37,9 +37,10 @@ export default async function DashboardLayout({
             artist_user_id={artist.info.userId}
             artist_stripe_id={artist.info.stripeAccId}
         >
-            <Navbar />
-            {children}
-            <Footer />
+            <Navbar>
+                {children}
+                <Footer />
+            </Navbar>
         </DashboardProvider>
     )
 }

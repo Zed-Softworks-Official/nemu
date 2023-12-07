@@ -14,7 +14,7 @@ import { useFormContext } from '@/components/form/form-context'
 import { PortfolioResponse } from '@/helpers/api/request-inerfaces'
 
 import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
-import { CheckCircleIcon, FireIcon, XCircleIcon } from '@heroicons/react/20/solid'
+import { CheckCircleIcon, TrashIcon, XCircleIcon } from '@heroicons/react/20/solid'
 
 export default function PortfolioEditForm() {
     const item_id = get_item_id(usePathname())
@@ -109,27 +109,27 @@ export default function PortfolioEditForm() {
                     <FormDropzone label="Update Portfolio Item" />
                 </div>
             </div>
-            <div className="flex flex-row items-center justify-center">
-                <button type="submit" className="bg-primary p-5 rounded-3xl m-5">
+            <div className="flex flex-row items-center justify-center gap-5">
+                <button type="submit" className="btn btn-primary btn-lg">
                     <CheckCircleIcon className="w-6 h-6 inline mr-3" />
                     Save Item
                 </button>
                 <button
                     type="button"
                     onClick={errorClick}
-                    className="bg-error p-5 rounded-3xl m-5"
+                    className="btn btn-error btn-lg"
                 >
                     <XCircleIcon className="w-6 h-6 inline mr-3" />
                     Cancel
                 </button>
             </div>
-            <div className="flex flex-row items-center justify-center">
+            <div className="flex flex-row items-center justify-center mt-5">
                 <button
                     type="button"
                     onClick={handleDeletion}
-                    className=" bg-gradient-to-r from-error to-error/80 p-5 rounded-3xl m-5"
+                    className="btn btn-error btn-lg"
                 >
-                    <FireIcon className="w-6 h-6 inline mr-3" />
+                    <TrashIcon className="w-6 h-6 inline mr-3" />
                     Delete Item
                 </button>
             </div>

@@ -11,9 +11,9 @@ export default function DashboardSettingsSection() {
     const { handle } = useDashboardContext()
 
     return (
-        <div>
+        <>
             {handle && (
-                <div className="my-10">
+                <li className="my-2">
                     <Link
                         href={`/@${handle}`}
                         className={classNames(
@@ -24,11 +24,11 @@ export default function DashboardSettingsSection() {
                         )}
                     >
                         <PaintBrushIcon className="sidenav-icon" />
-                        <h3 className="inline mt-6 text-lg font-bold">My Page</h3>
+                        <h3 className="inline text-lg font-bold">My Page</h3>
                     </Link>
-                </div>
+                </li>
             )}
-            <div className="my-10">
+            <li className="my-2">
                 <Link
                     href={'/dashboard/settings'}
                     className={classNames(
@@ -39,9 +39,9 @@ export default function DashboardSettingsSection() {
                     )}
                 >
                     <Cog6ToothIcon className="sidenav-icon" />
-                    <h3 className="inline mt-6 text-lg font-bold">Settings</h3>
+                    <h3 className="inline text-lg font-bold">Settings</h3>
                 </Link>
-            </div>
-        </div>
+            </li>
+        </>
     )
 }

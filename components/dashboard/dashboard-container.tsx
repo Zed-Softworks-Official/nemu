@@ -11,7 +11,7 @@ export default function DashboardContainer({
     children: React.ReactNode
 }) {
     return (
-        <main className="py-14 justify-around mr-24 ml-[26rem]">
+        <main className="py-14 justify-around w-[80%]">
             <div className="dark:bg-fullblack bg-fullwhite p-10 mx-auto rounded-3xl">
                 <div className="pb-10">
                     <h1 className="font-bold text-2xl text-center">{title}</h1>
