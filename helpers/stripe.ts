@@ -153,12 +153,14 @@ export async function StripeGetRawProductInfo(
  * Creates a stripe checkout session for a given product
  *
  * @param {Stripe.Product} product - The product to get the stripe
- * @param {string} stripe_account
+ * @param {string} stripe_account - The stripe account for the product
+ * @param {string} customer_id - The stripe customer id for the customer
  * @returns A stripe checkout session
  */
 export async function StripeGetPurchasePage(
     product: Stripe.Product,
     stripe_account: string,
+    customer_id: string,
     amount: number
 ) {
     const artist = await prisma.artist.findFirst({
@@ -180,6 +182,7 @@ export async function StripeGetPurchasePage(
             payment_intent_data: {
                 application_fee_amount: application_fee
             },
+            customer: customer_id,
             mode: 'payment',
             success_url: `${process.env.BASE_URL}/payments/success`,
             cancel_url: `${process.env.BASE_URL}/@${artist?.handle}`
@@ -313,14 +316,52 @@ export async function StripeGetAccount(stripe_account: string) {
 }
 
 ////////////////////////////////////////////////
+// Customers
+////////////////////////////////////////////////
+
+/**
+ * Creates a new customer in Stripe for the given stripe account
+ * 
+ * @param {string} stripe_account - The stripe account to create the stripe customer
+ * @param {string} name - The name of the new customer
+ * @param {string} user_id - The user id of the customer
+ * @param {string | undefined} email - The email of the customer if available
+ * @returns A Stripe customer object
+ */
+export async function StripeCreateCustomer(
+    stripe_account: string,
+    name: string,
+    email?: string
+) {
+    return await stripe.customers.create(
+        {
+            name: name,
+            email: email,
+        },
+        { stripeAccount: stripe_account }
+    )
+}
+
+/**
+ * Gets a Stripe customer given a stripe account
+ * 
+ * @param {string} stripe_account - The stripe account to search within
+ * @param {string} customer_id - The customer id of the user 
+ * @returns A Stripe customer object
+ */
+export async function StripeGetCustomer(stripe_account: string, customer_id: string) {
+    return await stripe.customers.retrieve(customer_id, { stripeAccount: stripe_account })
+}
+
+////////////////////////////////////////////////
 // Wehhooks
 ////////////////////////////////////////////////
 
 /**
  * Creates a stripe wehbook event
- * 
+ *
  * @param {string | Buffer} payload  - The body of the request
- * @param {string | Buffer | string[]} header - The header to look for 
+ * @param {string | Buffer | string[]} header - The header to look for
  * @returns a webhook event from stripe
  */
 export function StripeGetWebhookEvent(

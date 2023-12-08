@@ -23,7 +23,7 @@ export default function DashboardArtistSection() {
                         pathname == '/dashboard'
                             ? 'bg-primary text-white'
                             : 'hover:bg-primary/60',
-                        'p-4 px-10 rounded-3xl'
+                        'p-4 px-10 rounded-xl'
                     )}
                 >
                     <HomeIcon className="sidenav-icon" />
@@ -37,7 +37,7 @@ export default function DashboardArtistSection() {
                         pathname.includes('commissions')
                             ? 'bg-primary text-white'
                             : 'hover:bg-primary/60',
-                        'p-4 px-10 rounded-3xl'
+                        'p-4 px-10 rounded-xl'
                     )}
                 >
                     <RectangleStackIcon className="sidenav-icon" />
@@ -53,7 +53,7 @@ export default function DashboardArtistSection() {
                         pathname.includes('shop')
                             ? 'bg-primary text-white'
                             : 'hover:bg-primary/60',
-                        'p-4 px-10 rounded-3xl'
+                        'p-4 px-10 rounded-xl'
                     )}
                 >
                     <BuildingStorefrontIcon className="sidenav-icon" />
@@ -69,7 +69,7 @@ export default function DashboardArtistSection() {
                         pathname.includes('portfolio')
                             ? 'bg-primary text-white'
                             : 'hover:bg-primary/60',
-                        'p-4 px-10 rounded-3xl'
+                        'p-4 px-10 rounded-xl'
                     )}
                 >
                     <PhotoIcon className="sidenav-icon" />

@@ -12,7 +12,10 @@ import { StripeAccountResponse } from '@/helpers/api/request-inerfaces'
 export default function DashboardArtistManagmentSection() {
     const { userId } = useDashboardContext()
 
-    const { data: stripe_account } = useSWR<StripeAccountResponse>(`/api/stripe/${userId}/`, fetcher)
+    const { data: stripe_account } = useSWR<StripeAccountResponse>(
+        `/api/stripe/${userId}/`,
+        fetcher
+    )
 
     return (
         <>
@@ -21,7 +24,7 @@ export default function DashboardArtistManagmentSection() {
                     <Link
                         href={`${stripe_account.dashboard_url}`}
                         target="_blank"
-                        className="p-4 px-10 hover:bg-primary/60 rounded-3xl"
+                        className="p-4 px-10 hover:bg-primary/60 rounded-xl"
                     >
                         <CurrencyDollarIcon className="sidenav-icon" />
                         <h3 className="inline text-lg font-bold">Merchant&apos;s Home</h3>

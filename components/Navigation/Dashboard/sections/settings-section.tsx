@@ -20,7 +20,7 @@ export default function DashboardSettingsSection() {
                             pathname.includes('messages')
                                 ? 'bg-primary text-white'
                                 : 'hover:bg-primary/60',
-                            'p-4 px-10 rounded-3xl'
+                            'p-4 px-10 rounded-xl'
                         )}
                     >
                         <PaintBrushIcon className="sidenav-icon" />
@@ -35,7 +35,7 @@ export default function DashboardSettingsSection() {
                         pathname.includes('settings')
                             ? 'bg-primary text-white'
                             : 'hover:bg-primary/60',
-                        'p-4 px-10 rounded-3xl'
+                        'p-4 px-10 rounded-xl'
                     )}
                 >
                     <Cog6ToothIcon className="sidenav-icon" />

@@ -7,6 +7,7 @@ import classNames from '@/helpers/classnames'
 import { useDashboardContext } from '../dashboard-context'
 
 import {
+    ArrowDownTrayIcon,
     EnvelopeIcon, StarIcon
 } from '@heroicons/react/20/solid'
 import DashboardArtistManagmentSection from './artist-managment-section'
@@ -20,12 +21,26 @@ export default function DashboardUserSection() {
             {handle && <DashboardArtistManagmentSection />}
             <li className="my-2">
                 <Link
+                    href={'/dashboard/downloads'}
+                    className={classNames(
+                        pathname.includes('downloads')
+                            ? 'bg-primary text-white'
+                            : 'hover:bg-primary/60',
+                        'p-4 px-10 rounded-xl'
+                    )}
+                >
+                    <ArrowDownTrayIcon className="sidenav-icon" />
+                    <h3 className="inline text-lg font-bold">Downloads</h3>
+                </Link>
+            </li>
+            <li className="my-2">
+                <Link
                     href={'/dashboard/favourites'}
                     className={classNames(
                         pathname.includes('favourites')
                             ? 'bg-primary text-white'
                             : 'hover:bg-primary/60',
-                        'p-4 px-10 rounded-3xl'
+                        'p-4 px-10 rounded-xl'
                     )}
                 >
                     <StarIcon className="sidenav-icon" />
@@ -39,7 +54,7 @@ export default function DashboardUserSection() {
                         pathname.includes('messages')
                             ? 'bg-primary text-white'
                             : 'hover:bg-primary/60',
-                        'p-4 px-10 rounded-3xl'
+                        'p-4 px-10 rounded-xl'
                     )}
                 >
                     <EnvelopeIcon className="sidenav-icon" />

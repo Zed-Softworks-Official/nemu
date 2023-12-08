@@ -1,12 +1,19 @@
 import { NextResponse } from 'next/server'
 
-import { StripeGetPriceInfo, StripeGetPurchasePage, StripeGetRawProductInfo } from '@/helpers/stripe'
+import {
+    StripeCreateCustomer,
+    StripeGetCustomer,
+    StripeGetPriceInfo,
+    StripeGetPurchasePage,
+    StripeGetRawProductInfo
+} from '@/helpers/stripe'
 import {
     NemuResponse,
     PurchasePageData,
     StatusCode
 } from '@/helpers/api/request-inerfaces'
 import { prisma } from '@/lib/prisma'
+import Stripe from 'stripe'
 
 export async function POST(req: Request) {
     const formData = await req.formData()
@@ -29,10 +36,52 @@ export async function POST(req: Request) {
     const product = await StripeGetRawProductInfo(data.product_id, data.stripe_account)
 
     // Get Price
-    const price = (await StripeGetPriceInfo(product.default_price?.toString()!, data.stripe_account)).unit_amount
+    const price = (
+        await StripeGetPriceInfo(product.default_price?.toString()!, data.stripe_account)
+    ).unit_amount
+
+    // Get the customer user from our database
+    const user = await prisma.user.findFirst({
+        where: {
+            id: data.user_id
+        }
+    })
+
+    let customer: Stripe.Customer | undefined
+
+    // Get the customer id if they have one
+    if (!user?.customer_id) {
+        // Create on if they dont
+        customer = await StripeCreateCustomer(
+            data.stripe_account,
+            user?.name!,
+            user?.id!,
+            user?.email as string | undefined
+        )
+
+        // Update the user with their customer id
+        await prisma.user.update({
+            where: {
+                id: data.user_id
+            },
+            data: {
+                customer_id: customer.id
+            }
+        })
+    } else {
+        customer = (await StripeGetCustomer(
+            data.stripe_account,
+            user.customer_id
+        )) as Stripe.Customer
+    }
 
     // Create checkout session
-    const checkout_session = await StripeGetPurchasePage(product, data.stripe_account, price!)
+    const checkout_session = await StripeGetPurchasePage(
+        product,
+        data.stripe_account,
+        customer?.id!,
+        price!
+    )
 
     // Redirect User
     return NextResponse.redirect(checkout_session.url!, StatusCode.Redirect)

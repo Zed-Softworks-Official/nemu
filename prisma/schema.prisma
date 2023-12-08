@@ -105,6 +105,7 @@ model User {
   emailVerified DateTime?
   image         String?
   role          Int?
+  customer_id   String?
 
   accounts  Account[]
   sessions  Session[]

@@ -21,9 +21,9 @@ export default function DashboardContainer({
                     <div className="absolute bottom-20 right-20">
                         <Link
                             href={addButtonUrl}
-                            className="bg-gradient-to-r from-primarylight to-primary/80 px-5 py-10 rounded-3xl hover:from-primarylight/80 hover:to-primary/60"
+                            className="btn btn-square btn-primary btn-lg"
                         >
-                            <PlusCircleIcon className="w-14 h-14 inline " />
+                            <PlusCircleIcon className="w-10 h-10 inline " />
                         </Link>
                     </div>
                 )}
