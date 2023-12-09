@@ -182,6 +182,10 @@ export async function StripeGetPurchasePage(
             payment_intent_data: {
                 application_fee_amount: application_fee
             },
+            metadata: {
+                stripe_account: stripe_account,
+                product_id: product.id
+            },
             customer: customer_id,
             mode: 'payment',
             success_url: `${process.env.BASE_URL}/payments/success`,

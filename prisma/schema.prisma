@@ -137,6 +137,7 @@ model Purchased {
   userId      String @db.ObjectId
   customerId  String
   productId   String
+  stripeAccId String
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

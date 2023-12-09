@@ -43,7 +43,8 @@ export async function POST(req: Request) {
                         data: {
                             userId: user?.id!,
                             customerId: user?.customer_id!,
-                            productId: checkout_session.payment_intent?.toString()!,
+                            productId: checkout_session.metadata?.product_id!,
+                            stripeAccId: checkout_session.metadata?.stripe_account!
                         }
                     })
                 }
