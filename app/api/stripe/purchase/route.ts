@@ -55,7 +55,7 @@ export async function POST(req: Request) {
         customer = await StripeCreateCustomer(
             data.stripe_account,
             user?.name!,
-            user?.email as string | undefined
+            user?.email ? user.email : undefined
         )
 
         // Update the user with their customer id
