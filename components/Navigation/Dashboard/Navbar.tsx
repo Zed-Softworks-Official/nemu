@@ -1,10 +1,11 @@
 import Logo from '../standard/logo'
+import HomeSection from './sections/home-section'
+
+import { Bars3Icon } from '@heroicons/react/20/solid'
 
 import DashboardUserSection from '@/components/navigation/dashboard/sections/user-section'
 import DashboardArtistSection from '@/components/navigation/dashboard/sections/artist-section'
 import DashboardSettingsSection from '@/components/navigation/dashboard/sections/settings-section'
-import { Bars3Icon, PaintBrushIcon } from '@heroicons/react/20/solid'
-import HomeSection from './sections/home-section'
 
 export default function Navbar({ children }: { children: React.ReactNode }) {
     return (
