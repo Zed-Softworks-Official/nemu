@@ -1,9 +1,11 @@
 import Logo from '../standard/logo'
+import HomeSection from './sections/home-section'
+
+import { Bars3Icon } from '@heroicons/react/20/solid'
 
 import DashboardUserSection from '@/components/navigation/dashboard/sections/user-section'
 import DashboardArtistSection from '@/components/navigation/dashboard/sections/artist-section'
 import DashboardSettingsSection from '@/components/navigation/dashboard/sections/settings-section'
-import { Bars3Icon } from '@heroicons/react/20/solid'
 
 export default function Navbar({ children }: { children: React.ReactNode }) {
     return (
@@ -14,7 +16,7 @@ export default function Navbar({ children }: { children: React.ReactNode }) {
                     htmlFor="nemu-drawer"
                     className="btn btn-primary drawer-button lg:hidden mt-5"
                 >
-                    <Bars3Icon className='text-white w-6 h-6 inline-block' />
+                    <Bars3Icon className="text-white w-6 h-6 inline-block" />
                     Menu
                 </label>
                 {children}
@@ -30,10 +32,34 @@ export default function Navbar({ children }: { children: React.ReactNode }) {
                         <Logo />
                     </li>
                     <hr className="seperation" />
-                    <DashboardArtistSection />
+                    <HomeSection />
+                    <div className="collapse collapse-arrow bg-base-200">
+                        <input
+                            type="radio"
+                            name="dashboard-nav-accordian"
+                            title="artist sections"
+                        />
+                        <div className="collapse-title text-xl font-medium">
+                            Artist Sections
+                        </div>
+                        <div className="collapse-content">
+                            <DashboardArtistSection />
+                        </div>
+                    </div>
                     <hr className="seperation" />
-                    <DashboardUserSection />
-                    <hr className="seperation" />
+
+                    <div className="collapse collapse-arrow bg-base-200">
+                        <input
+                            type="radio"
+                            name="dashboard-nav-accordian"
+                            title="Profile"
+                        />
+                        <div className="collapse-title text-xl font-medium">Profile</div>
+                        <div className="collapse-content">
+                            <DashboardUserSection />
+                        </div>
+                    </div>
+
                     <DashboardSettingsSection />
                 </ul>
             </div>
