@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { StripeGetWebhookEvent as StripeStripeWebhookEvent } from '@/helpers/stripe'
 import { NemuResponse, StatusCode } from '@/helpers/api/request-inerfaces'
+import { prisma } from '@/lib/prisma'
 
 export async function POST(req: Request) {
     const sig = req.headers.get('stripe-signature')
@@ -12,8 +13,6 @@ export async function POST(req: Request) {
             message: 'Invalid request body'
         })
     }
-
-    console.log(sig)
 
     let event
     try {
@@ -32,7 +31,21 @@ export async function POST(req: Request) {
             {
                 const checkout_session = event.data.object
                 if (checkout_session.payment_status === 'paid') {
-                    
+                    // Get user from customer id
+                    const user = await prisma.user.findFirst({
+                        where: {
+                            customer_id: checkout_session.customer?.toString()
+                        }
+                    })
+
+                    // Create purchased object in the db
+                    await prisma.purchased.create({
+                        data: {
+                            userId: user?.id!,
+                            customerId: user?.customer_id!,
+                            productId: checkout_session.payment_intent?.toString()!,
+                        }
+                    })
                 }
             }
             break

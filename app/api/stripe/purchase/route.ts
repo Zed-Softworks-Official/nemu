@@ -55,7 +55,6 @@ export async function POST(req: Request) {
         customer = await StripeCreateCustomer(
             data.stripe_account,
             user?.name!,
-            user?.id!,
             user?.email as string | undefined
         )
 
