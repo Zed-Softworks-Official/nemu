@@ -59,6 +59,16 @@ export interface PurchasePageData {
     user_id: string
 }
 
+/**
+ * 
+ */
+export interface DownloadData {
+    name: string
+    artist: string
+    price: number
+    url: string
+}
+
 
 /////////////////////////////////////////////
 // API
@@ -204,4 +214,8 @@ export interface StripeAccountResponse extends NemuResponse {
 
 export interface UserResponse extends NemuResponse {
     info?: User | null
+}
+
+export interface DownloadsResponse extends NemuResponse {
+    downloads?: DownloadData[]
 }

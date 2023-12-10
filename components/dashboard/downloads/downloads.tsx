@@ -1,6 +1,24 @@
 'use client'
 
+import useSWR from 'swr'
+import { fetcher } from '@/helpers/fetcher'
+import { useSession } from 'next-auth/react'
+
+import { DownloadsResponse } from '@/helpers/api/request-inerfaces'
+import Link from 'next/link'
+import Loading from '@/components/loading'
+
 export default function DownloadsList() {
+    const { data: session } = useSession()
+    const { data, isLoading } = useSWR<DownloadsResponse>(
+        `/api/user/${session?.user.user_id}/downloads`,
+        fetcher
+    )
+
+    if (isLoading) {
+        return <Loading />
+    }
+
     return (
         <div className="overflow-x-auto w-full rounded-xl">
             <table className="table table-zebra">
@@ -11,16 +29,22 @@ export default function DownloadsList() {
                     <th>Download</th>
                 </thead>
                 <tbody>
-                    <tr>
-                        <td>Test Item</td>
-                        <td>JackSchitt404</td>
-                        <td>$20.00</td>
-                        <td>
-                            <button type="button" className="btn btn-primary">
-                                Download
-                            </button>
-                        </td>
-                    </tr>
+                    {data?.downloads?.map((download) => (
+                        <tr key={download.name}>
+                            <td>{download.name}</td>
+                            <td>{download.artist}</td>
+                            <td>${download.price}</td>
+                            <td>
+                                <Link
+                                    href={download.url}
+                                    className="btn btn-primary"
+                                    download
+                                >
+                                    Download
+                                </Link>
+                            </td>
+                        </tr>
+                    ))}
                 </tbody>
             </table>
         </div>
