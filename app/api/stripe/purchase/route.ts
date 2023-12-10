@@ -50,13 +50,28 @@ export async function POST(req: Request) {
         }
     })
 
-    // Get the user and their customer ids
-    const customer_id = await prisma.purchased.findFirst({
+    // If the user has already tried to purcahse the item then retrieve it
+    let customer_id = await prisma.purchased.findFirst({
         where: {
             userId: data.user_id,
+            productId: data.product_id,
             stripeAccId: data.stripe_account
         }
     })
+
+    // If we don't find a customerId from previous purchases then they are trying to purchase it for the first time
+    let first_attempt = false
+    if (!customer_id) {
+        // Get the user and their customer ids
+        customer_id = await prisma.purchased.findFirst({
+            where: {
+                userId: data.user_id,
+                stripeAccId: data.stripe_account
+            }
+        })
+
+        first_attempt = true
+    }
 
     // Get the customer ID if they have one for the current stripe account
     let customer: Stripe.Customer | undefined
@@ -74,21 +89,24 @@ export async function POST(req: Request) {
         )) as Stripe.Customer
     }
 
-    // Update the user with their customer id
-    await prisma.user.update({
-        where: {
-            id: data.user_id
-        },
-        data: {
-            purchased: {
-                create: {
-                    productId: data.product_id!,
-                    stripeAccId: data.stripe_account!,
-                    customerId: customer.id
+    // If this is the customers first attempt make the purchased object in our db
+    if (first_attempt) {
+        // Update the user with their customer id
+        await prisma.user.update({
+            where: {
+                id: data.user_id
+            },
+            data: {
+                purchased: {
+                    create: {
+                        productId: data.product_id!,
+                        stripeAccId: data.stripe_account!,
+                        customerId: customer.id
+                    }
                 }
             }
-        }
-    })
+        })
+    }
 
     // Create checkout session
     const checkout_session = await StripeGetPurchasePage(
