@@ -161,6 +161,7 @@ export async function StripeGetPurchasePage(
     product: Stripe.Product,
     stripe_account: string,
     customer_id: string,
+    user_id: string,
     amount: number
 ) {
     const artist = await prisma.artist.findFirst({
@@ -184,7 +185,8 @@ export async function StripeGetPurchasePage(
             },
             metadata: {
                 stripe_account: stripe_account,
-                product_id: product.id
+                product_id: product.id,
+                user_id: user_id
             },
             customer: customer_id,
             mode: 'payment',

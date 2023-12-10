@@ -34,17 +34,26 @@ export async function POST(req: Request) {
                     // Get user from customer id
                     const user = await prisma.user.findFirst({
                         where: {
-                            customer_id: checkout_session.customer?.toString()
+                            id: checkout_session.metadata?.user_id!
                         }
                     })
 
-                    // Create purchased object in the db
-                    await prisma.purchased.create({
+                    const purchased = await prisma.purchased.findFirst({
+                        where: {
+                            userId: user?.id,
+                            customerId: checkout_session.customer?.toString(),
+                            productId: checkout_session.metadata?.product_id,
+                            stripeAccId: checkout_session.metadata?.stripe_account
+                        }
+                    })
+
+                    // Update user with new purchase
+                    await prisma.purchased.update({
+                        where: {
+                            id: purchased?.id
+                        },
                         data: {
-                            userId: user?.id!,
-                            customerId: user?.customer_id!,
-                            productId: checkout_session.metadata?.product_id!,
-                            stripeAccId: checkout_session.metadata?.stripe_account!
+                            complete: true
                         }
                     })
                 }

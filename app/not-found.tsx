@@ -1,6 +1,6 @@
-import Image from 'next/image'
 import DefaultPageLayout from './(default)/layout'
 import { Metadata } from 'next'
+import NemuImage from '@/components/nemu-image'
 
 export const metadata: Metadata = {
     title: 'Nemu | Oh Nyo!'
@@ -11,7 +11,7 @@ export default function NotFound() {
         <DefaultPageLayout>
             <div className="flex flex-col justify-center items-center text-center">
                 <div>
-                    <Image
+                    <NemuImage
                         src={'/nemu/this-is-fine.png'}
                         alt="This is fine"
                         width={300}

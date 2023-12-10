@@ -105,13 +105,12 @@ model User {
   emailVerified DateTime?
   image         String?
   role          Int?
-  customer_id   String?
 
   accounts  Account[]
   sessions  Session[]
-  Social    Social[]
-  Artist    Artist?
-  Purchased Purchased[]
+  social    Social[]
+  artist    Artist?
+  purchased Purchased[]
 }
 
 model VerificationToken {
@@ -133,11 +132,12 @@ model Social {
 }
 
 model Purchased {
-  id          String @id @default(auto()) @map("_id") @db.ObjectId
-  userId      String @db.ObjectId
+  id          String  @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String  @db.ObjectId
   customerId  String
   productId   String
   stripeAccId String
+  complete    Boolean @default(false)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

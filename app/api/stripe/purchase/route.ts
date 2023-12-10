@@ -44,41 +44,58 @@ export async function POST(req: Request) {
     const user = await prisma.user.findFirst({
         where: {
             id: data.user_id
+        },
+        include: {
+            purchased: true
         }
     })
 
-    let customer: Stripe.Customer | undefined
+    // Get the user and their customer ids
+    const customer_id = await prisma.purchased.findFirst({
+        where: {
+            userId: data.user_id,
+            stripeAccId: data.stripe_account
+        }
+    })
 
-    // Get the customer id if they have one
-    if (!user?.customer_id) {
+    // Get the customer ID if they have one for the current stripe account
+    let customer: Stripe.Customer | undefined
+    if (!customer_id) {
         // Create on if they dont
         customer = await StripeCreateCustomer(
             data.stripe_account,
             user?.name!,
             user?.email ? user.email : undefined
         )
-
-        // Update the user with their customer id
-        await prisma.user.update({
-            where: {
-                id: data.user_id
-            },
-            data: {
-                customer_id: customer.id
-            }
-        })
     } else {
         customer = (await StripeGetCustomer(
             data.stripe_account,
-            user.customer_id
+            customer_id.customerId
         )) as Stripe.Customer
     }
+
+    // Update the user with their customer id
+    await prisma.user.update({
+        where: {
+            id: data.user_id
+        },
+        data: {
+            purchased: {
+                create: {
+                    productId: data.product_id!,
+                    stripeAccId: data.stripe_account!,
+                    customerId: customer.id
+                }
+            }
+        }
+    })
 
     // Create checkout session
     const checkout_session = await StripeGetPurchasePage(
         product,
         data.stripe_account,
         customer?.id!,
+        data.user_id,
         price!
     )
 

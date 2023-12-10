@@ -8,31 +8,41 @@ import { prisma } from '@/lib/prisma'
 import { StripeGetStoreProductInfo } from '@/helpers/stripe'
 
 export async function GET(req: Request, { params }: { params: { id: string } }) {
-    const db_downloads = await prisma.purchased.findMany({
+    const user = await prisma.user.findFirst({
         where: {
-            userId: params.id
+            id: params.id
+        },
+        include: {
+            purchased: true
         }
     })
 
     const downloads: DownloadData[] = []
-    for (let i = 0; i < db_downloads.length; i++) {
-        const product = await StripeGetStoreProductInfo(
-            db_downloads[i].productId,
-            db_downloads[i].stripeAccId,
-            true
-        )
-        const artist = await prisma.artist.findFirst({
-            where: {
-                stripeAccId: db_downloads[i].stripeAccId
+    if (user?.purchased) {
+        for (let i = 0; i < user?.purchased.length; i++) {
+            if (!user.purchased[i].complete) {
+                break
             }
-        })
 
-        downloads.push({
-            name: product.name!,
-            price: product.price,
-            artist: artist?.handle!,
-            url: product.asset!
-        })
+            const product = await StripeGetStoreProductInfo(
+                user?.purchased[i].productId,
+                user?.purchased[i].stripeAccId,
+                true
+            )
+
+            const artist = await prisma.artist.findFirst({
+                where: {
+                    stripeAccId: user.purchased[i].stripeAccId
+                }
+            })
+
+            downloads.push({
+                name: product.name!,
+                price: product.price,
+                artist: artist?.handle!,
+                url: product.asset!
+            })
+        }
     }
 
     return NextResponse.json<DownloadsResponse>({
