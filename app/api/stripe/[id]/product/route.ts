@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 
-import { AWSLocations, S3Upload } from '@/helpers/s3'
+import { AWSLocations, RandomNameWithExtension, S3Upload } from '@/helpers/s3'
 import { StripeCreateStoreProduct, StripeGetStoreProductInfo } from '@/helpers/stripe'
 import { NemuResponse, StatusCode, ShopResponse } from '@/helpers/api/request-inerfaces'
 
@@ -30,7 +30,10 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     )
 
     // Upload Asset File
-    const asset = crypto.randomUUID()
+    const asset = RandomNameWithExtension(data.get('download_file') as File, [
+        'application/zip',
+        'application/x-zip-compressed'
+    ])
     await S3Upload(
         artist?.handle!,
         AWSLocations.StoreDownload,

@@ -141,7 +141,8 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     if (new_download) {
         // Get New Filename
         let filename = RandomNameWithExtension(formData.get('download_file') as File, [
-            'application/zip'
+            'application/zip',
+            'application/x-zip-compressed'
         ])
 
         // Check if new file name is of the correct type
@@ -182,7 +183,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
                 artist?.handle!,
                 AWSLocations.StoreDownload,
                 formData.get('download_file') as File,
-                crypto.randomUUID()
+                new_metadata.asset
             )
         }
 
