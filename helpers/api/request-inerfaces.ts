@@ -47,6 +47,30 @@ export interface ShopItem {
 }
 
 /**
+ * Handles a commissions availability
+ */
+export enum CommissionAvailability {
+    Closed,
+    Waitlist,
+    Open
+}
+
+export interface CommissionItem {
+    name: string
+    description: string
+    price: number
+
+    rush: boolean
+
+    featured_image: string
+    availability: CommissionAvailability
+
+    images?: string[]
+    prod_id?: string
+    slug?: string
+}
+
+/**
  * PurchasePageData
  * Handles the main information for the purchase page
  *
@@ -60,7 +84,13 @@ export interface PurchasePageData {
 }
 
 /**
- * 
+ * Download Data
+ * Holds information about a download
+ *
+ * @prop {string} name - The name of the download
+ * @prop {string} artist - The artist handle the download is from
+ * @prop {number} price - The price of the download from the product page
+ * @prop {string} url - The url of where to download the item
  */
 export interface DownloadData {
     name: string
@@ -68,7 +98,6 @@ export interface DownloadData {
     price: number
     url: string
 }
-
 
 /////////////////////////////////////////////
 // API
@@ -88,7 +117,6 @@ export enum StatusCode {
     InternalError = 500,
     NotImplemented = 501
 }
-
 
 /////////////////////////////////////////////
 // API Requests
@@ -173,8 +201,19 @@ export interface PortfolioResponse extends NemuResponse {
     items?: PortfolioItem[] | null
 }
 
+/**
+ * RandomArtistsResponse
+ * Gets a random array of artists
+ *
+ * @prop {Artist[] | undefined} artists - Array of a certain number of random artists
+ */
 export interface RandomArtistsResponse extends NemuResponse {
     artists?: Artist[]
+}
+
+export interface CommissionResponse extends NemuResponse {
+    commission?: CommissionItem
+    commissions?: CommissionItem[]
 }
 
 /////////////////////////////////////////////
@@ -212,10 +251,22 @@ export interface StripeAccountResponse extends NemuResponse {
 // User API Responses
 /////////////////////////////////////////////
 
+/**
+ * UserResponse
+ * Handles information about the user
+ *
+ * @prop {User | null | undefined} info - The information on the user
+ */
 export interface UserResponse extends NemuResponse {
     info?: User | null
 }
 
+/**
+ * DownloadsResponse
+ * Handles distribution of Download data
+ *
+ * @prop {DownloadData[] | undefined} downloads - The data of the downloads
+ */
 export interface DownloadsResponse extends NemuResponse {
     downloads?: DownloadData[]
 }

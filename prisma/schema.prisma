@@ -53,7 +53,8 @@ model Artist {
   headerPhoto  String
   profilePhoto String
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  commissions Commission[]
 }
 
 model StoreItem {
@@ -140,4 +141,12 @@ model Purchased {
   complete    Boolean @default(false)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Commission {
+  id        String @id @default(auto()) @map("_id") @db.ObjectId
+  artistId  String @db.ObjectId
+  productId String
+
+  artist    Artist   @relation(fields: [artistId], references: [id], onDelete: Cascade)
 }

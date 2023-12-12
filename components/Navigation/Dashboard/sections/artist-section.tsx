@@ -17,7 +17,7 @@ export default function DashboardArtistSection() {
         <>
             <li className='my-2'>
                 <Link
-                    href={'/commissions'}
+                    href={'/dashboard/commissions'}
                     className={classNames(
                         pathname.includes('commissions')
                             ? 'bg-primary text-white'
