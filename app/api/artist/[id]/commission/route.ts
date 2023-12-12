@@ -36,7 +36,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 
                 images: ['/nemu/artists-wanted.png', '/nemu/this-is-fine.png'],
                 prod_id: '231241',
-                slug: 'commissions'
+                slug: 'sparkles'
             },
             {
                 name: 'Waitlist Commission',
@@ -50,7 +50,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 
                 images: ['/nemu/sparkles.png', '/nemu/artists-wanted.png'],
                 prod_id: '231241',
-                slug: 'commissions'
+                slug: 'this-is-fine'
             },
             {
                 name: 'Another Commission',
@@ -64,7 +64,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 
                 images: ['/nemu/sparkles.png', '/nemu/this-is-fine.png'],
                 prod_id: '231241',
-                slug: 'commissions'
+                slug: 'artists-wanted'
             }
         ]
     })

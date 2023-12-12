@@ -21,7 +21,7 @@ export default function ArtistBody({ artist_info }: { artist_info: Artist }) {
                 return (
                     <div>
                         <h1 className="font-bold text-2xl">Commissions</h1>
-                        <Commissions user_id={artist_info.userId} />
+                        <Commissions user_id={artist_info.userId} terms={artist_info.terms} />
                     </div>
                 )
             case 1:

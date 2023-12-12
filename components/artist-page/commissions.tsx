@@ -11,8 +11,9 @@ import {
     CommissionResponse
 } from '@/helpers/api/request-inerfaces'
 import NemuImage from '@/components/nemu-image'
+import CommissionsDisplay from './commissions-display'
 
-export default function Commissions({ user_id }: { user_id: string }) {
+export default function Commissions({ user_id, terms }: { user_id: string, terms: string }) {
     const { data: session } = useSession()
     const { data, isLoading } = useSWR<CommissionResponse>(
         `/api/artist/${session?.user.user_id}/commission`,
@@ -54,9 +55,31 @@ export default function Commissions({ user_id }: { user_id: string }) {
                         <p>{commission.description}</p>
                         <div className="card-actions justify-end">
                             <p className="font-bold text-2xl">${commission.price}</p>
-                            <button type="button" className="btn btn-primary" disabled={commission.availability == CommissionAvailability.Closed}>
+                            <button
+                                type="button"
+                                className="btn btn-primary"
+                                disabled={
+                                    commission.availability ==
+                                    CommissionAvailability.Closed
+                                }
+                                onClick={() =>
+                                    (
+                                        document.getElementById(
+                                            `modal-${commission.slug}`
+                                        ) as HTMLDialogElement
+                                    ).showModal()
+                                }
+                            >
                                 View Commission
                             </button>
+                            <dialog id={`modal-${commission.slug}`} className="modal">
+                                <div className="modal-box max-w-6xl">
+                                    <CommissionsDisplay commission={commission} terms={terms} />
+                                </div>
+                                <form method="dialog" className="modal-backdrop">
+                                    <button>close</button>
+                                </form>
+                            </dialog>
                         </div>
                     </div>
                 </div>
