@@ -37,6 +37,34 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
                 images: ['/nemu/artists-wanted.png', '/nemu/this-is-fine.png'],
                 prod_id: '231241',
                 slug: 'commissions'
+            },
+            {
+                name: 'Waitlist Commission',
+                description: 'Wow this is really something huh',
+                price: 120,
+
+                rush: false,
+
+                featured_image: '/nemu/this-is-fine.png',
+                availability: CommissionAvailability.Waitlist,
+
+                images: ['/nemu/sparkles.png', '/nemu/artists-wanted.png'],
+                prod_id: '231241',
+                slug: 'commissions'
+            },
+            {
+                name: 'Another Commission',
+                description: 'This is a pretty cool description',
+                price: 250,
+
+                rush: false,
+
+                featured_image: '/nemu/artists-wanted.png',
+                availability: CommissionAvailability.Closed,
+
+                images: ['/nemu/sparkles.png', '/nemu/this-is-fine.png'],
+                prod_id: '231241',
+                slug: 'commissions'
             }
         ]
     })

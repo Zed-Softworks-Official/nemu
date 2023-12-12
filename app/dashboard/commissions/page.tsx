@@ -1,4 +1,4 @@
-import Commissions from '@/components/dashboard/commissions/commissions'
+import Commissions from '@/components/artist-page/commissions'
 import DashboardContainer from '@/components/dashboard/dashboard-container'
 
 export default function CommissionsPage() {
@@ -7,7 +7,7 @@ export default function CommissionsPage() {
             title="Commissions"
             addButtonUrl="/commissions/add"
         >
-            <Commissions />
+            <h1>Comss</h1>
         </DashboardContainer>
     )
 }

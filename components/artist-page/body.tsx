@@ -10,6 +10,7 @@ import Portfolio from './portfolio'
 import { useTabsContext } from './tabs-context'
 import { Artist } from '@prisma/client'
 import Shop from './shop'
+import Commissions from './commissions'
 
 export default function ArtistBody({ artist_info }: { artist_info: Artist }) {
     const { currentIndex } = useTabsContext()
@@ -19,7 +20,8 @@ export default function ArtistBody({ artist_info }: { artist_info: Artist }) {
             case 0:
                 return (
                     <div>
-                        <h1 className="font-bold text-2xl">Commission</h1>
+                        <h1 className="font-bold text-2xl">Commissions</h1>
+                        <Commissions user_id={artist_info.userId} />
                     </div>
                 )
             case 1:
