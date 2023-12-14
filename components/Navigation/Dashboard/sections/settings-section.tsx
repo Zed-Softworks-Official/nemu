@@ -16,12 +16,7 @@ export default function DashboardSettingsSection() {
                 <li className="my-2">
                     <Link
                         href={`/@${handle}`}
-                        className={classNames(
-                            pathname.includes('messages')
-                                ? 'bg-primary text-white'
-                                : 'hover:bg-primary/60',
-                            'p-4 px-10 rounded-xl'
-                        )}
+                        className={'hover:bg-primary/60 p-4 px-10 rounded-xl'}
                     >
                         <PaintBrushIcon className="sidenav-icon" />
                         <h3 className="inline text-lg font-bold">My Page</h3>

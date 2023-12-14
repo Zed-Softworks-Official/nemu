@@ -29,7 +29,7 @@ export default function CommissionsDisplay({
     }
 
     return (
-        <div className="grid grid-cols-3 gap-5">
+        <div className="grid md:grid-cols-3 grid-cols-1 gap-5">
             <div className="bg-base-300 rounded-xl overflow-hidden">
                 <NemuImage src={currentImage} alt={'Image'} width={500} height={500} />
                 <div className="grid grid-cols-3 mt-5 gap-5">
