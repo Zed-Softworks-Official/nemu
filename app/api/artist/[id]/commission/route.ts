@@ -8,7 +8,8 @@ import {
 } from '@/helpers/api/request-inerfaces'
 
 export async function GET(req: Request, { params }: { params: { id: string } }) {
-    const artist = await prisma.user.findFirst({
+    // Get the artist with all of the commissions available
+    const artist_user = await prisma.user.findFirst({
         where: {
             id: params.id
         },
@@ -21,6 +22,9 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
         }
     })
 
+    // Convert to an array full of commissions
+    
+
     return NextResponse.json<CommissionResponse>({
         status: StatusCode.Success,
         commissions: [
@@ -28,8 +32,6 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
                 name: 'Test Commission',
                 description: 'This is a description',
                 price: 300,
-
-                rush: false,
 
                 featured_image: '/nemu/sparkles.png',
                 availability: CommissionAvailability.Open,
@@ -43,8 +45,6 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
                 description: 'Wow this is really something huh',
                 price: 120,
 
-                rush: false,
-
                 featured_image: '/nemu/this-is-fine.png',
                 availability: CommissionAvailability.Waitlist,
 
@@ -56,8 +56,6 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
                 name: 'Another Commission',
                 description: 'This is a pretty cool description',
                 price: 250,
-
-                rush: false,
 
                 featured_image: '/nemu/artists-wanted.png',
                 availability: CommissionAvailability.Closed,

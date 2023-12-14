@@ -47,7 +47,10 @@ export interface ShopItem {
 }
 
 /**
+ * CommissionAvailability
  * Handles a commissions availability
+ * 
+ * Closed, Waitlist, Open
  */
 export enum CommissionAvailability {
     Closed,
@@ -55,17 +58,37 @@ export enum CommissionAvailability {
     Open
 }
 
+/**
+ * CommissionOrders
+ * Handles the data for a comission order
+ * 
+ * @prop {string} user_id - The user id for the person who commissioned the artist
+ * @prop {string} customer_id - The customer id fro the user
+ * @prop {boolean} rush - Whether it's a rush order
+ */
+export interface CommissionOrders {
+    user_id: string
+    customer_id: string
+    rush: boolean
+}
+
+/**
+ * CommissionItem
+ * Handles data for commissions
+ * 
+ * 
+ */
 export interface CommissionItem {
     name: string
     description: string
     price: number
 
-    rush: boolean
-
     featured_image: string
     availability: CommissionAvailability
 
     images?: string[]
+    orders?: CommissionOrders[] 
+
     prod_id?: string
     slug?: string
 }
