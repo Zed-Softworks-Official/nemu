@@ -1,5 +1,6 @@
 import React from 'react'
 import DashboardContainer from '@/components/dashboard/dashboard-container'
+import Kanban from '@/components/dashboard/kanban/kanban'
 
 export default function Dashboard() {
     return (
@@ -17,6 +18,7 @@ export default function Dashboard() {
             </div>
             <div className="flex flex-col bg-charcoal px-10 py-3 rounded-xl p-5 mt-5">
                 <h1 className="font-bold">Kanban</h1>
+                <Kanban title="Test Commission" client="GnarlyTiger" />
             </div>
         </DashboardContainer>
     )
