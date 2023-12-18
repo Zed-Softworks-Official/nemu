@@ -66,6 +66,7 @@ export default function Kanban({ title, client }: { title: string; client: strin
     const [containerName, setContainerName] = useState('')
     const [itemName, setItemName] = useState('')
     const [showAddContainerModal, setShowAddContainerModal] = useState(false)
+    const [showAddItemModal, setShowAddItemModal] = useState(false)
 
     const sensors = useSensors(
         useSensor(PointerSensor),
@@ -73,6 +74,38 @@ export default function Kanban({ title, client }: { title: string; client: strin
             coordinateGetter: sortableKeyboardCoordinates
         })
     )
+
+    function onAddContainer() {
+        if (!containerName) return
+
+        const id = `container-${uuidv4()}`
+        setContainers([
+            ...containers,
+            {
+                id,
+                title: containerName,
+                items: []
+            }
+        ])
+        setContainerName('')
+        setShowAddContainerModal(false)
+    }
+
+    function onAddItem() {
+        if (!itemName) return
+        const id = `item-${uuidv4()}`
+        const container = containers.find((item) => item.id === currentContainerId)
+
+        if (!container) return
+        container.items.push({
+            id,
+            title: itemName
+        })
+
+        setContainers([...containers])
+        setItemName('')
+        setShowAddItemModal(false)
+    }
 
     function findValueOfItems(
         id: UniqueIdentifier | undefined,
@@ -89,14 +122,14 @@ export default function Kanban({ title, client }: { title: string; client: strin
         }
     }
 
-    const handleDragStart = (event: DragStartEvent) => {
+    function handleDragStart(event: DragStartEvent) {
         const { active } = event
         const { id } = active
 
         setActiveId(id)
     }
 
-    const handleDragMove = (event: DragMoveEvent) => {
+    function handleDragMove(event: DragMoveEvent) {
         const { active, over } = event
 
         // Handle Items Sorting
@@ -190,7 +223,7 @@ export default function Kanban({ title, client }: { title: string; client: strin
         }
     }
 
-    const handleDragEnd = (event: DragEndEvent) => {
+    function handleDragEnd(event: DragEndEvent) {
         const { active, over } = event
 
         // Handling Container Sorting
@@ -289,7 +322,13 @@ export default function Kanban({ title, client }: { title: string; client: strin
                                 id={container.id}
                                 title={container.title}
                                 key={container.id}
-                                onAddItem={() => {}}
+                                onAddItem={() => {
+                                    ;(
+                                        document.getElementById(
+                                            'add_item_modal'
+                                        ) as HTMLDialogElement
+                                    ).showModal()
+                                }}
                             >
                                 <SortableContext items={container.items.map((i) => i.id)}>
                                     {container.items.map((i) => (
@@ -305,6 +344,21 @@ export default function Kanban({ title, client }: { title: string; client: strin
                     </SortableContext>
                 </DndContext>
             </div>
+            <dialog id="add_item_modal" className="modal">
+                <div className="modal-box">
+                    <h3 className="font-bold text-lg">Add Item</h3>
+                    <input
+                        type="text"
+                        className="input input-ghost bg-base-300 w-full"
+                        placeholder="Item Title"
+                        defaultValue={itemName}
+                        onChange={(e) => setItemName(e.currentTarget.value)}
+                    />
+                </div>
+                <form method="dialog" className="modal-backdrop">
+                    <button>close</button>
+                </form>
+            </dialog>
         </>
     )
 }
