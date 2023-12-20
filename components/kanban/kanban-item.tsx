@@ -23,7 +23,7 @@ export default function KanbanItem({ id, title }: ItemsType) {
         })
     return (
         <div
-            className={classNames('card w-96 bg-base-100', isDragging && 'opacity-50')}
+            className={classNames('card w-full bg-base-100', isDragging && 'opacity-50')}
             ref={setNodeRef}
             {...attributes}
             style={{ transition, transform: CSS.Translate.toString(transform) }}

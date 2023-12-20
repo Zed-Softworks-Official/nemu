@@ -1,6 +1,6 @@
 import React from 'react'
 import DashboardContainer from '@/components/dashboard/dashboard-container'
-import Kanban from '@/components/dashboard/kanban/kanban'
+import Kanban from '@/components/kanban/kanban'
 
 export default function Dashboard() {
     return (

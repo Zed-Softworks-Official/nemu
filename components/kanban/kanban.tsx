@@ -23,6 +23,7 @@ import {
 
 import KanbanDroppable from './kanban-container'
 import KanbanItem from './kanban-item'
+import Modal from '../modal'
 
 type DNDType = {
     id: UniqueIdentifier
@@ -305,10 +306,10 @@ export default function Kanban({ title, client }: { title: string; client: strin
         <>
             <div className="flex items-center justify-between gap-y-2">
                 <h1>
-                    {title} form {client}
+                    {title} for {client}
                 </h1>
             </div>
-            <div className="grid grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
                 <DndContext
                     sensors={sensors}
                     collisionDetection={closestCorners}
@@ -323,11 +324,8 @@ export default function Kanban({ title, client }: { title: string; client: strin
                                 title={container.title}
                                 key={container.id}
                                 onAddItem={() => {
-                                    ;(
-                                        document.getElementById(
-                                            'add_item_modal'
-                                        ) as HTMLDialogElement
-                                    ).showModal()
+                                    setShowAddItemModal(true)
+                                    setCurrentContainerId(container.id)
                                 }}
                             >
                                 <SortableContext items={container.items.map((i) => i.id)}>
@@ -344,21 +342,23 @@ export default function Kanban({ title, client }: { title: string; client: strin
                     </SortableContext>
                 </DndContext>
             </div>
-            <dialog id="add_item_modal" className="modal">
-                <div className="modal-box">
-                    <h3 className="font-bold text-lg">Add Item</h3>
-                    <input
-                        type="text"
-                        className="input input-ghost bg-base-300 w-full"
-                        placeholder="Item Title"
-                        defaultValue={itemName}
-                        onChange={(e) => setItemName(e.currentTarget.value)}
-                    />
-                </div>
-                <form method="dialog" className="modal-backdrop">
-                    <button>close</button>
-                </form>
-            </dialog>
+            <Modal showModal={showAddItemModal} setShowModal={setShowAddItemModal}>
+                <h3 className="font-bold text-lg">Add Item</h3>
+                <input
+                    type="text"
+                    className="input input-ghost bg-base-300 w-full"
+                    placeholder="Item Title"
+                    defaultValue={itemName}
+                    onChange={(e) => setItemName(e.currentTarget.value)}
+                />
+                <button
+                    type="button"
+                    className="btn btn-primary w-full"
+                    onClick={onAddItem}
+                >
+                    Add Item
+                </button>
+            </Modal>
         </>
     )
 }
