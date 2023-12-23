@@ -19,7 +19,7 @@ export default function KanbanContainer({
     children: React.ReactNode
     title: string
     description?: string
-    onAddItem: () => void
+    onAddItem?: () => void
 }) {
     const { attributes, setNodeRef, listeners, transform, transition, isDragging } =
         useSortable({

@@ -4,7 +4,6 @@ import useSWR from 'swr'
 import Loading from '@/components/loading'
 
 import { fetcher } from '@/helpers/fetcher'
-import { useSession } from 'next-auth/react'
 
 import {
     CommissionAvailability,
@@ -14,9 +13,8 @@ import NemuImage from '@/components/nemu-image'
 import CommissionsDisplay from './commissions-display'
 
 export default function Commissions({ user_id, terms }: { user_id: string, terms: string }) {
-    const { data: session } = useSession()
     const { data, isLoading } = useSWR<CommissionResponse>(
-        `/api/artist/${session?.user.user_id}/commission`,
+        `/api/artist/${user_id}/commission`,
         fetcher
     )
 

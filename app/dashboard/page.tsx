@@ -16,10 +16,10 @@ export default function Dashboard() {
                     <h1 className="font-bold">Recent Messages</h1>
                 </div>
             </div>
-            <div className="flex flex-col bg-charcoal px-10 py-3 rounded-xl p-5 mt-5">
+            {/* <div className="flex flex-col bg-charcoal px-10 py-3 rounded-xl p-5 mt-5">
                 <h1 className="font-bold">Kanban</h1>
                 <Kanban title="Test Commission" client="GnarlyTiger" />
-            </div>
+            </div> */}
         </DashboardContainer>
     )
 }

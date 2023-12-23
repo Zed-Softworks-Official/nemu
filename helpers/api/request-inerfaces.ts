@@ -1,5 +1,6 @@
 import { Stripe } from 'stripe'
 import { Artist, ArtistVerification, User } from '@prisma/client'
+import { UniqueIdentifier } from '@dnd-kit/core'
 
 /////////////////////////////////////////////
 // Data Structures
@@ -65,18 +66,34 @@ export enum CommissionAvailability {
  * @prop {string} user_id - The user id for the person who commissioned the artist
  * @prop {string} customer_id - The customer id fro the user
  * @prop {boolean} rush - Whether it's a rush order
+ * @prop {KanbanData[]} - Containers for kanban
+ * @prop {string} - The id for the commission order
  */
 export interface CommissionOrders {
     user_id: string
     customer_id: string
     rush: boolean
+
+    containers?: KanbanData[]
+    order_id?: string
 }
 
 /**
  * CommissionItem
  * Handles data for commissions
  * 
+ * @prop {string} name
+ * @prop {string} description
+ * @prop {number} price
  * 
+ * @prop {string} featured_image
+ * @prop {CommissionAvailability} availability
+ * 
+ * @prop {string[] | undefined} images
+ * @prop {CommissionOrders[] | undefined} orders
+ * 
+ * @prop {string} prod_id
+ * @prop {string} slug
  */
 export interface CommissionItem {
     name: string
@@ -87,7 +104,7 @@ export interface CommissionItem {
     availability: CommissionAvailability
 
     images?: string[]
-    orders?: CommissionOrders[] 
+    orders?: CommissionOrders[]
 
     prod_id?: string
     slug?: string
@@ -120,6 +137,25 @@ export interface DownloadData {
     artist: string
     price: number
     url: string
+}
+
+/**
+ * KanbanItem
+ * 
+ */
+export interface KanbanItem {
+    id: UniqueIdentifier
+    title: string
+}
+
+/**
+ * KanbanData
+ * 
+ */
+export interface KanbanData {
+    id: UniqueIdentifier
+    title: string
+    items: KanbanItem[]
 }
 
 /////////////////////////////////////////////

@@ -5,6 +5,7 @@ import {
     DndContext,
     DragEndEvent,
     DragMoveEvent,
+    DragOverlay,
     DragStartEvent,
     KeyboardSensor,
     PointerSensor,
@@ -24,18 +25,11 @@ import {
 import KanbanDroppable from './kanban-container'
 import KanbanItem from './kanban-item'
 import Modal from '../modal'
-
-type DNDType = {
-    id: UniqueIdentifier
-    title: string
-    items: {
-        id: UniqueIdentifier
-        title: string
-    }[]
-}
+import KanbanContainer from './kanban-container'
+import { KanbanData } from '@/helpers/api/request-inerfaces'
 
 export default function Kanban({ title, client }: { title: string; client: string }) {
-    const [containers, setContainers] = useState<DNDType[]>([
+    const [containers, setContainers] = useState<KanbanData[]>([
         {
             id: `container-${uuidv4()}`,
             title: 'Todo',
@@ -121,6 +115,30 @@ export default function Kanban({ title, client }: { title: string; client: strin
                 container.items.find((item) => item.id === id)
             )
         }
+    }
+
+    function findItemTitle(id: UniqueIdentifier | undefined) {
+        const container = findValueOfItems(id, 'item')
+        if (!container) return ''
+
+        const item = container.items.find((item) => item.id === id)
+        if (!item) return ''
+
+        return item.title
+    }
+
+    function findContainerTitle(id: UniqueIdentifier | undefined) {
+        const container = findValueOfItems(id, 'container')
+        if (!container) return ''
+
+        return container.title
+    }
+
+    function findContainerItems(id: UniqueIdentifier | undefined) {
+        const container = findValueOfItems(id, 'container')
+        if (!container) return []
+
+        return container.items
     }
 
     function handleDragStart(event: DragStartEvent) {
@@ -308,6 +326,13 @@ export default function Kanban({ title, client }: { title: string; client: strin
                 <h1>
                     {title} for {client}
                 </h1>
+                <button
+                    type="button"
+                    className="btn btn-ghost"
+                    onClick={() => setShowAddContainerModal(true)}
+                >
+                    Add Container
+                </button>
             </div>
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
                 <DndContext
@@ -340,6 +365,21 @@ export default function Kanban({ title, client }: { title: string; client: strin
                             </KanbanDroppable>
                         ))}
                     </SortableContext>
+                    <DragOverlay>
+                        {activeId && activeId.toString().includes('item') && (
+                            <KanbanItem id={activeId} title={findItemTitle(activeId)} />
+                        )}
+                        {activeId && activeId.toString().includes('container') && (
+                            <KanbanContainer
+                                id={activeId}
+                                title={findContainerTitle(activeId)}
+                            >
+                                {findContainerItems(activeId).map((i) => (
+                                    <KanbanItem key={i.id} title={i.title} id={i.id} />
+                                ))}
+                            </KanbanContainer>
+                        )}
+                    </DragOverlay>
                 </DndContext>
             </div>
             <Modal showModal={showAddItemModal} setShowModal={setShowAddItemModal}>
@@ -355,6 +395,26 @@ export default function Kanban({ title, client }: { title: string; client: strin
                     type="button"
                     className="btn btn-primary w-full"
                     onClick={onAddItem}
+                >
+                    Add Item
+                </button>
+            </Modal>
+            <Modal
+                showModal={showAddContainerModal}
+                setShowModal={setShowAddContainerModal}
+            >
+                <h3 className="font-bold text-lg">Add Container</h3>
+                <input
+                    type="text"
+                    className="input input-ghost bg-base-300 w-full"
+                    placeholder="Container Title"
+                    defaultValue={containerName}
+                    onChange={(e) => setContainerName(e.currentTarget.value)}
+                />
+                <button
+                    type="button"
+                    className="btn btn-primary w-full"
+                    onClick={onAddContainer}
                 >
                     Add Item
                 </button>
