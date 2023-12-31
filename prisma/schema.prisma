@@ -7,21 +7,15 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+//////////////////////////////////////////////////////////
+// Portfolio
+//////////////////////////////////////////////////////////
+
 model Portfolio {
   id     String  @id @default(auto()) @map("_id") @db.ObjectId
   userId String?
   image  String
   name   String
-}
-
-model ArtistVerification {
-  id              String @id @default(auto()) @map("_id") @db.ObjectId
-  userId          String @unique
-  requestedHandle String @unique
-  username        String
-  twitter         String
-  pixiv           String
-  location        String
 }
 
 model Device {
@@ -35,6 +29,10 @@ model Device {
   isDesktop Boolean
   isMobile  Boolean
 }
+
+//////////////////////////////////////////////////////////
+// Artists
+//////////////////////////////////////////////////////////
 
 model Artist {
   id          String @id @default(auto()) @map("_id") @db.ObjectId
@@ -53,23 +51,48 @@ model Artist {
   headerPhoto  String
   profilePhoto String
 
-  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  commissions Commission[]
-}
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-model StoreItem {
-  id          String @id @default(auto()) @map("_id") @db.ObjectId
-  userId      String
-  product     String
-  stripeAccId String
-  handle      String
-  slug        String
+  commissions Commission[]
+  forms       Form[]
 }
 
 model AritstCode {
   id   String @id @default(auto()) @map("_id") @db.ObjectId
   code String
 }
+
+model VerificationToken {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model ArtistVerification {
+  id              String @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String @unique
+  requestedHandle String @unique
+  username        String
+  twitter         String
+  pixiv           String
+  location        String
+}
+
+model Social {
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  userId String @db.ObjectId
+  agent  String
+  url    String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+//////////////////////////////////////////////////////////
+// Users
+//////////////////////////////////////////////////////////
 
 model Account {
   id                String  @id @default(auto()) @map("_id") @db.ObjectId
@@ -114,22 +137,17 @@ model User {
   purchased Purchased[]
 }
 
-model VerificationToken {
-  id         String   @id @default(auto()) @map("_id") @db.ObjectId
-  identifier String
-  token      String   @unique
-  expires    DateTime
+//////////////////////////////////////////////////////////
+// Store
+//////////////////////////////////////////////////////////
 
-  @@unique([identifier, token])
-}
-
-model Social {
-  id     String @id @default(auto()) @map("_id") @db.ObjectId
-  userId String @db.ObjectId
-  agent  String
-  url    String
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+model StoreItem {
+  id          String @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String
+  product     String
+  stripeAccId String
+  handle      String
+  slug        String
 }
 
 model Purchased {
@@ -143,10 +161,38 @@ model Purchased {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+//////////////////////////////////////////////////////////
+// Commissions
+//////////////////////////////////////////////////////////
+
 model Commission {
   id        String @id @default(auto()) @map("_id") @db.ObjectId
   artistId  String @db.ObjectId
   productId String
 
-  artist    Artist   @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+}
+
+model Form {
+  id           String @id @default(auto()) @map("_id") @db.ObjectId
+  artistId     String @db.ObjectId
+  commissionId String
+
+  name        String
+  description String
+  createdAt   DateTime @default(now())
+  content     String   @default("[]")
+
+  artist          Artist           @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  formSubmissions FormSubmission[]
+}
+
+model FormSubmission {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  formId    String   @db.ObjectId
+  createdAt DateTime @default(now())
+
+  form Form @relation(fields: [formId], references: [id], onDelete: Cascade)
+
+  content String
 }

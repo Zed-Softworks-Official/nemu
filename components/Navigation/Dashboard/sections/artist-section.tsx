@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import classNames from '@/helpers/classnames'
 import {
     BuildingStorefrontIcon,
+    ClipboardDocumentListIcon,
     PhotoIcon,
     RectangleStackIcon
 } from '@heroicons/react/20/solid'
@@ -59,6 +60,20 @@ export default function DashboardArtistSection() {
                 >
                     <PhotoIcon className="sidenav-icon" />
                     <h3 className="inline text-lg font-bold">Portfolio</h3>
+                </Link>
+            </li>
+            <li className='my-2'>
+                <Link
+                    href={'/dashboard/forms'}
+                    className={classNames(
+                        pathname.includes('forms')
+                            ? 'bg-primary text-white'
+                            : 'hover:bg-primary/60',
+                        'p-4 px-10 rounded-xl'
+                    )}
+                >
+                    <ClipboardDocumentListIcon className="sidenav-icon" />
+                    <h3 className="inline text-lg font-bold">Forms</h3>
                 </Link>
             </li>
         </>

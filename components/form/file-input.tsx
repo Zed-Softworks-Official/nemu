@@ -20,7 +20,7 @@ export default function FileInput({
                 title={name}
                 multiple={multiple}
                 maxLength={max_length ? max_length : 1}
-                className="bg-charcoal w-full p-5 rounded-xl file:bg-primary hover:file:bg-primarylight file:cursor-pointer dark:file:text-white file:text-charcoal file:-ml-5 file:-my-5 file:p-5 file:border-none file:rounded-l-xl file:mr-5"
+                className="file-input file-input-primary border-0 w-full"
             />
         </div>
     )

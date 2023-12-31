@@ -67,11 +67,11 @@ export default function PortfolioAddForm() {
             encType="multipart/form-data"
         >
             <TextInput label="Title" name="title" />
-            <FormDropzone label="Your beautiful artwork here:" />
+            <FormDropzone label="Your beautiful artwork here" />
             <div className="flex flex-row items-center justify-center my-5">
                 <button
                     type="submit"
-                    className="bg-primary p-5 rounded-3xl m-5"
+                    className="btn btn-primary"
                     disabled={isLoading}
                 >
                     <CheckCircleIcon className="w-6 h-6 inline mr-3" />

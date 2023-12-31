@@ -27,7 +27,6 @@ export default function DashboardContainer({
                         </Link>
                     </div>
                 )}
-
                 {children}
             </div>
         </main>

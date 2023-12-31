@@ -1,17 +1,15 @@
 import { InputHTMLAttributes } from 'react'
 
-export default function TextInput({
+export default function TextArea({
     label,
     ...props
-}: {
-    label: string
-} & InputHTMLAttributes<HTMLInputElement>) {
+}: { label: string } & InputHTMLAttributes<HTMLTextAreaElement>) {
     return (
         <div className="mb-5">
             <label htmlFor={props.name} className="block mb-5">
                 {label}:
             </label>
-            <input {...props} className="input w-full" />
+            <textarea {...props} className="textarea resize-none w-full h-80"></textarea>
         </div>
     )
 }
