@@ -1,13 +1,17 @@
+'use client'
+
 import Link from 'next/link'
 import { PlusCircleIcon } from '@heroicons/react/20/solid'
 
 export default function DashboardContainer({
     title,
     addButtonUrl,
+    modal,
     children
 }: {
     title: string
     addButtonUrl?: string
+    modal?: React.ReactNode
     children: React.ReactNode
 }) {
     return (
@@ -26,6 +30,31 @@ export default function DashboardContainer({
                             <PlusCircleIcon className="w-10 h-10 inline " />
                         </Link>
                     </div>
+                )}
+                {modal && (
+                    <>
+                        <div className="absolute bottom-20 right-20">
+                            <button
+                                type="button"
+                                className="btn btn-square btn-primary btn-lg"
+                                onClick={() =>
+                                    (
+                                        document.getElementById(
+                                            'form_create_modal'
+                                        ) as HTMLDialogElement
+                                    ).showModal()
+                                }
+                            >
+                                <PlusCircleIcon className="w-10 h-10 inline " />
+                            </button>
+                        </div>
+                        <dialog id="form_create_modal" className="modal">
+                            <div className="modal-box bg-base-300">{modal}</div>
+                            <form method="dialog" className="modal-backdrop">
+                                <button>close</button>
+                            </form>
+                        </dialog>
+                    </>
                 )}
                 {children}
             </div>

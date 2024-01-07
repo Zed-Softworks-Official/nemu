@@ -26,21 +26,24 @@ export default function CommissionCreateForm() {
     }
 
     return (
-        <form className="max-w-xl mx-auto" onSubmit={handleSubmit}>
-            <TextInput
-                label="Form Name"
-                name="commission_form_name"
-                placeholder="Enter your unique form name"
-            />
-            <TextArea
-                label="Form Description"
-                name="commission_form_desc"
-                placeholder="Something to help you remember what this is for"
-            />
-            <button type="submit" className="btn btn-primary">
-                <CheckCircleIcon className="w-6 h-6 inline-block mr-3" />
-                Add Product
-            </button>
-        </form>
+        <>
+            <h1>Create a new form</h1>
+            <form className="max-w-xl mx-auto" onSubmit={handleSubmit}>
+                <TextInput
+                    label="Form Name"
+                    name="commission_form_name"
+                    placeholder="Enter your unique form name"
+                />
+                <TextArea
+                    label="Form Description"
+                    name="commission_form_desc"
+                    placeholder="Something to help you remember what this is for"
+                />
+                <button type="submit" className="btn btn-primary">
+                    <CheckCircleIcon className="w-6 h-6" />
+                    Create Form
+                </button>
+            </form>
+        </>
     )
 }

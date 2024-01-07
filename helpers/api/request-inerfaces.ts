@@ -1,5 +1,5 @@
 import { Stripe } from 'stripe'
-import { Artist, ArtistVerification, User } from '@prisma/client'
+import { Artist, ArtistVerification, Form, User } from '@prisma/client'
 import { UniqueIdentifier } from '@dnd-kit/core'
 
 /////////////////////////////////////////////
@@ -270,9 +270,22 @@ export interface RandomArtistsResponse extends NemuResponse {
     artists?: Artist[]
 }
 
+/**
+ * CommissionResponse
+ * 
+ */
 export interface CommissionResponse extends NemuResponse {
     commission?: CommissionItem
     commissions?: CommissionItem[]
+}
+
+/**
+ * CommissionFormsResponse
+ * 
+ */
+export interface CommissionFormsResponse extends NemuResponse {
+    form?: Form
+    forms?: Form[]
 }
 
 /////////////////////////////////////////////
