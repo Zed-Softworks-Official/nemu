@@ -185,6 +185,8 @@ model Form {
 
   artist          Artist           @relation(fields: [artistId], references: [id], onDelete: Cascade)
   formSubmissions FormSubmission[]
+
+  @@unique([name, artistId])
 }
 
 model FormSubmission {
