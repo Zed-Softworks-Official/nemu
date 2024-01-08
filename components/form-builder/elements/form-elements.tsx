@@ -12,9 +12,15 @@ export type FormElement = {
         label: string
     }
 
-    designer_component: React.FC
+    designer_component: React.FC<{
+        elementInstance: FormElementInstance
+    }>
+    
     form_component: React.FC
-    properties_component: React.FC
+
+    properties_component: React.FC<{
+        elementInstance: FormElementInstance
+    }>
 }
 
 type FormElementsType = {

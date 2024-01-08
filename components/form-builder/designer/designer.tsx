@@ -1,6 +1,6 @@
 'use client'
 
-import { DragEndEvent, useDndMonitor, useDroppable } from '@dnd-kit/core'
+import { DragEndEvent, useDndMonitor, useDraggable, useDroppable } from '@dnd-kit/core'
 import DesignerSidebar from './designer-sidebar'
 import classNames from '@/helpers/classnames'
 import { DesignerContextType, useDesigner } from './designer-context'
@@ -11,9 +11,11 @@ import {
 } from '../elements/form-elements'
 
 import { v4 as uuidv4 } from 'uuid'
+import { useState } from 'react'
+import { TrashIcon } from '@heroicons/react/20/solid'
 
 export default function Designer() {
-    const { elements, addElement } = useDesigner() as DesignerContextType
+    const { elements, addElement, selectedElement, setSelectedElement } = useDesigner() as DesignerContextType
 
     const droppable = useDroppable({
         id: 'designer-drop-area',
@@ -42,7 +44,9 @@ export default function Designer() {
 
     return (
         <div className="flex w-full h-full">
-            <div className="p-4 w-full">
+            <div className="p-4 w-full" onClick={() => {
+                if (selectedElement) setSelectedElement(null)
+            }}>
                 <div
                     ref={droppable.setNodeRef}
                     className={classNames(
@@ -55,7 +59,7 @@ export default function Designer() {
                             Drop Here
                         </p>
                     )}
-                    {droppable.isOver && (
+                    {droppable.isOver && elements.length === 0 && (
                         <div className="p-4 w-full">
                             <div className="h-[120px] rounded-xl bg-base-100"></div>
                         </div>
@@ -78,7 +82,101 @@ export default function Designer() {
 }
 
 function DesignerElementWrapper({ element }: { element: FormElementInstance }) {
+    const [mouseIsOver, setMouseIsOver] = useState(false)
+
+    const { removeElement, selectedElement, setSelectedElement } =
+        useDesigner() as DesignerContextType
+
     const DesignerElement = FormElements[element.type].designer_component
 
-    return <DesignerElement />
+    const topHalf = useDroppable({
+        id: element.id + '-top',
+        data: {
+            type: element.type,
+            elementId: element.id,
+            isTopHalfDesginerElement: true
+        }
+    })
+
+    const bottomHalf = useDroppable({
+        id: element.id + '-bottom',
+        data: {
+            type: element.type,
+            elementId: element.id,
+            isBottomHalfDesginerElement: true
+        }
+    })
+
+    const draggable = useDraggable({
+        id: element.id + '-drag-handler',
+        data: {
+            type: element.type,
+            elementId: element.id,
+            isDesignerElement: true
+        }
+    })
+
+    if (draggable.isDragging) return null
+
+    return (
+        <div
+            className="relative cursor-pointer rounded-[1.2rem] ring-1 ring-primary ring-inset"
+            ref={draggable.setNodeRef}
+            {...draggable.listeners}
+            {...draggable.attributes}
+            onMouseEnter={() => {
+                setMouseIsOver(true)
+            }}
+            onMouseLeave={() => {
+                setMouseIsOver(false)
+            }}
+            onClick={(event) => {
+                event.stopPropagation()
+
+                setSelectedElement(element)
+            }}
+        >
+            <div
+                ref={topHalf.setNodeRef}
+                className="absolute w-full h-1/2 rounded-t-xl z-20"
+            ></div>
+            <div
+                ref={bottomHalf.setNodeRef}
+                className="absolute w-full bottom-0 h-1/2 rounded-b-xl z-20"
+            ></div>
+            {mouseIsOver && (
+                <>
+                    <div className="absolute right-0 h-full z-20">
+                        <button
+                            className="btn btn-error h-full rounded-l-none rounded-r-[1.2rem]"
+                            onClick={(event) => {
+                                event.stopPropagation()
+
+                                removeElement(element.id)
+                            }}
+                        >
+                            <TrashIcon className="h-8 w-8" />
+                        </button>
+                    </div>
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-pulse z-20">
+                        <p className="text-sm">Click for properties or drag to move</p>
+                    </div>
+                </>
+            )}
+            {topHalf.isOver && (
+                <div className="absolute top-0 w-full rounded-[1.2rem] rounded-b-none h-[10px] bg-primary z-20"></div>
+            )}
+            <div
+                className={classNames(
+                    'flex w-full items-center rounded-xl pointer-events-none opacity-100',
+                    mouseIsOver && 'opacity-30'
+                )}
+            >
+                <DesignerElement elementInstance={element} />
+            </div>
+            {bottomHalf.isOver && (
+                <div className="absolute bottom-0 w-full rounded-[1.2rem] rounded-t-none h-[10px] bg-primary z-20"></div>
+            )}
+        </div>
+    )
 }
