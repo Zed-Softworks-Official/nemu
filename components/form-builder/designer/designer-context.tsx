@@ -5,6 +5,7 @@ import { FormElementInstance } from '../elements/form-elements'
 
 export type DesignerContextType = {
     elements: FormElementInstance[]
+    setElements: Dispatch<SetStateAction<FormElementInstance[]>>
     addElement: (index: number, element: FormElementInstance) => void
     removeElement: (id: string) => void
 
@@ -36,9 +37,9 @@ export function DesignerProvider({ children }: { children: React.ReactNode }) {
     }
 
     const updateElement = (id: string, element: FormElementInstance) => {
-        setElements(prev => {
+        setElements((prev) => {
             const newElements = [...prev]
-            const index = newElements.findIndex(element => element.id === id)
+            const index = newElements.findIndex((element) => element.id === id)
 
             newElements[index] = element
             return newElements
@@ -49,6 +50,7 @@ export function DesignerProvider({ children }: { children: React.ReactNode }) {
         <DesignerContext.Provider
             value={{
                 elements,
+                setElements,
                 addElement,
                 removeElement,
                 selectedElement,
