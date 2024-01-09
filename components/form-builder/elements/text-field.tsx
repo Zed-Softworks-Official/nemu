@@ -104,7 +104,6 @@ function PropertiesComponent({
     }, [element, form])
 
     function applyChanges(values: PropertiesFormSchemaType) {
-        console.log(values)
         updateElement(element.id, {
             ...element,
             extra_attributes: {

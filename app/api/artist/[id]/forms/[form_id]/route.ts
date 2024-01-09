@@ -15,7 +15,6 @@ export async function GET(
         })
     }
 
-
     return NextResponse.json<CommissionFormsResponse>({
         status: StatusCode.Success,
         form: form

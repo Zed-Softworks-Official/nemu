@@ -21,7 +21,7 @@ export default function SidebarBtnElement({ formElement }: { formElement: FormEl
             {...draggable.attributes}
             className={classNames(
                 draggable.isDragging && 'ring-2 ring-primary',
-                'btn btn-outline h-28 btn-accent cursor-grab'
+                'btn btn-outline h-28 btn-accent cursor-grab flex-col'
             )}
         >
             <Icon className="h-8 w-8 cursor-grab" />
