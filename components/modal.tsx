@@ -9,11 +9,11 @@ export default function Modal({
 }) {
     return (
         <dialog className="modal" open={showModal}>
-            <div className="modal-box space-y-3">{children}</div>
+            <div className="modal-box max-w-6xl space-y-3">{children}</div>
             <form
                 method="dialog"
                 onClick={() => setShowModal(false)}
-                className="modal-backdrop bg-fullblack/90"
+                className="modal-backdrop bg-[#0006]"
             >
                 <button>close</button>
             </form>

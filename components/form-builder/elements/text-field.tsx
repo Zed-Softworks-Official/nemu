@@ -43,7 +43,7 @@ export const TextFieldFormElement: FormElement = {
     },
 
     designer_component: DesignerComponent,
-    form_component: () => <div>Form Component</div>,
+    form_component: FormComponent,
     properties_component: PropertiesComponent
 }
 
@@ -73,6 +73,32 @@ function DesignerComponent({
                     labelDisabled
                     readOnly
                     disabled
+                    placeholder={placeholder}
+                />
+                {helperText && <p className="text-base-content/80">{helperText}</p>}
+            </div>
+        </div>
+    )
+}
+
+function FormComponent({
+    elementInstance
+}: {
+    elementInstance: FormElementInstance
+}) {
+    const element = elementInstance as CustomInstance
+    const { label, required, placeholder, helperText } = element.extra_attributes
+
+    return (
+        <div className="card bg-base-300 w-full">
+            <div className="card-body">
+                <h2 className="card-title">
+                    {label}
+                    {required && '*'}
+                </h2>
+                <TextInput
+                    label=""
+                    labelDisabled
                     placeholder={placeholder}
                 />
                 {helperText && <p className="text-base-content/80">{helperText}</p>}
