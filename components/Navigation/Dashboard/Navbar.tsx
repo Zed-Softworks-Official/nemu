@@ -27,11 +27,11 @@ export default function Navbar({ children }: { children: React.ReactNode }) {
                     aria-label="close sidebar"
                     className="drawer-overlay"
                 />
-                <ul className="menu p-4 w-80 min-h-full backdrop-blur-xl bg-fullwhite/60 dark:bg-fullblack/60 text-base-content">
+                <ul className="menu p-4 w-80 min-h-full backdrop-blur-xl bg-base-300/60 text-base-content">
                     <li>
                         <Logo />
                     </li>
-                    <hr className="seperation" />
+                    <div className="divider"></div>
                     <HomeSection />
                     <div className="collapse collapse-arrow bg-base-200">
                         <input
@@ -46,7 +46,7 @@ export default function Navbar({ children }: { children: React.ReactNode }) {
                             <DashboardArtistSection />
                         </div>
                     </div>
-                    <hr className="seperation" />
+                    <div className="divider"></div>
 
                     <div className="collapse collapse-arrow bg-base-200">
                         <input

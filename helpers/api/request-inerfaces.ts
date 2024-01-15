@@ -1,6 +1,7 @@
 import { Stripe } from 'stripe'
-import { Artist, ArtistVerification, Form, User } from '@prisma/client'
+import { Artist, ArtistVerification, Form, FormSubmission, User } from '@prisma/client'
 import { UniqueIdentifier } from '@dnd-kit/core'
+import { FormElementInstance } from '@/components/form-builder/elements/form-elements'
 
 /////////////////////////////////////////////
 // Data Structures
@@ -99,13 +100,14 @@ export interface CommissionItem {
     name: string
     description: string
     price: number
-
+    
     featured_image: string
     availability: CommissionAvailability
-
+    
     images?: string[]
     orders?: CommissionOrders[]
-
+    form_id?: string
+    
     prod_id?: string
     slug?: string
 }
@@ -284,8 +286,9 @@ export interface CommissionResponse extends NemuResponse {
  * 
  */
 export interface CommissionFormsResponse extends NemuResponse {
-    form?: Form
-    forms?: Form[]
+    form?: Form & {formSubmissions: FormSubmission[]}
+    forms?: Form[],
+    formContent?: FormElementInstance[]
 }
 
 /////////////////////////////////////////////

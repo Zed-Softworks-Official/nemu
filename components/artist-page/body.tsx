@@ -45,7 +45,7 @@ export default function ArtistBody({ artist_info }: { artist_info: Artist }) {
 
     return (
         <div className="grid grid-cols-12 gap-10 w-full mx-auto mt-36">
-            <div className="bg-fullwhite dark:bg-fullblack p-10 rounded-3xl col-span-3 text-center">
+            <div className="bg-base-300 p-10 rounded-3xl col-span-3 text-center">
                 <h1 className="font-bold text-2xl text-center">About</h1>
                 <p>{artist_info.about}</p>
                 <hr className="seperation" />
@@ -66,7 +66,7 @@ export default function ArtistBody({ artist_info }: { artist_info: Artist }) {
                 <h1 className="font-bold text-2xl text-center">Commission Terms</h1>
                 <p>{artist_info.terms}</p>
             </div>
-            <div className="bg-fullwhite dark:bg-fullblack  p-10 rounded-3xl col-span-9">
+            <div className="bg-base-300 p-10 rounded-3xl col-span-9">
                 {renderCorrectBody(currentIndex || 0)}
             </div>
         </div>

@@ -8,7 +8,7 @@ export default function ArtistHeader({ data }: { data: ArtistPageResponse }) {
         <div className="flex-wrap">
             <div className="mx-auto w-full h-96 bg-[url('/curved0.jpg')] rounded-3xl bg-no-repeat bg-center bg-cover"></div>
             <div className="mx-20">
-                <div className="mx-auto max-w-[98%] -my-28 py-14 backdrop-blur-xl bg-fullwhite/60 dark:bg-fullblack/60 shadow-lg rounded-3xl px-10">
+                <div className="mx-auto max-w-[98%] -my-28 py-14 backdrop-blur-xl bg-base-300/60 shadow-lg rounded-3xl px-10">
                     <div className="flex justify-start">
                         <div className="avatar">
                             <div className="absolute top-0 right-0">

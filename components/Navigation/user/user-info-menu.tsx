@@ -6,17 +6,16 @@ import { useSession } from 'next-auth/react'
 
 import { Menu, Transition } from '@headlessui/react'
 import {
-    ArrowRightOnRectangleIcon,
     ChartBarIcon,
     Cog6ToothIcon,
     EnvelopeIcon,
     PaintBrushIcon,
     StarIcon,
     UserIcon,
-    ArrowLeftOnRectangleIcon,
-    UsersIcon,
     CheckCircleIcon,
-    CodeBracketIcon
+    CodeBracketIcon,
+    ArrowRightStartOnRectangleIcon,
+    ArrowRightEndOnRectangleIcon
 } from '@heroicons/react/20/solid'
 
 import { Role } from '@/helpers/user-info'
@@ -57,23 +56,23 @@ export default function UserInfoMenu() {
     function ConvertUserIconEnumToReactDOM(icon: UserInfoIcon) {
         switch (icon) {
             case UserInfoIcon.Page:
-                return <PaintBrushIcon className="user-menu-item-icon" />
+                return <PaintBrushIcon className="w-6 h-6" />
             case UserInfoIcon.Dashboard:
-                return <ChartBarIcon className="user-menu-item-icon" />
+                return <ChartBarIcon className="w-6 h-6" />
             case UserInfoIcon.Favourite:
-                return <StarIcon className="user-menu-item-icon" />
+                return <StarIcon className="w-6 h-6" />
             case UserInfoIcon.Messages:
-                return <EnvelopeIcon className="user-menu-item-icon" />
+                return <EnvelopeIcon className="w-6 h-6" />
             case UserInfoIcon.Settings:
-                return <Cog6ToothIcon className="user-menu-item-icon" />
+                return <Cog6ToothIcon className="w-6 h-6" />
             case UserInfoIcon.SignIn:
-                return <ArrowLeftOnRectangleIcon className="user-menu-item-icon" />
+                return <ArrowRightEndOnRectangleIcon className="w-6 h-6" />
             case UserInfoIcon.SignOut:
-                return <ArrowRightOnRectangleIcon className="user-menu-item-icon" />
+                return <ArrowRightStartOnRectangleIcon className="w-6 h-6" />
             case UserInfoIcon.Verify:
-                return <CheckCircleIcon className="user-menu-item-icon" />
+                return <CheckCircleIcon className="w-6 h-6" />
             case UserInfoIcon.Code:
-                return <CodeBracketIcon className="user-menu-item-icon" />
+                return <CodeBracketIcon className="w-6 h-6" />
         }
     }
 
@@ -87,7 +86,7 @@ export default function UserInfoMenu() {
     return (
         <Menu as="div" className="relative inline-block text-left mt-3 ml-20">
             <div>
-                <Menu.Button className="inline-flex w-full justify-center gap-x-1.5 rounded-md bg-white dark:bg-charcoal font-semibold btn btn-ghost btn-circle">
+                <Menu.Button className="inline-flex w-full justify-center gap-x-1.5 rounded-md font-semibold btn btn-ghost btn-circle hover:bg-transparent">
                     {session?.user?.image ? (
                         <Image
                             src={session?.user?.image!}
@@ -97,7 +96,7 @@ export default function UserInfoMenu() {
                             className="rounded-full w-16"
                         />
                     ) : (
-                        <UserIcon className="h-6 w-6 text-black" />
+                        <UserIcon className="h-6 w-6 text-base-content" />
                     )}
                 </Menu.Button>
             </div>
@@ -110,7 +109,7 @@ export default function UserInfoMenu() {
                 leaveFrom="transform opacity-100 scale-100"
                 leaveTo="transform opacity-0 scale-95"
             >
-                <Menu.Items className="absolute right-0 z-10 mt-5 w-56 scale-0 origin-top rounded-md bg-fullwhite dark:bg-fullblack shadow-lg focus:outline-none">
+                <Menu.Items className="absolute right-0 z-10 mt-5 w-56 scale-0 origin-top rounded-md bg-base-300 shadow-lg focus:outline-none">
                     <div className="py-2">
                         {navbar_items.map((item: UserInfoLink) => {
                             return (
@@ -120,9 +119,9 @@ export default function UserInfoMenu() {
                                             href={item.path}
                                             className={classNames(
                                                 active
-                                                    ? 'bg-white text-charcoal dark:bg-charcoal dark:text-white'
-                                                    : 'text-charcoal dark:text-white',
-                                                'block px-5 py-2 text-sm'
+                                                    ? 'bg-base-100 text-base-content'
+                                                    : 'bg-base-300 text-base-content',
+                                                'flex justify-start items-center gap-5 w-full px-5 py-2 text-sm'
                                             )}
                                         >
                                             {ConvertUserIconEnumToReactDOM(item.icon)}

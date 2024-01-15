@@ -1,16 +1,22 @@
 'use client'
 
 import { DocumentTextIcon } from '@heroicons/react/20/solid'
-import { ElementsType, FormElement, FormElementInstance } from './form-elements'
+import {
+    ElementsType,
+    FormElement,
+    FormElementInstance,
+    SubmitFunction
+} from './form-elements'
 import TextInput from '@/components/form/text-input'
 
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 
 import * as z from 'zod'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { DesignerContextType, useDesigner } from '../designer/designer-context'
 import { CheckboxField, InputField } from './input-field'
+import classNames from '@/helpers/classnames'
 
 const type: ElementsType = 'TextField'
 
@@ -44,7 +50,16 @@ export const TextFieldFormElement: FormElement = {
 
     designer_component: DesignerComponent,
     form_component: FormComponent,
-    properties_component: PropertiesComponent
+    properties_component: PropertiesComponent,
+
+    validate: (formElement: FormElementInstance, currentValue: string): boolean => {
+        const element = formElement as CustomInstance
+        if (element.extra_attributes.required) {
+            return currentValue.length > 0
+        }
+
+        return true
+    }
 }
 
 type CustomInstance = FormElementInstance & {
@@ -82,26 +97,62 @@ function DesignerComponent({
 }
 
 function FormComponent({
-    elementInstance
+    elementInstance,
+    submitValue,
+    isInvalid,
+    defaultValue
 }: {
     elementInstance: FormElementInstance
+    submitValue?: SubmitFunction
+    isInvalid?: boolean
+    defaultValue?: string
 }) {
     const element = elementInstance as CustomInstance
     const { label, required, placeholder, helperText } = element.extra_attributes
 
+    const [value, setValue] = useState(defaultValue || '')
+    const [error, setError] = useState(false)
+
+    useEffect(() => {
+        setError(isInvalid === true)
+    }, [isInvalid])
+
     return (
         <div className="card bg-base-300 w-full">
             <div className="card-body">
-                <h2 className="card-title">
+                <h2 className={classNames(error && 'text-error', 'card-title')}>
                     {label}
                     {required && '*'}
                 </h2>
                 <TextInput
                     label=""
                     labelDisabled
+                    error={error}
                     placeholder={placeholder}
+                    onChange={(e) => setValue(e.target.validationMessage)}
+                    onBlur={(e) => {
+                        if (!submitValue) return
+
+                        const valid = TextFieldFormElement.validate(
+                            element,
+                            e.currentTarget.value
+                        )
+                        setError(!valid)
+                        if (!valid) return
+
+                        submitValue(element.id, e.currentTarget.value)
+                    }}
+                    defaultValue={value}
                 />
-                {helperText && <p className="text-base-content/80">{helperText}</p>}
+                {helperText && (
+                    <p
+                        className={classNames(
+                            error ? 'text-error/80' : 'text-base-content/80'
+                        )}
+                    >
+                        {helperText}
+                    </p>
+                )}
             </div>
         </div>
     )
@@ -143,7 +194,6 @@ function PropertiesComponent({
             onBlur={form.handleSubmit(applyChanges)}
             onSubmit={(e) => {
                 e.preventDefault()
-                console.log('Test')
             }}
             className="flex flex-col w-full space-y-3"
         >

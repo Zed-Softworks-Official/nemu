@@ -47,6 +47,10 @@ const config: Config = {
         themeRoot: ':root' // The element that receives theme color CSS variables
     },
     darkMode: 'class',
-    plugins: [require('@tailwindcss/typography'), require('daisyui')]
+    plugins: [
+        require('@tailwindcss/typography'),
+        require('daisyui'),
+        require('tailwind-scrollbar')
+    ]
 }
 export default config

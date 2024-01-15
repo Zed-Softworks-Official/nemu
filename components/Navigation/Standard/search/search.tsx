@@ -7,7 +7,7 @@ import SearchProvider from './search-context'
 export default function Search() {
     return (
         <div className="w-full ml-20">
-            <div className="flex w-full">
+            <div className="flex w-full join">
                 <SearchProvider>
                     <SearchListBox />
                     <SearchField />

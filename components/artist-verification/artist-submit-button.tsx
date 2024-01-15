@@ -72,7 +72,7 @@ export default function ArtistSubmitButton() {
     }
 
     return (
-        <button type="button" onClick={handleSubmit} className="p-5 rounded-xl text-xl font-bold bg-gradient-to-r from-primarylight to-azure">
+        <button type="button" onClick={handleSubmit} className="btn btn-primary">
             Submit
         </button>
     )

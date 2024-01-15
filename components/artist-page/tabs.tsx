@@ -24,10 +24,10 @@ export default function ArtistProfileTabs() {
               key={category}
               className={({ selected }) =>
                 classNames(
-                  'w-full rounded-lg py-2.5 ring-0 focus:ring-0 text-lg font-semibold leading-5 p-16',
+                  'w-full rounded-lg py-2.5 ring-opacity-0 text-lg font-semibold leading-5 p-16',
                   selected
-                    ? 'bg-fullwhite dark:bg-fullblack focus:ring-0'
-                    : 'ring-0'
+                    ? 'bg-base-300 focus:ring-0'
+                    : 'ring-opacity-0'
                 )
               }
             >

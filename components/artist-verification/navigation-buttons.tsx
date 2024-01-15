@@ -18,7 +18,7 @@ export default function NavigationButtons({
                 ''
             ) : (
                 <Link href={back}>
-                    <p className="p-5 border-2 rounded-xl bg-clip-text text-transparent text-xl font-bold bg-gradient-to-r from-primarylight to-azure">
+                    <p className="btn btn-accent btn-outline">
                         Back
                     </p>
                 </Link>
@@ -28,7 +28,7 @@ export default function NavigationButtons({
                 <ArtistSubmitButton />
             ) : (
                 <Link href={next}>
-                    <p className="p-5 rounded-xl text-xl font-bold bg-gradient-to-r from-primarylight to-azure">
+                    <p className="btn btn-primary">
                         Next
                     </p>
                 </Link>

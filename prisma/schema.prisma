@@ -130,11 +130,12 @@ model User {
   image         String?
   role          Int?
 
-  accounts  Account[]
-  sessions  Session[]
-  social    Social[]
-  artist    Artist?
-  purchased Purchased[]
+  accounts        Account[]
+  sessions        Session[]
+  social          Social[]
+  artist          Artist?
+  purchased       Purchased[]
+  formSubmissions FormSubmission[]
 }
 
 //////////////////////////////////////////////////////////
@@ -183,6 +184,8 @@ model Form {
   createdAt   DateTime @default(now())
   content     String   @default("[]")
 
+  submissions Int @default(0)
+
   artist          Artist           @relation(fields: [artistId], references: [id], onDelete: Cascade)
   formSubmissions FormSubmission[]
 
@@ -192,9 +195,11 @@ model Form {
 model FormSubmission {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   formId    String   @db.ObjectId
+  userId    String   @db.ObjectId
   createdAt DateTime @default(now())
 
   form Form @relation(fields: [formId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   content String
 }

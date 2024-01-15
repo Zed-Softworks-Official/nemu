@@ -1,11 +1,14 @@
+import classNames from '@/helpers/classnames'
 import { InputHTMLAttributes } from 'react'
 
 export default function TextInput({
     label,
     labelDisabled,
+    error,
     ...props
 }: {
     label: string
+    error?: boolean
     labelDisabled?: boolean
 } & InputHTMLAttributes<HTMLInputElement>) {
     return (
@@ -15,7 +18,10 @@ export default function TextInput({
                     {label}:
                 </label>
             )}
-            <input {...props} className="input w-full" />
+            <input
+                {...props}
+                className={classNames(error && 'input-error', 'input w-full')}
+            />
         </div>
     )
 }

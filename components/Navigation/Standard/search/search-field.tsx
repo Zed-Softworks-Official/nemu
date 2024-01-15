@@ -12,10 +12,10 @@ export default function SearchField() {
             <input
                 type="text"
                 placeholder={`Search for ${SearchPhrase(type!)}`}
-                className="searchbar"
+                className="input w-full bg-base-300 h-16 join-item"
             />
-            <button className="searchbar-button">
-                <MagnifyingGlassIcon className="h-6 w-6 text-white" />
+            <button className="btn btn-primary btn-lg join-item">
+                <MagnifyingGlassIcon className="h-6 w-6" />
                 <p className="hidden">search</p>
             </button>
         </>

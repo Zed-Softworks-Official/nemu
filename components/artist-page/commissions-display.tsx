@@ -10,10 +10,12 @@ import { CommissionAvailability, CommissionItem } from '@/helpers/api/request-in
 
 export default function CommissionsDisplay({
     commission,
-    terms
+    terms,
+    setShowForm
 }: {
     commission: CommissionItem
     terms: string
+    setShowForm: (showForm: boolean) => void
 }) {
     const [currentImage, setCurrentImage] = useState(commission.featured_image)
 
@@ -29,12 +31,13 @@ export default function CommissionsDisplay({
     }
 
     return (
-        <div className="grid md:grid-cols-3 grid-cols-1 gap-5">
+        <div className="grid md:grid-cols-3 grid-cols-1 gap-5 scrollbar-none">
             <div className="bg-base-300 rounded-xl overflow-hidden">
                 <NemuImage src={currentImage} alt={'Image'} width={500} height={500} />
                 <div className="grid grid-cols-3 mt-5 gap-5">
                     <NemuImage
                         src={commission.featured_image}
+                        className="hover:cursor-pointer roundex-xl"
                         alt={'Image'}
                         width={100}
                         height={100}
@@ -44,6 +47,7 @@ export default function CommissionsDisplay({
                         <NemuImage
                             key={i}
                             src={image}
+                            className="hover:cursor-pointer rounded-xl"
                             alt={'image'}
                             width={100}
                             height={100}
@@ -61,13 +65,16 @@ export default function CommissionsDisplay({
                         </h1>
                         <p>{commission.description}</p>
                         <div className="card-actions justify-end">
-                            <button type="button" className="btn btn-primary">
-                                <ShoppingCartIcon className="w-6 h-6" />
+                            <button
+                                type="button"
+                                className="btn btn-primary"
+                                onClick={() => setShowForm(true)}
+                            >
                                 Commission
                             </button>
                         </div>
                         <div className="divider">Terms &amp; Conditions</div>
-                        <div className='prose'>
+                        <div className="prose">
                             <Markdown>{`## 1. Scope of Services:
   ##### 1.1 The artist agrees to provide artistic services as described in the agreed-upon project proposal or contract.
   ##### 1.2 Any changes or additions to the scope of services must be agreed upon in writing by both parties.

@@ -48,7 +48,6 @@ export default function FormBuilder({ form_id }: { form_id: string }) {
         if (!isLoading) {
             const elements = JSON.parse(data?.form?.content!)
             setElements(elements)
-
         }
     }, [data, setElements])
 

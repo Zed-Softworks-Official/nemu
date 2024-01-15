@@ -6,6 +6,7 @@ import { ToastContainer } from 'react-toastify'
 
 import 'react-toastify/ReactToastify.min.css'
 import ThemeProvider from '@/components/theme/theme-context'
+import NextTopLoader from 'nextjs-toploader'
 
 export const metadata: Metadata = {
     title: 'Nemu',
@@ -24,7 +25,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </head>
             <ThemeProvider initial_theme="dark">
                 <AuthProvider>
-                    <body className="bg-base-100 text-charcoal font-nunito dark:text-white">
+                    <body className="bg-base-100 text-base-content font-nunito scrollbar-thin scrollbar-track-transparent scrollbar-thumb-base-300">
+                        <NextTopLoader color="#2185d5" showSpinner={false} shadow='0 0 10px #3fa7fc, 0 0 5px #3fa7fc' />
                         {children}
                         <ToastContainer position="top-right" />
                     </body>
