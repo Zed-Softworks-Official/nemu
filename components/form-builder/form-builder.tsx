@@ -57,7 +57,7 @@ export default function FormBuilder({ form_id }: { form_id: string }) {
 
     return (
         <DndContext sensors={sensors}>
-            <main className="flex flex-col w-full min-h-[920px]">
+            <main className="flex flex-col w-full min-h-[90rem]">
                 <nav className="flex justify-between p-4 gap-3 items-center">
                     <h2>Form: {data?.form?.name}</h2>
                     <div className="flex items-center gap-2">

@@ -1,20 +1,35 @@
 'use client'
 
 import NemuImage from '@/components/nemu-image'
-import { CommissionFormsResponse } from '@/helpers/api/request-inerfaces'
+import {
+    CommissionFormsResponse,
+    NemuResponse,
+    StatusCode
+} from '@/helpers/api/request-inerfaces'
 import { fetcher } from '@/helpers/fetcher'
 import { useSession } from 'next-auth/react'
 import useSWR from 'swr'
-import { FormElementInstance, FormElements } from '../elements/form-elements'
+import { FormElements } from '../elements/form-elements'
 import Loading from '@/components/loading'
 import { useCallback, useRef, useState, useTransition } from 'react'
 import { toast } from 'react-toastify'
 import { CreateToastPromise } from '@/helpers/toast-promise'
 
-export default function CommissionFormSubmitView({ form_id }: { form_id: string }) {
+export default function CommissionFormSubmitView({
+    artist,
+    form_id
+}: {
+    artist: string
+    form_id: string
+}) {
     const { data: session } = useSession()
     const { data, isLoading } = useSWR<CommissionFormsResponse>(
-        `/api/artist/${session?.user.user_id}/forms/${form_id}`,
+        `/api/artist/${artist}/forms/${form_id}/display`,
+        fetcher
+    )
+
+    const { data: userSubmitted, isLoading: userSubmittedLoading } = useSWR<NemuResponse>(
+        `/api/artist/${artist}/forms/${form_id}/submissions/${session?.user.user_id}`,
         fetcher
     )
 
@@ -70,7 +85,7 @@ export default function CommissionFormSubmitView({ form_id }: { form_id: string 
         return true
     }, [data?.formContent!])
 
-    if (isLoading) {
+    if (isLoading || userSubmittedLoading) {
         return <Loading />
     }
 
@@ -111,13 +126,15 @@ export default function CommissionFormSubmitView({ form_id }: { form_id: string 
                 type="button"
                 className="btn btn-primary"
                 onClick={() => startTransition(submitForm)}
-                disabled={pending}
+                disabled={pending || userSubmitted?.status != StatusCode.Success}
             >
                 {pending ? (
                     <>
                         <div className="loading loading-spinner"></div>
                         Loading
                     </>
+                ) : userSubmitted?.status != StatusCode.Success ? (
+                    <>{userSubmitted?.message}</>
                 ) : (
                     <>Next Step</>
                 )}

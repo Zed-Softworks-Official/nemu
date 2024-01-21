@@ -1,12 +1,12 @@
 'use client'
 
-import { DocumentTextIcon } from '@heroicons/react/20/solid'
+import { MdTextFields } from 'react-icons/md'
 import {
     ElementsType,
     FormElement,
     FormElementInstance,
     SubmitFunction
-} from './form-elements'
+} from '../form-elements'
 import TextInput from '@/components/form/text-input'
 
 import { useForm } from 'react-hook-form'
@@ -14,8 +14,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 
 import * as z from 'zod'
 import { useEffect, useState } from 'react'
-import { DesignerContextType, useDesigner } from '../designer/designer-context'
-import { CheckboxField, InputField } from './input-field'
+import { DesignerContextType, useDesigner } from '../../designer/designer-context'
+import { CheckboxField, InputField } from '../input-field'
 import classNames from '@/helpers/classnames'
 
 const type: ElementsType = 'TextField'
@@ -44,7 +44,7 @@ export const TextFieldFormElement: FormElement = {
     }),
 
     designer_btn_element: {
-        icon: DocumentTextIcon,
+        icon: MdTextFields,
         label: 'Text Field'
     },
 
@@ -79,6 +79,7 @@ function DesignerComponent({
     return (
         <div className="card bg-base-100 shadow-xl w-full">
             <div className="card-body">
+                <label className="text-sm text-base-content/80">Text Field</label>
                 <h2 className="card-title">
                     {label}
                     {required && '*'}

@@ -27,7 +27,7 @@ export default function Commissions({
     return (
         <div className="flex flex-col gap-5">
             {data?.commissions?.map((commission) => (
-                <CommissionCard commission={commission} terms={terms} />
+                <CommissionCard commission={commission} terms={terms} user_id={user_id} />
             ))}
         </div>
     )

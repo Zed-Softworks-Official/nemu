@@ -125,7 +125,7 @@ export default function Designer() {
                     ref={droppable.setNodeRef}
                     className={classNames(
                         droppable.isOver && 'ring-2 ring-primary ring-inset',
-                        'bg-base-300 max-w-[920px] h-full m-auto rounded-xl flex flex-col flex-grow items-center justify-start flex-1 overflow-y-auto'
+                        'bg-base-300 max-w-[920px] h-full m-auto rounded-xl flex flex-col flex-grow items-center justify-start flex-1 overflow-y-auto  scrollbar-thin scrollbar-track-transparent scrollbar-thumb-base-100'
                     )}
                 >
                     {!droppable.isOver && elements.length === 0 && (

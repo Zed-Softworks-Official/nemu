@@ -18,7 +18,7 @@ export default function ShopCard({
         : `/@${handle}/shop/${product.slug}`
 
     return (
-        <div key={product.name} className="bg-base-100 card rounded-xl overflow-hidden">
+        <div key={product.name} className="bg-base-100 card rounded-xl overflow-hidden shadow-xl transition-all duration-200 animate-pop-in">
             <div>
                 <NemuImage
                     width={500}

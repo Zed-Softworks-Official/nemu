@@ -1,19 +1,21 @@
 'use client'
 
 import Loading from '@/components/loading'
-import { CommissionFormsResponse } from '@/helpers/api/request-inerfaces'
+import { CommissionFormsSubmissionViewResponse } from '@/helpers/api/request-inerfaces'
 import { fetcher } from '@/helpers/fetcher'
 import { PencilIcon } from '@heroicons/react/20/solid'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import useSWR from 'swr'
+import CommissionFormSubmissionDisplay from './commission-form-submission-display'
 
 export default function CommissionFormSubmissions({ form_id }: { form_id: string }) {
     const { data: session } = useSession()
-    const { data, isLoading } = useSWR<CommissionFormsResponse>(
-        `/api/artist/${session?.user.user_id}/forms/${form_id}`,
+    const { data, isLoading } = useSWR<CommissionFormsSubmissionViewResponse>(
+        `/api/artist/${`652ca785d3b8ea5347b84b55`}/forms/${form_id}/submissions`,
         fetcher
     )
+    //TODO: Fix Malformed Issue? with session user id?
 
     if (isLoading) {
         return <Loading />
@@ -23,9 +25,9 @@ export default function CommissionFormSubmissions({ form_id }: { form_id: string
         <>
             <div className="flex justify-between container mx-auto">
                 <div>
-                    <h1 className="card-title font-bold">{data?.form?.name}</h1>
+                    <h1 className="card-title font-bold">{data?.name}</h1>
                     <h2 className="font-bold text-base-content/80">
-                        {data?.form?.description}
+                        {data?.description}
                     </h2>
                 </div>
                 <div>
@@ -39,47 +41,41 @@ export default function CommissionFormSubmissions({ form_id }: { form_id: string
                 </div>
             </div>
             <div className="divider"></div>
-            <div className="overflow-x-auto min-h-[20rem]">
-                <table className="table table-zebra">
+            <div className="overflow-x-auto pb-28">
+                <div className="grid grid-cols-3 gap-5 w-full p-5">
+                    <div className="card bg-base-100 max-w-md shadow-xl border-primary border-2 mx-auto w-full">
+                        <div className="card-body">
+                            <h2 className="card-title pt-3">
+                                Total Requests: {data?.submissions}
+                            </h2>
+                        </div>
+                    </div>
+                    <div className="card bg-base-100 max-w-md shadow-xl border-success border-2 mx-auto w-full">
+                        <div className="card-body">
+                            <h2 className="card-title pt-3">Accepted: 0</h2>
+                        </div>
+                    </div>
+                    <div className="card bg-base-100 max-w-md shadow-xl border-error border-2 mx-auto w-full">
+                        <div className="card-body">
+                            <h2 className="card-title pt-3">Rejected: 0</h2>
+                        </div>
+                    </div>
+                </div>
+                <div className="divider"></div>
+                <table className="table table-zebra bg-base-100">
                     <thead>
                         <tr>
                             <th>Username</th>
+                            <th>Date Submitted</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {data?.form?.formSubmissions.map((submission) => (
-                            <tr>
-                                <th>
-                                    <div className="badge badge-primary badge-xs mr-2"></div>
-                                    {submission.userId}
-                                </th>
-                                <td>
-                                    <div className="dropdown">
-                                        <div
-                                            tabIndex={0}
-                                            role="button"
-                                            className="btn btn-primary"
-                                        >
-                                            View Actions
-                                        </div>
-                                        <ul
-                                            tabIndex={0}
-                                            className="p-2 shadow menu dropdown-content z-[1] bg-base-100 rounded-xl w-52"
-                                        >
-                                            <li>
-                                                <a>View Submission</a>
-                                            </li>
-                                            <li>
-                                                <a>Accept</a>
-                                            </li>
-                                            <li>
-                                                <a>Reject</a>
-                                            </li>
-                                        </ul>
-                                    </div>
-                                </td>
-                            </tr>
+                        {data?.responses?.map((submission) => (
+                            <CommissionFormSubmissionDisplay
+                                submission={submission}
+                                form_labels={data.form_labels!}
+                            />
                         ))}
                     </tbody>
                 </table>

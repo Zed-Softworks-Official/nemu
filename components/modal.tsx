@@ -8,8 +8,8 @@ export default function Modal({
     children: React.ReactNode
 }) {
     return (
-        <dialog className="modal" open={showModal}>
-            <div className="modal-box max-w-6xl space-y-3">{children}</div>
+        <dialog className="modal overflow-hidden" open={showModal}>
+            <div className="modal-box max-w-6xl space-y-3 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-base-300">{children}</div>
             <form
                 method="dialog"
                 onClick={() => setShowModal(false)}

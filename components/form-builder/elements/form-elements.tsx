@@ -1,6 +1,26 @@
-import { TextFieldFormElement } from './text-field'
+import { TextFieldFormElement } from './fields/text-field'
+import { TitleFieldFormElement } from './fields/title-field'
+import { SubTitleFieldFormElement } from './fields/subtitle-field'
+import { ParagraphFieldFormElement } from './fields/paragraph-field'
+import { DividerFieldFormElement } from './fields/divider-field'
+import { SpacerFieldFormElement } from './fields/spacer-field'
+import { NumberFieldFormElement } from './fields/number-field'
+import { TextAreaFieldFormElement } from './fields/text-area-field'
+import { DateFieldFormElement } from './fields/date-field'
+import { SelectFieldFormElement } from './fields/select-field'
 
-export type ElementsType = 'TextField'
+export type ElementsType =
+    | 'TextField'
+    | 'TitleField'
+    | 'SubTitleField'
+    | 'ParagraphField'
+    | 'DividerField'
+    | 'SpacerField'
+    | 'NumberField'
+    | 'TextAreaField'
+    | 'DateField'
+    | 'SelectField'
+
 export type SubmitFunction = (key: string, value: string) => void
 
 export type FormElement = {
@@ -19,8 +39,8 @@ export type FormElement = {
 
     form_component: React.FC<{
         elementInstance: FormElementInstance
-        submitValue?: SubmitFunction,
-        isInvalid?: boolean,
+        submitValue?: SubmitFunction
+        isInvalid?: boolean
         defaultValue?: string
     }>
 
@@ -42,5 +62,14 @@ export type FormElementInstance = {
 }
 
 export const FormElements: FormElementsType = {
-    TextField: TextFieldFormElement
+    TextField: TextFieldFormElement,
+    TitleField: TitleFieldFormElement,
+    SubTitleField: SubTitleFieldFormElement,
+    ParagraphField: ParagraphFieldFormElement,
+    DividerField: DividerFieldFormElement,
+    SpacerField: SpacerFieldFormElement,
+    NumberField: NumberFieldFormElement,
+    TextAreaField: TextAreaFieldFormElement,
+    DateField: DateFieldFormElement,
+    SelectField: SelectFieldFormElement
 }

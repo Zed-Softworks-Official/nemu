@@ -10,10 +10,12 @@ import CommissionFormSubmitView from '../form-builder/submissions/commission-for
 
 export default function CommissionCard({
     commission,
-    terms
+    terms,
+    user_id
 }: {
     commission: CommissionItem
-    terms: string
+    terms: string,
+    user_id: string
 }) {
     const [showModal, setShowModal] = useState(false)
     const [showForm, setShowForm] = useState(false)
@@ -59,7 +61,7 @@ export default function CommissionCard({
                     </button>
                     <Modal showModal={showModal} setShowModal={setShowModal}>
                         {showForm ? (
-                            <CommissionFormSubmitView form_id={`6599e94581a036161c6130eb`} />
+                            <CommissionFormSubmitView form_id={`6599e94581a036161c6130eb`} artist={user_id} /> // commission.form_id
                         ) : (
                             <CommissionsDisplay
                                 commission={commission}

@@ -21,11 +21,15 @@ export default function PortfolioItems() {
     }
 
     return (
-        <div className="grid grid-cols-4">
+        <div className="flex gap-5">
             {data?.items?.map((item: PortfolioItem) => {
                 return (
-                    <Link href={`/dashboard/portfolio/item/${item.key}`} key={item.key}>
-                        <div className="w-fit h-fit m-5 dark:bg-charcoal bg-white rounded-3xl pb-5">
+                    <Link
+                        href={`/dashboard/portfolio/item/${item.key}`}
+                        key={item.key}
+                        className="card bg-base-100 shadow-xl rounded-3xl w-fit h-fit transition-all duration-200 animate-pop-in"
+                    >
+                        <div>
                             <Image
                                 src={item.signed_url}
                                 alt={item.name}
@@ -33,7 +37,7 @@ export default function PortfolioItems() {
                                 height={400}
                                 className="rounded-3xl rounded-b-none"
                             />
-                            <div className="pt-5">
+                            <div className="card-body">
                                 <h2 className="text-center font-bold text-2xl">
                                     {item.name}
                                 </h2>

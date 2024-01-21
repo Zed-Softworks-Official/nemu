@@ -1,16 +1,17 @@
 'use client'
 
-import Image from 'next/image'
 import React from 'react'
+import NemuImage from './nemu-image'
 
 export default function Loading() {
     return (
         <div className="flex justify-center items-center w-full h-full">
-            <Image
+            <NemuImage
                 src={'/loading.gif'}
                 alt="Nemu Looking Through Boxes"
                 width={200}
                 height={200}
+                priority
             />
         </div>
     )

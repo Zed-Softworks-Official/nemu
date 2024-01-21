@@ -51,7 +51,7 @@ export interface ShopItem {
 /**
  * CommissionAvailability
  * Handles a commissions availability
- * 
+ *
  * Closed, Waitlist, Open
  */
 export enum CommissionAvailability {
@@ -63,7 +63,7 @@ export enum CommissionAvailability {
 /**
  * CommissionOrders
  * Handles the data for a comission order
- * 
+ *
  * @prop {string} user_id - The user id for the person who commissioned the artist
  * @prop {string} customer_id - The customer id fro the user
  * @prop {boolean} rush - Whether it's a rush order
@@ -82,17 +82,17 @@ export interface CommissionOrders {
 /**
  * CommissionItem
  * Handles data for commissions
- * 
+ *
  * @prop {string} name
  * @prop {string} description
  * @prop {number} price
- * 
+ *
  * @prop {string} featured_image
  * @prop {CommissionAvailability} availability
- * 
+ *
  * @prop {string[] | undefined} images
  * @prop {CommissionOrders[] | undefined} orders
- * 
+ *
  * @prop {string} prod_id
  * @prop {string} slug
  */
@@ -100,14 +100,14 @@ export interface CommissionItem {
     name: string
     description: string
     price: number
-    
+
     featured_image: string
     availability: CommissionAvailability
-    
+
     images?: string[]
     orders?: CommissionOrders[]
     form_id?: string
-    
+
     prod_id?: string
     slug?: string
 }
@@ -143,7 +143,7 @@ export interface DownloadData {
 
 /**
  * KanbanItem
- * 
+ *
  */
 export interface KanbanItem {
     id: UniqueIdentifier
@@ -152,7 +152,7 @@ export interface KanbanItem {
 
 /**
  * KanbanData
- * 
+ *
  */
 export interface KanbanData {
     id: UniqueIdentifier
@@ -272,9 +272,25 @@ export interface RandomArtistsResponse extends NemuResponse {
     artists?: Artist[]
 }
 
+/////////////////////////////////////////////
+// Commission Forms
+/////////////////////////////////////////////
+
+/**
+ * FormResponses
+ *
+ */
+export interface FormResponses {
+    username: string
+    userId: string
+
+    createdAt: Date
+    content: string
+}
+
 /**
  * CommissionResponse
- * 
+ *
  */
 export interface CommissionResponse extends NemuResponse {
     commission?: CommissionItem
@@ -283,12 +299,28 @@ export interface CommissionResponse extends NemuResponse {
 
 /**
  * CommissionFormsResponse
- * 
+ *
  */
 export interface CommissionFormsResponse extends NemuResponse {
-    form?: Form & {formSubmissions: FormSubmission[]}
-    forms?: Form[],
+    form?: Form & { formSubmissions: FormSubmission[] }
+    forms?: Form[]
     formContent?: FormElementInstance[]
+
+    submitted?: boolean
+}
+
+/**
+ * CommissionFormsSubmissionViewResponse
+ *
+ */
+export interface CommissionFormsSubmissionViewResponse extends NemuResponse {
+    name?: string
+    description?: string
+
+    submissions?: number
+
+    responses?: FormResponses[]
+    form_labels?: FormElementInstance[]
 }
 
 /////////////////////////////////////////////
