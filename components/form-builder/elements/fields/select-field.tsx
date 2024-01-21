@@ -8,7 +8,7 @@ import {
     SubmitFunction
 } from '../form-elements'
 
-import { useForm } from 'react-hook-form'
+import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 
 import * as z from 'zod'
@@ -17,6 +17,7 @@ import { DesignerContextType, useDesigner } from '../../designer/designer-contex
 import { CheckboxField, InputField } from '../input-field'
 import classNames from '@/helpers/classnames'
 import SelectInput from '@/components/form/select-input'
+import { PlusCircleIcon, XMarkIcon } from '@heroicons/react/20/solid'
 
 const type: ElementsType = 'SelectField'
 
@@ -220,14 +221,74 @@ function PropertiesComponent({
                 }
                 {...form.register('placeholder')}
             />
-            <InputField
-                label="Options"
-                description={
-                    <p className="text-base-content/80">
-                        Create the options you wish the user to select form.
-                    </p>
-                }
-                {...form.register('options')}
+            <Controller
+                name="options"
+                control={form.control}
+                render={({ field }) => (
+                    <>
+                        <div className="mb-5 flex gap-5 flex-col">
+                            <div className="flex justify-between items-center">
+                                <label htmlFor="Options" className="block">
+                                    Options:
+                                </label>
+                                <button
+                                    type="button"
+                                    className="btn btn-outline join-item"
+                                    onClick={(e) => {
+                                        e.preventDefault()
+                                        form.setValue(
+                                            'options',
+                                            form.getValues('options').concat('New Option')
+                                        )
+                                    }}
+                                >
+                                    <PlusCircleIcon className="w-6 h-6" />
+                                    Add
+                                </button>
+                            </div>
+                            {form.getValues('options') &&
+                                form.watch('options').map((option, index) => (
+                                    <div
+                                        key={index}
+                                        className="flex items-center justify-between gap-1"
+                                    >
+                                        <div className="join">
+                                            <input
+                                                className="input w-full join-item"
+                                                placeholder="Add an option"
+                                                value={option}
+                                                onChange={(e) => {
+                                                    field.value[index] = e.currentTarget.value
+                                                    field.onChange(field.value)
+                                                }}
+                                            />
+                                            <button
+                                                type="button"
+                                                className="btn btn-ghost join-item bg-base-100"
+                                                onClick={(e) => {
+                                                    e.preventDefault()
+
+                                                    const newOptions = [
+                                                        ...field.value
+                                                    ]
+                                                    newOptions.splice(index, 1)
+                                                    field.onChange(newOptions)
+                                                }}
+                                            >
+                                                <XMarkIcon className="w-6 h-6" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                        </div>
+                        <p className="text-base-content/80">
+                            <p className="text-base-content/80">
+                                This will be the placeholder of the field.
+                            </p>
+                        </p>
+                        <div className="divider"></div>
+                    </>
+                )}
             />
             <InputField
                 label="Helper Text"

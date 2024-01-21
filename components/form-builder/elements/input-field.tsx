@@ -1,3 +1,4 @@
+import { PlusCircleIcon } from '@heroicons/react/20/solid'
 import { forwardRef, InputHTMLAttributes, TextareaHTMLAttributes } from 'react'
 
 export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
