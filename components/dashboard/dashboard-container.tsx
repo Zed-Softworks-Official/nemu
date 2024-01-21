@@ -2,6 +2,8 @@
 
 import Link from 'next/link'
 import { PlusCircleIcon } from '@heroicons/react/20/solid'
+import { useState } from 'react'
+import Modal from '../modal'
 
 export default function DashboardContainer({
     title,
@@ -14,8 +16,10 @@ export default function DashboardContainer({
     modal?: React.ReactNode
     children: React.ReactNode
 }) {
+    const [showModal, setShowModal] = useState(false)
+
     return (
-        <main className="py-14 justify-around w-[80%]">
+        <main className="py-14 justify-around w-[90%]">
             <div className="bg-base-300 p-10 mx-auto rounded-3xl">
                 <div className="pb-10">
                     <h1 className="font-bold text-2xl text-center">{title}</h1>
@@ -37,23 +41,14 @@ export default function DashboardContainer({
                             <button
                                 type="button"
                                 className="btn btn-square btn-primary btn-lg"
-                                onClick={() =>
-                                    (
-                                        document.getElementById(
-                                            'form_create_modal'
-                                        ) as HTMLDialogElement
-                                    ).showModal()
-                                }
+                                onClick={() => setShowModal(true)}
                             >
                                 <PlusCircleIcon className="w-10 h-10 inline " />
                             </button>
                         </div>
-                        <dialog id="form_create_modal" className="modal">
-                            <div className="modal-box bg-base-300">{modal}</div>
-                            <form method="dialog" className="modal-backdrop">
-                                <button>close</button>
-                            </form>
-                        </dialog>
+                        <Modal showModal={showModal} setShowModal={setShowModal} background='bg-base-300'>
+                            {modal}
+                        </Modal>
                     </>
                 )}
                 {children}

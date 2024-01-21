@@ -26,9 +26,10 @@ export default function CommissionCreateForm() {
     }
 
     return (
-        <>
-            <h1>Create a new form</h1>
-            <form className="max-w-xl mx-auto" onSubmit={handleSubmit}>
+        <div className='max-w-xl mx-auto'>
+            <h1 className='card-title'>Create a new form</h1>
+            <div className='divider'></div>
+            <form onSubmit={handleSubmit}>
                 <TextInput
                     label="Form Name"
                     name="commission_form_name"
@@ -37,6 +38,7 @@ export default function CommissionCreateForm() {
                 <TextArea
                     label="Form Description"
                     name="commission_form_desc"
+                    rows={5}
                     placeholder="Something to help you remember what this is for"
                 />
                 <button type="submit" className="btn btn-primary">
@@ -44,6 +46,6 @@ export default function CommissionCreateForm() {
                     Create Form
                 </button>
             </form>
-        </>
+        </div>
     )
 }

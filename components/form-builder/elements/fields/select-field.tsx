@@ -7,7 +7,6 @@ import {
     FormElementInstance,
     SubmitFunction
 } from '../form-elements'
-import TextInput from '@/components/form/text-input'
 
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -220,6 +219,15 @@ function PropertiesComponent({
                     </p>
                 }
                 {...form.register('placeholder')}
+            />
+            <InputField
+                label="Options"
+                description={
+                    <p className="text-base-content/80">
+                        Create the options you wish the user to select form.
+                    </p>
+                }
+                {...form.register('options')}
             />
             <InputField
                 label="Helper Text"
