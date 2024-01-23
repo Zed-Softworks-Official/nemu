@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-import { ShopItem } from '@/helpers/api/request-inerfaces'
+import { ShopItem } from '@/core/responses'
 import ShopDisplay from '@/components/artist-page/shop-item'
 import NemuImage from '@/components/nemu-image'
 

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { NemuResponse, StatusCode } from '@/helpers/api/request-inerfaces'
+import { NemuResponse, StatusCode } from '@/core/responses'
 import { prisma } from '@/lib/prisma'
 
 export async function POST(

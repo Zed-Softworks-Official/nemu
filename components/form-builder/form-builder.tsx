@@ -4,11 +4,11 @@ import useSWR from 'swr'
 import Designer from './designer/designer'
 import SaveButton from './nav/save-button'
 
-import { fetcher } from '@/helpers/fetcher'
+import { fetcher } from '@/core/helpers'
 import { useSession } from 'next-auth/react'
 
 import PreviewButton from './nav/preview-button'
-import { CommissionFormsResponse } from '@/helpers/api/request-inerfaces'
+import { CommissionFormsResponse } from '@/core/responses'
 import {
     DndContext,
     MouseSensor,

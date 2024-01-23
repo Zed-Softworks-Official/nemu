@@ -1,11 +1,8 @@
 import { prisma } from '@/lib/prisma'
 
 import { NextResponse } from 'next/server'
-import {
-    CommissionAvailability,
-    CommissionResponse,
-    StatusCode
-} from '@/helpers/api/request-inerfaces'
+import { CommissionResponse, StatusCode } from '@/core/responses'
+import { CommissionAvailability } from '@/core/structures'
 
 export async function GET(req: Request, { params }: { params: { id: string } }) {
     // Get the artist with all of the commissions available
@@ -23,7 +20,6 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     })
 
     // Convert to an array full of commissions
-    
 
     return NextResponse.json<CommissionResponse>({
         status: StatusCode.Success,

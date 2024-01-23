@@ -2,7 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 
 import { StringToRoleEnum } from '@/helpers/user-info'
-import { NemuResponse, StatusCode } from '@/helpers/api/request-inerfaces'
+import { NemuResponse, StatusCode } from '@/core/responses'
 
 export async function POST(
     req: Request,

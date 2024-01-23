@@ -5,7 +5,7 @@ import {
     ArtistVerificationResponse,
     NemuResponse,
     StatusCode
-} from '@/helpers/api/request-inerfaces'
+} from '@/core/responses'
 
 /**
  * Gets all artists that have applied for verification

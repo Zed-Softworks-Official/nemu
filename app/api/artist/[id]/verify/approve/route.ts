@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
-import { NemuResponse, StatusCode } from '@/helpers/api/request-inerfaces'
+import { NemuResponse, StatusCode } from '@/core/responses'
 
 export async function POST(req: Request, { params }: { params: { id: string } }) {
     // Get the artist from the verification section

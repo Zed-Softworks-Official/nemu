@@ -1,13 +1,7 @@
 'use client'
 
 import { Dispatch, SetStateAction, createContext, useContext, useState } from 'react'
-
-export enum SearchType {
-    Commission,
-    PaidAsset,
-    FreeAsset,
-    Artist
-}
+import { SearchType } from '@/core/structures'
 
 type SearchContextType = {
     type?: SearchType

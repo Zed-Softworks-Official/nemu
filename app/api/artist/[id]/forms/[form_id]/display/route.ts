@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 
-import { CommissionFormsResponse, StatusCode } from '@/helpers/api/request-inerfaces'
+import { CommissionFormsResponse, StatusCode } from '@/core/responses'
 import { FormElementInstance } from '@/components/form-builder/elements/form-elements'
 
 /**

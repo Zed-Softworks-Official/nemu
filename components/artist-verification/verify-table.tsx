@@ -2,11 +2,11 @@
 
 import useSwr from 'swr'
 
-import { fetcher } from '@/helpers/fetcher'
+import { fetcher } from '@/core/helpers'
 import { toast } from 'react-toastify'
 import Loading from '@/components/loading'
 
-import { ArtistVerificationResponse } from '@/helpers/api/request-inerfaces'
+import { ArtistVerificationResponse } from '@/core/responses'
 
 export function VerifyTable() {
     const { data, isLoading } = useSwr<ArtistVerificationResponse>(

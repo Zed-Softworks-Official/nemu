@@ -7,7 +7,7 @@ import GoogleProvider from 'next-auth/providers/google'
 import AppleProvider from 'next-auth/providers/apple'
 import TwitterProvider from 'next-auth/providers/twitter'
 import EmailProvider from 'next-auth/providers/email'
-import { Role } from '@/helpers/user-info'
+import { Role } from '@/core/structures'
 
 export const authOptions: NextAuthOptions = {
     adapter: PrismaAdapter(prisma),

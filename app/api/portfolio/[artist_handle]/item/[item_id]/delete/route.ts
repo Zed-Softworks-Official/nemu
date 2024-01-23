@@ -1,8 +1,9 @@
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 
-import { AWSLocations, S3Delete } from '@/helpers/s3'
-import { NemuResponse, StatusCode } from '@/helpers/api/request-inerfaces'
+import { S3Delete } from '@/core/storage'
+import { AWSLocations } from '@/core/structures'
+import { NemuResponse, StatusCode } from '@/core/responses'
 
 //////////////////////////////////////
 // Delete Object From S3

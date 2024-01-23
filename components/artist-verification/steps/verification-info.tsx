@@ -30,7 +30,7 @@ export default function VerificationInfo() {
                     type="text"
                     name="requested_handle"
                     placeholder="Handle" 
-                    className="bg-white dark:bg-charcoal p-5 rounded-xl w-full" 
+                    className="input w-full" 
                     onChange={(e) => setRequestedHandle(e.target.value)} 
                 />
             </div>
@@ -47,7 +47,7 @@ export default function VerificationInfo() {
                     type="text"
                     name="twitter"
                     placeholder="Twitter URL"
-                    className="bg-white dark:bg-charcoal p-5 rounded-xl w-full" 
+                    className="input w-full" 
                     onChange={(e) => setTwitter(e.target.value)} 
                     defaultValue={twitterDefaultValue}
                 />
@@ -65,7 +65,7 @@ export default function VerificationInfo() {
                     type="text"
                     name="pixiv"
                     placeholder="Pixiv URL (optional)"
-                    className="bg-white dark:bg-charcoal p-5 rounded-xl w-full" 
+                    className="input w-full" 
                     onChange={(e) => setPixiv(e.target.value)} 
                 />
             </div>
@@ -82,7 +82,7 @@ export default function VerificationInfo() {
                     type="text"
                     name="location"
                     placeholder="location (optional)" 
-                    className="bg-white dark:bg-charcoal p-5 rounded-xl w-full" 
+                    className="input w-full" 
                     onChange={(e) => setLocation(e.target.value)} 
                 />
             </div>

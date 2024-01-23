@@ -1,7 +1,8 @@
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
-import { AWSLocations, S3Delete, S3Upload } from '@/helpers/s3'
-import { NemuResponse, StatusCode } from '@/helpers/api/request-inerfaces'
+import { S3Delete, S3Upload } from '@/core/storage'
+import { AWSLocations } from '@/core/structures'
+import { NemuResponse, StatusCode } from '@/core/responses'
 
 //////////////////////////////////////////
 // POST Item To AWS API Route

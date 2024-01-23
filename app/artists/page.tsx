@@ -7,7 +7,7 @@ import ArtistPoints from '@/components/artist-verification/artist-points'
 export default async function Artists() {
     return (
         <DefaultPageLayout>
-            <main className="container mx-auto bg-fullwhite dark:bg-fullblack p-5 rounded-3xl text-center">
+            <main className="container mx-auto bg-base-300 p-5 rounded-xl text-center">
                 <div className="">
                     <h1>Become an Artist on Nemu!</h1>
                     <hr className="seperation" />

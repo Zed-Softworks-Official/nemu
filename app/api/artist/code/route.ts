@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
-import { ArtistCodeResponse, StatusCode } from '@/helpers/api/request-inerfaces'
+import { ArtistCodeResponse, StatusCode } from '@/core/responses'
 
 /**
  * Creates an artist code, adds it to the database, and returns it

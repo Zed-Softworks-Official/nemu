@@ -4,8 +4,9 @@ import { useState, Fragment } from 'react'
 import { Listbox, Transition } from '@headlessui/react'
 import { ChevronDownIcon } from '@heroicons/react/20/solid'
 
-import classNames from '@/helpers/classnames'
-import { SearchType, useSearchContext } from './search-context'
+import classNames from '@/core/helpers'
+import { useSearchContext } from './search-context'
+import { SearchType } from '@/core/structures'
 
 const options = [
     { id: SearchType.Artist, name: 'Artists', unavailable: false },
@@ -36,7 +37,7 @@ export default function SearchListBox() {
                             </span>
                             <span className="pointer-events-none absolute inset-y-0 right-0 ml-3 flex items-center pr-2">
                                 <ChevronDownIcon
-                                    className="h-5 w-5 text-charcoal dark:text-white"
+                                    className="h-5 w-5 text-base-content"
                                     aria-hidden="true"
                                 />
                             </span>
@@ -57,7 +58,7 @@ export default function SearchListBox() {
                                             classNames(
                                                 active
                                                     ? 'bg-indigo-600 text-primary'
-                                                    : 'text-charcoal dark:text-white',
+                                                    : 'text-base-content',
                                                 'relative cursor-default select-none py-2 pl-3 pr-2'
                                             )
                                         }

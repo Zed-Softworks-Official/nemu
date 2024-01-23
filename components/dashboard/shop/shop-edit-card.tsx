@@ -2,7 +2,7 @@
 
 import { TrashIcon } from '@heroicons/react/20/solid'
 import { useParams, useRouter } from 'next/navigation'
-import { CreateToastPromise } from '@/helpers/toast-promise'
+import { CreateToastPromise } from '@/core/promise'
 import NemuImage from '@/components/nemu-image'
 
 export default function ShopEditCard({

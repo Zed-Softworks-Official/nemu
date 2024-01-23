@@ -1,10 +1,10 @@
 'use client'
 
 import useSWR from 'swr'
-import { fetcher } from '@/helpers/fetcher'
+import { fetcher } from '@/core/helpers'
 import { useSession } from 'next-auth/react'
 
-import { DownloadsResponse } from '@/helpers/api/request-inerfaces'
+import { DownloadsResponse } from '@/core/responses'
 import Link from 'next/link'
 import Loading from '@/components/loading'
 

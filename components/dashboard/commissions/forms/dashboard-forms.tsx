@@ -1,10 +1,10 @@
 'use client'
 
 import useSWR from 'swr'
-import { fetcher } from '@/helpers/fetcher'
+import { fetcher } from '@/core/helpers'
 
 import { useSession } from 'next-auth/react'
-import { CommissionFormsResponse } from '@/helpers/api/request-inerfaces'
+import { CommissionFormsResponse } from '@/core/responses'
 import Loading from '@/components/loading'
 import Link from 'next/link'
 import { PencilSquareIcon } from '@heroicons/react/20/solid'

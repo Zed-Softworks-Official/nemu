@@ -9,9 +9,10 @@ import {
     StripeGetPrices,
     StripeGetRawProductInfo,
     StripeUpdateProduct
-} from '@/helpers/stripe'
-import { NemuResponse, StatusCode } from '@/helpers/api/request-inerfaces'
-import { AWSLocations, RandomNameWithExtension, S3Delete, S3Upload } from '@/helpers/s3'
+} from '@/core/payments'
+import { NemuResponse, StatusCode } from '@/core/responses'
+import { RandomNameWithExtension, S3Delete, S3Upload } from '@/core/storage'
+import { AWSLocations } from '@/core/structures'
 
 /**
  * Updates an item based on a given product id

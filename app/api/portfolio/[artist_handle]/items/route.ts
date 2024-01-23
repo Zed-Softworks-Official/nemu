@@ -1,13 +1,14 @@
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
-import { AWSLocations, S3GetSignedURL } from '@/helpers/s3'
+import { S3GetSignedURL } from '@/core/storage'
+
+import {PortfolioItem, AWSLocations} from '@/core/structures'
 
 import {
     NemuResponse,
-    PortfolioItem,
     PortfolioResponse,
     StatusCode
-} from '@/helpers/api/request-inerfaces'
+} from '@/core/responses'
 
 /**
  * Gets All portfolio items for a given user

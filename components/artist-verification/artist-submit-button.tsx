@@ -8,7 +8,7 @@ import { useSession } from 'next-auth/react'
 import { toast } from 'react-toastify'
 
 import useVerificationFormStore, { MethodEnum } from '@/store/VerificationForm'
-import { ArtistCodeVerification, ArtistTwitterVerification } from '@/helpers/artist-verification'
+import { ArtistCodeVerification, ArtistTwitterVerification } from '@/core/verification'
 
 export default function ArtistSubmitButton() {
     const { 

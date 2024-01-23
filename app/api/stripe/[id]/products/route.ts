@@ -1,8 +1,9 @@
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 
-import { StripeGetStoreProductInfo } from '@/helpers/stripe'
-import { ShopItem, ShopResponse, StatusCode } from '@/helpers/api/request-inerfaces'
+import { StripeGetStoreProductInfo } from '@/core/payments'
+import { ShopResponse, StatusCode } from '@/core/responses'
+import { ShopItem } from '@/core/structures'
 
 /**
  * Gets all the products from a particular user

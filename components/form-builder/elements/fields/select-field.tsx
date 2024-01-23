@@ -15,7 +15,7 @@ import * as z from 'zod'
 import { useEffect, useState } from 'react'
 import { DesignerContextType, useDesigner } from '../../designer/designer-context'
 import { CheckboxField, InputField } from '../input-field'
-import classNames from '@/helpers/classnames'
+import classNames from '@/core/helpers'
 import SelectInput from '@/components/form/select-input'
 import { PlusCircleIcon, XMarkIcon } from '@heroicons/react/20/solid'
 

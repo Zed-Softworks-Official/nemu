@@ -1,6 +1,40 @@
-///////////////////////////////
-// Icons
-///////////////////////////////
+/**
+ * Social Media Places Available To Use
+ * 
+ * Twitter, Pixiv, YouTube, Website
+ */
+export enum SocialAgent {
+    Twitter,
+    Pixiv,
+    YouTube,
+    Website
+}
+
+/**
+ * Interface for socail media
+ * 
+ * @prop {string | undefined} agent - The social network
+ * @prop {string | undefined} url - The url to the social network  
+ */
+export interface Social {
+    agent: SocialAgent
+    url: string
+}
+
+/**
+ * Roles available to each user
+ * 
+ * Standard, Artist, Admin
+ */
+export enum Role {
+    Standard,
+    Artist,
+    Admin
+}
+
+/**
+ * UserInfoIcons
+ */
 export enum UserInfoIcon {
     Page,
     Dashboard,
@@ -15,17 +49,18 @@ export enum UserInfoIcon {
     SignOut,
 }
 
-///////////////////////////////
-// User Info Links Interface
-///////////////////////////////
+/**
+ * UserInfoLink Interface
+ */
 export interface UserInfoLink {
     title: string
     path: string
     icon: UserInfoIcon,
 }
 
+
 ///////////////////////////////
-// User Info
+// User Info Model
 ///////////////////////////////
 
 export const UserInfoObject: Record<string, UserInfoLink[]> = {

@@ -1,9 +1,10 @@
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 
-import { AWSLocations, RandomNameWithExtension, S3Upload } from '@/helpers/s3'
-import { StripeCreateStoreProduct, StripeGetStoreProductInfo } from '@/helpers/stripe'
-import { NemuResponse, StatusCode, ShopResponse } from '@/helpers/api/request-inerfaces'
+import { RandomNameWithExtension, S3Upload } from '@/core/storage'
+import { StripeCreateStoreProduct, StripeGetStoreProductInfo } from '@/core/payments'
+import { AWSLocations } from '@/core/structures'
+import { NemuResponse, StatusCode, ShopResponse } from '@/core/responses'
 
 /**
  * Creates a product on stripe, our database, and uploads the data files to S3

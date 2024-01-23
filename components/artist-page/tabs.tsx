@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Tab } from '@headlessui/react'
 
-import classNames from '@/helpers/classnames'
+import classNames from '@/core/helpers'
 import { useTabsContext } from './tabs-context';
 
 export default function ArtistProfileTabs() {

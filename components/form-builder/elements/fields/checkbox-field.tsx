@@ -15,7 +15,7 @@ import * as z from 'zod'
 import { useEffect, useState } from 'react'
 import { DesignerContextType, useDesigner } from '../../designer/designer-context'
 import { CheckboxField, InputField } from '../input-field'
-import classNames from '@/helpers/classnames'
+import classNames from '@/core/helpers'
 
 const type: ElementsType = 'CheckboxField'
 

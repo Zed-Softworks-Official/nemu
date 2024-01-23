@@ -1,27 +1,8 @@
-/**
- * Interface for socail media
- * 
- * @prop {string | undefined} agent - The social network
- * @prop {string | undefined} url - The url to the social network  
- */
-export interface Social {
-    agent?: string
-    url?: string
-}
-
-/**
- * Roles available to each user
- */
-export enum Role {
-    Standard,
-    Artist,
-    Admin
-}
-
+import { Role } from './data-structures/user-structures'
 
 /**
  * Converts a given role to a string
- * 
+ *
  * @param {Role} role - The role to convert to a string
  * @returns {string} The string version of the role
  */
@@ -38,10 +19,9 @@ export function RoleEnumToString(role: Role) {
     }
 }
 
-
 /**
  * Converts a given role from a string into an enumeration
- * 
+ *
  * @param {string} role - The role in string form
  * @returns {role} The role as an enum
  */

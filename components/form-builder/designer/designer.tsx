@@ -2,7 +2,7 @@
 
 import { DragEndEvent, useDndMonitor, useDraggable, useDroppable } from '@dnd-kit/core'
 import DesignerSidebar from './designer-sidebar'
-import classNames from '@/helpers/classnames'
+import classNames from '@/core/helpers'
 import { DesignerContextType, useDesigner } from './designer-context'
 import {
     ElementsType,

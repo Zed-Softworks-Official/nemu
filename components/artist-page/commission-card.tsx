@@ -1,6 +1,6 @@
 'use client'
 
-import { CommissionAvailability, CommissionItem } from '@/helpers/api/request-inerfaces'
+import { CommissionAvailability, CommissionItem } from '@/core/structures'
 import { useState } from 'react'
 
 import NemuImage from '@/components/nemu-image'
@@ -32,7 +32,7 @@ export default function CommissionCard({
     }
 
     return (
-        <div key={commission.slug} className="card lg:card-side bg-base-100 shadow-xl">
+        <div key={commission.slug} className="card lg:card-side bg-base-100 shadow-xl animate-pop-in transition-all duration-200">
             <figure>
                 <NemuImage
                     src={commission.featured_image}

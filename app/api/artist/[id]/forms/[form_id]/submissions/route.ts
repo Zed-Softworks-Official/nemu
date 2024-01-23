@@ -1,9 +1,9 @@
-import { FormElementInstance } from '@/components/form-builder/elements/form-elements';
+import { FormElementInstance } from '@/components/form-builder/elements/form-elements'
 import {
     CommissionFormsSubmissionViewResponse,
     FormResponses,
     StatusCode
-} from '@/helpers/api/request-inerfaces'
+} from '@/core/responses'
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 

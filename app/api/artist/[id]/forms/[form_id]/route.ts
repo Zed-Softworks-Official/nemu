@@ -3,7 +3,7 @@ import {
     CommissionFormsResponse,
     NemuResponse,
     StatusCode
-} from '@/helpers/api/request-inerfaces'
+} from '@/core/responses'
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 

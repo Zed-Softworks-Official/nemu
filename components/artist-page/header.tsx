@@ -1,14 +1,14 @@
 import NemuImage from '../nemu-image'
 
 import ArtistProfileTabs from '@/components/artist-page/tabs'
-import { ArtistPageResponse } from '@/helpers/api/request-inerfaces'
+import { ArtistPageResponse } from '@/core/responses'
 
 export default function ArtistHeader({ data }: { data: ArtistPageResponse }) {
     return (
         <div className="flex-wrap">
-            <div className="mx-auto w-full h-96 bg-[url('/curved0.jpg')] rounded-3xl bg-no-repeat bg-center bg-cover"></div>
+            <div className="mx-auto w-full h-96 bg-[url('/curved0.jpg')] rounded-xl bg-no-repeat bg-center bg-cover"></div>
             <div className="mx-20">
-                <div className="mx-auto max-w-[98%] -my-28 py-14 backdrop-blur-xl bg-base-300/60 shadow-lg rounded-3xl px-10">
+                <div className="mx-auto max-w-[98%] -my-28 py-14 backdrop-blur-xl bg-base-300/60 shadow-lg rounded-xl px-10">
                     <div className="flex justify-start">
                         <div className="avatar">
                             <div className="absolute top-0 right-0">
@@ -20,7 +20,7 @@ export default function ArtistHeader({ data }: { data: ArtistPageResponse }) {
                                     className="block"
                                 />
                             </div>
-                            <div className="w-24 rounded-full">
+                            <div className="w-24 rounded-full avatar">
                                 <NemuImage
                                     src={
                                         data.artist?.profilePhoto

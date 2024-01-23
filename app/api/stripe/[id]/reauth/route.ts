@@ -1,4 +1,4 @@
-import { StripeCreateAccountLink } from "@/helpers/stripe";
+import { StripeCreateAccountLink } from "@/core/payments";
 import { NextResponse } from "next/server";
 
 /**

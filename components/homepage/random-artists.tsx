@@ -1,7 +1,7 @@
 'use client'
 
-import { RandomArtistsResponse } from '@/helpers/api/request-inerfaces'
-import { fetcher } from '@/helpers/fetcher'
+import { RandomArtistsResponse } from '@/core/responses'
+import { fetcher } from '@/core/helpers'
 import useSWR from 'swr'
 import Link from 'next/link'
 import ArtistsSkeleton from '../skeleton/homepage/artists-skeleton'
@@ -18,9 +18,11 @@ export default function RandomArtists() {
     }
 
     return (
-        <div className="my-10">
-            <h1>Artists</h1>
-            <div className="grid grid-cols-4 gap-5">
+        <div className="flex flex-col gap-5">
+            <div className="prose mt-5 mx-5">
+                <h1>Artists</h1>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
                 {data?.artists?.map((artist) => (
                     <Link
                         href={`/@${artist.handle}`}
@@ -52,7 +54,9 @@ export default function RandomArtists() {
                                     />
                                 </div>
                                 <h1 className="card-title">@{artist.handle}</h1>
-                                <p className="text-base-content/80 text-left">{artist.about}</p>
+                                <p className="text-base-content/80 text-left">
+                                    {artist.about}
+                                </p>
                             </div>
                         </div>
                     </Link>

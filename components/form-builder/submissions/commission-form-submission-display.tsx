@@ -1,7 +1,7 @@
 'use client'
 
 import Modal from '@/components/modal'
-import { FormResponses } from '@/helpers/api/request-inerfaces'
+import { FormResponses } from '@/core/responses'
 import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/20/solid'
 import { useState } from 'react'
 import { FormElementInstance } from '../elements/form-elements'

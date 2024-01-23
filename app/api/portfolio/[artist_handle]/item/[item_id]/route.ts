@@ -1,13 +1,9 @@
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 
-import { AWSLocations, S3Upload } from '@/helpers/s3'
-import { GetPortfolioItem } from '@/helpers/api/request-item'
-import {
-    NemuResponse,
-    PortfolioResponse,
-    StatusCode
-} from '@/helpers/api/request-inerfaces'
+import { S3GetSignedURL, S3Upload } from '@/core/storage'
+import { AWSLocations, PortfolioItem } from '@/core/structures'
+import { NemuResponse, PortfolioResponse, StatusCode } from '@/core/responses'
 
 /**
  * GET Method for API for a SINGLE item
@@ -22,7 +18,23 @@ export async function GET(
     // Determine where the
     // object is and retrieve it
     ////////////////////////////
-    let item = await GetPortfolioItem(params.artist_handle, params.item_id)
+
+    // Determine the location of the object
+    const database_item = await prisma.portfolio.findFirst({
+        where: {
+            image: params.item_id
+        }
+    })
+
+    const item: PortfolioItem = {
+        name: database_item!.name,
+        signed_url: await S3GetSignedURL(
+            params.artist_handle,
+            AWSLocations.Portfolio,
+            params.item_id
+        ),
+        key: params.item_id
+    }
 
     // Return item data
     return NextResponse.json<PortfolioResponse>({
@@ -61,7 +73,12 @@ export async function POST(
     })
 
     // Upload file
-    const upload = await S3Upload(params.artist_handle, AWSLocations.Portfolio, file, params.item_id)
+    const upload = await S3Upload(
+        params.artist_handle,
+        AWSLocations.Portfolio,
+        file,
+        params.item_id
+    )
 
     return NextResponse.json<NemuResponse>({
         status: upload.$metadata.httpStatusCode as StatusCode

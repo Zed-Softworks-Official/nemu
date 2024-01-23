@@ -1,5 +1,5 @@
-import { ShopResponse, StatusCode } from '@/helpers/api/request-inerfaces'
-import { StripeGetStoreProductInfo } from '@/helpers/stripe'
+import { ShopResponse, StatusCode } from '@/core/responses'
+import { StripeGetStoreProductInfo } from '@/core/payments'
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 

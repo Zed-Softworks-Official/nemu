@@ -2,7 +2,7 @@
 
 import { CSS } from '@dnd-kit/utilities'
 
-import classNames from '@/helpers/classnames'
+import classNames from '@/core/helpers'
 import { useSortable } from '@dnd-kit/sortable'
 import { UniqueIdentifier } from '@dnd-kit/core'
 

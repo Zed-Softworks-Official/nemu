@@ -1,5 +1,5 @@
 import { toast } from 'react-toastify'
-import { NemuResponse, StatusCode } from './api/request-inerfaces'
+import { NemuResponse, StatusCode } from '@/core/responses'
 
 export async function CreateToastPromise(
     promise: Promise<Response>,

@@ -1,4 +1,4 @@
-import classNames from '@/helpers/classnames'
+import classNames from '@/core/helpers'
 import { SelectHTMLAttributes } from 'react'
 
 export default function SelectInput({

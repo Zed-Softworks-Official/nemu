@@ -3,9 +3,9 @@ import {
     DownloadData,
     DownloadsResponse,
     StatusCode
-} from '@/helpers/api/request-inerfaces'
+} from '@/core/responses'
 import { prisma } from '@/lib/prisma'
-import { StripeGetStoreProductInfo } from '@/helpers/stripe'
+import { StripeGetStoreProductInfo } from '@/core/payments'
 
 export async function GET(req: Request, { params }: { params: { id: string } }) {
     const user = await prisma.user.findFirst({

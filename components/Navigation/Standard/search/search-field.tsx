@@ -2,7 +2,7 @@
 
 import { MagnifyingGlassIcon } from '@heroicons/react/20/solid'
 import { useSearchContext } from './search-context'
-import { SearchPhrase } from '@/helpers/search'
+import { SearchPhrase } from '@/core/search'
 
 export default function SearchField() {
     const { type } = useSearchContext()

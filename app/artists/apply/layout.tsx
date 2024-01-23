@@ -9,7 +9,7 @@ export default async function VerificationLayout({ children, } : { children: Rea
     return (
         <AuthCheck>
             <DefaultPageLayout>
-                <div className='container mx-auto bg-fullwhite dark:bg-fullblack p-5 rounded-3xl'>
+                <div className='container mx-auto bg-base-300 p-5 rounded-xl'>
                     <div className='mb-10'>
                         <h1 className='text-center'>Artists Wanted!</h1>
                         <h2 className='text-center'>Fill out this form to start the verification process!</h2>

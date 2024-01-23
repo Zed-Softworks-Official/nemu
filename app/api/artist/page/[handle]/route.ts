@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 
-import { ArtistPageResponse, StatusCode } from '@/helpers/api/request-inerfaces'
+import { ArtistPageResponse, StatusCode } from '@/core/responses'
 
 export async function GET(req: Request, { params }: { params: { handle: string } }) {
     const artist = await prisma.artist.findFirst({

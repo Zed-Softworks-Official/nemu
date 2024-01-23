@@ -2,10 +2,10 @@
 
 import useSWR from 'swr'
 
-import { fetcher } from '@/helpers/fetcher'
+import { fetcher } from '@/core/helpers'
 import { useSession } from 'next-auth/react'
 
-import { ShopItem, ShopResponse } from '@/helpers/api/request-inerfaces'
+import { ShopItem, ShopResponse } from '@/core/responses'
 
 import ShopCard from '@/components/dashboard/shop/shop-card'
 import Loading from '@/components/loading'

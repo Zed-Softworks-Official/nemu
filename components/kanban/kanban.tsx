@@ -26,7 +26,7 @@ import KanbanDroppable from './kanban-container'
 import KanbanItem from './kanban-item'
 import Modal from '../modal'
 import KanbanContainer from './kanban-container'
-import { KanbanData } from '@/helpers/api/request-inerfaces'
+import { KanbanData } from '@/core/responses'
 
 export default function Kanban({ title, client }: { title: string; client: string }) {
     const [containers, setContainers] = useState<KanbanData[]>([

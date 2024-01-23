@@ -1,8 +1,8 @@
 'use client'
 
 import Loading from '@/components/loading'
-import { CommissionResponse } from '@/helpers/api/request-inerfaces'
-import { fetcher } from '@/helpers/fetcher'
+import { CommissionResponse } from '@/core/responses'
+import { fetcher } from '@/core/helpers'
 import { useSession } from 'next-auth/react'
 import useSWR from 'swr'
 

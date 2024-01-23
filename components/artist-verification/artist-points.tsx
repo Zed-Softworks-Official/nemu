@@ -47,7 +47,7 @@ export default function ArtistPoints() {
                                 ${
                                     checked ? 'bg-primary bg-opacity-75 text-white' : 'bg-charcoal'
                                 }
-                                relative flex cursor-pointer rounded-3xl px-5 py-4 shadown-md focus:outline-none`
+                                relative flex cursor-pointer rounded-xl px-5 py-4 shadown-md focus:outline-none`
                             }
                         >
                             {({ active, checked }) => (
@@ -79,7 +79,7 @@ export default function ArtistPoints() {
                 leaveFrom="opacity-100 scale-100 "
                 leaveTo="opacity-0 scale-95 "
             >
-                <div className="bg-charcoal col-span-2 p-10 rounded-3xl text-left text-lg">
+                <div className="bg-charcoal col-span-2 p-10 rounded-xl text-left text-lg">
                     {currentDesc}
                 </div>
             </Transition>

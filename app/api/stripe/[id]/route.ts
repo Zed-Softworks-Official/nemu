@@ -6,9 +6,9 @@ import {
     StripeCreateAccountLink,
     StripeCreateLoginLink,
     StripeGetAccount
-} from '@/helpers/stripe'
+} from '@/core/payments'
 
-import { StatusCode, StripeAccountResponse } from '@/helpers/api/request-inerfaces'
+import { StatusCode, StripeAccountResponse } from '@/core/responses'
 
 /**
  * Get's the correct response based on wether an artist is onboarded or not

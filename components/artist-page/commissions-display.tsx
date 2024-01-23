@@ -4,9 +4,7 @@ import { useState } from 'react'
 import NemuImage from '../nemu-image'
 import Markdown from 'react-markdown'
 
-import { ShoppingCartIcon } from '@heroicons/react/20/solid'
-
-import { CommissionAvailability, CommissionItem } from '@/helpers/api/request-inerfaces'
+import { CommissionAvailability, CommissionItem } from '@/core/structures'
 
 export default function CommissionsDisplay({
     commission,

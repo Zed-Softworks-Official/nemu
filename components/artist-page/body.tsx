@@ -3,7 +3,6 @@
 import React, { Suspense } from 'react'
 
 import { notFound } from 'next/navigation'
-import { SocialIcon } from 'react-social-icons'
 
 import Loading from '@/components/loading'
 import Portfolio from './portfolio'
@@ -11,6 +10,9 @@ import { useTabsContext } from './tabs-context'
 import { Artist } from '@prisma/client'
 import Shop from './shop'
 import Commissions from './commissions'
+import Link from 'next/link'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faPixiv, faXTwitter } from '@fortawesome/free-brands-svg-icons'
 
 export default function ArtistBody({ artist_info }: { artist_info: Artist }) {
     const { currentIndex } = useTabsContext()
@@ -21,7 +23,10 @@ export default function ArtistBody({ artist_info }: { artist_info: Artist }) {
                 return (
                     <div>
                         <h1 className="font-bold text-2xl">Commissions</h1>
-                        <Commissions user_id={artist_info.userId} terms={artist_info.terms} />
+                        <Commissions
+                            user_id={artist_info.userId}
+                            terms={artist_info.terms}
+                        />
                     </div>
                 )
             case 1:
@@ -45,28 +50,39 @@ export default function ArtistBody({ artist_info }: { artist_info: Artist }) {
 
     return (
         <div className="grid grid-cols-12 gap-10 w-full mx-auto mt-36">
-            <div className="bg-base-300 p-10 rounded-3xl col-span-3 text-center">
-                <h1 className="font-bold text-2xl text-center">About</h1>
-                <p>{artist_info.about}</p>
-                <hr className="seperation" />
-                <div className="my-10">
-                    <SocialIcon
-                        url="https://twitter.com/JackSchitt404"
-                        className="social-icon-scaled"
-                        target="_blank"
-                    />
-                    <SocialIcon
-                        url="https://www.pixiv.net/en/users/29694453"
-                        className="social-icon-scaled"
-                        target="_blank"
-                    />
+            <div className="bg-base-300 p-10 rounded-xl col-span-3 text-center">
+                <div className="flex flex-col justify-center gap-5">
+                    <div className="flex flex-col">
+                        <div className="divider card-title">About</div>
+                        <p>{artist_info.about}</p>
+                        <p className="mt-10">Location: {artist_info.location}</p>
+                    </div>
+                    <div>
+                        <div className="divider card-title">Socials</div>
+                        <div className="flex gap-5 justify-center items-center">
+                            <Link
+                                href={`https://twitter.com/JackSchitt404`}
+                                className="avatar btn btn-circle btn-ghost rounded-full"
+                                target="_blank"
+                            >
+                                <FontAwesomeIcon icon={faXTwitter} className="w-6 h-6" />
+                            </Link>
+                            <Link
+                                href={`https://www.pixiv.net/en/users/29694453`}
+                                className="avatar btn btn-circle btn-ghost rounded-full"
+                                target="_blank"
+                            >
+                                <FontAwesomeIcon icon={faPixiv} className="w-6 h-6" />
+                            </Link>
+                        </div>
+                    </div>
+                    <div>
+                        <div className="divider card-title">Commission Terms</div>
+                        <p>{artist_info.terms}</p>
+                    </div>
                 </div>
-                <p>Location: {artist_info.location}</p>
-                <hr className="seperation" />
-                <h1 className="font-bold text-2xl text-center">Commission Terms</h1>
-                <p>{artist_info.terms}</p>
             </div>
-            <div className="bg-base-300 p-10 rounded-3xl col-span-9">
+            <div className="bg-base-300 p-10 rounded-xl col-span-9">
                 {renderCorrectBody(currentIndex || 0)}
             </div>
         </div>

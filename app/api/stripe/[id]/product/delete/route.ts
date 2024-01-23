@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
-import { NemuResponse, StatusCode } from '@/helpers/api/request-inerfaces'
+import { NemuResponse, StatusCode } from '@/core/responses'
 import { prisma } from '@/lib/prisma'
-import { StripeDeleteProduct, StripeGetRawProductInfo } from '@/helpers/stripe'
-import { AWSLocations, S3Delete } from '@/helpers/s3'
+import { StripeDeleteProduct, StripeGetRawProductInfo } from '@/core/payments'
+import { S3Delete } from '@/core/storage'
+import { AWSLocations } from '@/core/structures'
 
 export async function POST(req: Request, { params }: { params: { id: string } }) {
     // Get product from database

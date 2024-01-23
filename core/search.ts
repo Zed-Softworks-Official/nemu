@@ -1,4 +1,4 @@
-import { SearchType } from '@/components/navigation/standard/search/search-context'
+import { SearchType } from "./structures"
 
 export function SearchTypeToString(type: SearchType) {
     switch (type) {

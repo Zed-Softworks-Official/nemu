@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server'
-import { CommissionFormsResponse, NemuResponse, StatusCode } from '@/helpers/api/request-inerfaces'
+import { CommissionFormsResponse, NemuResponse, StatusCode } from '@/core/responses'
 import { prisma } from '@/lib/prisma'
 
 /**
  * Creates new form for artist
- * 
+ *
  * @param id - userId
  */
 export async function POST(req: Request, { params }: { params: { id: string } }) {
@@ -45,7 +45,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
 /**
  * Gets all forms from artist
- * 
+ *
  * @param id - UserId
  */
 export async function GET(req: Request, { params }: { params: { id: string } }) {

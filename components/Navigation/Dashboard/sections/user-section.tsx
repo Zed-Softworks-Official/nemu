@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
-import classNames from '@/helpers/classnames'
+import classNames from '@/core/helpers'
 import { useDashboardContext } from '../dashboard-context'
 
 import {

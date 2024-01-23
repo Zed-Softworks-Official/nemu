@@ -2,7 +2,7 @@
 
 import TextArea from '@/components/form/text-area'
 import TextInput from '@/components/form/text-input'
-import { CreateToastPromise } from '@/helpers/toast-promise'
+import { CreateToastPromise } from '@/core/promise'
 
 import { CheckCircleIcon } from '@heroicons/react/20/solid'
 import { useSession } from 'next-auth/react'

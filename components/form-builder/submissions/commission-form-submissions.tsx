@@ -1,8 +1,8 @@
 'use client'
 
 import Loading from '@/components/loading'
-import { CommissionFormsSubmissionViewResponse } from '@/helpers/api/request-inerfaces'
-import { fetcher } from '@/helpers/fetcher'
+import { CommissionFormsSubmissionViewResponse } from '@/core/responses'
+import { fetcher } from '@/core/helpers'
 import { PencilIcon } from '@heroicons/react/20/solid'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'

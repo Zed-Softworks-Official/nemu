@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import classNames from '@/helpers/classnames'
+import classNames from '@/core/helpers'
 import { Cog6ToothIcon, PaintBrushIcon } from '@heroicons/react/20/solid'
 import { usePathname } from 'next/navigation'
 import { useDashboardContext } from '../dashboard-context'

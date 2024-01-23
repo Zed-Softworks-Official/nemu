@@ -1,4 +1,4 @@
-import classNames from '@/helpers/classnames'
+import classNames from '@/core/helpers'
 import { InputHTMLAttributes, TextareaHTMLAttributes } from 'react'
 
 export default function TextAreaInput({

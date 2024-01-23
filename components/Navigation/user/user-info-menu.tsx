@@ -18,9 +18,8 @@ import {
     ArrowRightEndOnRectangleIcon
 } from '@heroicons/react/20/solid'
 
-import { Role } from '@/helpers/user-info'
-import classNames from '@/helpers/classnames'
-import { UserInfoIcon, UserInfoLink, UserInfoObject } from '@/helpers/userinfo-links'
+import classNames from '@/core/helpers'
+import { UserInfoIcon, UserInfoLink, UserInfoObject, Role } from '@/core/structures'
 import Image from 'next/image'
 import ThemeSwitcher from '@/components/theme/theme-switcher'
 
@@ -87,16 +86,20 @@ export default function UserInfoMenu() {
         <Menu as="div" className="relative inline-block text-left mt-3 ml-20">
             <div>
                 <Menu.Button className="inline-flex w-full justify-center gap-x-1.5 rounded-md font-semibold btn btn-ghost btn-circle hover:bg-transparent">
-                    {session?.user?.image ? (
-                        <Image
-                            src={session?.user?.image!}
-                            alt="profile image"
-                            width={50}
-                            height={50}
-                            className="rounded-full w-16"
-                        />
+                    {session?.user ? (
+                        session?.user?.image ? (
+                            <Image
+                                src={session?.user?.image!}
+                                alt="profile image"
+                                width={50}
+                                height={50}
+                                className="rounded-full w-16"
+                            />
+                        ) : (
+                            <UserIcon className="h-6 w-6 text-base-content" />
+                        )
                     ) : (
-                        <UserIcon className="h-6 w-6 text-base-content" />
+                        <div className="avatar rounded-full skeleton w-12 h-12"></div>
                     )}
                 </Menu.Button>
             </div>

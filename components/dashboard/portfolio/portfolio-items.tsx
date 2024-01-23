@@ -4,8 +4,9 @@ import useSWR from 'swr'
 import Link from 'next/link'
 import Image from 'next/image'
 
-import { fetcher } from '@/helpers/fetcher'
-import { PortfolioItem, PortfolioResponse } from '@/helpers/api/request-inerfaces'
+import { fetcher } from '@/core/helpers'
+import { PortfolioResponse } from '@/core/responses'
+import { PortfolioItem } from '@/core/structures'
 import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
 import Loading from '@/components/loading'
 

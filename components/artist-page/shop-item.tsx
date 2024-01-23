@@ -5,14 +5,14 @@ import Markdown from 'react-markdown'
 
 import { useState } from 'react'
 
-import { fetcher } from '@/helpers/fetcher'
+import { fetcher } from '@/core/helpers'
 import { ShoppingCartIcon } from '@heroicons/react/20/solid'
 
 import Loading from '@/components/loading'
 import { redirect } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Button from '../button'
-import { ShopResponse, StatusCode } from '@/helpers/api/request-inerfaces'
+import { ShopResponse, StatusCode } from '@/core/responses'
 import NemuImage from '../nemu-image'
 
 export default function ShopDisplay({ handle, slug }: { handle: string; slug: string }) {

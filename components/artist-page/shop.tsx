@@ -1,5 +1,5 @@
 import ShopCard from '../dashboard/shop/shop-card'
-import { ShopItem, ShopResponse } from '@/helpers/api/request-inerfaces'
+import { ShopItem, ShopResponse } from '@/core/responses'
 
 export default async function Shop({
     user_id,

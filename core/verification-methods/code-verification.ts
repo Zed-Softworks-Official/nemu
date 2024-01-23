@@ -1,17 +1,5 @@
-import { NemuResponse, StatusCode } from './api/request-inerfaces'
-
-/**
- * Verification Data used to create the artist object
- */
-export interface ArtistVerificationData {
-    requested_handle: string
-    username: string
-    twitter: string
-    pixiv: string
-    location: string
-    user_id: string
-    profile_photo?: string
-}
+import { NemuResponse, StatusCode } from '../responses'
+import { ArtistVerificationData } from '../structures'
 
 /**
  * Creates an Artist using an artist code
@@ -52,12 +40,11 @@ export async function ArtistCodeVerification(
         body: JSON.stringify(verification_data)
     })
 
-    if ((((await artist_created.json()) as NemuResponse).status != StatusCode.Success)) {
+    if (((await artist_created.json()) as NemuResponse).status != StatusCode.Success) {
         return false
     }
 
     // Send Email to user
-    
 
     // Delete the code
     await fetch(`/api/artist/code/${code}/delete`, {
@@ -65,23 +52,4 @@ export async function ArtistCodeVerification(
     })
 
     return true
-}
-
-/**
- * Creates an artist using twitter verification
- *
- * @param id - User id for the user to become an artist
- * @param verification_data - The provided by the user for their desired profile
- */
-export async function ArtistTwitterVerification(
-    id: string,
-    verification_data: ArtistVerificationData
-) {
-    // Create a data object in the database
-    const response = await fetch('/api/artist/verify', {
-        method: 'post',
-        body: JSON.stringify(verification_data)
-    })
-
-    // Send Email to user
 }

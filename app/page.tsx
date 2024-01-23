@@ -9,7 +9,7 @@ export default function Home() {
             <main className="flex flex-wrap container mx-auto">
                 <div className="w-full text-white">
                     <Link href={'/artists'} className="w-full">
-                        <div className="bg-gradient-to-r from-primary to-azure rounded-3xl grid grid-cols-2">
+                        <div className="bg-gradient-to-r from-primary to-azure rounded-xl grid grid-cols-2">
                             <div className="inline-block py-10 px-20">
                                 <h1>Artists Wanted!</h1>
                                 <p>Something Clever Here</p>

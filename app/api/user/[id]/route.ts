@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 
-import { StatusCode, UserResponse } from '@/helpers/api/request-inerfaces'
+import { StatusCode, UserResponse } from '@/core/responses'
 
 export async function GET(req: Request, { params }: { params: { id: string } }) {
     const user = await prisma.user.findFirst({

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 
-import { StripeGetWebhookEvent as StripeStripeWebhookEvent } from '@/helpers/stripe'
-import { NemuResponse, StatusCode } from '@/helpers/api/request-inerfaces'
+import { StripeGetWebhookEvent as StripeStripeWebhookEvent } from '@/core/payments'
+import { NemuResponse, StatusCode } from '@/core/responses'
 import { prisma } from '@/lib/prisma'
 
 export async function POST(req: Request) {

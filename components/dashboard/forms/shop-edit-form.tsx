@@ -14,9 +14,9 @@ import FileInput from '@/components/form/file-input'
 import FormDropzone from '@/components/form/form-dropzone'
 
 import { MDXEditorMethods } from '@mdxeditor/editor'
-import { fetcher, get_item_id } from '@/helpers/fetcher'
-import { CreateToastPromise } from '@/helpers/toast-promise'
-import { ShopResponse } from '@/helpers/api/request-inerfaces'
+import { fetcher, get_item_id } from '@/core/helpers'
+import { CreateToastPromise } from '@/core/promise'
+import { ShopResponse } from '@/core/responses'
 import {
     ArrowDownOnSquareIcon,
     CheckCircleIcon,
@@ -164,17 +164,21 @@ export default function ShopEditForm() {
                 <button
                     type="button"
                     onClick={() => replace('/dashboard/shop')}
+                    className="btn btn-accent btn-outline btn-lg"
+                >
+                    <XCircleIcon className="w-6 h-6" />
+                    Cancel
+                </button>
+                <button
+                    type="button"
+                    onClick={handleDelete}
                     className="btn btn-error btn-lg"
                 >
-                    Cancel
-                    <XCircleIcon className="w-6 h-6 inline-block mr-3" />
-                </button>
-                <button type="button" onClick={handleDelete} className="btn btn-error btn-lg">
-                    <TrashIcon className="w-6 h-6 inline-block mr-3" />
+                    <TrashIcon className="w-6 h-6" />
                     Delete
                 </button>
                 <button type="submit" className="btn btn-primary btn-lg">
-                    <CheckCircleIcon className="w-6 h-6 inline-block mr-3" />
+                    <CheckCircleIcon className="w-6 h-6" />
                     Save Changes
                 </button>
             </div>

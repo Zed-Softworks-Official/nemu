@@ -3,9 +3,9 @@
 import useSWR from 'swr'
 import Loading from '@/components/loading'
 
-import { fetcher } from '@/helpers/fetcher'
+import { fetcher } from '@/core/helpers'
 
-import { CommissionResponse } from '@/helpers/api/request-inerfaces'
+import { CommissionResponse } from '@/core/responses'
 import CommissionCard from './commission-card'
 
 export default function Commissions({

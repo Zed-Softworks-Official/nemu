@@ -3,11 +3,11 @@
 import useSWR from 'swr'
 import Link from 'next/link'
 
-import { fetcher } from '@/helpers/fetcher'
+import { fetcher } from '@/core/helpers'
 import { useDashboardContext } from '../dashboard-context'
 
 import { ClipboardDocumentIcon, CurrencyDollarIcon } from '@heroicons/react/20/solid'
-import { StripeAccountResponse } from '@/helpers/api/request-inerfaces'
+import { StripeAccountResponse } from '@/core/responses'
 
 export default function DashboardArtistManagmentSection() {
     const { userId } = useDashboardContext()
