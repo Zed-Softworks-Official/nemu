@@ -5,7 +5,8 @@ import useSWR from 'swr'
 import { fetcher } from '@/core/helpers'
 import { useSession } from 'next-auth/react'
 
-import { ShopItem, ShopResponse } from '@/core/responses'
+import { ShopResponse } from '@/core/responses'
+import { ShopItem } from '@/core/structures'
 
 import ShopCard from '@/components/dashboard/shop/shop-card'
 import Loading from '@/components/loading'

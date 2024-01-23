@@ -20,7 +20,7 @@ export default function DashboardContainer({
 
     return (
         <main className="py-14 justify-around w-[90%]">
-            <div className="bg-base-300 p-10 mx-auto rounded-3xl">
+            <div className="bg-base-300 p-10 mx-auto rounded-xl">
                 <div className="pb-10">
                     <h1 className="font-bold text-2xl text-center">{title}</h1>
                     <hr className="seperation" />

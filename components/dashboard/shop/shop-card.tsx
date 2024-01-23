@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-import { ShopItem } from '@/core/responses'
+import { ShopItem } from '@/core/structures'
 import ShopDisplay from '@/components/artist-page/shop-item'
 import NemuImage from '@/components/nemu-image'
 
@@ -18,7 +18,7 @@ export default function ShopCard({
         : `/@${handle}/shop/${product.slug}`
 
     return (
-        <div key={product.name} className="bg-base-100 card rounded-xl overflow-hidden shadow-xl transition-all duration-200 animate-pop-in">
+        <div key={product.name} className="bg-base-100 card rounded-xl overflow-hidden h-fit shadow-xl transition-all duration-200 animate-pop-in">
             <div>
                 <NemuImage
                     width={500}
@@ -57,7 +57,7 @@ export default function ShopCard({
                                     View Item
                                 </button>
                                 <dialog id={`modal-${product.slug}`} className="modal">
-                                    <div className="modal-box max-w-6xl">
+                                    <div className="modal-box max-w-6xl bg-base-300">
                                         <ShopDisplay
                                             handle={handle!}
                                             slug={product.slug!}
