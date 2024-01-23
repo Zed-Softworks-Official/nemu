@@ -1,4 +1,4 @@
-import classNames from '@/core/helpers'
+import ClassNames from '@/core/helpers'
 
 export default function MessagesCard({
     username,
@@ -9,7 +9,7 @@ export default function MessagesCard({
 }) {
     return (
         <div
-            className={classNames(
+            className={ClassNames(
                 'card rounded-xl w-full',
                 selected ? 'bg-primary' : 'bg-base-100'
             )}

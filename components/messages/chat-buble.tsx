@@ -2,7 +2,7 @@
 
 import { useSession } from 'next-auth/react'
 import NemuImage from '../nemu-image'
-import classNames from '@/core/helpers'
+import ClassNames from '@/core/helpers'
 
 export default function ChatBubble({
     username,
@@ -21,7 +21,7 @@ export default function ChatBubble({
 
     return (
         <div
-            className={classNames(
+            className={ClassNames(
                 'chat',
                 data?.user.name == username ? ' chat-end' : 'chat-start'
             )}
@@ -41,7 +41,7 @@ export default function ChatBubble({
                 <time className="text-xs opacity-50">{timestamp}</time>
             </div>
             <div
-                className={classNames(
+                className={ClassNames(
                     'chat-bubble p-2',
                     data?.user.name == username ? 'chat-bubble-primary text-white' : ''
                 )}

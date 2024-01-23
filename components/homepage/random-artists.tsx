@@ -1,7 +1,7 @@
 'use client'
 
 import { RandomArtistsResponse } from '@/core/responses'
-import { fetcher } from '@/core/helpers'
+import { Fetcher } from '@/core/helpers'
 import useSWR from 'swr'
 import Link from 'next/link'
 import ArtistsSkeleton from '../skeleton/homepage/artists-skeleton'
@@ -10,7 +10,7 @@ import NemuImage from '../nemu-image'
 export default function RandomArtists() {
     const { data, isLoading } = useSWR<RandomArtistsResponse>(
         `/api/artist/random`,
-        fetcher
+        Fetcher
     )
 
     if (isLoading) {

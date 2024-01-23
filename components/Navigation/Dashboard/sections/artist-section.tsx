@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
-import classNames from '@/core/helpers'
+import ClassNames from '@/core/helpers'
 import {
     BuildingStorefrontIcon,
     ClipboardDocumentListIcon,
@@ -19,7 +19,7 @@ export default function DashboardArtistSection() {
             <li className='my-2'>
                 <Link
                     href={'/dashboard/commissions'}
-                    className={classNames(
+                    className={ClassNames(
                         pathname.includes('commissions')
                             ? 'bg-primary text-white'
                             : 'hover:bg-primary/60',
@@ -35,7 +35,7 @@ export default function DashboardArtistSection() {
             <li className='my-2'>
                 <Link
                     href={'/dashboard/shop'}
-                    className={classNames(
+                    className={ClassNames(
                         pathname.includes('shop')
                             ? 'bg-primary text-white'
                             : 'hover:bg-primary/60',
@@ -51,7 +51,7 @@ export default function DashboardArtistSection() {
             <li className='my-2'>
                 <Link
                     href={'/dashboard/portfolio'}
-                    className={classNames(
+                    className={ClassNames(
                         pathname.includes('portfolio')
                             ? 'bg-primary text-white'
                             : 'hover:bg-primary/60',
@@ -65,7 +65,7 @@ export default function DashboardArtistSection() {
             <li className='my-2'>
                 <Link
                     href={'/dashboard/forms'}
-                    className={classNames(
+                    className={ClassNames(
                         pathname.includes('forms')
                             ? 'bg-primary text-white'
                             : 'hover:bg-primary/60',

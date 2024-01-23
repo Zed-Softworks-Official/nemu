@@ -1,7 +1,7 @@
 'use client'
 
 import useSWR from 'swr'
-import { fetcher } from '@/core/helpers'
+import { Fetcher } from '@/core/helpers'
 
 import { useSession } from 'next-auth/react'
 import { CommissionFormsResponse } from '@/core/responses'
@@ -13,7 +13,7 @@ export default function DashboardFormsList() {
     const { data: session } = useSession()
     const { data, isLoading } = useSWR<CommissionFormsResponse>(
         `/api/artist/${session?.user.user_id}/forms`,
-        fetcher
+        Fetcher
     )
 
     if (isLoading) {

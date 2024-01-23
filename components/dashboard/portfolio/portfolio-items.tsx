@@ -4,7 +4,7 @@ import useSWR from 'swr'
 import Link from 'next/link'
 import Image from 'next/image'
 
-import { fetcher } from '@/core/helpers'
+import { Fetcher } from '@/core/helpers'
 import { PortfolioResponse } from '@/core/responses'
 import { PortfolioItem } from '@/core/structures'
 import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
@@ -14,7 +14,7 @@ export default function PortfolioItems() {
     const { handle } = useDashboardContext()
     const { data, isLoading } = useSWR<PortfolioResponse>(
         `/api/portfolio/${handle}/items`,
-        fetcher
+        Fetcher
     )
 
     if (isLoading) {

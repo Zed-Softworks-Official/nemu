@@ -16,7 +16,7 @@ import * as z from 'zod'
 import { useEffect, useState } from 'react'
 import { DesignerContextType, useDesigner } from '../../designer/designer-context'
 import { CheckboxField, InputField, RangeField, TextAreaField } from '../input-field'
-import classNames from '@/core/helpers'
+import ClassNames from '@/core/helpers'
 import TextArea from '@/components/form/text-area'
 import TextAreaInput from '@/components/form/text-area'
 
@@ -125,7 +125,7 @@ function FormComponent({
     return (
         <div className="card bg-base-300 w-full">
             <div className="card-body">
-                <h2 className={classNames(error && 'text-error', 'card-title')}>
+                <h2 className={ClassNames(error && 'text-error', 'card-title')}>
                     {label}
                     {required && '*'}
                 </h2>
@@ -152,7 +152,7 @@ function FormComponent({
                 />
                 {helperText && (
                     <p
-                        className={classNames(
+                        className={ClassNames(
                             error ? 'text-error/80' : 'text-base-content/80'
                         )}
                     >

@@ -2,7 +2,7 @@
 
 import { DragEndEvent, useDndMonitor, useDraggable, useDroppable } from '@dnd-kit/core'
 import DesignerSidebar from './designer-sidebar'
-import classNames from '@/core/helpers'
+import ClassNames from '@/core/helpers'
 import { DesignerContextType, useDesigner } from './designer-context'
 import {
     ElementsType,
@@ -123,7 +123,7 @@ export default function Designer() {
             >
                 <div
                     ref={droppable.setNodeRef}
-                    className={classNames(
+                    className={ClassNames(
                         droppable.isOver && 'ring-2 ring-primary ring-inset',
                         'bg-base-300 max-w-[920px] h-full m-auto rounded-xl flex flex-col flex-grow items-center justify-start flex-1 overflow-y-auto  scrollbar-thin scrollbar-track-transparent scrollbar-thumb-base-100'
                     )}
@@ -241,7 +241,7 @@ function DesignerElementWrapper({ element }: { element: FormElementInstance }) {
                 <div className="absolute top-0 w-full rounded-[1.2rem] rounded-b-none h-[10px] bg-primary z-20"></div>
             )}
             <div
-                className={classNames(
+                className={ClassNames(
                     'flex w-full items-center rounded-xl pointer-events-none opacity-100',
                     mouseIsOver && 'opacity-30'
                 )}

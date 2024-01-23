@@ -2,7 +2,7 @@
 
 import Loading from '@/components/loading'
 import { CommissionFormsSubmissionViewResponse } from '@/core/responses'
-import { fetcher } from '@/core/helpers'
+import { Fetcher } from '@/core/helpers'
 import { PencilIcon } from '@heroicons/react/20/solid'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
@@ -13,7 +13,7 @@ export default function CommissionFormSubmissions({ form_id }: { form_id: string
     const { data: session } = useSession()
     const { data, isLoading } = useSWR<CommissionFormsSubmissionViewResponse>(
         `/api/artist/${`652ca785d3b8ea5347b84b55`}/forms/${form_id}/submissions`,
-        fetcher
+        Fetcher
     )
     //TODO: Fix Malformed Issue? with session user id?
 

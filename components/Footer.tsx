@@ -1,6 +1,6 @@
 'use client'
 
-import classNames from '@/core/helpers'
+import ClassNames from '@/core/helpers'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import React from 'react'

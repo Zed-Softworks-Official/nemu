@@ -5,7 +5,7 @@ import Image from 'next/image'
 
 import { FormEvent } from 'react'
 import { toast } from 'react-toastify'
-import { fetcher, get_item_id } from '@/core/helpers'
+import { Fetcher, GetItemId } from '@/core/helpers'
 
 import TextInput from '@/components/form/text-input'
 import { usePathname, useRouter } from 'next/navigation'
@@ -17,12 +17,12 @@ import { useDashboardContext } from '@/components/navigation/dashboard/dashboard
 import { CheckCircleIcon, TrashIcon, XCircleIcon } from '@heroicons/react/20/solid'
 
 export default function PortfolioEditForm() {
-    const item_id = get_item_id(usePathname())
+    const item_id = GetItemId(usePathname())
 
     const { push, replace } = useRouter()
     const { image } = useFormContext()
     const { handle } = useDashboardContext()
-    const { data } = useSWR<PortfolioResponse>(`/api/portfolio/${handle}/item/${item_id}`, fetcher)
+    const { data } = useSWR<PortfolioResponse>(`/api/portfolio/${handle}/item/${item_id}`, Fetcher)
 
     // Form Cancellation
     const errorClick = () => {

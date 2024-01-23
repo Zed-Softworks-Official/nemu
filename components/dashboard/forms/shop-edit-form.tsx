@@ -14,7 +14,7 @@ import FileInput from '@/components/form/file-input'
 import FormDropzone from '@/components/form/form-dropzone'
 
 import { MDXEditorMethods } from '@mdxeditor/editor'
-import { fetcher, get_item_id } from '@/core/helpers'
+import { Fetcher, GetItemId } from '@/core/helpers'
 import { CreateToastPromise } from '@/core/promise'
 import { ShopResponse } from '@/core/responses'
 import {
@@ -27,7 +27,7 @@ import { useFormContext } from '@/components/form/form-context'
 import Link from 'next/link'
 
 export default function ShopEditForm() {
-    const item_id = get_item_id(usePathname())
+    const item_id = GetItemId(usePathname())
 
     const description_ref = useRef<MDXEditorMethods>(null)
     let set = false
@@ -36,7 +36,7 @@ export default function ShopEditForm() {
     const { replace } = useRouter()
     const { data, isLoading } = useSWR<ShopResponse>(
         `/api/stripe/${item_id}/product`,
-        fetcher
+        Fetcher
     )
 
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {

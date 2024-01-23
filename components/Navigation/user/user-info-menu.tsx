@@ -18,7 +18,7 @@ import {
     ArrowRightEndOnRectangleIcon
 } from '@heroicons/react/20/solid'
 
-import classNames from '@/core/helpers'
+import ClassNames from '@/core/helpers'
 import { UserInfoIcon, UserInfoLink, UserInfoObject, Role } from '@/core/structures'
 import Image from 'next/image'
 import ThemeSwitcher from '@/components/theme/theme-switcher'
@@ -120,7 +120,7 @@ export default function UserInfoMenu() {
                                     {({ active }) => (
                                         <Link
                                             href={item.path}
-                                            className={classNames(
+                                            className={ClassNames(
                                                 active
                                                     ? 'bg-base-100 text-base-content'
                                                     : 'bg-base-300 text-base-content',

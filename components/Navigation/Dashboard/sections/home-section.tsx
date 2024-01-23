@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
-import classNames from '@/core/helpers'
+import ClassNames from '@/core/helpers'
 import { HomeIcon } from '@heroicons/react/20/solid'
 
 export default function HomeSection() {
@@ -12,7 +12,7 @@ export default function HomeSection() {
         <li className="my-2">
             <Link
                 href={'/dashboard'}
-                className={classNames(
+                className={ClassNames(
                     pathname == '/dashboard'
                         ? 'bg-primary text-white'
                         : 'hover:bg-primary/60',

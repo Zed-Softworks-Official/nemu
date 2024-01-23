@@ -3,7 +3,7 @@
 import useSWR from 'swr'
 import Link from 'next/link'
 
-import { fetcher } from '@/core/helpers'
+import { Fetcher } from '@/core/helpers'
 import { useDashboardContext } from '../dashboard-context'
 
 import { ClipboardDocumentIcon, CurrencyDollarIcon } from '@heroicons/react/20/solid'
@@ -14,7 +14,7 @@ export default function DashboardArtistManagmentSection() {
 
     const { data: stripe_account } = useSWR<StripeAccountResponse>(
         `/api/stripe/${userId}/`,
-        fetcher
+        Fetcher
     )
 
     return (

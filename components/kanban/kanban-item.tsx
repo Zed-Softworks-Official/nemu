@@ -2,7 +2,7 @@
 
 import { CSS } from '@dnd-kit/utilities'
 
-import classNames from '@/core/helpers'
+import ClassNames from '@/core/helpers'
 import { useSortable } from '@dnd-kit/sortable'
 import { UniqueIdentifier } from '@dnd-kit/core'
 
@@ -23,7 +23,7 @@ export default function KanbanItem({ id, title }: ItemsType) {
         })
     return (
         <div
-            className={classNames('card w-full bg-base-100', isDragging && 'opacity-50')}
+            className={ClassNames('card w-full bg-base-100', isDragging && 'opacity-50')}
             ref={setNodeRef}
             {...attributes}
             style={{ transition, transform: CSS.Translate.toString(transform) }}

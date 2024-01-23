@@ -1,4 +1,4 @@
-import classNames from '@/core/helpers'
+import ClassNames from '@/core/helpers'
 import { InputHTMLAttributes } from 'react'
 
 export default function TextInput({
@@ -20,7 +20,7 @@ export default function TextInput({
             )}
             <input
                 {...props}
-                className={classNames(error && 'input-error', 'input w-full')}
+                className={ClassNames(error && 'input-error', 'input w-full')}
             />
         </div>
     )

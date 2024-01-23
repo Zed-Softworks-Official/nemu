@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
-import classNames from '@/core/helpers'
+import ClassNames from '@/core/helpers'
 import { useDashboardContext } from '../dashboard-context'
 
 import {
@@ -22,7 +22,7 @@ export default function DashboardUserSection() {
             <li className="my-2">
                 <Link
                     href={'/dashboard/downloads'}
-                    className={classNames(
+                    className={ClassNames(
                         pathname.includes('downloads')
                             ? 'bg-primary text-white'
                             : 'hover:bg-primary/60',
@@ -36,7 +36,7 @@ export default function DashboardUserSection() {
             <li className="my-2">
                 <Link
                     href={'/dashboard/favourites'}
-                    className={classNames(
+                    className={ClassNames(
                         pathname.includes('favourites')
                             ? 'bg-primary text-white'
                             : 'hover:bg-primary/60',
@@ -50,7 +50,7 @@ export default function DashboardUserSection() {
             <li className="my-2">
                 <Link
                     href={'/dashboard/messages'}
-                    className={classNames(
+                    className={ClassNames(
                         pathname.includes('messages')
                             ? 'bg-primary text-white'
                             : 'hover:bg-primary/60',

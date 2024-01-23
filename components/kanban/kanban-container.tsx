@@ -2,7 +2,7 @@
 
 import { CSS } from '@dnd-kit/utilities'
 
-import classNames from '@/core/helpers'
+import ClassNames from '@/core/helpers'
 import { useSortable } from '@dnd-kit/sortable'
 import { UniqueIdentifier } from '@dnd-kit/core'
 
@@ -31,7 +31,7 @@ export default function KanbanContainer({
 
     return (
         <div
-            className={classNames(
+            className={ClassNames(
                 'flex flex-col justify-center items-center bg-base-300 rounded-xl p-5 space-y-6',
                 isDragging && 'opacity-50'
             )}

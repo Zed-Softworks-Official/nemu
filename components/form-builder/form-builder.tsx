@@ -4,7 +4,7 @@ import useSWR from 'swr'
 import Designer from './designer/designer'
 import SaveButton from './nav/save-button'
 
-import { fetcher } from '@/core/helpers'
+import { Fetcher } from '@/core/helpers'
 import { useSession } from 'next-auth/react'
 
 import PreviewButton from './nav/preview-button'
@@ -25,7 +25,7 @@ export default function FormBuilder({ form_id }: { form_id: string }) {
     const { data: session } = useSession()
     const { data, isLoading } = useSWR<CommissionFormsResponse>(
         `/api/artist/${session?.user.user_id}/forms/${form_id}`,
-        fetcher
+        Fetcher
     )
     const { setElements } = useDesigner() as DesignerContextType
 

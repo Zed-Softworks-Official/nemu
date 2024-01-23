@@ -2,7 +2,7 @@
 
 import useSWR from 'swr'
 import { notFound } from 'next/navigation'
-import { fetcher } from '@/core/helpers'
+import { Fetcher } from '@/core/helpers'
 
 import ArtistBody from './body'
 import ArtistHeader from './header'
@@ -13,7 +13,7 @@ import { ArtistPageResponse, StatusCode } from '@/core/responses'
 export default function ArtistPageClient({ handle }: { handle: string }) {
     const { data, isLoading } = useSWR<ArtistPageResponse>(
         `/api/artist/page/${handle}`,
-        fetcher
+        Fetcher
     )
 
     if (isLoading) {

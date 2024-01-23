@@ -1,4 +1,4 @@
-import classNames from "@/core/helpers"
+import ClassNames from "@/core/helpers"
 
 export default function Modal({
     showModal,
@@ -13,7 +13,7 @@ export default function Modal({
 }) {
     return (
         <dialog className="modal overflow-hidden" open={showModal}>
-            <div className={classNames("modal-box max-w-6xl space-y-3 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-base-300", background && background)}>{children}</div>
+            <div className={ClassNames("modal-box max-w-6xl space-y-3 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-base-300", background && background)}>{children}</div>
             <form
                 method="dialog"
                 onClick={() => setShowModal(false)}

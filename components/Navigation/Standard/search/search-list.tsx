@@ -4,7 +4,7 @@ import { useState, Fragment } from 'react'
 import { Listbox, Transition } from '@headlessui/react'
 import { ChevronDownIcon } from '@heroicons/react/20/solid'
 
-import classNames from '@/core/helpers'
+import ClassNames from '@/core/helpers'
 import { useSearchContext } from './search-context'
 import { SearchType } from '@/core/structures'
 
@@ -55,7 +55,7 @@ export default function SearchListBox() {
                                     <Listbox.Option
                                         key={person.id}
                                         className={({ active }) =>
-                                            classNames(
+                                            ClassNames(
                                                 active
                                                     ? 'bg-indigo-600 text-primary'
                                                     : 'text-base-content',
@@ -68,7 +68,7 @@ export default function SearchListBox() {
                                             <>
                                                 <div className="flex items-center">
                                                     <span
-                                                        className={classNames(
+                                                        className={ClassNames(
                                                             selected
                                                                 ? 'font-semibold'
                                                                 : 'font-normal',
@@ -81,7 +81,7 @@ export default function SearchListBox() {
 
                                                 {selected ? (
                                                     <span
-                                                        className={classNames(
+                                                        className={ClassNames(
                                                             active
                                                                 ? 'text-primary'
                                                                 : 'text-indigo-600',

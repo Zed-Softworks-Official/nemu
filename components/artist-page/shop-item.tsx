@@ -5,7 +5,7 @@ import Markdown from 'react-markdown'
 
 import { useState } from 'react'
 
-import { fetcher } from '@/core/helpers'
+import { Fetcher } from '@/core/helpers'
 import { ShareIcon, ShoppingCartIcon } from '@heroicons/react/20/solid'
 
 import Loading from '@/components/loading'
@@ -22,7 +22,7 @@ export default function ShopDisplay({ handle, slug }: { handle: string; slug: st
     const { data: session } = useSession()
     const { data, isLoading } = useSWR<ShopResponse>(
         `/api/stripe/${handle}/product/${slug}`,
-        fetcher
+        Fetcher
     )
     const currentPath = usePathname()
 

@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import classNames from '@/core/helpers'
+import ClassNames from '@/core/helpers'
 import { Cog6ToothIcon, PaintBrushIcon } from '@heroicons/react/20/solid'
 import { usePathname } from 'next/navigation'
 import { useDashboardContext } from '../dashboard-context'
@@ -26,7 +26,7 @@ export default function DashboardSettingsSection() {
             <li className="my-2">
                 <Link
                     href={'/dashboard/settings'}
-                    className={classNames(
+                    className={ClassNames(
                         pathname.includes('settings')
                             ? 'bg-primary text-white'
                             : 'hover:bg-primary/60',

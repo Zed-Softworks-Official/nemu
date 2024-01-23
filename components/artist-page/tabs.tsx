@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Tab } from '@headlessui/react'
 
-import classNames from '@/core/helpers'
+import ClassNames from '@/core/helpers'
 import { useTabsContext } from './tabs-context';
 
 export default function ArtistProfileTabs() {
@@ -23,7 +23,7 @@ export default function ArtistProfileTabs() {
             <Tab
               key={category}
               className={({ selected }) =>
-                classNames(
+                ClassNames(
                   'w-full rounded-lg py-2.5 ring-opacity-0 text-lg font-semibold leading-5 p-16',
                   selected
                     ? 'bg-base-300 focus:ring-0'

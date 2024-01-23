@@ -1,7 +1,7 @@
 'use client'
 
 import useSWR from 'swr'
-import { fetcher } from '@/core/helpers'
+import { Fetcher } from '@/core/helpers'
 import { useSession } from 'next-auth/react'
 
 import { DownloadsResponse } from '@/core/responses'
@@ -12,7 +12,7 @@ export default function DownloadsList() {
     const { data: session } = useSession()
     const { data, isLoading } = useSWR<DownloadsResponse>(
         `/api/user/${session?.user.user_id}/downloads`,
-        fetcher
+        Fetcher
     )
 
     if (isLoading) {

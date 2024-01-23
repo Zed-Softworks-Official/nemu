@@ -1,4 +1,4 @@
-import classNames from '@/core/helpers'
+import ClassNames from '@/core/helpers'
 import { SelectHTMLAttributes } from 'react'
 
 export default function SelectInput({
@@ -20,7 +20,7 @@ export default function SelectInput({
                     {label}:
                 </label>
             )}
-            <select className={classNames("select w-full", error && 'select-error')} {...props}>
+            <select className={ClassNames("select w-full", error && 'select-error')} {...props}>
                 <option disabled selected>{props.placeholder}</option>
                 {options.map((option) => (
                     <option>{option}</option>

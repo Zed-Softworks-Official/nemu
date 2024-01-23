@@ -6,7 +6,7 @@ import {
     NemuResponse,
     StatusCode
 } from '@/core/responses'
-import { fetcher } from '@/core/helpers'
+import { Fetcher } from '@/core/helpers'
 import { useSession } from 'next-auth/react'
 import useSWR from 'swr'
 import { FormElements } from '../elements/form-elements'
@@ -25,12 +25,12 @@ export default function CommissionFormSubmitView({
     const { data: session } = useSession()
     const { data, isLoading } = useSWR<CommissionFormsResponse>(
         `/api/artist/${artist}/forms/${form_id}/display`,
-        fetcher
+        Fetcher
     )
 
     const { data: userSubmitted, isLoading: userSubmittedLoading } = useSWR<NemuResponse>(
         `/api/artist/${artist}/forms/${form_id}/submissions/${session?.user.user_id}`,
-        fetcher
+        Fetcher
     )
 
     const formValues = useRef<{ [key: string]: string }>({})

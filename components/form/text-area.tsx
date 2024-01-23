@@ -1,4 +1,4 @@
-import classNames from '@/core/helpers'
+import ClassNames from '@/core/helpers'
 import { InputHTMLAttributes, TextareaHTMLAttributes } from 'react'
 
 export default function TextAreaInput({
@@ -22,7 +22,7 @@ export default function TextAreaInput({
             )}
             <textarea
                 {...props}
-                className={classNames(error && 'input-error', 'textarea resize-none w-full', addClasses && addClasses)}
+                className={ClassNames(error && 'input-error', 'textarea resize-none w-full', addClasses && addClasses)}
             ></textarea>
         </div>
     )

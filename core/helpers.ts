@@ -1,10 +1,12 @@
+import { CommissionAvailability } from "./structures"
+
 /**
  * Joins variable amount of classnames into one string
  *
  * @param classes - css classnames
  * @returns {string} Classnames all joined together in one string
  */
-export default function classNames(...classes: any) {
+export default function ClassNames(...classes: any) {
     return classes.filter(Boolean).join(' ')
 }
 
@@ -14,7 +16,7 @@ export default function classNames(...classes: any) {
  * @param args - Takes in a variable amount of parameters from the fetch function
  * @returns JSON data for the requested data
  */
-export const fetcher = (...args: Parameters<typeof fetch>) =>
+export const Fetcher = (...args: Parameters<typeof fetch>) =>
     fetch(...args).then((res) => res.json())
 
 /**
@@ -23,7 +25,7 @@ export const fetcher = (...args: Parameters<typeof fetch>) =>
  * @param pathname - The pathname to find the item id from
  * @returns {string} Substring of the full path containing the item id
  */
-export const get_item_id = (pathname: string) => {
+export const GetItemId = (pathname: string) => {
     let lastSlash = pathname.lastIndexOf('/')
     return pathname.substring(lastSlash + 1, pathname.length + 1)
 }

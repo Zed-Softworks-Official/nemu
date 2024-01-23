@@ -11,7 +11,7 @@ import { useEffect, useState } from 'react'
 import { DesignerContextType, useDesigner } from '../../designer/designer-context'
 import { CheckboxField, InputField, RangeField } from '../input-field'
 import TextInput from '@/components/form/text-input'
-import classNames from '@/core/helpers'
+import ClassNames from '@/core/helpers'
 
 const type: ElementsType = 'NumberField'
 
@@ -117,7 +117,7 @@ function FormComponent({
     return (
         <div className="card bg-base-300 w-full">
             <div className="card-body">
-                <h2 className={classNames(error && 'text-error', 'card-title')}>
+                <h2 className={ClassNames(error && 'text-error', 'card-title')}>
                     {label}
                     {required && '*'}
                 </h2>
@@ -144,7 +144,7 @@ function FormComponent({
                 />
                 {helperText && (
                     <p
-                        className={classNames(
+                        className={ClassNames(
                             error ? 'text-error/80' : 'text-base-content/80'
                         )}
                     >

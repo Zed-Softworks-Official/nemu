@@ -3,7 +3,7 @@
 import useSWR from 'swr'
 import Loading from '@/components/loading'
 
-import { fetcher } from '@/core/helpers'
+import { Fetcher } from '@/core/helpers'
 
 import { CommissionResponse } from '@/core/responses'
 import CommissionCard from './commission-card'
@@ -17,7 +17,7 @@ export default function Commissions({
 }) {
     const { data, isLoading } = useSWR<CommissionResponse>(
         `/api/artist/${user_id}/commission`,
-        fetcher
+        Fetcher
     )
 
     if (isLoading) {

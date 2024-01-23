@@ -2,7 +2,7 @@
 
 import { useDraggable } from '@dnd-kit/core'
 import { FormElement } from '../elements/form-elements'
-import classNames from '@/core/helpers'
+import ClassNames from '@/core/helpers'
 
 export default function SidebarBtnElement({ formElement }: { formElement: FormElement }) {
     const { label, icon: Icon } = formElement.designer_btn_element
@@ -19,7 +19,7 @@ export default function SidebarBtnElement({ formElement }: { formElement: FormEl
             ref={draggable.setNodeRef}
             {...draggable.listeners}
             {...draggable.attributes}
-            className={classNames(
+            className={ClassNames(
                 draggable.isDragging && 'ring-2 ring-primary',
                 'btn btn-outline h-28 btn-accent cursor-grab flex-col'
             )}

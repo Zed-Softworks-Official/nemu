@@ -2,7 +2,7 @@
 
 import useSWR from 'swr'
 
-import { fetcher } from '@/core/helpers'
+import { Fetcher } from '@/core/helpers'
 import { useSession } from 'next-auth/react'
 
 import { ShopResponse } from '@/core/responses'
@@ -15,7 +15,7 @@ export default function ShopItems() {
     const { data: session } = useSession()
     const { data, isLoading } = useSWR<ShopResponse>(
         `/api/stripe/${session?.user.user_id}/products`,
-        fetcher
+        Fetcher
     )
 
     if (isLoading) {
