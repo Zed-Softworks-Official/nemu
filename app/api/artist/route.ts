@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 
-import { ArtistVerificationData } from '@/helpers/artist-verification'
+import { ArtistVerificationData } from '@/core/structures'
 import { NemuResponse, StatusCode } from '@/core/responses'
 
 export async function POST(req: Request) {

@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
-import { ArtistVerificationData } from '@/helpers/artist-verification'
+import { ArtistVerificationData } from '@/core/structures'
 import {
     ArtistVerificationResponse,
     NemuResponse,
