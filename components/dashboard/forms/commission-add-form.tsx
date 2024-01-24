@@ -20,11 +20,11 @@ import FileField from '@/components/form/file-input'
 import MarkdownEditor from '@/components/form/markdown-text-area'
 
 const commissionSchema = z.object({
-    title: z.string().min(2).max(50).optional(),
-    description: z.string().min(10).max(500).optional(),
-    price: z.number().min(0).optional().optional(),
-    form: z.string().min(1).optional(),
-    rush: z.boolean().default(false).optional()
+    title: z.string().min(2).max(50),
+    description: z.string().min(10).max(500),
+    price: z.number().min(0),
+    form: z.string().min(1),
+    rush: z.boolean().default(false)
 })
 
 type CommissionSchemaType = z.infer<typeof commissionSchema>

@@ -4,15 +4,18 @@ import Link from 'next/link'
 import { PlusCircleIcon } from '@heroicons/react/20/solid'
 import { useState } from 'react'
 import Modal from '../modal'
+import DashboardBreadcrumbs from '../navigation/dashboard/breadcrumbs'
 
 export default function DashboardContainer({
     title,
     addButtonUrl,
+    breadcrumbs,
     modal,
     children
 }: {
     title: string
     addButtonUrl?: string
+    breadcrumbs?: boolean
     modal?: React.ReactNode
     children: React.ReactNode
 }) {
@@ -22,8 +25,17 @@ export default function DashboardContainer({
         <main className="py-14 justify-around w-[90%]">
             <div className="bg-base-300 p-10 mx-auto rounded-xl">
                 <div className="pb-10">
-                    <h1 className="font-bold text-2xl text-center">{title}</h1>
-                    <hr className="seperation" />
+                    {breadcrumbs && (
+                        <div className="xl:absolute xl:text-left block w- text-center">
+                            <div className="flex flex-col justify-center items-start relative right-0 top-5">
+                                <DashboardBreadcrumbs />
+                            </div>
+                        </div>
+                    )}
+                    <div className="flex flex-col justify-center items-center">
+                        <h1 className="font-bold text-2xl text-center">{title}</h1>
+                        <hr className="seperation" />
+                    </div>
                 </div>
                 {addButtonUrl && (
                     <div className="absolute bottom-20 right-20">
@@ -46,7 +58,11 @@ export default function DashboardContainer({
                                 <PlusCircleIcon className="w-10 h-10 inline " />
                             </button>
                         </div>
-                        <Modal showModal={showModal} setShowModal={setShowModal} background='bg-base-300'>
+                        <Modal
+                            showModal={showModal}
+                            setShowModal={setShowModal}
+                            background="bg-base-300"
+                        >
                             {modal}
                         </Modal>
                     </>

@@ -3,7 +3,7 @@ import CommissionAddForm from '@/components/dashboard/forms/commission-add-form'
 
 export default function CommissionsPageAdd() {
     return (
-        <DashboardContainer title="Add a new Commission">
+        <DashboardContainer title="Add a new Commission" breadcrumbs>
             <CommissionAddForm />
         </DashboardContainer>
     )

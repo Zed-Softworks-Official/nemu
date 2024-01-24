@@ -171,8 +171,9 @@ model Commission {
   artistId  String @db.ObjectId
   productId String
 
-  published Boolean @default(false)
-  createdAt DateTime @default(now())
+  published         Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  rushOrdersAllowed Boolean  @default(false)
 
   artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
 }
