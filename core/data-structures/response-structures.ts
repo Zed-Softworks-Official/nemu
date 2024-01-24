@@ -90,7 +90,7 @@ export interface CommissionOrders {
  * @prop {string} slug
  */
 export interface CommissionItem {
-    name: string
+    title: string
     description: string
     price: number
 

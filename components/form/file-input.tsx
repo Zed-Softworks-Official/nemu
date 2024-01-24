@@ -1,27 +1,26 @@
-export default function FileInput({
-    label,
-    name,
-    multiple,
-    max_length
-}: {
+import { InputHTMLAttributes, forwardRef } from 'react'
+
+interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
     label: string
-    name: string,
-    multiple?: boolean
-    max_length?: number
-}) {
-    return (
-        <div className="mb-5">
-            <label htmlFor={name} className="block mb-5">
-                {label}:
-            </label>
-            <input
-                type="file"
-                name={name}
-                title={name}
-                multiple={multiple}
-                maxLength={max_length ? max_length : 1}
-                className="file-input file-input-primary border-0 w-full"
-            />
-        </div>
-    )
+    error?: boolean
+    labelDisabled?: boolean
 }
+
+const FileField = forwardRef<HTMLInputElement, InputProps>(
+    ({ label, error, labelDisabled, ...props }, ref) => {
+        return (
+            <div className="form-control">
+                <label className="label">{label}:</label>
+                <input
+                    type="file"
+                    ref={ref}
+                    title={label}
+                    {...props}
+                    className="file-input file-input-primary border-0 w-full"
+                />
+            </div>
+        )
+    }
+)
+
+export default FileField

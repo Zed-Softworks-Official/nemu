@@ -13,7 +13,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { useEffect, useState } from 'react'
 import { DesignerContextType, useDesigner } from '../../designer/designer-context'
-import { InputField } from '../input-field'
+import { DesignerInputField } from '../input-field'
 
 const type: ElementsType = 'TitleField'
 
@@ -119,7 +119,7 @@ function PropertiesComponent({
             }}
             className="flex flex-col w-full space-y-3"
         >
-            <InputField
+            <DesignerInputField
                 label="Title"
                 description={
                     <p className="text-base-content/80">

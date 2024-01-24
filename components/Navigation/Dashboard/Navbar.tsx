@@ -1,3 +1,5 @@
+'use client'
+
 import Logo from '../standard/logo'
 import HomeSection from './sections/home-section'
 
@@ -52,7 +54,7 @@ export default function Navbar({ children }: { children: React.ReactNode }) {
                         <input
                             type="radio"
                             name="dashboard-nav-accordian"
-                            title="Profile"
+                            title="profile"
                         />
                         <div className="collapse-title text-xl font-medium">Profile</div>
                         <div className="collapse-content">

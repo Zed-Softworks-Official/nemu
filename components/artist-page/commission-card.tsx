@@ -29,14 +29,14 @@ export default function CommissionCard({
             <figure>
                 <NemuImage
                     src={commission.featured_image}
-                    alt={commission.name}
+                    alt={commission.title}
                     width={200}
                     height={200}
                 />
             </figure>
             <div className="card-body">
                 <h2 className="card-title">
-                    {commission.name}
+                    {commission.title}
                     {ConvertAvailabilityToBadge(commission.availability)}
                 </h2>
                 <p>{commission.description}</p>

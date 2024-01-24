@@ -28,13 +28,13 @@ export default function DashboardCommissions() {
                     <figure>
                         <NemuImage
                             src={commission.featured_image}
-                            alt={`${commission.name} Featured Image`}
+                            alt={`${commission.title} Featured Image`}
                             width={200}
                             height={200}
                         />
                     </figure>
                     <div className="card-body max-h-full">
-                        <h2 className="card-title">{commission.name}</h2>
+                        <h2 className="card-title">{commission.title}</h2>
                         {ConvertAvailabilityToBadge(commission.availability)}
                         <div className="flex justify-end items-end h-full">
                             <div className="card-actions justify-end">

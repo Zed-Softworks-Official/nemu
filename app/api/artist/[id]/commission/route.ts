@@ -25,7 +25,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
         status: StatusCode.Success,
         commissions: [
             {
-                name: 'Test Commission',
+                title: 'Test Commission',
                 description: 'This is a description',
                 price: 300,
 
@@ -38,7 +38,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
                 slug: 'sparkles'
             },
             {
-                name: 'Waitlist Commission',
+                title: 'Waitlist Commission',
                 description: 'Wow this is really something huh',
                 price: 120,
 
@@ -51,7 +51,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
                 slug: 'this-is-fine'
             },
             {
-                name: 'Another Commission',
+                title: 'Another Commission',
                 description: 'This is a pretty cool description',
                 price: 250,
 

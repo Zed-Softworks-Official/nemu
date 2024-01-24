@@ -14,7 +14,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { Fragment, useEffect, useState } from 'react'
 import { DesignerContextType, useDesigner } from '../../designer/designer-context'
-import { CheckboxField, InputField } from '../input-field'
+import { DesignerCheckboxField, DesignerInputField } from '../input-field'
 import ClassNames from '@/core/helpers'
 import { CalendarIcon } from '@heroicons/react/20/solid'
 import { Popover, Transition } from '@headlessui/react'
@@ -199,7 +199,7 @@ function PropertiesComponent({
             }}
             className="flex flex-col w-full space-y-3"
         >
-            <InputField
+            <DesignerInputField
                 label="Label"
                 description={
                     <p className="text-base-content/80">
@@ -209,7 +209,7 @@ function PropertiesComponent({
                 }
                 {...form.register('label')}
             />
-            <InputField
+            <DesignerInputField
                 label="Helper Text"
                 description={
                     <p className="text-base-content/80">
@@ -219,7 +219,7 @@ function PropertiesComponent({
                 }
                 {...form.register('helperText')}
             />
-            <CheckboxField
+            <DesignerCheckboxField
                 label="Required"
                 type="checkbox"
                 description={

@@ -9,7 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { useEffect } from 'react'
 import { DesignerContextType, useDesigner } from '../../designer/designer-context'
-import { TextAreaField } from '../input-field'
+import { DesignerTextAreaField } from '../input-field'
 
 const type: ElementsType = 'ParagraphField'
 
@@ -115,7 +115,7 @@ function PropertiesComponent({
             }}
             className="flex flex-col w-full space-y-3"
         >
-            <TextAreaField
+            <DesignerTextAreaField
                 label="Text"
                 description={
                     <p className="text-base-content/80">

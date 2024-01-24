@@ -9,7 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { useEffect, useState } from 'react'
 import { DesignerContextType, useDesigner } from '../../designer/designer-context'
-import { CheckboxField, InputField, RangeField } from '../input-field'
+import { DesignerCheckboxField, DesignerInputField, DesignerRangeField } from '../input-field'
 import TextInput from '@/components/form/text-input'
 import ClassNames from '@/core/helpers'
 
@@ -195,7 +195,7 @@ function PropertiesComponent({
             }}
             className="flex flex-col w-full space-y-3"
         >
-            <InputField
+            <DesignerInputField
                 label="Label"
                 description={
                     <p className="text-base-content/80">
@@ -205,7 +205,7 @@ function PropertiesComponent({
                 }
                 {...form.register('label')}
             />
-            <InputField
+            <DesignerInputField
                 label="Placeholder"
                 description={
                     <p className="text-base-content/80">
@@ -214,7 +214,7 @@ function PropertiesComponent({
                 }
                 {...form.register('placeholder')}
             />
-            <InputField
+            <DesignerInputField
                 label="Helper Text"
                 description={
                     <p className="text-base-content/80">
@@ -224,7 +224,7 @@ function PropertiesComponent({
                 }
                 {...form.register('helperText')}
             />
-            <CheckboxField
+            <DesignerCheckboxField
                 label="Required"
                 type="checkbox"
                 description={

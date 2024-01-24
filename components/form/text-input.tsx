@@ -1,27 +1,27 @@
 import ClassNames from '@/core/helpers'
-import { InputHTMLAttributes } from 'react'
+import { InputHTMLAttributes, forwardRef } from 'react'
 
-export default function TextInput({
-    label,
-    labelDisabled,
-    error,
-    ...props
-}: {
+interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
     label: string
     error?: boolean
     labelDisabled?: boolean
-} & InputHTMLAttributes<HTMLInputElement>) {
-    return (
-        <div className="mb-5">
-            {!labelDisabled && (
-                <label htmlFor={props.name} className="block mb-5">
-                    {label}:
-                </label>
-            )}
-            <input
-                {...props}
-                className={ClassNames(error && 'input-error', 'input w-full')}
-            />
-        </div>
-    )
 }
+
+const TextField = forwardRef<HTMLInputElement, InputProps>(
+    ({ label, error, labelDisabled, ...props }, ref) => {
+        return (
+            <>
+                <div className="form-control">
+                    {!labelDisabled && <label className="label">{label}:</label>}
+                    <input
+                        ref={ref}
+                        {...props}
+                        className={ClassNames(error && 'input-error', 'input w-full')}
+                    />
+                </div>
+            </>
+        )
+    }
+)
+
+export default TextField

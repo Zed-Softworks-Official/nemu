@@ -8,7 +8,7 @@ import Loading from '@/components/loading'
 import { usePathname, useRouter } from 'next/navigation'
 
 import ShopEditCard from '../shop/shop-edit-card'
-import TextField from '@/components/form/text-field'
+import MarkdownTextArea from '@/components/form/markdown-text-area'
 import TextInput from '@/components/form/text-input'
 import FileInput from '@/components/form/file-input'
 import FormDropzone from '@/components/form/form-dropzone'
@@ -104,7 +104,7 @@ export default function ShopEditForm() {
                     name="product_name"
                     defaultValue={data?.product?.name}
                 />
-                <TextField
+                <MarkdownTextArea
                     label="Product Description"
                     markdown={''}
                     editorRef={description_ref}

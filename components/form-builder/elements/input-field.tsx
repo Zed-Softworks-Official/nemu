@@ -11,7 +11,7 @@ export interface TextAreaInputProps extends TextareaHTMLAttributes<HTMLTextAreaE
     description: React.ReactNode
 }
 
-export const InputField = forwardRef<HTMLInputElement, InputProps>(
+export const DesignerInputField = forwardRef<HTMLInputElement, InputProps>(
     ({ label, description, type, ...props }, ref) => {
         return (
             <>
@@ -28,7 +28,7 @@ export const InputField = forwardRef<HTMLInputElement, InputProps>(
     }
 )
 
-export const RangeField = forwardRef<HTMLInputElement, InputProps>(
+export const DesignerRangeField = forwardRef<HTMLInputElement, InputProps>(
     ({ label, description, ...props }, ref) => {
         return (
             <>
@@ -50,7 +50,7 @@ export const RangeField = forwardRef<HTMLInputElement, InputProps>(
     }
 )
 
-export const CheckboxField = forwardRef<HTMLInputElement, InputProps>(
+export const DesignerCheckboxField = forwardRef<HTMLInputElement, InputProps>(
     ({ label, description, type, ...props }, ref) => {
         return (
             <>
@@ -72,7 +72,7 @@ export const CheckboxField = forwardRef<HTMLInputElement, InputProps>(
     }
 )
 
-export const TextAreaField = forwardRef<HTMLTextAreaElement, TextAreaInputProps>(
+export const DesignerTextAreaField = forwardRef<HTMLTextAreaElement, TextAreaInputProps>(
     ({ label, description, ...props }, ref) => {
         return (
             <>

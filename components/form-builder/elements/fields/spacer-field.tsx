@@ -9,7 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { useEffect } from 'react'
 import { DesignerContextType, useDesigner } from '../../designer/designer-context'
-import { RangeField } from '../input-field'
+import { DesignerRangeField } from '../input-field'
 
 const type: ElementsType = 'SpacerField'
 
@@ -117,7 +117,7 @@ function PropertiesComponent({
             }}
             className="flex flex-col w-full space-y-3"
         >
-            <RangeField
+            <DesignerRangeField
                 label={`Spacer (${form.watch('height')}px)`}
                 min={0}
                 max={100}

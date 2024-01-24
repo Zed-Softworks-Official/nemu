@@ -58,7 +58,7 @@ export default function CommissionsDisplay({
                 <div className="card h-full">
                     <div className="card-body">
                         <h1 className="card-title font-bold text-3xl">
-                            {commission.name}
+                            {commission.title}
                             {convertAvailabilityToBadge(commission.availability)}
                         </h1>
                         <p>{commission.description}</p>

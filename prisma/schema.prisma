@@ -171,6 +171,9 @@ model Commission {
   artistId  String @db.ObjectId
   productId String
 
+  published Boolean @default(false)
+  createdAt DateTime @default(now())
+
   artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
 }
 

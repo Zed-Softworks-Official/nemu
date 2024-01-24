@@ -4,7 +4,7 @@ import { FormEvent } from 'react'
 
 import TextInput from '@/components/form/text-input'
 import FileInput from '@/components/form/file-input'
-import TextField from '@/components/form/text-field'
+import MarkdownTextArea from '@/components/form/markdown-text-area'
 import FormDropzone from '@/components/form/form-dropzone'
 
 import { useFormContext } from '@/components/form/form-context'
@@ -54,7 +54,7 @@ export default function ShopAddForm() {
                 placeholder="Your product name here!"
                 name="product_name"
             />
-            <TextField
+            <MarkdownTextArea
                 label="Product Description"
                 markdown=""
                 name="product_description"
