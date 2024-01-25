@@ -5,7 +5,7 @@ builder.prismaObject('Artist', {
     fields: (t) => ({
         id: t.exposeString('id'),
         userId: t.exposeString('userId'),
-        stripeAccId: t.exposeString('stripeAccId'),
+        stripeAccount: t.exposeString('stripeAccId'),
 
         handle: t.exposeString('handle'),
         about: t.exposeString('about'),
@@ -14,8 +14,14 @@ builder.prismaObject('Artist', {
 
         headerPhoto: t.exposeString('headerPhoto'),
         profilePhoto: t.exposeString('profilePhoto'),
+
         user: t.relation('user'),
-        commissions: t.relation('commissions')
+
+        commissions: t.relation('commissions'),
+        storeItems: t.relation('storeItems'),
+        portfolioItems: t.relation('portfolioItems'),
+        forms: t.relation('forms'),
+        socials: t.relation('socials')
     })
 })
 

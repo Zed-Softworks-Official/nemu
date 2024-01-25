@@ -16,10 +16,12 @@ datasource db {
 //////////////////////////////////////////////////////////
 
 model Portfolio {
-  id     String  @id @default(auto()) @map("_id") @db.ObjectId
-  userId String?
-  image  String
-  name   String
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  artistId String @db.ObjectId
+  image    String
+  name     String
+
+  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
 }
 
 model Device {
@@ -56,8 +58,11 @@ model Artist {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  commissions Commission[]
-  forms       Form[]
+  commissions    Commission[]
+  storeItems     StoreItem[]
+  portfolioItems Portfolio[]
+  forms          Form[]
+  socials        Social[]
 }
 
 model AritstCode {
@@ -85,12 +90,12 @@ model ArtistVerification {
 }
 
 model Social {
-  id     String @id @default(auto()) @map("_id") @db.ObjectId
-  userId String @db.ObjectId
-  agent  String
-  url    String
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  artistId String @db.ObjectId
+  agent    String
+  url      String
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
 }
 
 //////////////////////////////////////////////////////////
@@ -135,7 +140,6 @@ model User {
 
   accounts        Account[]
   sessions        Session[]
-  social          Social[]
   artist          Artist?
   purchased       Purchased[]
   formSubmissions FormSubmission[]
@@ -147,11 +151,13 @@ model User {
 
 model StoreItem {
   id          String @id @default(auto()) @map("_id") @db.ObjectId
-  userId      String
+  artistId    String @db.ObjectId
   product     String
   stripeAccId String
   handle      String
   slug        String
+
+  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
 }
 
 model Purchased {
@@ -174,10 +180,10 @@ model Commission {
   artistId  String @db.ObjectId
   productId String
 
-  title             String
-  description       String
-  featuredImage     String
-  
+  title         String
+  description   String
+  featuredImage String
+
   published         Boolean  @default(false)
   createdAt         DateTime @default(now())
   rushOrdersAllowed Boolean  @default(false)
@@ -188,7 +194,7 @@ model Commission {
 model Form {
   id           String @id @default(auto()) @map("_id") @db.ObjectId
   artistId     String @db.ObjectId
-  commissionId String
+  commissionId String @db.ObjectId
 
   name        String
   description String
@@ -197,7 +203,8 @@ model Form {
 
   submissions Int @default(0)
 
-  artist          Artist           @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+
   formSubmissions FormSubmission[]
 
   @@unique([name, artistId])

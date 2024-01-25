@@ -9,7 +9,9 @@ builder.prismaObject('User', {
         emailVerified: t.expose('emailVerified', { nullable: true, type: 'Date' }),
         image: t.exposeString('image', { nullable: true }),
         role: t.exposeInt('role', { nullable: true }),
-        artist: t.relation('artist', { nullable: true })
+
+        artist: t.relation('artist', { nullable: true }),
+        purchases: t.relation('purchased')
     })
 })
 

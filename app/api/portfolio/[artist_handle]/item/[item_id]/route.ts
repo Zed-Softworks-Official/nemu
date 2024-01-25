@@ -68,7 +68,7 @@ export async function POST(
         data: {
             image: params.item_id,
             name: data.get('title')!.toString(),
-            userId: artist?.userId
+            userId: artist?.userId,
         }
     })
 
