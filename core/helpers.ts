@@ -1,4 +1,4 @@
-import { CommissionAvailability } from "./structures"
+import { request } from 'graphql-request'
 
 /**
  * Joins variable amount of classnames into one string
@@ -18,6 +18,14 @@ export default function ClassNames(...classes: any) {
  */
 export const Fetcher = (...args: Parameters<typeof fetch>) =>
     fetch(...args).then((res) => res.json())
+
+
+/**
+ * 
+ * @param query 
+ * @returns 
+ */
+export const GraphQLFetcher = (query: string) => request('/api/graphql', query)
 
 /**
  * Gets the item id from a pathname

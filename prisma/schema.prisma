@@ -44,13 +44,12 @@ model Artist {
   stripeAccId String
 
   handle   String
-  about    String  @default("Peko Peko")
-  location String  @default("Nemu's basement")
-  store    Boolean @default(false)
+  about    String @default("Peko Peko")
+  location String @default("Nemu's basement")
   twitter  String
   pixiv    String
   website  String
-  terms    String  @default("Pls Feed Nemu")
+  terms    String @default("Pls Feed Nemu")
 
   headerPhoto  String
   profilePhoto String
@@ -175,6 +174,10 @@ model Commission {
   artistId  String @db.ObjectId
   productId String
 
+  title             String
+  description       String
+  featuredImage     String
+  
   published         Boolean  @default(false)
   createdAt         DateTime @default(now())
   rushOrdersAllowed Boolean  @default(false)

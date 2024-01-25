@@ -1,4 +1,6 @@
 import './types/user'
+import './types/artist'
+import './types/commission'
 
 import { builder } from './builder'
 
