@@ -8,7 +8,11 @@ import { NemuResponse } from './base-response'
  * @prop {PortfolioItem | null} item - Can contain a SINGLE portfolio item
  * @prop {PortfolioItem[] | null} items - Can contain MULTIPLE portfolio items
  */
-export interface PortfolioResponse extends NemuResponse {
-    item?: PortfolioItem | null
-    items?: PortfolioItem[] | null
+export interface PortfolioResponse {
+    artist: {
+        portfolioItems: {
+            image: string,
+            name: string
+        }[]
+    }
 }

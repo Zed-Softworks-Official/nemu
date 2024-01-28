@@ -10,9 +10,7 @@ import { useTabsContext } from './tabs-context'
 import { Artist } from '@prisma/client'
 import Shop from './shop'
 import Commissions from './commissions'
-import Link from 'next/link'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faPixiv, faXTwitter } from '@fortawesome/free-brands-svg-icons'
+import ArtistSocials from './socials'
 
 export default function ArtistBody({ artist_info }: { artist_info: Artist }) {
     const { currentIndex } = useTabsContext()
@@ -40,7 +38,7 @@ export default function ArtistBody({ artist_info }: { artist_info: Artist }) {
                 return (
                     <Suspense fallback={<Loading />}>
                         <h1 className="font-bold text-2xl">Portfolio</h1>
-                        <Portfolio handle={artist_info.handle} id={artist_info.userId} />
+                        <Portfolio artist_id={artist_info.id} />
                     </Suspense>
                 )
             default:
@@ -57,25 +55,7 @@ export default function ArtistBody({ artist_info }: { artist_info: Artist }) {
                         <p>{artist_info.about}</p>
                         <p className="mt-10">Location: {artist_info.location}</p>
                     </div>
-                    <div>
-                        <div className="divider card-title">Socials</div>
-                        <div className="flex gap-5 justify-center items-center">
-                            <Link
-                                href={`https://twitter.com/JackSchitt404`}
-                                className="avatar btn btn-circle btn-ghost rounded-full"
-                                target="_blank"
-                            >
-                                <FontAwesomeIcon icon={faXTwitter} className="w-6 h-6" />
-                            </Link>
-                            <Link
-                                href={`https://www.pixiv.net/en/users/29694453`}
-                                className="avatar btn btn-circle btn-ghost rounded-full"
-                                target="_blank"
-                            >
-                                <FontAwesomeIcon icon={faPixiv} className="w-6 h-6" />
-                            </Link>
-                        </div>
-                    </div>
+                    <ArtistSocials artist_id={artist_info.id} />
                     <div>
                         <div className="divider card-title">Commission Terms</div>
                         <p>{artist_info.terms}</p>

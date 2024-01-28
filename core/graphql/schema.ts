@@ -1,3 +1,4 @@
+// Types
 import './types/user'
 import './types/artist'
 import './types/commission'
@@ -7,6 +8,9 @@ import './types/purchased'
 import './types/social'
 import './types/forms'
 import './types/form-submissions'
+
+// Responses
+import './response'
 
 import { builder } from './builder'
 

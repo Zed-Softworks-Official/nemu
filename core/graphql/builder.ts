@@ -19,4 +19,8 @@ builder.queryType({
     description: 'The Query Root Type'
 })
 
+builder.mutationType({
+    description: 'The Mutation Root Type'
+})
+
 builder.addScalarType('Date', DateTimeResolver, {})

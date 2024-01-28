@@ -36,3 +36,34 @@ builder.queryField('portfolio_item', (t) =>
             })
     })
 )
+
+builder.mutationField('create_portfolio_item', (t) =>
+    t.prismaField({
+        type: 'Portfolio',
+        args: {
+            artist_id: t.arg({
+                type: 'String',
+                required: true,
+                description: ''
+            }),
+            image: t.arg({
+                type: 'String',
+                required: true,
+                description: ''
+            }),
+            name: t.arg({
+                type: 'String',
+                required: true,
+                description: ''
+            })
+        },
+        resolve: (query, _parent, args, _ctx, _info) =>
+            prisma.portfolio.create({
+                data: {
+                    image: args.image,
+                    name: args.name,
+                    artistId: args.artist_id
+                }
+            })
+    })
+)
