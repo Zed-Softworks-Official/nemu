@@ -1,6 +1,18 @@
 import { prisma } from '@/lib/prisma'
 import { builder } from '../builder'
 
+builder
+    .objectRef<{
+        signed_url: string
+        name: string
+    }>('PortfolioResponse')
+    .implement({
+        fields: (t) => ({
+            signed_url: t.exposeString('signed_url'),
+            name: t.exposeString('name')
+        })
+    })
+
 builder.prismaObject('Artist', {
     fields: (t) => ({
         id: t.exposeString('id'),
@@ -19,7 +31,27 @@ builder.prismaObject('Artist', {
 
         commissions: t.relation('commissions'),
         storeItems: t.relation('storeItems'),
-        portfolioItems: t.relation('portfolioItems'),
+        portfolioItems: t.field({
+            type: ['PortfolioResponse'],
+            resolve: async (artist) => {
+                const result: { signed_url: string; name: string }[] = []
+                const portfolio = await prisma.portfolio.findMany({
+                    where: {
+                        artistId: artist.id
+                    }
+                })
+
+                for (let i = 0; i < portfolio.length; i++) {
+                    result.push({
+                        signed_url: portfolio[i].image,
+                        name: portfolio[i].name
+                    })
+                }
+
+                return result
+            }
+        }),
+
         forms: t.relation('forms'),
         socials: t.relation('socials')
     })

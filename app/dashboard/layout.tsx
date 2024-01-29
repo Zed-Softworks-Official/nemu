@@ -20,22 +20,17 @@ export default async function DashboardLayout({
 }) {
     const session = await getServerSession()
 
-    const user = await prisma.user.findFirst({
+    const artist = await prisma.artist.findFirst({
         where: {
-            name: session?.user.name
+            userId: session?.user.user_id
         }
     })
 
-    const artist_fetch = await fetch(`${process.env.BASE_URL}/api/artist/${user?.id}`, {
-        method: 'GET'
-    })
-    const artist = await artist_fetch.json()
-
     return (
         <DashboardProvider
-            artist_handle={artist.info.handle}
-            artist_user_id={artist.info.userId}
-            artist_stripe_id={artist.info.stripeAccId}
+            artist_handle={artist?.handle!}
+            artist_id={artist?.id!}
+            artist_stripe_id={artist?.stripeAccId ? artist?.stripeAccId : ''}
         >
             <Navbar>
                 {children}

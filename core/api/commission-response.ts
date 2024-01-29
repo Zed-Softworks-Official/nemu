@@ -29,12 +29,14 @@ export interface CommissionResponse extends NemuResponse {
  * CommissionFormsResponse
  *
  */
-export interface CommissionFormsResponse extends NemuResponse {
-    form?: Form & { formSubmissions: FormSubmission[] }
-    forms?: Form[]
-    formContent?: FormElementInstance[]
-
-    submitted?: boolean
+export interface CommissionFormsResponse {
+    artist: {
+        forms: {
+            id: string
+            name: string
+            description: string
+        }[]
+    }
 }
 
 /**

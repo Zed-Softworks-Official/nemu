@@ -9,9 +9,6 @@ import './types/social'
 import './types/forms'
 import './types/form-submissions'
 
-// Responses
-import './response'
-
 import { builder } from './builder'
 
 export const schema = builder.toSchema()

@@ -1,7 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { builder } from '../builder'
 import { StatusCode } from '@/core/responses'
-import { NemuGraphQLResponse } from '../response'
 
 builder.prismaObject('Social', {
     fields: (t) => ({
@@ -16,7 +15,7 @@ builder.prismaObject('Social', {
 
 builder.mutationField('create_social', (t) =>
     t.field({
-        type: NemuGraphQLResponse,
+        type: 'NemuResponse',
         args: {
             artist_id: t.arg({
                 type: 'String',

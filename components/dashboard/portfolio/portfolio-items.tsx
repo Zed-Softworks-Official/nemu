@@ -4,17 +4,24 @@ import useSWR from 'swr'
 import Link from 'next/link'
 import Image from 'next/image'
 
-import { Fetcher } from '@/core/helpers'
+import { GraphQLFetcher } from '@/core/helpers'
 import { PortfolioResponse } from '@/core/responses'
 import { PortfolioItem } from '@/core/structures'
 import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
 import Loading from '@/components/loading'
 
 export default function PortfolioItems() {
-    const { handle } = useDashboardContext()
-    const { data, isLoading } = useSWR<PortfolioResponse>(
-        `/api/portfolio/${handle}/items`,
-        Fetcher
+    const artistId = "65317d6a76c7a2516b6100dd"
+    const { data, isLoading } = useSWR(
+        `{
+            artist(id: "${artistId}") {
+              portfolioItems {
+                signed_url,
+                name
+              }
+            }
+          }`,
+        GraphQLFetcher
     )
 
     if (isLoading) {
@@ -23,11 +30,12 @@ export default function PortfolioItems() {
 
     return (
         <div className="flex gap-5">
-            {data?.items?.map((item: PortfolioItem) => {
+            {(data as PortfolioResponse).artist.portfolio_items?.map((item: PortfolioItem) => {
                 return (
                     <Link
-                        href={`/dashboard/portfolio/item/${item.key}`}
-                        key={item.key}
+                    // /dashboard/portfolio/item/${item.key}
+                        href={`/`}
+                        key={item.name}
                         className="card bg-base-100 shadow-xl rounded-3xl w-fit h-fit transition-all duration-200 animate-pop-in"
                     >
                         <div>

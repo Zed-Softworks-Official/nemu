@@ -10,8 +10,8 @@ import { NemuResponse } from './base-response'
  */
 export interface PortfolioResponse {
     artist: {
-        portfolioItems: {
-            image: string,
+        portfolio_items: {
+            signed_url: string,
             name: string
         }[]
     }

@@ -13,8 +13,8 @@ type DashboardContextType = {
     handle?: string | null
     setHandle?: Dispatch<SetStateAction<string>>
 
-    userId?: string | null
-    setUserId?: Dispatch<SetStateAction<string>>
+    artistId?: string | null
+    setArtistId?: Dispatch<SetStateAction<string>>
 
     stripe_id?: string | null
     setStripeId?: Dispatch<SetStateAction<string>>
@@ -25,16 +25,16 @@ const DashboardContext = createContext<DashboardContextType>({})
 export const DashboardProvider = ({
     children,
     artist_handle,
-    artist_user_id,
+    artist_id,
     artist_stripe_id
 }: {
     children: React.ReactNode
-    artist_user_id: string
+    artist_id: string
     artist_handle: string
     artist_stripe_id: string
 }) => {
     const [handle, setHandle] = useState(artist_handle)
-    const [userId, setUserId] = useState(artist_user_id)
+    const [artistId, setArtistId] = useState(artist_id)
     const [stripe_id, setStripeId] = useState(artist_stripe_id)
 
     useEffect(() => {
@@ -46,8 +46,8 @@ export const DashboardProvider = ({
             value={{
                 handle,
                 setHandle,
-                userId,
-                setUserId,
+                artistId,
+                setArtistId,
                 stripe_id,
                 setStripeId
             }}
