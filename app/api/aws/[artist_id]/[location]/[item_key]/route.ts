@@ -14,9 +14,10 @@ export async function POST(
     { params }: { params: { artist_id: string; location: string; item_key: string } }
 ) {
     // Get Form Data
-    const data = await req.json()
-    const file: File | null = data.file
+    const data = await req.formData()
+    const file: File | null = data.get('file') as unknown as File
 
+    
     if (!file) {
         console.log('invalid file')
         
@@ -25,8 +26,8 @@ export async function POST(
             message: 'Failed to find file'
         })
     }
-
-    // Upload file
+    
+    // // Upload file
     const upload = await S3Upload(
         params.artist_id,
         StringToAWSLocationsEnum(params.location),

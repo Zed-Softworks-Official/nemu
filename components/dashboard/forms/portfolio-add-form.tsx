@@ -17,10 +17,11 @@ import TextField from '@/components/form/text-input'
 import FileField from '@/components/form/file-input'
 import { GraphQLFetcher } from '@/core/helpers'
 import { NemuResponse, StatusCode } from '@/core/responses'
+import { GraphQLClient } from 'graphql-request'
 
 const portfolioSchema = z.object({
     name: z.string().min(2).max(50),
-    file: z.any().refine((file: File) => file.size != 0, 'File is required')
+    file: z.any(z.instanceof(File).refine((file: File) => file.size != 0))
 })
 
 type PortfolioSchemaType = z.infer<typeof portfolioSchema>
@@ -37,35 +38,62 @@ export default function PortfolioAddForm() {
         mode: 'onSubmit'
     })
 
-    async function CreatePortfolioItem(value: PortfolioSchemaType) {
+    async function CreatePortfolioItem(values: PortfolioSchemaType) {
         setIsLoading(true)
+
+        const toast_uploading = toast.loading('Uploading', { theme: 'dark' })
 
         // Generate Key
         const image_key = crypto.randomUUID()
 
+        const formData = new FormData()
+        formData.append('file', values.file[0])
+
+        console.log(values.file)
+
         // Upload File
         const upload_response = await fetch(
-            `api/aws/${artistId}/portfolio/${image_key}`,
+            `/api/aws/${artistId}/portfolio/${image_key}`,
             {
                 method: 'post',
-                body: JSON.stringify({
-                    file: value.file as File
-                })
+                body: formData
             }
         )
         const upload_json = (await upload_response.json()) as NemuResponse
 
         if (upload_json.status != StatusCode.Success) {
-            toast('Error uploading file', { theme: 'dark', type: 'error' })
+            toast.update(toast_uploading, {
+                render: 'Error uploading file',
+                type: 'error',
+                autoClose: 5000,
+                isLoading: false
+            })
             return
         }
 
         // Update database
         const database_response = await GraphQLFetcher(`mutation {
-            create_portfolio_item(artist_id: ${artistId}, image: ${image_key}, name: ${value.name}) {
+            create_portfolio_item(artist_id: "${artistId}", image: "${image_key}", name: "${values.name}") {
               status
             }
           }`)
+
+        if ((database_response as { status: StatusCode }).status != StatusCode.Success) {
+            toast.update(toast_uploading, {
+                render: 'Error saving to database',
+                type: 'error',
+                autoClose: 5000,
+                isLoading: false
+            })
+            return
+        }
+
+        toast.update(toast_uploading, {
+            render: 'Portfolio Item Created',
+            type: 'success',
+            autoClose: 5000,
+            isLoading: false
+        })
 
         push('/dashboard/portfolio')
     }

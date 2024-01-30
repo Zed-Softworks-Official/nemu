@@ -33,7 +33,7 @@ builder.prismaObject('Artist', {
 
         commissions: t.relation('commissions'),
         storeItems: t.relation('storeItems'),
-        portfolioItems: t.field({
+        portfolio_items: t.field({
             type: ['PortfolioResponse'],
             resolve: async (artist) => {
                 const result: { signed_url: string; name: string }[] = []
@@ -45,7 +45,7 @@ builder.prismaObject('Artist', {
 
                 for (let i = 0; i < portfolio.length; i++) {
                     const signed_url = await S3GetSignedURL(
-                        artist.handle,
+                        artist.id,
                         AWSLocations.Portfolio,
                         portfolio[i].image
                     )

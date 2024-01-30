@@ -10,10 +10,10 @@ import { ClipboardDocumentIcon, CurrencyDollarIcon } from '@heroicons/react/20/s
 import { StripeAccountResponse } from '@/core/responses'
 
 export default function DashboardArtistManagmentSection() {
-    const { userId } = useDashboardContext()
+    const { artistId } = useDashboardContext()
 
     const { data: stripe_account } = useSWR<StripeAccountResponse>(
-        `/api/stripe/${userId}/`,
+        `/api/stripe/${artistId}/`,
         Fetcher
     )
 

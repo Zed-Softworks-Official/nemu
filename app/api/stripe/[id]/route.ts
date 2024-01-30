@@ -19,7 +19,7 @@ import { StatusCode, StripeAccountResponse } from '@/core/responses'
 export async function GET(req: Request, { params }: { params: { id: string } }) {
     const artist = await prisma.artist.findFirst({
         where: {
-            userId: params.id
+            id: params.id
         }
     })
 
