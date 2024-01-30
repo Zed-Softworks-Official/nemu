@@ -15,6 +15,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 
 import TextField from '@/components/form/text-input'
 import FileField from '@/components/form/file-input'
+import { GraphQLFetcher } from '@/core/helpers'
+import { NemuResponse, StatusCode } from '@/core/responses'
 
 const portfolioSchema = z.object({
     name: z.string().min(2).max(50),
@@ -37,47 +39,35 @@ export default function PortfolioAddForm() {
 
     async function CreatePortfolioItem(value: PortfolioSchemaType) {
         setIsLoading(true)
-        console.log(value)
 
-        
+        // Generate Key
+        const image_key = crypto.randomUUID()
 
-        // try {
-        //     const formData = new FormData(event.currentTarget)
-        //     if (!image) {
-        //         toast.error('Error: Portfolio Item Incomplete', {
-        //             theme: 'dark'
-        //         })
-        //         setIsLoading(false)
-        //         return
-        //     }
+        // Upload File
+        const upload_response = await fetch(
+            `api/aws/${artistId}/portfolio/${image_key}`,
+            {
+                method: 'post',
+                body: JSON.stringify({
+                    file: value.file as File
+                })
+            }
+        )
+        const upload_json = (await upload_response.json()) as NemuResponse
 
-        //     formData.set('dropzone-file', image)
+        if (upload_json.status != StatusCode.Success) {
+            toast('Error uploading file', { theme: 'dark', type: 'error' })
+            return
+        }
 
-        //     let filename = crypto.randomUUID()
+        // Update database
+        const database_response = await GraphQLFetcher(`mutation {
+            create_portfolio_item(artist_id: ${artistId}, image: ${image_key}, name: ${value.name}) {
+              status
+            }
+          }`)
 
-        //     toast
-        //         .promise(
-        //             fetch(`/api/portfolio/${handle}/item/${filename}`, {
-        //                 method: 'POST',
-        //                 body: formData
-        //             }),
-        //             {
-        //                 pending: 'Uploading Image',
-        //                 success: 'Upload Successful',
-        //                 error: 'Upload Failed'
-        //             },
-        //             {
-        //                 theme: 'dark'
-        //             }
-        //         )
-        //         .then(() => {
-        //             setIsLoading(false)
-
-        //             push('/dashboard/portfolio')
-        //         })
-        // } catch (error) {
-        //     console.log(error)
-        // }
+        push('/dashboard/portfolio')
     }
 
     return (
@@ -88,7 +78,6 @@ export default function PortfolioAddForm() {
             >
                 <TextField label="Title" placeholder="Title" {...form.register('name')} />
                 <FileField label="Artwork" multiple={false} {...form.register('file')} />
-                {/* <FormDropzone label="Your beautiful artwork here" /> */}
                 <div className="flex flex-row items-center justify-center">
                     <button
                         type="submit"

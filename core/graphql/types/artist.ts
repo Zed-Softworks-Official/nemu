@@ -1,5 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { builder } from '../builder'
+import { S3GetSignedURL } from '@/core/storage'
+import { AWSLocations } from '@/core/structures'
 
 builder
     .objectRef<{
@@ -42,8 +44,18 @@ builder.prismaObject('Artist', {
                 })
 
                 for (let i = 0; i < portfolio.length; i++) {
+                    const signed_url = await S3GetSignedURL(
+                        artist.handle,
+                        AWSLocations.Portfolio,
+                        portfolio[i].image
+                    )
+
+                    if (!signed_url) {
+                        return result
+                    }
+
                     result.push({
-                        signed_url: portfolio[i].image,
+                        signed_url: signed_url,
                         name: portfolio[i].name
                     })
                 }

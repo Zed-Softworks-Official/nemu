@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { builder } from '../builder'
 import { StatusCode } from '@/core/responses'
 import { AWSLocations } from '@/core/structures'
+import { S3Upload } from '@/core/storage'
 
 builder.prismaObject('Portfolio', {
     fields: (t) => ({
@@ -39,6 +40,11 @@ builder.queryField('portfolio_item', (t) =>
     })
 )
 
+/**
+ * Create Portfolio Item
+ * 
+ * Mutation field that creates a portfolio item and uploads
+ */
 builder.mutationField('create_portfolio_item', (t) =>
     t.field({
         type: 'NemuResponse',
@@ -60,14 +66,6 @@ builder.mutationField('create_portfolio_item', (t) =>
             })
         },
         resolve: async (_parent, args, _ctx, _info) => {
-            // Upload to AWS
-            // const upload = await S3Upload(
-            //     args.artist_id,
-            //     AWSLocations.Portfolio,
-            //     file,
-            //     params.item_id
-            // )
-
             // Create Portfolio Item
             const item = await prisma.portfolio.create({
                 data: {
@@ -83,36 +81,10 @@ builder.mutationField('create_portfolio_item', (t) =>
                     message: 'Error creating entry in database'
                 }
             }
-            // await prisma.portfolio.create({
-            //     data: {
-            //         image: params.item_id,
-            //         name: data.get('title')!.toString(),
-            //         userId: artist?.userId
-            //     }
-            // })
-
-            // // Upload file
-            // const upload = await S3Upload(
-            //     params.artist_handle,
-            //     AWSLocations.Portfolio,
-            //     file,
-            //     params.item_id
-            // )
-
-            // return NextResponse.json<NemuResponse>({
-            //     status: upload.$metadata.httpStatusCode as StatusCode
-            // })
 
             return {
                 status: StatusCode.Success
             }
         }
-        // prisma.portfolio.create({
-        //     data: {
-        //         image: args.image,
-        //         name: args.name,
-        //         artistId: args.artist_id
-        //     }
-        // })
     })
 )
