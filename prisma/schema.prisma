@@ -18,7 +18,7 @@ datasource db {
 model Portfolio {
   id       String @id @default(auto()) @map("_id") @db.ObjectId
   artistId String @db.ObjectId
-  image    String
+  image    String 
   name     String
 
   artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)

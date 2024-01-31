@@ -4,11 +4,9 @@ import useSWR from 'swr'
 import Designer from './designer/designer'
 import SaveButton from './nav/save-button'
 
-import { Fetcher } from '@/core/helpers'
-import { useSession } from 'next-auth/react'
+import { GraphQLFetcher } from '@/core/helpers'
 
 import PreviewButton from './nav/preview-button'
-import { CommissionFormsResponse } from '@/core/responses'
 import {
     DndContext,
     MouseSensor,
@@ -20,12 +18,21 @@ import DragOverlayWrapper from './drag-overlay-wrapper'
 import { DesignerContextType, useDesigner } from './designer/designer-context'
 import { useEffect } from 'react'
 import Loading from '../loading'
+import { useDashboardContext } from '../navigation/dashboard/dashboard-context'
 
 export default function FormBuilder({ form_id }: { form_id: string }) {
-    const { data: session } = useSession()
-    const { data, isLoading } = useSWR<CommissionFormsResponse>(
-        `/api/artist/${session?.user.user_id}/forms/${form_id}`,
-        Fetcher
+    const { artistId } = useDashboardContext()
+    const { data, isLoading } = useSWR(
+        `{
+            form(artistId: "${artistId}", formId: "${form_id}") {
+              name
+              submissions
+              description
+              content
+              commissionId
+            }
+          }`,
+        GraphQLFetcher
     )
     const { setElements } = useDesigner() as DesignerContextType
 

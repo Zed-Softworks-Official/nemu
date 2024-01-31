@@ -4,7 +4,7 @@ import PortfolioEditForm from '@/components/dashboard/forms/portfolio-edit-form'
 
 export default function PortfolioItem() {
     return (
-        <DashboardContainer title={`Edit Portfolio Item`}>
+        <DashboardContainer title={`Edit Portfolio Item`} breadcrumbs>
             <FormProvider>
                 <PortfolioEditForm />
             </FormProvider>

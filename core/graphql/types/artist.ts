@@ -1,19 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { builder } from '../builder'
 import { S3GetSignedURL } from '@/core/storage'
-import { AWSLocations } from '@/core/structures'
-
-builder
-    .objectRef<{
-        signed_url: string
-        name: string
-    }>('PortfolioResponse')
-    .implement({
-        fields: (t) => ({
-            signed_url: t.exposeString('signed_url'),
-            name: t.exposeString('name')
-        })
-    })
+import { AWSLocations, PortfolioItem } from '@/core/structures'
 
 builder.prismaObject('Artist', {
     fields: (t) => ({
@@ -36,7 +24,7 @@ builder.prismaObject('Artist', {
         portfolio_items: t.field({
             type: ['PortfolioResponse'],
             resolve: async (artist) => {
-                const result: { signed_url: string; name: string }[] = []
+                const result: PortfolioItem[] = []
                 const portfolio = await prisma.portfolio.findMany({
                     where: {
                         artistId: artist.id
@@ -56,6 +44,7 @@ builder.prismaObject('Artist', {
 
                     result.push({
                         signed_url: signed_url,
+                        image_key: portfolio[i].image,
                         name: portfolio[i].name
                     })
                 }

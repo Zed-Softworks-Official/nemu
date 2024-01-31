@@ -10,6 +10,7 @@ import { KanbanData } from './kanban-structures'
  */
 export interface PortfolioItem {
     signed_url: string
+    image_key: string
     name: string
 }
 

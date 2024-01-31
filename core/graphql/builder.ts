@@ -5,11 +5,12 @@ import type PrismaTypes from '@pothos/plugin-prisma/generated'
 
 import { DateTimeResolver } from 'graphql-scalars'
 import { NemuResponse } from '../responses'
+import { PortfolioItem } from '../structures'
 
 export const builder = new SchemaBuilder<{
     PrismaTypes: PrismaTypes
     Objects: {
-        PortfolioResponse: { signed_url: string; name: string }
+        PortfolioResponse: PortfolioItem
         NemuResponse: NemuResponse
         File: File
     }
@@ -29,6 +30,7 @@ builder.mutationType({
     description: 'The Mutation Root Type'
 })
 
+// Objects
 builder.objectRef<NemuResponse>('NemuResponse').implement({
     fields: (t) => ({
         status: t.exposeInt('status'),
@@ -36,4 +38,13 @@ builder.objectRef<NemuResponse>('NemuResponse').implement({
     })
 })
 
+builder.objectRef<PortfolioItem>('PortfolioResponse').implement({
+    fields: (t) => ({
+        signed_url: t.exposeString('signed_url'),
+        image_key: t.exposeString('image_key'),
+        name: t.exposeString('name')
+    })
+})
+
+// Scalars
 builder.addScalarType('Date', DateTimeResolver, {})

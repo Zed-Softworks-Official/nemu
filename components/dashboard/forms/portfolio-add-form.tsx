@@ -17,14 +17,13 @@ import TextField from '@/components/form/text-input'
 import FileField from '@/components/form/file-input'
 import { GraphQLFetcher } from '@/core/helpers'
 import { NemuResponse, StatusCode } from '@/core/responses'
-import { GraphQLClient } from 'graphql-request'
 
-const portfolioSchema = z.object({
+export const portfolioSchema = z.object({
     name: z.string().min(2).max(50),
     file: z.any(z.instanceof(File).refine((file: File) => file.size != 0))
 })
 
-type PortfolioSchemaType = z.infer<typeof portfolioSchema>
+export type PortfolioSchemaType = z.infer<typeof portfolioSchema>
 
 export default function PortfolioAddForm() {
     const { image } = useFormContext()
@@ -41,7 +40,9 @@ export default function PortfolioAddForm() {
     async function CreatePortfolioItem(values: PortfolioSchemaType) {
         setIsLoading(true)
 
-        const toast_uploading = toast.loading('Uploading', { theme: 'dark' })
+        const toast_uploading = toast.loading('Creating Portfolio Item', {
+            theme: 'dark'
+        })
 
         // Generate Key
         const image_key = crypto.randomUUID()
@@ -49,27 +50,24 @@ export default function PortfolioAddForm() {
         const formData = new FormData()
         formData.append('file', values.file[0])
 
-        console.log(values.file)
-
         // Upload File
-        const upload_response = await fetch(
-            `/api/aws/${artistId}/portfolio/${image_key}`,
-            {
-                method: 'post',
-                body: formData
-            }
-        )
-        const upload_json = (await upload_response.json()) as NemuResponse
+        fetch(`/api/aws/${artistId}/portfolio/${image_key}`, {
+            method: 'post',
+            body: formData
+        }).then((response) => {
+            response.json().then((json_data) => {
+                if ((json_data as NemuResponse).status != StatusCode.Success) {
+                    toast.update(toast_uploading, {
+                        render: 'Error uploading file',
+                        type: 'error',
+                        autoClose: 5000,
+                        isLoading: false
+                    })
 
-        if (upload_json.status != StatusCode.Success) {
-            toast.update(toast_uploading, {
-                render: 'Error uploading file',
-                type: 'error',
-                autoClose: 5000,
-                isLoading: false
+                    // TODO: Destroy Database item if created
+                }
             })
-            return
-        }
+        })
 
         // Update database
         const database_response = await GraphQLFetcher(`mutation {
@@ -78,7 +76,12 @@ export default function PortfolioAddForm() {
             }
           }`)
 
-        if ((database_response as { status: StatusCode }).status != StatusCode.Success) {
+        console.log(database_response)
+
+        if (
+            (database_response as { create_portfolio_item: NemuResponse })
+                .create_portfolio_item.status != StatusCode.Success
+        ) {
             toast.update(toast_uploading, {
                 render: 'Error saving to database',
                 type: 'error',

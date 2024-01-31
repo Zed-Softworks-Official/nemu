@@ -9,13 +9,13 @@ import ContentLoadError from '../content-load-error'
 export default function Portfolio({ artist_id }: { artist_id: string }) {
     const { data, isLoading, error } = useSWR(
         `{
-        artist(id: "${artist_id}") {
-            portfolio_items {
-                signed_url
-                name
-          }
-        }
-      }`,
+            artist(id: "${artist_id}") {
+                portfolio_items {
+                    signed_url
+                    name
+                }
+            }
+        }`,
         GraphQLFetcher
     )
 
@@ -28,8 +28,8 @@ export default function Portfolio({ artist_id }: { artist_id: string }) {
     }
 
     return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-            {(data as PortfolioResponse).artist.portfolio_items.map((item) => {
+        <div className="flex flex-wrap gap-5 flex-1 flex-grow">
+            {(data as PortfolioResponse).artist?.portfolio_items.map((item) => {
                 return (
                     <div
                         key={item.name}
@@ -40,7 +40,7 @@ export default function Portfolio({ artist_id }: { artist_id: string }) {
                             alt={item.name}
                             width={300}
                             height={300}
-                            className="rounded-xl w-full"
+                            className="rounded-xl w-full h-fit max-w-xs"
                         />
                     </div>
                 )

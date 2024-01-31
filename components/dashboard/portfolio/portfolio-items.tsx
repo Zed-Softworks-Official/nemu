@@ -11,12 +11,13 @@ import { useDashboardContext } from '@/components/navigation/dashboard/dashboard
 import Loading from '@/components/loading'
 
 export default function PortfolioItems() {
-    const artistId = '65317d6a76c7a2516b6100dd'
+    const { artistId } = useDashboardContext()
     const { data, isLoading } = useSWR(
         `{
             artist(id: "${artistId}") {
               portfolio_items {
-                signed_url,
+                signed_url
+                image_key
                 name
               }
             }
@@ -29,15 +30,15 @@ export default function PortfolioItems() {
     }
 
     return (
-        <div className="flex gap-5">
-            {(data as PortfolioResponse).artist.portfolio_items?.map(
+        <div className="flex flex-wrap gap-5">
+            {(data as PortfolioResponse).artist?.portfolio_items.map(
                 (item: PortfolioItem) => {
                     return (
                         <Link
                             // /dashboard/portfolio/item/${item.key}
-                            href={`/`}
+                            href={`/dashboard/portfolio/item/${item.image_key}`}
                             key={item.name}
-                            className="card bg-base-100 shadow-xl rounded-3xl w-fit h-fit transition-all duration-200 animate-pop-in"
+                            className="card bg-base-100 shadow-xl rounded-3xl w-fit h-fit transition-all duration-200 animate-pop-in "
                         >
                             <div>
                                 <Image

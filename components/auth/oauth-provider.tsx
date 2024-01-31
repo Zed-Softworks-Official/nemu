@@ -7,7 +7,7 @@ import { BuiltInProviderType } from 'next-auth/providers/index'
 import { ClientSafeProvider, LiteralUnion } from 'next-auth/react'
 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faTwitter, faGoogle, faApple } from '@fortawesome/free-brands-svg-icons'
+import { faGoogle, faApple, faXTwitter } from '@fortawesome/free-brands-svg-icons'
 import { faEnvelope } from '@fortawesome/free-solid-svg-icons'
 
 export default function OAuthProviders({
@@ -22,7 +22,7 @@ export default function OAuthProviders({
             case 'Twitter':
                 return (
                     <FontAwesomeIcon
-                        icon={faTwitter}
+                        icon={faXTwitter}
                         className="mr-5 w-5 h-5 align-bottom"
                     />
                 )
@@ -46,22 +46,22 @@ export default function OAuthProviders({
     return (
         <>
             {Object.values(providers!).map((provider) => (
-                <div key={provider.name} className="my-5">
+                <div key={provider.name}>
                     {provider.type != 'oauth' && (
-                        <div>
-                            <div className="mt-5">
+                        <div className="flex flex-col gap-5">
+                            <div>
                                 <input
                                     name="email"
                                     id="email"
                                     type="email"
-                                    className="bg-white dark:bg-charcoal p-5 rounded-xl w-full"
+                                    className="input p-5 rounded-xl w-full"
                                     placeholder="Email"
                                     onChange={(e) => setEmail(e.target.value)}
                                 />
                             </div>
-                            <div className="mt-5">
+                            <div>
                                 <button
-                                    className="btn btn-primary btn-lg w-full"
+                                    className="btn btn-primary w-full"
                                     onClick={() => signIn('email', { email: email })}
                                 >
                                     <FontAwesomeIcon
@@ -82,7 +82,7 @@ export default function OAuthProviders({
                             onClick={() => {
                                 signIn(provider.id)
                             }}
-                            className="btn btn-base-100 btn-lg w-full"
+                            className="btn btn-base-100 w-full"
                         >
                             {getIcon(provider.name)}
                             Sign in with {provider.name}

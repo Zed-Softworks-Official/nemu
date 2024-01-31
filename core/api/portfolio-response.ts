@@ -9,10 +9,9 @@ import { NemuResponse } from './base-response'
  * @prop {PortfolioItem[] | null} items - Can contain MULTIPLE portfolio items
  */
 export interface PortfolioResponse {
-    artist: {
-        portfolio_items: {
-            signed_url: string,
-            name: string
-        }[]
+    artist?: {
+        portfolio_items: PortfolioItem[]
     }
+
+    portfolio_item?: PortfolioItem
 }
