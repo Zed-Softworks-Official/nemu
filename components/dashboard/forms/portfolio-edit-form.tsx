@@ -12,7 +12,7 @@ import { useFormContext } from '@/components/form/form-context'
 import { NemuResponse, PortfolioResponse, StatusCode } from '@/core/responses'
 
 import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
-import { CheckCircleIcon, TrashIcon, XCircleIcon } from '@heroicons/react/20/solid'
+import { CheckCircleIcon, TrashIcon } from '@heroicons/react/20/solid'
 
 import * as z from 'zod'
 import { useForm } from 'react-hook-form'

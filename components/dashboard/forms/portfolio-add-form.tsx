@@ -48,7 +48,7 @@ export default function PortfolioAddForm() {
         const image_key = crypto.randomUUID()
 
         const formData = new FormData()
-        formData.append('file', values.file[0])
+        formData.append('file', image as any)
 
         // Upload File
         fetch(`/api/aws/${artistId}/portfolio/${image_key}`, {
@@ -108,7 +108,8 @@ export default function PortfolioAddForm() {
                 onSubmit={form.handleSubmit(CreatePortfolioItem)}
             >
                 <TextField label="Title" placeholder="Title" {...form.register('name')} />
-                <FileField label="Artwork" multiple={false} {...form.register('file')} />
+                <FormDropzone label="Artwork" {...form.register('file')} />
+
                 <div className="flex flex-row items-center justify-center">
                     <button
                         type="submit"
