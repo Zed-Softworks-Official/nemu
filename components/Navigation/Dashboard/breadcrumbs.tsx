@@ -20,7 +20,7 @@ export default function DashboardBreadcrumbs() {
             <ul>
                 {breadcrumbs.map((path, index) =>
                     path != '' && (
-                        <li>
+                        <li key={index}>
                             <Link href={`${pathname.substring(0)}`}>{path}</Link>
                         </li>
                     )

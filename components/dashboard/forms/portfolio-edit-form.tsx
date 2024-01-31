@@ -14,23 +14,31 @@ import { NemuResponse, PortfolioResponse, StatusCode } from '@/core/responses'
 import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
 import { CheckCircleIcon, TrashIcon, XCircleIcon } from '@heroicons/react/20/solid'
 
-import { portfolioSchema, PortfolioSchemaType } from './portfolio-add-form'
+import * as z from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 
 import TextField from '@/components/form/text-input'
 import NemuImage from '@/components/nemu-image'
 import Loading from '@/components/loading'
+import FileField from '@/components/form/file-input'
+
+const portfolioSchema = z.object({
+    name: z.string().min(2).max(50).optional(),
+    file: z.any(z.instanceof(File)).optional()
+})
+
+type PortfolioSchemaType = z.infer<typeof portfolioSchema>
 
 export default function PortfolioEditForm() {
-    const item_id = GetItemId(usePathname())
+    const image_id = GetItemId(usePathname())
 
     const { push, replace } = useRouter()
     const { image } = useFormContext()
     const { artistId } = useDashboardContext()
     const { data, isLoading } = useSWR(
         `{
-        portfolio_item(artist_id: "${artistId}", item_id: "${item_id}") {
+        portfolio_item(artist_id: "${artistId}", item_id: "${image_id}") {
           name
           signed_url
         }
@@ -54,37 +62,65 @@ export default function PortfolioEditForm() {
 
     // Form Submit
     async function EditPortfolioItem(values: PortfolioSchemaType) {
-        // const formData = new FormData(event.currentTarget)
-        // if (image) {
-        //     formData.set('dropzone-file', image!)
-        // }
-        // try {
-        //     toast
-        //         .promise(
-        //             fetch(`/api/portfolio/${artistId}/item/${item_id}/update`, {
-        //                 method: 'POST',
-        //                 body: formData
-        //             }),
-        //             {
-        //                 pending: 'Updating Portfolio Item',
-        //                 success: 'Portfolio Item Updated',
-        //                 error: 'Portfolio Item Failed to Update'
-        //             },
-        //             {
-        //                 theme: 'dark'
-        //             }
-        //         )
-        //         .then(() => {
-        //             push('/dashboard/portfolio')
-        //         })
-        // } catch (error) {
-        //     console.log(error)
-        // }
+        const formData = new FormData()
+
+        const toast_uploading = toast.loading('Updating Portfolio Item', {
+            theme: 'dark'
+        })
+
+        let updated_values: string = ``
+
+        if (values.name) {
+            updated_values += `, name: "${values.name}"`
+        }
+
+        // Generate Key
+        if (values.file.length != 0) {
+            const new_image_key = crypto.randomUUID()
+
+            formData.append('new_image_key', new_image_key)
+            formData.append('file', values.file[0])
+
+            updated_values += `, new_image_key: "${new_image_key}"`
+
+            fetch(`/api/aws/${artistId}/portfolio/${image_id}/update`, {
+                method: 'post',
+                body: formData
+            }).then((response) => {
+                response.json().then((json_data) => {
+                    if ((json_data as NemuResponse).status != StatusCode.Success) {
+                        toast.update(toast_uploading, {
+                            render: 'Error uploading file',
+                            type: 'error',
+                            autoClose: 5000,
+                            isLoading: false
+                        })
+
+                        // TODO: Destroy Database item if created
+                    }
+                })
+            })
+        }
+
+        const response = await GraphQLFetcher(`mutation {
+            update_portfolio_item(artist_id: "${artistId}", image_key: "${image_id}" ${updated_values}) {
+              status
+            }
+          }`)
+
+        toast.update(toast_uploading, {
+            render: 'Item Updated',
+            type: 'success',
+            autoClose: 5000,
+            isLoading: false
+        })
+
+        push('/dashboard/portfolio')
     }
 
     // Object Deletion
     async function handleDeletion() {
-        fetch(`/api/aws/${artistId}/portfolio/${item_id}/delete`).then((response) => {
+        fetch(`/api/aws/${artistId}/portfolio/${image_id}/delete`).then((response) => {
             response.json().then((json_response) => {
                 if ((json_response as NemuResponse).status != StatusCode.Success) {
                     toast('Unable to delete portfolio item from AWS ')
@@ -93,7 +129,7 @@ export default function PortfolioEditForm() {
         })
 
         const deletion_response = await GraphQLFetcher(`mutation {
-            delete_portfolio_item(artist_id:"${artistId}", image_key:"${item_id}") {
+            delete_portfolio_item(artist_id:"${artistId}", image_key:"${image_id}") {
               status
             }
           }`)
@@ -102,7 +138,7 @@ export default function PortfolioEditForm() {
             (deletion_response as { delete_portfolio_item: NemuResponse })
                 .delete_portfolio_item.status != StatusCode.Success
         ) {
-            toast('Unable to delete portfolio item from database')
+            toast('Unable to delete portfolio item from database', { theme: 'dark' })
         }
 
         push('/dashboard/portfolio')
@@ -116,6 +152,7 @@ export default function PortfolioEditForm() {
             >
                 <TextField
                     label="Title"
+                    placeholder={(data as PortfolioResponse).portfolio_item?.name}
                     defaultValue={(data as PortfolioResponse).portfolio_item?.name}
                     {...form.register('name')}
                 />
@@ -133,13 +170,12 @@ export default function PortfolioEditForm() {
                         />
                     </div>
                 </div>
-
-                <FormDropzone label="Update Portfolio Item" />
+                <FileField label="Artwork" multiple={false} {...form.register('file')} />
 
                 <div className="flex flex-row items-center justify-center gap-5">
                     <button type="submit" className="btn btn-primary">
                         <CheckCircleIcon className="w-6 h-6" />
-                        Save Item
+                        Update Item
                     </button>
                     <button
                         type="button"

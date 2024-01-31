@@ -18,12 +18,12 @@ import FileField from '@/components/form/file-input'
 import { GraphQLFetcher } from '@/core/helpers'
 import { NemuResponse, StatusCode } from '@/core/responses'
 
-export const portfolioSchema = z.object({
+const portfolioSchema = z.object({
     name: z.string().min(2).max(50),
     file: z.any(z.instanceof(File).refine((file: File) => file.size != 0))
 })
 
-export type PortfolioSchemaType = z.infer<typeof portfolioSchema>
+type PortfolioSchemaType = z.infer<typeof portfolioSchema>
 
 export default function PortfolioAddForm() {
     const { image } = useFormContext()
