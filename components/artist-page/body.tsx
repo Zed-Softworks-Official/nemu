@@ -36,10 +36,10 @@ export default function ArtistBody({ artist_info }: { artist_info: Artist }) {
                 )
             case 2:
                 return (
-                    <Suspense fallback={<Loading />}>
+                    <>
                         <h1 className="font-bold text-2xl">Portfolio</h1>
                         <Portfolio artist_id={artist_info.id} />
-                    </Suspense>
+                    </>
                 )
             default:
                 return notFound()

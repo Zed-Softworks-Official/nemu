@@ -20,7 +20,7 @@ builder.prismaObject('Artist', {
         user: t.relation('user'),
 
         commissions: t.relation('commissions'),
-        storeItems: t.relation('storeItems'),
+        store_items: t.relation('storeItems'),
         portfolio_items: t.field({
             type: ['PortfolioResponse'],
             resolve: async (artist) => {

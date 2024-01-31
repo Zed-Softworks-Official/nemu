@@ -2,7 +2,6 @@
 
 import useSWR from 'swr'
 
-import { FormEvent } from 'react'
 import { toast } from 'react-toastify'
 import { GetItemId, GraphQLFetcher } from '@/core/helpers'
 
@@ -21,7 +20,6 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import TextField from '@/components/form/text-input'
 import NemuImage from '@/components/nemu-image'
 import Loading from '@/components/loading'
-import FileField from '@/components/form/file-input'
 
 const portfolioSchema = z.object({
     name: z.string().min(2).max(50).optional(),
@@ -38,11 +36,11 @@ export default function PortfolioEditForm() {
     const { artistId } = useDashboardContext()
     const { data, isLoading } = useSWR(
         `{
-        portfolio_item(artist_id: "${artistId}", item_id: "${image_id}") {
-          name
-          signed_url
-        }
-      }`,
+            portfolio_item(artist_id: "${artistId}", item_id: "${image_id}") {
+                name
+                signed_url
+            }
+        }`,
         GraphQLFetcher
     )
 
@@ -79,34 +77,49 @@ export default function PortfolioEditForm() {
             const new_image_key = crypto.randomUUID()
 
             formData.append('new_image_key', new_image_key)
-            formData.append('file', values.file[0])
+            formData.append('file', image as any)
 
             updated_values += `, new_image_key: "${new_image_key}"`
 
-            fetch(`/api/aws/${artistId}/portfolio/${image_id}/update`, {
-                method: 'post',
-                body: formData
-            }).then((response) => {
-                response.json().then((json_data) => {
-                    if ((json_data as NemuResponse).status != StatusCode.Success) {
-                        toast.update(toast_uploading, {
-                            render: 'Error uploading file',
-                            type: 'error',
-                            autoClose: 5000,
-                            isLoading: false
-                        })
+            const aws_response = await fetch(
+                `/api/aws/${artistId}/portfolio/${image_id}/update`,
+                {
+                    method: 'post',
+                    body: formData
+                }
+            )
+            const aws_json = await aws_response.json()
 
-                        // TODO: Destroy Database item if created
-                    }
+            if ((aws_json as NemuResponse).status != StatusCode.Success) {
+                toast.update(toast_uploading, {
+                    render: 'Error uploading file',
+                    type: 'error',
+                    autoClose: 5000,
+                    isLoading: false
                 })
-            })
+            }
         }
 
-        const response = await GraphQLFetcher(`mutation {
+        const database_response = await GraphQLFetcher(`mutation {
             update_portfolio_item(artist_id: "${artistId}", image_key: "${image_id}" ${updated_values}) {
-              status
+                status
             }
-          }`)
+        }`)
+
+        // Check if database was successful
+        if (
+            (database_response as { update_portfolio_item: NemuResponse })
+                .update_portfolio_item.status != StatusCode.Success
+        ) {
+            toast.update(toast_uploading, {
+                render: 'Error saving to database',
+                type: 'error',
+                autoClose: 5000,
+                isLoading: false
+            })
+
+            return
+        }
 
         toast.update(toast_uploading, {
             render: 'Item Updated',
@@ -170,7 +183,7 @@ export default function PortfolioEditForm() {
                         />
                     </div>
                 </div>
-                <FileField label="Artwork" multiple={false} {...form.register('file')} />
+                <FormDropzone label="Artwork" {...form.register('file')} />
 
                 <div className="flex flex-row items-center justify-center gap-5">
                     <button type="submit" className="btn btn-primary">

@@ -49,7 +49,7 @@ const FormDropzone = forwardRef<HTMLInputElement, InputProps>(
                 <div className="form-control">
                     <label className="label">{label}:</label>
                     <div
-                        className="mx-auto p-10 border-dashed border-base-content border-opacity-50 border-4 rounded-xl focus:border-primary bg-base-100 text-center border-spacing-28 w-full"
+                        className="mx-auto p-10 border-dashed border-base-content border-opacity-50 border-2 rounded-xl focus:border-primary bg-base-100 text-center border-spacing-28 w-full"
                         {...getRootProps()}
                     >
                         <input ref={ref} type="file" {...props} {...getInputProps()} />

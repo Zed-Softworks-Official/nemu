@@ -51,23 +51,23 @@ export default function PortfolioAddForm() {
         formData.append('file', image as any)
 
         // Upload File
-        fetch(`/api/aws/${artistId}/portfolio/${image_key}`, {
+        const aws_response = await fetch(`/api/aws/${artistId}/portfolio/${image_key}`, {
             method: 'post',
             body: formData
-        }).then((response) => {
-            response.json().then((json_data) => {
-                if ((json_data as NemuResponse).status != StatusCode.Success) {
-                    toast.update(toast_uploading, {
-                        render: 'Error uploading file',
-                        type: 'error',
-                        autoClose: 5000,
-                        isLoading: false
-                    })
-
-                    // TODO: Destroy Database item if created
-                }
-            })
         })
+
+        // Check if everything was successful
+        const aws_json = await aws_response.json()
+        if ((aws_json as NemuResponse).status != StatusCode.Success) {
+            toast.update(toast_uploading, {
+                render: 'Error uploading file',
+                type: 'error',
+                autoClose: 5000,
+                isLoading: false
+            })
+
+            return 
+        }
 
         // Update database
         const database_response = await GraphQLFetcher(`mutation {
@@ -88,6 +88,7 @@ export default function PortfolioAddForm() {
                 autoClose: 5000,
                 isLoading: false
             })
+            
             return
         }
 

@@ -19,7 +19,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
             handle: verify_info?.requestedHandle!,
             about: 'Peko Peko',
             location: verify_info?.location!,
-            store: false,
             twitter: verify_info?.twitter!,
             pixiv: verify_info?.pixiv!,
             website: '',

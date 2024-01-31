@@ -7,6 +7,7 @@ import { faEarthAmericas } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import Link from 'next/link'
 import useSWR from 'swr'
+import SocialsSkeleton from '../skeleton/artist-page/socials-skelton'
 
 export default function ArtistSocials({ artist_id }: { artist_id: string }) {
     const { data, isLoading } = useSWR(
@@ -33,7 +34,7 @@ export default function ArtistSocials({ artist_id }: { artist_id: string }) {
     }
 
     if (isLoading) {
-        return null
+        return <SocialsSkeleton />
     }
 
     return (
