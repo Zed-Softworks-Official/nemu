@@ -16,7 +16,10 @@ type DashboardContextType = {
     artistId?: string | null
     setArtistId?: Dispatch<SetStateAction<string>>
 
-    stripe_id?: string | null
+    userId?: string | null
+    setUserId?: Dispatch<SetStateAction<string>>
+
+    stripeId?: string | null
     setStripeId?: Dispatch<SetStateAction<string>>
 }
 
@@ -26,16 +29,19 @@ export const DashboardProvider = ({
     children,
     artist_handle,
     artist_id,
-    artist_stripe_id
+    artist_stripe_id,
+    user_id
 }: {
     children: React.ReactNode
     artist_id: string
     artist_handle: string
-    artist_stripe_id: string
+    artist_stripe_id: string,
+    user_id: string
 }) => {
     const [handle, setHandle] = useState(artist_handle)
     const [artistId, setArtistId] = useState(artist_id)
-    const [stripe_id, setStripeId] = useState(artist_stripe_id)
+    const [stripeId, setStripeId] = useState(artist_stripe_id)
+    const [userId, setUserId] = useState(user_id)
 
     useEffect(() => {
         document.body.classList.add('background-pattern')
@@ -48,8 +54,10 @@ export const DashboardProvider = ({
                 setHandle,
                 artistId,
                 setArtistId,
-                stripe_id,
-                setStripeId
+                userId,
+                setUserId,
+                stripeId,
+                setStripeId,
             }}
         >
             {children}

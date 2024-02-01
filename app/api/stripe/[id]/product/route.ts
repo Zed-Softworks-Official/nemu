@@ -84,7 +84,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     // Create The Item in The database
     await prisma.storeItem.create({
         data: {
-            userId: artist?.userId!,
+            artistId: artist?.id,
             stripeAccId: params.id,
             product: product.id,
             slug: slug!,

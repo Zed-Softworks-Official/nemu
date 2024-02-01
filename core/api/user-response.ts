@@ -19,6 +19,8 @@ export interface UserResponse extends NemuResponse {
  *
  * @prop {DownloadData[] | undefined} downloads - The data of the downloads
  */
-export interface DownloadsResponse extends NemuResponse {
-    downloads?: DownloadData[]
+export interface DownloadsResponse {
+    user?: {
+        purchased: DownloadData[]
+    }
 }

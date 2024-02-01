@@ -66,6 +66,9 @@ builder.queryField('artists', (t) =>
     })
 )
 
+/**
+ * Gets a single artist
+ */
 builder.queryField('artist', (t) =>
     t.prismaField({
         type: 'Artist',

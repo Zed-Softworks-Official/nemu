@@ -14,7 +14,7 @@ import { toast } from 'react-toastify'
 import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
 
 export default function ShopAddForm() {
-    const { stripe_id } = useDashboardContext()
+    const { stripeId: stripe_id } = useDashboardContext()
     const { image } = useFormContext()
     const { replace, push } = useRouter()
 

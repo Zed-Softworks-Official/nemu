@@ -5,14 +5,14 @@ import type PrismaTypes from '@pothos/plugin-prisma/generated'
 
 import { DateTimeResolver } from 'graphql-scalars'
 import { NemuResponse } from '../responses'
-import { PortfolioItem } from '../structures'
+import { DownloadData, PortfolioItem } from '../structures'
 
 export const builder = new SchemaBuilder<{
     PrismaTypes: PrismaTypes
     Objects: {
         PortfolioResponse: PortfolioItem
         NemuResponse: NemuResponse
-        File: File
+        DownloadData: DownloadData
     }
     Scalars: { Date: { Input: Date; Output: Date } }
 }>({
@@ -43,6 +43,15 @@ builder.objectRef<PortfolioItem>('PortfolioResponse').implement({
         signed_url: t.exposeString('signed_url'),
         image_key: t.exposeString('image_key'),
         name: t.exposeString('name')
+    })
+})
+
+builder.objectRef<DownloadData>('DownloadData').implement({
+    fields: (t) => ({
+        name: t.exposeString('name'),
+        artist_handle: t.exposeString('artist'),
+        price: t.exposeFloat('price'),
+        download_url: t.exposeString('url')
     })
 })
 

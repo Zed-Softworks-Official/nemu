@@ -15,13 +15,13 @@ export default function PortfolioItems() {
     const { data, isLoading } = useSWR(
         `{
             artist(id: "${artistId}") {
-              portfolio_items {
-                signed_url
-                image_key
-                name
-              }
+                portfolio_items {
+                    signed_url
+                    image_key
+                    name
+                }
             }
-          }`,
+        }`,
         GraphQLFetcher
     )
 
@@ -35,7 +35,6 @@ export default function PortfolioItems() {
                 (item: PortfolioItem) => {
                     return (
                         <Link
-                            // /dashboard/portfolio/item/${item.key}
                             href={`/dashboard/portfolio/item/${item.image_key}`}
                             key={item.name}
                             className="card bg-base-100 shadow-xl rounded-3xl w-fit h-fit transition-all duration-200 animate-pop-in "

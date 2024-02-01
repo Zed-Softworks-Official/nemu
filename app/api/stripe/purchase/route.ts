@@ -7,13 +7,10 @@ import {
     StripeGetPurchasePage,
     StripeGetRawProductInfo
 } from '@/core/payments'
-import {
-    NemuResponse,
-    PurchasePageData,
-    StatusCode
-} from '@/core/responses'
+import { NemuResponse, StatusCode } from '@/core/responses'
 import { prisma } from '@/lib/prisma'
 import Stripe from 'stripe'
+import { PurchasePageData } from '@/core/structures'
 
 export async function POST(req: Request) {
     const formData = await req.formData()
