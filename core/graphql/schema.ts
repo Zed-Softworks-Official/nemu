@@ -1,6 +1,7 @@
 // Types
 import './types/user'
 import './types/artist'
+import './types/artist-code'
 import './types/commission'
 import './types/portfolio'
 import './types/store-item'

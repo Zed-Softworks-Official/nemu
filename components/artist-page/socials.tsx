@@ -1,27 +1,10 @@
-'use client'
-
-import { SocialResponse } from '@/core/api/social-response'
-import { GraphQLFetcher } from '@/core/helpers'
+import { SocialData } from '@/core/structures'
 import { faPixiv, faXTwitter } from '@fortawesome/free-brands-svg-icons'
 import { faEarthAmericas } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import Link from 'next/link'
-import useSWR from 'swr'
-import SocialsSkeleton from '../skeleton/artist-page/socials-skelton'
 
-export default function ArtistSocials({ artist_id }: { artist_id: string }) {
-    const { data, isLoading } = useSWR(
-        `{
-        artist(id: "${artist_id}") {
-          socials {
-            agent,
-            url
-          }
-        }
-      }`,
-        GraphQLFetcher
-    )
-
+export default function ArtistSocials({ socials }: { socials: SocialData[] }) {
     function getIcon(agent: string) {
         switch (agent) {
             case 'TWITTER':
@@ -33,15 +16,11 @@ export default function ArtistSocials({ artist_id }: { artist_id: string }) {
         }
     }
 
-    if (isLoading) {
-        return <SocialsSkeleton />
-    }
-
     return (
         <div>
             <div className="divider card-title">Socials</div>
             <div className="flex gap-5 justify-center items-center">
-                {(data as SocialResponse).artist?.socials.map((social) => (
+                {socials.map((social) => (
                     <Link
                         key={social.agent}
                         href={social.url}

@@ -1,5 +1,6 @@
 import { Artist, User, ArtistVerification } from '@prisma/client'
 import { NemuResponse } from './base-response'
+import { PortfolioItem, SocialData } from '../structures'
 
 /**
  * ArtistResponse
@@ -17,9 +18,22 @@ export interface ArtistResponse extends NemuResponse {
  *
  * @prop {Artist | null} info - The artist info from our database
  */
-export interface ArtistPageResponse extends NemuResponse {
-    artist: Artist | null
-    user: User | null
+export interface ArtistPageResponse {
+    artist?: {
+        headerPhoto: string
+        profilePhoto: string
+        handle: string
+        about: string
+        location: string
+        commission: {
+            title: string
+        }[]
+        portfolio_items: PortfolioItem[]
+        socials: SocialData[]
+        user: {
+            name: string
+        }
+    }
 }
 
 /**
@@ -39,7 +53,7 @@ export interface ArtistVerificationResponse extends NemuResponse {
  * @prop {string} generated_code - The generated artist code to hand to an artist
  */
 export interface ArtistCodeResponse extends NemuResponse {
-    generated_code: string
+    generated_code?: string
 }
 
 /**

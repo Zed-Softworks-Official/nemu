@@ -2,32 +2,54 @@
 
 import useSWR from 'swr'
 import { notFound } from 'next/navigation'
-import { Fetcher } from '@/core/helpers'
+import { GraphQLFetcher } from '@/core/helpers'
 
 import ArtistBody from './body'
 import ArtistHeader from './header'
 
 import Loading from '../loading'
-import { ArtistPageResponse, StatusCode } from '@/core/responses'
+import { ArtistPageResponse } from '@/core/responses'
 
 export default function ArtistPageClient({ handle }: { handle: string }) {
-    const { data, isLoading } = useSWR<ArtistPageResponse>(
-        `/api/artist/page/${handle}`,
-        Fetcher
+    const { data, isLoading } = useSWR(
+        `{
+        artist(handle: "${handle}") {
+            headerPhoto
+            profilePhoto
+            handle
+            about
+            location
+            commissions {
+                title
+            }
+            portfolio_items {
+                signed_url
+                name
+            }
+            socials {
+                agent
+                url
+            }
+            user {
+                name
+            }
+        }
+    }`,
+        GraphQLFetcher<ArtistPageResponse>
     )
 
     if (isLoading) {
         return <Loading />
     }
 
-    if (data?.status != StatusCode.Success) {
+    if (!data?.artist) {
         return notFound()
     }
 
     return (
         <>
             <ArtistHeader data={data} />
-            <ArtistBody artist_info={data?.artist!} />
+            <ArtistBody data={data} />
         </>
     )
 }

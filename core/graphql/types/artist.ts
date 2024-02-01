@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { builder } from '../builder'
 import { S3GetSignedURL } from '@/core/storage'
 import { AWSLocations, PortfolioItem } from '@/core/structures'
+import build from 'next/dist/build'
 
 builder.prismaObject('Artist', {
     fields: (t) => ({
@@ -75,15 +76,21 @@ builder.queryField('artist', (t) =>
         args: {
             id: t.arg({
                 type: 'String',
-                required: true,
+                required: false,
                 description: 'Id of the artist'
+            }),
+            handle: t.arg({
+                type: 'String',
+                required: false,
+                description: 'Handle of the artist'
             })
         },
         resolve: (query, _parent, args, _ctx, _info) =>
             prisma.artist.findFirstOrThrow({
                 ...query,
                 where: {
-                    id: args.id
+                    id: args.id || undefined,
+                    handle: args.handle || undefined
                 }
             })
     })

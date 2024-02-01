@@ -25,7 +25,11 @@ export const Fetcher = (...args: Parameters<typeof fetch>) =>
  * @param query 
  * @returns 
  */
-export const GraphQLFetcher = (query: string) => request('/api/graphql', query)
+// export const GraphQLFetcher = (query: string) => request('/api/graphql', query)
+
+export function GraphQLFetcher<T>(query: string) {
+    return request<T>(`/api/graphql`, query)
+}
 
 /**
  * Gets the item id from a pathname

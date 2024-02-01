@@ -121,3 +121,8 @@ export const UserInfoObject: Record<string, UserInfoLink[]> = {
         }
     ]
 }
+
+export interface SocialData {
+    url: string
+    agent: string
+}

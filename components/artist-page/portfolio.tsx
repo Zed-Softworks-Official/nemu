@@ -1,35 +1,14 @@
-'use client'
-
-import { PortfolioResponse } from '@/core/responses'
 import NemuImage from '../nemu-image'
-import useSWR from 'swr'
-import { GraphQLFetcher } from '@/core/helpers'
-import ContentLoadError from '../content-load-error'
+import { PortfolioItem } from '@/core/structures'
 
-export default function Portfolio({ artist_id }: { artist_id: string }) {
-    const { data, isLoading, error } = useSWR(
-        `{
-            artist(id: "${artist_id}") {
-                portfolio_items {
-                    signed_url
-                    name
-                }
-            }
-        }`,
-        GraphQLFetcher
-    )
-
-    if (isLoading) {
-        return null
-    }
-
-    if (error) {
-        return <ContentLoadError />
-    }
-
+export default function Portfolio({
+    portfolio_items
+}: {
+    portfolio_items: PortfolioItem[]
+}) {
     return (
         <div className="flex flex-wrap gap-5 flex-1 flex-grow">
-            {(data as PortfolioResponse).artist?.portfolio_items.map((item) => {
+            {portfolio_items.map((item) => {
                 return (
                     <div
                         key={item.name}

@@ -37,7 +37,7 @@ export default function ArtistHeader({ data }: { data: ArtistPageResponse }) {
                             <h2 className="pb-2 font-bold text-2xl">
                                 @{data.artist?.handle}
                             </h2>
-                            <h3 className="text-lg">{data.user?.name}</h3>
+                            <h3 className="text-lg">{data.artist?.user.name}</h3>
                         </div>
                     </div>
                     <div className="absolute end-0 top-20 right-60">

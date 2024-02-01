@@ -11,8 +11,9 @@ import { Artist } from '@prisma/client'
 import Shop from './shop'
 import Commissions from './commissions'
 import ArtistSocials from './socials'
+import { ArtistPageResponse } from '@/core/responses'
 
-export default function ArtistBody({ artist_info }: { artist_info: Artist }) {
+export default function ArtistBody({ data }: { data: ArtistPageResponse }) {
     const { currentIndex } = useTabsContext()
 
     function renderCorrectBody(index: number) {
@@ -21,24 +22,24 @@ export default function ArtistBody({ artist_info }: { artist_info: Artist }) {
                 return (
                     <div>
                         <h1 className="font-bold text-2xl">Commissions</h1>
-                        <Commissions
+                        {/* <Commissions
                             user_id={artist_info.userId}
                             terms={artist_info.terms}
-                        />
+                        /> */}
                     </div>
                 )
             case 1:
                 return (
                     <Suspense fallback={<Loading />}>
                         <h1 className="font-bold text-2xl">Store</h1>
-                        <Shop user_id={artist_info.userId} handle={artist_info.handle} />
+                        {/* <Shop user_id={artist_info.userId} handle={artist_info.handle} /> */}
                     </Suspense>
                 )
             case 2:
                 return (
                     <>
                         <h1 className="font-bold text-2xl">Portfolio</h1>
-                        <Portfolio artist_id={artist_info.id} />
+                        <Portfolio portfolio_items={data.artist?.portfolio_items!} />
                     </>
                 )
             default:
@@ -52,14 +53,14 @@ export default function ArtistBody({ artist_info }: { artist_info: Artist }) {
                 <div className="flex flex-col justify-center gap-5">
                     <div className="flex flex-col">
                         <div className="divider card-title">About</div>
-                        <p>{artist_info.about}</p>
-                        <p className="mt-10">Location: {artist_info.location}</p>
+                        <p>{data.artist?.about}</p>
+                        <p className="mt-10">Location: {data.artist?.location}</p>
                     </div>
-                    <ArtistSocials artist_id={artist_info.id} />
-                    <div>
+                    <ArtistSocials socials={data.artist?.socials!} />
+                    {/* <div>
                         <div className="divider card-title">Commission Terms</div>
                         <p>{artist_info.terms}</p>
-                    </div>
+                    </div> */}
                 </div>
             </div>
             <div className="bg-base-300 p-10 rounded-xl col-span-9">
