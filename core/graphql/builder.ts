@@ -6,6 +6,7 @@ import type PrismaTypes from '@pothos/plugin-prisma/generated'
 import { DateTimeResolver } from 'graphql-scalars'
 import { ArtistCodeResponse, NemuResponse } from '../responses'
 import { DownloadData, PortfolioItem } from '../structures'
+import build from 'next/dist/build'
 
 export const builder = new SchemaBuilder<{
     PrismaTypes: PrismaTypes

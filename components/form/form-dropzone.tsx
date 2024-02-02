@@ -1,6 +1,6 @@
 'use client'
 
-import { ForwardedRef, InputHTMLAttributes, forwardRef, useEffect, useState } from 'react'
+import { InputHTMLAttributes, forwardRef, useEffect, useState } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { useFormContext } from './form-context'
 import NemuImage from '../nemu-image'

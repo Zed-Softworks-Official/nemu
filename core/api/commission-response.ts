@@ -26,10 +26,16 @@ export interface CommissionResponse extends NemuResponse {
 }
 
 /**
- * CommissionFormsResponse
- *
+ * 
  */
-export interface CommissionFormsResponse {
+export interface GraphQLCommissionFormResponse {
+    form?: Form 
+}
+
+/**
+ * 
+ */
+export interface ListGraphQLCommissionFormResponse {
     artist: {
         forms: {
             id: string
@@ -37,6 +43,18 @@ export interface CommissionFormsResponse {
             description: string
         }[]
     }
+}
+
+/**
+ * CommissionFormsResponse
+ *
+ */
+export interface CommissionFormsResponse {
+    forms: {
+        id: string
+        name: string
+        description: string
+    }[]
 }
 
 /**

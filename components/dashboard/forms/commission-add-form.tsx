@@ -1,50 +1,70 @@
 'use client'
 
 import * as z from 'zod'
+import useSWR from 'swr'
+import Link from 'next/link'
 
 import { useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
-
+import { useFormContext } from '@/components/form/form-context'
 import TextField from '@/components/form/text-input'
 
 import { zodResolver } from '@hookform/resolvers/zod'
-import { CheckCircleIcon, PlusCircleIcon, XCircleIcon } from '@heroicons/react/20/solid'
+import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/20/solid'
 import SelectField from '@/components/form/select-input'
-import useSWR from 'swr'
-import { useSession } from 'next-auth/react'
-import { Fetcher } from '@/core/helpers'
-import { CommissionFormsResponse } from '@/core/responses'
+import { GraphQLFetcher } from '@/core/helpers'
 import Loading from '@/components/loading'
 import CheckboxField from '@/components/form/checkbox-input'
 import FileField from '@/components/form/file-input'
 import MarkdownEditor from '@/components/form/markdown-text-area'
+import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
+import FormDropzone from '@/components/form/form-dropzone'
+import CurrencyField from '@/components/form/currency-field'
+import { Transition } from '@headlessui/react'
 
 const commissionSchema = z.object({
     title: z.string().min(2).max(50),
     description: z.string().min(10).max(500),
     price: z.number().min(0),
     form: z.string().min(1),
-    rush: z.boolean().default(false)
+
+    featured_image: z.any(z.instanceof(File).refine((file: File) => file.size != 0)),
+    additional_files: z.any().optional(),
+
+    rush: z.boolean().default(false),
+    rush_charge: z.number().optional()
 })
 
 type CommissionSchemaType = z.infer<typeof commissionSchema>
 
 export default function CommissionAddForm() {
-    const { data: session } = useSession()
+    const { artistId } = useDashboardContext()
+    const { image } = useFormContext()
     const form = useForm<CommissionSchemaType>({
         resolver: zodResolver(commissionSchema),
-        mode: 'onSubmit'
+        mode: 'onSubmit',
+        defaultValues: {
+            rush_charge: 0
+        }
     })
 
-    const { data: artistForms, isLoading } = useSWR<CommissionFormsResponse>(
-        `/api/artist/${session?.user.user_id}/forms`,
-        Fetcher
+    const { data, isLoading } = useSWR(
+        `{
+            artist(id: "${artistId}") {
+                forms {
+                    name
+                }
+            }
+        }`,
+        GraphQLFetcher<{ artist: { forms: { name: string }[] } }>
     )
 
     const [submitting, setSubmitting] = useState(false)
 
     async function CreateCommission(values: CommissionSchemaType) {
         //setSubmitting(true)
+
+        
 
         console.log(values)
     }
@@ -55,7 +75,7 @@ export default function CommissionAddForm() {
 
     function getFormsNames() {
         const result: string[] = []
-        artistForms?.forms?.forEach((form) => {
+        data?.artist.forms.forEach((form) => {
             result.push(form.name)
         })
 
@@ -86,8 +106,7 @@ export default function CommissionAddForm() {
                         />
                     )}
                 />
-                <TextField
-                    type="number"
+                <CurrencyField
                     min={0}
                     label="Price"
                     placeholder="Price"
@@ -100,8 +119,14 @@ export default function CommissionAddForm() {
                     join
                     {...form.register('form')}
                 />
-                <TextField label="Featured Image" placeholder="Featured Image" />
-                <FileField label="Additional Files" />
+                <FormDropzone
+                    label="Featured Image"
+                    {...form.register('featured_image')}
+                />
+                <FileField
+                    label="Additional Files"
+                    {...form.register('additional_files')}
+                />
 
                 <div className="card bg-base-100 shadow-xl">
                     <div className="card-body">
@@ -109,6 +134,14 @@ export default function CommissionAddForm() {
                             label="Allow Rush Orders"
                             {...form.register('rush')}
                         />
+                        {form.watch('rush') && (
+                            <CurrencyField
+                                label="Rush Charge"
+                                additionalClassnames="bg-base-300"
+                                placeholder="Rush Charge"
+                                {...form.register('rush_charge', {valueAsNumber: true})}
+                            />
+                        )}
                     </div>
                 </div>
 
@@ -120,17 +153,26 @@ export default function CommissionAddForm() {
                     </i>
                 </p>
                 <div className="grid grid-cols-2 gap-5">
-                    <button type="submit" className="btn btn-error">
+                    <Link href={'/dashboard/commissions'} className="btn btn-error">
                         <XCircleIcon className="w-6 h-6" />
                         Cancel
-                    </button>
+                    </Link>
                     <button
                         type="submit"
                         className="btn btn-primary"
                         disabled={submitting}
                     >
-                        <CheckCircleIcon className="w-6 h-6" />
-                        Create Commission
+                        {submitting ? (
+                            <>
+                                <span className="loading loading-spinner"></span>
+                                Creating Commission
+                            </>
+                        ) : (
+                            <>
+                                <CheckCircleIcon className="w-6 h-6" />
+                                Create Commission
+                            </>
+                        )}
                     </button>
                 </div>
             </form>

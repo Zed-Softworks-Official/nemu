@@ -2,7 +2,6 @@ import { prisma } from '@/lib/prisma'
 import { builder } from '../builder'
 import { S3GetSignedURL } from '@/core/storage'
 import { AWSLocations, PortfolioItem } from '@/core/structures'
-import build from 'next/dist/build'
 
 builder.prismaObject('Artist', {
     fields: (t) => ({

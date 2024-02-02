@@ -14,7 +14,6 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 
 import TextField from '@/components/form/text-input'
-import FileField from '@/components/form/file-input'
 import { GraphQLFetcher } from '@/core/helpers'
 import { NemuResponse, StatusCode } from '@/core/responses'
 

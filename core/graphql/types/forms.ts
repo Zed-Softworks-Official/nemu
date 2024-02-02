@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { builder } from '../builder'
+import { StatusCode } from '@/core/responses'
 
 builder.prismaObject('Form', {
     fields: (t) => ({
@@ -62,5 +63,51 @@ builder.queryField('form', (t) =>
                     artistId: args.artistId
                 }
             })
+    })
+)
+
+/**
+ * 
+ */
+builder.mutationField('create_new_form', (t) =>
+    t.field({
+        type: 'NemuResponse',
+        args: {
+            artist_id: t.arg({
+                type: 'String',
+                required: true
+            }),
+            form_name: t.arg({
+                type: 'String',
+                required: true
+            }),
+            form_desc: t.arg({
+                type: 'String',
+                required: true
+            }),
+            commission_id: t.arg({
+                type: 'String',
+                required: false
+            })
+        },
+        resolve: async (_parent, args, _ctx, _info) => {
+            const form = await prisma.form.create({
+                data: {
+                    artistId: args.artist_id,
+                    commissionId: args.commission_id,
+                    name: args.form_name,
+                    description: args.form_desc
+                }
+            })
+
+            if (!form) {
+                return {
+                    status: StatusCode.InternalError,
+                    message: 'Form could not be created!'
+                }
+            }
+
+            return { status: StatusCode.Success }
+        }
     })
 )

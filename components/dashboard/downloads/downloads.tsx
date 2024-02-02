@@ -2,7 +2,6 @@
 
 import useSWR from 'swr'
 import { GraphQLFetcher } from '@/core/helpers'
-import { useSession } from 'next-auth/react'
 
 import Link from 'next/link'
 import Loading from '@/components/loading'
@@ -24,7 +23,7 @@ export default function DownloadsList() {
                 }
             }
         }`,
-        GraphQLFetcher
+        GraphQLFetcher<DownloadsResponse>
     )
 
     if (isLoading) {
@@ -33,7 +32,7 @@ export default function DownloadsList() {
 
     return (
         <>
-            {(data as DownloadsResponse).user?.purchased.length != 0 ? (
+            {data?.user?.purchased.length != 0 ? (
                 <div className="overflow-x-auto w-full rounded-xl">
                     <table className="table table-zebra">
                         <thead className=" bg-base-200">
@@ -43,7 +42,7 @@ export default function DownloadsList() {
                             <th>Download</th>
                         </thead>
                         <tbody>
-                            {(data as DownloadsResponse).user?.purchased.map(
+                            {data?.user?.purchased.map(
                                 (download: DownloadData) => (
                                     <tr key={download.name}>
                                         <td>{download.name}</td>

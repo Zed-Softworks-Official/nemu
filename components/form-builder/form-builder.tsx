@@ -19,20 +19,19 @@ import { DesignerContextType, useDesigner } from './designer/designer-context'
 import { useEffect } from 'react'
 import Loading from '../loading'
 import { useDashboardContext } from '../navigation/dashboard/dashboard-context'
+import { GraphQLCommissionFormResponse } from '@/core/responses'
 
 export default function FormBuilder({ form_id }: { form_id: string }) {
     const { artistId } = useDashboardContext()
     const { data, isLoading } = useSWR(
         `{
             form(artistId: "${artistId}", formId: "${form_id}") {
-              name
-              submissions
-              description
-              content
-              commissionId
+                name
+                description
+                content
             }
-          }`,
-        GraphQLFetcher
+        }`,
+        GraphQLFetcher<GraphQLCommissionFormResponse>
     )
     const { setElements } = useDesigner() as DesignerContextType
 
@@ -53,7 +52,7 @@ export default function FormBuilder({ form_id }: { form_id: string }) {
 
     useEffect(() => {
         if (!isLoading) {
-            const elements = JSON.parse(data?.form?.content!)
+            const elements = JSON.parse(data?.form?.content)
             setElements(elements)
         }
     }, [data, setElements])
@@ -66,7 +65,10 @@ export default function FormBuilder({ form_id }: { form_id: string }) {
         <DndContext sensors={sensors}>
             <main className="flex flex-col w-full min-h-[90rem]">
                 <nav className="flex justify-between p-4 gap-3 items-center">
-                    <h2>Form: {data?.form?.name}</h2>
+                    <div>
+                        <h2 className="card-title">Form: {data?.form?.name}</h2>
+                        <p>Description: {data?.form.description}</p>
+                    </div>
                     <div className="flex items-center gap-2">
                         <PreviewButton />
                         <SaveButton form_id={form_id} />

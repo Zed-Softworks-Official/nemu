@@ -38,7 +38,7 @@ export default function DashboardContainer({
                     </div>
                 </div>
                 {addButtonUrl && (
-                    <div className="absolute bottom-20 right-20">
+                    <div className="fixed bottom-20 right-20">
                         <Link
                             href={addButtonUrl}
                             className="btn btn-square btn-primary btn-lg"
@@ -49,7 +49,7 @@ export default function DashboardContainer({
                 )}
                 {modal && (
                     <>
-                        <div className="absolute bottom-20 right-20">
+                        <div className="fixed bottom-20 right-20">
                             <button
                                 type="button"
                                 className="btn btn-square btn-primary btn-lg"

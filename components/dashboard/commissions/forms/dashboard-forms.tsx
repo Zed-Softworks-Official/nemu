@@ -7,7 +7,7 @@ import Loading from '@/components/loading'
 import Link from 'next/link'
 import { PencilSquareIcon } from '@heroicons/react/20/solid'
 import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
-import { CommissionFormsResponse } from '@/core/responses'
+import { ListGraphQLCommissionFormResponse } from '@/core/responses'
 
 export default function DashboardFormsList() {
     const { artistId } = useDashboardContext()
@@ -21,7 +21,7 @@ export default function DashboardFormsList() {
               }
             }
           }`,
-        GraphQLFetcher
+        GraphQLFetcher<ListGraphQLCommissionFormResponse>
     )
 
     if (isLoading) {
@@ -31,7 +31,7 @@ export default function DashboardFormsList() {
     return (
         <div className="max-w-6xl mx-auto">
             <div className="grid grid-cols-3 gap-5">
-                {(data as CommissionFormsResponse).artist.forms?.map((form) => (
+                {data?.artist.forms?.map((form) => (
                     <div className="card bg-base-100 shadow-xl" key={form.id}>
                         <div className="card-body">
                             <h2 className="card-title">{form.name}</h2>

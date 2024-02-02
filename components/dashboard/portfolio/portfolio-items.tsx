@@ -22,7 +22,7 @@ export default function PortfolioItems() {
                 }
             }
         }`,
-        GraphQLFetcher
+        GraphQLFetcher<PortfolioResponse>
     )
 
     if (isLoading) {
@@ -31,7 +31,7 @@ export default function PortfolioItems() {
 
     return (
         <div className="flex flex-wrap gap-5">
-            {(data as PortfolioResponse).artist?.portfolio_items.map(
+            {data?.artist?.portfolio_items.map(
                 (item: PortfolioItem) => {
                     return (
                         <Link
