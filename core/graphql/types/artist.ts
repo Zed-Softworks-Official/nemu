@@ -30,6 +30,7 @@ builder.prismaObject('Artist', {
                 })
 
                 for (let i = 0; i < commissions.length; i++) {
+                    // Get Featured Image from S3
                     const featured_signed_url = await S3GetSignedURL(
                         artist.id,
                         AWSLocations.Commission,
@@ -39,6 +40,8 @@ builder.prismaObject('Artist', {
                     if (!featured_signed_url) {
                         return result
                     }
+
+                    // Get product information from stripe
 
                     result.push({
                         title: commissions[i].title,
