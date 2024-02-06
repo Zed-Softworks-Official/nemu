@@ -21,6 +21,11 @@ export default function ArtistPageClient({ handle }: { handle: string }) {
             location
             commissions {
                 title
+                description
+                price
+                form_id
+                featured_image
+                availability
             }
             portfolio_items {
                 signed_url

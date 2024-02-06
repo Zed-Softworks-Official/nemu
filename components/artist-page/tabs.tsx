@@ -16,7 +16,7 @@ export default function ArtistProfileTabs() {
   const { currentIndex, setCurrentIndex } = useTabsContext();
 
   return (
-    <div className="w-[100rem] max-w-md px-2 sm:px-0 ">
+    <div className="w-full">
       <Tab.Group selectedIndex={currentIndex} onChange={setCurrentIndex}>
         <Tab.List className="flex space-x-1 rounded-xl p-1">
           {categories.map( (category) => (

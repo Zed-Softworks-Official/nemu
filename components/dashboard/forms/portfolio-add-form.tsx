@@ -65,7 +65,7 @@ export default function PortfolioAddForm() {
                 isLoading: false
             })
 
-            return 
+            return
         }
 
         // Update database
@@ -87,7 +87,7 @@ export default function PortfolioAddForm() {
                 autoClose: 5000,
                 isLoading: false
             })
-            
+
             return
         }
 

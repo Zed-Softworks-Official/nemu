@@ -60,7 +60,9 @@ builder.objectRef<CommissionItem>('CommissionResponse').implement({
         price: t.exposeFloat('price'),
 
         featured_image: t.exposeString('featured_image', { nullable: true }),
-        availability: t.exposeInt('availability', { nullable: true })
+        availability: t.exposeInt('availability', { nullable: true }),
+        form_id: t.exposeString('form_id', { nullable: true }),
+        slug: t.exposeString('slug', { nullable: true })
     })
 })
 

@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { builder } from '../builder'
 import { S3GetSignedURL } from '@/core/storage'
 import { AWSLocations, CommissionItem, PortfolioItem } from '@/core/structures'
+import { StripeGetCommissionProduct } from '@/core/stripe/commissions'
 
 builder.prismaObject('Artist', {
     fields: (t) => ({
@@ -42,13 +43,23 @@ builder.prismaObject('Artist', {
                     }
 
                     // Get product information from stripe
+                    let price = -1
+                    if (!commissions[i].useInvoicing) {
+                        price = (
+                            await StripeGetCommissionProduct(
+                                commissions[i].productId!,
+                                artist.stripeAccId
+                            )
+                        ).price
+                    }
 
                     result.push({
                         title: commissions[i].title,
                         description: commissions[i].description,
-                        price: 0,
+                        price: price,
                         featured_image: featured_signed_url,
-                        availability: commissions[i].availability
+                        availability: commissions[i].availability,
+                        slug: commissions[i].slug
                     })
                 }
 

@@ -1,20 +1,21 @@
 import { prisma } from '@/lib/prisma'
 import { builder } from '../builder'
 import { StatusCode } from '@/core/responses'
-import { StripeCreateCommissionProduct } from '@/core/stripe/commission'
+import { StripeCreateCommissionProduct } from '@/core/stripe/commissions'
 
 builder.prismaObject('Commission', {
     fields: (t) => ({
         id: t.exposeString('id'),
         artistId: t.exposeString('artistId'),
-        productId: t.exposeString('productId'),
-        formId: t.exposeString('formId'),
+        productId: t.exposeString('productId', {nullable: true}),
+        formId: t.exposeString('formId', {nullable: true}),
 
         title: t.exposeString('title'),
         description: t.exposeString('description'),
         featuredImage: t.exposeString('featuredImage'),
         additionalImages: t.exposeStringList('additionalImages'),
         availability: t.exposeInt('availability'),
+        slug: t.exposeString('slug'),
 
         published: t.exposeBoolean('published'),
         createdAt: t.expose('createdAt', { type: 'Date' }),
@@ -59,7 +60,7 @@ builder.mutationField('create_commission', (t) =>
                 required: true,
                 description: 'The title of the commission'
             }),
-            
+
             description: t.arg({
                 type: 'String',
                 required: true,
@@ -100,7 +101,6 @@ builder.mutationField('create_commission', (t) =>
                 required: false,
                 description: 'Wether to create invoices or use a fixed price'
             })
-            
         },
         resolve: async (_parent, args, _ctx, _info) => {
             // Get the artist
@@ -128,7 +128,7 @@ builder.mutationField('create_commission', (t) =>
                         price: args.price!
                     }
                 )
-    
+
                 if (!stripe_commission) {
                     return {
                         status: StatusCode.InternalError,
@@ -138,6 +138,12 @@ builder.mutationField('create_commission', (t) =>
 
                 stripe_commission_id = stripe_commission.id
             }
+
+            // Create Slug
+            const slug = args.title
+                .toLowerCase()
+                .replace(/[^a-zA-Z ]/g, '')
+                .replaceAll(' ', '-')
 
             // Create database object
             const db_commission = await prisma.commission.create({
@@ -151,7 +157,8 @@ builder.mutationField('create_commission', (t) =>
                     additionalImages: args.additional_images,
                     rushOrdersAllowed: args.rush_orders_allowed,
                     availability: args.availability,
-                    useInvoicing: args.use_invoicing || undefined
+                    useInvoicing: args.use_invoicing || undefined,
+                    slug: slug
                 }
             })
 

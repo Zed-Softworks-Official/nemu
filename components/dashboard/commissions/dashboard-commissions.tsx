@@ -1,9 +1,7 @@
 'use client'
 
 import Loading from '@/components/loading'
-import { CommissionResponse } from '@/core/responses'
-import { Fetcher, GraphQLFetcher } from '@/core/helpers'
-import { useSession } from 'next-auth/react'
+import { GraphQLFetcher } from '@/core/helpers'
 import useSWR from 'swr'
 import NemuImage from '@/components/nemu-image'
 import { ConvertAvailabilityToBadge } from '@/core/react-helpers'
@@ -17,15 +15,16 @@ export default function DashboardCommissions() {
     const { data, isLoading } = useSWR(
         `{
             artist(id: "${artistId}") {
-              commissions {
-                title
-                description
-                price
-                featured_image
-                availability
-              }
+                commissions {
+                    title
+                    description
+                    price
+                    featured_image
+                    availability
+                    slug
+                }
             }
-          }`,
+        }`,
         GraphQLFetcher<{ artist: { commissions: CommissionItem[] } }>
     )
 
@@ -36,7 +35,10 @@ export default function DashboardCommissions() {
     return (
         <main className="flex justify-evenly gap-5 flex-wrap">
             {data?.artist.commissions?.map((commission) => (
-                <div className="card lg:card-side bg-base-100 shadow-xl animate-pop-in transition-all duration-200">
+                <div
+                    key={commission.title}
+                    className="card lg:card-side bg-base-100 shadow-xl animate-pop-in transition-all duration-200"
+                >
                     <figure>
                         <NemuImage
                             src={commission.featured_image!}

@@ -3,7 +3,14 @@ import Stripe from 'stripe'
 import { stripe } from '@/lib/stripe'
 import { CommissionItem } from '../structures'
 import { CalculateApplicationFee } from './payments'
+import { StripeGetPriceInfo } from './prices'
 
+/**
+ *
+ * @param {string} stripe_account
+ * @param {CommissionItem} commission
+ * @returns
+ */
 export async function StripeCreateCommissionProduct(
     stripe_account: string,
     commission: CommissionItem
@@ -23,6 +30,13 @@ export async function StripeCreateCommissionProduct(
     )
 }
 
+/**
+ *
+ * @param {string} stripe_account
+ * @param {string} customer
+ * @param {string} commission
+ * @returns
+ */
 export async function StripeCreateCommissionInvoice(
     stripe_account: string,
     customer: string,
@@ -38,4 +52,20 @@ export async function StripeCreateCommissionInvoice(
             stripeAccount: stripe_account
         }
     )
+}
+
+export async function StripeGetCommissionProduct(
+    product_id: string,
+    stripe_account: string
+) {
+    const product = await stripe.products.retrieve(product_id, {
+        stripeAccount: stripe_account
+    })
+
+    return {
+        price:
+            (await StripeGetPriceInfo(product.default_price!.toString(), stripe_account))
+                .unit_amount! / 100,
+        product: product
+    }
 }

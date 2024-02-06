@@ -186,6 +186,7 @@ model Commission {
   featuredImage    String
   additionalImages String[]
   availability     Int
+  slug             String
 
   published         Boolean  @default(false)
   createdAt         DateTime @default(now())

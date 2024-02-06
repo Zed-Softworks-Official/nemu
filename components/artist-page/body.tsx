@@ -22,10 +22,10 @@ export default function ArtistBody({ data }: { data: ArtistPageResponse }) {
                 return (
                     <div>
                         <h1 className="font-bold text-2xl">Commissions</h1>
-                        {/* <Commissions
-                            user_id={artist_info.userId}
-                            terms={artist_info.terms}
-                        /> */}
+                        <Commissions
+                            commissions={data.artist?.commissions!}
+                            terms={''}
+                        />
                     </div>
                 )
             case 1:

@@ -96,10 +96,10 @@ export default function UserInfoMenu() {
                                 className="rounded-full w-16"
                             />
                         ) : (
-                            <UserIcon className="h-6 w-6 text-base-content" />
+                            <div className="avatar rounded-full skeleton w-12 h-12"></div>
                         )
                     ) : (
-                        <div className="avatar rounded-full skeleton w-12 h-12"></div>
+                        <UserIcon className="h-6 w-6 text-base-content" />
                     )}
                 </Menu.Button>
             </div>

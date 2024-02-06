@@ -9,26 +9,26 @@ import Modal from '../modal'
 import CommissionFormSubmitView from '../form-builder/submissions/commission-form-submit-view'
 
 import { ConvertAvailabilityToBadge } from '@/core/react-helpers'
+import Markdown from 'react-markdown'
 
 export default function CommissionCard({
     commission,
-    terms,
-    user_id
+    terms
 }: {
     commission: CommissionItem
-    terms: string,
-    user_id: string
+    terms: string
 }) {
     const [showModal, setShowModal] = useState(false)
     const [showForm, setShowForm] = useState(false)
 
-
-
     return (
-        <div key={commission.slug} className="card lg:card-side bg-base-100 shadow-xl animate-pop-in transition-all duration-200">
+        <div
+            key={commission.slug}
+            className="card lg:card-side bg-base-100 shadow-xl animate-pop-in transition-all duration-200"
+        >
             <figure>
                 <NemuImage
-                    src={commission.featured_image}
+                    src={commission.featured_image!}
                     alt={commission.title}
                     width={200}
                     height={200}
@@ -37,9 +37,9 @@ export default function CommissionCard({
             <div className="card-body">
                 <h2 className="card-title">
                     {commission.title}
-                    {ConvertAvailabilityToBadge(commission.availability)}
+                    {ConvertAvailabilityToBadge(commission.availability!)}
                 </h2>
-                <p>{commission.description}</p>
+                <p><Markdown>{commission.description}</Markdown></p>
                 <div className="card-actions justify-end">
                     <p className="font-bold text-2xl">${commission.price}</p>
                     <button
@@ -54,7 +54,10 @@ export default function CommissionCard({
                     </button>
                     <Modal showModal={showModal} setShowModal={setShowModal}>
                         {showForm ? (
-                            <CommissionFormSubmitView form_id={commission.form_id!} artist={user_id} /> // commission.form_id
+                            <CommissionFormSubmitView
+                                form_id={commission.form_id!}
+                                artist={''}
+                            />
                         ) : (
                             <CommissionsDisplay
                                 commission={commission}
