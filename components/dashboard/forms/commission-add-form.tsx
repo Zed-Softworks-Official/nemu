@@ -20,7 +20,7 @@ import MarkdownEditor from '@/components/form/markdown-text-area'
 import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
 import FormDropzone from '@/components/form/form-dropzone'
 import CurrencyField from '@/components/form/currency-field'
-import { Transition } from '@headlessui/react'
+import { CommissionAvailability } from '@/core/structures'
 
 const commissionSchema = z.object({
     title: z.string().min(2).max(50),
@@ -29,10 +29,12 @@ const commissionSchema = z.object({
     form: z.string().min(1),
 
     featured_image: z.any(z.instanceof(File).refine((file: File) => file.size != 0)),
-    additional_files: z.any().optional(),
+    additional_images: z.any().optional(),
 
     rush: z.boolean().default(false),
-    rush_charge: z.number().optional()
+    rush_charge: z.number().optional(),
+
+    commission_availability: z.string()
 })
 
 type CommissionSchemaType = z.infer<typeof commissionSchema>
@@ -61,12 +63,66 @@ export default function CommissionAddForm() {
 
     const [submitting, setSubmitting] = useState(false)
 
+    function convertArrayToGraphQLArray(string_array: string[]) {
+        const array = string_array.slice(1, string_array.length)
+        let result = `[`
+        
+        for (let i = 0; i < array.length; i++) {
+            if (i != array.length - 1) {
+                result += `"${array[i]}", ` 
+            } else {
+                result += `"${array[i]}"]`
+            }
+        }
+
+        return result
+    }
+
     async function CreateCommission(values: CommissionSchemaType) {
         //setSubmitting(true)
 
-        
+        // Get the amount of images to upload
+        const number_of_images = 1 + values.additional_images.length
 
-        console.log(values)
+        // Create image keys
+        const image_keys: string[] = []
+        for (let i = 0; i < number_of_images; i++) {
+            image_keys.push(crypto.randomUUID())
+        }
+
+        // Create formdata for the aws files
+        const awsData = new FormData()
+        awsData.append('file_keys', JSON.stringify(image_keys))
+        awsData.append('featured_image', image!)
+
+        for (let i = 0; i < values.additional_images.length; i++) {
+            awsData.append(`file-${i}`, values.additional_images[i])
+        }
+
+        // Make Request to AWS Rest API to handle multiple files
+        await fetch(`/api/aws/${artistId}/commission/multiple`, {
+            method: 'post',
+            body: awsData
+        })
+
+        // Make Request to GraphQL to create new commission object
+        const graphql_response = await GraphQLFetcher(`
+        mutation {
+            create_commission(
+                artist_id: "${artistId}"
+                title: "${values.title}"
+                description: "${values.description}"
+                additional_images: ${convertArrayToGraphQLArray(image_keys)}
+                featured_image: "${image_keys[0]}"
+                price: ${values.price}
+                rush_orders_allowed: ${values.rush}
+            ) {
+                status
+                message
+            }
+        }`)
+
+        console.log(graphql_response)
     }
 
     if (isLoading) {
@@ -119,13 +175,20 @@ export default function CommissionAddForm() {
                     join
                     {...form.register('form')}
                 />
+                <SelectField
+                    label="Commission Availabilty"
+                    options={['Open', 'Waitlist', 'Closed']}
+                    placeholder="Select an availability"
+                    {...form.register('commission_availability')}
+                />
                 <FormDropzone
                     label="Featured Image"
                     {...form.register('featured_image')}
                 />
                 <FileField
-                    label="Additional Files"
-                    {...form.register('additional_files')}
+                    label="Additional Images"
+                    multiple
+                    {...form.register('additional_images')}
                 />
 
                 <div className="card bg-base-100 shadow-xl">
@@ -139,7 +202,7 @@ export default function CommissionAddForm() {
                                 label="Rush Charge"
                                 additionalClassnames="bg-base-300"
                                 placeholder="Rush Charge"
-                                {...form.register('rush_charge', {valueAsNumber: true})}
+                                {...form.register('rush_charge', { valueAsNumber: true })}
                             />
                         )}
                     </div>

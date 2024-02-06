@@ -17,16 +17,15 @@ export async function POST(
     const data = await req.formData()
     const file: File | null = data.get('file') as unknown as File
 
-    
     if (!file) {
         console.log('invalid file')
-        
+
         return NextResponse.json<NemuResponse>({
             status: StatusCode.InternalError,
             message: 'Failed to find file'
         })
     }
-    
+
     // // Upload file
     const upload = await S3Upload(
         params.artist_id,

@@ -12,7 +12,6 @@ import {
     toolbarPlugin
 } from '@mdxeditor/editor'
 import '@mdxeditor/editor/style.css'
-import { InputHTMLAttributes, useState } from 'react'
 
 interface EditorProps {
     label: string

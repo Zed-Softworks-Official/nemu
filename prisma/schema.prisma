@@ -181,9 +181,10 @@ model Commission {
   productId String
   formId    String?
 
-  title         String
-  description   String
-  featuredImage String
+  title            String
+  description      String
+  featuredImage    String
+  additionalImages String[]
 
   published         Boolean  @default(false)
   createdAt         DateTime @default(now())

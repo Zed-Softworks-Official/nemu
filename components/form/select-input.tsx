@@ -39,7 +39,7 @@ const SelectField = forwardRef<HTMLSelectElement, InputProps>(
                         ))}
                     </select>
                     {join && (
-                        <button type="button" className="btn btn-ghost join-item">
+                        <button type="button" className="btn btn-ghost bg-base-200 join-item">
                             <PlusCircleIcon className="w-6 h-6" />
                         </button>
                     )}

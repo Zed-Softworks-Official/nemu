@@ -94,8 +94,8 @@ export interface CommissionItem {
     description: string
     price: number
 
-    featured_image: string
-    availability: CommissionAvailability
+    featured_image?: string
+    availability?: CommissionAvailability
 
     images?: string[]
     orders?: CommissionOrders[]
