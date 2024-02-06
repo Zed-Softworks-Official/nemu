@@ -4,7 +4,7 @@ import { useState, Fragment } from 'react'
 import { Listbox, Transition } from '@headlessui/react'
 import { ChevronDownIcon } from '@heroicons/react/20/solid'
 
-import ClassNames from '@/core/helpers'
+import { ClassNames } from '@/core/helpers'
 import { useSearchContext } from './search-context'
 import { SearchType } from '@/core/structures'
 

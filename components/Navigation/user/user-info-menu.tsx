@@ -18,7 +18,7 @@ import {
     ArrowRightEndOnRectangleIcon
 } from '@heroicons/react/20/solid'
 
-import ClassNames from '@/core/helpers'
+import { ClassNames } from '@/core/helpers'
 import { UserInfoIcon, UserInfoLink, UserInfoObject, Role } from '@/core/structures'
 import Image from 'next/image'
 import ThemeSwitcher from '@/components/theme/theme-switcher'

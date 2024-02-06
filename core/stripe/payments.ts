@@ -1,6 +1,15 @@
 import { Stripe } from 'stripe'
+
 import { stripe } from '@/lib/stripe'
 import { prisma } from '@/lib/prisma'
+
+/**
+ * Calculates the application fee amount
+ * 
+ * @param {number} amount - The price to caluclate from 
+ * @returns the total amount that zed softworks receives
+ */
+export const CalculateApplicationFee = (amount: number) => amount - amount * 0.95
 
 /**
  * Creates a stripe checkout session for a given product
@@ -23,8 +32,6 @@ export async function StripeGetPurchasePage(
         }
     })
 
-    const application_fee = amount - amount * 0.95
-
     return await stripe.checkout.sessions.create(
         {
             line_items: [
@@ -34,7 +41,7 @@ export async function StripeGetPurchasePage(
                 }
             ],
             payment_intent_data: {
-                application_fee_amount: application_fee
+                application_fee_amount: CalculateApplicationFee(amount)
             },
             metadata: {
                 stripe_account: stripe_account,

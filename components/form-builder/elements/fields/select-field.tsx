@@ -15,7 +15,7 @@ import * as z from 'zod'
 import { useEffect, useState } from 'react'
 import { DesignerContextType, useDesigner } from '../../designer/designer-context'
 import { DesignerCheckboxField, DesignerInputField } from '../input-field'
-import ClassNames from '@/core/helpers'
+import { ClassNames } from '@/core/helpers'
 import SelectField from '@/components/form/select-input'
 import { PlusCircleIcon, XMarkIcon } from '@heroicons/react/20/solid'
 
@@ -131,7 +131,7 @@ function FormComponent({
                 <SelectField
                     label=""
                     labelDisabled
-                    options={options}
+                    plainOptions={options}
                     error={error}
                     placeholder={placeholder}
                     onChange={(e) => setValue(e.target.validationMessage)}

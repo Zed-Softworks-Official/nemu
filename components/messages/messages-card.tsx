@@ -1,4 +1,4 @@
-import ClassNames from '@/core/helpers'
+import { ClassNames } from '@/core/helpers'
 
 export default function MessagesCard({
     username,

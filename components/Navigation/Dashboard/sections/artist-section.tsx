@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
-import ClassNames from '@/core/helpers'
+import { ClassNames } from '@/core/helpers'
 import {
     BuildingStorefrontIcon,
     ClipboardDocumentListIcon,
@@ -16,7 +16,7 @@ export default function DashboardArtistSection() {
 
     return (
         <>
-            <li className='my-2'>
+            <li className="my-2">
                 <Link
                     href={'/dashboard/commissions'}
                     className={ClassNames(
@@ -27,12 +27,10 @@ export default function DashboardArtistSection() {
                     )}
                 >
                     <RectangleStackIcon className="sidenav-icon" />
-                    <h3 className="inline text-lg font-bold">
-                        Commissions
-                    </h3>
+                    <h3 className="inline text-lg font-bold">Commissions</h3>
                 </Link>
             </li>
-            <li className='my-2'>
+            <li className="my-2">
                 <Link
                     href={'/dashboard/shop'}
                     className={ClassNames(
@@ -43,12 +41,10 @@ export default function DashboardArtistSection() {
                     )}
                 >
                     <BuildingStorefrontIcon className="sidenav-icon" />
-                    <h3 className="inline text-lg font-bold">
-                        Artist&apos;s Corner
-                    </h3>
+                    <h3 className="inline text-lg font-bold">Artist&apos;s Corner</h3>
                 </Link>
             </li>
-            <li className='my-2'>
+            <li className="my-2">
                 <Link
                     href={'/dashboard/portfolio'}
                     className={ClassNames(
@@ -62,7 +58,7 @@ export default function DashboardArtistSection() {
                     <h3 className="inline text-lg font-bold">Portfolio</h3>
                 </Link>
             </li>
-            <li className='my-2'>
+            <li className="my-2">
                 <Link
                     href={'/dashboard/forms'}
                     className={ClassNames(

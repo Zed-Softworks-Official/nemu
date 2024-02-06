@@ -1,4 +1,4 @@
-import ClassNames from '@/core/helpers'
+import { ClassNames } from '@/core/helpers'
 import { TextareaHTMLAttributes, forwardRef } from 'react'
 
 interface InputProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {

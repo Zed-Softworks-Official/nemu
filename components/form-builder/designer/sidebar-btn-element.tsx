@@ -2,7 +2,7 @@
 
 import { useDraggable } from '@dnd-kit/core'
 import { FormElement } from '../elements/form-elements'
-import ClassNames from '@/core/helpers'
+import { ClassNames } from '@/core/helpers'
 
 export default function SidebarBtnElement({ formElement }: { formElement: FormElement }) {
     const { label, icon: Icon } = formElement.designer_btn_element

@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
-import ClassNames from '@/core/helpers'
+import { ClassNames } from '@/core/helpers'
 import { HomeIcon } from '@heroicons/react/20/solid'
 
 export default function HomeSection() {

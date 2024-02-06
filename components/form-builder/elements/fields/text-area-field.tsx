@@ -16,7 +16,7 @@ import * as z from 'zod'
 import { useEffect, useState } from 'react'
 import { DesignerContextType, useDesigner } from '../../designer/designer-context'
 import { DesignerCheckboxField, DesignerInputField, DesignerRangeField, DesignerTextAreaField } from '../input-field'
-import ClassNames from '@/core/helpers'
+import { ClassNames } from '@/core/helpers'
 import TextArea from '@/components/form/text-area'
 import TextAreaInput from '@/components/form/text-area'
 

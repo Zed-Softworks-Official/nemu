@@ -1,17 +1,23 @@
-import ClassNames from '@/core/helpers'
+import { ClassNames } from '@/core/helpers'
 import { PlusCircleIcon } from '@heroicons/react/20/solid'
 import { SelectHTMLAttributes, forwardRef } from 'react'
 
+export interface SelectFieldOptions {
+    key: string
+    value: any
+}
+
 interface InputProps extends SelectHTMLAttributes<HTMLSelectElement> {
     label: string
-    options: string[]
+    options?: SelectFieldOptions[]
+    plainOptions?: string[]
     error?: boolean
     labelDisabled?: boolean
     join?: boolean
 }
 
 const SelectField = forwardRef<HTMLSelectElement, InputProps>(
-    ({ label, error, labelDisabled, options, join, ...props }, ref) => {
+    ({ label, error, labelDisabled, options, plainOptions, join, ...props }, ref) => {
         return (
             <div className="form-control">
                 {!labelDisabled && (
@@ -32,14 +38,29 @@ const SelectField = forwardRef<HTMLSelectElement, InputProps>(
                         <option disabled selected>
                             {props.placeholder}
                         </option>
-                        {options.map((option) => (
-                            <option key={option} value={option}>
-                                {option}
-                            </option>
-                        ))}
+                        {plainOptions ? (
+                            <>
+                                {plainOptions.map((option) => (
+                                    <option key={option} value={option}>
+                                        {option}
+                                    </option>
+                                ))}
+                            </>
+                        ) : (
+                            <>
+                                {options!.map((option) => (
+                                    <option key={option.key} value={option.value}>
+                                        {option.key}
+                                    </option>
+                                ))}
+                            </>
+                        )}
                     </select>
                     {join && (
-                        <button type="button" className="btn btn-ghost bg-base-200 join-item">
+                        <button
+                            type="button"
+                            className="btn btn-ghost bg-base-200 join-item"
+                        >
                             <PlusCircleIcon className="w-6 h-6" />
                         </button>
                     )}

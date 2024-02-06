@@ -178,17 +178,19 @@ model Purchased {
 model Commission {
   id        String  @id @default(auto()) @map("_id") @db.ObjectId
   artistId  String  @db.ObjectId
-  productId String
+  productId String?
   formId    String?
 
   title            String
   description      String
   featuredImage    String
   additionalImages String[]
+  availability     Int
 
   published         Boolean  @default(false)
   createdAt         DateTime @default(now())
   rushOrdersAllowed Boolean  @default(false)
+  useInvoicing      Boolean  @default(false)
 
   artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
 }

@@ -2,19 +2,31 @@
 
 import Loading from '@/components/loading'
 import { CommissionResponse } from '@/core/responses'
-import { Fetcher } from '@/core/helpers'
+import { Fetcher, GraphQLFetcher } from '@/core/helpers'
 import { useSession } from 'next-auth/react'
 import useSWR from 'swr'
 import NemuImage from '@/components/nemu-image'
 import { ConvertAvailabilityToBadge } from '@/core/react-helpers'
 import { EyeIcon, PencilIcon } from '@heroicons/react/20/solid'
 import Link from 'next/link'
+import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
+import { CommissionItem } from '@/core/structures'
 
 export default function DashboardCommissions() {
-    const { data: session } = useSession()
-    const { data, isLoading } = useSWR<CommissionResponse>(
-        `/api/artist/${session?.user.user_id}/commission`,
-        Fetcher
+    const { artistId } = useDashboardContext()
+    const { data, isLoading } = useSWR(
+        `{
+            artist(id: "${artistId}") {
+              commissions {
+                title
+                description
+                price
+                featured_image
+                availability
+              }
+            }
+          }`,
+        GraphQLFetcher<{ artist: { commissions: CommissionItem[] } }>
     )
 
     if (isLoading) {
@@ -23,11 +35,11 @@ export default function DashboardCommissions() {
 
     return (
         <main className="flex justify-evenly gap-5 flex-wrap">
-            {data?.commissions?.map((commission) => (
+            {data?.artist.commissions?.map((commission) => (
                 <div className="card lg:card-side bg-base-100 shadow-xl animate-pop-in transition-all duration-200">
                     <figure>
                         <NemuImage
-                            src={commission.featured_image}
+                            src={commission.featured_image!}
                             alt={`${commission.title} Featured Image`}
                             width={200}
                             height={200}
@@ -35,7 +47,7 @@ export default function DashboardCommissions() {
                     </figure>
                     <div className="card-body max-h-full">
                         <h2 className="card-title">{commission.title}</h2>
-                        {ConvertAvailabilityToBadge(commission.availability)}
+                        {ConvertAvailabilityToBadge(commission.availability!)}
                         <div className="flex justify-end items-end h-full">
                             <div className="card-actions justify-end">
                                 <Link

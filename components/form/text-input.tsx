@@ -1,8 +1,8 @@
-import ClassNames from '@/core/helpers'
+import { ClassNames } from '@/core/helpers'
 import { InputHTMLAttributes, forwardRef } from 'react'
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
-    label: string,
+    label: string
     additionalClassnames?: string
     error?: boolean
     labelDisabled?: boolean
@@ -17,7 +17,11 @@ const TextField = forwardRef<HTMLInputElement, InputProps>(
                     <input
                         ref={ref}
                         {...props}
-                        className={ClassNames(error && 'input-error', 'input w-full', additionalClassnames && additionalClassnames)}
+                        className={ClassNames(
+                            error && 'input-error',
+                            'input w-full',
+                            additionalClassnames && additionalClassnames
+                        )}
                     />
                 </div>
             </>

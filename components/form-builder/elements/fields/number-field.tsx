@@ -11,7 +11,7 @@ import { useEffect, useState } from 'react'
 import { DesignerContextType, useDesigner } from '../../designer/designer-context'
 import { DesignerCheckboxField, DesignerInputField, DesignerRangeField } from '../input-field'
 import TextInput from '@/components/form/text-input'
-import ClassNames from '@/core/helpers'
+import { ClassNames } from '@/core/helpers'
 
 const type: ElementsType = 'NumberField'
 

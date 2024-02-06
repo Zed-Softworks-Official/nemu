@@ -11,7 +11,7 @@ import TextField from '@/components/form/text-input'
 
 import { zodResolver } from '@hookform/resolvers/zod'
 import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/20/solid'
-import SelectField from '@/components/form/select-input'
+import SelectField, { SelectFieldOptions } from '@/components/form/select-input'
 import { GraphQLFetcher } from '@/core/helpers'
 import Loading from '@/components/loading'
 import CheckboxField from '@/components/form/checkbox-input'
@@ -21,20 +21,24 @@ import { useDashboardContext } from '@/components/navigation/dashboard/dashboard
 import FormDropzone from '@/components/form/form-dropzone'
 import CurrencyField from '@/components/form/currency-field'
 import { CommissionAvailability } from '@/core/structures'
+import { toast } from 'react-toastify'
+import { NemuResponse, StatusCode } from '@/core/responses'
 
 const commissionSchema = z.object({
     title: z.string().min(2).max(50),
     description: z.string().min(10).max(500),
-    price: z.number().min(0),
     form: z.string().min(1),
+
+    use_invoicing: z.boolean().default(true),
+    price: z.number().min(0).default(0).optional(),
 
     featured_image: z.any(z.instanceof(File).refine((file: File) => file.size != 0)),
     additional_images: z.any().optional(),
 
     rush: z.boolean().default(false),
-    rush_charge: z.number().optional(),
+    rush_charge: z.number().default(0).optional(),
 
-    commission_availability: z.string()
+    commission_availability: z.number()
 })
 
 type CommissionSchemaType = z.infer<typeof commissionSchema>
@@ -46,6 +50,8 @@ export default function CommissionAddForm() {
         resolver: zodResolver(commissionSchema),
         mode: 'onSubmit',
         defaultValues: {
+            use_invoicing: true,
+            price: 0,
             rush_charge: 0
         }
     })
@@ -54,11 +60,12 @@ export default function CommissionAddForm() {
         `{
             artist(id: "${artistId}") {
                 forms {
+                    id
                     name
                 }
             }
         }`,
-        GraphQLFetcher<{ artist: { forms: { name: string }[] } }>
+        GraphQLFetcher<{ artist: { forms: { id: string; name: string }[] } }>
     )
 
     const [submitting, setSubmitting] = useState(false)
@@ -66,10 +73,10 @@ export default function CommissionAddForm() {
     function convertArrayToGraphQLArray(string_array: string[]) {
         const array = string_array.slice(1, string_array.length)
         let result = `[`
-        
+
         for (let i = 0; i < array.length; i++) {
             if (i != array.length - 1) {
-                result += `"${array[i]}", ` 
+                result += `"${array[i]}", `
             } else {
                 result += `"${array[i]}"]`
             }
@@ -79,7 +86,8 @@ export default function CommissionAddForm() {
     }
 
     async function CreateCommission(values: CommissionSchemaType) {
-        //setSubmitting(true)
+        setSubmitting(true)
+        const toast_id = toast.loading('Creating commission', { theme: 'dark' })
 
         // Get the amount of images to upload
         const number_of_images = 1 + values.additional_images.length
@@ -106,7 +114,9 @@ export default function CommissionAddForm() {
         })
 
         // Make Request to GraphQL to create new commission object
-        const graphql_response = await GraphQLFetcher(`
+        const graphql_response = await GraphQLFetcher<{
+            create_commission: NemuResponse
+        }>(`
         mutation {
             create_commission(
                 artist_id: "${artistId}"
@@ -115,6 +125,8 @@ export default function CommissionAddForm() {
                 additional_images: ${convertArrayToGraphQLArray(image_keys)}
                 featured_image: "${image_keys[0]}"
                 price: ${values.price}
+                availability: ${values.commission_availability}
+                use_invoicing: ${values.use_invoicing}
                 rush_orders_allowed: ${values.rush}
             ) {
                 status
@@ -122,7 +134,21 @@ export default function CommissionAddForm() {
             }
         }`)
 
-        console.log(graphql_response)
+        if (graphql_response?.create_commission?.status != StatusCode.Success) {
+            toast.update(toast_id, {
+                render: graphql_response.create_commission.message,
+                type: 'error',
+                autoClose: 5000,
+                isLoading: false
+            })
+        } else {
+            toast.update(toast_id, {
+                render: 'Commission Created',
+                type: 'success',
+                autoClose: 5000,
+                isLoading: false
+            })
+        }
     }
 
     if (isLoading) {
@@ -130,9 +156,12 @@ export default function CommissionAddForm() {
     }
 
     function getFormsNames() {
-        const result: string[] = []
+        const result: SelectFieldOptions[] = []
         data?.artist.forms.forEach((form) => {
-            result.push(form.name)
+            result.push({
+                key: form.name,
+                value: form.id
+            })
         })
 
         return result
@@ -162,12 +191,30 @@ export default function CommissionAddForm() {
                         />
                     )}
                 />
-                <CurrencyField
-                    min={0}
-                    label="Price"
-                    placeholder="Price"
-                    {...form.register('price', { valueAsNumber: true })}
-                />
+                <div className="card bg-base-100 shadow-xl">
+                    <div className="card-body">
+                        <div
+                            className="tooltip"
+                            data-tip="If checked, you will be able to send out invoices and change the price of the commission based on the clients requests"
+                        >
+                            <CheckboxField
+                                label="Use Invoicing"
+                                {...form.register('use_invoicing')}
+                            />
+                        </div>
+
+                        {!form.watch('use_invoicing') && (
+                            <CurrencyField
+                                min={0}
+                                label="Price"
+                                placeholder="Price"
+                                additionalClassnames="bg-base-300"
+                                {...form.register('price', { valueAsNumber: true })}
+                            />
+                        )}
+                    </div>
+                </div>
+
                 <SelectField
                     label="Form"
                     options={getFormsNames()}
@@ -177,9 +224,22 @@ export default function CommissionAddForm() {
                 />
                 <SelectField
                     label="Commission Availabilty"
-                    options={['Open', 'Waitlist', 'Closed']}
+                    options={[
+                        {
+                            key: 'Open',
+                            value: CommissionAvailability.Open
+                        },
+                        {
+                            key: 'Waitlist',
+                            value: CommissionAvailability.Waitlist
+                        },
+                        {
+                            key: 'Closed',
+                            value: CommissionAvailability.Closed
+                        }
+                    ]}
                     placeholder="Select an availability"
-                    {...form.register('commission_availability')}
+                    {...form.register('commission_availability', { valueAsNumber: true })}
                 />
                 <FormDropzone
                     label="Featured Image"

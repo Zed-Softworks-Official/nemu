@@ -93,6 +93,7 @@ export interface CommissionItem {
     title: string
     description: string
     price: number
+    due_date?: Date,
 
     featured_image?: string
     availability?: CommissionAvailability

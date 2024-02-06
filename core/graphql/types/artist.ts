@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { builder } from '../builder'
 import { S3GetSignedURL } from '@/core/storage'
-import { AWSLocations, PortfolioItem } from '@/core/structures'
+import { AWSLocations, CommissionItem, PortfolioItem } from '@/core/structures'
 
 builder.prismaObject('Artist', {
     fields: (t) => ({
@@ -19,7 +19,39 @@ builder.prismaObject('Artist', {
 
         user: t.relation('user'),
 
-        commissions: t.relation('commissions'),
+        commissions: t.field({
+            type: ['CommissionResponse'],
+            resolve: async (artist) => {
+                const result: CommissionItem[] = []
+                const commissions = await prisma.commission.findMany({
+                    where: {
+                        artistId: artist.id
+                    }
+                })
+
+                for (let i = 0; i < commissions.length; i++) {
+                    const featured_signed_url = await S3GetSignedURL(
+                        artist.id,
+                        AWSLocations.Commission,
+                        commissions[i].featuredImage
+                    )
+
+                    if (!featured_signed_url) {
+                        return result
+                    }
+
+                    result.push({
+                        title: commissions[i].title,
+                        description: commissions[i].description,
+                        price: 0,
+                        featured_image: featured_signed_url,
+                        availability: commissions[i].availability
+                    })
+                }
+
+                return result
+            }
+        }),
         store_items: t.relation('storeItems'),
         portfolio_items: t.field({
             type: ['PortfolioResponse'],

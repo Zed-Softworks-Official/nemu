@@ -2,7 +2,7 @@
 
 import { useSession } from 'next-auth/react'
 import NemuImage from '../nemu-image'
-import ClassNames from '@/core/helpers'
+import { ClassNames } from '@/core/helpers'
 
 export default function ChatBubble({
     username,

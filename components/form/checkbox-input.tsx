@@ -1,4 +1,4 @@
-import ClassNames from '@/core/helpers'
+import { ClassNames } from '@/core/helpers'
 import { InputHTMLAttributes, forwardRef } from 'react'
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {

@@ -1,4 +1,5 @@
 import { request } from 'graphql-request'
+import { CommissionAvailability } from './structures'
 
 /**
  * Joins variable amount of classnames into one string
@@ -6,7 +7,7 @@ import { request } from 'graphql-request'
  * @param classes - css classnames
  * @returns {string} Classnames all joined together in one string
  */
-export default function ClassNames(...classes: any) {
+export function ClassNames(...classes: any) {
     return classes.filter(Boolean).join(' ')
 }
 
@@ -19,11 +20,10 @@ export default function ClassNames(...classes: any) {
 export const Fetcher = (...args: Parameters<typeof fetch>) =>
     fetch(...args).then((res) => res.json())
 
-
 /**
- * 
- * @param query 
- * @returns 
+ *
+ * @param query
+ * @returns
  */
 // export const GraphQLFetcher = (query: string) => request('/api/graphql', query)
 
@@ -40,4 +40,22 @@ export function GraphQLFetcher<T>(query: string) {
 export const GetItemId = (pathname: string) => {
     let lastSlash = pathname.lastIndexOf('/')
     return pathname.substring(lastSlash + 1, pathname.length + 1)
+}
+
+/**
+ * 
+ * @param {string} availability 
+ * @returns 
+ */
+export function StringToCommissionAvailability(availability: string) {
+    switch (availability) {
+        case 'closed':
+            return CommissionAvailability.Closed
+        case 'waitlist':
+            return CommissionAvailability.Waitlist
+        case 'open':
+            return CommissionAvailability.Open
+    }
+
+    return CommissionAvailability.Closed
 }
