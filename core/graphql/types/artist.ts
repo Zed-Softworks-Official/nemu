@@ -21,7 +21,7 @@ builder.prismaObject('Artist', {
         user: t.relation('user'),
 
         commissions: t.field({
-            type: ['CommissionResponse'],
+            type: ['CommissionData'],
             resolve: async (artist) => {
                 const result: CommissionItem[] = []
                 const commissions = await prisma.commission.findMany({
@@ -59,7 +59,9 @@ builder.prismaObject('Artist', {
                         price: price,
                         featured_image: featured_signed_url,
                         availability: commissions[i].availability,
-                        slug: commissions[i].slug
+                        slug: commissions[i].slug,
+                        form_id: commissions[i].formId || undefined,
+                        handle: artist.handle
                     })
                 }
 
@@ -68,7 +70,7 @@ builder.prismaObject('Artist', {
         }),
         store_items: t.relation('storeItems'),
         portfolio_items: t.field({
-            type: ['PortfolioResponse'],
+            type: ['PortfolioData'],
             resolve: async (artist) => {
                 const result: PortfolioItem[] = []
                 const portfolio = await prisma.portfolio.findMany({
@@ -99,6 +101,36 @@ builder.prismaObject('Artist', {
             }
         }),
 
+        get_form: t.field({
+            type: 'CommissionFormData',
+            args: {
+                form_id: t.arg({
+                    type: 'String',
+                    required: true,
+                    description: 'The form id for the commission response'
+                })
+            },
+            resolve: async (artist, args) => {
+                const form = await prisma.form.findFirst({
+                    where: {
+                        artistId: artist.id,
+                        id: args.form_id
+                    }
+                })
+
+                if (!form) {
+                    return {
+                        form_id: '',
+                        content: ''
+                    }
+                }
+
+                return {
+                    form_id: form.id,
+                    content: form.content
+                }
+            }
+        }),
         forms: t.relation('forms'),
         socials: t.relation('socials')
     })

@@ -93,7 +93,7 @@ export interface CommissionItem {
     title: string
     description: string
     price: number
-    due_date?: Date,
+    due_date?: Date
 
     featured_image?: string
     availability?: CommissionAvailability
@@ -101,9 +101,15 @@ export interface CommissionItem {
     images?: string[]
     orders?: CommissionOrders[]
     form_id?: string
+    handle?: string
 
     prod_id?: string
     slug?: string
+}
+
+export interface CommissionForm {
+    form_id: string
+    content: string
 }
 
 /**

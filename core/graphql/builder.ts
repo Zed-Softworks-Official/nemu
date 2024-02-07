@@ -5,15 +5,21 @@ import type PrismaTypes from '@pothos/plugin-prisma/generated'
 
 import { DateTimeResolver } from 'graphql-scalars'
 import { ArtistCodeResponse, NemuResponse } from '../responses'
-import { CommissionItem, DownloadData, PortfolioItem } from '../structures'
+import {
+    CommissionForm,
+    CommissionItem,
+    DownloadData,
+    PortfolioItem
+} from '../structures'
 
 export const builder = new SchemaBuilder<{
     PrismaTypes: PrismaTypes
     Objects: {
         // Data Objects
-        PortfolioResponse: PortfolioItem
+        PortfolioData: PortfolioItem
         DownloadData: DownloadData
-        CommissionResponse: CommissionItem
+        CommissionData: CommissionItem
+        CommissionFormData: CommissionForm
 
         // Response Objects
         NemuResponse: NemuResponse
@@ -36,7 +42,7 @@ builder.mutationType({
 })
 
 // Data Objects
-builder.objectRef<PortfolioItem>('PortfolioResponse').implement({
+builder.objectRef<PortfolioItem>('PortfolioData').implement({
     fields: (t) => ({
         signed_url: t.exposeString('signed_url'),
         image_key: t.exposeString('image_key'),
@@ -53,7 +59,7 @@ builder.objectRef<DownloadData>('DownloadData').implement({
     })
 })
 
-builder.objectRef<CommissionItem>('CommissionResponse').implement({
+builder.objectRef<CommissionItem>('CommissionData').implement({
     fields: (t) => ({
         title: t.exposeString('title'),
         description: t.exposeString('description'),
@@ -62,7 +68,15 @@ builder.objectRef<CommissionItem>('CommissionResponse').implement({
         featured_image: t.exposeString('featured_image', { nullable: true }),
         availability: t.exposeInt('availability', { nullable: true }),
         form_id: t.exposeString('form_id', { nullable: true }),
+        handle: t.exposeString('handle', { nullable: true }),
         slug: t.exposeString('slug', { nullable: true })
+    })
+})
+
+builder.objectRef<CommissionForm>('CommissionFormData').implement({
+    fields: (t) => ({
+        form_id: t.exposeString('form_id'),
+        content: t.exposeString('content')
     })
 })
 

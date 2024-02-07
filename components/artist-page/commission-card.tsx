@@ -13,9 +13,11 @@ import Markdown from 'react-markdown'
 
 export default function CommissionCard({
     commission,
+    handle,
     terms
 }: {
     commission: CommissionItem
+    handle: string
     terms: string
 }) {
     const [showModal, setShowModal] = useState(false)
@@ -39,7 +41,9 @@ export default function CommissionCard({
                     {commission.title}
                     {ConvertAvailabilityToBadge(commission.availability!)}
                 </h2>
-                <p><Markdown>{commission.description}</Markdown></p>
+                <p>
+                    <Markdown>{commission.description}</Markdown>
+                </p>
                 <div className="card-actions justify-end">
                     <p className="font-bold text-2xl">${commission.price}</p>
                     <button
@@ -56,7 +60,7 @@ export default function CommissionCard({
                         {showForm ? (
                             <CommissionFormSubmitView
                                 form_id={commission.form_id!}
-                                artist={''}
+                                handle={handle}
                             />
                         ) : (
                             <CommissionsDisplay

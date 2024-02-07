@@ -15,7 +15,12 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { useEffect, useState } from 'react'
 import { DesignerContextType, useDesigner } from '../../designer/designer-context'
-import { DesignerCheckboxField, DesignerInputField, DesignerRangeField, DesignerTextAreaField } from '../input-field'
+import {
+    DesignerCheckboxField,
+    DesignerInputField,
+    DesignerRangeField,
+    DesignerTextAreaField
+} from '../input-field'
 import { ClassNames } from '@/core/helpers'
 import TextArea from '@/components/form/text-area'
 import TextAreaInput from '@/components/form/text-area'
@@ -92,7 +97,7 @@ function DesignerComponent({
                     label=""
                     labelDisabled
                     rows={rows}
-                    addClasses='bg-base-300'
+                    additionalClasses="bg-base-300"
                     placeholder={placeholder}
                 />
                 {helperText && <p className="text-base-content/80">{helperText}</p>}

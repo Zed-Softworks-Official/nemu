@@ -21,7 +21,7 @@ builder.prismaObject('Portfolio', {
  */
 builder.queryField('portfolio_item', (t) =>
     t.field({
-        type: 'PortfolioResponse',
+        type: 'PortfolioData',
         args: {
             artist_id: t.arg({
                 type: 'String',

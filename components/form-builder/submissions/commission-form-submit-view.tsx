@@ -1,37 +1,40 @@
 'use client'
 
 import NemuImage from '@/components/nemu-image'
-import {
-    CommissionFormsResponse,
-    NemuResponse,
-    StatusCode
-} from '@/core/responses'
-import { Fetcher } from '@/core/helpers'
+import { CommissionFormsResponse, NemuResponse, StatusCode } from '@/core/responses'
+import { Fetcher, GraphQLFetcher } from '@/core/helpers'
 import { useSession } from 'next-auth/react'
 import useSWR from 'swr'
-import { FormElements } from '../elements/form-elements'
+import { FormElementInstance, FormElements } from '../elements/form-elements'
 import Loading from '@/components/loading'
 import { useCallback, useRef, useState, useTransition } from 'react'
 import { toast } from 'react-toastify'
 import { CreateToastPromise } from '@/core/promise'
+import { CommissionForm } from '@/core/structures'
 
 export default function CommissionFormSubmitView({
-    artist,
+    handle,
     form_id
 }: {
-    artist: string
+    handle: string
     form_id: string
 }) {
     const { data: session } = useSession()
-    const { data, isLoading } = useSWR<CommissionFormsResponse>(
-        `/api/artist/${artist}/forms/${form_id}/display`,
-        Fetcher
+    const { data, isLoading } = useSWR(
+        `{
+            artist(handle: "${handle}") {
+                get_form(form_id: "${form_id}") {
+                    content
+                }
+            }
+        }`,
+        GraphQLFetcher<{ artist: { get_form: CommissionForm } }>
     )
 
-    const { data: userSubmitted, isLoading: userSubmittedLoading } = useSWR<NemuResponse>(
-        `/api/artist/${artist}/forms/${form_id}/submissions/${session?.user.user_id}`,
-        Fetcher
-    )
+    // const { data: userSubmitted, isLoading: userSubmittedLoading } = useSWR<NemuResponse>(
+    //     `/api/artist/${artist}/forms/${form_id}/submissions/${session?.user.user_id}`,
+    //     Fetcher
+    // )
 
     const formValues = useRef<{ [key: string]: string }>({})
     const formErrors = useRef<{ [key: string]: boolean }>({})
@@ -47,45 +50,43 @@ export default function CommissionFormSubmitView({
     }, [])
 
     async function submitForm() {
-        const validForm = validateForm()
-        if (!validForm) {
-            setRenderKey(new Date().getTime())
-            toast('Please check all required fields!', { theme: 'dark', type: 'error' })
-
-            return
-        }
-
-        setSubmitted(true)
-        // Set User Id
-        formValues.current['user_id'] = session?.user.user_id!
-
-        await CreateToastPromise(
-            fetch(`/api/artist/${session?.user.user_id}/forms/${data?.form?.id}/submit`, {
-                method: 'post',
-                body: JSON.stringify(formValues.current)
-            }),
-            { pending: 'Submitting your form', success: 'Form Submitted!' }
-        )
+        // const validForm = validateForm()
+        // if (!validForm) {
+        //     setRenderKey(new Date().getTime())
+        //     toast('Please check all required fields!', { theme: 'dark', type: 'error' })
+        //     return
+        // }
+        // setSubmitted(true)
+        // // Set User Id
+        // formValues.current['user_id'] = session?.user.user_id!
+        // await CreateToastPromise(
+        //     fetch(`/api/artist/${session?.user.user_id}/forms/${data?.form?.id}/submit`, {
+        //         method: 'post',
+        //         body: JSON.stringify(formValues.current)
+        //     }),
+        //     { pending: 'Submitting your form', success: 'Form Submitted!' }
+        // )
     }
 
-    const validateForm: () => boolean = useCallback(() => {
-        for (const field of data?.formContent!) {
-            const actualValue = formValues.current[field.id] || ''
-            const valid = FormElements[field.type].validate(field, actualValue)
+    // const validateForm: () => boolean = useCallback(() => {
+    //     for (const field of data?.artist.get_form.content) {
+    //         const actualValue = formValues.current[field.id] || ''
+    //         const valid = FormElements[field.type].validate(field, actualValue)
 
-            if (!valid) {
-                formErrors.current[field.id] = true
-            }
-        }
+    //         if (!valid) {
+    //             formErrors.current[field.id] = true
+    //         }
+    //     }
 
-        if (Object.keys(formErrors.current).length > 0) {
-            return false
-        }
+    //     if (Object.keys(formErrors.current).length > 0) {
+    //         return false
+    //     }
 
-        return true
-    }, [data?.formContent!])
+    //     return true
+    // }, [data?.artist.get_form.content])
 
-    if (isLoading || userSubmittedLoading) {
+    if (isLoading) {
+        //|| userSubmittedLoading) {
         return <Loading />
     }
 
@@ -108,27 +109,30 @@ export default function CommissionFormSubmitView({
                 </p>
                 <div className="divider"></div>
             </div>
-            {data?.formContent!.map((element) => {
-                const FormComponent = FormElements[element.type].form_component
+            {data?.artist.get_form.content}
+            {/* {(JSON.parse(data?.artist.get_form.content!) as FormElementInstance[]).map(
+                (element) => {
+                    const FormComponent = FormElements[element.type].form_component
 
-                return (
-                    <FormComponent
-                        key={element.id}
-                        elementInstance={element}
-                        submitValue={submitValue}
-                        isInvalid={formErrors.current[element.id]}
-                        defaultValue={formValues.current[element.id]}
-                    />
-                )
-            })}
+                    return (
+                        <FormComponent
+                            key={element.id}
+                            elementInstance={element}
+                            submitValue={submitValue}
+                            isInvalid={formErrors.current[element.id]}
+                            defaultValue={formValues.current[element.id]}
+                        />
+                    )
+                }
+            )} */}
             <div className="divider"></div>
             <button
                 type="button"
                 className="btn btn-primary"
                 onClick={() => startTransition(submitForm)}
-                disabled={pending || userSubmitted?.status != StatusCode.Success}
+                //disabled={pending || userSubmitted?.status != StatusCode.Success}
             >
-                {pending ? (
+                {/* {pending ? (
                     <>
                         <div className="loading loading-spinner"></div>
                         Loading
@@ -136,8 +140,9 @@ export default function CommissionFormSubmitView({
                 ) : userSubmitted?.status != StatusCode.Success ? (
                     <>{userSubmitted?.message}</>
                 ) : (
-                    <>Next Step</>
-                )}
+                    <>Submit</>
+                )} */}
+                Submit
             </button>
         </div>
     )

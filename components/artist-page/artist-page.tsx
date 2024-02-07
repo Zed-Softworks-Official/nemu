@@ -13,33 +13,33 @@ import { ArtistPageResponse } from '@/core/responses'
 export default function ArtistPageClient({ handle }: { handle: string }) {
     const { data, isLoading } = useSWR(
         `{
-        artist(handle: "${handle}") {
-            headerPhoto
-            profilePhoto
-            handle
-            about
-            location
-            commissions {
-                title
-                description
-                price
-                form_id
-                featured_image
-                availability
+            artist(handle: "${handle}") {
+                headerPhoto
+                profilePhoto
+                handle
+                about
+                location
+                commissions {
+                    title
+                    description
+                    price
+                    form_id
+                    featured_image
+                    availability
+                }
+                portfolio_items {
+                    signed_url
+                    name
+                }
+                socials {
+                    agent
+                    url
+                }
+                user {
+                    name
+                }
             }
-            portfolio_items {
-                signed_url
-                name
-            }
-            socials {
-                agent
-                url
-            }
-            user {
-                name
-            }
-        }
-    }`,
+        }`,
         GraphQLFetcher<ArtistPageResponse>
     )
 

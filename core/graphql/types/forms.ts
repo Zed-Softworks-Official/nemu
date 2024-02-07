@@ -6,7 +6,7 @@ builder.prismaObject('Form', {
     fields: (t) => ({
         id: t.exposeString('id'),
         artistId: t.exposeString('artistId'),
-        commissionId: t.exposeString('commissionId'),
+        commissionId: t.exposeString('commissionId', { nullable: true }),
 
         name: t.exposeString('name'),
         description: t.exposeString('description'),
@@ -26,7 +26,7 @@ builder.queryField('forms', (t) =>
         args: {
             artistId: t.arg({
                 type: 'String',
-                required: true,
+                required: false,
                 description: 'The artist id for which to get the forms'
             })
         },
@@ -34,7 +34,7 @@ builder.queryField('forms', (t) =>
             prisma.form.findMany({
                 ...query,
                 where: {
-                    artistId: args.artistId
+                    artistId: args.artistId || undefined,
                 }
             })
     })
@@ -67,7 +67,7 @@ builder.queryField('form', (t) =>
 )
 
 /**
- * 
+ *
  */
 builder.mutationField('create_new_form', (t) =>
     t.field({

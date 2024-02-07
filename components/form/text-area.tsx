@@ -5,21 +5,26 @@ interface InputProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
     label: string
     error?: boolean
     labelDisabled?: boolean
+    additionalClasses?: string
 }
 
 const TextAreaInput = forwardRef<HTMLTextAreaElement, InputProps>(
-    ({ label, error, ...props }, ref) => {
+    ({ label, labelDisabled, additionalClasses, error, ...props }, ref) => {
         return (
             <div className="mb-5">
-                <label htmlFor={props.name} className="block mb-5">
-                    {label}:
-                </label>
+                {!labelDisabled && (
+                    <label htmlFor={props.name} className="block mb-5">
+                        {label}:
+                    </label>
+                )}
+
                 <textarea
                     ref={ref}
                     {...props}
                     className={ClassNames(
                         error && 'input-error',
-                        'textarea resize-none w-full'
+                        'textarea resize-none w-full',
+                        additionalClasses && additionalClasses
                     )}
                 ></textarea>
             </div>
