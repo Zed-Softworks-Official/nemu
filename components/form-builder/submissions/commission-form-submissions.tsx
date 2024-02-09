@@ -8,12 +8,15 @@ import useSWR from 'swr'
 import CommissionFormSubmissionDisplay from './commission-form-submission-display'
 import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
 
-export default function CommissionFormSubmissions({ form_id }: { form_id: string }) {
-    const { artistId } = useDashboardContext()
+export default function CommissionFormSubmissions({
+    commission_id
+}: {
+    commission_id: string
+}) {
     const { data, isLoading } = useSWR(
         `{
-            artist(id: "${artistId}") {
-                get_form_data(form_id: "${form_id}") {
+            commission(id: "${commission_id}") {
+                get_form_data {
                     name
                     description
                     submissions
@@ -29,7 +32,7 @@ export default function CommissionFormSubmissions({ form_id }: { form_id: string
             }
         }`,
         GraphQLFetcher<{
-            artist: {
+            commission: {
                 get_form_data: {
                     name: string
                     description: string
@@ -47,22 +50,15 @@ export default function CommissionFormSubmissions({ form_id }: { form_id: string
     }
 
     return (
-        <>
-            <div className="flex justify-between container mx-auto">
-                <div>
-                    <h1 className="card-title font-bold">{data?.artist.get_form_data.name}</h1>
+        <div className="bg-base-300 rounded-xl">
+            <div className="flex justify-between card">
+                <div className="card-body">
+                    <h1 className="card-title font-bold">
+                        Form Used: {data?.commission.get_form_data.name}
+                    </h1>
                     <h2 className="font-bold text-base-content/80">
-                        {data?.artist.get_form_data.description}
+                        Description: {data?.commission.get_form_data.description}
                     </h2>
-                </div>
-                <div>
-                    <Link
-                        href={`/dashboard/forms/${form_id}`}
-                        className="btn btn-primary"
-                    >
-                        <PencilIcon className="w-6 h-6" />
-                        Edit Commission Form
-                    </Link>
                 </div>
             </div>
             <div className="divider"></div>
@@ -71,18 +67,25 @@ export default function CommissionFormSubmissions({ form_id }: { form_id: string
                     <div className="card bg-base-100 max-w-md shadow-xl border-primary border-2 mx-auto w-full">
                         <div className="card-body">
                             <h2 className="card-title pt-3">
-                                Total Requests: {data?.artist.get_form_data.submissions}
+                                Total Requests:{' '}
+                                {data?.commission.get_form_data.submissions}
                             </h2>
                         </div>
                     </div>
                     <div className="card bg-base-100 max-w-md shadow-xl border-success border-2 mx-auto w-full">
                         <div className="card-body">
-                            <h2 className="card-title pt-3">Accepted: {data?.artist.get_form_data.acceptedSubmissions}</h2>
+                            <h2 className="card-title pt-3">
+                                Accepted:{' '}
+                                {data?.commission.get_form_data.acceptedSubmissions}
+                            </h2>
                         </div>
                     </div>
                     <div className="card bg-base-100 max-w-md shadow-xl border-error border-2 mx-auto w-full">
                         <div className="card-body">
-                            <h2 className="card-title pt-3">Rejected: {data?.artist.get_form_data.rejectedSubmissions}</h2>
+                            <h2 className="card-title pt-3">
+                                Rejected:{' '}
+                                {data?.commission.get_form_data.rejectedSubmissions}
+                            </h2>
                         </div>
                     </div>
                 </div>
@@ -105,6 +108,6 @@ export default function CommissionFormSubmissions({ form_id }: { form_id: string
                     </tbody>
                 </table>
             </div>
-        </>
+        </div>
     )
 }

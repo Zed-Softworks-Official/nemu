@@ -85,20 +85,31 @@ builder.queryField('commission', (t) =>
         args: {
             id: t.arg({
                 type: 'String',
-                required: true,
+                required: false,
                 description: 'Id of the commission'
+            }),
+            artist_id: t.arg({
+                type: 'String',
+                required: false,
+                description: 'artist id of the commission'
+            }),
+            slug: t.arg({
+                type: 'String',
+                required: false,
+                description: 'slug of the commission to get'
             })
         },
         resolve: (query, _parent, args, _ctx, _info) =>
             prisma.commission.findFirstOrThrow({
                 ...query,
                 where: {
-                    id: args.id
+                    id: args.id || undefined
                 }
             })
     })
 )
 
+// TODO: Check if the commission slug already exists for the current user
 builder.mutationField('create_commission', (t) =>
     t.field({
         type: 'NemuResponse',

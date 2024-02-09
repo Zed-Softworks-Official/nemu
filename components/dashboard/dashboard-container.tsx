@@ -8,12 +8,14 @@ import DashboardBreadcrumbs from '../navigation/dashboard/breadcrumbs'
 
 export default function DashboardContainer({
     title,
+    ignoreTitle,
     addButtonUrl,
     breadcrumbs,
     modal,
     children
 }: {
     title: string
+    ignoreTitle?: boolean
     addButtonUrl?: string
     breadcrumbs?: boolean
     modal?: React.ReactNode
@@ -32,10 +34,12 @@ export default function DashboardContainer({
                             </div>
                         </div>
                     )}
-                    <div className="flex flex-col justify-center items-center">
-                        <h1 className="font-bold text-2xl text-center">{title}</h1>
-                        <hr className="seperation" />
-                    </div>
+                    {!ignoreTitle && (
+                        <div className="flex flex-col justify-center items-center">
+                            <h1 className="font-bold text-2xl text-center">{title}</h1>
+                            <hr className="seperation" />
+                        </div>
+                    )}
                 </div>
                 {addButtonUrl && (
                     <div className="fixed bottom-20 right-20">

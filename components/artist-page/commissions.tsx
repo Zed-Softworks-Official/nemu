@@ -15,7 +15,6 @@ export default function Commissions({
             {commissions?.map((commission) => (
                 <CommissionCard
                     key={commission.title}
-                    handle={handle}
                     commission={commission}
                     terms={terms}
                 />

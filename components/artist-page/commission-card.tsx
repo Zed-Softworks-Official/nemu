@@ -10,14 +10,13 @@ import CommissionFormSubmitView from '../form-builder/submissions/commission-for
 
 import { ConvertAvailabilityToBadge } from '@/core/react-helpers'
 import Markdown from 'react-markdown'
+import { ArrowLeftCircleIcon } from '@heroicons/react/20/solid'
 
 export default function CommissionCard({
     commission,
-    handle,
     terms
 }: {
     commission: CommissionItem
-    handle: string
     terms: string
 }) {
     const [showModal, setShowModal] = useState(false)
@@ -59,10 +58,22 @@ export default function CommissionCard({
                     </button>
                     <Modal showModal={showModal} setShowModal={setShowModal}>
                         {showForm ? (
-                            <CommissionFormSubmitView
-                                commission_id={commission.commission_id!}
-                                form_id={commission.form_id!}
-                            />
+                            <>
+                                <div className="absolute left-5">
+                                    <button
+                                        type="button"
+                                        className='btn btn-ghost'
+                                        onClick={() => setShowForm(false)}
+                                    >
+                                        <ArrowLeftCircleIcon className='w-6 h-6' />
+                                        Back
+                                    </button>
+                                </div>
+                                <CommissionFormSubmitView
+                                    commission_id={commission.commission_id!}
+                                    form_id={commission.form_id!}
+                                />
+                            </>
                         ) : (
                             <CommissionsDisplay
                                 commission={commission}

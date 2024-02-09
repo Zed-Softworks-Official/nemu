@@ -8,8 +8,11 @@ import { Bars3Icon } from '@heroicons/react/20/solid'
 import DashboardUserSection from '@/components/navigation/dashboard/sections/user-section'
 import DashboardArtistSection from '@/components/navigation/dashboard/sections/artist-section'
 import DashboardSettingsSection from '@/components/navigation/dashboard/sections/settings-section'
+import { usePathname } from 'next/navigation'
 
 export default function Navbar({ children }: { children: React.ReactNode }) {
+    const pathaname = usePathname()
+
     return (
         <aside className="drawer lg:drawer-open">
             <input id="nemu-drawer" type="checkbox" className="drawer-toggle" />
@@ -40,6 +43,7 @@ export default function Navbar({ children }: { children: React.ReactNode }) {
                             type="radio"
                             name="dashboard-nav-accordian"
                             title="artist sections"
+                            defaultChecked={pathaname.includes('commissions') || pathaname.includes('portfolio') || pathaname.includes('forms') || pathaname.includes('shop')}
                         />
                         <div className="collapse-title text-xl font-medium">
                             Artist Sections
@@ -55,6 +59,7 @@ export default function Navbar({ children }: { children: React.ReactNode }) {
                             type="radio"
                             name="dashboard-nav-accordian"
                             title="profile"
+                            defaultChecked={pathaname.includes('downloads') || pathaname.includes('messages') || pathaname.includes('favorites')}
                         />
                         <div className="collapse-title text-xl font-medium">Profile</div>
                         <div className="collapse-content">
