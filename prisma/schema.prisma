@@ -179,7 +179,7 @@ model Commission {
   id        String  @id @default(auto()) @map("_id") @db.ObjectId
   artistId  String  @db.ObjectId
   productId String?
-  formId    String?
+  formId    String
 
   title            String
   description      String
@@ -206,7 +206,9 @@ model Form {
   createdAt   DateTime @default(now())
   content     String   @default("[]")
 
-  submissions Int @default(0)
+  submissions        Int @default(0)
+  acceptedSubmission Int @default(0)
+  rejectedSubmission Int @default(0)
 
   artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
 

@@ -7,8 +7,8 @@ builder.prismaObject('Commission', {
     fields: (t) => ({
         id: t.exposeString('id'),
         artistId: t.exposeString('artistId'),
-        productId: t.exposeString('productId', {nullable: true}),
-        formId: t.exposeString('formId', {nullable: true}),
+        productId: t.exposeString('productId', { nullable: true }),
+        formId: t.exposeString('formId'),
 
         title: t.exposeString('title'),
         description: t.exposeString('description'),
@@ -21,6 +21,59 @@ builder.prismaObject('Commission', {
         createdAt: t.expose('createdAt', { type: 'Date' }),
         rushOrdersAllowed: t.exposeBoolean('rushOrdersAllowed'),
         useInvoicing: t.exposeBoolean('useInvoicing'),
+
+        get_form_data: t.prismaField({
+            type: 'Form',
+            resolve: (query, commission, _args, _ctx, _info) =>
+                prisma.form.findFirstOrThrow({
+                    ...query,
+                    where: {
+                        id: commission.formId,
+                        artistId: commission.artistId
+                    },
+                    include: {
+                        formSubmissions: true
+                    }
+                })
+        }),
+
+        get_form_content: t.field({
+            type: 'CommissionFormData',
+            args: {
+                user_id: t.arg({
+                    type: 'String',
+                    required: false,
+                    description: 'Check if the user has a form submission'
+                })
+            },
+            resolve: async (commission, args, _ctx, _info) => {
+                const form = await prisma.form.findFirst({
+                    where: {
+                        id: commission.formId,
+                        artistId: commission.artistId
+                    },
+                    include: {
+                        formSubmissions: true
+                    }
+                })
+
+                if (!form) {
+                    return {
+                        user_submitted: false,
+                        content: ''
+                    }
+                }
+
+                const submitted = form.formSubmissions.find(
+                    (submission) => submission.userId === args.user_id!
+                )
+
+                return {
+                    user_submitted: submitted != undefined,
+                    content: form.content
+                }
+            }
+        }),
 
         artist: t.relation('artist')
     })
@@ -86,15 +139,15 @@ builder.mutationField('create_commission', (t) =>
                 required: true,
                 description: 'Determines wether rush orders are allowed or not'
             }),
+            form_id: t.arg({
+                type: 'String',
+                required: true,
+                description: 'The id of the form'
+            }),
             price: t.arg({
                 type: 'Float',
                 required: false,
                 description: 'The price of the commission'
-            }),
-            form_id: t.arg({
-                type: 'String',
-                required: false,
-                description: 'The id of the form'
             }),
             use_invoicing: t.arg({
                 type: 'Boolean',
@@ -150,7 +203,7 @@ builder.mutationField('create_commission', (t) =>
                 data: {
                     artistId: args.artist_id,
                     productId: stripe_commission_id,
-                    formId: args.form_id || undefined,
+                    formId: args.form_id,
                     title: args.title,
                     description: args.description,
                     featuredImage: args.featured_image,

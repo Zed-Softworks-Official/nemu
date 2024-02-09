@@ -1,21 +1,46 @@
 'use client'
 
 import Loading from '@/components/loading'
-import { CommissionFormsSubmissionViewResponse } from '@/core/responses'
-import { Fetcher } from '@/core/helpers'
+import { GraphQLFetcher } from '@/core/helpers'
 import { PencilIcon } from '@heroicons/react/20/solid'
-import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import useSWR from 'swr'
 import CommissionFormSubmissionDisplay from './commission-form-submission-display'
+import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
 
 export default function CommissionFormSubmissions({ form_id }: { form_id: string }) {
-    const { data: session } = useSession()
-    const { data, isLoading } = useSWR<CommissionFormsSubmissionViewResponse>(
-        `/api/artist/${`652ca785d3b8ea5347b84b55`}/forms/${form_id}/submissions`,
-        Fetcher
+    const { artistId } = useDashboardContext()
+    const { data, isLoading } = useSWR(
+        `{
+            artist(id: "${artistId}") {
+                get_form_data(form_id: "${form_id}") {
+                    name
+                    description
+                    submissions
+                    acceptedSubmissions
+                    rejectedSubmissions
+                    formSubmissions {
+                        content
+                        user {
+                            name
+                        }
+                    }
+                }
+            }
+        }`,
+        GraphQLFetcher<{
+            artist: {
+                get_form_data: {
+                    name: string
+                    description: string
+                    submissions: number
+                    acceptedSubmissions: number
+                    rejectedSubmissions: number
+                    formSubmissions: { content: string; user: { name: string } }
+                }
+            }
+        }>
     )
-    //TODO: Fix Malformed Issue? with session user id?
 
     if (isLoading) {
         return <Loading />
@@ -25,9 +50,9 @@ export default function CommissionFormSubmissions({ form_id }: { form_id: string
         <>
             <div className="flex justify-between container mx-auto">
                 <div>
-                    <h1 className="card-title font-bold">{data?.name}</h1>
+                    <h1 className="card-title font-bold">{data?.artist.get_form_data.name}</h1>
                     <h2 className="font-bold text-base-content/80">
-                        {data?.description}
+                        {data?.artist.get_form_data.description}
                     </h2>
                 </div>
                 <div>
@@ -46,18 +71,18 @@ export default function CommissionFormSubmissions({ form_id }: { form_id: string
                     <div className="card bg-base-100 max-w-md shadow-xl border-primary border-2 mx-auto w-full">
                         <div className="card-body">
                             <h2 className="card-title pt-3">
-                                Total Requests: {data?.submissions}
+                                Total Requests: {data?.artist.get_form_data.submissions}
                             </h2>
                         </div>
                     </div>
                     <div className="card bg-base-100 max-w-md shadow-xl border-success border-2 mx-auto w-full">
                         <div className="card-body">
-                            <h2 className="card-title pt-3">Accepted: 0</h2>
+                            <h2 className="card-title pt-3">Accepted: {data?.artist.get_form_data.acceptedSubmissions}</h2>
                         </div>
                     </div>
                     <div className="card bg-base-100 max-w-md shadow-xl border-error border-2 mx-auto w-full">
                         <div className="card-body">
-                            <h2 className="card-title pt-3">Rejected: 0</h2>
+                            <h2 className="card-title pt-3">Rejected: {data?.artist.get_form_data.rejectedSubmissions}</h2>
                         </div>
                     </div>
                 </div>
@@ -71,12 +96,12 @@ export default function CommissionFormSubmissions({ form_id }: { form_id: string
                         </tr>
                     </thead>
                     <tbody>
-                        {data?.responses?.map((submission) => (
+                        {/* {data?.responses?.map((submission) => (
                             <CommissionFormSubmissionDisplay
                                 submission={submission}
                                 form_labels={data.form_labels!}
                             />
-                        ))}
+                        ))} */}
                     </tbody>
                 </table>
             </div>

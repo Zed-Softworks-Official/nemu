@@ -13,28 +13,24 @@ import { CreateToastPromise } from '@/core/promise'
 import { CommissionForm } from '@/core/structures'
 
 export default function CommissionFormSubmitView({
-    handle,
+    commission_id,
     form_id
 }: {
-    handle: string
+    commission_id: string,
     form_id: string
 }) {
     const { data: session } = useSession()
     const { data, isLoading } = useSWR(
         `{
-            artist(handle: "${handle}") {
-                get_form(form_id: "${form_id}") {
+            commission(id: "${commission_id}") {
+                get_form_content(user_id: "${session?.user.user_id}") {
+                    user_submitted
                     content
                 }
             }
         }`,
-        GraphQLFetcher<{ artist: { get_form: CommissionForm } }>
+        GraphQLFetcher<{ commission: { get_form_content: CommissionForm } }>
     )
-
-    // const { data: userSubmitted, isLoading: userSubmittedLoading } = useSWR<NemuResponse>(
-    //     `/api/artist/${artist}/forms/${form_id}/submissions/${session?.user.user_id}`,
-    //     Fetcher
-    // )
 
     const formValues = useRef<{ [key: string]: string }>({})
     const formErrors = useRef<{ [key: string]: boolean }>({})
@@ -50,43 +46,47 @@ export default function CommissionFormSubmitView({
     }, [])
 
     async function submitForm() {
-        // const validForm = validateForm()
-        // if (!validForm) {
-        //     setRenderKey(new Date().getTime())
-        //     toast('Please check all required fields!', { theme: 'dark', type: 'error' })
-        //     return
-        // }
-        // setSubmitted(true)
-        // // Set User Id
-        // formValues.current['user_id'] = session?.user.user_id!
-        // await CreateToastPromise(
-        //     fetch(`/api/artist/${session?.user.user_id}/forms/${data?.form?.id}/submit`, {
-        //         method: 'post',
-        //         body: JSON.stringify(formValues.current)
-        //     }),
-        //     { pending: 'Submitting your form', success: 'Form Submitted!' }
-        // )
+        const validForm = validateForm()
+        if (!validForm) {
+            setRenderKey(new Date().getTime())
+            toast('Please check all required fields!', { theme: 'dark', type: 'error' })
+            return
+        }
+        setSubmitted(true)
+
+        const response = await fetch(`/api/form/${session?.user.user_id}/${form_id}`, {
+            method: 'post',
+            body: JSON.stringify(formValues.current)
+        })
+        const json_data = (await response.json()) as NemuResponse
+
+        if (json_data.status != StatusCode.Success) {
+            toast(json_data.message!, { theme: 'dark', type: 'error' })
+        } else {
+            toast('Form Submitted!', { theme: 'dark', type: 'success' })
+        }
     }
 
-    // const validateForm: () => boolean = useCallback(() => {
-    //     for (const field of data?.artist.get_form.content) {
-    //         const actualValue = formValues.current[field.id] || ''
-    //         const valid = FormElements[field.type].validate(field, actualValue)
+    const validateForm: () => boolean = useCallback(() => {
+        for (const field of JSON.parse(
+            data?.commission.get_form_content.content!
+        ) as FormElementInstance[]) {
+            const actualValue = formValues.current[field.id] || ''
+            const valid = FormElements[field.type].validate(field, actualValue)
 
-    //         if (!valid) {
-    //             formErrors.current[field.id] = true
-    //         }
-    //     }
+            if (!valid) {
+                formErrors.current[field.id] = true
+            }
+        }
 
-    //     if (Object.keys(formErrors.current).length > 0) {
-    //         return false
-    //     }
+        if (Object.keys(formErrors.current).length > 0) {
+            return false
+        }
 
-    //     return true
-    // }, [data?.artist.get_form.content])
+        return true
+    }, [data?.commission.get_form_content.content])
 
     if (isLoading) {
-        //|| userSubmittedLoading) {
         return <Loading />
     }
 
@@ -109,8 +109,7 @@ export default function CommissionFormSubmitView({
                 </p>
                 <div className="divider"></div>
             </div>
-            {data?.artist.get_form.content}
-            {/* {(JSON.parse(data?.artist.get_form.content!) as FormElementInstance[]).map(
+            {(JSON.parse(data?.commission.get_form_content.content!) as FormElementInstance[]).map(
                 (element) => {
                     const FormComponent = FormElements[element.type].form_component
 
@@ -124,25 +123,24 @@ export default function CommissionFormSubmitView({
                         />
                     )
                 }
-            )} */}
+            )}
             <div className="divider"></div>
             <button
                 type="button"
                 className="btn btn-primary"
                 onClick={() => startTransition(submitForm)}
-                //disabled={pending || userSubmitted?.status != StatusCode.Success}
+                disabled={pending || data?.commission.get_form_content.user_submitted || submitted}
             >
-                {/* {pending ? (
+                {pending ? (
                     <>
                         <div className="loading loading-spinner"></div>
                         Loading
                     </>
-                ) : userSubmitted?.status != StatusCode.Success ? (
-                    <>{userSubmitted?.message}</>
+                ) : data?.commission.get_form_content.user_submitted ? (
+                    <>Commission Already Submitted</>
                 ) : (
                     <>Submit</>
-                )} */}
-                Submit
+                )}
             </button>
         </div>
     )

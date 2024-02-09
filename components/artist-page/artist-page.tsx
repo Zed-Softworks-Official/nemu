@@ -25,7 +25,9 @@ export default function ArtistPageClient({ handle }: { handle: string }) {
                     price
                     form_id
                     featured_image
+                    images
                     availability
+                    commission_id
                 }
                 portfolio_items {
                     signed_url

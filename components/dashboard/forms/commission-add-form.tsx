@@ -126,6 +126,7 @@ export default function CommissionAddForm() {
                 featured_image: "${image_keys[0]}"
                 price: ${values.price}
                 availability: ${values.commission_availability}
+                form_id: "${values.form}"
                 use_invoicing: ${values.use_invoicing}
                 rush_orders_allowed: ${values.rush}
             ) {

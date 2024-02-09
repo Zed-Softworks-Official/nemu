@@ -102,13 +102,14 @@ export interface CommissionItem {
     orders?: CommissionOrders[]
     form_id?: string
     handle?: string
+    commission_id?: string
 
     prod_id?: string
     slug?: string
 }
 
 export interface CommissionForm {
-    form_id: string
+    user_submitted: boolean
     content: string
 }
 

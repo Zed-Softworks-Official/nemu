@@ -32,8 +32,9 @@ export default function CommissionCard({
                 <NemuImage
                     src={commission.featured_image!}
                     alt={commission.title}
-                    width={200}
-                    height={200}
+                    width={400}
+                    height={400}
+                    className="w-full h-full"
                 />
             </figure>
             <div className="card-body">
@@ -59,8 +60,8 @@ export default function CommissionCard({
                     <Modal showModal={showModal} setShowModal={setShowModal}>
                         {showForm ? (
                             <CommissionFormSubmitView
+                                commission_id={commission.commission_id!}
                                 form_id={commission.form_id!}
-                                handle={handle}
                             />
                         ) : (
                             <CommissionsDisplay

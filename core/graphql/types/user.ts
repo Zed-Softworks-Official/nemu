@@ -13,7 +13,9 @@ builder.prismaObject('User', {
         image: t.exposeString('image', { nullable: true }),
         role: t.exposeInt('role', { nullable: true }),
 
+        formSubmissions: t.relation('formSubmissions'),
         artist: t.relation('artist', { nullable: true }),
+        
         purchased: t.field({
             type: ['DownloadData'],
             description: 'Gets all purchases for user',

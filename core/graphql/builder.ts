@@ -69,13 +69,15 @@ builder.objectRef<CommissionItem>('CommissionData').implement({
         availability: t.exposeInt('availability', { nullable: true }),
         form_id: t.exposeString('form_id', { nullable: true }),
         handle: t.exposeString('handle', { nullable: true }),
-        slug: t.exposeString('slug', { nullable: true })
+        slug: t.exposeString('slug', { nullable: true }),
+        images: t.exposeStringList('images', { nullable: true }),
+        commission_id: t.exposeString('commission_id', {nullable: true})
     })
 })
 
 builder.objectRef<CommissionForm>('CommissionFormData').implement({
     fields: (t) => ({
-        form_id: t.exposeString('form_id'),
+        user_submitted: t.exposeBoolean('user_submitted'),
         content: t.exposeString('content')
     })
 })

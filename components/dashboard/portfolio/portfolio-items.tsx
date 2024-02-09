@@ -10,6 +10,8 @@ import { PortfolioItem } from '@/core/structures'
 import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
 import Loading from '@/components/loading'
 
+import Masonary, { ResponsiveMasonry } from 'react-responsive-masonry'
+
 export default function PortfolioItems() {
     const { artistId } = useDashboardContext()
     const { data, isLoading } = useSWR(
@@ -30,14 +32,14 @@ export default function PortfolioItems() {
     }
 
     return (
-        <div className="flex flex-wrap gap-5">
-            {data?.artist?.portfolio_items.map(
-                (item: PortfolioItem) => {
+        <ResponsiveMasonry columnsCountBreakPoints={{ 350: 1, 900: 2, 1024: 3, 1280: 4 }}>
+            <Masonary gutter="3rem">
+                {data?.artist?.portfolio_items.map((item: PortfolioItem) => {
                     return (
                         <Link
                             href={`/dashboard/portfolio/item/${item.image_key}`}
                             key={item.name}
-                            className="card bg-base-100 shadow-xl rounded-3xl w-fit h-fit transition-all duration-200 animate-pop-in "
+                            className="card bg-base-100 shadow-xl rounded-3xl transition-all duration-200 animate-pop-in"
                         >
                             <div>
                                 <Image
@@ -45,7 +47,7 @@ export default function PortfolioItems() {
                                     alt={item.name}
                                     width={400}
                                     height={400}
-                                    className="rounded-3xl rounded-b-none"
+                                    className="rounded-3xl rounded-b-none w-full"
                                 />
                                 <div className="card-body">
                                     <h2 className="text-center font-bold text-2xl">
@@ -55,8 +57,8 @@ export default function PortfolioItems() {
                             </div>
                         </Link>
                     )
-                }
-            )}
-        </div>
+                })}
+            </Masonary>
+        </ResponsiveMasonry>
     )
 }

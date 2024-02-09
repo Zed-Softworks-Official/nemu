@@ -38,6 +38,18 @@ builder.prismaObject('Artist', {
                         commissions[i].featuredImage
                     )
 
+                    // Get the rest of the images
+                    const images: string[] = []
+                    for (let j = 0; j < commissions[i].additionalImages.length; j++) {
+                        images.push(
+                            await S3GetSignedURL(
+                                artist.id,
+                                AWSLocations.Commission,
+                                commissions[i].additionalImages[j]
+                            )
+                        )
+                    }
+
                     if (!featured_signed_url) {
                         return result
                     }
@@ -57,11 +69,13 @@ builder.prismaObject('Artist', {
                         title: commissions[i].title,
                         description: commissions[i].description,
                         price: price,
+                        images: images,
                         featured_image: featured_signed_url,
                         availability: commissions[i].availability,
                         slug: commissions[i].slug,
                         form_id: commissions[i].formId || undefined,
-                        handle: artist.handle
+                        handle: artist.handle,
+                        commission_id: commissions[i].id
                     })
                 }
 
@@ -101,36 +115,6 @@ builder.prismaObject('Artist', {
             }
         }),
 
-        get_form: t.field({
-            type: 'CommissionFormData',
-            args: {
-                form_id: t.arg({
-                    type: 'String',
-                    required: true,
-                    description: 'The form id for the commission response'
-                })
-            },
-            resolve: async (artist, args) => {
-                const form = await prisma.form.findFirst({
-                    where: {
-                        artistId: artist.id,
-                        id: args.form_id
-                    }
-                })
-
-                if (!form) {
-                    return {
-                        form_id: '',
-                        content: ''
-                    }
-                }
-
-                return {
-                    form_id: form.id,
-                    content: form.content
-                }
-            }
-        }),
         forms: t.relation('forms'),
         socials: t.relation('socials')
     })
