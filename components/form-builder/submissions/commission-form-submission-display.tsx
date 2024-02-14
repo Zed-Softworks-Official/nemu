@@ -8,10 +8,10 @@ import { FormElementInstance } from '../elements/form-elements'
 
 export default function CommissionFormSubmissionDisplay({
     submission,
-    form_labels
+    // form_labels
 }: {
-    submission: FormResponses
-    form_labels: FormElementInstance[]
+    submission: { content: string; createdAt: Date; user: { name: string } }
+    // form_labels: FormElementInstance[]
 }) {
     const [showModal, setShowModal] = useState(false)
 
@@ -20,7 +20,7 @@ export default function CommissionFormSubmissionDisplay({
             <tr>
                 <th>
                     <div className="badge badge-primary badge-xs mr-2"></div>
-                    {submission.username}
+                    {submission.user.name}
                 </th>
                 <td>
                     <p>{new Date(submission.createdAt).toDateString()}</p>
@@ -55,7 +55,7 @@ export default function CommissionFormSubmissionDisplay({
                     <div className="flex justify-between gap-5 w-full">
                         <div>
                             <h2 className="card-title">
-                                {submission.username}'s Request
+                                {submission.user.name}'s Request
                             </h2>
                             <h2 className="font-bold text-md text-base-content/80">
                                 {new Date(submission.createdAt).toDateString()}
@@ -78,10 +78,10 @@ export default function CommissionFormSubmissionDisplay({
                             <div key={i} className="card bg-base-300 shadow-xl">
                                 <div className="card-body">
                                     <h2 className="m-0">
-                                        {form_labels[i].extra_attributes?.label}
+                                        {JSON.parse(submission.content)[key].label}
                                     </h2>
                                     <h3 className="m-0">
-                                        Reponse: {JSON.parse(submission.content)[key]}
+                                        Reponse: {JSON.parse(submission.content)[key].value}
                                     </h3>
                                 </div>
                             </div>

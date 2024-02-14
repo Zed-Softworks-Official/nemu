@@ -24,6 +24,7 @@ export default function CommissionFormSubmissions({
                     rejectedSubmissions
                     formSubmissions {
                         content
+                        createdAt
                         user {
                             name
                         }
@@ -39,7 +40,7 @@ export default function CommissionFormSubmissions({
                     submissions: number
                     acceptedSubmissions: number
                     rejectedSubmissions: number
-                    formSubmissions: { content: string; user: { name: string } }
+                    formSubmissions: { content: string; createdAt: Date; user: { name: string } }[]
                 }
             }
         }>
@@ -99,12 +100,11 @@ export default function CommissionFormSubmissions({
                         </tr>
                     </thead>
                     <tbody>
-                        {/* {data?.responses?.map((submission) => (
+                        {data?.commission.get_form_data.formSubmissions?.map((submission) => (
                             <CommissionFormSubmissionDisplay
                                 submission={submission}
-                                form_labels={data.form_labels!}
                             />
-                        ))} */}
+                        ))}
                     </tbody>
                 </table>
             </div>

@@ -7,7 +7,7 @@ builder.prismaObject('FormSubmission', {
         id: t.exposeString('id'),
         formId: t.exposeString('formId'),
         userId: t.exposeString('userId'),
-        createAt: t.expose('createdAt', { type: 'Date' }),
+        createdAt: t.expose('createdAt', { type: 'Date' }),
         content: t.exposeString('content'),
 
         form: t.relation('form'),

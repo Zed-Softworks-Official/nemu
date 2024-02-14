@@ -54,9 +54,18 @@ export default function CommissionFormSubmitView({
         }
         setSubmitted(true)
 
+        const formData: {[key: string]: {value: string, label: string }} = {}
+        const formElements = JSON.parse(data?.commission.get_form_content.content!) as FormElementInstance[]
+        for (let key in formValues.current) {
+            formData[key] = {
+                value: formValues.current[key],
+                label: formElements.find((element) => element.id == key)?.extra_attributes?.label
+            }
+        }
+
         const response = await fetch(`/api/form/${session?.user.user_id}/${form_id}`, {
             method: 'post',
-            body: JSON.stringify(formValues.current)
+            body: JSON.stringify(formData)
         })
         const json_data = (await response.json()) as NemuResponse
 
