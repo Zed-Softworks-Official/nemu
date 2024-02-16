@@ -1,11 +1,7 @@
 'use client'
 
 import { LuHeading1 } from 'react-icons/lu'
-import {
-    ElementsType,
-    FormElement,
-    FormElementInstance,
-} from '../form-elements'
+import { ElementsType, FormElement, FormElementInstance } from '../form-elements'
 
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -74,13 +70,7 @@ function FormComponent({ elementInstance }: { elementInstance: FormElementInstan
     const element = elementInstance as CustomInstance
     const { title } = element.extra_attributes
 
-    return (
-        <div className="card bg-base-300 w-full">
-            <div className="card-body">
-                <div className="divider card-title text-3xl">{title}</div>
-            </div>
-        </div>
-    )
+    return <div className="divider card-title text-3xl card-body">{title}</div>
 }
 
 function PropertiesComponent({

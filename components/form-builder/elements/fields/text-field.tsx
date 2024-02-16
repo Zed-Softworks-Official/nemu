@@ -120,7 +120,7 @@ function FormComponent({
 
     return (
         <div className="card bg-base-300 w-full">
-            <div className="card-body">
+            <div className="flex flex-col w-full gap-3 px-10 mb-5">
                 <h2 className={ClassNames(error && 'text-error', 'card-title')}>
                     {label}
                     {required && '*'}

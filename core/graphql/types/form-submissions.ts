@@ -10,7 +10,7 @@ builder.prismaObject('FormSubmission', {
         createdAt: t.expose('createdAt', { type: 'Date' }),
         content: t.exposeString('content'),
         paymentIntent: t.exposeString('paymentIntent', { nullable: true }),
-        setupIntent: t.exposeString('setupIntent', { nullable: true }),
+        paymentStatus: t.exposeInt('pyamentStatus'),
 
         form: t.relation('form'),
         user: t.relation('user')

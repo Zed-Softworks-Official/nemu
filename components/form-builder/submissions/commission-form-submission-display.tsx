@@ -3,12 +3,18 @@
 import Modal from '@/components/modal'
 import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/20/solid'
 import { useState } from 'react'
+import { toast } from 'react-toastify'
 
 export default function CommissionFormSubmissionDisplay({
     submission,
     use_invoicing
 }: {
-    submission: { content: string; createdAt: Date; user: { name: string } },
+    submission: {
+        content: string
+        createdAt: Date
+        paymentIntent: string
+        user: { name: string }
+    }
     use_invoicing: boolean
 }) {
     const [showModal, setShowModal] = useState(false)
@@ -17,6 +23,7 @@ export default function CommissionFormSubmissionDisplay({
 
     async function AcceptRequest() {
         // Accept Payment intent
+        toast(submission.paymentIntent)
     }
 
     async function RejectRequest() {
@@ -27,7 +34,7 @@ export default function CommissionFormSubmissionDisplay({
         <>
             <tr>
                 <th>
-                    <div className="badge badge-primary badge-xs mr-2"></div>
+                    {/* <div className="badge badge-primary badge-xs mr-2"></div> */}
                     {submission.user.name}
                 </th>
                 <td>
@@ -88,11 +95,25 @@ export default function CommissionFormSubmissionDisplay({
                             </h2>
                         </div>
                         <div className="flex gap-5 justify-between">
-                            <button type="button" className="btn btn-primary">
+                            <button
+                                type="button"
+                                className="btn btn-primary"
+                                onClick={() => {
+                                    setAccepted(true)
+                                    AcceptRequest()
+                                }}
+                            >
                                 <CheckCircleIcon className="w-6 h-6" />
                                 Accept
                             </button>
-                            <button type="button" className="btn btn-error">
+                            <button
+                                type="button"
+                                className="btn btn-error"
+                                onClick={() => {
+                                    setRejected(true)
+                                    RejectRequest()
+                                }}
+                            >
                                 <XCircleIcon className="w-6 h-6" />
                                 Reject
                             </button>

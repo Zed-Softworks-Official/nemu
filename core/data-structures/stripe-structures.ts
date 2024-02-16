@@ -4,6 +4,12 @@ export enum PurchaseType {
     CommissionSetupPayment
 }
 
+export enum PaymentStatus {
+    RequiresCapture,
+    Cancelled,
+    Captured
+}
+
 export interface StripePaymentMetadata {
     purchase_type: PurchaseType
     user_id: string

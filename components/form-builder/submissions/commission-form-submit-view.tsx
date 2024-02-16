@@ -137,9 +137,9 @@ export default function CommissionFormSubmitView({
                             width={200}
                             height={200}
                         />
-                        <h2 className="card-title">You're almost there!</h2>
+                        <h2 className="card-title">You're onto the next step!</h2>
                         <p className="text-base-content/80">
-                            You just need to fill out this form provided by the artist to
+                            We'll need you to fill out this form provided by the artist to
                             get a better understanding of your commission.
                         </p>
                         <div className="divider"></div>

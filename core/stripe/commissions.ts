@@ -9,7 +9,6 @@ import {
 } from '../structures'
 import { StripeGetPriceInfo } from './prices'
 import { CalculateApplicationFee } from '../payments'
-import { metadata } from '@/app/layout'
 
 ////////////////////////////////////////
 // Your Character Here Type Commissions
@@ -28,41 +27,25 @@ export async function StripeCreateCommissionSetupIntent(
         form_content: checkout_data.form_content
     }
 
-    return await stripe.setupIntents.create(
+    return await stripe.paymentIntents.create(
         {
-            customer: checkout_data.customer_id,
-            metadata: metadata as unknown as Stripe.MetadataParam
-        },
-        {
-            stripeAccount: checkout_data.stripe_account
-        }
-    )
-}
-
-export async function StripeCreateCommissionCheckoutSession(
-    checkout_data: StripeCommissionCheckoutData,
-    amount: number,
-    commission: Stripe.Product
-) {
-    const metadata: StripePaymentMetadata = {
-        user_id: checkout_data.user_id,
-        product_id: commission.id,
-        purchase_type: PurchaseType.CommissionSetupPayment,
-        form_id: checkout_data.form_id,
-        form_content: checkout_data.form_content
-    }
-
-    return await stripe.checkout.sessions.create(
-        {
-            mode: 'setup',
-            customer: checkout_data.customer_id,
-            ui_mode: 'embedded',
-            metadata: metadata as unknown as Stripe.MetadataParam,
-            // payment_intent_data: {
-            //     application_fee_amount: CalculateApplicationFee(amount)
-            // },
+            amount: amount * 100,
             currency: 'usd',
-            return_url: checkout_data.return_url
+            customer: checkout_data.customer_id,
+            payment_method_types: ['card', 'link'],
+            payment_method_options: {
+                card: {
+                    capture_method: 'manual'
+                },
+                link: {
+                    capture_method: 'manual'
+                },
+                // paypal: {
+                //     capture_method: 'manual'
+                // }
+            },
+            application_fee_amount: CalculateApplicationFee(amount) * 100,
+            metadata: metadata as unknown as Stripe.MetadataParam
         },
         {
             stripeAccount: checkout_data.stripe_account

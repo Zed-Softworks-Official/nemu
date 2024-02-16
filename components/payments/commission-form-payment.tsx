@@ -2,12 +2,7 @@
 
 import { Transition } from '@headlessui/react'
 import { Appearance, loadStripe } from '@stripe/stripe-js'
-import {
-    EmbeddedCheckoutProvider,
-    EmbeddedCheckout,
-    PaymentElement,
-    Elements
-} from '@stripe/react-stripe-js'
+import { Elements } from '@stripe/react-stripe-js'
 import { useEffect, useState } from 'react'
 import { StripeCommissionCheckoutData } from '@/core/structures'
 import CommissionCheckoutForm from './commission-checkout-form'
@@ -27,7 +22,12 @@ export default function CommissionFormPayment({
 
     const appearance: Appearance = {
         theme: 'flat',
-        variables: { colorPrimaryText: '#2185d5', colorText: '#ffffff', colorBackground: '#333', gridRowSpacing: '1rem' }
+        variables: {
+            colorPrimaryText: '#2185d5',
+            colorText: '#ffffff',
+            colorBackground: '#333',
+            gridRowSpacing: '1rem'
+        }
     }
 
     useEffect(() => {

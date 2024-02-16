@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { StripeGetWebhookEvent as StripeStripeWebhookEvent } from '@/core/payments'
 import { NemuResponse, StatusCode } from '@/core/responses'
 import { prisma } from '@/lib/prisma'
+import { PaymentStatus, PurchaseType, StripePaymentMetadata } from '@/core/structures'
 
 export async function POST(req: Request) {
     const sig = req.headers.get('stripe-signature')
@@ -56,6 +57,41 @@ export async function POST(req: Request) {
                             complete: true
                         }
                     })
+                }
+            }
+            break
+        //////////////////////////////////////////////////////////// 
+        // Payment Hold for commissions
+        ////////////////////////////////////////////////////////////
+        case 'charge.succeeded':
+            {
+                const charge = event.data.object
+                const metadata = charge.metadata as unknown as StripePaymentMetadata
+
+                switch (Number(metadata.purchase_type) as PurchaseType) {
+                    case PurchaseType.CommissionSetupPayment:
+                        {
+                            // Create Form Submission
+                            await prisma.formSubmission.create({
+                                data: {
+                                    formId: metadata.form_id,
+                                    content: metadata.form_content,
+                                    userId: metadata.user_id,
+                                    paymentIntent: charge.payment_intent?.toString(),
+                                    pyamentStatus: PaymentStatus.RequiresCapture
+                                }
+                            })
+
+                            // Update new submission field
+                        }
+                        break
+                    case PurchaseType.CommissionInvoice:
+                        {
+
+                        }
+                        break
+                    case PurchaseType.ArtistCorner:
+                        break
                 }
             }
             break

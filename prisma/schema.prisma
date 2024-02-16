@@ -222,7 +222,7 @@ model FormSubmission {
   formId        String   @db.ObjectId
   userId        String   @db.ObjectId
   createdAt     DateTime @default(now())
-  setupIntent   String?
+  pyamentStatus Int
   paymentIntent String?
 
   form Form @relation(fields: [formId], references: [id], onDelete: Cascade)

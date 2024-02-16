@@ -22,7 +22,6 @@ import {
     DesignerTextAreaField
 } from '../input-field'
 import { ClassNames } from '@/core/helpers'
-import TextArea from '@/components/form/text-area'
 import TextAreaInput from '@/components/form/text-area'
 
 const type: ElementsType = 'TextAreaField'
@@ -129,7 +128,7 @@ function FormComponent({
 
     return (
         <div className="card bg-base-300 w-full">
-            <div className="card-body">
+            <div className="flex flex-col gap-3 px-10">
                 <h2 className={ClassNames(error && 'text-error', 'card-title')}>
                     {label}
                     {required && '*'}

@@ -23,6 +23,7 @@ export default function CommissionFormSubmissions({
                     formSubmissions {
                         content
                         createdAt
+                        paymentIntent
                         user {
                             name
                         }
@@ -42,6 +43,7 @@ export default function CommissionFormSubmissions({
                     formSubmissions: {
                         content: string
                         createdAt: Date
+                        paymentIntent: string
                         user: { name: string }
                     }[]
                 }

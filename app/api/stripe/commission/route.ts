@@ -1,5 +1,4 @@
 import {
-    StripeCreateCommissionCheckoutSession,
     StripeCreateCommissionSetupIntent,
     StripeGetCommissionProduct
 } from '@/core/stripe/commissions'
@@ -15,13 +14,13 @@ export async function POST(req: Request) {
         data.checkout_data.stripe_account
     )
 
-    const checkout_session = await StripeCreateCommissionSetupIntent(
+    const payment_intent = await StripeCreateCommissionSetupIntent(
         data.checkout_data,
         commission_product.price,
         commission_product.product
     )
 
     return NextResponse.json({
-        clientSecret: checkout_session.client_secret
+        clientSecret: payment_intent.client_secret
     })
 }
