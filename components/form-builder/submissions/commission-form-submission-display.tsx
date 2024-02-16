@@ -1,20 +1,29 @@
 'use client'
 
 import Modal from '@/components/modal'
+import { GraphQLFetcher } from '@/core/helpers'
+import { StatusCode } from '@/core/responses'
+import { PaymentStatus } from '@/core/structures'
 import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/20/solid'
 import { useState } from 'react'
 import { toast } from 'react-toastify'
 
 export default function CommissionFormSubmissionDisplay({
     submission,
+    stripe_account,
+    form_id,
     use_invoicing
 }: {
     submission: {
+        id: string
         content: string
         createdAt: Date
         paymentIntent: string
+        paymentStatus: PaymentStatus
         user: { name: string }
     }
+    stripe_account: string
+    form_id: string
     use_invoicing: boolean
 }) {
     const [showModal, setShowModal] = useState(false)
@@ -22,8 +31,31 @@ export default function CommissionFormSubmissionDisplay({
     const [rejected, setRejected] = useState(false)
 
     async function AcceptRequest() {
+        // TODO: Check if we're using invoincing
+
         // Accept Payment intent
-        toast(submission.paymentIntent)
+        const response = await GraphQLFetcher<{
+            stripe_commission_accept_payment_intent: {
+                status: StatusCode
+                message?: string
+            }
+        }>(
+            `{
+                stripe_commission_accept_payment_intent(payment_intent:"${submission.paymentIntent}", stripe_account: "${stripe_account}", submission_id: "${submission.id}", form_id: "${form_id}") {
+                    status
+                    message
+                }
+            }`
+        )
+
+        if (
+            response.stripe_commission_accept_payment_intent.status != StatusCode.Success
+        ) {
+            toast(response.stripe_commission_accept_payment_intent.message!, {
+                theme: 'dark',
+                type: 'error'
+            })
+        }
     }
 
     async function RejectRequest() {

@@ -60,7 +60,7 @@ export async function POST(req: Request) {
                 }
             }
             break
-        //////////////////////////////////////////////////////////// 
+        ////////////////////////////////////////////////////////////
         // Payment Hold for commissions
         ////////////////////////////////////////////////////////////
         case 'charge.succeeded':
@@ -82,12 +82,21 @@ export async function POST(req: Request) {
                                 }
                             })
 
-                            // Update new submission field
+                            // Update new submissions count field
+                            await prisma.form.update({
+                                where: {
+                                    id: metadata.form_id
+                                },
+                                data: {
+                                    submissions: {
+                                        increment: 1
+                                    }
+                                }
+                            })
                         }
                         break
                     case PurchaseType.CommissionInvoice:
                         {
-
                         }
                         break
                     case PurchaseType.ArtistCorner:

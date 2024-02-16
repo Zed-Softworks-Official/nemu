@@ -1,5 +1,5 @@
 import {
-    StripeCreateCommissionSetupIntent,
+    StripeCreateCommissionPaymentIntent,
     StripeGetCommissionProduct
 } from '@/core/stripe/commissions'
 import { StripeCommissionCheckoutData } from '@/core/structures'
@@ -14,7 +14,7 @@ export async function POST(req: Request) {
         data.checkout_data.stripe_account
     )
 
-    const payment_intent = await StripeCreateCommissionSetupIntent(
+    const payment_intent = await StripeCreateCommissionPaymentIntent(
         data.checkout_data,
         commission_product.price,
         commission_product.product

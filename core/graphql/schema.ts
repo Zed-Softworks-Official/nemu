@@ -10,6 +10,8 @@ import './types/social'
 import './types/forms'
 import './types/form-submissions'
 
+import './fields/stripe'
+
 import { builder } from './builder'
 
 export const schema = builder.toSchema()

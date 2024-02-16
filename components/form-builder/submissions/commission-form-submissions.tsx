@@ -4,6 +4,7 @@ import Loading from '@/components/loading'
 import { GraphQLFetcher } from '@/core/helpers'
 import useSWR from 'swr'
 import CommissionFormSubmissionDisplay from './commission-form-submission-display'
+import { PaymentStatus } from '@/core/structures'
 
 export default function CommissionFormSubmissions({
     commission_id
@@ -15,19 +16,25 @@ export default function CommissionFormSubmissions({
             commission(id: "${commission_id}") {
                 useInvoicing
                 get_form_data {
+                    id
                     name
                     description
                     submissions
                     acceptedSubmissions
                     rejectedSubmissions
                     formSubmissions {
+                        id
                         content
                         createdAt
                         paymentIntent
+                        paymentStatus
                         user {
                             name
                         }
                     }
+                }
+                artist {
+                    stripeAccount
                 }
             }
         }`,
@@ -35,17 +42,23 @@ export default function CommissionFormSubmissions({
             commission: {
                 useInvoicing: boolean
                 get_form_data: {
+                    id: string
                     name: string
                     description: string
                     submissions: number
                     acceptedSubmissions: number
                     rejectedSubmissions: number
                     formSubmissions: {
+                        id: string
                         content: string
                         createdAt: Date
                         paymentIntent: string
+                        paymentStatus: PaymentStatus
                         user: { name: string }
                     }[]
+                }
+                artist: {
+                    stripeAccount: string
                 }
             }
         }>
@@ -105,12 +118,18 @@ export default function CommissionFormSubmissions({
                     </thead>
                     <tbody>
                         {data?.commission.get_form_data.formSubmissions?.map(
-                            (submission) => (
-                                <CommissionFormSubmissionDisplay
-                                    submission={submission}
-                                    use_invoicing={data?.commission.useInvoicing}
-                                />
-                            )
+                            (submission) =>
+                                submission.paymentStatus ==
+                                    PaymentStatus.RequiresCapture && (
+                                    <CommissionFormSubmissionDisplay
+                                        submission={submission}
+                                        form_id={data?.commission.get_form_data.id}
+                                        stripe_account={
+                                            data?.commission.artist.stripeAccount
+                                        }
+                                        use_invoicing={data?.commission.useInvoicing}
+                                    />
+                                )
                         )}
                     </tbody>
                 </table>

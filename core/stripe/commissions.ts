@@ -14,7 +14,14 @@ import { CalculateApplicationFee } from '../payments'
 // Your Character Here Type Commissions
 ////////////////////////////////////////
 
-export async function StripeCreateCommissionSetupIntent(
+/**
+ *
+ * @param checkout_data
+ * @param amount
+ * @param commission
+ * @returns
+ */
+export async function StripeCreateCommissionPaymentIntent(
     checkout_data: StripeCommissionCheckoutData,
     amount: number,
     commission: Stripe.Product
@@ -39,7 +46,7 @@ export async function StripeCreateCommissionSetupIntent(
                 },
                 link: {
                     capture_method: 'manual'
-                },
+                }
                 // paypal: {
                 //     capture_method: 'manual'
                 // }
@@ -51,6 +58,21 @@ export async function StripeCreateCommissionSetupIntent(
             stripeAccount: checkout_data.stripe_account
         }
     )
+}
+
+/**
+ * 
+ * @param payment_intent 
+ * @param stripe_account 
+ * @returns 
+ */
+export async function StripeAcceptCommissionPaymentIntent(
+    payment_intent: string,
+    stripe_account: string
+) {
+    return await stripe.paymentIntents.capture(payment_intent, {
+        stripeAccount: stripe_account
+    })
 }
 
 /**
