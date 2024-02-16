@@ -1,19 +1,27 @@
 'use client'
 
 import Modal from '@/components/modal'
-import { FormResponses } from '@/core/responses'
 import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/20/solid'
 import { useState } from 'react'
-import { FormElementInstance } from '../elements/form-elements'
 
 export default function CommissionFormSubmissionDisplay({
     submission,
-    // form_labels
+    use_invoicing
 }: {
-    submission: { content: string; createdAt: Date; user: { name: string } }
-    // form_labels: FormElementInstance[]
+    submission: { content: string; createdAt: Date; user: { name: string } },
+    use_invoicing: boolean
 }) {
     const [showModal, setShowModal] = useState(false)
+    const [accepted, setAccepted] = useState(false)
+    const [rejected, setRejected] = useState(false)
+
+    async function AcceptRequest() {
+        // Accept Payment intent
+    }
+
+    async function RejectRequest() {
+        // Reject payment intent
+    }
 
     return (
         <>
@@ -40,10 +48,28 @@ export default function CommissionFormSubmissionDisplay({
                                 </button>
                             </li>
                             <li>
-                                <a>Accept</a>
+                                <button
+                                    type="button"
+                                    disabled={accepted || rejected}
+                                    onClick={() => {
+                                        setAccepted(true)
+                                        AcceptRequest()
+                                    }}
+                                >
+                                    Accept
+                                </button>
                             </li>
                             <li>
-                                <a>Reject</a>
+                                <button
+                                    type="button"
+                                    disabled={accepted || rejected}
+                                    onClick={() => {
+                                        setRejected(true)
+                                        RejectRequest()
+                                    }}
+                                >
+                                    Reject
+                                </button>
                             </li>
                         </ul>
                     </div>
@@ -81,7 +107,8 @@ export default function CommissionFormSubmissionDisplay({
                                         {JSON.parse(submission.content)[key].label}
                                     </h2>
                                     <h3 className="m-0">
-                                        Reponse: {JSON.parse(submission.content)[key].value}
+                                        Reponse:{' '}
+                                        {JSON.parse(submission.content)[key].value}
                                     </h3>
                                 </div>
                             </div>

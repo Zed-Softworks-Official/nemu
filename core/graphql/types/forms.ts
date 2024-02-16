@@ -12,7 +12,7 @@ builder.prismaObject('Form', {
         description: t.exposeString('description'),
         createdAt: t.expose('createdAt', { type: 'Date' }),
         content: t.exposeString('content'),
-
+        
         submissions: t.exposeInt('submissions'),
         acceptedSubmissions: t.exposeInt('acceptedSubmission'),
         rejectedSubmissions: t.exposeInt('rejectedSubmission'),

@@ -2,11 +2,8 @@
 
 import Loading from '@/components/loading'
 import { GraphQLFetcher } from '@/core/helpers'
-import { PencilIcon } from '@heroicons/react/20/solid'
-import Link from 'next/link'
 import useSWR from 'swr'
 import CommissionFormSubmissionDisplay from './commission-form-submission-display'
-import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
 
 export default function CommissionFormSubmissions({
     commission_id
@@ -16,6 +13,7 @@ export default function CommissionFormSubmissions({
     const { data, isLoading } = useSWR(
         `{
             commission(id: "${commission_id}") {
+                useInvoicing
                 get_form_data {
                     name
                     description
@@ -34,13 +32,18 @@ export default function CommissionFormSubmissions({
         }`,
         GraphQLFetcher<{
             commission: {
+                useInvoicing: boolean
                 get_form_data: {
                     name: string
                     description: string
                     submissions: number
                     acceptedSubmissions: number
                     rejectedSubmissions: number
-                    formSubmissions: { content: string; createdAt: Date; user: { name: string } }[]
+                    formSubmissions: {
+                        content: string
+                        createdAt: Date
+                        user: { name: string }
+                    }[]
                 }
             }
         }>
@@ -68,8 +71,7 @@ export default function CommissionFormSubmissions({
                     <div className="card bg-base-100 max-w-md shadow-xl border-primary border-2 mx-auto w-full">
                         <div className="card-body">
                             <h2 className="card-title pt-3">
-                                Total Requests:{' '}
-                                {data?.commission.get_form_data.submissions}
+                                New Requests: {data?.commission.get_form_data.submissions}
                             </h2>
                         </div>
                     </div>
@@ -91,7 +93,7 @@ export default function CommissionFormSubmissions({
                     </div>
                 </div>
                 <div className="divider"></div>
-                <table className="table table-zebra bg-base-100">
+                <table className="table table-zebra bg-base-100 max-w-7xl mx-auto">
                     <thead>
                         <tr>
                             <th>Username</th>
@@ -100,11 +102,14 @@ export default function CommissionFormSubmissions({
                         </tr>
                     </thead>
                     <tbody>
-                        {data?.commission.get_form_data.formSubmissions?.map((submission) => (
-                            <CommissionFormSubmissionDisplay
-                                submission={submission}
-                            />
-                        ))}
+                        {data?.commission.get_form_data.formSubmissions?.map(
+                            (submission) => (
+                                <CommissionFormSubmissionDisplay
+                                    submission={submission}
+                                    use_invoicing={data?.commission.useInvoicing}
+                                />
+                            )
+                        )}
                     </tbody>
                 </table>
             </div>

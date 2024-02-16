@@ -2,14 +2,7 @@ import { Stripe } from 'stripe'
 
 import { stripe } from '@/lib/stripe'
 import { prisma } from '@/lib/prisma'
-
-/**
- * Calculates the application fee amount
- * 
- * @param {number} amount - The price to caluclate from 
- * @returns the total amount that zed softworks receives
- */
-export const CalculateApplicationFee = (amount: number) => amount - amount * 0.95
+import { CalculateApplicationFee } from '../payments'
 
 /**
  * Creates a stripe checkout session for a given product

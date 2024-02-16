@@ -29,3 +29,4 @@ export interface StripeAccountResponse extends NemuResponse {
     dashboard_url?: string
     onboarding_url?: string
 }
+

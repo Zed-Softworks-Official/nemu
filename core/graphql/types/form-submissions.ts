@@ -9,6 +9,8 @@ builder.prismaObject('FormSubmission', {
         userId: t.exposeString('userId'),
         createdAt: t.expose('createdAt', { type: 'Date' }),
         content: t.exposeString('content'),
+        paymentIntent: t.exposeString('paymentIntent', { nullable: true }),
+        setupIntent: t.exposeString('setupIntent', { nullable: true }),
 
         form: t.relation('form'),
         user: t.relation('user')
