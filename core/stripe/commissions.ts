@@ -74,6 +74,21 @@ export async function StripeAcceptCommissionPaymentIntent(
 }
 
 /**
+ * 
+ * @param payment_intent 
+ * @param stripe_account 
+ * @returns 
+ */
+export async function StripeRejectCommissionPaymentIntent(
+    payment_intent: string,
+    stripe_account: string
+) {
+    return await stripe.paymentIntents.cancel(payment_intent, {
+        stripeAccount: stripe_account
+    })
+}
+
+/**
  *
  * @param {string} stripe_account
  * @param {CommissionItem} commission

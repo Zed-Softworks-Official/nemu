@@ -1,6 +1,4 @@
-import { StatusCode } from '@/core/responses'
 import { builder } from '../builder'
-import { prisma } from '@/lib/prisma'
 
 builder.prismaObject('FormSubmission', {
     fields: (t) => ({
@@ -9,8 +7,10 @@ builder.prismaObject('FormSubmission', {
         userId: t.exposeString('userId'),
         createdAt: t.expose('createdAt', { type: 'Date' }),
         content: t.exposeString('content'),
+
         paymentIntent: t.exposeString('paymentIntent', { nullable: true }),
         paymentStatus: t.exposeInt('pyamentStatus'),
+        orderId: t.exposeString('orderId', { nullable: true }),
 
         form: t.relation('form'),
         user: t.relation('user')

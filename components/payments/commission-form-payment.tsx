@@ -6,6 +6,7 @@ import { Elements } from '@stripe/react-stripe-js'
 import { useEffect, useState } from 'react'
 import { StripeCommissionCheckoutData } from '@/core/structures'
 import CommissionCheckoutForm from './commission-checkout-form'
+import Loading from '../loading'
 
 export default function CommissionFormPayment({
     submitted,
@@ -45,13 +46,15 @@ export default function CommissionFormPayment({
         <Transition as="div" show={submitted}>
             <div className="card bg-base-300 shadow-xl rounded-xl max-w-md mx-auto">
                 <div className="card-body">
-                    {clientSecret && stripePromise && (
+                    {clientSecret && stripePromise ? (
                         <Elements
                             stripe={stripePromise}
                             options={{ clientSecret, appearance: appearance }}
                         >
                             <CommissionCheckoutForm />
                         </Elements>
+                    ) : (
+                        <Loading />
                     )}
                 </div>
             </div>

@@ -35,13 +35,13 @@ export default function CommissionFormSubmissionDisplay({
 
         // Accept Payment intent
         const response = await GraphQLFetcher<{
-            stripe_commission_accept_payment_intent: {
+            accept_payment_intent: {
                 status: StatusCode
                 message?: string
             }
         }>(
             `{
-                stripe_commission_accept_payment_intent(payment_intent:"${submission.paymentIntent}", stripe_account: "${stripe_account}", submission_id: "${submission.id}", form_id: "${form_id}") {
+                accept_payment_intent(payment_intent:"${submission.paymentIntent}", stripe_account: "${stripe_account}", submission_id: "${submission.id}", form_id: "${form_id}") {
                     status
                     message
                 }
@@ -49,9 +49,9 @@ export default function CommissionFormSubmissionDisplay({
         )
 
         if (
-            response.stripe_commission_accept_payment_intent.status != StatusCode.Success
+            response.accept_payment_intent.status != StatusCode.Success
         ) {
-            toast(response.stripe_commission_accept_payment_intent.message!, {
+            toast(response.accept_payment_intent.message!, {
                 theme: 'dark',
                 type: 'error'
             })
@@ -60,6 +60,7 @@ export default function CommissionFormSubmissionDisplay({
 
     async function RejectRequest() {
         // Reject payment intent
+        
     }
 
     return (

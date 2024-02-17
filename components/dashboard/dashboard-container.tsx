@@ -24,7 +24,7 @@ export default function DashboardContainer({
     const [showModal, setShowModal] = useState(false)
 
     return (
-        <main className="py-14 justify-around w-[90%]">
+        <main className="py-14 justify-around w-[90%] transition-all duration-200 ease-in-out">
             <div className="bg-base-300 p-10 mx-auto rounded-xl">
                 <div className="pb-10">
                     {breadcrumbs && (

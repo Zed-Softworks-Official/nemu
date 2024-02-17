@@ -218,12 +218,14 @@ model Form {
 }
 
 model FormSubmission {
-  id            String   @id @default(auto()) @map("_id") @db.ObjectId
-  formId        String   @db.ObjectId
-  userId        String   @db.ObjectId
-  createdAt     DateTime @default(now())
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  formId    String   @db.ObjectId
+  userId    String   @db.ObjectId
+  createdAt DateTime @default(now())
+
   pyamentStatus Int
   paymentIntent String?
+  orderId       String?
 
   form Form @relation(fields: [formId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

@@ -86,18 +86,6 @@ export default function CommissionFormSubmitView({
         }
 
         setFormData(newFormData)
-
-        // const response = await fetch(`/api/form/${session?.user.user_id}/${form_id}`, {
-        //     method: 'post',
-        //     body: JSON.stringify(formData)
-        // })
-        // const json_data = (await response.json()) as NemuResponse
-
-        // if (json_data.status != StatusCode.Success) {
-        //     toast(json_data.message!, { theme: 'dark', type: 'error' })
-        // } else {
-        //     toast('Form Submitted!', { theme: 'dark', type: 'success' })
-        // }
     }
 
     const validateForm: () => boolean = useCallback(() => {

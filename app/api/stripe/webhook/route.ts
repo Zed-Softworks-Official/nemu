@@ -28,6 +28,9 @@ export async function POST(req: Request) {
     }
 
     switch (event.type) {
+        ////////////////////////////////////////////////////////////
+        // Payment for Artist Corner Items
+        ////////////////////////////////////////////////////////////
         case 'checkout.session.completed':
             {
                 const checkout_session = event.data.object
