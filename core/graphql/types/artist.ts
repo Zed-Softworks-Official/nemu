@@ -54,21 +54,10 @@ builder.prismaObject('Artist', {
                         return result
                     }
 
-                    // Get product information from stripe
-                    let price = -1
-                    if (!commissions[i].useInvoicing) {
-                        price = (
-                            await StripeGetCommissionProduct(
-                                commissions[i].productId!,
-                                artist.stripeAccId
-                            )
-                        ).price
-                    }
-
                     result.push({
                         title: commissions[i].title,
                         description: commissions[i].description,
-                        price: price,
+                        price: commissions[i].price || -1,
                         images: images,
                         featured_image: featured_signed_url,
                         availability: commissions[i].availability,

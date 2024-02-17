@@ -14,8 +14,8 @@ builder.prismaObject('Form', {
         content: t.exposeString('content'),
         
         submissions: t.exposeInt('submissions'),
-        acceptedSubmissions: t.exposeInt('acceptedSubmission'),
-        rejectedSubmissions: t.exposeInt('rejectedSubmission'),
+        acceptedSubmissions: t.exposeInt('acceptedSubmissions'),
+        rejectedSubmissions: t.exposeInt('rejectedSubmissions'),
 
         artist: t.relation('artist'),
         formSubmissions: t.relation('formSubmissions')

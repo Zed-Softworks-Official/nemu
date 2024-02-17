@@ -62,7 +62,7 @@ builder.queryField('stripe_commission_accept_payment_intent', (t) =>
                     submissions: {
                         decrement: 1
                     },
-                    acceptedSubmission: {
+                    acceptedSubmissions: {
                         increment: 1
                     }
                 }

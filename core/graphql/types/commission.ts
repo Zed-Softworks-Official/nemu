@@ -1,13 +1,12 @@
 import { prisma } from '@/lib/prisma'
 import { builder } from '../builder'
 import { StatusCode } from '@/core/responses'
-import { StripeCreateCommissionProduct } from '@/core/stripe/commissions'
 
 builder.prismaObject('Commission', {
     fields: (t) => ({
         id: t.exposeString('id'),
         artistId: t.exposeString('artistId'),
-        productId: t.exposeString('productId', { nullable: true }),
+        price: t.exposeInt('price', { nullable: true }),
         formId: t.exposeString('formId'),
 
         title: t.exposeString('title'),
@@ -181,28 +180,6 @@ builder.mutationField('create_commission', (t) =>
                 }
             }
 
-            // Create Stripe Product if we aren't using invoices
-            let stripe_commission_id = undefined
-            if (!args.use_invoicing) {
-                const stripe_commission = await StripeCreateCommissionProduct(
-                    artist.stripeAccId,
-                    {
-                        title: args.title,
-                        description: args.description,
-                        price: args.price!
-                    }
-                )
-
-                if (!stripe_commission) {
-                    return {
-                        status: StatusCode.InternalError,
-                        message: 'Failed to create stripe product for commission'
-                    }
-                }
-
-                stripe_commission_id = stripe_commission.id
-            }
-
             // Create Slug
             const slug = args.title
                 .toLowerCase()
@@ -213,7 +190,7 @@ builder.mutationField('create_commission', (t) =>
             const db_commission = await prisma.commission.create({
                 data: {
                     artistId: args.artist_id,
-                    productId: stripe_commission_id,
+                    price: args.price,
                     formId: args.form_id,
                     title: args.title,
                     description: args.description,

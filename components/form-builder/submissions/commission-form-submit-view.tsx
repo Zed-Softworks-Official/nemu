@@ -26,7 +26,7 @@ export default function CommissionFormSubmitView({
         `{
             commission(id: "${commission_id}") {
                 useInvoicing
-                productId
+                price
                 artist {
                     handle
                     stripeAccount
@@ -41,7 +41,7 @@ export default function CommissionFormSubmitView({
             commission: {
                 useInvoicing: boolean
                 formId: string
-                productId: string
+                price: number
                 artist: { stripeAccount: string; handle: string }
                 get_form_content: CommissionForm
             }
@@ -192,7 +192,7 @@ export default function CommissionFormSubmitView({
                         customer_id: session?.user.customer_id!,
                         form_content: JSON.stringify(formData),
                         form_id: form_id,
-                        product_id: data?.commission.productId!,
+                        price: data?.commission.price!,
                         return_url: `http://localhost:3000/@${data?.commission.artist.handle}`,
                         stripe_account: data?.commission.artist.stripeAccount!
                     }}

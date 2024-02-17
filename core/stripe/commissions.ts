@@ -22,21 +22,19 @@ import { CalculateApplicationFee } from '../payments'
  * @returns
  */
 export async function StripeCreateCommissionPaymentIntent(
-    checkout_data: StripeCommissionCheckoutData,
-    amount: number,
-    commission: Stripe.Product
+    checkout_data: StripeCommissionCheckoutData
 ) {
     const metadata: StripePaymentMetadata = {
         user_id: checkout_data.user_id,
-        product_id: commission.id,
         purchase_type: PurchaseType.CommissionSetupPayment,
         form_id: checkout_data.form_id,
         form_content: checkout_data.form_content
     }
 
+    // TODO: Add Title of commission to payment intent
     return await stripe.paymentIntents.create(
         {
-            amount: amount * 100,
+            amount: checkout_data.price * 100,
             currency: 'usd',
             customer: checkout_data.customer_id,
             payment_method_types: ['card', 'link'],
@@ -51,7 +49,7 @@ export async function StripeCreateCommissionPaymentIntent(
                 //     capture_method: 'manual'
                 // }
             },
-            application_fee_amount: CalculateApplicationFee(amount) * 100,
+            application_fee_amount: CalculateApplicationFee(checkout_data.price) * 100,
             metadata: metadata as unknown as Stripe.MetadataParam
         },
         {
@@ -61,10 +59,10 @@ export async function StripeCreateCommissionPaymentIntent(
 }
 
 /**
- * 
- * @param payment_intent 
- * @param stripe_account 
- * @returns 
+ *
+ * @param payment_intent
+ * @param stripe_account
+ * @returns
  */
 export async function StripeAcceptCommissionPaymentIntent(
     payment_intent: string,
