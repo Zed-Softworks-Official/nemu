@@ -78,6 +78,12 @@ export default function DashboardCommissionDetailView({
                         />
                     </div>
                 </div>
+                <div className="card bg-base-100 shadow-xl">
+                    <div className="card-body">
+                        <h2 className="card-title">Messages</h2>
+                        <div className="divider"></div>
+                    </div>
+                </div>
             </div>
         </DashboardContainer>
     )
