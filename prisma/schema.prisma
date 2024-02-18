@@ -179,7 +179,7 @@ model Commission {
   id       String @id @default(auto()) @map("_id") @db.ObjectId
   artistId String @db.ObjectId
   price    Int?
-  formId   String
+  formId   String @unique @db.ObjectId
 
   title            String
   description      String
@@ -194,6 +194,7 @@ model Commission {
   useInvoicing      Boolean  @default(false)
 
   artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  Form   Form?  @relation(fields: [formId], references: [id], onDelete: Cascade)
 }
 
 model Form {
@@ -210,7 +211,8 @@ model Form {
   acceptedSubmissions Int @default(0)
   rejectedSubmissions Int @default(0)
 
-  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  artist     Artist      @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  commission Commission?
 
   formSubmissions FormSubmission[]
 
@@ -225,7 +227,7 @@ model FormSubmission {
 
   pyamentStatus Int
   paymentIntent String?
-  orderId       String?
+  orderId       String? @unique
 
   form Form @relation(fields: [formId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

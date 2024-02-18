@@ -28,14 +28,13 @@ export default function KanbanItem({ id, title }: ItemsType) {
             {...attributes}
             style={{ transition, transform: CSS.Translate.toString(transform) }}
         >
-            <div className="card-body items-center text-center">
-                <button
-                    className="btn btn-ghost absolute top-[7%] right-[7%]"
-                    {...listeners}
-                >
-                    <Bars3Icon className="w-6 h-6" />
-                </button>
-                <h2 className="card-title">{title}</h2>
+            <div className="card-body">
+                <div className="flex justify-between items-center">
+                    <h2 className="card-title">{title}</h2>
+                    <button className="btn btn-ghost" {...listeners}>
+                        <Bars3Icon className="w-6 h-6" />
+                    </button>
+                </div>
             </div>
         </div>
     )

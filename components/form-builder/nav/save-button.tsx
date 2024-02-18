@@ -4,17 +4,15 @@ import { useState } from 'react'
 import { ArrowDownOnSquareStackIcon } from '@heroicons/react/20/solid'
 import { DesignerContextType, useDesigner } from '../designer/designer-context'
 import { CreateToastPromise } from '@/core/promise'
-import { useSession } from 'next-auth/react'
 
 export default function SaveButton({ form_id }: { form_id: string }) {
     const { elements } = useDesigner() as DesignerContextType
-    const { data: session } = useSession()
     const [isSaving, setIsSaving] = useState(false)
 
     async function updateFormContext() {
         const JsonElements = JSON.stringify(elements)
         await CreateToastPromise(
-            fetch(`/api/artist/${session?.user.user_id}/forms/${form_id}`, {
+            fetch(`/api/forms/${form_id}`, {
                 method: 'post',
                 body: JsonElements
             }),

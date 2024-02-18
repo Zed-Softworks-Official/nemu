@@ -26,7 +26,7 @@ import KanbanDroppable from './kanban-container'
 import KanbanItem from './kanban-item'
 import Modal from '../modal'
 import KanbanContainer from './kanban-container'
-import { KanbanData } from '@/core/responses'
+import { KanbanData } from '@/core/structures'
 
 export default function Kanban({ title, client }: { title: string; client: string }) {
     const [containers, setContainers] = useState<KanbanData[]>([
@@ -41,6 +41,16 @@ export default function Kanban({ title, client }: { title: string; client: strin
                 {
                     id: `item-${uuidv4()}`,
                     title: 'Sketch Background'
+                }
+            ]
+        },
+        {
+            id: `container-${uuidv4()}`,
+            title: 'In Progress',
+            items: [
+                {
+                    id: `item-${uuidv4()}`,
+                    title: 'Something'
                 }
             ]
         },
@@ -324,11 +334,11 @@ export default function Kanban({ title, client }: { title: string; client: strin
         <>
             <div className="flex items-center justify-between gap-y-2">
                 <h1>
-                    {title} for {client}
+                    {title}: {client}
                 </h1>
                 <button
                     type="button"
-                    className="btn btn-ghost"
+                    className="btn btn-primary"
                     onClick={() => setShowAddContainerModal(true)}
                 >
                     Add Container

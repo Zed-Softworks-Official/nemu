@@ -39,18 +39,17 @@ export default function KanbanContainer({
             ref={setNodeRef}
             style={{ transition, transform: CSS.Translate.toString(transform) }}
         >
-            <div className="relative w-full p-5">
-                <button
-                    className="btn btn-ghost absolute top-[7%] right-[7%]"
-                    {...listeners}
-                >
+            <div className="flex justify-between items-center w-full p-5">
+                <div>
+                    <h1 className="font-bold text-3xl">{title}</h1>
+                    <p className="text-lg">{description}</p>
+                </div>
+                <button className="btn btn-ghost" {...listeners}>
                     <Bars3Icon className="w-6 h-6" />
                 </button>
-                <h1 className="font-bold text-3xl">{title}</h1>
-                <p className="text-lg">{description}</p>
             </div>
             {children}
-            <button className="btn btn-ghost" onClick={onAddItem}>
+            <button className="btn btn-primary" onClick={onAddItem}>
                 Add Item
             </button>
         </div>

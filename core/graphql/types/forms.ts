@@ -12,12 +12,13 @@ builder.prismaObject('Form', {
         description: t.exposeString('description'),
         createdAt: t.expose('createdAt', { type: 'Date' }),
         content: t.exposeString('content'),
-        
+
         submissions: t.exposeInt('submissions'),
         acceptedSubmissions: t.exposeInt('acceptedSubmissions'),
         rejectedSubmissions: t.exposeInt('rejectedSubmissions'),
 
         artist: t.relation('artist'),
+        commission: t.relation('commission'),
         formSubmissions: t.relation('formSubmissions')
     })
 })
@@ -36,7 +37,7 @@ builder.queryField('forms', (t) =>
             prisma.form.findMany({
                 ...query,
                 where: {
-                    artistId: args.artistId || undefined,
+                    artistId: args.artistId || undefined
                 }
             })
     })

@@ -21,6 +21,8 @@ builder.prismaObject('Commission', {
         rushOrdersAllowed: t.exposeBoolean('rushOrdersAllowed'),
         useInvoicing: t.exposeBoolean('useInvoicing'),
 
+        form: t.relation('Form'),
+
         get_form_data: t.prismaField({
             type: 'Form',
             resolve: (query, commission, _args, _ctx, _info) =>
@@ -200,6 +202,16 @@ builder.mutationField('create_commission', (t) =>
                     availability: args.availability,
                     useInvoicing: args.use_invoicing || undefined,
                     slug: slug
+                }
+            })
+
+            // Update the form to also include the commission
+            await prisma.form.update({
+                where: {
+                    id: args.form_id
+                },
+                data: {
+                    commissionId: db_commission.id
                 }
             })
 

@@ -1,3 +1,4 @@
+import { prisma } from '@/lib/prisma'
 import { builder } from '../builder'
 
 builder.prismaObject('FormSubmission', {
@@ -16,3 +17,23 @@ builder.prismaObject('FormSubmission', {
         user: t.relation('user')
     })
 })
+
+builder.queryField('form_submission', (t) =>
+    t.prismaField({
+        type: 'FormSubmission',
+        args: {
+            order_id: t.arg({
+                type: 'String',
+                required: true,
+                description: ''
+            })
+        },
+        resolve: (query, _parent, args, _ctx, _info) =>
+            prisma.formSubmission.findFirstOrThrow({
+                ...query,
+                where: {
+                    orderId: args.order_id
+                }
+            })
+    })
+)

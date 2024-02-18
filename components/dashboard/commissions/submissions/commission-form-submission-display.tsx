@@ -7,6 +7,7 @@ import { PaymentStatus } from '@/core/structures'
 import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/20/solid'
 import { useState } from 'react'
 import { toast } from 'react-toastify'
+import CommissionFormSubmissionContent from './commission-form-submission-content'
 
 export default function CommissionFormSubmissionDisplay({
     submission,
@@ -48,9 +49,7 @@ export default function CommissionFormSubmissionDisplay({
             }`
         )
 
-        if (
-            response.accept_payment_intent.status != StatusCode.Success
-        ) {
+        if (response.accept_payment_intent.status != StatusCode.Success) {
             toast(response.accept_payment_intent.message!, {
                 theme: 'dark',
                 type: 'error'
@@ -60,7 +59,6 @@ export default function CommissionFormSubmissionDisplay({
 
     async function RejectRequest() {
         // Reject payment intent
-        
     }
 
     return (
@@ -154,19 +152,7 @@ export default function CommissionFormSubmissionDisplay({
                     </div>
                     <div className="divider"></div>
                     <div className="flex flex-col gap-5 prose w-full mx-auto">
-                        {Object.keys(JSON.parse(submission.content)).map((key, i) => (
-                            <div key={i} className="card bg-base-300 shadow-xl">
-                                <div className="card-body">
-                                    <h2 className="m-0">
-                                        {JSON.parse(submission.content)[key].label}
-                                    </h2>
-                                    <h3 className="m-0">
-                                        Reponse:{' '}
-                                        {JSON.parse(submission.content)[key].value}
-                                    </h3>
-                                </div>
-                            </div>
-                        ))}
+                        <CommissionFormSubmissionContent content={submission.content} />
                     </div>
                 </div>
             </Modal>
