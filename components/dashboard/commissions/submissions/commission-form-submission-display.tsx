@@ -2,7 +2,7 @@
 
 import Modal from '@/components/modal'
 import { GraphQLFetcher } from '@/core/helpers'
-import { StatusCode } from '@/core/responses'
+import { NemuResponse, StatusCode } from '@/core/responses'
 import { PaymentStatus } from '@/core/structures'
 import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/20/solid'
 import { useState } from 'react'
@@ -36,10 +36,7 @@ export default function CommissionFormSubmissionDisplay({
 
         // Accept Payment intent
         const response = await GraphQLFetcher<{
-            accept_payment_intent: {
-                status: StatusCode
-                message?: string
-            }
+            accept_payment_intent: NemuResponse
         }>(
             `{
                 accept_payment_intent(payment_intent:"${submission.paymentIntent}", stripe_account: "${stripe_account}", submission_id: "${submission.id}", form_id: "${form_id}") {
@@ -49,8 +46,13 @@ export default function CommissionFormSubmissionDisplay({
             }`
         )
 
-        if (response.accept_payment_intent.status != StatusCode.Success) {
-            toast(response.accept_payment_intent.message!, {
+        if (response.accept_payment_intent.status == StatusCode.Success) {
+            toast('Commission Request Accepted', {
+                theme: 'dark',
+                type: 'success'
+            })
+        } else {
+            toast(response.accept_payment_intent.message, {
                 theme: 'dark',
                 type: 'error'
             })
@@ -59,6 +61,26 @@ export default function CommissionFormSubmissionDisplay({
 
     async function RejectRequest() {
         // Reject payment intent
+        const response = await GraphQLFetcher<{ reject_payment_intent: NemuResponse }>(
+            `{
+                reject_payment_intent(payment_intent:"${submission.paymentIntent}", stripe_account: "${stripe_account}", submission_id:"${submission.id}", form_id:"${form_id}") {
+                    status
+                    message
+                }
+            }`
+        )
+
+        if (response.reject_payment_intent.status == StatusCode.Success) {
+            toast('Commission Request Rejected', {
+                theme: 'dark',
+                type: 'info'
+            })
+        } else {
+            toast(response.reject_payment_intent.message, {
+                theme: 'dark',
+                type: 'error'
+            })
+        }
     }
 
     return (

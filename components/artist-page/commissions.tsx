@@ -12,13 +12,16 @@ export default function Commissions({
 }) {
     return (
         <div className="flex flex-col gap-5">
-            {commissions?.map((commission) => (
-                <CommissionCard
-                    key={commission.title}
-                    commission={commission}
-                    terms={terms}
-                />
-            ))}
+            {commissions?.map(
+                (commission) =>
+                    commission.published! && (
+                        <CommissionCard
+                            key={commission.title}
+                            commission={commission}
+                            terms={terms}
+                        />
+                    )
+            )}
         </div>
     )
 }

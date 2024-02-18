@@ -227,3 +227,43 @@ builder.mutationField('create_commission', (t) =>
         }
     })
 )
+
+builder.mutationField('update_commission', (t) =>
+    t.field({
+        type: 'NemuResponse',
+        args: {
+            commission_id: t.arg({
+                type: 'String',
+                required: true,
+                description: ''
+            }),
+
+            published: t.arg({
+                type: 'Boolean',
+                required: false,
+                description: ''
+            })
+        },
+        resolve: async (_parent, args, _ctx, _info) => {
+            try {
+                await prisma.commission.update({
+                    where: {
+                        id: args.commission_id
+                    },
+                    data: {
+                        published: args.published == undefined ? undefined : args.published
+                    }
+                })
+            } catch (e) {
+                return {
+                    status: StatusCode.InternalError,
+                    message: 'An error has occured updating your commission'
+                }
+            }
+
+            return {
+                status: StatusCode.Success
+            }
+        }
+    })
+)

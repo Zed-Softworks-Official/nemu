@@ -71,7 +71,8 @@ builder.objectRef<CommissionItem>('CommissionData').implement({
         handle: t.exposeString('handle', { nullable: true }),
         slug: t.exposeString('slug', { nullable: true }),
         images: t.exposeStringList('images', { nullable: true }),
-        commission_id: t.exposeString('commission_id', {nullable: true})
+        commission_id: t.exposeString('commission_id', { nullable: true }),
+        published: t.exposeBoolean('published', { nullable: true })
     })
 })
 

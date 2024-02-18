@@ -103,6 +103,7 @@ export interface CommissionItem {
     form_id?: string
     handle?: string
     commission_id?: string
+    published?: boolean
 
     prod_id?: string
     slug?: string

@@ -9,6 +9,7 @@ import { GraphQLFetcher } from '@/core/helpers'
 import Loading from '@/components/loading'
 import ActiveCommissionFormSubmissions from './submissions/commission-form-submissions-active'
 import { PaymentStatus } from '@/core/structures'
+import CommissionPublishButton from './submissions/commission-publish-button'
 
 export default function DashboardCommissionDetail({ slug }: { slug: string }) {
     const { artistId } = useDashboardContext()
@@ -18,6 +19,7 @@ export default function DashboardCommissionDetail({ slug }: { slug: string }) {
                 title
                 id
                 formId
+                published
                 get_form_data {
                     id
                     name
@@ -47,6 +49,7 @@ export default function DashboardCommissionDetail({ slug }: { slug: string }) {
                 title: string
                 id: string
                 formId: string
+                published: boolean
                 useInvoicing: boolean
                 get_form_data: {
                     id: string
@@ -82,13 +85,21 @@ export default function DashboardCommissionDetail({ slug }: { slug: string }) {
 
     return (
         <DashboardContainer title={data?.commission.title || 'Commission View'}>
-            <div className="flex gap-5 pb-5">
-                <button type="button" className="btn btn-base-100">
-                    Edit Commission Information
-                </button>
-                <button type="button" className="btn btn-base-100">
-                    Edit Commission Form
-                </button>
+            <div className="flex justify-between pb-5">
+                <div className="flex gap-5">
+                    <button type="button" className="btn btn-base-100">
+                        Edit Commission Information
+                    </button>
+                    <button type="button" className="btn btn-base-100">
+                        Edit Commission Form
+                    </button>
+                </div>
+                <div>
+                    <CommissionPublishButton
+                        commission_id={data?.commission.id!}
+                        published={data?.commission.published!}
+                    />
+                </div>
             </div>
             <div role="tabslist" className="tabs tabs-lifted">
                 <input

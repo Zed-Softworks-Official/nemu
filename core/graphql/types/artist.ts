@@ -64,7 +64,8 @@ builder.prismaObject('Artist', {
                         slug: commissions[i].slug,
                         form_id: commissions[i].formId || undefined,
                         handle: artist.handle,
-                        commission_id: commissions[i].id
+                        commission_id: commissions[i].id,
+                        published: commissions[i].published
                     })
                 }
 

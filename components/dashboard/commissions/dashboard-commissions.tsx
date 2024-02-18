@@ -4,7 +4,7 @@ import Loading from '@/components/loading'
 import { GraphQLFetcher } from '@/core/helpers'
 import useSWR from 'swr'
 import NemuImage from '@/components/nemu-image'
-import { ConvertAvailabilityToBadge } from '@/core/react-helpers'
+import { ConvertAvailabilityToBadge, ConvertPublishedToBadge } from '@/core/react-helpers'
 import { EyeIcon, PencilIcon } from '@heroicons/react/20/solid'
 import Link from 'next/link'
 import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
@@ -22,6 +22,7 @@ export default function DashboardCommissions() {
                     featured_image
                     availability
                     slug
+                    published
                 }
             }
         }`,
@@ -50,6 +51,7 @@ export default function DashboardCommissions() {
                     <div className="card-body max-h-full">
                         <h2 className="card-title">{commission.title}</h2>
                         {ConvertAvailabilityToBadge(commission.availability!)}
+                        {ConvertPublishedToBadge(commission.published!)}
                         <div className="flex justify-end items-end h-full">
                             <div className="card-actions justify-end">
                                 <Link
