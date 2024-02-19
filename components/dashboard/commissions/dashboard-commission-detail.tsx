@@ -10,6 +10,8 @@ import Loading from '@/components/loading'
 import ActiveCommissionFormSubmissions from './submissions/commission-form-submissions-active'
 import { PaymentStatus } from '@/core/structures'
 import CommissionPublishButton from './submissions/commission-publish-button'
+import { ClipboardDocumentListIcon, PencilIcon } from '@heroicons/react/20/solid'
+import Link from 'next/link'
 
 export default function DashboardCommissionDetail({ slug }: { slug: string }) {
     const { artistId } = useDashboardContext()
@@ -87,12 +89,20 @@ export default function DashboardCommissionDetail({ slug }: { slug: string }) {
         <DashboardContainer title={data?.commission.title || 'Commission View'}>
             <div className="flex justify-between pb-5">
                 <div className="flex gap-5">
-                    <button type="button" className="btn btn-base-100">
-                        Edit Commission Information
-                    </button>
-                    <button type="button" className="btn btn-base-100">
+                    <Link
+                        href={`/dashboard/commissions/${slug}/edit`}
+                        className="btn btn-base-100"
+                    >
+                        <PencilIcon className="w-6 h-6" />
+                        Edit Commission
+                    </Link>
+                    <Link
+                        href={`/dashboard/forms/${data?.commission.formId}`}
+                        className="btn btn-base-100"
+                    >
+                        <ClipboardDocumentListIcon className="w-6 h-6" />
                         Edit Commission Form
-                    </button>
+                    </Link>
                 </div>
                 <div>
                     <CommissionPublishButton

@@ -193,6 +193,9 @@ model Commission {
   rushOrdersAllowed Boolean  @default(false)
   useInvoicing      Boolean  @default(false)
 
+  maxCommissionsWhileOpen Int?
+  maxCommissionOnWaitlist Int?
+
   artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
   Form   Form?  @relation(fields: [formId], references: [id], onDelete: Cascade)
 }

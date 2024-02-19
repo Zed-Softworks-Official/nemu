@@ -38,6 +38,9 @@ const commissionSchema = z.object({
     rush: z.boolean().default(false),
     rush_charge: z.number().default(0).optional(),
 
+    max_commissions_on_waitlist: z.number().optional(),
+    max_commissions_on_open: z.number().optional(),
+
     commission_availability: z.number()
 })
 
@@ -215,6 +218,7 @@ export default function CommissionAddForm() {
                         )}
                     </div>
                 </div>
+                <div className="divider"></div>
 
                 <SelectField
                     label="Form"
@@ -242,6 +246,24 @@ export default function CommissionAddForm() {
                     placeholder="Select an availability"
                     {...form.register('commission_availability', { valueAsNumber: true })}
                 />
+                <TextField
+                    label="Max commission on waitlist"
+                    placeholder="0"
+                    inputMode="numeric"
+                    {...form.register('max_commissions_on_waitlist', {
+                        valueAsNumber: true
+                    })}
+                />
+                <TextField
+                    label="Max commission while commissions are open"
+                    placeholder="0"
+                    inputMode="numeric"
+                    {...form.register('max_commissions_on_open', {
+                        valueAsNumber: true
+                    })}
+                />
+                <div className="divider"></div>
+
                 <FormDropzone
                     label="Featured Image"
                     {...form.register('featured_image')}
@@ -252,6 +274,7 @@ export default function CommissionAddForm() {
                     {...form.register('additional_images')}
                 />
 
+                <div className="divider"></div>
                 <div className="card bg-base-100 shadow-xl">
                     <div className="card-body">
                         <CheckboxField

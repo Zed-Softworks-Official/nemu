@@ -50,8 +50,10 @@ export default function DashboardCommissions() {
                     </figure>
                     <div className="card-body max-h-full">
                         <h2 className="card-title">{commission.title}</h2>
-                        {ConvertAvailabilityToBadge(commission.availability!)}
-                        {ConvertPublishedToBadge(commission.published!)}
+                        <div className="flex items-center justify-start gap-5">
+                            {ConvertAvailabilityToBadge(commission.availability!)}
+                            {ConvertPublishedToBadge(commission.published!)}
+                        </div>
                         <div className="flex justify-end items-end h-full">
                             <div className="card-actions justify-end">
                                 <Link
