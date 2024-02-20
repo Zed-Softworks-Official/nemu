@@ -39,6 +39,9 @@ export default function DashboardCommissionDetail({ slug }: { slug: string }) {
                         orderId
                         user {
                             name
+                            find_customer_id(artist_id: "${artistId}") {
+                                customerId
+                            }
                         }
                     }
                 }
@@ -65,10 +68,15 @@ export default function DashboardCommissionDetail({ slug }: { slug: string }) {
                         id: string
                         content: string
                         createdAt: Date
-                        orderId: string
                         paymentIntent: string
                         paymentStatus: PaymentStatus
-                        user: { name: string }
+                        orderId: string
+                        user: {
+                            name: string
+                            find_customer_id: {
+                                customerId: string
+                            }
+                        }
                     }[]
                 }
                 artist: {

@@ -12,7 +12,8 @@ export async function POST(req: Request) {
             userId: data.user_id,
             formId: data.form_id,
             content: data.content,
-            pyamentStatus: PaymentStatus.RequiresInvoice
+            pyamentStatus: PaymentStatus.RequiresInvoice,
+            orderId: crypto.randomUUID()
         }
     })
 
@@ -22,6 +23,18 @@ export async function POST(req: Request) {
             message: 'Failed to createe form submission'
         })
     }
+
+    // Update form values
+    await prisma.form.update({
+        where: {
+            id: data.form_id
+        },
+        data: {
+            submissions: {
+                increment: 1
+            }
+        }
+    })
 
     return NextResponse.json<NemuResponse>({
         status: StatusCode.Success

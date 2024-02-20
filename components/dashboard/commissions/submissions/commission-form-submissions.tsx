@@ -20,7 +20,7 @@ export default function CommissionFormSubmissions({
             orderId: string
             paymentIntent: string
             paymentStatus: PaymentStatus
-            user: { name: string }
+            user: { name: string; find_customer_id: { customerId: string } }
         }[]
     }
     use_invoicing: boolean

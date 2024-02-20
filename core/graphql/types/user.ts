@@ -15,7 +15,27 @@ builder.prismaObject('User', {
 
         formSubmissions: t.relation('formSubmissions'),
         artist: t.relation('artist', { nullable: true }),
-        
+
+        customerIds: t.relation('customerIds'),
+
+        find_customer_id: t.prismaField({
+            type: 'StripeCustomerIds',
+            args: {
+                artist_id: t.arg({
+                    type: 'String',
+                    required: true
+                })
+            },
+            resolve: (query, parent, args, _ctx, _info) =>
+                prisma.stripeCustomerIds.findFirstOrThrow({
+                    ...query,
+                    where: {
+                        userId: parent.id,
+                        artistId: args.artist_id
+                    }
+                })
+        }),
+
         purchased: t.field({
             type: ['DownloadData'],
             description: 'Gets all purchases for user',

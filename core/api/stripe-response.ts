@@ -30,3 +30,10 @@ export interface StripeAccountResponse extends NemuResponse {
     onboarding_url?: string
 }
 
+/**
+ * 
+ */
+export interface StripeCustomerIdResponse extends NemuResponse {
+    customer_id?: string
+    stripe_account?: string
+}

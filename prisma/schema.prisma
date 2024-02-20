@@ -63,6 +63,7 @@ model Artist {
   portfolioItems Portfolio[]
   forms          Form[]
   socials        Social[]
+  customerIds    StripeCustomerIds[]
 }
 
 model AritstCode {
@@ -143,6 +144,19 @@ model User {
   artist          Artist?
   purchased       Purchased[]
   formSubmissions FormSubmission[]
+  customerIds     StripeCustomerIds[]
+}
+
+model StripeCustomerIds {
+  id            String @id @default(auto()) @map("_id") @db.ObjectId
+  customerId    String
+  stripeAccount String
+
+  artistId String @db.ObjectId
+  userId   String @db.ObjectId
+
+  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 //////////////////////////////////////////////////////////
@@ -230,7 +244,8 @@ model FormSubmission {
 
   pyamentStatus Int
   paymentIntent String?
-  orderId       String? @unique
+  orderId       String  @unique
+  invoiceId     String?
 
   form Form @relation(fields: [formId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

@@ -11,7 +11,7 @@ builder.prismaObject('FormSubmission', {
 
         paymentIntent: t.exposeString('paymentIntent', { nullable: true }),
         paymentStatus: t.exposeInt('pyamentStatus'),
-        orderId: t.exposeString('orderId', { nullable: true }),
+        orderId: t.exposeString('orderId'),
 
         form: t.relation('form'),
         user: t.relation('user')

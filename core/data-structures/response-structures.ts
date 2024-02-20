@@ -110,6 +110,12 @@ export interface CommissionItem {
     slug?: string
 }
 
+export interface InvoiceCommissionItem {
+    description: string
+    quantity: number
+    amount: number
+}
+
 export interface CommissionForm {
     user_submitted: boolean
     content: string

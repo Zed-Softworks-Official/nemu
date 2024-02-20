@@ -81,7 +81,8 @@ export async function POST(req: Request) {
                                     content: metadata.form_content,
                                     userId: metadata.user_id,
                                     paymentIntent: charge.payment_intent?.toString(),
-                                    pyamentStatus: PaymentStatus.RequiresCapture
+                                    pyamentStatus: PaymentStatus.RequiresCapture,
+                                    orderId: crypto.randomUUID()
                                 }
                             })
 

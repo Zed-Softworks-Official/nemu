@@ -9,6 +9,7 @@ import './types/purchased'
 import './types/social'
 import './types/forms'
 import './types/form-submissions'
+import './types/stripe-id'
 
 import './fields/stripe'
 

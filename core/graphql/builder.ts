@@ -7,7 +7,8 @@ import { DateTimeResolver } from 'graphql-scalars'
 import {
     ArtistCodeResponse,
     CommissionFormCreateResponse,
-    NemuResponse
+    NemuResponse,
+    StripeCustomerIdResponse
 } from '../responses'
 import {
     CommissionForm,
@@ -29,6 +30,7 @@ export const builder = new SchemaBuilder<{
         NemuResponse: NemuResponse
         CommissionFormCreateResponse: CommissionFormCreateResponse
         ArtistCodeResponse: ArtistCodeResponse
+        StripeCustomerIdResponse: StripeCustomerIdResponse
     }
     Scalars: { Date: { Input: Date; Output: Date } }
 }>({
@@ -118,6 +120,15 @@ builder
             form_id: t.exposeString('form_id')
         })
     })
+
+builder.objectRef<StripeCustomerIdResponse>('StripeCustomerIdResponse').implement({
+    fields: (t) => ({
+        status: t.exposeInt('status'),
+        message: t.exposeString('message', { nullable: true }),
+        customer_id: t.exposeString('customer_id', { nullable: true }),
+        stripe_account: t.exposeString('stripe_account', { nullable: true })
+    })
+})
 
 // Scalars
 builder.addScalarType('Date', DateTimeResolver, {})

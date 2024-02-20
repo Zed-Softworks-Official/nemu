@@ -24,7 +24,8 @@ export default function ActiveCommissionFormSubmissions({
             <Masonry gutter="3rem">
                 {form_submissions.map(
                     (submission) =>
-                        submission.paymentStatus == PaymentStatus.Captured && (
+                        submission.paymentStatus == PaymentStatus.Captured ||
+                        (submission.paymentStatus == PaymentStatus.InvoiceCreated && (
                             <Link
                                 href={`/dashboard/commissions/${commission_slug}/${submission.orderId}`}
                             >
@@ -39,7 +40,7 @@ export default function ActiveCommissionFormSubmissions({
                                     </div>
                                 </div>
                             </Link>
-                        )
+                        ))
                 )}
             </Masonry>
         </ResponsiveMasonry>

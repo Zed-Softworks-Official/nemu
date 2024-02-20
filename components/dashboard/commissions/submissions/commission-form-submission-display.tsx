@@ -21,7 +21,12 @@ export default function CommissionFormSubmissionDisplay({
         createdAt: Date
         paymentIntent: string
         paymentStatus: PaymentStatus
-        user: { name: string }
+        user: {
+            name: string
+            find_customer_id: {
+                customerId: string
+            }
+        }
     }
     stripe_account: string
     form_id: string
@@ -32,14 +37,25 @@ export default function CommissionFormSubmissionDisplay({
     const [rejected, setRejected] = useState(false)
 
     async function UpdateRequest(value: boolean) {
-        // TODO: Check if we're using invoincing
+        // Check if we're using invoincing
         if (use_invoicing) {
-            toast('Uses Invoicing', { theme: 'dark', type: 'info' })
+            const response = await GraphQLFetcher<{ create_invoice: NemuResponse }>(
+                `mutation {
+                    create_invoice(customer_id: "${submission.user.find_customer_id.customerId}", stripe_account: "${stripe_account}", submission_id: "${submission.id}", form_id: "${form_id}") {
+                        status
+                        message
+                    }
+                }`
+            )
+
+            if (response.create_invoice.status != StatusCode.Success) {
+                toast('Failed to accept request', { theme: 'dark', type: 'error' })
+            }
 
             return
         }
 
-        // Accept Payment intent
+        // Accept Payment intent if we're not using invoicing
         const response = await GraphQLFetcher<{
             update_payment_intent: NemuResponse
         }>(

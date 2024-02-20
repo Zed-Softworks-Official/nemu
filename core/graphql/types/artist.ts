@@ -18,6 +18,8 @@ builder.prismaObject('Artist', {
         headerPhoto: t.exposeString('headerPhoto'),
         profilePhoto: t.exposeString('profilePhoto'),
 
+        customerIds: t.relation('customerIds'),
+
         user: t.relation('user'),
 
         commissions: t.field({

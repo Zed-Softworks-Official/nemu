@@ -2,7 +2,7 @@
 
 import NemuImage from '@/components/nemu-image'
 
-import { NemuResponse, StatusCode } from '@/core/responses'
+import { NemuResponse, StatusCode, StripeCustomerIdResponse } from '@/core/responses'
 import { GraphQLFetcher } from '@/core/helpers'
 import { useSession } from 'next-auth/react'
 import useSWR from 'swr'
@@ -11,7 +11,6 @@ import Loading from '@/components/loading'
 import { useCallback, useRef, useState, useTransition } from 'react'
 import { toast } from 'react-toastify'
 import { CommissionForm } from '@/core/structures'
-import { Transition } from '@headlessui/react'
 import CommissionFormPayment from '../../payments/commission-form-payment'
 import { CreateFormSubmissionStructure } from '@/core/data-structures/form-structures'
 
@@ -30,6 +29,7 @@ export default function CommissionFormSubmitView({
                 price
                 artist {
                     handle
+                    id
                     stripeAccount
                 }
                 get_form_content(user_id: "${session?.user.user_id}") {
@@ -43,7 +43,7 @@ export default function CommissionFormSubmitView({
                 useInvoicing: boolean
                 formId: string
                 price: number
-                artist: { stripeAccount: string; handle: string }
+                artist: { stripeAccount: string; id: string; handle: string }
                 get_form_content: CommissionForm
             }
         }>
@@ -72,7 +72,6 @@ export default function CommissionFormSubmitView({
             toast('Please check all required fields!', { theme: 'dark', type: 'error' })
             return
         }
-        setSubmitted(true)
 
         const newFormData: { [key: string]: { value: string; label: string } } = {}
         const formElements = JSON.parse(
@@ -86,6 +85,31 @@ export default function CommissionFormSubmitView({
             }
         }
 
+        // Create Customer If they don't exist
+        const create_customer_response = await GraphQLFetcher<{
+            check_create_customer: StripeCustomerIdResponse
+        }>(
+            `mutation {
+                check_create_customer(user_id: "${session?.user.user_id}", artist_id:"${data?.commission.artist.id}") {
+                    status
+                    message
+                }
+            }`
+        )
+
+        if (create_customer_response.check_create_customer.status != StatusCode.Success) {
+            toast(create_customer_response.check_create_customer.message, {
+                theme: 'dark',
+                type: 'error'
+            })
+            return
+        }
+
+        // Set submitted to true so the commission can either be sent
+        // or the user can put in there payment information
+        setSubmitted(true)
+
+        // Check if we're using invoicing
         if (data?.commission.useInvoicing) {
             const JsonData: CreateFormSubmissionStructure = {
                 user_id: session?.user.user_id!,

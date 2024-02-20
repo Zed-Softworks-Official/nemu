@@ -3,6 +3,7 @@ import Stripe from 'stripe'
 import { stripe } from '@/lib/stripe'
 import {
     CommissionItem,
+    InvoiceCommissionItem,
     PurchaseType,
     StripeCommissionCheckoutData,
     StripePaymentMetadata
@@ -74,10 +75,10 @@ export async function StripeAcceptCommissionPaymentIntent(
 }
 
 /**
- * 
- * @param payment_intent 
- * @param stripe_account 
- * @returns 
+ *
+ * @param payment_intent
+ * @param stripe_account
+ * @returns
  */
 export async function StripeRejectCommissionPaymentIntent(
     payment_intent: string,
@@ -141,24 +142,77 @@ export async function StripeGetCommissionProduct(
 
 /**
  *
- * @param {string} stripe_account
  * @param {string} customer
- * @param {string} commission
+ * @param {string} stripe_account
  * @returns
  */
 export async function StripeCreateCommissionInvoice(
-    stripe_account: string,
     customer: string,
-    commission: CommissionItem
+    stripe_account: string
 ) {
     return await stripe.invoices.create(
         {
             customer: customer,
-            collection_method: 'send_invoice',
-            application_fee_amount: CalculateApplicationFee(commission.price)
         },
         {
             stripeAccount: stripe_account
         }
     )
+}
+
+/**
+ *
+ * @param customer
+ * @param stripe_account
+ * @param invoice_id
+ * @param days_until_due
+ * @param items
+ */
+export async function StripeUpdateCommissionInvoice(
+    customer: string,
+    stripe_account: string,
+    invoice_id: string,
+    days_until_due: number,
+    items: InvoiceCommissionItem[]
+) {
+    // Add invoice items
+    let total_price = 0
+    for (const item of items) {
+        total_price += item.amount
+        await stripe.invoiceItems.create(
+            {
+                customer: customer,
+                amount: item.amount,
+                description: item.description,
+                quantity: item.quantity,
+                invoice: invoice_id
+            },
+            { stripeAccount: stripe_account }
+        )
+    }
+
+    // Add Application fee to invoice
+    await stripe.invoices.update(
+        invoice_id,
+        {
+            application_fee_amount: CalculateApplicationFee(total_price),
+            days_until_due: days_until_due
+        },
+        { stripeAccount: stripe_account }
+    )
+}
+
+/**
+ * 
+ * @param stripe_account 
+ * @param invoice_id 
+ * @returns 
+ */
+export async function StripeFinalizeCommissionInvoice(
+    stripe_account: string,
+    invoice_id: string
+) {
+    return await stripe.invoices.finalizeInvoice(invoice_id, {
+        stripeAccount: stripe_account
+    })
 }

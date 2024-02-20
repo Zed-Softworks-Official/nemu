@@ -112,7 +112,7 @@ builder.queryField('commission', (t) =>
                 ...query,
                 where: {
                     id: args.id || undefined,
-                    artistId: args.artist_id || undefined,
+                    artistId: args.artist_id! || undefined,
                     slug: args.slug || undefined
                 }
             })
