@@ -4,9 +4,11 @@ import TextArea from '@/components/form/text-area'
 import TextInput from '@/components/form/text-input'
 import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
 import { GraphQLFetcher } from '@/core/helpers'
+import { CommissionFormCreateResponse } from '@/core/responses'
 
 import { CheckCircleIcon } from '@heroicons/react/20/solid'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { toast } from 'react-toastify'
 
@@ -26,8 +28,10 @@ export default function CommissionCreateForm() {
         mode: 'onSubmit'
     })
 
+    // const { refresh } = useRouter()
+
     async function CreateCommissionForm(values: CommissionCreateFormSchemaType) {
-        await GraphQLFetcher(`mutation {
+        const response = await GraphQLFetcher<CommissionFormCreateResponse>(`mutation {
             create_new_form(artist_id: "${artistId}", form_name: "${values.form_name}", form_desc: "${values.form_desc}") {
                 status
             }
@@ -35,7 +39,7 @@ export default function CommissionCreateForm() {
 
         toast('Form Created Successfully', { type: 'success', theme: 'dark' })
 
-        // TODO: Move to new form
+        // TODO: Navigate to new form
     }
 
     return (

@@ -11,6 +11,7 @@ import CommissionFormSubmitView from '../form-builder/submissions/commission-for
 import { ConvertAvailabilityToBadge } from '@/core/react-helpers'
 import Markdown from 'react-markdown'
 import { ArrowLeftCircleIcon } from '@heroicons/react/20/solid'
+import CommissionPaymentInfo from '../payments/commission-payment-info'
 
 export default function CommissionCard({
     commission,
@@ -45,7 +46,10 @@ export default function CommissionCard({
                     <Markdown>{commission.description}</Markdown>
                 </p>
                 <div className="card-actions justify-end">
-                    <p className="font-bold text-2xl">${commission.price}</p>
+                    <CommissionPaymentInfo
+                        price={commission.price}
+                        use_invoicing={commission.use_invoicing!}
+                    />
                     <button
                         type="button"
                         className="btn btn-primary"
@@ -62,10 +66,10 @@ export default function CommissionCard({
                                 <div className="absolute left-5">
                                     <button
                                         type="button"
-                                        className='btn btn-ghost'
+                                        className="btn btn-ghost"
                                         onClick={() => setShowForm(false)}
                                     >
-                                        <ArrowLeftCircleIcon className='w-6 h-6' />
+                                        <ArrowLeftCircleIcon className="w-6 h-6" />
                                         Back
                                     </button>
                                 </div>

@@ -74,7 +74,7 @@ builder.queryField('form', (t) =>
  */
 builder.mutationField('create_new_form', (t) =>
     t.field({
-        type: 'NemuResponse',
+        type: 'CommissionFormCreateResponse',
         args: {
             artist_id: t.arg({
                 type: 'String',
@@ -106,11 +106,12 @@ builder.mutationField('create_new_form', (t) =>
             if (!form) {
                 return {
                     status: StatusCode.InternalError,
-                    message: 'Form could not be created!'
+                    message: 'Form could not be created!',
+                    form_id: ''
                 }
             }
 
-            return { status: StatusCode.Success }
+            return { status: StatusCode.Success, form_id: form.id }
         }
     })
 )

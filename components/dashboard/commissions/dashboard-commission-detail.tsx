@@ -22,6 +22,7 @@ export default function DashboardCommissionDetail({ slug }: { slug: string }) {
                 id
                 formId
                 published
+                useInvoicing
                 get_form_data {
                     id
                     name

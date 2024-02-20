@@ -7,7 +7,10 @@ export enum PurchaseType {
 export enum PaymentStatus {
     RequiresCapture,
     Cancelled,
-    Captured
+    Captured,
+    RequiresInvoice,
+    InvoiceCreated,
+    InvoicePayed
 }
 
 export interface StripePaymentMetadata {

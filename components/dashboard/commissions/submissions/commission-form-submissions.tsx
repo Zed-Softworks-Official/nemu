@@ -74,14 +74,16 @@ export default function CommissionFormSubmissions({
                         {form_data.formSubmissions?.map(
                             (submission) =>
                                 submission.paymentStatus ==
-                                    PaymentStatus.RequiresCapture && (
+                                    PaymentStatus.RequiresCapture ||
+                                (submission.paymentStatus ==
+                                    PaymentStatus.RequiresInvoice && (
                                     <CommissionFormSubmissionDisplay
                                         submission={submission}
                                         form_id={form_data.id}
                                         stripe_account={stripe_account}
                                         use_invoicing={use_invoicing}
                                     />
-                                )
+                                ))
                         )}
                     </tbody>
                 </table>

@@ -21,6 +21,13 @@ builder.prismaObject('Commission', {
         rushOrdersAllowed: t.exposeBoolean('rushOrdersAllowed'),
         useInvoicing: t.exposeBoolean('useInvoicing'),
 
+        maxCommissionsUntilWaitlist: t.exposeInt('maxCommissionsUntilWaitlist', {
+            nullable: true
+        }),
+        maxCommissionsUntilClosed: t.exposeInt('maxCommissionUntilClosed', {
+            nullable: true
+        }),
+
         form: t.relation('Form'),
 
         get_form_data: t.prismaField({
@@ -104,7 +111,9 @@ builder.queryField('commission', (t) =>
             prisma.commission.findFirstOrThrow({
                 ...query,
                 where: {
-                    id: args.id || undefined
+                    id: args.id || undefined,
+                    artistId: args.artist_id || undefined,
+                    slug: args.slug || undefined
                 }
             })
     })
@@ -165,6 +174,14 @@ builder.mutationField('create_commission', (t) =>
                 type: 'Boolean',
                 required: false,
                 description: 'Wether to create invoices or use a fixed price'
+            }),
+            max_commission_until_waitlist: t.arg({
+                type: 'Int',
+                required: true
+            }),
+            max_commission_until_closed: t.arg({
+                type: 'Int',
+                required: true
             })
         },
         resolve: async (_parent, args, _ctx, _info) => {
@@ -201,7 +218,15 @@ builder.mutationField('create_commission', (t) =>
                     rushOrdersAllowed: args.rush_orders_allowed,
                     availability: args.availability,
                     useInvoicing: args.use_invoicing || undefined,
-                    slug: slug
+                    slug: slug,
+                    maxCommissionsUntilWaitlist:
+                        args.max_commission_until_waitlist <= 0
+                            ? undefined
+                            : args.max_commission_until_waitlist,
+                    maxCommissionUntilClosed:
+                        args.max_commission_until_closed <= 0
+                            ? undefined
+                            : args.max_commission_until_closed
                 }
             })
 
@@ -251,7 +276,8 @@ builder.mutationField('update_commission', (t) =>
                         id: args.commission_id
                     },
                     data: {
-                        published: args.published == undefined ? undefined : args.published
+                        published:
+                            args.published == undefined ? undefined : args.published
                     }
                 })
             } catch (e) {

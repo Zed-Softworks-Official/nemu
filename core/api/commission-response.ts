@@ -70,3 +70,7 @@ export interface CommissionFormsSubmissionViewResponse extends NemuResponse {
     responses?: FormResponses[]
     form_labels?: FormElementInstance[]
 }
+
+export interface CommissionFormCreateResponse extends NemuResponse {
+    form_id: string
+}

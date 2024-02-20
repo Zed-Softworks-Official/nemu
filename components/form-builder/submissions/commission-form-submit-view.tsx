@@ -13,6 +13,7 @@ import { toast } from 'react-toastify'
 import { CommissionForm } from '@/core/structures'
 import { Transition } from '@headlessui/react'
 import CommissionFormPayment from '../../payments/commission-form-payment'
+import { CreateFormSubmissionStructure } from '@/core/data-structures/form-structures'
 
 export default function CommissionFormSubmitView({
     commission_id,
@@ -82,6 +83,24 @@ export default function CommissionFormSubmitView({
                 value: formValues.current[key],
                 label: formElements.find((element) => element.id == key)?.extra_attributes
                     ?.label
+            }
+        }
+
+        if (data?.commission.useInvoicing) {
+            const JsonData: CreateFormSubmissionStructure = {
+                user_id: session?.user.user_id!,
+                form_id: form_id,
+                content: JSON.stringify(newFormData)
+            }
+
+            const response = await fetch(`/api/forms/submission`, {
+                method: 'post',
+                body: JSON.stringify(JsonData)
+            })
+
+            const json = (await response.json()) as NemuResponse
+            if (json.status != StatusCode.Success) {
+                toast(json.message, { theme: 'dark', type: 'error' })
             }
         }
 
@@ -172,7 +191,7 @@ export default function CommissionFormSubmitView({
                         )}
                     </button>
                 </div>
-            ) : (
+            ) : data?.commission.useInvoicing == false ? (
                 <CommissionFormPayment
                     submitted={submitted}
                     checkout_data={{
@@ -185,6 +204,23 @@ export default function CommissionFormSubmitView({
                         stripe_account: data?.commission.artist.stripeAccount!
                     }}
                 />
+            ) : (
+                <div>
+                    <div className="flex flex-col justify-center items-center gap-3">
+                        <NemuImage
+                            src={'/nemu/sparkles.png'}
+                            alt="Nemu Excited"
+                            width={200}
+                            height={200}
+                        />
+                        <h2 className="card-title">Things are happening!</h2>
+                        <p className="text-base-content/80">
+                            You'll recieve an email from the artist about wether your
+                            commission has been accepted or rejected. Until then hold on
+                            tight!
+                        </p>
+                    </div>
+                </div>
             )}
         </>
     )

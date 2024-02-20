@@ -38,8 +38,8 @@ const commissionSchema = z.object({
     rush: z.boolean().default(false),
     rush_charge: z.number().default(0).optional(),
 
-    max_commissions_on_waitlist: z.number().optional(),
-    max_commissions_on_open: z.number().optional(),
+    max_commissions_until_waitlist: z.number().default(0).optional(),
+    max_commissions_until_closed: z.number().default(0).optional(),
 
     commission_availability: z.number()
 })
@@ -55,7 +55,9 @@ export default function CommissionAddForm() {
         defaultValues: {
             use_invoicing: true,
             price: 0,
-            rush_charge: 0
+            rush_charge: 0,
+            max_commissions_until_waitlist: 0,
+            max_commissions_until_closed: 0
         }
     })
 
@@ -132,6 +134,8 @@ export default function CommissionAddForm() {
                 form_id: "${values.form}"
                 use_invoicing: ${values.use_invoicing}
                 rush_orders_allowed: ${values.rush}
+                max_commission_until_waitlist: ${values.max_commissions_until_waitlist}
+                max_commission_until_closed: ${values.max_commissions_until_closed}
             ) {
                 status
                 message
@@ -247,18 +251,18 @@ export default function CommissionAddForm() {
                     {...form.register('commission_availability', { valueAsNumber: true })}
                 />
                 <TextField
-                    label="Max commission on waitlist"
+                    label="Commission Until Waitlist"
                     placeholder="0"
                     inputMode="numeric"
-                    {...form.register('max_commissions_on_waitlist', {
+                    {...form.register('max_commissions_until_waitlist', {
                         valueAsNumber: true
                     })}
                 />
                 <TextField
-                    label="Max commission while commissions are open"
+                    label="Commission Until Closed"
                     placeholder="0"
                     inputMode="numeric"
-                    {...form.register('max_commissions_on_open', {
+                    {...form.register('max_commissions_until_closed', {
                         valueAsNumber: true
                     })}
                 />

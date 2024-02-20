@@ -5,6 +5,7 @@ import NemuImage from '../nemu-image'
 import Markdown from 'react-markdown'
 
 import { CommissionAvailability, CommissionItem } from '@/core/structures'
+import CommissionPaymentInfo from '../payments/commission-payment-info'
 
 export default function CommissionsDisplay({
     commission,
@@ -65,7 +66,10 @@ export default function CommissionsDisplay({
                             <Markdown>{commission.description}</Markdown>
                         </p>
                         <div className="card-actions justify-between">
-                            <p className="font-bold text-2xl">${commission.price}</p>
+                            <CommissionPaymentInfo
+                                price={commission.price}
+                                use_invoicing={commission.use_invoicing!}
+                            />
                             <button
                                 type="button"
                                 className="btn btn-primary"

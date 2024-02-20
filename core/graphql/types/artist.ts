@@ -65,7 +65,8 @@ builder.prismaObject('Artist', {
                         form_id: commissions[i].formId || undefined,
                         handle: artist.handle,
                         commission_id: commissions[i].id,
-                        published: commissions[i].published
+                        published: commissions[i].published,
+                        use_invoicing: commissions[i].useInvoicing
                     })
                 }
 
@@ -73,6 +74,7 @@ builder.prismaObject('Artist', {
             }
         }),
         store_items: t.relation('storeItems'),
+        
         portfolio_items: t.field({
             type: ['PortfolioData'],
             resolve: async (artist) => {

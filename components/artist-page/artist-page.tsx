@@ -29,6 +29,7 @@ export default function ArtistPageClient({ handle }: { handle: string }) {
                     availability
                     commission_id
                     published
+                    use_invoicing
                 }
                 portfolio_items {
                     signed_url

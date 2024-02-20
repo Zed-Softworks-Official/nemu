@@ -4,7 +4,11 @@ import PrismaPlugin from '@pothos/plugin-prisma'
 import type PrismaTypes from '@pothos/plugin-prisma/generated'
 
 import { DateTimeResolver } from 'graphql-scalars'
-import { ArtistCodeResponse, NemuResponse } from '../responses'
+import {
+    ArtistCodeResponse,
+    CommissionFormCreateResponse,
+    NemuResponse
+} from '../responses'
 import {
     CommissionForm,
     CommissionItem,
@@ -23,6 +27,7 @@ export const builder = new SchemaBuilder<{
 
         // Response Objects
         NemuResponse: NemuResponse
+        CommissionFormCreateResponse: CommissionFormCreateResponse
         ArtistCodeResponse: ArtistCodeResponse
     }
     Scalars: { Date: { Input: Date; Output: Date } }
@@ -41,7 +46,9 @@ builder.mutationType({
     description: 'The Mutation Root Type'
 })
 
+//////////////////////////////////////
 // Data Objects
+//////////////////////////////////////
 builder.objectRef<PortfolioItem>('PortfolioData').implement({
     fields: (t) => ({
         signed_url: t.exposeString('signed_url'),
@@ -72,7 +79,8 @@ builder.objectRef<CommissionItem>('CommissionData').implement({
         slug: t.exposeString('slug', { nullable: true }),
         images: t.exposeStringList('images', { nullable: true }),
         commission_id: t.exposeString('commission_id', { nullable: true }),
-        published: t.exposeBoolean('published', { nullable: true })
+        published: t.exposeBoolean('published', { nullable: true }),
+        use_invoicing: t.exposeBoolean('use_invoicing', { nullable: true })
     })
 })
 
@@ -83,7 +91,9 @@ builder.objectRef<CommissionForm>('CommissionFormData').implement({
     })
 })
 
+//////////////////////////////////////
 // Response Objects
+//////////////////////////////////////
 builder.objectRef<NemuResponse>('NemuResponse').implement({
     fields: (t) => ({
         status: t.exposeInt('status'),
@@ -98,6 +108,16 @@ builder.objectRef<ArtistCodeResponse>('ArtistCodeResponse').implement({
         generated_code: t.exposeString('generated_code', { nullable: true })
     })
 })
+
+builder
+    .objectRef<CommissionFormCreateResponse>('CommissionFormCreateResponse')
+    .implement({
+        fields: (t) => ({
+            status: t.exposeInt('status'),
+            message: t.exposeString('message', { nullable: true }),
+            form_id: t.exposeString('form_id')
+        })
+    })
 
 // Scalars
 builder.addScalarType('Date', DateTimeResolver, {})

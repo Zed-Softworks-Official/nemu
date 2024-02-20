@@ -31,52 +31,33 @@ export default function CommissionFormSubmissionDisplay({
     const [accepted, setAccepted] = useState(false)
     const [rejected, setRejected] = useState(false)
 
-    async function AcceptRequest() {
+    async function UpdateRequest(value: boolean) {
         // TODO: Check if we're using invoincing
+        if (use_invoicing) {
+            toast('Uses Invoicing', { theme: 'dark', type: 'info' })
+
+            return
+        }
 
         // Accept Payment intent
         const response = await GraphQLFetcher<{
-            accept_payment_intent: NemuResponse
+            update_payment_intent: NemuResponse
         }>(
-            `{
-                accept_payment_intent(payment_intent:"${submission.paymentIntent}", stripe_account: "${stripe_account}", submission_id: "${submission.id}", form_id: "${form_id}") {
+            `mutation {
+                update_payment_intent(payment_intent:"${submission.paymentIntent}", stripe_account: "${stripe_account}", submission_id: "${submission.id}", form_id: "${form_id}", value: ${value}) {
                     status
                     message
                 }
             }`
         )
 
-        if (response.accept_payment_intent.status == StatusCode.Success) {
-            toast('Commission Request Accepted', {
+        if (response.update_payment_intent.status == StatusCode.Success) {
+            toast('Commission Request Updated', {
                 theme: 'dark',
                 type: 'success'
             })
         } else {
-            toast(response.accept_payment_intent.message, {
-                theme: 'dark',
-                type: 'error'
-            })
-        }
-    }
-
-    async function RejectRequest() {
-        // Reject payment intent
-        const response = await GraphQLFetcher<{ reject_payment_intent: NemuResponse }>(
-            `{
-                reject_payment_intent(payment_intent:"${submission.paymentIntent}", stripe_account: "${stripe_account}", submission_id:"${submission.id}", form_id:"${form_id}") {
-                    status
-                    message
-                }
-            }`
-        )
-
-        if (response.reject_payment_intent.status == StatusCode.Success) {
-            toast('Commission Request Rejected', {
-                theme: 'dark',
-                type: 'info'
-            })
-        } else {
-            toast(response.reject_payment_intent.message, {
+            toast(response.update_payment_intent.message, {
                 theme: 'dark',
                 type: 'error'
             })
@@ -113,7 +94,7 @@ export default function CommissionFormSubmissionDisplay({
                                     disabled={accepted || rejected}
                                     onClick={() => {
                                         setAccepted(true)
-                                        AcceptRequest()
+                                        UpdateRequest(true)
                                     }}
                                 >
                                     Accept
@@ -125,7 +106,7 @@ export default function CommissionFormSubmissionDisplay({
                                     disabled={accepted || rejected}
                                     onClick={() => {
                                         setRejected(true)
-                                        RejectRequest()
+                                        UpdateRequest(false)
                                     }}
                                 >
                                     Reject
@@ -153,7 +134,7 @@ export default function CommissionFormSubmissionDisplay({
                                 className="btn btn-primary"
                                 onClick={() => {
                                     setAccepted(true)
-                                    AcceptRequest()
+                                    UpdateRequest(true)
                                 }}
                             >
                                 <CheckCircleIcon className="w-6 h-6" />
@@ -164,7 +145,7 @@ export default function CommissionFormSubmissionDisplay({
                                 className="btn btn-error"
                                 onClick={() => {
                                     setRejected(true)
-                                    RejectRequest()
+                                    UpdateRequest(false)
                                 }}
                             >
                                 <XCircleIcon className="w-6 h-6" />
@@ -173,7 +154,7 @@ export default function CommissionFormSubmissionDisplay({
                         </div>
                     </div>
                     <div className="divider"></div>
-                    <div className="flex flex-col gap-5 prose w-full mx-auto">
+                    <div className="flex flex-col gap-5 w-full rp">
                         <CommissionFormSubmissionContent content={submission.content} />
                     </div>
                 </div>
