@@ -110,12 +110,29 @@ export interface CommissionItem {
     slug?: string
 }
 
+/**
+ * 
+ */
 export interface InvoiceCommissionItem {
     description: string
     quantity: number
-    amount: number
+    price: number
 }
 
+/**
+ * 
+ */
+export interface UpdateInvoiceData {
+    items: InvoiceCommissionItem[]
+    submission_id: string,
+
+    customer_id: string,
+    stripe_account: string
+}
+
+/**
+ * 
+ */
 export interface CommissionForm {
     user_submitted: boolean
     content: string

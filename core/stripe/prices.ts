@@ -2,8 +2,8 @@ import { stripe } from '@/lib/stripe'
 
 export async function StripeCreatePrice(
     amount: number,
-    product_id: string,
-    stripe_account: string
+    stripe_account: string,
+    product_id?: string
 ) {
     return await stripe.prices.create(
         {

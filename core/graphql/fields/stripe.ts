@@ -2,6 +2,7 @@ import { builder } from '../builder'
 import {
     StripeAcceptCommissionPaymentIntent,
     StripeCreateCommissionInvoice,
+    StripeFinalizeCommissionInvoice,
     StripeRejectCommissionPaymentIntent
 } from '@/core/stripe/commissions'
 
@@ -70,11 +71,7 @@ builder.mutationField('check_create_customer', (t) =>
             }
 
             // Otherwise we need to create a customer id for the user
-            const stripe_customer = await StripeCreateCustomer(
-                artist.stripeAccId!,
-                user.name!,
-                user.email!
-            )
+            const stripe_customer = await StripeCreateCustomer(artist.stripeAccId!, user.name!, user.email!)
 
             // Create a customer id object in the data for this user
             await prisma.stripeCustomerIds.create({
@@ -124,10 +121,7 @@ builder.mutationField('update_payment_intent', (t) =>
         },
         resolve: async (_parent, args, _ctx, _info) => {
             // Capture Charge
-            const payment_intent = await StripeAcceptCommissionPaymentIntent(
-                args.payment_intent,
-                args.stripe_account
-            )
+            const payment_intent = await StripeAcceptCommissionPaymentIntent(args.payment_intent, args.stripe_account)
 
             if (payment_intent.status != 'succeeded') {
                 return {
@@ -198,10 +192,7 @@ builder.mutationField('create_invoice', (t) =>
             })
         },
         resolve: async (_parent, args, _ctx, _info) => {
-            const invoice_draft = await StripeCreateCommissionInvoice(
-                args.customer_id,
-                args.stripe_account
-            )
+            const invoice_draft = await StripeCreateCommissionInvoice(args.customer_id, args.stripe_account)
 
             await prisma.formSubmission.update({
                 where: {
@@ -226,6 +217,44 @@ builder.mutationField('create_invoice', (t) =>
                     }
                 }
             })
+
+            return { status: StatusCode.Success }
+        }
+    })
+)
+
+builder.mutationField('finalize_invoice', (t) =>
+    t.field({
+        type: 'NemuResponse',
+        args: {
+            submission_id: t.arg({
+                type: 'String',
+                required: true,
+                description: ''
+            }),
+            stripe_acccount: t.arg({
+                type: 'String',
+                required: true,
+                description: ''
+            })
+        },
+        resolve: async (_parent, args, _ctx, _info) => {
+            const submission = await prisma.formSubmission.findFirst({
+                where: {
+                    id: args.submission_id
+                }
+            })
+
+            if (!submission) {
+                return {
+                    status: StatusCode.InternalError,
+                    message: 'Failed to find submission'
+                }
+            }
+
+            const invoice = await StripeFinalizeCommissionInvoice(submission.invoiceId!, args.stripe_acccount)
+
+            console.log(invoice.hosted_invoice_url)
 
             return { status: StatusCode.Success }
         }

@@ -333,8 +333,8 @@ export default function Kanban({ title, client }: { title: string; client: strin
     return (
         <>
             <div className="flex items-center justify-between gap-y-2">
-                <h1>
-                    {title}: {client}
+                <h1 className='card-title'>
+                    Kanban for {client}
                 </h1>
                 <button
                     type="button"
@@ -344,6 +344,7 @@ export default function Kanban({ title, client }: { title: string; client: strin
                     Add Container
                 </button>
             </div>
+            <div className='divider'></div>
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
                 <DndContext
                     sensors={sensors}

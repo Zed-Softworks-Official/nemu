@@ -242,10 +242,11 @@ model FormSubmission {
   userId    String   @db.ObjectId
   createdAt DateTime @default(now())
 
-  pyamentStatus Int
-  paymentIntent String?
-  orderId       String  @unique
-  invoiceId     String?
+  pyamentStatus  Int
+  paymentIntent  String?
+  orderId        String  @unique
+  invoiceId      String?
+  invoiceContent String?
 
   form Form @relation(fields: [formId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

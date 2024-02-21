@@ -17,8 +17,7 @@ export function ClassNames(...classes: any) {
  * @param args - Takes in a variable amount of parameters from the fetch function
  * @returns JSON data for the requested data
  */
-export const Fetcher = (...args: Parameters<typeof fetch>) =>
-    fetch(...args).then((res) => res.json())
+export const Fetcher = (...args: Parameters<typeof fetch>) => fetch(...args).then((res) => res.json())
 
 /**
  *
@@ -43,9 +42,9 @@ export const GetItemId = (pathname: string) => {
 }
 
 /**
- * 
- * @param {string} availability 
- * @returns 
+ *
+ * @param {string} availability
+ * @returns
  */
 export function StringToCommissionAvailability(availability: string) {
     switch (availability) {
@@ -58,4 +57,18 @@ export function StringToCommissionAvailability(availability: string) {
     }
 
     return CommissionAvailability.Closed
+}
+
+/**
+ *
+ * @param number
+ * @returns
+ */
+export function FormatNumberToCurrency(number: number) {
+    const formatter = new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD'
+    })
+
+    return formatter.format(number)
 }

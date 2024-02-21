@@ -258,7 +258,8 @@ function PropertiesComponent({
                                                 placeholder="Add an option"
                                                 value={option}
                                                 onChange={(e) => {
-                                                    field.value[index] = e.currentTarget.value
+                                                    field.value[index] =
+                                                        e.currentTarget.value
                                                     field.onChange(field.value)
                                                 }}
                                             />
@@ -268,9 +269,7 @@ function PropertiesComponent({
                                                 onClick={(e) => {
                                                     e.preventDefault()
 
-                                                    const newOptions = [
-                                                        ...field.value
-                                                    ]
+                                                    const newOptions = [...field.value]
                                                     newOptions.splice(index, 1)
                                                     field.onChange(newOptions)
                                                 }}
