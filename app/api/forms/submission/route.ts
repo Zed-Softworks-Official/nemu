@@ -1,18 +1,19 @@
 import { CreateFormSubmissionStructure } from '@/core/data-structures/form-structures'
+import { UpdateCommissionAvailability } from '@/core/helpers'
 import { NemuResponse, StatusCode } from '@/core/responses'
 import { PaymentStatus } from '@/core/structures'
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 
 export async function POST(req: Request) {
-    const data = await req.json() as CreateFormSubmissionStructure
+    const data = (await req.json()) as CreateFormSubmissionStructure
 
     const form_submission = await prisma.formSubmission.create({
         data: {
             userId: data.user_id,
             formId: data.form_id,
             content: data.content,
-            pyamentStatus: PaymentStatus.RequiresInvoice,
+            paymentStatus: PaymentStatus.RequiresInvoice,
             orderId: crypto.randomUUID()
         }
     })
@@ -20,9 +21,12 @@ export async function POST(req: Request) {
     if (!form_submission) {
         return NextResponse.json<NemuResponse>({
             status: StatusCode.InternalError,
-            message: 'Failed to createe form submission'
+            message: 'Failed to create form submission'
         })
     }
+
+    // Update Commission Availability
+    await UpdateCommissionAvailability(data.form_id)
 
     // Update form values
     await prisma.form.update({

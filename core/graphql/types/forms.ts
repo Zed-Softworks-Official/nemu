@@ -14,6 +14,7 @@ builder.prismaObject('Form', {
         content: t.exposeString('content'),
 
         submissions: t.exposeInt('submissions'),
+        newSubmissions: t.exposeInt('newSubmissions'),
         acceptedSubmissions: t.exposeInt('acceptedSubmissions'),
         rejectedSubmissions: t.exposeInt('rejectedSubmissions'),
 

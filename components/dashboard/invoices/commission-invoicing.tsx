@@ -10,11 +10,15 @@ import { toast } from 'react-toastify'
 export default function CommissionInvoicing({
     submission_id,
     customer_id,
-    stripe_account
+    stripe_account,
+    invoice_sent,
+    invoice_content
 }: {
     submission_id: string
     customer_id: string
     stripe_account: string
+    invoice_sent: boolean
+    invoice_content?: string
 }) {
     const [showModal, setShowModal] = useState(false)
 
@@ -41,6 +45,7 @@ export default function CommissionInvoicing({
                             toast(response.finalize_invoice.message, { theme: 'dark', type: 'error' })
                         }
                     }}
+                    disabled={invoice_sent}
                 >
                     Send Invoice
                 </button>
@@ -49,7 +54,7 @@ export default function CommissionInvoicing({
                 </button>
             </div>
             <Modal showModal={showModal} setShowModal={setShowModal}>
-                <CreateInvoiceForm submission_id={submission_id} customer_id={customer_id} stripe_account={stripe_account} />
+                <CreateInvoiceForm submission_id={submission_id} customer_id={customer_id} stripe_account={stripe_account} invoice_content={invoice_content} />
             </Modal>
         </>
     )

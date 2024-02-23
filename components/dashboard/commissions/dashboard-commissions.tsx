@@ -36,16 +36,14 @@ export default function DashboardCommissions() {
     return (
         <main className="flex justify-evenly gap-5 flex-wrap">
             {data?.artist.commissions?.map((commission) => (
-                <div
-                    key={commission.title}
-                    className="card lg:card-side bg-base-100 shadow-xl animate-pop-in transition-all duration-200"
-                >
+                <div key={commission.title} className="card bg-base-100 shadow-xl animate-pop-in transition-all duration-200">
                     <figure>
                         <NemuImage
                             src={commission.featured_image!}
                             alt={`${commission.title} Featured Image`}
-                            width={200}
-                            height={200}
+                            width={250}
+                            height={250}
+                            className="w-full"
                         />
                     </figure>
                     <div className="card-body max-h-full">
@@ -56,17 +54,11 @@ export default function DashboardCommissions() {
                         </div>
                         <div className="flex justify-end items-end h-full">
                             <div className="card-actions justify-end">
-                                <Link
-                                    href={`/dashboard/commissions/${commission.slug}`}
-                                    className="btn btn-outline btn-accent"
-                                >
+                                <Link href={`/dashboard/commissions/${commission.slug}`} className="btn btn-outline btn-accent">
                                     <EyeIcon className="w-6 h-6" />
                                     View
                                 </Link>
-                                <Link
-                                    href={`/dashboard/commissions/${commission.slug}/edit`}
-                                    className="btn btn-primary"
-                                >
+                                <Link href={`/dashboard/commissions/${commission.slug}/edit`} className="btn btn-primary">
                                     <PencilIcon className="w-6 h-6" />
                                     Edit
                                 </Link>

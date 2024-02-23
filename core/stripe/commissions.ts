@@ -21,7 +21,8 @@ export async function StripeCreateCommissionPaymentIntent(checkout_data: StripeC
         user_id: checkout_data.user_id,
         purchase_type: PurchaseType.CommissionSetupPayment,
         form_id: checkout_data.form_id,
-        form_content: checkout_data.form_content
+        form_content: checkout_data.form_content,
+        commission_id: checkout_data.commission_id
     }
 
     // TODO: Add Title of commission to payment intent
@@ -118,16 +119,24 @@ export async function StripeGetCommissionProduct(product_id: string, stripe_acco
 // Custom (Invoiced) Commissions
 ////////////////////////////////////////
 
-/**
- *
- * @param {string} customer
- * @param {string} stripe_account
- * @returns
- */
-export async function StripeCreateCommissionInvoice(customer: string, stripe_account: string) {
+export async function StripeCreateCommissionInvoice(
+    customer: string,
+    stripe_account: string,
+    user_id: string,
+    order_id: string,
+    commission_id: string
+) {
+    const metadata: StripePaymentMetadata = {
+        purchase_type: PurchaseType.CommissionInvoice,
+        user_id: user_id,
+        order_id: order_id,
+        commission_id: commission_id
+    }
+
     return await stripe.invoices.create(
         {
-            customer: customer
+            customer: customer,
+            metadata: metadata as unknown as Stripe.MetadataParam
         },
         {
             stripeAccount: stripe_account
@@ -161,7 +170,7 @@ export async function StripeUpdateCommissionInvoice(
     // Add invoice items
     let total_price = 0
     for (const item of items) {
-        total_price += item.price
+        total_price += item.price * item.quantity
         await stripe.invoiceItems.create(
             {
                 customer: customer,
@@ -191,7 +200,7 @@ export async function StripeUpdateCommissionInvoice(
  * @param invoice_id
  * @returns
  */
-export async function StripeFinalizeCommissionInvoice(invoice_id: string, stripe_account: string,) {
+export async function StripeFinalizeCommissionInvoice(invoice_id: string, stripe_account: string) {
     return await stripe.invoices.finalizeInvoice(invoice_id, {
         stripeAccount: stripe_account
     })

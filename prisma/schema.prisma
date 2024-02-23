@@ -225,6 +225,7 @@ model Form {
   content     String   @default("[]")
 
   submissions         Int @default(0)
+  newSubmissions      Int @default(0)
   acceptedSubmissions Int @default(0)
   rejectedSubmissions Int @default(0)
 
@@ -242,11 +243,15 @@ model FormSubmission {
   userId    String   @db.ObjectId
   createdAt DateTime @default(now())
 
-  pyamentStatus  Int
-  paymentIntent  String?
-  orderId        String  @unique
-  invoiceId      String?
-  invoiceContent String?
+  commissionStatus Int @default(0)
+
+  paymentStatus    Int
+  paymentIntent    String?
+  orderId          String  @unique
+  invoiceId        String?
+  invoiceSent      Boolean @default(false)
+  invoiceContent   String?
+  invoiceHostedUrl String?
 
   form Form @relation(fields: [formId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

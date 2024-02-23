@@ -225,7 +225,8 @@ export default function CommissionFormSubmitView({
                         form_id: form_id,
                         price: data?.commission.price!,
                         return_url: `http://localhost:3000/@${data?.commission.artist.handle}`,
-                        stripe_account: data?.commission.artist.stripeAccount!
+                        stripe_account: data?.commission.artist.stripeAccount!,
+                        commission_id: commission_id
                     }}
                 />
             ) : (

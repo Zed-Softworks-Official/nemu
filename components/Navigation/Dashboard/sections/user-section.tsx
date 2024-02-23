@@ -8,6 +8,7 @@ import { useDashboardContext } from '../dashboard-context'
 
 import {
     ArrowDownTrayIcon,
+    BanknotesIcon,
     EnvelopeIcon, StarIcon
 } from '@heroicons/react/20/solid'
 import DashboardArtistManagmentSection from './artist-managment-section'
@@ -31,6 +32,20 @@ export default function DashboardUserSection() {
                 >
                     <ArrowDownTrayIcon className="sidenav-icon" />
                     <h3 className="inline text-lg font-bold">Downloads</h3>
+                </Link>
+            </li>
+            <li className="my-2">
+                <Link
+                    href={'/dashboard/invoices'}
+                    className={ClassNames(
+                        pathname.includes('invoices')
+                            ? 'bg-primary text-white'
+                            : 'hover:bg-primary/60',
+                        'p-4 px-10 rounded-xl'
+                    )}
+                >
+                    <BanknotesIcon className="sidenav-icon" />
+                    <h3 className="inline text-lg font-bold">Invoices</h3>
                 </Link>
             </li>
             <li className="my-2">

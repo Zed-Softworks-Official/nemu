@@ -10,6 +10,8 @@ import { prisma } from '@/lib/prisma'
 import { StatusCode } from '@/core/responses'
 import { PaymentStatus } from '@/core/structures'
 import { StripeCreateCustomer } from '@/core/payments'
+import Stripe from 'stripe'
+import { CommissionStatus } from '@/core/data-structures/form-structures'
 
 builder.mutationField('check_create_customer', (t) =>
     t.field({
@@ -113,21 +115,18 @@ builder.mutationField('update_payment_intent', (t) =>
                 description: ''
             }),
 
-            value: t.arg({
+            accepted: t.arg({
                 type: 'Boolean',
                 required: true,
                 description: ''
             })
         },
         resolve: async (_parent, args, _ctx, _info) => {
-            // Capture Charge
-            const payment_intent = await StripeAcceptCommissionPaymentIntent(args.payment_intent, args.stripe_account)
-
-            if (payment_intent.status != 'succeeded') {
-                return {
-                    status: StatusCode.InternalError,
-                    message: 'An error has occurred with capturing the payment'
-                }
+            // Capture or Reject the Charge
+            if (args.accepted) {
+                await StripeAcceptCommissionPaymentIntent(args.payment_intent, args.stripe_account)
+            } else {
+                await StripeRejectCommissionPaymentIntent(args.payment_intent, args.stripe_account)
             }
 
             // Update Form Submission
@@ -136,8 +135,8 @@ builder.mutationField('update_payment_intent', (t) =>
                     id: args.submission_id
                 },
                 data: {
-                    pyamentStatus: PaymentStatus.Captured,
-                    orderId: crypto.randomUUID()
+                    paymentStatus: args.accepted ? PaymentStatus.Captured : PaymentStatus.Cancelled,
+                    commissionStatus: args.accepted ? CommissionStatus.Accepted : CommissionStatus.Rejected
                 }
             })
 
@@ -147,14 +146,14 @@ builder.mutationField('update_payment_intent', (t) =>
                     id: args.form_id
                 },
                 data: {
-                    submissions: {
+                    newSubmissions: {
                         decrement: 1
                     },
                     acceptedSubmissions: {
-                        increment: args.value ? 1 : 0
+                        increment: args.accepted ? 1 : 0
                     },
                     rejectedSubmissions: {
-                        increment: !args.value ? 1 : 0
+                        increment: !args.accepted ? 1 : 0
                     }
                 }
             })
@@ -166,7 +165,7 @@ builder.mutationField('update_payment_intent', (t) =>
     })
 )
 
-builder.mutationField('create_invoice', (t) =>
+builder.mutationField('update_commission_invoice', (t) =>
     t.field({
         type: 'NemuResponse',
         args: {
@@ -189,32 +188,76 @@ builder.mutationField('create_invoice', (t) =>
                 type: 'String',
                 required: true,
                 description: ''
+            }),
+            accepted: t.arg({
+                type: 'Boolean',
+                required: true,
+                description: ''
             })
         },
         resolve: async (_parent, args, _ctx, _info) => {
-            const invoice_draft = await StripeCreateCommissionInvoice(args.customer_id, args.stripe_account)
+            // Get Form Submission for metadata requests on stripe
+            const submission = await prisma.formSubmission.findFirst({
+                where: {
+                    id: args.submission_id
+                },
+                include: {
+                    user: true,
+                    form: true
+                }
+            })
 
+            // Update the form
+            await prisma.form.update({
+                where: {
+                    id: args.form_id
+                },
+                data: {
+                    newSubmissions: {
+                        decrement: 1
+                    },
+                    acceptedSubmissions: {
+                        increment: args.accepted ? 1 : 0
+                    },
+                    rejectedSubmissions: {
+                        increment: !args.accepted ? 1 : 0
+                    }
+                }
+            })
+
+            // Check if we rejected the request
+            if (!args.accepted) {
+                await prisma.formSubmission.update({
+                    where: {
+                        id: args.submission_id
+                    },
+                    data: {
+                        paymentStatus: PaymentStatus.Cancelled,
+                        commissionStatus: CommissionStatus.Rejected
+                    }
+                })
+
+                return { status: StatusCode.Success }
+            }
+
+            // Create The Invoice Draft on Stripe
+            const invoice_draft = await StripeCreateCommissionInvoice(
+                args.customer_id,
+                args.stripe_account,
+                submission?.user.id!,
+                submission?.orderId!,
+                submission?.form.commissionId!
+            )
+
+            // Update the form submission
             await prisma.formSubmission.update({
                 where: {
                     id: args.submission_id
                 },
                 data: {
                     invoiceId: invoice_draft.id,
-                    pyamentStatus: PaymentStatus.InvoiceCreated
-                }
-            })
-
-            await prisma.form.update({
-                where: {
-                    id: args.form_id
-                },
-                data: {
-                    submissions: {
-                        decrement: 1
-                    },
-                    acceptedSubmissions: {
-                        increment: 1
-                    }
+                    paymentStatus: PaymentStatus.InvoiceCreated,
+                    commissionStatus: CommissionStatus.Accepted
                 }
             })
 
@@ -254,7 +297,24 @@ builder.mutationField('finalize_invoice', (t) =>
 
             const invoice = await StripeFinalizeCommissionInvoice(submission.invoiceId!, args.stripe_acccount)
 
-            console.log(invoice.hosted_invoice_url)
+            // Update Submission
+            const updated_submission = await prisma.formSubmission.update({
+                where: {
+                    id: args.submission_id
+                },
+                data: {
+                    paymentStatus: PaymentStatus.InvoiceNeedsPayment,
+                    invoiceHostedUrl: invoice.hosted_invoice_url,
+                    invoiceSent: true
+                }
+            })
+
+            if (!updated_submission) {
+                return {
+                    status: StatusCode.InternalError,
+                    message: 'Failed to update submission'
+                }
+            }
 
             return { status: StatusCode.Success }
         }

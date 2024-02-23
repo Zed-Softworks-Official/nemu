@@ -36,19 +36,19 @@ export default function CommissionFormSubmissionDisplay({
     const [accepted, setAccepted] = useState(false)
     const [rejected, setRejected] = useState(false)
 
-    async function UpdateRequest(value: boolean) {
+    async function UpdateRequest(accepted_commission: boolean) {
         // Check if we're using invoincing
         if (use_invoicing) {
-            const response = await GraphQLFetcher<{ create_invoice: NemuResponse }>(
+            const response = await GraphQLFetcher<{ update_commission_invoice: NemuResponse }>(
                 `mutation {
-                    create_invoice(customer_id: "${submission.user.find_customer_id.customerId}", stripe_account: "${stripe_account}", submission_id: "${submission.id}", form_id: "${form_id}") {
+                    update_commission_invoice(customer_id: "${submission.user.find_customer_id.customerId}", stripe_account: "${stripe_account}", submission_id: "${submission.id}", form_id: "${form_id}", accepted: ${accepted_commission}) {
                         status
                         message
                     }
                 }`
             )
 
-            if (response.create_invoice.status != StatusCode.Success) {
+            if (response.update_commission_invoice.status != StatusCode.Success) {
                 toast('Failed to accept request', { theme: 'dark', type: 'error' })
             }
 
@@ -60,7 +60,7 @@ export default function CommissionFormSubmissionDisplay({
             update_payment_intent: NemuResponse
         }>(
             `mutation {
-                update_payment_intent(payment_intent:"${submission.paymentIntent}", stripe_account: "${stripe_account}", submission_id: "${submission.id}", form_id: "${form_id}", value: ${value}) {
+                update_payment_intent(payment_intent:"${submission.paymentIntent}", stripe_account: "${stripe_account}", submission_id: "${submission.id}", form_id: "${form_id}", accepted: ${accepted_commission}) {
                     status
                     message
                 }
@@ -84,7 +84,6 @@ export default function CommissionFormSubmissionDisplay({
         <>
             <tr>
                 <th>
-                    {/* <div className="badge badge-primary badge-xs mr-2"></div> */}
                     {submission.user.name}
                 </th>
                 <td>
@@ -95,14 +94,9 @@ export default function CommissionFormSubmissionDisplay({
                         <div tabIndex={0} role="button" className="btn btn-primary">
                             View Actions
                         </div>
-                        <ul
-                            tabIndex={0}
-                            className="p-2 shadow menu dropdown-content z-[10] bg-base-100 rounded-xl w-52"
-                        >
+                        <ul tabIndex={0} className="p-2 shadow menu dropdown-content z-[10] bg-base-100 rounded-xl w-52">
                             <li>
-                                <button onClick={() => setShowModal(true)}>
-                                    View Submission
-                                </button>
+                                <button onClick={() => setShowModal(true)}>View Submission</button>
                             </li>
                             <li>
                                 <button
@@ -137,12 +131,8 @@ export default function CommissionFormSubmissionDisplay({
                 <div className="flex flex-col w-full gap-5">
                     <div className="flex justify-between gap-5 w-full">
                         <div>
-                            <h2 className="card-title">
-                                {submission.user.name}'s Request
-                            </h2>
-                            <h2 className="font-bold text-md text-base-content/80">
-                                {new Date(submission.createdAt).toDateString()}
-                            </h2>
+                            <h2 className="card-title">{submission.user.name}'s Request</h2>
+                            <h2 className="font-bold text-md text-base-content/80">{new Date(submission.createdAt).toDateString()}</h2>
                         </div>
                         <div className="flex gap-5 justify-between">
                             <button

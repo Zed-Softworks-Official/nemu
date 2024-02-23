@@ -19,6 +19,8 @@ export default function DashboardCommissionDetailView({ slug, order_id }: { slug
                 content
                 createdAt
                 paymentStatus
+                invoiceContent
+                invoiceSent
                 user {
                     name
                     find_customer_id(artist_id: "${artistId}") {
@@ -40,6 +42,8 @@ export default function DashboardCommissionDetailView({ slug, order_id }: { slug
                 content: string
                 createdAt: Date
                 paymentStatus: PaymentStatus
+                invoiceContent: string
+                invoiceSent: boolean
                 user: {
                     name: string
                     find_customer_id: {
@@ -90,6 +94,8 @@ export default function DashboardCommissionDetailView({ slug, order_id }: { slug
                                     submission_id={data.form_submission.id}
                                     customer_id={data.form_submission.user.find_customer_id.customerId}
                                     stripe_account={data.form_submission.user.find_customer_id.stripeAccount}
+                                    invoice_content={data.form_submission.invoiceContent}
+                                    invoice_sent={data.form_submission.invoiceSent}
                                 />
                             </div>
                         </div>

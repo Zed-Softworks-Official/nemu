@@ -3,3 +3,9 @@ export interface CreateFormSubmissionStructure {
     form_id: string
     content: string
 }
+
+export enum CommissionStatus {
+    WaitingApproval,
+    Accepted,
+    Rejected
+}

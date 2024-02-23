@@ -1,3 +1,4 @@
+import { CommissionStatus } from '@/core/data-structures/form-structures'
 import CommissionFormSubmissionDisplay from './commission-form-submission-display'
 import { PaymentStatus } from '@/core/structures'
 
@@ -10,7 +11,7 @@ export default function CommissionFormSubmissions({
         id: string
         name: string
         description: string
-        submissions: number
+        newSubmissions: number
         acceptedSubmissions: number
         rejectedSubmissions: number
         formSubmissions: {
@@ -20,6 +21,7 @@ export default function CommissionFormSubmissions({
             orderId: string
             paymentIntent: string
             paymentStatus: PaymentStatus
+            commissionStatus: CommissionStatus
             user: { name: string; find_customer_id: { customerId: string } }
         }[]
     }
@@ -31,9 +33,7 @@ export default function CommissionFormSubmissions({
             <div className="flex justify-between card">
                 <div className="card-body">
                     <h1 className="card-title font-bold">Form Used: {form_data.name}</h1>
-                    <h2 className="font-bold text-base-content/80">
-                        Description: {form_data.description}
-                    </h2>
+                    <h2 className="font-bold text-base-content/80">Description: {form_data.description}</h2>
                 </div>
             </div>
             <div className="divider"></div>
@@ -41,23 +41,17 @@ export default function CommissionFormSubmissions({
                 <div className="grid grid-cols-3 gap-5 w-full p-5">
                     <div className="card bg-base-100 max-w-md shadow-xl border-primary border-2 mx-auto w-full">
                         <div className="card-body">
-                            <h2 className="card-title pt-3">
-                                New Requests: {form_data.submissions}
-                            </h2>
+                            <h2 className="card-title pt-3">New Requests: {form_data.newSubmissions}</h2>
                         </div>
                     </div>
                     <div className="card bg-base-100 max-w-md shadow-xl border-success border-2 mx-auto w-full">
                         <div className="card-body">
-                            <h2 className="card-title pt-3">
-                                Accepted: {form_data.acceptedSubmissions}
-                            </h2>
+                            <h2 className="card-title pt-3">Accepted: {form_data.acceptedSubmissions}</h2>
                         </div>
                     </div>
                     <div className="card bg-base-100 max-w-md shadow-xl border-error border-2 mx-auto w-full">
                         <div className="card-body">
-                            <h2 className="card-title pt-3">
-                                Rejected: {form_data.rejectedSubmissions}
-                            </h2>
+                            <h2 className="card-title pt-3">Rejected: {form_data.rejectedSubmissions}</h2>
                         </div>
                     </div>
                 </div>
@@ -73,17 +67,14 @@ export default function CommissionFormSubmissions({
                     <tbody>
                         {form_data.formSubmissions?.map(
                             (submission) =>
-                                submission.paymentStatus ==
-                                    PaymentStatus.RequiresCapture ||
-                                (submission.paymentStatus ==
-                                    PaymentStatus.RequiresInvoice && (
+                                submission.commissionStatus == CommissionStatus.WaitingApproval && (
                                     <CommissionFormSubmissionDisplay
                                         submission={submission}
                                         form_id={form_data.id}
                                         stripe_account={stripe_account}
                                         use_invoicing={use_invoicing}
                                     />
-                                ))
+                                )
                         )}
                     </tbody>
                 </table>

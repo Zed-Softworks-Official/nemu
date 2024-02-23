@@ -5,10 +5,8 @@ import * as z from 'zod'
 import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ArrowDownOnSquareStackIcon, CurrencyDollarIcon, HashtagIcon, PlusCircleIcon, XCircleIcon } from '@heroicons/react/20/solid'
-import { FormatNumberToCurrency } from '@/core/helpers'
+import { FormatNumberToCurrency, GraphQLFetcher } from '@/core/helpers'
 import { UpdateInvoiceData } from '@/core/structures'
-import { NemuResponse, StatusCode } from '@/core/responses'
-import { toast } from 'react-toastify'
 import { CreateToastPromise } from '@/core/promise'
 
 const invoiceSchema = z.object({
@@ -28,15 +26,20 @@ type InvoiceSchemaType = z.infer<typeof invoiceSchema>
 export default function CreateInvoiceForm({
     submission_id,
     customer_id,
-    stripe_account
+    stripe_account,
+    invoice_content
 }: {
     submission_id: string
     customer_id: string
     stripe_account: string
+    invoice_content?: string
 }) {
     const form = useForm<InvoiceSchemaType>({
         resolver: zodResolver(invoiceSchema),
-        mode: 'onSubmit'
+        mode: 'onSubmit',
+        defaultValues: {
+            items: invoice_content ? JSON.parse(invoice_content) : []
+        }
     })
 
     async function ApplyChanges(values: InvoiceSchemaType) {

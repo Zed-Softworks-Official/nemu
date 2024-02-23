@@ -10,15 +10,17 @@ export enum PaymentStatus {
     Captured,
     RequiresInvoice,
     InvoiceCreated,
-    InvoicePayed
+    InvoiceNeedsPayment
 }
 
 export interface StripePaymentMetadata {
     purchase_type: PurchaseType
+    commission_id: string
     user_id: string
+    order_id?: string
     product_id?: string
-    form_content: string
-    form_id: string
+    form_content?: string
+    form_id?: string
 }
 
 export interface StripeCommissionCheckoutData {
@@ -28,5 +30,6 @@ export interface StripeCommissionCheckoutData {
     stripe_account: string
     return_url: string
     form_id: string
-    form_content: string
+    form_content: string,
+    commission_id: string
 }

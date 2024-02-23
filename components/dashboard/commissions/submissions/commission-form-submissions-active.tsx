@@ -1,5 +1,6 @@
 'use client'
 
+import { CommissionStatus } from '@/core/data-structures/form-structures'
 import { PaymentStatus } from '@/core/structures'
 import Link from 'next/link'
 import Masonry, { ResponsiveMasonry } from 'react-responsive-masonry'
@@ -16,6 +17,7 @@ export default function ActiveCommissionFormSubmissions({
         orderId: string
         paymentIntent: string
         paymentStatus: PaymentStatus
+        commissionStatus: CommissionStatus
         user: { name: string }
     }[]
 }) {
@@ -24,23 +26,18 @@ export default function ActiveCommissionFormSubmissions({
             <Masonry gutter="3rem">
                 {form_submissions.map(
                     (submission) =>
-                        submission.paymentStatus == PaymentStatus.Captured ||
-                        (submission.paymentStatus == PaymentStatus.InvoiceCreated && (
-                            <Link
-                                href={`/dashboard/commissions/${commission_slug}/${submission.orderId}`}
-                            >
+                        submission.commissionStatus == CommissionStatus.Accepted && (
+                            <Link href={`/dashboard/commissions/${commission_slug}/${submission.orderId}`}>
                                 <div className="card bg-base-300 shadow-xl animate-pop-in transition-all duration-200">
                                     <div className="card-body">
-                                        <h2 className="card-title">
-                                            {submission.user.name}
-                                        </h2>
+                                        <h2 className="card-title">{submission.user.name}</h2>
                                         <p className="text-base-content/80">
                                             <i>Maybe Artist Note here</i>
                                         </p>
                                     </div>
                                 </div>
                             </Link>
-                        ))
+                        )
                 )}
             </Masonry>
         </ResponsiveMasonry>

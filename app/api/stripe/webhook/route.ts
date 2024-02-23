@@ -3,7 +3,8 @@ import { NextResponse } from 'next/server'
 import { StripeGetWebhookEvent as StripeStripeWebhookEvent } from '@/core/payments'
 import { NemuResponse, StatusCode } from '@/core/responses'
 import { prisma } from '@/lib/prisma'
-import { PaymentStatus, PurchaseType, StripePaymentMetadata } from '@/core/structures'
+import { CommissionAvailability, PaymentStatus, PurchaseType, StripePaymentMetadata } from '@/core/structures'
+import { UpdateCommissionAvailability } from '@/core/helpers'
 
 export async function POST(req: Request) {
     const sig = req.headers.get('stripe-signature')
@@ -77,14 +78,17 @@ export async function POST(req: Request) {
                             // Create Form Submission
                             await prisma.formSubmission.create({
                                 data: {
-                                    formId: metadata.form_id,
-                                    content: metadata.form_content,
+                                    formId: metadata.form_id!,
+                                    content: metadata.form_content!,
                                     userId: metadata.user_id,
                                     paymentIntent: charge.payment_intent?.toString(),
-                                    pyamentStatus: PaymentStatus.RequiresCapture,
+                                    paymentStatus: PaymentStatus.RequiresCapture,
                                     orderId: crypto.randomUUID()
                                 }
                             })
+
+                            // Update Form Availability if necesary
+                            await UpdateCommissionAvailability(metadata.form_id!)
 
                             // Update new submissions count field
                             await prisma.form.update({
@@ -92,7 +96,7 @@ export async function POST(req: Request) {
                                     id: metadata.form_id
                                 },
                                 data: {
-                                    submissions: {
+                                    newSubmissions: {
                                         increment: 1
                                     }
                                 }
@@ -100,11 +104,27 @@ export async function POST(req: Request) {
                         }
                         break
                     case PurchaseType.CommissionInvoice:
-                        {
-                        }
                         break
                     case PurchaseType.ArtistCorner:
                         break
+                }
+            }
+            break
+        case 'invoice.paid':
+            {
+                // Get metadata
+                const invoice = event.data.object
+                const metadata = invoice.metadata as unknown as StripePaymentMetadata
+
+                if (metadata.purchase_type == PurchaseType.CommissionInvoice) {
+                    await prisma.formSubmission.update({
+                        where: {
+                            orderId: metadata.order_id
+                        },
+                        data: {
+                            paymentStatus: PaymentStatus.Captured
+                        }
+                    })
                 }
             }
             break
