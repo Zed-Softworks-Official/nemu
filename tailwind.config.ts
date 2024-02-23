@@ -1,19 +1,13 @@
 import type { Config } from 'tailwindcss'
 
 const config: Config = {
-    content: [
-        './pages/**/*.{js,ts,jsx,tsx,mdx}',
-        './components/**/*.{js,ts,jsx,tsx,mdx}',
-        './app/**/*.{js,ts,jsx,tsx,mdx}'
-    ],
+    content: ['./pages/**/*.{js,ts,jsx,tsx,mdx}', './components/**/*.{js,ts,jsx,tsx,mdx}', './app/**/*.{js,ts,jsx,tsx,mdx}'],
     theme: {
         colors: {
             white: '#f3f3f3',
             charcoal: '#333333',
             primarylight: '#0e90f9',
-            azure: '#1B72BA',
-            fullwhite: '#fff',
-            fullblack: '#262626'
+            azure: '#1B72BA'
         },
         extend: {
             fontFamily: {
@@ -31,9 +25,9 @@ const config: Config = {
                     primary: '#2185d5',
                     secondary: '#0e90f9',
                     accent: '#ffffff',
-                    neutral: '#ffffff',
+                    neutral: '#0e90f9',
                     'base-100': '#333333',
-                    info: '#ffffff',
+                    info: '#1B72BA',
                     success: '#1ece53',
                     warning: '#e2ef2b',
                     error: '#d82750'
@@ -50,10 +44,6 @@ const config: Config = {
         themeRoot: ':root' // The element that receives theme color CSS variables
     },
     darkMode: 'class',
-    plugins: [
-        require('@tailwindcss/typography'),
-        require('daisyui'),
-        require('tailwind-scrollbar')
-    ]
+    plugins: [require('@tailwindcss/typography'), require('daisyui'), require('tailwind-scrollbar')]
 }
 export default config

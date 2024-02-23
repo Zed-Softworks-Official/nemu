@@ -23,6 +23,7 @@ import CurrencyField from '@/components/form/currency-field'
 import { CommissionAvailability } from '@/core/structures'
 import { toast } from 'react-toastify'
 import { NemuResponse, StatusCode } from '@/core/responses'
+import { Commission } from '@prisma/client'
 
 const commissionSchema = z.object({
     title: z.string().min(2).max(50),
@@ -46,22 +47,32 @@ const commissionSchema = z.object({
 
 type CommissionSchemaType = z.infer<typeof commissionSchema>
 
-export default function CommissionAddForm() {
+export default function CommissionCreateEditForm({ data }: { data?: { commission: Commission } }) {
     const { artistId } = useDashboardContext()
     const { image } = useFormContext()
+
     const form = useForm<CommissionSchemaType>({
         resolver: zodResolver(commissionSchema),
         mode: 'onSubmit',
         defaultValues: {
-            use_invoicing: true,
-            price: 0,
-            rush_charge: 0,
-            max_commissions_until_waitlist: 0,
-            max_commissions_until_closed: 0
+            title: data ? data.commission.title : '',
+            description: data ? data.commission.description : '',
+
+            price: data ? data.commission.price! : 0,
+            rush: data ? data.commission.rushOrdersAllowed : false,
+            rush_charge: data ? data.commission.price! : 0,
+
+            use_invoicing: data ? data.commission.useInvoicing : true,
+
+            max_commissions_until_waitlist: data ? data.commission.maxCommissionsUntilWaitlist! : 0,
+            max_commissions_until_closed: data ? data.commission.maxCommissionUntilClosed! : 0,
+
+            form: data ? data.commission.formId : undefined,
+            commission_availability: data ? data.commission.availability : undefined
         }
     })
 
-    const { data, isLoading } = useSWR(
+    const { data: artist_data, isLoading: artist_is_loading } = useSWR(
         `{
             artist(id: "${artistId}") {
                 forms {
@@ -133,9 +144,10 @@ export default function CommissionAddForm() {
                 availability: ${values.commission_availability}
                 form_id: "${values.form}"
                 use_invoicing: ${values.use_invoicing}
-                rush_orders_allowed: ${values.rush}
                 max_commission_until_waitlist: ${values.max_commissions_until_waitlist}
                 max_commission_until_closed: ${values.max_commissions_until_closed}
+                rush_orders_allowed: ${values.rush}
+                rush_charge: ${values.rush_charge}
             ) {
                 status
                 message
@@ -159,13 +171,13 @@ export default function CommissionAddForm() {
         }
     }
 
-    if (isLoading) {
+    if (artist_is_loading) {
         return <Loading />
     }
 
     function getFormsNames() {
         const result: SelectFieldOptions[] = []
-        data?.artist.forms.forEach((form) => {
+        artist_data?.artist.forms.forEach((form) => {
             result.push({
                 key: form.name,
                 value: form.id
@@ -177,22 +189,15 @@ export default function CommissionAddForm() {
 
     return (
         <div className="max-w-xl mx-auto">
-            <form
-                onSubmit={form.handleSubmit(CreateCommission)}
-                className="flex flex-col gap-5"
-            >
-                <TextField
-                    label="Title"
-                    placeholder="Title"
-                    {...form.register('title')}
-                />
+            <form onSubmit={form.handleSubmit(CreateCommission)} className="flex flex-col gap-5">
+                <TextField label="Title" placeholder="Title" {...form.register('title')} />
                 <Controller
                     control={form.control}
                     name="description"
                     render={({ field }) => (
                         <MarkdownEditor
                             label="Description"
-                            markdown={''}
+                            markdown={field.value}
                             placeholder="Enter a description of the commission"
                             input_name={field.name}
                             change_event={field.onChange}
@@ -205,10 +210,7 @@ export default function CommissionAddForm() {
                             className="tooltip"
                             data-tip="If checked, you will be able to send out invoices and change the price of the commission based on the clients requests"
                         >
-                            <CheckboxField
-                                label="Use Invoicing"
-                                {...form.register('use_invoicing')}
-                            />
+                            <CheckboxField label="Use Invoicing" {...form.register('use_invoicing')} />
                         </div>
 
                         {!form.watch('use_invoicing') && (
@@ -224,13 +226,7 @@ export default function CommissionAddForm() {
                 </div>
                 <div className="divider"></div>
 
-                <SelectField
-                    label="Form"
-                    options={getFormsNames()}
-                    placeholder="Select a form to use"
-                    join
-                    {...form.register('form')}
-                />
+                <SelectField label="Form" options={getFormsNames()} placeholder="Select a form to use" join {...form.register('form')} />
                 <SelectField
                     label="Commission Availabilty"
                     options={[
@@ -268,23 +264,13 @@ export default function CommissionAddForm() {
                 />
                 <div className="divider"></div>
 
-                <FormDropzone
-                    label="Featured Image"
-                    {...form.register('featured_image')}
-                />
-                <FileField
-                    label="Additional Images"
-                    multiple
-                    {...form.register('additional_images')}
-                />
+                <FormDropzone label="Featured Image" {...form.register('featured_image')} />
+                <FileField label="Additional Images" multiple {...form.register('additional_images')} />
 
                 <div className="divider"></div>
                 <div className="card bg-base-100 shadow-xl">
                     <div className="card-body">
-                        <CheckboxField
-                            label="Allow Rush Orders"
-                            {...form.register('rush')}
-                        />
+                        <CheckboxField label="Allow Rush Orders" {...form.register('rush')} />
                         {form.watch('rush') && (
                             <CurrencyField
                                 label="Rush Charge"
@@ -299,8 +285,8 @@ export default function CommissionAddForm() {
                 <div className="divider"></div>
                 <p className="text-base-content/80">
                     <i>
-                        Note: Commissions will need to be published. Make sure you have
-                        created the commission form for users to fill out upon a request.
+                        Note: Commissions will need to be published. Make sure you have created the commission form for users to fill out upon a
+                        request.
                     </i>
                 </p>
                 <div className="grid grid-cols-2 gap-5">
@@ -308,20 +294,16 @@ export default function CommissionAddForm() {
                         <XCircleIcon className="w-6 h-6" />
                         Cancel
                     </Link>
-                    <button
-                        type="submit"
-                        className="btn btn-primary"
-                        disabled={submitting}
-                    >
+                    <button type="submit" className="btn btn-primary" disabled={submitting}>
                         {submitting ? (
                             <>
                                 <span className="loading loading-spinner"></span>
-                                Creating Commission
+                                {data ? 'Updating Commission' : 'Creating Commission'}
                             </>
                         ) : (
                             <>
                                 <CheckCircleIcon className="w-6 h-6" />
-                                Create Commission
+                                {data ? 'Edit Commission' : 'Create Commission'}
                             </>
                         )}
                     </button>

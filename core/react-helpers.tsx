@@ -18,6 +18,11 @@ export function ConvertAvailabilityToBadge(
     }
 }
 
+/**
+ * 
+ * @param published 
+ * @returns 
+ */
 export function ConvertPublishedToBadge(published: boolean): React.ReactNode {
     if (published) {
         return <span className="badge badge-primary badge-lg">Published</span>

@@ -18,8 +18,11 @@ builder.prismaObject('Commission', {
 
         published: t.exposeBoolean('published'),
         createdAt: t.expose('createdAt', { type: 'Date' }),
-        rushOrdersAllowed: t.exposeBoolean('rushOrdersAllowed'),
         useInvoicing: t.exposeBoolean('useInvoicing'),
+
+        rushOrdersAllowed: t.exposeBoolean('rushOrdersAllowed'),
+        rushCharge: t.exposeFloat('rushCharge'),
+        rushPercentage: t.exposeBoolean('rushPercentage'),
 
         maxCommissionsUntilWaitlist: t.exposeInt('maxCommissionsUntilWaitlist', {
             nullable: true
@@ -72,9 +75,7 @@ builder.prismaObject('Commission', {
                     }
                 }
 
-                const submitted = form.formSubmissions.find(
-                    (submission) => submission.userId === args.user_id!
-                )
+                const submitted = form.formSubmissions.find((submission) => submission.userId === args.user_id!)
 
                 return {
                     user_submitted: submitted != undefined,
@@ -119,7 +120,6 @@ builder.queryField('commission', (t) =>
     })
 )
 
-// TODO: Check if the commission slug already exists for the current user
 builder.mutationField('create_commission', (t) =>
     t.field({
         type: 'NemuResponse',
@@ -159,6 +159,16 @@ builder.mutationField('create_commission', (t) =>
                 type: 'Boolean',
                 required: true,
                 description: 'Determines wether rush orders are allowed or not'
+            }),
+            rush_charge: t.arg({
+                type: 'Float',
+                required: true,
+                description: ''
+            }),
+            rush_percentage: t.arg({
+                type: 'Boolean',
+                required: true,
+                description: ''
             }),
             form_id: t.arg({
                 type: 'String',
@@ -205,6 +215,20 @@ builder.mutationField('create_commission', (t) =>
                 .replace(/[^a-zA-Z ]/g, '')
                 .replaceAll(' ', '-')
 
+            const slugExists = await prisma.commission.count({
+                where: {
+                    slug: slug,
+                    artistId: artist.id
+                }
+            })
+
+            if (slugExists != 0) {
+                return {
+                    status: StatusCode.InternalError,
+                    message: 'A commission with that slug already exists for that artist!'
+                }
+            }
+
             // Create database object
             const db_commission = await prisma.commission.create({
                 data: {
@@ -219,14 +243,10 @@ builder.mutationField('create_commission', (t) =>
                     availability: args.availability,
                     useInvoicing: args.use_invoicing || undefined,
                     slug: slug,
-                    maxCommissionsUntilWaitlist:
-                        args.max_commission_until_waitlist <= 0
-                            ? undefined
-                            : args.max_commission_until_waitlist,
-                    maxCommissionUntilClosed:
-                        args.max_commission_until_closed <= 0
-                            ? undefined
-                            : args.max_commission_until_closed
+                    maxCommissionsUntilWaitlist: args.max_commission_until_waitlist <= 0 ? undefined : args.max_commission_until_waitlist,
+                    maxCommissionUntilClosed: args.max_commission_until_closed <= 0 ? undefined : args.max_commission_until_closed,
+                    rushCharge: args.rush_charge,
+                    rushPercentage: args.rush_percentage
                 }
             })
 
@@ -276,8 +296,7 @@ builder.mutationField('update_commission', (t) =>
                         id: args.commission_id
                     },
                     data: {
-                        published:
-                            args.published == undefined ? undefined : args.published
+                        published: args.published == undefined ? undefined : args.published
                     }
                 })
             } catch (e) {

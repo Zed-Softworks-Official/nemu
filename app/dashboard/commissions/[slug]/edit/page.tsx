@@ -1,13 +1,12 @@
 import DashboardContainer from '@/components/dashboard/dashboard-container'
-import CommissionAddForm from '@/components/dashboard/forms/commission-add-form'
+import CommissionFormDataFetcher from '@/components/dashboard/forms/commission-form-data-fetcher'
 import { FormProvider } from '@/components/form/form-context'
 
-export default function CommissionsOverviewPage() {
+export default function CommissionsOverviewPage({ params }: { params: { slug: string } }) {
     return (
         <DashboardContainer title="Edit Commission">
             <FormProvider>
-                {/* <CommissionAddForm /> */}
-                <h1>Hello, World!</h1>
+                <CommissionFormDataFetcher slug={params.slug} />
             </FormProvider>
         </DashboardContainer>
     )

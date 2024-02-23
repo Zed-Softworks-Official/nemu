@@ -202,13 +202,16 @@ model Commission {
   availability     Int
   slug             String
 
-  published         Boolean  @default(false)
-  createdAt         DateTime @default(now())
-  rushOrdersAllowed Boolean  @default(false)
-  useInvoicing      Boolean  @default(false)
+  published    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  useInvoicing Boolean  @default(false)
 
   maxCommissionsUntilWaitlist Int?
   maxCommissionUntilClosed    Int?
+
+  rushOrdersAllowed Boolean @default(false)
+  rushCharge        Float
+  rushPercentage    Boolean @default(false)
 
   artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
   Form   Form?  @relation(fields: [formId], references: [id], onDelete: Cascade)
