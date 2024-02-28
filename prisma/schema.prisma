@@ -193,7 +193,8 @@ model Commission {
   id       String @id @default(auto()) @map("_id") @db.ObjectId
   artistId String @db.ObjectId
   price    Int?
-  formId   String @unique @db.ObjectId
+
+  formId String @unique @db.ObjectId
 
   title            String
   description      String
@@ -256,8 +257,37 @@ model FormSubmission {
   invoiceContent   String?
   invoiceHostedUrl String?
 
-  form Form @relation(fields: [formId], references: [id], onDelete: Cascade)
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kanbanId String @unique @db.ObjectId
+
+  form   Form   @relation(fields: [formId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kanban Kanban @relation(fields: [kanbanId], references: [id], onDelete: Cascade)
 
   content String
+}
+
+model Kanban {
+  id           String @id @default(auto()) @map("_id") @db.ObjectId
+  submissionId String @unique @db.ObjectId
+
+  containers     KanbanContainer[]
+  formSubmission FormSubmission?
+}
+
+model KanbanContainer {
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  title    String
+  kanbanId String @db.ObjectId
+
+  kanban Kanban       @relation(fields: [kanbanId], references: [id], onDelete: Cascade)
+  items  KanbanItem[]
+}
+
+model KanbanItem {
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  title  String
+  status Int
+
+  kanbanId String          @db.ObjectId
+  kanban   KanbanContainer @relation(fields: [kanbanId], references: [id], onDelete: Cascade)
 }

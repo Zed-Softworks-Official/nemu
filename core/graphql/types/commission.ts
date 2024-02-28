@@ -280,7 +280,14 @@ builder.mutationField('create_commission', (t) =>
                     maxCommissionsUntilWaitlist: args.max_commission_until_waitlist <= 0 ? undefined : args.max_commission_until_waitlist,
                     maxCommissionsUntilClosed: args.max_commission_until_closed <= 0 ? undefined : args.max_commission_until_closed,
                     rushCharge: args.rush_charge,
-                    rushPercentage: args.rush_percentage
+                    rushPercentage: args.rush_percentage,
+                    kanban: {
+                        create: {
+                            containers: {
+                                create: [{ title: 'Todo' }, { title: 'In Progress' }, { title: 'Done' }]
+                            }
+                        }
+                    }
                 }
             })
 
@@ -402,7 +409,7 @@ builder.mutationField('update_commission', (t) =>
 
                         rushOrdersAllowed: args.rush_orders_allowed != undefined ? args.rush_orders_allowed : undefined,
                         rushCharge: args.rush_charge ? args.rush_charge : undefined,
-                        rushPercentage: args.rush_percentage != undefined ? args.rush_percentage : undefined,
+                        rushPercentage: args.rush_percentage != undefined ? args.rush_percentage : undefined
                     }
                 })
             } catch (e) {
