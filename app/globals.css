@@ -6,8 +6,16 @@
     @apply text-white
 }
 
-.active-scroll-spy {
-    @apply bg-primary p-5 rounded-3xl;
+::-webkit-scrollbar {
+    width: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    @apply bg-base-300
+}
+
+::-webkit-scrollbar-track {
+    @apply bg-transparent
 }
 
 .logo {

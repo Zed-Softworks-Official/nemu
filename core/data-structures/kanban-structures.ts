@@ -9,7 +9,7 @@ import { UniqueIdentifier } from '@dnd-kit/core'
  */
 export interface KanbanItem {
     id: UniqueIdentifier
-    title: string
+    content: string
 }
 
 /**

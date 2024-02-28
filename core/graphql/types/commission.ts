@@ -280,14 +280,7 @@ builder.mutationField('create_commission', (t) =>
                     maxCommissionsUntilWaitlist: args.max_commission_until_waitlist <= 0 ? undefined : args.max_commission_until_waitlist,
                     maxCommissionsUntilClosed: args.max_commission_until_closed <= 0 ? undefined : args.max_commission_until_closed,
                     rushCharge: args.rush_charge,
-                    rushPercentage: args.rush_percentage,
-                    kanban: {
-                        create: {
-                            containers: {
-                                create: [{ title: 'Todo' }, { title: 'In Progress' }, { title: 'Done' }]
-                            }
-                        }
-                    }
+                    rushPercentage: args.rush_percentage
                 }
             })
 
