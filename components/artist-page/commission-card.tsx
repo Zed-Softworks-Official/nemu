@@ -20,7 +20,7 @@ export default function CommissionCard({ commission, terms }: { commission: Comm
     return (
         <div key={commission.slug} className="card lg:card-side bg-base-100 shadow-xl animate-pop-in transition-all duration-200">
             <figure>
-                <NemuImage src={commission.featured_image!} alt={commission.title} width={400} height={400} className="w-full h-full" />
+                <NemuImage src={commission.featured_image!} alt={commission.title} width={400} height={400} className="w-full h-full max-h-[22rem]" />
             </figure>
             <div className="card-body">
                 <h2 className="card-title">

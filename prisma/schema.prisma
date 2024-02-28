@@ -206,8 +206,8 @@ model Commission {
   createdAt    DateTime @default(now())
   useInvoicing Boolean  @default(false)
 
-  maxCommissionsUntilWaitlist Int?
-  maxCommissionUntilClosed    Int?
+  maxCommissionsUntilWaitlist Int @default(0)
+  maxCommissionsUntilClosed   Int @default(0)
 
   rushOrdersAllowed Boolean @default(false)
   rushCharge        Float

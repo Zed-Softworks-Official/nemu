@@ -19,7 +19,7 @@ export type ElementsType =
     | 'SpacerField'
     | 'NumberField'
     | 'TextAreaField'
-    | 'DateField'
+    // | 'DateField'
     | 'SelectField'
     | 'CheckboxField'
 
@@ -72,7 +72,7 @@ export const FormElements: FormElementsType = {
     SpacerField: SpacerFieldFormElement,
     NumberField: NumberFieldFormElement,
     TextAreaField: TextAreaFieldFormElement,
-    DateField: DateFieldFormElement,
+    // DateField: DateFieldFormElement,
     SelectField: SelectFieldFormElement,
     CheckboxField: CheckboxFieldFormElement
 }

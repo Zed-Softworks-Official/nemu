@@ -4,27 +4,21 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 export default function DashboardBreadcrumbs() {
-    const pathname = usePathname()
-    const breadcrumbs = pathname
-        .substring(1, pathname.length)
-        .split('/')
-        .map((word) => {
-            if (word.includes('-')) {
-                return ''
-            }
-            return word[0].toUpperCase() + word.slice(1).toLowerCase()
-        })
+    const paths = usePathname()
+    const pathnames = paths.split('/').filter(path => path)
 
     return (
         <div className="text-sm breadcrumbs">
             <ul>
-                {breadcrumbs.map((path, index) =>
-                    path != '' && (
-                        <li key={index}>
-                            <Link href={`${pathname.substring(0)}`}>{path}</Link>
+                {pathnames.map((path, index) => {
+                    let href = `/${pathnames.slice(0, index + 1).join('/')}`
+
+                    return (
+                        <li key={path}>
+                            <Link href={href}>{path}</Link>
                         </li>
                     )
-                )}
+                })}
             </ul>
         </div>
     )

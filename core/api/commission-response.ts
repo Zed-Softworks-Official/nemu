@@ -3,6 +3,7 @@ import { NemuResponse } from './base-response'
 
 import { FormSubmission, Form } from '@prisma/client'
 import { FormElementInstance } from '@/components/form-builder/elements/form-elements'
+import { AWSFileModification } from '../data-structures/form-structures'
 
 /**
  * FormResponses
@@ -73,4 +74,8 @@ export interface CommissionFormsSubmissionViewResponse extends NemuResponse {
 
 export interface CommissionFormCreateResponse extends NemuResponse {
     form_id: string
+}
+
+export interface CommissionImagesResponse extends NemuResponse {
+    images?: AWSFileModification[]
 }

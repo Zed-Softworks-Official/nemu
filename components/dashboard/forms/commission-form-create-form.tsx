@@ -28,7 +28,7 @@ export default function CommissionCreateForm() {
         mode: 'onSubmit'
     })
 
-    // const { refresh } = useRouter()
+    const { refresh } = useRouter()
 
     async function CreateCommissionForm(values: CommissionCreateFormSchemaType) {
         const response = await GraphQLFetcher<CommissionFormCreateResponse>(`mutation {
@@ -40,6 +40,7 @@ export default function CommissionCreateForm() {
         toast('Form Created Successfully', { type: 'success', theme: 'dark' })
 
         // TODO: Navigate to new form
+        refresh()
     }
 
     return (

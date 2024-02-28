@@ -52,7 +52,7 @@ export default function FormBuilder({ form_id }: { form_id: string }) {
 
     useEffect(() => {
         if (!isLoading) {
-            const elements = JSON.parse(data?.form?.content)
+            const elements = JSON.parse(data?.form?.content!)
             setElements(elements)
         }
     }, [data, setElements])
@@ -67,7 +67,7 @@ export default function FormBuilder({ form_id }: { form_id: string }) {
                 <nav className="flex justify-between p-4 gap-3 items-center">
                     <div>
                         <h2 className="card-title">Form: {data?.form?.name}</h2>
-                        <p>Description: {data?.form.description}</p>
+                        <p>Description: {data?.form?.description}</p>
                     </div>
                     <div className="flex items-center gap-2">
                         <PreviewButton />

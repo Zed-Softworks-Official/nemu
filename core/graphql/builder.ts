@@ -4,18 +4,9 @@ import PrismaPlugin from '@pothos/plugin-prisma'
 import type PrismaTypes from '@pothos/plugin-prisma/generated'
 
 import { DateTimeResolver } from 'graphql-scalars'
-import {
-    ArtistCodeResponse,
-    CommissionFormCreateResponse,
-    NemuResponse,
-    StripeCustomerIdResponse
-} from '../responses'
-import {
-    CommissionForm,
-    CommissionItem,
-    DownloadData,
-    PortfolioItem
-} from '../structures'
+import { ArtistCodeResponse, CommissionFormCreateResponse, CommissionImagesResponse, NemuResponse, StripeCustomerIdResponse } from '../responses'
+import { CommissionForm, CommissionItem, DownloadData, PortfolioItem } from '../structures'
+import { AWSFileModification } from '../data-structures/form-structures'
 
 export const builder = new SchemaBuilder<{
     PrismaTypes: PrismaTypes
@@ -25,12 +16,14 @@ export const builder = new SchemaBuilder<{
         DownloadData: DownloadData
         CommissionData: CommissionItem
         CommissionFormData: CommissionForm
+        AWSFileModification: AWSFileModification
 
         // Response Objects
         NemuResponse: NemuResponse
         CommissionFormCreateResponse: CommissionFormCreateResponse
         ArtistCodeResponse: ArtistCodeResponse
         StripeCustomerIdResponse: StripeCustomerIdResponse
+        CommissionImagesResponse: CommissionImagesResponse
     }
     Scalars: { Date: { Input: Date; Output: Date } }
 }>({
@@ -93,6 +86,16 @@ builder.objectRef<CommissionForm>('CommissionFormData').implement({
     })
 })
 
+builder.objectRef<AWSFileModification>('AWSFileModification').implement({
+    fields: (t) => ({
+        file_key: t.exposeString('file_key'),
+        aws_location: t.exposeInt('aws_location'),
+        signed_url: t.exposeString('signed_url', { nullable: true }),
+        file_name: t.exposeString('file_name', { nullable: true }),
+        featured: t.exposeBoolean('featured', { nullable: true })
+    })
+})
+
 //////////////////////////////////////
 // Response Objects
 //////////////////////////////////////
@@ -111,15 +114,13 @@ builder.objectRef<ArtistCodeResponse>('ArtistCodeResponse').implement({
     })
 })
 
-builder
-    .objectRef<CommissionFormCreateResponse>('CommissionFormCreateResponse')
-    .implement({
-        fields: (t) => ({
-            status: t.exposeInt('status'),
-            message: t.exposeString('message', { nullable: true }),
-            form_id: t.exposeString('form_id')
-        })
+builder.objectRef<CommissionFormCreateResponse>('CommissionFormCreateResponse').implement({
+    fields: (t) => ({
+        status: t.exposeInt('status'),
+        message: t.exposeString('message', { nullable: true }),
+        form_id: t.exposeString('form_id')
     })
+})
 
 builder.objectRef<StripeCustomerIdResponse>('StripeCustomerIdResponse').implement({
     fields: (t) => ({
@@ -127,6 +128,14 @@ builder.objectRef<StripeCustomerIdResponse>('StripeCustomerIdResponse').implemen
         message: t.exposeString('message', { nullable: true }),
         customer_id: t.exposeString('customer_id', { nullable: true }),
         stripe_account: t.exposeString('stripe_account', { nullable: true })
+    })
+})
+
+builder.objectRef<CommissionImagesResponse>('CommissionImagesResponse').implement({
+    fields: (t) => ({
+        status: t.exposeInt('status'),
+        message: t.exposeString('message', { nullable: true }),
+        images: t.expose('images', { nullable: true, type: ['AWSFileModification'] })
     })
 })
 

@@ -1,6 +1,9 @@
 import { prisma } from '@/lib/prisma'
 import { builder } from '../builder'
 import { StatusCode } from '@/core/responses'
+import { S3GetSignedURL } from '@/core/storage'
+import { AWSLocations } from '@/core/structures'
+import { AWSFileModification, AWSMoficiation } from '@/core/data-structures/form-structures'
 
 builder.prismaObject('Commission', {
     fields: (t) => ({
@@ -24,14 +27,45 @@ builder.prismaObject('Commission', {
         rushCharge: t.exposeFloat('rushCharge'),
         rushPercentage: t.exposeBoolean('rushPercentage'),
 
-        maxCommissionsUntilWaitlist: t.exposeInt('maxCommissionsUntilWaitlist', {
-            nullable: true
-        }),
-        maxCommissionsUntilClosed: t.exposeInt('maxCommissionUntilClosed', {
-            nullable: true
-        }),
+        maxCommissionsUntilWaitlist: t.exposeInt('maxCommissionsUntilWaitlist'),
+        maxCommissionsUntilClosed: t.exposeInt('maxCommissionsUntilClosed'),
 
         form: t.relation('Form'),
+
+        get_images: t.field({
+            type: 'CommissionImagesResponse',
+            resolve: async (parent, _args, _ctx, _info) => {
+                const result: AWSFileModification[] = []
+
+                // Get Featured Image
+                const featured_image = await S3GetSignedURL(parent.artistId, AWSLocations.Commission, parent.featuredImage)
+                result.push({
+                    file_key: parent.featuredImage,
+                    signed_url: featured_image,
+                    aws_location: AWSLocations.Commission,
+                    file_name: 'Featured Image',
+                    featured: true
+                })
+
+                // Get additional images
+                for (let i = 0; i < parent.additionalImages.length; i++) {
+                    const signed_url = await S3GetSignedURL(parent.artistId, AWSLocations.Commission, parent.additionalImages[i])
+
+                    result.push({
+                        file_key: parent.additionalImages[i],
+                        signed_url: signed_url,
+                        aws_location: AWSLocations.Commission,
+                        file_name: `Image ${i + 1}`,
+                        featured: false
+                    })
+                }
+
+                return {
+                    status: StatusCode.Success,
+                    images: result
+                }
+            }
+        }),
 
         get_form_data: t.prismaField({
             type: 'Form',
@@ -244,7 +278,7 @@ builder.mutationField('create_commission', (t) =>
                     useInvoicing: args.use_invoicing || undefined,
                     slug: slug,
                     maxCommissionsUntilWaitlist: args.max_commission_until_waitlist <= 0 ? undefined : args.max_commission_until_waitlist,
-                    maxCommissionUntilClosed: args.max_commission_until_closed <= 0 ? undefined : args.max_commission_until_closed,
+                    maxCommissionsUntilClosed: args.max_commission_until_closed <= 0 ? undefined : args.max_commission_until_closed,
                     rushCharge: args.rush_charge,
                     rushPercentage: args.rush_percentage
                 }
@@ -283,8 +317,67 @@ builder.mutationField('update_commission', (t) =>
                 description: ''
             }),
 
+            title: t.arg({
+                type: 'String',
+                required: false,
+                description: ''
+            }),
+            description: t.arg({
+                type: 'String',
+                required: false,
+                description: ''
+            }),
+            price: t.arg({
+                type: 'Int',
+                required: false,
+                description: ''
+            }),
+            availability: t.arg({
+                type: 'Int',
+                required: false,
+                description: ''
+            }),
+
             published: t.arg({
                 type: 'Boolean',
+                required: false,
+                description: ''
+            }),
+            use_invoicing: t.arg({
+                type: 'Boolean',
+                required: false,
+                description: ''
+            }),
+
+            max_commissions_until_waitlist: t.arg({
+                type: 'Int',
+                required: false,
+                description: ''
+            }),
+            max_commissions_until_closed: t.arg({
+                type: 'Int',
+                required: false,
+                description: ''
+            }),
+
+            rush_orders_allowed: t.arg({
+                type: 'Boolean',
+                required: false,
+                description: 'Determines wether rush orders are allowed or not'
+            }),
+            rush_charge: t.arg({
+                type: 'Float',
+                required: false,
+                description: ''
+            }),
+            rush_percentage: t.arg({
+                type: 'Boolean',
+                required: false,
+                description: ''
+            }),
+
+            additional_images: t.arg({
+                type: 'String',
                 required: false,
                 description: ''
             })
@@ -296,7 +389,20 @@ builder.mutationField('update_commission', (t) =>
                         id: args.commission_id
                     },
                     data: {
-                        published: args.published == undefined ? undefined : args.published
+                        title: args.title ? args.title : undefined,
+                        description: args.description ? args.description : undefined,
+                        price: args.price ? args.price : undefined,
+                        availability: args.availability ? args.availability : undefined,
+
+                        published: args.published != undefined ? args.published : undefined,
+                        useInvoicing: args.use_invoicing != undefined ? args.use_invoicing : undefined,
+
+                        maxCommissionsUntilWaitlist: args.max_commissions_until_waitlist ? args.max_commissions_until_waitlist : undefined,
+                        maxCommissionsUntilClosed: args.max_commissions_until_closed ? args.max_commissions_until_closed : undefined,
+
+                        rushOrdersAllowed: args.rush_orders_allowed != undefined ? args.rush_orders_allowed : undefined,
+                        rushCharge: args.rush_charge ? args.rush_charge : undefined,
+                        rushPercentage: args.rush_percentage != undefined ? args.rush_percentage : undefined,
                     }
                 })
             } catch (e) {

@@ -16,7 +16,7 @@ export default function Navbar({ children }: { children: React.ReactNode }) {
     return (
         <aside className="drawer lg:drawer-open">
             <input id="nemu-drawer" type="checkbox" className="drawer-toggle" />
-            <div className="drawer-content flex flex-col items-center justify-center">
+            <div className="drawer-content flex flex-col items-center justify-center scrollbar-thin scrollbar-track-transparent scrollbar-thumb-base-300">
                 <label
                     htmlFor="nemu-drawer"
                     className="btn btn-primary drawer-button lg:hidden mt-5"

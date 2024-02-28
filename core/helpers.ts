@@ -97,7 +97,7 @@ export async function UpdateCommissionAvailability(form_id: string) {
     }
 
     // Check if we have reached our max number of commmissions until CLOSED
-    if (form?.newSubmissions! + 1 >= form?.commission?.maxCommissionUntilClosed! && form?.commission?.maxCommissionUntilClosed != 0) {
+    if (form?.newSubmissions! + 1 >= form?.commission?.maxCommissionsUntilClosed! && form?.commission?.maxCommissionsUntilClosed != 0) {
         new_availability = CommissionAvailability.Closed
     }
 
