@@ -8,13 +8,16 @@ import { NextResponse } from 'next/server'
 export async function POST(req: Request) {
     const data = (await req.json()) as CreateFormSubmissionStructure
 
+    const kanban = await prisma.kanban.create({})
+
     const form_submission = await prisma.formSubmission.create({
         data: {
             userId: data.user_id,
             formId: data.form_id,
             content: data.content,
             paymentStatus: PaymentStatus.RequiresInvoice,
-            orderId: crypto.randomUUID()
+            orderId: crypto.randomUUID(),
+            kanbanId: kanban.id
         }
     })
 

@@ -4,8 +4,15 @@ import PrismaPlugin from '@pothos/plugin-prisma'
 import type PrismaTypes from '@pothos/plugin-prisma/generated'
 
 import { DateTimeResolver } from 'graphql-scalars'
-import { ArtistCodeResponse, CommissionFormCreateResponse, CommissionImagesResponse, NemuResponse, StripeCustomerIdResponse } from '../responses'
-import { CommissionForm, CommissionItem, DownloadData, PortfolioItem } from '../structures'
+import {
+    ArtistCodeResponse,
+    CommissionFormCreateResponse,
+    CommissionImagesResponse,
+    KanbanResponse,
+    NemuResponse,
+    StripeCustomerIdResponse
+} from '../responses'
+import { CommissionForm, CommissionItem, DownloadData, KanbanContainerData, KanbanTask, PortfolioItem } from '../structures'
 import { AWSFileModification } from '../data-structures/form-structures'
 
 export const builder = new SchemaBuilder<{
@@ -17,6 +24,8 @@ export const builder = new SchemaBuilder<{
         CommissionData: CommissionItem
         CommissionFormData: CommissionForm
         AWSFileModification: AWSFileModification
+        KanbanContainerData: KanbanContainerData
+        KanbanTask: KanbanTask
 
         // Response Objects
         NemuResponse: NemuResponse
@@ -24,6 +33,7 @@ export const builder = new SchemaBuilder<{
         ArtistCodeResponse: ArtistCodeResponse
         StripeCustomerIdResponse: StripeCustomerIdResponse
         CommissionImagesResponse: CommissionImagesResponse
+        KanbanResponse: KanbanResponse
     }
     Scalars: { Date: { Input: Date; Output: Date } }
 }>({
@@ -96,6 +106,21 @@ builder.objectRef<AWSFileModification>('AWSFileModification').implement({
     })
 })
 
+builder.objectRef<KanbanContainerData>('KanbanContainerData').implement({
+    fields: (t) => ({
+        id: t.exposeID('id'),
+        title: t.exposeString('title')
+    })
+})
+
+builder.objectRef<KanbanTask>('KanbanTask').implement({
+    fields: (t) => ({
+        id: t.exposeID('id'),
+        container_id: t.exposeID('container_id'),
+        content: t.exposeString('content')
+    })
+})
+
 //////////////////////////////////////
 // Response Objects
 //////////////////////////////////////
@@ -136,6 +161,15 @@ builder.objectRef<CommissionImagesResponse>('CommissionImagesResponse').implemen
         status: t.exposeInt('status'),
         message: t.exposeString('message', { nullable: true }),
         images: t.expose('images', { nullable: true, type: ['AWSFileModification'] })
+    })
+})
+
+builder.objectRef<KanbanResponse>('KanbanResponse').implement({
+    fields: (t) => ({
+        status: t.exposeInt('status'),
+        message: t.exposeString('message', { nullable: true }),
+        containers: t.expose('containers', { nullable: true, type: ['KanbanContainerData'] }),
+        tasks: t.expose('tasks', { nullable: true, type: ['KanbanTask'] })
     })
 })
 

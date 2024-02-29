@@ -16,7 +16,6 @@ export default function Dashboard() {
                     <h1 className="font-bold">Recent Messages</h1>
                 </div>
             </div>
-            <Kanban />
         </DashboardContainer>
     )
 }

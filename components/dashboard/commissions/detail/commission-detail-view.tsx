@@ -4,11 +4,12 @@ import useSWR from 'swr'
 import DashboardContainer from '../../dashboard-container'
 import { GraphQLFetcher } from '@/core/helpers'
 import Loading from '@/components/loading'
-import { PaymentStatus } from '@/core/structures'
+import { KanbanContainerData, PaymentStatus } from '@/core/structures'
 import Kanban from '@/components/kanban/kanban'
 import CommissionFormSubmissionContent from '../submissions/commission-form-submission-content'
 import CommissionInvoicing from '../../invoices/commission-invoicing'
 import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
+import { KanbanResponse } from '@/core/responses'
 
 export default function DashboardCommissionDetailView({ slug, order_id }: { slug: string; order_id: string }) {
     const { artistId } = useDashboardContext()
@@ -34,6 +35,18 @@ export default function DashboardCommissionDetailView({ slug, order_id }: { slug
                         useInvoicing
                     }
                 }
+                kanban {
+                    status
+                    tasks {
+                        id
+                        content
+                        container_id
+                    }
+                    containers {
+                        id
+                        title
+                    }
+                }
             }
         }`,
         GraphQLFetcher<{
@@ -57,6 +70,7 @@ export default function DashboardCommissionDetailView({ slug, order_id }: { slug
                         useInvoicing: boolean
                     }
                 }
+                kanban: KanbanResponse
             }
         }>
     )
@@ -81,7 +95,12 @@ export default function DashboardCommissionDetailView({ slug, order_id }: { slug
                 </div>
                 <div className="card bg-base-100 shadow-xl">
                     <div className="card-body">
-                        <Kanban title={data?.form_submission.form.commission.title!} client={data?.form_submission.user.name!} />
+                        <Kanban
+                            title={data?.form_submission.form.commission.title!}
+                            client={data?.form_submission.user.name!}
+                            kanban_containers={data?.form_submission.kanban.containers!}
+                            kanban_tasks={data?.form_submission.kanban.tasks!}
+                        />
                     </div>
                 </div>
                 <div className="flex flex-grow gap-5 w-full">

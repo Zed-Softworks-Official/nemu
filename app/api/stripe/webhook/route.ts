@@ -75,6 +75,9 @@ export async function POST(req: Request) {
                 switch (Number(metadata.purchase_type) as PurchaseType) {
                     case PurchaseType.CommissionSetupPayment:
                         {
+
+                            const kanban = await prisma.kanban.create({})
+
                             // Create Form Submission
                             await prisma.formSubmission.create({
                                 data: {
@@ -83,7 +86,8 @@ export async function POST(req: Request) {
                                     userId: metadata.user_id,
                                     paymentIntent: charge.payment_intent?.toString(),
                                     paymentStatus: PaymentStatus.RequiresCapture,
-                                    orderId: crypto.randomUUID()
+                                    orderId: crypto.randomUUID(),
+                                    kanbanId: kanban.id
                                 }
                             })
 

@@ -4,6 +4,7 @@ import { NemuResponse } from './base-response'
 import { FormSubmission, Form } from '@prisma/client'
 import { FormElementInstance } from '@/components/form-builder/elements/form-elements'
 import { AWSFileModification } from '../data-structures/form-structures'
+import { KanbanContainerData, KanbanTask } from '../structures'
 
 /**
  * FormResponses
@@ -78,4 +79,9 @@ export interface CommissionFormCreateResponse extends NemuResponse {
 
 export interface CommissionImagesResponse extends NemuResponse {
     images?: AWSFileModification[]
+}
+
+export interface KanbanResponse extends NemuResponse {
+    containers?: KanbanContainerData[]
+    tasks?: KanbanTask[]
 }

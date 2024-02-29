@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { builder } from '../builder'
+import { StatusCode } from '@/core/responses'
 
 builder.prismaObject('FormSubmission', {
     fields: (t) => ({
@@ -20,7 +21,30 @@ builder.prismaObject('FormSubmission', {
         invoiceHostedUrl: t.exposeString('invoiceHostedUrl', { nullable: true }),
 
         form: t.relation('form'),
-        user: t.relation('user')
+        user: t.relation('user'),
+        kanban: t.field({
+            type: 'KanbanResponse',
+            resolve: async (parent, _args, _ctx, _info) => {
+                const kanban = await prisma.kanban.findFirst({
+                    where: {
+                        id: parent.kanbanId
+                    }
+                })
+
+                if (!kanban) {
+                    return {
+                        status: StatusCode.InternalError,
+                        message: 'Could not find kanban board'
+                    }
+                }
+
+                return {
+                    status: StatusCode.Success,
+                    containers: JSON.parse(kanban.containers),
+                    tasks: JSON.parse(kanban.tasks)
+                }
+            }
+        })
     })
 })
 

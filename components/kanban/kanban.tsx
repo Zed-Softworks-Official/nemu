@@ -19,13 +19,13 @@ import {
 import { SortableContext, arrayMove } from '@dnd-kit/sortable'
 import KanbanItemComponent from './kanban-item'
 
-export default function Kanban() {
-    const [containers, setContainers] = useState<KanbanContainerData[]>([])
-    const [tasks, setTasks] = useState<KanbanTask[]>([])
+export default function Kanban({ title, client, kanban_containers, kanban_tasks }: { title: string; client: string, kanban_containers: KanbanContainerData[], kanban_tasks:  KanbanTask[]}) {
+    const [containers, setContainers] = useState<KanbanContainerData[]>(kanban_containers)
+    const [tasks, setTasks] = useState<KanbanTask[]>(kanban_tasks)
 
     const [activeContainer, setActiveContainer] = useState<KanbanContainerData | null>(null)
     const [activeTask, setActiveTask] = useState<KanbanTask | null>(null)
-    
+
     const containerIds = useMemo(() => containers.map((container) => container.id), [containers])
 
     const sesnors = useSensors(
@@ -49,7 +49,7 @@ export default function Kanban() {
         const filteredContainers = containers.filter((container) => container.id !== container_id)
         setContainers(filteredContainers)
 
-        const newTasks = tasks.filter(task => task.container_id !== container_id)
+        const newTasks = tasks.filter((task) => task.container_id !== container_id)
         setTasks(newTasks)
     }
 
@@ -167,7 +167,10 @@ export default function Kanban() {
             <div className="card bg-base-100">
                 <div className="card-body gap-5">
                     <div className="flex justify-between items-center">
-                        <h2 className="text-xl font-bold">Kanban for someone</h2>
+                        <div>
+                            <h2 className="text-xl font-bold">Kanban for {client}</h2>
+                            <p>Commission Title: {title}</p>
+                        </div>
                         <button type="button" className="btn btn-primary" onClick={() => CreateNewContainer()}>
                             <PlusCircleIcon className="w-6 h-6" />
                             Add Container
