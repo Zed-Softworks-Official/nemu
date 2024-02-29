@@ -7,8 +7,9 @@ import { UniqueIdentifier } from '@dnd-kit/core'
  * @prop {UniqueIdentifier} id - The id for the
  * @prop {string} title -
  */
-export interface KanbanItem {
+export interface KanbanTask {
     id: UniqueIdentifier
+    container_id: UniqueIdentifier
     content: string
 }
 
@@ -20,8 +21,7 @@ export interface KanbanItem {
  * @prop {string} title -
  * @prop {KanbanItem[]} items -
  */
-export interface KanbanData {
+export interface KanbanContainerData {
     id: UniqueIdentifier
     title: string
-    items: KanbanItem[]
 }

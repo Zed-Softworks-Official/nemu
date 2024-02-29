@@ -1,23 +1,29 @@
 'use client'
 
-import { KanbanData } from '@/core/structures'
+import { KanbanContainerData, KanbanTask } from '@/core/structures'
 import { UniqueIdentifier } from '@dnd-kit/core'
-import { useSortable } from '@dnd-kit/sortable'
+import { SortableContext, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { PlusCircleIcon, TrashIcon } from '@heroicons/react/20/solid'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import KanbanItemComponent from './kanban-item'
 
 export default function KanbanContainerComponent({
     container_data,
+    tasks,
     DeleteContainer,
     UpdateContainer,
-    CreateTask
+    CreateTask,
+    DeleteTask,
+    UpdateTask
 }: {
-    container_data: KanbanData
+    container_data: KanbanContainerData
+    tasks: KanbanTask[]
     DeleteContainer: (id: UniqueIdentifier) => void
     UpdateContainer: (id: UniqueIdentifier, title: string) => void
     CreateTask: (id: UniqueIdentifier) => void
+    DeleteTask: (id: UniqueIdentifier) => void
+    UpdateTask: (id: UniqueIdentifier, content: string) => void
 }) {
     const [editMode, setEditMode] = useState(false)
     const { setNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({
@@ -29,6 +35,10 @@ export default function KanbanContainerComponent({
         disabled: editMode
     })
 
+    const taskIds = useMemo(() => {
+        return tasks.map((task) => task.id)
+    }, [tasks])
+
     const style = {
         transition,
         transform: CSS.Transform.toString(transform)
@@ -36,23 +46,31 @@ export default function KanbanContainerComponent({
 
     if (isDragging) {
         return (
-            <div className="card shadow-xl bg-base-300 opacity-60 border-2 border-primary" ref={setNodeRef} style={style}>
+            <div className="card shadow-xl bg-base-300" ref={setNodeRef} style={style}>
                 <div
                     className="bg-base-200 text-md cursor-grab p-5 rounded-t-xl flex flex-row items-center justify-between gap-5"
                     {...listeners}
                     {...attributes}
                 >
-                    <div className="flex flex-row gap-5">
-                        <div className="bg-base-300 p-5 rounded-xl card-title">{container_data.items.length}</div>
-                        <h2 className="card-title">{container_data.title}</h2>
+                    <div className="flex flex-row gap-5 items-center">
+                        <div className="bg-base-300 p-5 rounded-xl card-title">{tasks.length}</div>
+                        <h2 className="card-title cursor-pointer">{container_data.title}</h2>
                     </div>
-                    <button type="button" className="btn btn-outline" onClick={() => DeleteContainer(container_data.id)}>
-                        <TrashIcon className="w-6 h-6" />
-                    </button>
+                    <div className="flex gap-5">
+                        <button type="button" className="btn btn-primary">
+                            <PlusCircleIcon className="w-6 h-6" />
+                        </button>
+                        <button type="button" className="btn btn-outline">
+                            <TrashIcon className="w-6 h-6" />
+                        </button>
+                    </div>
                 </div>
                 <div className="card-body">
-                    <div className="flex flex-grow min-h-96">Kanban Items</div>
-                    <div>Footer</div>
+                    <div className="flex flex-col flex-grow gap-5">
+                        {tasks.map((task) => (
+                            <KanbanItemComponent key={task.id} item_data={task} DeleteTask={DeleteTask} UpdateTask={UpdateTask} />
+                        ))}
+                    </div>
                 </div>
             </div>
         )
@@ -66,7 +84,7 @@ export default function KanbanContainerComponent({
                 {...attributes}
             >
                 <div className="flex flex-row gap-5 items-center">
-                    <div className="bg-base-300 p-5 rounded-xl card-title">{container_data.items.length}</div>
+                    <div className="bg-base-300 p-5 rounded-xl card-title">{tasks.length}</div>
                     {!editMode ? (
                         <h2 className="card-title cursor-pointer" onClick={() => setEditMode(true)}>
                             {container_data.title}
@@ -105,9 +123,11 @@ export default function KanbanContainerComponent({
             </div>
             <div className="card-body">
                 <div className="flex flex-col flex-grow gap-5">
-                    {container_data.items.map((item) => (
-                        <KanbanItemComponent item_data={item} />
-                    ))}
+                    <SortableContext items={taskIds}>
+                        {tasks.map((task) => (
+                            <KanbanItemComponent key={task.id} item_data={task} DeleteTask={DeleteTask} UpdateTask={UpdateTask} />
+                        ))}
+                    </SortableContext>
                 </div>
             </div>
         </div>

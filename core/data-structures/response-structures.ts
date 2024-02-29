@@ -1,4 +1,4 @@
-import { KanbanData } from './kanban-structures'
+import { KanbanContainerData } from './kanban-structures'
 
 /**
  * Portfolio Item
@@ -68,7 +68,7 @@ export interface CommissionOrders {
     customer_id: string
     rush: boolean
 
-    containers?: KanbanData[]
+    containers?: KanbanContainerData[]
     order_id?: string
 }
 
