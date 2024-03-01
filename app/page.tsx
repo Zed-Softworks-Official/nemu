@@ -1,4 +1,3 @@
-import Link from 'next/link'
 import DefaultPageLayout from './(default)/layout'
 import RandomArtists from '@/components/homepage/random-artists'
 import HomepageCarousel from '@/components/homepage/homepage-carousel'
