@@ -41,12 +41,12 @@ export default function KanbanContainerComponent({
 
     const style = {
         transition,
-        transform: CSS.Transform.toString(transform)
+        transform: CSS.Translate.toString(transform)
     }
 
     if (isDragging) {
         return (
-            <div className="card shadow-xl bg-base-300" ref={setNodeRef} style={style}>
+            <div className="card shadow-xl bg-base-300 opacity-60" ref={setNodeRef} style={style}>
                 <div
                     className="bg-base-200 text-md cursor-grab p-5 rounded-t-xl flex flex-row items-center justify-between gap-5"
                     {...listeners}

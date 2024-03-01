@@ -100,6 +100,7 @@ export default function DashboardCommissionDetailView({ slug, order_id }: { slug
                             client={data?.form_submission.user.name!}
                             kanban_containers={data?.form_submission.kanban.containers!}
                             kanban_tasks={data?.form_submission.kanban.tasks!}
+                            submission_id={data?.form_submission.id!}
                         />
                     </div>
                 </div>

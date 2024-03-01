@@ -19,14 +19,43 @@ import {
 import { SortableContext, arrayMove } from '@dnd-kit/sortable'
 import KanbanItemComponent from './kanban-item'
 
-export default function Kanban({ title, client, kanban_containers, kanban_tasks }: { title: string; client: string, kanban_containers: KanbanContainerData[], kanban_tasks:  KanbanTask[]}) {
+import { useAutosave } from 'react-autosave'
+import { NemuResponse, StatusCode } from '@/core/responses'
+import { toast } from 'react-toastify'
+import { BsFloppy2Fill } from 'react-icons/bs'
+
+export default function Kanban({
+    title,
+    client,
+    submission_id,
+    kanban_containers,
+    kanban_tasks
+}: {
+    title: string
+    client: string
+    submission_id: string
+    kanban_containers: KanbanContainerData[]
+    kanban_tasks: KanbanTask[]
+}) {
     const [containers, setContainers] = useState<KanbanContainerData[]>(kanban_containers)
     const [tasks, setTasks] = useState<KanbanTask[]>(kanban_tasks)
 
     const [activeContainer, setActiveContainer] = useState<KanbanContainerData | null>(null)
     const [activeTask, setActiveTask] = useState<KanbanTask | null>(null)
 
+    const [saving, setSaving] = useState(false)
+
     const containerIds = useMemo(() => containers.map((container) => container.id), [containers])
+
+    useAutosave({
+        data: {
+            containers: containers,
+            tasks: tasks
+        },
+        onSave: SaveKanban,
+        saveOnUnmount: true,
+        interval: 30000,
+    })
 
     const sesnors = useSensors(
         useSensor(PointerSensor, {
@@ -35,6 +64,21 @@ export default function Kanban({ title, client, kanban_containers, kanban_tasks 
             }
         })
     )
+
+    async function SaveKanban(data: { containers: KanbanContainerData[]; tasks: KanbanTask[] }) {
+        if (saving) return
+
+        setSaving(true)
+
+        const response = await fetch(`/api/kanban/${submission_id}`, { method: 'post', body: JSON.stringify(data) })
+        const json = (await response.json()) as NemuResponse
+
+        if (json.status != StatusCode.Success) {
+            toast(json.message, { type: 'error', theme: 'dark' })
+        }
+
+        setSaving(false)
+    }
 
     function CreateNewContainer() {
         const containerToAdd: KanbanContainerData = {
@@ -171,15 +215,40 @@ export default function Kanban({ title, client, kanban_containers, kanban_tasks 
                             <h2 className="text-xl font-bold">Kanban for {client}</h2>
                             <p>Commission Title: {title}</p>
                         </div>
-                        <button type="button" className="btn btn-primary" onClick={() => CreateNewContainer()}>
-                            <PlusCircleIcon className="w-6 h-6" />
-                            Add Container
-                        </button>
+                        <div className="flex items-center gap-5">
+                            <button
+                                type="button"
+                                className="btn disabled:bg-base-200"
+                                disabled={saving}
+                                onClick={() => {
+                                    SaveKanban({
+                                        containers: containers,
+                                        tasks: tasks
+                                    })
+                                }}
+                            >
+                                {saving ? (
+                                    <>
+                                        <span className="loading loading-spinner"></span>
+                                        <p>Saving</p>
+                                    </>
+                                ) : (
+                                    <>
+                                        <BsFloppy2Fill className="w-6 h-6" />
+                                        <p>Save</p>
+                                    </>
+                                )}
+                            </button>
+                            <button type="button" className="btn btn-primary" onClick={() => CreateNewContainer()}>
+                                <PlusCircleIcon className="w-6 h-6" />
+                                Add Container
+                            </button>
+                        </div>
                     </div>
                     <div className="divider"></div>
 
-                    <ResponsiveMasonry columnsCountBreakPoints={{ 350: 1, 980: 2, 1280: 3 }}>
-                        <SortableContext items={containerIds}>
+                    <SortableContext items={containerIds}>
+                        <ResponsiveMasonry columnsCountBreakPoints={{ 350: 1, 980: 2, 1280: 3 }} className='overflox-x-auto'>
                             <Masonry gutter="3rem">
                                 {containers.map((container) => (
                                     <KanbanContainerComponent
@@ -194,8 +263,8 @@ export default function Kanban({ title, client, kanban_containers, kanban_tasks 
                                     />
                                 ))}
                             </Masonry>
-                        </SortableContext>
-                    </ResponsiveMasonry>
+                        </ResponsiveMasonry>
+                    </SortableContext>
                 </div>
             </div>
             <DragOverlay>
