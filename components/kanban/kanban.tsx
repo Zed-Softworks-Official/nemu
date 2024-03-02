@@ -44,6 +44,7 @@ export default function Kanban({
     const [activeTask, setActiveTask] = useState<KanbanTask | null>(null)
 
     const [saving, setSaving] = useState(false)
+    const [autosave, setAutosave] = useState(true)
 
     const containerIds = useMemo(() => containers.map((container) => container.id), [containers])
 
@@ -54,7 +55,7 @@ export default function Kanban({
         },
         onSave: SaveKanban,
         saveOnUnmount: true,
-        interval: 30000,
+        interval: 30000
     })
 
     const sesnors = useSensors(
@@ -66,7 +67,7 @@ export default function Kanban({
     )
 
     async function SaveKanban(data: { containers: KanbanContainerData[]; tasks: KanbanTask[] }) {
-        if (saving) return
+        if (saving || !autosave) return
 
         setSaving(true)
 
@@ -216,6 +217,16 @@ export default function Kanban({
                             <p>Commission Title: {title}</p>
                         </div>
                         <div className="flex items-center gap-5">
+                            <div className="tooltip" data-tip={autosave ? 'Disable Autosave' : 'Enable Autosave'}>
+                                <input
+                                    type="checkbox"
+                                    className="toggle toggle-primary"
+                                    checked={autosave}
+                                    onChange={(e) => {
+                                        setAutosave(e.currentTarget.checked)
+                                    }}
+                                />
+                            </div>
                             <button
                                 type="button"
                                 className="btn disabled:bg-base-200"
@@ -248,7 +259,7 @@ export default function Kanban({
                     <div className="divider"></div>
 
                     <SortableContext items={containerIds}>
-                        <ResponsiveMasonry columnsCountBreakPoints={{ 350: 1, 980: 2, 1280: 3 }} className='overflox-x-auto'>
+                        <ResponsiveMasonry columnsCountBreakPoints={{ 350: 1, 980: 2, 1280: 3 }} className="overflox-x-auto">
                             <Masonry gutter="3rem">
                                 {containers.map((container) => (
                                     <KanbanContainerComponent

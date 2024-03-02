@@ -7,6 +7,7 @@ import { ToastContainer } from 'react-toastify'
 import 'react-toastify/ReactToastify.min.css'
 import ThemeProvider from '@/components/theme/theme-context'
 import NextTopLoader from 'nextjs-toploader'
+import CookieConsentBanner from '@/components/cookie-consent-banner'
 
 export const metadata: Metadata = {
     title: 'Nemu',
@@ -29,6 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                         <NextTopLoader color="#2185d5" showSpinner={false} shadow='0 0 10px #3fa7fc, 0 0 5px #3fa7fc' />
                         {children}
                         <ToastContainer position="top-right" />
+                        <CookieConsentBanner />
                     </body>
                 </AuthProvider>
             </ThemeProvider>
