@@ -13,6 +13,7 @@ import { StripeCreateCustomer } from '@/core/payments'
 import Stripe from 'stripe'
 import { CommissionStatus } from '@/core/data-structures/form-structures'
 import { sendbird } from '@/lib/sendbird'
+import { CreateSendbirdMessageChannel } from '@/core/helpers'
 
 builder.mutationField('check_create_customer', (t) =>
     t.field({
@@ -203,20 +204,8 @@ builder.mutationField('update_commission_invoice', (t) =>
                     id: args.submission_id
                 },
                 include: {
-                    user: {
-                        include: {
-                            artist: true
-                        }
-                    },
-                    form: {
-                        include: {
-                            commission: {
-                                include: {
-                                    artist: true
-                                }
-                            }
-                        }
-                    }
+                    user: true,
+                    form: true
                 }
             })
 
@@ -253,20 +242,10 @@ builder.mutationField('update_commission_invoice', (t) =>
                 return { status: StatusCode.Success }
             }
 
-            const sendbird_channel_url = crypto.randomUUID()
-
+            
             // Create Channel For Sendbird
-            await sendbird.CreateGroupChannel({
-                name: `${submission?.user.artist ? '@' + submission.user.artist.handle : submission?.user.name}`,
-                channel_url: sendbird_channel_url,
-                cover_url: submission?.user.artist?.profilePhoto
-                    ? submission.user.artist.profilePhoto
-                    : `${process.env.BASE_URL}/profile.png`,
-                user_ids: [submission?.userId!, submission?.form.commission?.artist.userId!],
-                operator_ids: [submission?.form.commission?.artist.userId!],
-                block_sdk_user_channel_join: false,
-                is_distinct: true
-            })
+            const sendbird_channel_url = crypto.randomUUID()
+            await CreateSendbirdMessageChannel(submission?.id!, sendbird_channel_url)
 
             // Update Form Submission
             await prisma.formSubmission.update({

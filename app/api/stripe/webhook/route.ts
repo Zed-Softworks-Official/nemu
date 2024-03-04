@@ -3,8 +3,8 @@ import { NextResponse } from 'next/server'
 import { StripeGetWebhookEvent as StripeStripeWebhookEvent } from '@/core/payments'
 import { NemuResponse, StatusCode } from '@/core/responses'
 import { prisma } from '@/lib/prisma'
-import { CommissionAvailability, PaymentStatus, PurchaseType, StripePaymentMetadata } from '@/core/structures'
-import { UpdateCommissionAvailability } from '@/core/helpers'
+import { PaymentStatus, PurchaseType, StripePaymentMetadata } from '@/core/structures'
+import { CreateSendbirdMessageChannel, UpdateCommissionAvailability } from '@/core/helpers'
 
 export async function POST(req: Request) {
     const sig = req.headers.get('stripe-signature')
@@ -77,9 +77,10 @@ export async function POST(req: Request) {
                         {
 
                             const kanban = await prisma.kanban.create({})
+                            const sendbird_channel_url = crypto.randomUUID()
 
                             // Create Form Submission
-                            await prisma.formSubmission.create({
+                            const submission = await prisma.formSubmission.create({
                                 data: {
                                     formId: metadata.form_id!,
                                     content: metadata.form_content!,
@@ -87,12 +88,16 @@ export async function POST(req: Request) {
                                     paymentIntent: charge.payment_intent?.toString(),
                                     paymentStatus: PaymentStatus.RequiresCapture,
                                     orderId: crypto.randomUUID(),
-                                    kanbanId: kanban.id
+                                    kanbanId: kanban.id,
+                                    sendbirdChannelURL: sendbird_channel_url
                                 }
                             })
 
                             // Update Form Availability if necesary
                             await UpdateCommissionAvailability(metadata.form_id!)
+
+                            // Create Sendbird channel
+                            await CreateSendbirdMessageChannel(submission.id, sendbird_channel_url)
 
                             // Update new submissions count field
                             await prisma.form.update({
