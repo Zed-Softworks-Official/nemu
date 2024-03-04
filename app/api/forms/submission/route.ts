@@ -3,8 +3,13 @@ import { UpdateCommissionAvailability } from '@/core/helpers'
 import { NemuResponse, StatusCode } from '@/core/responses'
 import { PaymentStatus } from '@/core/structures'
 import { prisma } from '@/lib/prisma'
+import { sendbird } from '@/lib/sendbird'
 import { NextResponse } from 'next/server'
 
+/**
+ * Creates a new form submission for someone that submitted an INVOICE style Commission
+ * Still needs to be reviewed by artist to accept it
+ */
 export async function POST(req: Request) {
     const data = (await req.json()) as CreateFormSubmissionStructure
 
@@ -17,7 +22,23 @@ export async function POST(req: Request) {
             content: data.content,
             paymentStatus: PaymentStatus.RequiresInvoice,
             orderId: crypto.randomUUID(),
-            kanbanId: kanban.id
+            kanbanId: kanban.id,
+        },
+        include: {
+            form: {
+                include: {
+                    commission: {
+                        include: {
+                            artist: true
+                        }
+                    }
+                }
+            },
+            user: {
+                include: {
+                    artist: true
+                }
+            }
         }
     })
 

@@ -116,3 +116,13 @@ export async function UpdateCommissionAvailability(form_id: string) {
         }
     })
 }
+
+
+/**
+ * 
+ * @param timestamp 
+ * @returns 
+ */
+export function ConvertDateToLocaleString(timestamp: Date) {
+    return timestamp.toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true })
+}

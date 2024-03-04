@@ -53,6 +53,9 @@ model Artist {
   website  String
   terms    String @default("Pls Feed Nemu")
 
+  automatedCommissionMessage String?
+  automatedMessageEnabled    Boolean @default(false)
+
   headerPhoto  String
   profilePhoto String
 
@@ -138,6 +141,8 @@ model User {
   emailVerified DateTime?
   image         String?
   role          Int?
+
+  hasSendbirdAccount Boolean @default(false)
 
   accounts        Account[]
   sessions        Session[]
@@ -256,6 +261,8 @@ model FormSubmission {
   invoiceSent      Boolean @default(false)
   invoiceContent   String?
   invoiceHostedUrl String?
+
+  sendbirdChannelURL String?
 
   kanbanId String @unique @db.ObjectId
 

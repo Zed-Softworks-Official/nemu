@@ -12,6 +12,7 @@ import { PaymentStatus } from '@/core/structures'
 import { StripeCreateCustomer } from '@/core/payments'
 import Stripe from 'stripe'
 import { CommissionStatus } from '@/core/data-structures/form-structures'
+import { sendbird } from '@/lib/sendbird'
 
 builder.mutationField('check_create_customer', (t) =>
     t.field({
@@ -202,8 +203,20 @@ builder.mutationField('update_commission_invoice', (t) =>
                     id: args.submission_id
                 },
                 include: {
-                    user: true,
-                    form: true
+                    user: {
+                        include: {
+                            artist: true
+                        }
+                    },
+                    form: {
+                        include: {
+                            commission: {
+                                include: {
+                                    artist: true
+                                }
+                            }
+                        }
+                    }
                 }
             })
 
@@ -239,6 +252,31 @@ builder.mutationField('update_commission_invoice', (t) =>
 
                 return { status: StatusCode.Success }
             }
+
+            const sendbird_channel_url = crypto.randomUUID()
+
+            // Create Channel For Sendbird
+            await sendbird.CreateGroupChannel({
+                name: `${submission?.user.artist ? '@' + submission.user.artist.handle : submission?.user.name}`,
+                channel_url: sendbird_channel_url,
+                cover_url: submission?.user.artist?.profilePhoto
+                    ? submission.user.artist.profilePhoto
+                    : `${process.env.BASE_URL}/profile.png`,
+                user_ids: [submission?.userId!, submission?.form.commission?.artist.userId!],
+                operator_ids: [submission?.form.commission?.artist.userId!],
+                block_sdk_user_channel_join: false,
+                is_distinct: true
+            })
+
+            // Update Form Submission
+            await prisma.formSubmission.update({
+                where: {
+                    id: submission?.id
+                },
+                data: {
+                    sendbirdChannelURL: sendbird_channel_url
+                }
+            })
 
             // Create The Invoice Draft on Stripe
             const invoice_draft = await StripeCreateCommissionInvoice(

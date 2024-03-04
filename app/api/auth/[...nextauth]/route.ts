@@ -9,6 +9,9 @@ import TwitterProvider from 'next-auth/providers/twitter'
 import EmailProvider from 'next-auth/providers/email'
 import { Role } from '@/core/structures'
 
+import { sendbird } from '@/lib/sendbird'
+import { SendbirdUserData } from '@/sendbird/sendbird-structures'
+
 export const authOptions: NextAuthOptions = {
     adapter: PrismaAdapter(prisma),
     session: {
@@ -64,9 +67,7 @@ export const authOptions: NextAuthOptions = {
 
                 // Add Extra Session Data
                 session.user.user_id = token.sub
-                session.user.provider = token.provider
-                    ? (token.provider as string)
-                    : undefined
+                session.user.provider = token.provider ? (token.provider as string) : undefined
                 session.user.role = db_user?.role as Role
 
                 // If the user's role is an artist we need some additional information
@@ -80,6 +81,28 @@ export const authOptions: NextAuthOptions = {
                                     }
                                 })
                                 session.user.handle = db_artist?.handle
+
+                                // Check if the artist has a sendbird account
+                                if (!db_user?.hasSendbirdAccount) {
+                                    // Create Sendbird user
+                                    const user_data: SendbirdUserData = {
+                                        user_id: db_user?.id!,
+                                        nickname: session.user.handle != undefined ? session.user.handle : db_user?.name!,
+                                        profile_url: db_artist?.profilePhoto ? db_artist?.profilePhoto : `${process.env.BASE_URL}/profile.png`
+                                    }
+
+                                    sendbird.CreateUser(user_data)
+
+                                    // Update database
+                                    await prisma.user.update({
+                                        where: {
+                                            id: db_user.id
+                                        },
+                                        data: {
+                                            hasSendbirdAccount: true
+                                        }
+                                    })
+                                }
                             }
                             break
                     }

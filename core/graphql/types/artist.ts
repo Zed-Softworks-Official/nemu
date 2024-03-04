@@ -15,6 +15,9 @@ builder.prismaObject('Artist', {
         location: t.exposeString('location'),
         terms: t.exposeString('terms'),
 
+        automatedCommissionMessage: t.exposeString('automatedCommissionMessage', {nullable: true}),
+        automatedMessageEnabled: t.exposeBoolean('automatedMessageEnabled'),
+
         headerPhoto: t.exposeString('headerPhoto'),
         profilePhoto: t.exposeString('profilePhoto'),
 
