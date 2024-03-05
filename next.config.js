@@ -20,6 +20,18 @@ const nextConfig = {
                 hostname: 'nemuart.s3.us-west-1.amazonaws.com',
                 port: '',
                 pathname: '/**'
+            },
+            {
+                protocol: 'https',
+                hostname: 'file-us-1.sendbird.com',
+                port: '',
+                pathname: '/**'
+            },
+            {
+                protocol: 'http',
+                hostname: 'localhost',
+                port: '3000',
+                pathname: '/**'
             }
         ]
     }

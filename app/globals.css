@@ -18,6 +18,10 @@
     @apply bg-transparent
 }
 
+.sendbird-conversation {
+    @apply !border-none !bg-base-100;
+}
+
 .logo {
     @apply flex justify-center items-center;
 }

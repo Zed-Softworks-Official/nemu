@@ -16,16 +16,6 @@ export default function MessageTextInput({ other_username }: { other_username: s
                         <PaperClipIcon className="w-6 h-6" />
                     </button>
                 </div>
-                <div className="tooltip" data-tip="Upload Image">
-                    <button type="button" className="btn btn-ghost">
-                        <PhotoIcon className="w-6 h-6" />
-                    </button>
-                </div>
-                <div className="tooltip" data-tip="Send Message">
-                    <button type="button" className="btn btn-ghost">
-                        <ArrowUpCircleIcon className="w-6 h-6" />
-                    </button>
-                </div>
             </div>
         </div>
     )

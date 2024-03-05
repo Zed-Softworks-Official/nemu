@@ -22,8 +22,8 @@ export default function ChatBubble({ message, current_user }: { message: ChatMes
                 return <p>{message.message}</p>
             case ChatMessageType.Image:
                 return <NemuImage src={message.signed_url!} alt="photo" width={500} height={500} className="max-w-xs" />
-            case ChatMessageType.File:
-                return <>File</>
+            case ChatMessageType.Admin:
+                return <>Admin</>
         }
     }
 
@@ -31,7 +31,7 @@ export default function ChatBubble({ message, current_user }: { message: ChatMes
         <div className={ClassNames('chat', current_user ? 'chat-end' : 'chat-start')}>
             <div className="chat-image avatar">
                 <div className="w-10 rounded-full">
-                    <NemuImage src={'/profile.png'} alt="profile picture" width={200} height={200} className="avatar rounded-full" />
+                    <NemuImage src={message.profile_photo} alt="profile picture" width={200} height={200} className="avatar rounded-full" />
                 </div>
             </div>
             <div className="chat-header">
