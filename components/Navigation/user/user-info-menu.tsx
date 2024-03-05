@@ -22,6 +22,7 @@ import { ClassNames } from '@/core/helpers'
 import { UserInfoIcon, UserInfoLink, UserInfoObject, Role } from '@/core/structures'
 import Image from 'next/image'
 import ThemeSwitcher from '@/components/theme/theme-switcher'
+import NemuImage from '@/components/nemu-image'
 
 export default function UserInfoMenu() {
     const { data: session } = useSession()
@@ -76,11 +77,7 @@ export default function UserInfoMenu() {
     }
 
     // initialize the navbar items
-    let navbar_items: UserInfoLink[] = GetCurrentNavbarItems(
-        session ? true : false,
-        session?.user.role!,
-        session?.user.handle
-    )
+    let navbar_items: UserInfoLink[] = GetCurrentNavbarItems(session ? true : false, session?.user.role!, session?.user.handle)
 
     return (
         <Menu as="div" className="relative inline-block text-left mt-3 ml-20">
@@ -88,18 +85,12 @@ export default function UserInfoMenu() {
                 <Menu.Button className="inline-flex w-full justify-center gap-x-1.5 rounded-md font-semibold btn btn-ghost btn-circle hover:bg-transparent">
                     {session?.user ? (
                         session?.user?.image ? (
-                            <Image
-                                src={session?.user?.image!}
-                                alt="profile image"
-                                width={50}
-                                height={50}
-                                className="rounded-full w-16"
-                            />
+                            <NemuImage src={session?.user?.image!} alt="profile image" width={50} height={50} className="rounded-full w-16" />
                         ) : (
-                            <div className="avatar rounded-full skeleton w-12 h-12"></div>
+                            <NemuImage src={'/profile.png'} alt="profile image" width={50} height={50} className="avatar rounded-full w-16" />
                         )
                     ) : (
-                        <UserIcon className="h-6 w-6 text-base-content" />
+                        <div className="avatar rounded-full skeleton w-12 h-12"></div>
                     )}
                 </Menu.Button>
             </div>
@@ -121,9 +112,7 @@ export default function UserInfoMenu() {
                                         <Link
                                             href={item.path}
                                             className={ClassNames(
-                                                active
-                                                    ? 'bg-base-100 text-base-content'
-                                                    : 'bg-base-300 text-base-content',
+                                                active ? 'bg-base-100 text-base-content' : 'bg-base-300 text-base-content',
                                                 'flex justify-start items-center gap-5 w-full px-5 py-2 text-sm'
                                             )}
                                         >
@@ -134,9 +123,7 @@ export default function UserInfoMenu() {
                                 </Menu.Item>
                             )
                         })}
-                        <Menu.Item>
-                            {({ active }) => <ThemeSwitcher active={active} />}
-                        </Menu.Item>
+                        <Menu.Item>{({ active }) => <ThemeSwitcher active={active} />}</Menu.Item>
                     </div>
                 </Menu.Items>
             </Transition>

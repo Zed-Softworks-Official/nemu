@@ -4,7 +4,7 @@ import { StripeGetWebhookEvent as StripeStripeWebhookEvent } from '@/core/paymen
 import { NemuResponse, StatusCode } from '@/core/responses'
 import { prisma } from '@/lib/prisma'
 import { PaymentStatus, PurchaseType, StripePaymentMetadata } from '@/core/structures'
-import { CreateSendbirdMessageChannel, UpdateCommissionAvailability } from '@/core/helpers'
+import { CheckCreateSendbirdUser, CreateSendbirdMessageChannel, UpdateCommissionAvailability } from '@/core/helpers'
 
 export async function POST(req: Request) {
     const sig = req.headers.get('stripe-signature')
@@ -95,6 +95,9 @@ export async function POST(req: Request) {
 
                             // Update Form Availability if necesary
                             await UpdateCommissionAvailability(metadata.form_id!)
+
+                            // Create a sendbird user if the user that commissioned the artist doesn't have a sendbird account
+                            await CheckCreateSendbirdUser(metadata.user_id)
 
                             // Create Sendbird channel
                             await CreateSendbirdMessageChannel(submission.id, sendbird_channel_url)

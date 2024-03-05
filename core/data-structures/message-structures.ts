@@ -25,7 +25,9 @@ export interface ChatMessage {
 
 export interface MessagePreview {
     other_username: string
-    last_message: string
-    late_message_timestamp: Date
+    channel_url: string
+
+    last_message?: string
+    late_message_timestamp?: Date
     last_message_current_user: boolean
 }

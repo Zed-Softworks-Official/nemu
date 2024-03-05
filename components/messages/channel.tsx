@@ -1,5 +1,5 @@
 'use client'
-import { Bars3Icon } from '@heroicons/react/20/solid'
+import { Bars3Icon, ChatBubbleOvalLeftEllipsisIcon, PaperAirplaneIcon, PaperClipIcon } from '@heroicons/react/20/solid'
 import ChatBubble from './chat-buble'
 import { ChatMessageType, ChatStatus } from '@/core/structures'
 import MessageTextInput from './message-text-input'
@@ -9,16 +9,14 @@ import { useState } from 'react'
 import NemuImage from '../nemu-image'
 
 import { GroupChannelUI } from '@sendbird/uikit-react/GroupChannel/components/GroupChannelUI'
-import {
-    GroupChannelProviderProps,
-    GroupChannelProvider,
-    useGroupChannelContext,
-    GroupChannelContextType
-} from '@sendbird/uikit-react/GroupChannel/context'
-import { BaseMessage, FileMessage, MessageType, SendingStatus, UserMessage } from '@sendbird/chat/message'
+import { GroupChannelProvider, useGroupChannelContext } from '@sendbird/uikit-react/GroupChannel/context'
+import { FileMessage, MessageType, SendingStatus, UserMessage } from '@sendbird/chat/message'
 
-export function CustomChannel() {
-    const { currentChannel } = useGroupChannelContext()
+import Loading from '../loading'
+import ChannelSettings from './channel-settings'
+
+function CustomChannel() {
+    const { currentChannel, sendUserMessage, sendFileMessage } = useGroupChannelContext()
     const { data: session } = useSession()
 
     const [showDetail, setShowDetail] = useState(false)
@@ -38,99 +36,113 @@ export function CustomChannel() {
 
     function ConvertSendbirdToNemuStatus(status: SendingStatus) {
         switch (status) {
-            case SendingStatus.SUCCEEDED: return ChatStatus.Delivered
-            case SendingStatus.FAILED: return ChatStatus.Failed
+            case SendingStatus.SUCCEEDED:
+                return ChatStatus.Delivered
+            case SendingStatus.FAILED:
+                return ChatStatus.Failed
         }
 
         return ChatStatus.Failed
     }
 
     return (
-        <GroupChannelUI
-            renderPlaceholderInvalid={() => (
-                <div className="flex flex-col w-full h-full bg-base-100 justify-center items-center gap-5">
-                    <NemuImage src="/nemu/sad.png" alt="Sad nemu" width={200} height={200} />
-                    <h2 className="card-title">There's no channel selected</h2>
+        <div className="relative w-full">
+            <GroupChannelUI
+                renderPlaceholderInvalid={() => (
+                    <div className="flex flex-col w-full h-full bg-base-100 justify-center items-center gap-5">
+                        <NemuImage src="/nemu/sad.png" alt="Sad nemu" width={200} height={200} />
+                        <h2 className="card-title">There's no channel selected</h2>
+                    </div>
+                )}
+                renderPlaceholderEmpty={() => (
+                    <div className='flex flex-col w-full h-full bg-base-100 justify-center items-center gap-5 text-base-content/80'>
+                        <ChatBubbleOvalLeftEllipsisIcon className='w-20 h-20' />
+                        <h2 className='card-title'>No Messages</h2>
+                    </div>
+                )}
+                renderPlaceholderLoader={() => (
+                    <div className='flex flex-col w-full h-full bg-base-100 justify-center items-center'>
+                        <Loading />
+                    </div>
+                )}
+                renderChannelHeader={() => (
+                    <div className="flex w-full p-5 justify-between items-center bg-base-200">
+                        <h2 className="card-title">{currentChannel?.name}</h2>
+                        <button
+                            type="button"
+                            className="btn btn-ghost"
+                            onClick={() => {
+                                setShowDetail(true)
+                            }}
+                        >
+                            <Bars3Icon className="w-6 h-6" />
+                        </button>
+                    </div>
+                )}
+                // renderFileUploadIcon={() => (
+                //     <button type="button" className="absolute right-3 top-1 btn btn-ghost" onClick={async () => {
+                //         // await sendFileMessage({})
+                //     }}>
+                //         <PaperClipIcon className="w-6 h-6" />
+                //     </button>
+                // )}
+                // renderSendMessageIcon={() => (
+                //     <button type="button" className="absolute -top-1 right-0 btn btn-ghost" onClick={async () => {
+                //         await sendUserMessage({
+                //             message: 'Hello, World!'
+                //         })
+                //     }}>
+                //         <PaperAirplaneIcon className="w-6 h-6" />
+                //     </button>
+                // )}
+                // renderMessageInput={() => (
+                //     <div className="flex p-5 bg-base-300 h-16 relative" contentEditable={true} role="textbox" aria-label="Text Input">
+                //         <span className="text-base-content/80">Send Message</span>
+                //         <div className="absolute top-0 right-0">
+                //             <button type="button" className="btn btn-ghost">
+                //                 <PaperClipIcon className="w-6 h-6" />
+                //             </button>
+                //         </div>
+                //     </div>
+                // )}
+                renderMessage={({message}) => {
+                    return (
+                        <ChatBubble
+                            message={{
+                                username: message.sender.nickname,
+                                profile_photo: message.sender.profileUrl,
+                                message: message.isUserMessage() ? (message as UserMessage).message : '',
+                                signed_url: message.isFileMessage() ? (message as FileMessage).url : '',
+                                sent_timestamp: new Date(message.createdAt),
+                                status: ConvertSendbirdToNemuStatus((message as UserMessage).sendingStatus),
+                                message_type: ConvertSendbirdToNemuMessageType(message.messageType)
+                            }}
+                            current_user={message.sender.userId == session?.user.user_id}
+                        />
+                    )
+                }}
+                renderCustomSeparator={({message}) => <div className="p-5 bg-primary w-full h-20">{message.createdAt}</div>}
+            />
+            <Transition
+                enter="transition-all duration-150 absolute right-0 top-0 h-full"
+                enterFrom="opacity-0 z-20 translate-x-20"
+                enterTo="opacity-100"
+                leave="transition-all duration-150 absolute right-0 top-0 h-full"
+                leaveFrom="opacity-100 z-20"
+                leaveTo="opacity-0 translate-x-20"
+                show={showDetail}
+            >
+                <div className="w-[21rem] p-5 bg-base-200/80 backdrop-blur-xl absolute right-0 top-0 z-20 h-full rounded-r-xl">
+                    <ChannelSettings channel_url={currentChannel?.url!} />
                 </div>
-            )}
-            renderChannelHeader={() => (
-                <div className="flex w-full p-5 justify-between items-center bg-base-200">
-                    <h2 className="card-title">{currentChannel?.name}</h2>
-                    <button type="button" className="btn btn-ghost">
-                        <Bars3Icon className="w-6 h-6" />
-                    </button>
-                </div>
-            )}
-            renderMessage={(props) => (
-                <ChatBubble
-                    message={{
-                        username: props.message.sender.nickname,
-                        profile_photo: props.message.sender.profileUrl,
-                        message: props.message.isUserMessage() ? (props.message as UserMessage).message : '',
-                        signed_url: props.message.isFileMessage() ? (props.message as FileMessage).url : '',
-                        sent_timestamp: new Date(props.message.createdAt),
-                        status: ConvertSendbirdToNemuStatus((props.message as UserMessage).sendingStatus),
-                        message_type: ConvertSendbirdToNemuMessageType(props.message.messageType)
+                <div
+                    className="w-full h-full absolute top-0 left-0"
+                    onClick={() => {
+                        setShowDetail(false)
                     }}
-                    current_user={props.message.sender.userId == session?.user.user_id}
-                />
-            )}
-            renderCustomSeparator={(props) => (
-                <div className='divider'>{props.message.createdAt}</div>
-            )}
-        />
-        // <div className="bg-base-100 h-[60rem] join-item relative w-full">
-        //     <div className="flex w-full justify-between items-center bg-base-300/80 backdrop-blur-2xl p-5 absolute z-10 rounded-tr-xl">
-        //         <h2 className="card-title">{currentChannel ? currentChannel.name : 'No Channel Selected'}</h2>
-        //         <button
-        //             type="button"
-        //             className="btn btn-ghost"
-        //             onClick={() => {
-        //                 setShowDetail(true)
-        //             }}
-        //         >
-        //             <Bars3Icon className="w-6 h-6" />
-        //         </button>
-        //     </div>
-        //     <div className="h-full w-full">
-        //         <div className="flex flex-col w-full h-full overflow-y-scroll">
-
-        //         </div>
-        //         <Transition
-        //             enter="transition-all duration-150 absolute right-0 top-0 h-full"
-        //             enterFrom="opacity-0 z-20 translate-x-20"
-        //             enterTo="opacity-100"
-        //             leave="transition-all duration-150 absolute right-0 top-0 h-full"
-        //             leaveFrom="opacity-100 z-20"
-        //             leaveTo="opacity-0 translate-x-20"
-        //             show={showDetail}
-        //         >
-        //             <div className="w-80 p-5 bg-base-200/80 backdrop-blur-xl absolute right-0 top-0 z-20 h-full rounded-r-xl">
-        //                 <div className="card bg-base-300">
-        //                     <div className="card-body">
-        //                         <div className="flex flex-col gap-5 justify-center items-center">
-        //                             <NemuImage
-        //                                 src={'/profile.png'}
-        //                                 alt="profile picture"
-        //                                 width={200}
-        //                                 height={200}
-        //                                 className="avatar rounded-full w-24 h-24"
-        //                             />
-        //                             <h2 className="card-title">GnarlyTiger</h2>
-        //                             <p>About the user, will container links to their profile and an @ symbol if they're an artist</p>
-        //                         </div>
-        //                     </div>
-        //                 </div>
-        //             </div>
-        //             <div
-        //                 className="w-full h-full absolute top-0 left-0"
-        //                 onClick={() => {
-        //                     setShowDetail(false)
-        //                 }}
-        //             ></div>
-        //         </Transition>
-        //     </div>
-        // </div>
+                ></div>
+            </Transition>
+        </div>
     )
 }
 

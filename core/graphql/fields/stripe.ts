@@ -13,7 +13,7 @@ import { StripeCreateCustomer } from '@/core/payments'
 import Stripe from 'stripe'
 import { CommissionStatus } from '@/core/data-structures/form-structures'
 import { sendbird } from '@/lib/sendbird'
-import { CreateSendbirdMessageChannel } from '@/core/helpers'
+import { CheckCreateSendbirdUser, CreateSendbirdMessageChannel } from '@/core/helpers'
 
 builder.mutationField('check_create_customer', (t) =>
     t.field({
@@ -242,6 +242,9 @@ builder.mutationField('update_commission_invoice', (t) =>
                 return { status: StatusCode.Success }
             }
 
+
+            // Create a sendbird user if they don't have one already
+            await CheckCreateSendbirdUser(submission?.userId!)
             
             // Create Channel For Sendbird
             const sendbird_channel_url = crypto.randomUUID()

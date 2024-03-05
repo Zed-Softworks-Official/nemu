@@ -70,6 +70,9 @@ export const authOptions: NextAuthOptions = {
                 session.user.provider = token.provider ? (token.provider as string) : undefined
                 session.user.role = db_user?.role as Role
 
+                // TODO: Check If Needed
+                session.user.name = db_user?.name
+
                 // If the user's role is an artist we need some additional information
                 if (db_user?.role) {
                     switch (db_user?.role as Role) {

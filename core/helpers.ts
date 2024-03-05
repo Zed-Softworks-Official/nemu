@@ -2,6 +2,7 @@ import { request } from 'graphql-request'
 import { CommissionAvailability } from './structures'
 import { prisma } from '@/lib/prisma'
 import { sendbird } from '@/lib/sendbird'
+import { SendbirdUserData } from '@/sendbird/sendbird-structures'
 
 /**
  * Joins variable amount of classnames into one string
@@ -128,9 +129,9 @@ export function ConvertDateToLocaleString(timestamp: Date) {
 }
 
 /**
- * 
- * @param submission_id 
- * @param sendbird_channel_url 
+ *
+ * @param submission_id
+ * @param sendbird_channel_url
  */
 export async function CreateSendbirdMessageChannel(submission_id: string, sendbird_channel_url: string) {
     const submission = await prisma.formSubmission.findFirst({
@@ -162,6 +163,29 @@ export async function CreateSendbirdMessageChannel(submission_id: string, sendbi
         user_ids: [submission?.userId!, submission?.form.commission?.artist.userId!],
         operator_ids: [submission?.form.commission?.artist.userId!],
         block_sdk_user_channel_join: false,
-        is_distinct: true
+        is_distinct: false
     })
+}
+
+export async function CheckCreateSendbirdUser(user_id: string) {
+    // Get the user
+    const user = await prisma.user.findFirst({
+        where: {
+            id: user_id
+        }
+    })
+
+    // Check if the user has a sendbird account
+    if (user?.hasSendbirdAccount) {
+        return
+    }
+
+    // Create a new sendbird account
+    const user_data: SendbirdUserData = {
+        user_id: user_id,
+        nickname: user?.name!,
+        profile_url: user?.image || `${process.env.BASE_URL}/profile.png`
+    }
+
+    await sendbird.CreateUser(user_data)
 }

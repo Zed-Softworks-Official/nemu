@@ -4,7 +4,9 @@ import { useChannelListContext, ChannelListProvider } from '@sendbird/uikit-reac
 import { UserMessage, BaseMessage } from '@sendbird/chat/message'
 
 import MessagesCard from './messages-card'
-import PlaceHolder, { PlaceHolderTypes } from '@sendbird/uikit-react/ui/PlaceHolder'
+import { ExclamationTriangleIcon } from '@heroicons/react/20/solid'
+import Loading from '../loading'
+import { useMemo } from 'react'
 
 interface ChannelListProps {
     selected_channel: string
@@ -13,8 +15,6 @@ interface ChannelListProps {
 
 function CustomChannelList({ selected_channel, set_channel_url }: ChannelListProps) {
     const { allChannels, loading, initialized } = useChannelListContext()
-    if (!initialized) return <PlaceHolder type={PlaceHolderTypes.WRONG} />
-    if (loading) return <PlaceHolder type={PlaceHolderTypes.LOADING} />
 
     function GetLastMessage(last_message: BaseMessage) {
         if (last_message.isUserMessage()) {
@@ -28,6 +28,23 @@ function CustomChannelList({ selected_channel, set_channel_url }: ChannelListPro
         return 'Error Parsing Message'
     }
 
+    if (!initialized) {
+        return (
+            <div className="bg-base-200 join-item p-5 flex flex-col gap-5 h-full justify-center items-center">
+                <ExclamationTriangleIcon className="w-10 h-10" />
+                <h2 className="card-title">Something went wrong!</h2>
+            </div>
+        )
+    }
+
+    if (loading) {
+        return (
+            <div className="bg-base-200 join-item p-5 flex flex-col gap-5 h-full justify-center items-center">
+                <Loading />
+            </div>
+        )
+    }
+
     return (
         <div className="bg-base-200 join-item p-5 flex flex-col gap-5 h-full">
             <div className="pt-5">
@@ -38,8 +55,9 @@ function CustomChannelList({ selected_channel, set_channel_url }: ChannelListPro
                 <MessagesCard
                     message_preview={{
                         other_username: channel.name,
-                        last_message: GetLastMessage(channel.lastMessage!),
-                        late_message_timestamp: new Date(channel.lastMessage?.createdAt!),
+                        channel_url: channel.url,
+                        last_message: channel.lastMessage ? GetLastMessage(channel.lastMessage) : undefined,
+                        late_message_timestamp: channel.lastMessage ? new Date(channel.lastMessage.createdAt) : undefined,
                         last_message_current_user: true
                     }}
                     onClick={() => {
@@ -53,8 +71,16 @@ function CustomChannelList({ selected_channel, set_channel_url }: ChannelListPro
 }
 
 export default function ChannelList({ selected_channel, set_channel_url }: ChannelListProps) {
+    const query = useMemo(() => {
+        return {
+            channelListQuery: {
+                includeEmpty: true
+            }
+        }
+    }, [])
+
     return (
-        <ChannelListProvider>
+        <ChannelListProvider queries={query}>
             <CustomChannelList selected_channel={selected_channel} set_channel_url={set_channel_url} />
         </ChannelListProvider>
     )

@@ -20,6 +20,8 @@ builder.prismaObject('FormSubmission', {
         invoiceContent: t.exposeString('invoiceContent', { nullable: true }),
         invoiceHostedUrl: t.exposeString('invoiceHostedUrl', { nullable: true }),
 
+        sendbirdChannelURL: t.exposeString('sendbirdChannelURL', {nullable: true}),
+
         form: t.relation('form'),
         user: t.relation('user'),
         kanban: t.field({
@@ -61,6 +63,11 @@ builder.queryField('form_submission', (t) =>
                 type: 'String',
                 required: false,
                 description: ''
+            }),
+            channel_url: t.arg({
+                type: 'String',
+                required: false,
+                description: ''
             })
         },
         resolve: (query, _parent, args, _ctx, _info) =>
@@ -68,7 +75,8 @@ builder.queryField('form_submission', (t) =>
                 ...query,
                 where: {
                     orderId: args.order_id || undefined,
-                    id: args.submission_id || undefined
+                    id: args.submission_id || undefined,
+                    sendbirdChannelURL: args.channel_url || undefined
                 }
             })
     })

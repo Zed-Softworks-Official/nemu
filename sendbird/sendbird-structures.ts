@@ -12,5 +12,5 @@ export interface SendbirdChannelData {
     user_ids: string[]
     operator_ids: string[]
     block_sdk_user_channel_join: boolean
-    is_distinct: true
+    is_distinct: boolean
 }
