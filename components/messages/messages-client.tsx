@@ -16,7 +16,6 @@ export default function MessagesClient() {
     const { data: session } = useSession()
 
     const [channelURL, setChannelURL] = useState('')
-    const [showSettings, setShowSettings] = useState(false)
 
     if (!session?.user) {
         return null
@@ -27,26 +26,7 @@ export default function MessagesClient() {
             <div className="flex join w-full h-full">
                 <SendbirdProvider appId="AE781B27-397F-4722-9EC3-13E39266C944" userId={session.user.user_id!} theme="dark">
                     <ChannelList selected_channel={channelURL} set_channel_url={setChannelURL} />
-                    {false ? (
-                        <Channel
-                            channelUrl={channelURL}
-                            onChatHeaderActionClick={() => {
-                                setShowSettings(true)
-                            }}
-                        />
-                    ) : (
-                        <MessagesContent channel_url={channelURL} />
-                    )}
-                    {showSettings && (
-                        <div className="sendbird-app__settingspanel-wrap">
-                            <ChannelSettings
-                                channelUrl={channelURL}
-                                onCloseClick={() => {
-                                    setShowSettings(false)
-                                }}
-                            />
-                        </div>
-                    )}
+                    {false ? <Channel channelUrl={channelURL} /> : <MessagesContent channel_url={channelURL} />}
                 </SendbirdProvider>
             </div>
         </div>

@@ -188,4 +188,14 @@ export async function CheckCreateSendbirdUser(user_id: string) {
     }
 
     await sendbird.CreateUser(user_data)
+
+    // Update User in database
+    await prisma.user.update({
+        where: {
+            id: user_id
+        },
+        data: {
+            hasSendbirdAccount: true
+        }
+    })
 }

@@ -22,6 +22,10 @@
     @apply !border-none !bg-base-100;
 }
 
+.sendbird-channel-list {
+    @apply !w-auto;
+}
+
 .logo {
     @apply flex justify-center items-center;
 }

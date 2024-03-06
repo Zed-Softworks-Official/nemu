@@ -14,12 +14,14 @@ import { FileMessage, MessageType, SendingStatus, UserMessage } from '@sendbird/
 
 import Loading from '../loading'
 import ChannelSettings from './channel-settings'
+import { ClassNames } from '@/core/helpers'
 
 function CustomChannel() {
-    const { currentChannel, sendUserMessage, sendFileMessage } = useGroupChannelContext()
+    const { currentChannel, sendUserMessage, sendFileMessage, updateUserMessage, deleteMessage } = useGroupChannelContext()
     const { data: session } = useSession()
 
     const [showDetail, setShowDetail] = useState(false)
+    const [messageContent, setMessageContent] = useState('')
 
     function ConvertSendbirdToNemuMessageType(message_type: MessageType) {
         switch (message_type) {
@@ -46,7 +48,7 @@ function CustomChannel() {
     }
 
     return (
-        <div className="relative w-full">
+        <div className="w-full relative join-item">
             <GroupChannelUI
                 renderPlaceholderInvalid={() => (
                     <div className="flex flex-col w-full h-full bg-base-100 justify-center items-center gap-5">
@@ -55,13 +57,13 @@ function CustomChannel() {
                     </div>
                 )}
                 renderPlaceholderEmpty={() => (
-                    <div className='flex flex-col w-full h-full bg-base-100 justify-center items-center gap-5 text-base-content/80'>
-                        <ChatBubbleOvalLeftEllipsisIcon className='w-20 h-20' />
-                        <h2 className='card-title'>No Messages</h2>
+                    <div className="flex flex-col w-full h-full bg-base-100 justify-center items-center gap-5 text-base-content/80">
+                        <ChatBubbleOvalLeftEllipsisIcon className="w-20 h-20" />
+                        <h2 className="card-title">No Messages</h2>
                     </div>
                 )}
                 renderPlaceholderLoader={() => (
-                    <div className='flex flex-col w-full h-full bg-base-100 justify-center items-center'>
+                    <div className="flex flex-col w-full h-full bg-base-100 justify-center items-center">
                         <Loading />
                     </div>
                 )}
@@ -79,33 +81,32 @@ function CustomChannel() {
                         </button>
                     </div>
                 )}
-                // renderFileUploadIcon={() => (
-                //     <button type="button" className="absolute right-3 top-1 btn btn-ghost" onClick={async () => {
-                //         // await sendFileMessage({})
-                //     }}>
-                //         <PaperClipIcon className="w-6 h-6" />
-                //     </button>
-                // )}
-                // renderSendMessageIcon={() => (
-                //     <button type="button" className="absolute -top-1 right-0 btn btn-ghost" onClick={async () => {
-                //         await sendUserMessage({
-                //             message: 'Hello, World!'
-                //         })
-                //     }}>
-                //         <PaperAirplaneIcon className="w-6 h-6" />
-                //     </button>
-                // )}
-                // renderMessageInput={() => (
-                //     <div className="flex p-5 bg-base-300 h-16 relative" contentEditable={true} role="textbox" aria-label="Text Input">
-                //         <span className="text-base-content/80">Send Message</span>
-                //         <div className="absolute top-0 right-0">
-                //             <button type="button" className="btn btn-ghost">
-                //                 <PaperClipIcon className="w-6 h-6" />
-                //             </button>
-                //         </div>
-                //     </div>
-                // )}
-                renderMessage={({message}) => {
+                renderMessageInput={() => (
+                    <div className="w-[96%] justify-center items-center mx-auto">
+                        <div className="flex p-5 bg-base-300 h-full cursor-text w-full relative rounded-xl">
+                            <span
+                                className="text-base-content focus:outline-none empty:before:content-[attr(placeholder)]"
+                                contentEditable={true}
+                                role="input"
+                                onInput={(e) => {
+                                    setMessageContent(e.currentTarget.textContent!)
+                                }}
+                                placeholder="Send Message"
+                            ></span>
+                            <div className="absolute top-1 right-2">
+                                <div className="swap swap-rotate">
+                                    <button type="button" className={ClassNames('btn btn-ghost', messageContent ? 'swap-off' : 'swap-on')}>
+                                        <PaperAirplaneIcon className="w-6 h-6" />
+                                    </button>
+                                    <button type="button" className={ClassNames('btn btn-ghost', messageContent ? 'swap-on' : 'swap-off')}>
+                                        <PaperClipIcon className="w-6 h-6" />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+                renderMessage={({ message }) => {
                     return (
                         <ChatBubble
                             message={{
@@ -121,7 +122,7 @@ function CustomChannel() {
                         />
                     )
                 }}
-                renderCustomSeparator={({message}) => <div className="p-5 bg-primary w-full h-20">{message.createdAt}</div>}
+                renderCustomSeparator={({ message }) => <div className="p-5 bg-primary w-full h-20">{message.createdAt}</div>}
             />
             <Transition
                 enter="transition-all duration-150 absolute right-0 top-0 h-full"
@@ -132,7 +133,7 @@ function CustomChannel() {
                 leaveTo="opacity-0 translate-x-20"
                 show={showDetail}
             >
-                <div className="w-[21rem] p-5 bg-base-200/80 backdrop-blur-xl absolute right-0 top-0 z-20 h-full rounded-r-xl">
+                <div className="w-[21rem] p-5 bg-base-200/80 backdrop-blur-xl absolute right-0 top-0 z-20 h-full rounded-r-xl ">
                     <ChannelSettings channel_url={currentChannel?.url!} />
                 </div>
                 <div

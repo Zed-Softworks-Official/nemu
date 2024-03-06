@@ -46,7 +46,7 @@ function CustomChannelList({ selected_channel, set_channel_url }: ChannelListPro
     }
 
     return (
-        <div className="bg-base-200 join-item p-5 flex flex-col gap-5 h-full">
+        <div className="bg-base-200 join-item p-5 flex flex-col gap-5 h-full w-96">
             <div className="pt-5">
                 <h2 className="card-title">Channels</h2>
                 <div className="divider"></div>

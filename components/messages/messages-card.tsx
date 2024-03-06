@@ -45,7 +45,7 @@ export default function MessagesCard({
     return (
         <div
             className={ClassNames(
-                'card cursor-pointer transition-all duration-200 w-72',
+                'card cursor-pointer transition-all duration-200 w-full',
                 selected ? 'bg-primary shadow-xl' : 'bg-base-100 hover:bg-primary hover:shadow-xl'
             )}
             onMouseEnter={() => {
@@ -60,7 +60,15 @@ export default function MessagesCard({
                 <div className="flex justify-between gap-2">
                     <div className="flex flex-col gap-2 ">
                         <h2 className="font-bold font-lg">{message_preview.other_username}</h2>
-                        <span className={ClassNames("badge badge-lg", selected && 'badge-outline badge-accent', !selected && mouseOver ? 'badge-outline badge-accent' : 'badge-primary')}>{data?.form_submission.form.commission.title}</span>
+                        <span
+                            className={ClassNames(
+                                'badge badge-lg',
+                                selected && 'badge-outline badge-accent',
+                                !selected && mouseOver ? 'badge-outline badge-accent' : 'badge-primary'
+                            )}
+                        >
+                            {data?.form_submission.form.commission.title}
+                        </span>
                     </div>
                     {message_preview.late_message_timestamp && (
                         <time className="text-xs ml-2">{ConvertDateToLocaleString(message_preview.late_message_timestamp)}</time>
