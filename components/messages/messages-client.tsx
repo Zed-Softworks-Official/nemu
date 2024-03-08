@@ -3,11 +3,10 @@
 import { useState } from 'react'
 import { useSession } from 'next-auth/react'
 
-import MessagesContent from './channel'
+import Channel from './channel'
 import ChannelList from './channel-list'
 
 import SendbirdProvider from '@sendbird/uikit-react/SendbirdProvider'
-import Channel from '@sendbird/uikit-react/Channel'
 
 import '@sendbird/uikit-react/dist/index.css'
 import { MessagesProvider } from './messages-context'
@@ -36,7 +35,7 @@ export default function MessagesClient() {
                 >
                     <MessagesProvider channel_url={channelURL}>
                         <ChannelList selected_channel={channelURL} set_channel_url={setChannelURL} />
-                        {false ? <Channel channelUrl={channelURL} /> : <MessagesContent channel_url={channelURL} />}
+                        <Channel channel_url={channelURL} />
                     </MessagesProvider>
                 </SendbirdProvider>
             </div>
