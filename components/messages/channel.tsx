@@ -9,7 +9,7 @@ import NemuImage from '../nemu-image'
 
 import { GroupChannelUI } from '@sendbird/uikit-react/GroupChannel/components/GroupChannelUI'
 import { GroupChannelProvider, useGroupChannelContext } from '@sendbird/uikit-react/GroupChannel/context'
-import { BaseMessage, FileMessage, FileMessageCreateParams, MessageType, SendingStatus, UserMessage } from '@sendbird/chat/message'
+import { BaseMessage, FileMessage, MessageType, SendingStatus, UserMessage } from '@sendbird/chat/message'
 import { EveryMessage } from '@sendbird/uikit-react/'
 
 import Loading from '../loading'
@@ -17,10 +17,10 @@ import ChannelSettings from './channel-settings'
 import { ClassNames, GraphQLFetcher } from '@/core/helpers'
 import MessagesContextMenu from './messages-context-menu'
 import { useMessagesContext } from './messages-context'
-import Modal from '../modal'
 import MessagesModal from '../messages-modal'
 import { toast } from 'react-toastify'
 import { NemuResponse, StatusCode } from '@/core/responses'
+import { BsReplyFill } from 'react-icons/bs'
 
 const initialContextMenu = {
     show: false,
@@ -29,9 +29,20 @@ const initialContextMenu = {
 }
 
 function CustomChannel() {
-    const { currentChannel, sendUserMessage, sendFileMessage, deleteMessage, updateFileMessage } = useGroupChannelContext()
-    const { setMessage, editingId, deletingMessage, setDeletingMessage, kanbanId, messageToAddToKanban, setMessageToAddToKanban } =
-        useMessagesContext()!
+    const { currentChannel, sendUserMessage, sendFileMessage, deleteMessage } = useGroupChannelContext()
+    const {
+        setMessage,
+        editingId,
+        deletingMessage,
+        setDeletingMessage,
+        kanbanId,
+        messageToAddToKanban,
+        setMessageToAddToKanban,
+        replyMessage,
+        setReplyMessage,
+        placeholder,
+        setPlaceholder
+    } = useMessagesContext()!
     const { data: session } = useSession()
 
     const [messageContent, setMessageContent] = useState('')
@@ -69,7 +80,11 @@ function CustomChannel() {
         }
     }, [deletingMessage, messageToAddToKanban])
 
-    function ConvertSendbirdToNemuMessageType(message_type: MessageType) {
+    function ConvertSendbirdToNemuMessageType(message_type: MessageType | undefined) {
+        if (!message_type) {
+            return undefined
+        }
+
         switch (message_type) {
             case MessageType.BASE:
                 return ChatMessageType.Text
@@ -83,14 +98,14 @@ function CustomChannel() {
     }
 
     function ConvertSendbirdToNemuStatus(status: SendingStatus, message: BaseMessage) {
-        // Check if the message has been delivered
-        if (status === SendingStatus.SUCCEEDED && currentChannel?.getUndeliveredMemberCount(message) === 0) {
-            return ChatStatus.Delivered
-        }
-
         // Check if the message has been read
         if (status === SendingStatus.SUCCEEDED && currentChannel?.getUnreadMemberCount(message) === 0) {
             return ChatStatus.Read
+        }
+
+        // Check if the message has been delivered
+        if (status === SendingStatus.SUCCEEDED && currentChannel?.getUndeliveredMemberCount(message) === 0) {
+            return ChatStatus.Delivered
         }
 
         // Check if the message failed
@@ -134,6 +149,21 @@ function CustomChannel() {
         ref.current!.innerText! = ''
     }
 
+    function ReplyMessageContent() {
+        if (messageContent == '') return
+
+        sendUserMessage({
+            message: messageContent,
+            isReplyToChannel: true,
+            parentMessageId: replyMessage?.messageId
+        })
+        setMessageContent('')
+        ref.current!.innerText! = ''
+
+        setReplyMessage(undefined)
+        setPlaceholder('Send Message')
+    }
+
     return (
         <div className="w-full join-item relative">
             <GroupChannelUI
@@ -170,7 +200,29 @@ function CustomChannel() {
                 )}
                 renderMessageInput={() => (
                     <div className="w-[96%] justify-center items-center mx-auto">
-                        <div className="flex items-center p-5 bg-base-300 h-full cursor-text rounded-xl w-full join">
+                        <Transition
+                            show={replyMessage != undefined}
+                            enter="transition-all duration-150"
+                            enterFrom="opacity-0 translate-y-20"
+                            enterTo="opacity-100"
+                            leave="transition-all duration-150"
+                            leaveFrom="opacity-100"
+                            leaveTo="opacity-0 translate-y-20"
+                        >
+                            <div className="bg-base-200 p-5 rounded-t-xl flex flex-col">
+                                <div className="flex flex-row items-center">
+                                    <BsReplyFill className="w-5 h-5" />
+                                    <p className="text-sm">Replying to</p>
+                                </div>
+                                <p className="text-sm">{replyMessage?.isUserMessage() && replyMessage.message}</p>
+                            </div>
+                        </Transition>
+                        <div
+                            className={ClassNames(
+                                'flex items-center p-5 bg-base-300 h-full cursor-text rounded-xl w-full join',
+                                replyMessage != undefined && 'rounded-t-none'
+                            )}
+                        >
                             <span
                                 ref={ref}
                                 className="text-base-content focus:outline-none empty:before:content-[attr(placeholder)] w-[96%] flex-none join-item"
@@ -182,13 +234,26 @@ function CustomChannel() {
                                 onKeyDown={(e) => {
                                     if (e.shiftKey && e.key === 'Enter') return
 
+                                    if (e.key === 'Escape') {
+                                        if (replyMessage) {
+                                            setReplyMessage(undefined)
+                                            setPlaceholder('Send Message')
+                                        }
+                                    }
+
                                     if (e.key === 'Enter') {
                                         e.preventDefault()
+
+                                        if (replyMessage) {
+                                            ReplyMessageContent()
+
+                                            return
+                                        }
 
                                         SendMessageContent()
                                     }
                                 }}
-                                placeholder="Send Message"
+                                placeholder={placeholder}
                             ></span>
                             <div className="join-item">
                                 <button type="button" className="btn btn-ghost btn-sm" onClick={HandleButtonStates}>
@@ -204,11 +269,23 @@ function CustomChannel() {
                                     id="sendbird-attach-file"
                                     multiple={false}
                                     max={1}
-                                    itemType="image/**"
-                                    onChange={(e) => {
+                                    accept="image/*"
+                                    onChange={() => {
                                         const file = document.querySelector<HTMLInputElement>('#sendbird-attach-file')?.files![0]
 
                                         if (file) {
+                                            if (replyMessage) {
+                                                sendFileMessage({
+                                                    file: file,
+                                                    isReplyToChannel: true,
+                                                    parentMessageId: replyMessage.messageId
+                                                })
+                                                setReplyMessage(undefined)
+                                                setPlaceholder('Send Message')
+
+                                                return
+                                            }
+
                                             sendFileMessage({
                                                 file: file
                                             })
@@ -219,7 +296,7 @@ function CustomChannel() {
                         </div>
                     </div>
                 )}
-                renderMessage={({ message, chainTop, chainBottom }) => (
+                renderMessage={({ message, chainTop, chainBottom, hasSeparator }) => (
                     <ChatBubble
                         message={{
                             username: message.sender.nickname,
@@ -232,13 +309,15 @@ function CustomChannel() {
                         }}
                         handle_context_menu={(e) => HandleContextMenu(e, message)}
                         current_user={message.sender.userId == session?.user.user_id}
-                        chainTop={chainTop}
-                        chainBottom={chainBottom}
+                        chain_top={chainTop}
+                        chain_bottom={chainBottom}
                         editing={message.messageId == editingId}
-                        hasBeenEdited={message.updatedAt != 0}
+                        has_been_edited={message.updatedAt != 0}
+                        has_separator={hasSeparator}
+                        parent_message={message.parentMessage || undefined}
+                        parent_type={ConvertSendbirdToNemuMessageType(message.parentMessage ? message.parentMessage.messageType : undefined)}
                     />
                 )}
-                renderCustomSeparator={({ message }) => <div className="p-5 bg-primary w-full h-20">{message.createdAt}</div>}
             />
             <Transition
                 enter="transition-all duration-150 absolute right-0 top-0 h-full"
@@ -250,7 +329,7 @@ function CustomChannel() {
                 show={showDetail}
             >
                 <div className="w-[21rem] p-5 bg-base-200/80 backdrop-blur-xl absolute right-0 top-0 z-20 h-full rounded-r-xl">
-                    <ChannelSettings channel_url={currentChannel?.url!} />
+                    <ChannelSettings channel_url={currentChannel?.url!} on_close={() => setShowDetail(false)} />
                 </div>
                 <div
                     className="w-full h-full absolute top-0 left-0"

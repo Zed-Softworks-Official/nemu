@@ -26,6 +26,22 @@
     @apply !w-auto;
 }
 
+.sendbird-channel-list__header {
+    @apply bg-base-200 p-5 pt-8 pb-0 !h-fit;
+}
+
+.sendbird-channel-settings {
+    @apply !bg-transparent !border-none;
+}
+
+.sendbird-channel-list__body {
+    @apply w-96 p-5 bg-base-200;
+}
+
+.sendbird-channel-list__body > div {
+    @apply flex flex-col gap-5;
+}
+
 .logo {
     @apply flex justify-center items-center;
 }

@@ -52,6 +52,6 @@ export class SendbirdAPI {
      * 
      */
     async CreateMessage() {
-
+        
     }
 }

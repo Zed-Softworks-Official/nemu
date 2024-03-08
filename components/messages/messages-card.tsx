@@ -72,10 +72,15 @@ export default function MessagesCard({
             }}
             onClick={onClick}
         >
+            {message_preview.unread_messages && (
+                <div className="indicator">
+                    <span className="indicator-item badge badge-primary"></span>
+                </div>
+            )}
             <div className="card-body">
                 <div className="flex justify-between gap-2">
                     <div className="flex flex-col gap-2 ">
-                        <h2 className="font-bold font-lg">{message_preview.other_username}</h2>
+                        <h2 className="font-bold font-lg">{message_preview.channel_name}</h2>
                         <span
                             className={ClassNames(
                                 'badge badge-lg',

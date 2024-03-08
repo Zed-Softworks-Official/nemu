@@ -11,7 +11,7 @@ const config: Config = {
         },
         extend: {
             fontFamily: {
-                nunito: ['nunito', 'sans']
+                nunito: ['var(--font-nunito)']
             },
             animation: {
                 'pop-in': 'button-pop 0.25s ease-out'

@@ -21,8 +21,14 @@ type MessagesContextType = {
     deletingMessage?: BaseMessage
     setDeletingMessage: Dispatch<SetStateAction<BaseMessage | undefined>>
 
+    replyMessage?: BaseMessage
+    setReplyMessage: Dispatch<SetStateAction<BaseMessage | undefined>>
+
     message: EveryMessage | null
     setMessage: Dispatch<SetStateAction<EveryMessage | null>>
+
+    placeholder: string
+    setPlaceholder: Dispatch<SetStateAction<string>>
 }
 
 const MessagesContext = createContext<MessagesContextType | null>(null)
@@ -47,8 +53,10 @@ export function MessagesProvider({ channel_url, children }: { channel_url: strin
     const [editingId, setEditingId] = useState<number | undefined>(undefined)
     const [deletingMessage, setDeletingMessage] = useState<BaseMessage | undefined>(undefined)
     const [messageToAddToKanban, setMessageToAddToKanban] = useState<BaseMessage | undefined>(undefined)
+    const [replyMessage, setReplyMessage] = useState<BaseMessage | undefined>(undefined)
 
     const [message, setMessage] = useState<EveryMessage | null>(null)
+    const [placeholder, setPlaceholder] = useState('Send Message')
 
     useEffect(() => {
         GraphQLFetcher<FormSubmissionReponseGraphQLResponse>(
@@ -83,8 +91,12 @@ export function MessagesProvider({ channel_url, children }: { channel_url: strin
                 setDeletingMessage,
                 messageToAddToKanban,
                 setMessageToAddToKanban,
+                replyMessage,
+                setReplyMessage,
                 message,
-                setMessage
+                setMessage,
+                placeholder,
+                setPlaceholder
             }}
         >
             {children}

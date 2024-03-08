@@ -9,7 +9,7 @@ import { useMessagesContext } from './messages-context'
 
 export default function MessagesContextMenu({ x, y, close_context_menu }: { x: number; y: number; close_context_menu: () => void }) {
     const { data: session } = useSession()
-    const { artistUserId, message, setEditingId, setDeletingMessage, setMessageToAddToKanban } = useMessagesContext()!
+    const { artistUserId, message, setEditingId, setDeletingMessage, setMessageToAddToKanban, setReplyMessage, setPlaceholder } = useMessagesContext()!
 
     const contextMenuRef = useClickAway<HTMLDivElement>(close_context_menu)
 
@@ -41,25 +41,36 @@ export default function MessagesContextMenu({ x, y, close_context_menu }: { x: n
                         </li>
                     )}
                     <li>
-                        <button type="button">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                if (message) {
+                                    setReplyMessage(message)
+                                    setPlaceholder('Reply to Message')
+                                    close_context_menu()
+                                }
+                            }}
+                        >
                             <BsReplyFill className="w-6 h-6" /> Reply
                         </button>
                     </li>
                     {session?.user.user_id === message?.sender.userId && (
                         <>
-                            <li>
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        if (message) {
-                                            setEditingId(message.messageId)
-                                            close_context_menu()
-                                        }
-                                    }}
-                                >
-                                    <PencilIcon className="w-6 h-6" /> Edit
-                                </button>
-                            </li>
+                            {message?.isUserMessage() && (
+                                <li>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            if (message) {
+                                                setEditingId(message.messageId)
+                                                close_context_menu()
+                                            }
+                                        }}
+                                    >
+                                        <PencilIcon className="w-6 h-6" /> Edit
+                                    </button>
+                                </li>
+                            )}
                             <li>
                                 <button
                                     type="button"

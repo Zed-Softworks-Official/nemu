@@ -150,6 +150,7 @@ model User {
   purchased       Purchased[]
   formSubmissions FormSubmission[]
   customerIds     StripeCustomerIds[]
+  downloads       Downloads[]
 }
 
 model StripeCustomerIds {
@@ -162,6 +163,20 @@ model StripeCustomerIds {
 
   artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Downloads {
+  id      String @id @default(auto()) @map("_id") @db.ObjectId
+  userId  String @db.ObjectId
+  fileKey String
+
+  createdAt DateTime @default(now())
+
+  artistId         String
+  commissionId     String?
+  formSubmissionId String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 //////////////////////////////////////////////////////////
