@@ -15,6 +15,7 @@ import { useSession } from 'next-auth/react'
 import { MessagesProvider } from '@/components/messages/messages-context'
 import Channel from '@/components/messages/channel'
 import ChannelList from '@/components/messages/channel-list'
+import MessagesClient from '@/components/messages/messages-client'
 
 export default function DashboardCommissionDetailView({ slug, order_id }: { slug: string; order_id: string }) {
     const { artistId } = useDashboardContext()
@@ -129,30 +130,13 @@ export default function DashboardCommissionDetailView({ slug, order_id }: { slug
                         />
                     </div>
                 </div>
-                {/* <div className="card bg-base-100 shadow-xl w-full">
-                        <div className="card-body">
-                            <h2 className="card-title">Messages</h2>
-                            <div className="divider"></div>
-                            <div className="flex flex-col bg-base-100 rounded-xl shadow-xl h-[60rem] overflow-auto">
-                                <div className="w-full h-full">
-                                    <SendbirdProvider
-                                        appId="AE781B27-397F-4722-9EC3-13E39266C944"
-                                        userId={session?.user.user_id!}
-                                        theme="dark"
-                                        uikitOptions={{
-                                            groupChannel: {
-                                                enableTypingIndicator: true
-                                            }
-                                        }}
-                                    >
-                                        <MessagesProvider channel_url={data?.form_submission.sendbirdChannelURL!}>
-                                            <Channel channel_url={data?.form_submission.sendbirdChannelURL!} />
-                                        </MessagesProvider>
-                                    </SendbirdProvider>
-                                </div>
-                            </div>
-                        </div>
-                    </div> */}
+                <div className="card bg-base-100 shadow-xl w-full mx-auto">
+                    <div className="card-body h-[60rem] overflow-hidden">
+                        <h2 className="card-title">Messages</h2>
+                        <div className="divider"></div>
+                        <MessagesClient hide_channel_list channel_url={data?.form_submission.sendbirdChannelURL} />
+                    </div>
+                </div>
             </div>
         </DashboardContainer>
     )

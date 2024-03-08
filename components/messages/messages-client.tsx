@@ -11,10 +11,10 @@ import SendbirdProvider from '@sendbird/uikit-react/SendbirdProvider'
 import '@sendbird/uikit-react/dist/index.css'
 import { MessagesProvider } from './messages-context'
 
-export default function MessagesClient() {
+export default function MessagesClient({ hide_channel_list, channel_url }: { hide_channel_list?: boolean, channel_url?: string }) {
     const { data: session } = useSession()
 
-    const [channelURL, setChannelURL] = useState('')
+    const [channelURL, setChannelURL] = useState(channel_url || '')
 
     if (!session?.user) {
         return null
@@ -34,7 +34,7 @@ export default function MessagesClient() {
                     }}
                 >
                     <MessagesProvider channel_url={channelURL}>
-                        <ChannelList selected_channel={channelURL} set_channel_url={setChannelURL} />
+                        {!hide_channel_list && <ChannelList selected_channel={channelURL} set_channel_url={setChannelURL} />}
                         <Channel channel_url={channelURL} />
                     </MessagesProvider>
                 </SendbirdProvider>
