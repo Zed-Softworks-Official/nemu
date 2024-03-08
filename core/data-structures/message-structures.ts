@@ -1,7 +1,8 @@
 export enum ChatStatus {
     Failed,
     Delivered,
-    Seen,
+    Sent,
+    Read,
 }
 
 export enum ChatMessageType {
@@ -20,7 +21,6 @@ export interface ChatMessage {
     message_type: ChatMessageType
 
     sent_timestamp: Date
-    seen_timestamp?: Date
 }
 
 export interface MessagePreview {

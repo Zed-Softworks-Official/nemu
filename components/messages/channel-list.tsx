@@ -7,6 +7,7 @@ import MessagesCard from './messages-card'
 import { ExclamationTriangleIcon } from '@heroicons/react/20/solid'
 import Loading from '../loading'
 import { useMemo } from 'react'
+import { useSession } from 'next-auth/react'
 
 interface ChannelListProps {
     selected_channel: string
@@ -15,6 +16,7 @@ interface ChannelListProps {
 
 function CustomChannelList({ selected_channel, set_channel_url }: ChannelListProps) {
     const { allChannels, loading, initialized } = useChannelListContext()
+    const { data: session } = useSession()
 
     function GetLastMessage(last_message: BaseMessage) {
         if (last_message.isUserMessage()) {
@@ -30,7 +32,7 @@ function CustomChannelList({ selected_channel, set_channel_url }: ChannelListPro
 
     if (!initialized) {
         return (
-            <div className="bg-base-200 join-item p-5 flex flex-col gap-5 h-full justify-center items-center">
+            <div className="bg-base-200 join-item p-5 flex flex-col gap-5 h-full justify-center items-center w-96">
                 <ExclamationTriangleIcon className="w-10 h-10" />
                 <h2 className="card-title">Something went wrong!</h2>
             </div>
@@ -39,7 +41,7 @@ function CustomChannelList({ selected_channel, set_channel_url }: ChannelListPro
 
     if (loading) {
         return (
-            <div className="bg-base-200 join-item p-5 flex flex-col gap-5 h-full justify-center items-center">
+            <div className="bg-base-200 join-item p-5 flex flex-col gap-5 h-full justify-center items-center w-96">
                 <Loading />
             </div>
         )
@@ -48,7 +50,7 @@ function CustomChannelList({ selected_channel, set_channel_url }: ChannelListPro
     return (
         <div className="bg-base-200 join-item p-5 flex flex-col gap-5 h-full w-96">
             <div className="pt-5">
-                <h2 className="card-title">Channels</h2>
+                <h2 className="card-title">Messages</h2>
                 <div className="divider"></div>
             </div>
             {allChannels.map((channel) => (
@@ -58,7 +60,7 @@ function CustomChannelList({ selected_channel, set_channel_url }: ChannelListPro
                         channel_url: channel.url,
                         last_message: channel.lastMessage ? GetLastMessage(channel.lastMessage) : undefined,
                         late_message_timestamp: channel.lastMessage ? new Date(channel.lastMessage.createdAt) : undefined,
-                        last_message_current_user: true
+                        last_message_current_user: channel.lastMessage ? channel.lastMessage.sender.userId == session?.user.user_id : false
                     }}
                     onClick={() => {
                         set_channel_url(channel.url)
@@ -80,7 +82,7 @@ export default function ChannelList({ selected_channel, set_channel_url }: Chann
     }, [])
 
     return (
-        <ChannelListProvider queries={query}>
+        <ChannelListProvider queries={query} isTypingIndicatorEnabled={true}>
             <CustomChannelList selected_channel={selected_channel} set_channel_url={set_channel_url} />
         </ChannelListProvider>
     )

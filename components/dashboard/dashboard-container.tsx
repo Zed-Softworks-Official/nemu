@@ -5,6 +5,7 @@ import { PlusCircleIcon } from '@heroicons/react/20/solid'
 import { useState } from 'react'
 import Modal from '../modal'
 import DashboardBreadcrumbs from '../navigation/dashboard/breadcrumbs'
+import { ClassNames } from '@/core/helpers'
 
 export default function DashboardContainer({
     title,
@@ -26,7 +27,7 @@ export default function DashboardContainer({
     return (
         <main className="py-14 justify-around w-[90%] transition-all duration-200 ease-in-out">
             <div className="bg-base-300 p-10 mx-auto rounded-xl">
-                <div className="pb-10">
+                <div className={ClassNames(ignoreTitle ? '' : 'pb-10')}>
                     {breadcrumbs && (
                         <div className="xl:absolute xl:text-left block w- text-center">
                             <div className="flex flex-col justify-center items-start relative right-0 top-5">
@@ -43,10 +44,7 @@ export default function DashboardContainer({
                 </div>
                 {addButtonUrl && (
                     <div className="fixed bottom-20 right-20">
-                        <Link
-                            href={addButtonUrl}
-                            className="btn btn-square btn-primary btn-lg"
-                        >
+                        <Link href={addButtonUrl} className="btn btn-square btn-primary btn-lg">
                             <PlusCircleIcon className="w-10 h-10 inline " />
                         </Link>
                     </div>
@@ -54,19 +52,11 @@ export default function DashboardContainer({
                 {modal && (
                     <>
                         <div className="fixed bottom-20 right-20">
-                            <button
-                                type="button"
-                                className="btn btn-square btn-primary btn-lg"
-                                onClick={() => setShowModal(true)}
-                            >
+                            <button type="button" className="btn btn-square btn-primary btn-lg" onClick={() => setShowModal(true)}>
                                 <PlusCircleIcon className="w-10 h-10 inline " />
                             </button>
                         </div>
-                        <Modal
-                            showModal={showModal}
-                            setShowModal={setShowModal}
-                            background="bg-base-300"
-                        >
+                        <Modal showModal={showModal} setShowModal={setShowModal} background="bg-base-300">
                             {modal}
                         </Modal>
                     </>

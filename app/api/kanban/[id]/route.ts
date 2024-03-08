@@ -3,13 +3,19 @@ import { KanbanContainerData, KanbanTask } from '@/core/structures'
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 
-export async function POST(req: Request, { params }: { params: { submission_id: string } }) {
+/**
+ * 
+ * @param {string} id - submission id
+ * @param param1 
+ * @returns 
+ */
+export async function POST(req: Request, { params }: { params: { id: string } }) {
     const data = (await req.json()) as { containers: KanbanContainerData[]; tasks: KanbanTask[] }
 
     try {
         await prisma.formSubmission.update({
             where: {
-                id: params.submission_id
+                id: params.id
             },
             data: {
                 kanban: {

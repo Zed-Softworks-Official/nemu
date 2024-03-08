@@ -168,6 +168,7 @@ builder.objectRef<KanbanResponse>('KanbanResponse').implement({
     fields: (t) => ({
         status: t.exposeInt('status'),
         message: t.exposeString('message', { nullable: true }),
+        id: t.exposeString('id', { nullable: true }),
         containers: t.expose('containers', { nullable: true, type: ['KanbanContainerData'] }),
         tasks: t.expose('tasks', { nullable: true, type: ['KanbanTask'] })
     })

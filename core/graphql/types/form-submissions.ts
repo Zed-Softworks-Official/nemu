@@ -42,6 +42,7 @@ builder.prismaObject('FormSubmission', {
 
                 return {
                     status: StatusCode.Success,
+                    id: kanban.id,
                     containers: JSON.parse(kanban.containers),
                     tasks: JSON.parse(kanban.tasks)
                 }

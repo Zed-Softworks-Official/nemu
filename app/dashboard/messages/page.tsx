@@ -3,7 +3,7 @@ import DashboardContainer from '@/components/dashboard/dashboard-container'
 
 export default function DashboardMessages() {
     return (
-        <DashboardContainer title="Messages">
+        <DashboardContainer title="Messages" ignoreTitle>
             <MessagesClient />
         </DashboardContainer>
     )

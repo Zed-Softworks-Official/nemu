@@ -48,15 +48,15 @@ export default function Kanban({
 
     const containerIds = useMemo(() => containers.map((container) => container.id), [containers])
 
-    useAutosave({
-        data: {
-            containers: containers,
-            tasks: tasks
-        },
-        onSave: SaveKanban,
-        saveOnUnmount: true,
-        interval: 30000
-    })
+    // useAutosave({
+    //     data: {
+    //         containers: containers,
+    //         tasks: tasks
+    //     },
+    //     onSave: SaveKanban,
+    //     saveOnUnmount: true,
+    //     interval: 30000
+    // })
 
     const sesnors = useSensors(
         useSensor(PointerSensor, {

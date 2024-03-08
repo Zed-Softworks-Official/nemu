@@ -82,6 +82,7 @@ export interface CommissionImagesResponse extends NemuResponse {
 }
 
 export interface KanbanResponse extends NemuResponse {
+    id?: string,
     containers?: KanbanContainerData[]
     tasks?: KanbanTask[]
 }
