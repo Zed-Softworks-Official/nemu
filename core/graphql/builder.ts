@@ -12,7 +12,7 @@ import {
     NemuResponse,
     StripeCustomerIdResponse
 } from '../responses'
-import { CommissionForm, CommissionItem, DownloadData, KanbanContainerData, KanbanTask, PortfolioItem } from '../structures'
+import { CommissionForm, CommissionItem, DownloadData, KanbanContainerData, KanbanTask, PortfolioItem, ShopItem } from '../structures'
 import { AWSFileModification } from '../data-structures/form-structures'
 
 export const builder = new SchemaBuilder<{
@@ -26,6 +26,7 @@ export const builder = new SchemaBuilder<{
         AWSFileModification: AWSFileModification
         KanbanContainerData: KanbanContainerData
         KanbanTask: KanbanTask
+        ShopItem: ShopItem
 
         // Response Objects
         NemuResponse: NemuResponse
@@ -118,6 +119,21 @@ builder.objectRef<KanbanTask>('KanbanTask').implement({
         id: t.exposeID('id'),
         container_id: t.exposeID('container_id'),
         content: t.exposeString('content')
+    })
+})
+
+builder.objectRef<ShopItem>('ShopItem').implement({
+    fields: (t) => ({
+        name: t.exposeString('name'),
+        description: t.exposeString('description'),
+        price: t.exposeInt('price'),
+
+        featured_image: t.exposeString('featured_image'),
+        images: t.exposeStringList('images', { nullable: true }),
+        asset: t.exposeString('asset', { nullable: true }),
+
+        prod_id: t.exposeString('prod_id', { nullable: true }),
+        slug: t.exposeString('prod_id', { nullable: true })
     })
 })
 

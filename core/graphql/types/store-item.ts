@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { builder } from '../builder'
+import { StatusCode } from '@/core/responses'
 
 builder.prismaObject('StoreItem', {
     fields: (t) => ({
@@ -37,5 +38,16 @@ builder.queryField('store_item', (t) =>
                     product: args.productId
                 }
             })
+    })
+)
+
+builder.mutationField('create_store_item', (t) =>
+    t.field({
+        type: 'NemuResponse',
+        resolve: async (_parent, args, _ctx, _info) => {
+            return {
+                status: StatusCode.Success
+            }
+        }
     })
 )

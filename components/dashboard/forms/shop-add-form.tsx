@@ -54,11 +54,11 @@ export default function ShopAddForm() {
                 placeholder="Your product name here!"
                 name="product_name"
             />
-            <MarkdownTextArea
+            {/* <MarkdownTextArea
                 label="Product Description"
                 markdown=""
                 name="product_description"
-            />
+            /> */}
             <TextInput
                 label="Price"
                 name="product_price"
@@ -70,7 +70,6 @@ export default function ShopAddForm() {
                 label="Additional Photos (8 Max)"
                 name="product_images"
                 multiple
-                max_length={8}
             />
             <FileInput label="Asset" name="download_file" />
             <div className="grid grid-cols-2 w-full gap-5">

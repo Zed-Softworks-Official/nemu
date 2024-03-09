@@ -1,8 +1,9 @@
 import { prisma } from '@/lib/prisma'
 import { builder } from '../builder'
 import { S3GetSignedURL } from '@/core/storage'
-import { AWSLocations, CommissionItem, PortfolioItem } from '@/core/structures'
+import { AWSLocations, CommissionItem, PortfolioItem, ShopItem } from '@/core/structures'
 import { StripeGetCommissionProduct } from '@/core/stripe/commissions'
+import { StripeGetStoreProductInfo } from '@/core/payments'
 
 builder.prismaObject('Artist', {
     fields: (t) => ({
@@ -15,7 +16,7 @@ builder.prismaObject('Artist', {
         location: t.exposeString('location'),
         terms: t.exposeString('terms'),
 
-        automatedCommissionMessage: t.exposeString('automatedCommissionMessage', {nullable: true}),
+        automatedCommissionMessage: t.exposeString('automatedCommissionMessage', { nullable: true }),
         automatedMessageEnabled: t.exposeBoolean('automatedMessageEnabled'),
 
         headerPhoto: t.exposeString('headerPhoto'),
@@ -37,22 +38,12 @@ builder.prismaObject('Artist', {
 
                 for (let i = 0; i < commissions.length; i++) {
                     // Get Featured Image from S3
-                    const featured_signed_url = await S3GetSignedURL(
-                        artist.id,
-                        AWSLocations.Commission,
-                        commissions[i].featuredImage
-                    )
+                    const featured_signed_url = await S3GetSignedURL(artist.id, AWSLocations.Commission, commissions[i].featuredImage)
 
                     // Get the rest of the images
                     const images: string[] = []
                     for (let j = 0; j < commissions[i].additionalImages.length; j++) {
-                        images.push(
-                            await S3GetSignedURL(
-                                artist.id,
-                                AWSLocations.Commission,
-                                commissions[i].additionalImages[j]
-                            )
-                        )
+                        images.push(await S3GetSignedURL(artist.id, AWSLocations.Commission, commissions[i].additionalImages[j]))
                     }
 
                     if (!featured_signed_url) {
@@ -78,8 +69,25 @@ builder.prismaObject('Artist', {
                 return result
             }
         }),
-        store_items: t.relation('storeItems'),
-        
+        store_items: t.field({
+            type: ['ShopItem'],
+            resolve: async (artist) => {
+                const result: ShopItem[] = []
+
+                const products = await prisma.storeItem.findMany({
+                    where: {
+                        artistId: artist.id
+                    }
+                })
+
+                for (const product of products) {
+                    result.push(await StripeGetStoreProductInfo(product.id, product.stripeAccId))
+                }
+
+                return result
+            }
+        }),
+
         portfolio_items: t.field({
             type: ['PortfolioData'],
             resolve: async (artist) => {
@@ -91,11 +99,7 @@ builder.prismaObject('Artist', {
                 })
 
                 for (let i = 0; i < portfolio.length; i++) {
-                    const signed_url = await S3GetSignedURL(
-                        artist.id,
-                        AWSLocations.Portfolio,
-                        portfolio[i].image
-                    )
+                    const signed_url = await S3GetSignedURL(artist.id, AWSLocations.Portfolio, portfolio[i].image)
 
                     if (!signed_url) {
                         return result
@@ -120,8 +124,7 @@ builder.prismaObject('Artist', {
 builder.queryField('artists', (t) =>
     t.prismaField({
         type: ['Artist'],
-        resolve: (query, _parent, _args, _ctx, _info) =>
-            prisma.artist.findMany({ ...query })
+        resolve: (query, _parent, _args, _ctx, _info) => prisma.artist.findMany({ ...query })
     })
 )
 
