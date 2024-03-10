@@ -74,7 +74,7 @@ builder.prismaObject('User', {
                             name: product.name!,
                             price: product.price,
                             artist: artist?.handle!,
-                            url: product.asset!
+                            url: product.downloadable_asset!
                         })
                     }
                 }

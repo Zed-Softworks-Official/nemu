@@ -190,6 +190,7 @@ model StoreItem {
   stripeAccId String
   handle      String
   slug        String
+  published   Boolean @default(true)
 
   artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
 }

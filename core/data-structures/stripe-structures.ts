@@ -15,21 +15,42 @@ export enum PaymentStatus {
 
 export interface StripePaymentMetadata {
     purchase_type: PurchaseType
-    commission_id: string
     user_id: string
+    commission_id?: string
     order_id?: string
     product_id?: string
     form_content?: string
     form_id?: string
 }
 
-export interface StripeCommissionCheckoutData {
+export interface StripeProductMetadata {
+    purchase_type: PurchaseType
+    featured_image: string
+    
+    slug?: string
+    downloadable_asset?: string
+}
+
+export enum CheckoutType {
+    Commission,
+    Product
+}
+
+export interface CheckoutData {
+    checkout_type: CheckoutType
     customer_id: string
     price: number
-    user_id: string
     stripe_account: string
     return_url: string
+    user_id: string
+}
+
+export interface StripeCommissionCheckoutData extends CheckoutData {
     form_id: string
     form_content: string,
     commission_id: string
+}
+
+export interface StripeProductCheckoutData extends CheckoutData {
+    product_id: string
 }

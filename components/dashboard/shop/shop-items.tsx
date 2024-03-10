@@ -2,31 +2,41 @@
 
 import useSWR from 'swr'
 
-import { Fetcher } from '@/core/helpers'
-import { useSession } from 'next-auth/react'
-
-import { ShopResponse } from '@/core/responses'
+import { GraphQLFetcher } from '@/core/helpers'
 import { ShopItem } from '@/core/structures'
 
 import ShopCard from '@/components/dashboard/shop/shop-card'
 import Loading from '@/components/loading'
+import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
 
 export default function ShopItems() {
-    const { data: session } = useSession()
-    // const { data, isLoading } = useSWR<ShopResponse>(
-    //     `/api/stripe/${session?.user.user_id}/products`,
-    //     Fetcher
-    // )
+    const { artistId } = useDashboardContext()
+    const { data, isLoading } = useSWR(
+        `{
+            artist(id: "${artistId}") {
+                store_items {
+                    featured_image
+                    name
+                    price
+                    prod_id
+                    slug
+                }
+            }
+        }`,
+        GraphQLFetcher<{
+            artist: {
+                store_items: ShopItem[]
+            }
+        }>
+    )
 
-    // if (isLoading) {
-    //     return <Loading />
-    // }
+    if (isLoading) {
+        return <Loading />
+    }
 
     return (
         <div className="grid grid-cols-4 gap-4">
-            {/* {data?.products?.map((product: ShopItem) => (
-                <ShopCard key={product.name} product={product} dashboard />
-            ))} */}
+            {data?.artist.store_items?.map((product: ShopItem) => <ShopCard key={product.name} product={product} dashboard />)}
         </div>
     )
 }

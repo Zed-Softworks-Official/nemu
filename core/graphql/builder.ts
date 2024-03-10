@@ -130,7 +130,7 @@ builder.objectRef<ShopItem>('ShopItem').implement({
 
         featured_image: t.exposeString('featured_image'),
         images: t.exposeStringList('images', { nullable: true }),
-        asset: t.exposeString('asset', { nullable: true }),
+        downloadable_asset: t.exposeString('downloadable_asset', { nullable: true }),
 
         prod_id: t.exposeString('prod_id', { nullable: true }),
         slug: t.exposeString('prod_id', { nullable: true })
@@ -190,5 +190,22 @@ builder.objectRef<KanbanResponse>('KanbanResponse').implement({
     })
 })
 
+//////////////////////////////////////
+// Input Objects
+//////////////////////////////////////
+
+export const StoreProductInputType = builder.inputType('StoreProductInputType', {
+    fields: (t) => ({
+        name: t.string({ required: true }),
+        description: t.string({ required: true }),
+        price: t.float({ required: true }),
+        featured_image: t.string({ required: true }),
+        additional_images: t.stringList({ required: true }),
+        downloadable_asset: t.string({required: true})
+    })
+})
+
+//////////////////////////////////////
 // Scalars
+//////////////////////////////////////
 builder.addScalarType('Date', DateTimeResolver, {})

@@ -1,6 +1,6 @@
 import { Artist, User, ArtistVerification } from '@prisma/client'
 import { NemuResponse } from './base-response'
-import { CommissionItem, PortfolioItem, SocialData } from '../structures'
+import { CommissionItem, PortfolioItem, ShopItem, SocialData } from '../structures'
 
 /**
  * ArtistResponse
@@ -25,6 +25,7 @@ export interface ArtistPageResponse {
         handle: string
         about: string
         location: string
+        store_items: ShopItem[]
         commissions: CommissionItem[]
         portfolio_items: PortfolioItem[]
         socials: SocialData[]

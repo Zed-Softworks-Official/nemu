@@ -81,7 +81,7 @@ builder.prismaObject('Artist', {
                 })
 
                 for (const product of products) {
-                    result.push(await StripeGetStoreProductInfo(product.id, product.stripeAccId))
+                    result.push(await StripeGetStoreProductInfo(product.product, product.stripeAccId, artist))
                 }
 
                 return result

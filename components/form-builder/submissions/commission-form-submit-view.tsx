@@ -10,7 +10,7 @@ import { FormElementInstance, FormElements } from '../elements/form-elements'
 import Loading from '@/components/loading'
 import { useCallback, useRef, useState, useTransition } from 'react'
 import { toast } from 'react-toastify'
-import { CommissionForm } from '@/core/structures'
+import { CheckoutType, CommissionForm } from '@/core/structures'
 import CommissionFormPayment from '../../payments/commission-form-payment'
 import { CreateFormSubmissionStructure } from '@/core/data-structures/form-structures'
 
@@ -219,6 +219,7 @@ export default function CommissionFormSubmitView({
                 <CommissionFormPayment
                     submitted={submitted}
                     checkout_data={{
+                        checkout_type: CheckoutType.Commission,
                         user_id: session?.user.user_id!,
                         customer_id: session?.user.customer_id!,
                         form_content: JSON.stringify(formData),

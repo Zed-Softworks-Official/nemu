@@ -25,6 +25,7 @@ import { CommissionImagesResponse, NemuResponse, StatusCode } from '@/core/respo
 import { Commission } from '@prisma/client'
 import ImageEditor from '@/components/form/image-editor/image-editor'
 import NemuImage from '@/components/nemu-image'
+import FormSubmitButtons from './submit-buttons'
 
 const commissionSchema = z.object({
     title: z.string().min(2).max(50),
@@ -409,13 +410,10 @@ export default function CommissionCreateEditForm({ data }: { data?: { commission
                         request.
                     </i>
                 </p>
-                <div className="grid grid-cols-2 gap-5">
-                    <Link href={'/dashboard/commissions'} className="btn btn-error">
-                        <XCircleIcon className="w-6 h-6" />
-                        Cancel
-                    </Link>
-                    <button type="submit" className="btn btn-primary" disabled={submitting}>
-                        {submitting ? (
+                <FormSubmitButtons
+                    cancel_url="/dashboard/commissions"
+                    submit_text={
+                        submitting ? (
                             <>
                                 <span className="loading loading-spinner"></span>
                                 {data ? 'Updating Commission' : 'Creating Commission'}
@@ -425,9 +423,9 @@ export default function CommissionCreateEditForm({ data }: { data?: { commission
                                 <CheckCircleIcon className="w-6 h-6" />
                                 {data ? 'Update Commission' : 'Create Commission'}
                             </>
-                        )}
-                    </button>
-                </div>
+                        )
+                    }
+                />
             </form>
         </div>
     )

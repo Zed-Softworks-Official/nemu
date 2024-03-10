@@ -1,14 +1,12 @@
 import { NemuResponse, StatusCode } from '@/core/responses'
 import { S3Upload } from '@/core/storage'
-import { AWSFileModification, StringToAWSLocationsEnum } from '@/core/structures'
+import { AWSFileModification, AWSLocations, StringToAWSLocationsEnum } from '@/core/structures'
 import { NextResponse } from 'next/server'
 
-export async function POST(
-    req: Request,
-    { params }: { params: { artist_id: string; location: string } }
-) {
+export async function POST(req: Request, { params }: { params: { artist_id: string; location: string } }) {
     const aws_data = await req.formData()
     const additional_files = JSON.parse(aws_data.get('additional_files') as string) as AWSFileModification[]
+    const downloadable_asset = aws_data.get('downloadable_asset') as unknown as File | null
 
     // upload featured image
     await S3Upload(
@@ -27,6 +25,16 @@ export async function POST(
             additional_files[i].file_key
         )
     }
+
+    // return if no downloadable asset is present
+    if (!downloadable_asset) {
+        return NextResponse.json<NemuResponse>({
+            status: StatusCode.Success
+        })
+    }
+
+    // Upload the asset if present
+    await S3Upload(params.artist_id, AWSLocations.Downloads, downloadable_asset, aws_data.get('downloadable_asset_key') as string)
 
     return NextResponse.json<NemuResponse>({
         status: StatusCode.Success

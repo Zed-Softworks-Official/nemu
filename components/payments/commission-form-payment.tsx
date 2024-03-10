@@ -4,11 +4,17 @@ import { Transition } from '@headlessui/react'
 import { Appearance, Stripe, loadStripe } from '@stripe/stripe-js'
 import { Elements } from '@stripe/react-stripe-js'
 import { useEffect, useMemo, useState } from 'react'
-import { StripeCommissionCheckoutData } from '@/core/structures'
+import { CheckoutType, StripeCommissionCheckoutData, StripeProductCheckoutData } from '@/core/structures'
 import CommissionCheckoutForm from './commission-checkout-form'
 import Loading from '../loading'
 
-export default function CommissionFormPayment({ submitted, checkout_data }: { submitted: boolean; checkout_data: StripeCommissionCheckoutData }) {
+export default function CommissionFormPayment({
+    submitted,
+    checkout_data
+}: {
+    submitted: boolean
+    checkout_data: StripeCommissionCheckoutData | StripeProductCheckoutData
+}) {
     const [stripePromise, setStripePromise] = useState<Promise<Stripe | null>>()
     useMemo(() => {
         setStripePromise(
@@ -31,14 +37,25 @@ export default function CommissionFormPayment({ submitted, checkout_data }: { su
     }
 
     useEffect(() => {
-        fetch(`/api/stripe/commission`, {
-            method: 'post',
-            body: JSON.stringify({
-                checkout_data
+        if (checkout_data.checkout_type == CheckoutType.Commission) {
+            fetch(`/api/stripe/commission`, {
+                method: 'post',
+                body: JSON.stringify({
+                    checkout_data
+                })
             })
-        })
-            .then((res) => res.json())
-            .then((data) => setClientSecret(data.clientSecret))
+                .then((res) => res.json())
+                .then((data) => setClientSecret(data.clientSecret))
+        } else {
+            fetch(`/api/stripe/product`, {
+                method: 'post',
+                body: JSON.stringify({
+                    checkout_data
+                })
+            })
+                .then((res) => res.json())
+                .then((data) => setClientSecret(data.clientSecret))
+        }
     }, [])
 
     return (

@@ -35,7 +35,7 @@ export interface ShopItem {
 
     featured_image: string
     images?: string[]
-    asset?: string
+    downloadable_asset?: string
 
     prod_id?: string
     slug?: string
@@ -106,7 +106,6 @@ export interface CommissionItem {
     published?: boolean
     use_invoicing?: boolean
 
-    prod_id?: string
     slug?: string
 }
 

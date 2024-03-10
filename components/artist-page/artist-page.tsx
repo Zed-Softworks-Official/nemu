@@ -31,6 +31,15 @@ export default function ArtistPageClient({ handle }: { handle: string }) {
                     published
                     use_invoicing
                 }
+                store_items {
+                    name
+                    description
+                    price
+                    featured_image
+                    images
+                    prod_id
+                    slug
+                }
                 portfolio_items {
                     signed_url
                     name

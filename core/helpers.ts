@@ -1,4 +1,4 @@
-import { request } from 'graphql-request'
+import { Variables, request } from 'graphql-request'
 import { CommissionAvailability } from './structures'
 import { prisma } from '@/lib/prisma'
 import { sendbird } from '@/lib/sendbird'
@@ -29,8 +29,8 @@ export const Fetcher = (...args: Parameters<typeof fetch>) => fetch(...args).the
  */
 // export const GraphQLFetcher = (query: string) => request('/api/graphql', query)
 
-export function GraphQLFetcher<T>(query: string) {
-    return request<T>(`/api/graphql`, query)
+export function GraphQLFetcher<T>(query: string, variables?: Variables | undefined) {
+    return request<T>(`/api/graphql`, query, variables)
 }
 
 /**

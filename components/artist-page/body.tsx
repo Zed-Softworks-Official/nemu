@@ -30,10 +30,10 @@ export default function ArtistBody({ data }: { data: ArtistPageResponse }) {
                 )
             case 1:
                 return (
-                    <Suspense fallback={<Loading />}>
+                    <>
                         <h1 className="font-bold text-2xl">Store</h1>
-                        {/* <Shop user_id={artist_info.userId} handle={artist_info.handle} /> */}
-                    </Suspense>
+                        <Shop shop_items={data.artist?.store_items!} handle={data.artist?.handle!} />
+                    </>
                 )
             case 2:
                 return (

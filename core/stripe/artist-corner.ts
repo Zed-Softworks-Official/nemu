@@ -3,10 +3,12 @@ import Stripe from 'stripe'
 import { stripe } from '@/lib/stripe'
 import { prisma } from '@/lib/prisma'
 
-import { ShopItem, AWSLocations } from '../structures'
+import { ShopItem, AWSLocations, StripePaymentMetadata, PurchaseType, StripeProductMetadata, StripeProductCheckoutData } from '../structures'
 import { S3GetSignedURL } from '../storage'
 
 import { StripeGetPriceInfo } from './prices'
+import { Artist } from '@prisma/client'
+import { CalculateApplicationFee } from '../payments'
 
 /**
  * Creates a product on stripe
@@ -19,16 +21,19 @@ export async function StripeCreateStoreProduct(
     stripe_account: string,
     product: ShopItem
 ) {
+    const metadata: StripeProductMetadata = {
+        purchase_type: PurchaseType.ArtistCorner,
+        featured_image: product.featured_image,
+        slug: product.slug,
+        downloadable_asset: product.downloadable_asset
+    }
+
     return await stripe.products.create(
         {
             name: product.name,
             description: product.description,
             images: product.images,
-            metadata: {
-                featured_image: product.featured_image,
-                asset: product.asset!,
-                slug: product.slug!
-            },
+            metadata: metadata as unknown as Stripe.Metadata,
             default_price_data: {
                 currency: 'usd',
                 unit_amount: product.price * 100
@@ -76,17 +81,11 @@ export async function StripeDeleteProduct(product_id: string, stripe_account: st
 export async function StripeGetStoreProductInfo(
     product_id: string,
     stripe_account: string,
+    artist: Artist,
     purchased: boolean = false
 ) {
     const product = await stripe.products.retrieve(product_id, {
         stripeAccount: stripe_account
-    })
-
-    // Get the artist handle
-    const artist = await prisma.artist.findFirst({
-        where: {
-            stripeAccId: stripe_account
-        }
     })
 
     // Get general information on store product
@@ -98,7 +97,7 @@ export async function StripeGetStoreProductInfo(
                 .unit_amount! / 100,
 
         featured_image: await S3GetSignedURL(
-            artist!.handle,
+            artist.id,
             AWSLocations.Store,
             product.metadata.featured_image
         ),
@@ -109,9 +108,9 @@ export async function StripeGetStoreProductInfo(
     }
 
     if (purchased) {
-        result.asset = await S3GetSignedURL(
-            artist!.handle,
-            AWSLocations.StoreDownload,
+        result.downloadable_asset = await S3GetSignedURL(
+            artist.id,
+            AWSLocations.Downloads,
             product.metadata.asset
         )
     }
@@ -119,7 +118,7 @@ export async function StripeGetStoreProductInfo(
     // Loop through product images and convert them into signed urls for s3
     for (var i: number = 0; i < product.images.length; i++) {
         result.images!.push(
-            await S3GetSignedURL(artist!.handle, AWSLocations.Store, product.images[i])
+            await S3GetSignedURL(artist.id, AWSLocations.Store, product.images[i])
         )
     }
 
@@ -140,4 +139,39 @@ export async function StripeGetRawProductInfo(
     return await stripe.products.retrieve(product_id, {
         stripeAccount: stripe_account
     })
+}
+
+
+export async function StripeCreateProductPaymentIntent(checkout_data: StripeProductCheckoutData) {
+    const metadata: StripePaymentMetadata = {
+        user_id: checkout_data.user_id,
+        product_id: checkout_data.product_id,
+        purchase_type: PurchaseType.ArtistCorner,
+    }
+
+    // TODO: Add Title of commission to payment intent
+    return await stripe.paymentIntents.create(
+        {
+            amount: checkout_data.price * 100,
+            currency: 'usd',
+            customer: checkout_data.customer_id,
+            payment_method_types: ['card', 'link'],
+            payment_method_options: {
+                card: {
+                    capture_method: 'manual'
+                },
+                link: {
+                    capture_method: 'manual'
+                }
+                // paypal: {
+                //     capture_method: 'manual'
+                // }
+            },
+            application_fee_amount: CalculateApplicationFee(checkout_data.price) * 100,
+            metadata: metadata as unknown as Stripe.MetadataParam
+        },
+        {
+            stripeAccount: checkout_data.stripe_account
+        }
+    )
 }

@@ -9,7 +9,7 @@ export enum AWSLocations {
     Commission,
     Profile,
     Store,
-    StoreDownload
+    Downloads
 }
 
 /**
@@ -30,8 +30,8 @@ export function AWSLocationEnumToString(location: AWSLocations) {
             return 'Profile'
         case AWSLocations.Store:
             return 'Store'
-        case AWSLocations.StoreDownload:
-            return 'StoreDownload'
+        case AWSLocations.Downloads:
+            return 'Download'
     }
 }
 
@@ -54,8 +54,8 @@ export function StringToAWSLocationsEnum(location: string) {
             return AWSLocations.Profile
         case 'store':
             return AWSLocations.Store
-        case 'storedownload':
-            return AWSLocations.StoreDownload
+        case 'downloads':
+            return AWSLocations.Downloads
     }
 
     return AWSLocations.Default

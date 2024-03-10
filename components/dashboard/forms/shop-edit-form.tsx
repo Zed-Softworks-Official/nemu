@@ -153,7 +153,7 @@ export default function ShopEditForm() {
             <div className="col-span-6">
                 <FileInput label="Update Asset" name="download_file" />
                 <Link
-                    href={data?.product?.asset ? data?.product?.asset : ''}
+                    href={data?.product?.downloadable_asset ? data?.product?.downloadable_asset : ''}
                     className="btn btn-primary btn-lg w-full"
                 >
                     <ArrowDownOnSquareIcon className="w-6 h-6 mr-3 inline-block align-bottom" />
