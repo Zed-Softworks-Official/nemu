@@ -104,7 +104,8 @@ export async function StripeGetStoreProductInfo(
         images: [],
 
         prod_id: product_id,
-        slug: product.metadata.slug
+        slug: product.metadata.slug,
+        stripeAccId: stripe_account
     }
 
     if (purchased) {
@@ -146,6 +147,7 @@ export async function StripeCreateProductPaymentIntent(checkout_data: StripeProd
     const metadata: StripePaymentMetadata = {
         user_id: checkout_data.user_id,
         product_id: checkout_data.product_id,
+        artist_id: checkout_data.artist_id,
         purchase_type: PurchaseType.ArtistCorner,
     }
 
@@ -156,17 +158,6 @@ export async function StripeCreateProductPaymentIntent(checkout_data: StripeProd
             currency: 'usd',
             customer: checkout_data.customer_id,
             payment_method_types: ['card', 'link'],
-            payment_method_options: {
-                card: {
-                    capture_method: 'manual'
-                },
-                link: {
-                    capture_method: 'manual'
-                }
-                // paypal: {
-                //     capture_method: 'manual'
-                // }
-            },
             application_fee_amount: CalculateApplicationFee(checkout_data.price) * 100,
             metadata: metadata as unknown as Stripe.MetadataParam
         },

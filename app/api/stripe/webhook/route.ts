@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-import { StripeGetWebhookEvent as StripeStripeWebhookEvent } from '@/core/payments'
+import { StripeGetRawProductInfo, StripeGetStoreProductInfo, StripeGetWebhookEvent as StripeStripeWebhookEvent } from '@/core/payments'
 import { NemuResponse, StatusCode } from '@/core/responses'
 import { prisma } from '@/lib/prisma'
 import { PaymentStatus, PurchaseType, StripePaymentMetadata } from '@/core/structures'
@@ -32,50 +32,50 @@ export async function POST(req: Request) {
         ////////////////////////////////////////////////////////////
         // Payment for Artist Corner Items
         ////////////////////////////////////////////////////////////
-        case 'checkout.session.completed':
-            {
-                const checkout_session = event.data.object
-                if (checkout_session.payment_status === 'paid') {
-                    // Get user from customer id
-                    const user = await prisma.user.findFirst({
-                        where: {
-                            id: checkout_session.metadata?.user_id!
-                        }
-                    })
+        // case 'checkout.session.completed':
+        //     {
+        //         const checkout_session = event.data.object
+        //         if (checkout_session.payment_status === 'paid') {
+        //             // Get user from customer id
+        //             const user = await prisma.user.findFirst({
+        //                 where: {
+        //                     id: checkout_session.metadata?.user_id!
+        //                 }
+        //             })
 
-                    const purchased = await prisma.purchased.findFirst({
-                        where: {
-                            userId: user?.id,
-                            customerId: checkout_session.customer?.toString(),
-                            productId: checkout_session.metadata?.product_id,
-                            stripeAccId: checkout_session.metadata?.stripe_account
-                        }
-                    })
+        //             const purchased = await prisma.purchased.findFirst({
+        //                 where: {
+        //                     userId: user?.id,
+        //                     customerId: checkout_session.customer?.toString(),
+        //                     productId: checkout_session.metadata?.product_id,
+        //                     stripeAccId: checkout_session.metadata?.stripe_account
+        //                 }
+        //             })
 
-                    // Update user with new purchase
-                    await prisma.purchased.update({
-                        where: {
-                            id: purchased?.id
-                        },
-                        data: {
-                            complete: true
-                        }
-                    })
-                }
-            }
-            break
-        ////////////////////////////////////////////////////////////
-        // Payment Hold for commissions
-        ////////////////////////////////////////////////////////////
+        //             // Update user with new purchase
+        //             await prisma.purchased.update({
+        //                 where: {
+        //                     id: purchased?.id
+        //                 },
+        //                 data: {
+        //                     complete: true
+        //                 }
+        //             })
+        //         }
+        //     }
+        //     break
+
         case 'charge.succeeded':
             {
                 const charge = event.data.object
                 const metadata = charge.metadata as unknown as StripePaymentMetadata
 
                 switch (Number(metadata.purchase_type) as PurchaseType) {
+                    ////////////////////////////////////////////////////////////
+                    // Payment Hold for commissions
+                    ////////////////////////////////////////////////////////////
                     case PurchaseType.CommissionSetupPayment:
                         {
-
                             const kanban = await prisma.kanban.create({})
                             const sendbird_channel_url = crypto.randomUUID()
 
@@ -117,7 +117,28 @@ export async function POST(req: Request) {
                         break
                     case PurchaseType.CommissionInvoice:
                         break
+                    ////////////////////////////////////////////////////////////
+                    // Payment for Artist Corner Items
+                    ////////////////////////////////////////////////////////////
                     case PurchaseType.ArtistCorner:
+                        {
+                            const artist = await prisma.artist.findFirst({
+                                where: {
+                                    id: metadata.artist_id
+                                }
+                            })
+
+                            const product = await StripeGetRawProductInfo(metadata.product_id!, artist?.stripeAccId!)
+
+                            await prisma.downloads.create({
+                                data: {
+                                    userId: metadata.user_id,
+                                    artistId: metadata.artist_id!,
+                                    fileKey: product.metadata.downloadable_asset!,
+                                    receiptURL: charge.receipt_url || undefined
+                                }
+                            })
+                        }
                         break
                 }
             }

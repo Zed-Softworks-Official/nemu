@@ -166,9 +166,10 @@ model StripeCustomerIds {
 }
 
 model Downloads {
-  id      String @id @default(auto()) @map("_id") @db.ObjectId
-  userId  String @db.ObjectId
-  fileKey String
+  id         String @id @default(auto()) @map("_id") @db.ObjectId
+  userId     String @db.ObjectId
+  fileKey    String
+  receiptURL String?
 
   createdAt DateTime @default(now())
 
@@ -184,8 +185,8 @@ model Downloads {
 //////////////////////////////////////////////////////////
 
 model StoreItem {
-  id          String @id @default(auto()) @map("_id") @db.ObjectId
-  artistId    String @db.ObjectId
+  id          String  @id @default(auto()) @map("_id") @db.ObjectId
+  artistId    String  @db.ObjectId
   product     String
   stripeAccId String
   handle      String

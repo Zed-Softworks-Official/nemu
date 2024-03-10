@@ -37,6 +37,7 @@ export interface ShopItem {
     images?: string[]
     downloadable_asset?: string
 
+    stripeAccId?: string
     prod_id?: string
     slug?: string
 }

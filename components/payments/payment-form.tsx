@@ -8,12 +8,14 @@ import { CheckoutType, StripeCommissionCheckoutData, StripeProductCheckoutData }
 import CommissionCheckoutForm from './commission-checkout-form'
 import Loading from '../loading'
 
-export default function CommissionFormPayment({
+export default function PaymentForm({
     submitted,
-    checkout_data
+    checkout_data,
+    form_type,
 }: {
     submitted: boolean
-    checkout_data: StripeCommissionCheckoutData | StripeProductCheckoutData
+    checkout_data: StripeCommissionCheckoutData | StripeProductCheckoutData,
+    form_type: 'commission' | 'product'
 }) {
     const [stripePromise, setStripePromise] = useState<Promise<Stripe | null>>()
     useMemo(() => {
@@ -56,7 +58,7 @@ export default function CommissionFormPayment({
                 .then((res) => res.json())
                 .then((data) => setClientSecret(data.clientSecret))
         }
-    }, [])
+    }, [checkout_data])
 
     return (
         <Transition as="div" show={submitted}>
@@ -64,7 +66,7 @@ export default function CommissionFormPayment({
                 <div className="card-body">
                     {clientSecret && stripePromise ? (
                         <Elements stripe={stripePromise} options={{ clientSecret, appearance: appearance }}>
-                            <CommissionCheckoutForm />
+                            <CommissionCheckoutForm form_type={form_type} />
                         </Elements>
                     ) : (
                         <Loading />

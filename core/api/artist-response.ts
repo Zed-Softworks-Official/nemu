@@ -20,11 +20,13 @@ export interface ArtistResponse extends NemuResponse {
  */
 export interface ArtistPageResponse {
     artist?: {
+        id: string
         headerPhoto: string
         profilePhoto: string
         handle: string
         about: string
         location: string
+        stripeAccount: string
         store_items: ShopItem[]
         commissions: CommissionItem[]
         portfolio_items: PortfolioItem[]

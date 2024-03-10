@@ -18,6 +18,8 @@ export interface StripePaymentMetadata {
     user_id: string
     commission_id?: string
     order_id?: string
+    file_key?: string
+    artist_id?: string
     product_id?: string
     form_content?: string
     form_id?: string
@@ -53,4 +55,5 @@ export interface StripeCommissionCheckoutData extends CheckoutData {
 
 export interface StripeProductCheckoutData extends CheckoutData {
     product_id: string
+    artist_id: string
 }

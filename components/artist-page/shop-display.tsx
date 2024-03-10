@@ -1,42 +1,49 @@
 'use client'
 
-import useSWR from 'swr'
 import Markdown from 'react-markdown'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 
-import { Fetcher } from '@/core/helpers'
 import { ShareIcon, ShoppingCartIcon } from '@heroicons/react/20/solid'
 
 import Loading from '@/components/loading'
-import { redirect, usePathname } from 'next/navigation'
 import { useSession } from 'next-auth/react'
-import { ShopResponse, StatusCode } from '@/core/responses'
 import NemuImage from '../nemu-image'
 import Link from 'next/link'
 import { toast } from 'react-toastify'
 
 import 'react-toastify/ReactToastify.min.css'
-import { ShopItem } from '@/core/structures'
+import { CheckoutType, ShopItem } from '@/core/structures'
+import { Transition } from '@headlessui/react'
+import PaymentForm from '../payments/payment-form'
+import useSWR from 'swr'
+import { GraphQLFetcher } from '@/core/helpers'
 
-export default function ShopDisplay({ handle, product }: { handle: string; product: ShopItem }) {
+export default function ShopDisplay({ handle, product, artist_id }: { handle: string; product: ShopItem; artist_id: string }) {
     const { data: session } = useSession()
-    // const { data, isLoading } = useSWR<ShopResponse>(
-    //     `/api/stripe/${handle}/product/${slug}`,
-    //     Fetcher
-    // )
-    const currentPath = usePathname()
+    const { data, isLoading } = useSWR(
+        `{
+            user(id: "${session?.user.user_id}") {
+                find_customer_id(artist_id: "${artist_id}") {
+                    customerId
+                }
+            }
+        }`,
+        GraphQLFetcher<{
+            user: {
+                find_customer_id: {
+                    customerId: string
+                }
+            }
+        }>
+    )
 
     const [currentImage, setCurrentImage] = useState('')
     const [buyFormVisible, setBuyFormVisible] = useState(false)
 
-    // if (isLoading) {
-    //     return <Loading />
-    // }
-
-    // if (status != StatusCode.Success) {
-    //     redirect('/')
-    // }
+    if (isLoading) {
+        return <Loading />
+    }
 
     return (
         <div className="flex gap-5 bg-base-300 rounded-xl p-5">
@@ -72,7 +79,7 @@ export default function ShopDisplay({ handle, product }: { handle: string; produ
                     ))}
                 </div>
             </div>
-            <div className="col-auto card bg-base-100 w-full shadow-xl max-h-fit">
+            <div className="card bg-base-100 w-full shadow-xl max-h-fit">
                 <div className="card-body">
                     <div>
                         <div className="flex justify-between items-center">
@@ -90,9 +97,9 @@ export default function ShopDisplay({ handle, product }: { handle: string; produ
                                     type="button"
                                     className="btn btn-outline btn-accent"
                                     onClick={async () => {
-                                        await navigator.clipboard.writeText(`http://localhost:3000/${currentPath}`)
+                                        await navigator.clipboard.writeText(`http://localhost:3000/@${handle}/${product.slug}`)
                                         toast('Copied to clipboard', {
-                                            type: 'success',
+                                            type: 'info',
                                             theme: 'dark'
                                         })
                                     }}
@@ -106,10 +113,28 @@ export default function ShopDisplay({ handle, product }: { handle: string; produ
                         <Markdown>{product?.description}</Markdown>
                         <div className="divider"></div>
                     </div>
-                    <button type="button" className="btn btn-primary" onClick={() => setBuyFormVisible(true)}>
-                        <ShoppingCartIcon className="w-6 h-6" />
-                        Buy Now
-                    </button>
+                    <Transition show={!buyFormVisible}>
+                        <button type="button" className="btn btn-primary" onClick={() => setBuyFormVisible(true)}>
+                            <ShoppingCartIcon className="w-6 h-6" />
+                            Buy Now
+                        </button>
+                    </Transition>
+                    {buyFormVisible && (
+                        <PaymentForm
+                            submitted={buyFormVisible}
+                            form_type="product"
+                            checkout_data={{
+                                checkout_type: CheckoutType.Product,
+                                customer_id: data?.user.find_customer_id.customerId!,
+                                price: product.price,
+                                stripe_account: product.stripeAccId!,
+                                return_url: `http://localhost:3000/$${handle}`,
+                                user_id: session?.user.user_id!,
+                                product_id: product.prod_id!,
+                                artist_id: artist_id
+                            }}
+                        />
+                    )}
                 </div>
             </div>
         </div>

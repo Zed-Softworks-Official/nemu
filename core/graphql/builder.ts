@@ -133,7 +133,8 @@ builder.objectRef<ShopItem>('ShopItem').implement({
         downloadable_asset: t.exposeString('downloadable_asset', { nullable: true }),
 
         prod_id: t.exposeString('prod_id', { nullable: true }),
-        slug: t.exposeString('prod_id', { nullable: true })
+        slug: t.exposeString('slug', { nullable: true }),
+        stripeAccId: t.exposeString('stripeAccId', { nullable: true })
     })
 })
 
@@ -201,7 +202,7 @@ export const StoreProductInputType = builder.inputType('StoreProductInputType', 
         price: t.float({ required: true }),
         featured_image: t.string({ required: true }),
         additional_images: t.stringList({ required: true }),
-        downloadable_asset: t.string({required: true})
+        downloadable_asset: t.string({ required: true })
     })
 })
 

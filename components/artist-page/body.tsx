@@ -21,18 +21,14 @@ export default function ArtistBody({ data }: { data: ArtistPageResponse }) {
                 return (
                     <div>
                         <h1 className="font-bold text-2xl">Commissions</h1>
-                        <Commissions
-                            commissions={data.artist?.commissions!}
-                            handle={data.artist?.handle!}
-                            terms={''}
-                        />
+                        <Commissions commissions={data.artist?.commissions!} handle={data.artist?.handle!} terms={''} />
                     </div>
                 )
             case 1:
                 return (
                     <>
                         <h1 className="font-bold text-2xl">Store</h1>
-                        <Shop shop_items={data.artist?.store_items!} handle={data.artist?.handle!} />
+                        <Shop shop_items={data.artist?.store_items!} handle={data.artist?.handle!} artist_id={data.artist?.id!} />
                     </>
                 )
             case 2:
@@ -59,9 +55,7 @@ export default function ArtistBody({ data }: { data: ArtistPageResponse }) {
                     <ArtistSocials socials={data.artist?.socials!} />
                 </div>
             </div>
-            <div className="bg-base-300 p-10 rounded-xl col-span-9">
-                {renderCorrectBody(currentIndex || 0)}
-            </div>
+            <div className="bg-base-300 p-10 rounded-xl col-span-9">{renderCorrectBody(currentIndex || 0)}</div>
         </div>
     )
 }

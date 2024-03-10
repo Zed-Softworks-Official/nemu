@@ -14,11 +14,13 @@ export default function ArtistPageClient({ handle }: { handle: string }) {
     const { data, isLoading } = useSWR(
         `{
             artist(handle: "${handle}") {
+                id
                 headerPhoto
                 profilePhoto
                 handle
                 about
                 location
+                stripeAccount
                 commissions {
                     title
                     description
@@ -39,6 +41,7 @@ export default function ArtistPageClient({ handle }: { handle: string }) {
                     images
                     prod_id
                     slug
+                    stripeAccId
                 }
                 portfolio_items {
                     signed_url

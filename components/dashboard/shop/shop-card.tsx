@@ -1,12 +1,22 @@
 import Link from 'next/link'
 
 import { ShopItem } from '@/core/structures'
-import ShopDisplay from '@/components/artist-page/shop-item'
+import ShopDisplay from '@/components/artist-page/shop-display'
 import NemuImage from '@/components/nemu-image'
 import { useState } from 'react'
 import Modal from '@/components/modal'
 
-export default function ShopCard({ product, handle, dashboard = false }: { product: ShopItem; handle?: string; dashboard?: boolean }) {
+export default function ShopCard({
+    product,
+    handle,
+    artist_id,
+    dashboard = false
+}: {
+    product: ShopItem
+    artist_id: string
+    handle?: string
+    dashboard?: boolean
+}) {
     const href = dashboard ? `/dashboard/shop/item/${product.prod_id}` : `/@${handle}/shop/${product.slug}`
 
     const [showModal, setShowModal] = useState(false)
@@ -33,7 +43,7 @@ export default function ShopCard({ product, handle, dashboard = false }: { produ
                                     View Item
                                 </button>
                                 <Modal showModal={showModal} setShowModal={setShowModal} background="bg-base-300">
-                                    <ShopDisplay handle={handle!} product={product} />
+                                    <ShopDisplay handle={handle!} product={product} artist_id={artist_id} />
                                 </Modal>
                             </>
                         )}

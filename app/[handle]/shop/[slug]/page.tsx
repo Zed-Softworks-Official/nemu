@@ -1,5 +1,5 @@
 import DefaultPageLayout from '@/app/(default)/layout'
-import ShopDisplay from '@/components/artist-page/shop-item'
+import ShopDisplay from '@/components/artist-page/shop-display'
 
 export default async function ArtistShopView({
     params
