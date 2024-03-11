@@ -12,7 +12,17 @@ import {
     NemuResponse,
     StripeCustomerIdResponse
 } from '../responses'
-import { CommissionForm, CommissionItem, DownloadData, KanbanContainerData, KanbanTask, PortfolioItem, ShopItem } from '../structures'
+import {
+    CommissionForm,
+    CommissionItem,
+    DownloadData,
+    DownloadOptionsInputType,
+    KanbanContainerData,
+    KanbanTask,
+    PortfolioItem,
+    ShopItem,
+    StoreProductInputType
+} from '../structures'
 import { AWSFileModification } from '../data-structures/form-structures'
 
 export const builder = new SchemaBuilder<{
@@ -36,6 +46,10 @@ export const builder = new SchemaBuilder<{
         CommissionImagesResponse: CommissionImagesResponse
         KanbanResponse: KanbanResponse
     }
+    Inputs: {
+        StoreProductInputType: StoreProductInputType
+        DownloadOptionsInputType: DownloadOptionsInputType
+    }
     Scalars: { Date: { Input: Date; Output: Date } }
 }>({
     plugins: [PrismaPlugin],
@@ -55,6 +69,7 @@ builder.mutationType({
 //////////////////////////////////////
 // Data Objects
 //////////////////////////////////////
+
 builder.objectRef<PortfolioItem>('PortfolioData').implement({
     fields: (t) => ({
         signed_url: t.exposeString('signed_url'),
@@ -124,23 +139,28 @@ builder.objectRef<KanbanTask>('KanbanTask').implement({
 
 builder.objectRef<ShopItem>('ShopItem').implement({
     fields: (t) => ({
-        name: t.exposeString('name'),
+        title: t.exposeString('title'),
         description: t.exposeString('description'),
         price: t.exposeInt('price'),
 
         featured_image: t.exposeString('featured_image'),
+        featured_image_key: t.exposeString('featured_image_key', { nullable: true }),
         images: t.exposeStringList('images', { nullable: true }),
+        edit_images: t.expose('edit_images', { type: ['AWSFileModification'], nullable: true }),
         downloadable_asset: t.exposeString('downloadable_asset', { nullable: true }),
+        download_key: t.exposeString('download_key', { nullable: true }),
 
-        prod_id: t.exposeString('prod_id', { nullable: true }),
+        id: t.exposeString('id', { nullable: true }),
         slug: t.exposeString('slug', { nullable: true }),
-        stripeAccId: t.exposeString('stripeAccId', { nullable: true })
+        artist_id: t.exposeString('artist_id', { nullable: true }),
+        stripe_account: t.exposeString('stripe_account', { nullable: true })
     })
 })
 
 //////////////////////////////////////
 // Response Objects
 //////////////////////////////////////
+
 builder.objectRef<NemuResponse>('NemuResponse').implement({
     fields: (t) => ({
         status: t.exposeInt('status'),
@@ -195,18 +215,45 @@ builder.objectRef<KanbanResponse>('KanbanResponse').implement({
 // Input Objects
 //////////////////////////////////////
 
-export const StoreProductInputType = builder.inputType('StoreProductInputType', {
+builder.inputRef<StoreProductInputType>('StoreProductInputType').implement({
     fields: (t) => ({
-        name: t.string({ required: true }),
-        description: t.string({ required: true }),
-        price: t.float({ required: true }),
-        featured_image: t.string({ required: true }),
-        additional_images: t.stringList({ required: true }),
-        downloadable_asset: t.string({ required: true })
+        title: t.string(),
+        description: t.string(),
+        price: t.float(),
+        featured_image: t.string(),
+        additional_images: t.stringList(),
+        downloadable_asset: t.string()
+    })
+})
+
+builder.inputRef<DownloadOptionsInputType>('DownloadOptionsInputType').implement({
+    fields: (t) => ({
+        get_download_asset: t.boolean(),
+        editable: t.boolean(),
+        get_download_key: t.boolean(),
+        get_featured_image_key: t.boolean()
+    })
+})
+
+export const CommissionInputType = builder.inputType('CommissionInputType', {
+    fields: (t) => ({
+        title: t.string(),
+        description: t.string(),
+        price: t.float(),
+        availability: t.boolean(),
+        published: t.boolean(),
+        use_invoicing: t.boolean(),
+        max_commissions_until_waitlist: t.int(),
+        max_commissions_until_closed: t.int(),
+        rush_orders_allowed: t.boolean(),
+        rush_charge: t.float(),
+        rush_percentage: t.boolean(),
+        additional_images: t.stringList()
     })
 })
 
 //////////////////////////////////////
 // Scalars
 //////////////////////////////////////
+
 builder.addScalarType('Date', DateTimeResolver, {})

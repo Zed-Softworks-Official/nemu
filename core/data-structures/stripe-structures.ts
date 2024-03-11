@@ -25,14 +25,6 @@ export interface StripePaymentMetadata {
     form_id?: string
 }
 
-export interface StripeProductMetadata {
-    purchase_type: PurchaseType
-    featured_image: string
-    
-    slug?: string
-    downloadable_asset?: string
-}
-
 export enum CheckoutType {
     Commission,
     Product

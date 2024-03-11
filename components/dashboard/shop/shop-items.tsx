@@ -16,9 +16,9 @@ export default function ShopItems() {
             artist(id: "${artistId}") {
                 store_items {
                     featured_image
-                    name
+                    title
                     price
-                    prod_id
+                    id
                     slug
                 }
             }
@@ -36,7 +36,7 @@ export default function ShopItems() {
 
     return (
         <div className="grid grid-cols-4 gap-4">
-            {data?.artist.store_items?.map((product: ShopItem) => <ShopCard key={product.name} product={product} dashboard />)}
+            {data?.artist.store_items?.map((product: ShopItem) => <ShopCard key={product.title} product={product} artist_id={artistId!} dashboard />)}
         </div>
     )
 }

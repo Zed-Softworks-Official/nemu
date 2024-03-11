@@ -2,8 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { builder } from '../builder'
 import { S3GetSignedURL } from '@/core/storage'
 import { AWSLocations, CommissionItem, PortfolioItem, ShopItem } from '@/core/structures'
-import { StripeGetCommissionProduct } from '@/core/stripe/commissions'
-import { StripeGetStoreProductInfo } from '@/core/payments'
+import { CreateShopItemFromProducts } from '@/core/server-helpers'
 
 builder.prismaObject('Artist', {
     fields: (t) => ({
@@ -81,7 +80,61 @@ builder.prismaObject('Artist', {
                 })
 
                 for (const product of products) {
-                    result.push(await StripeGetStoreProductInfo(product.product, product.stripeAccId, artist))
+                    result.push(await CreateShopItemFromProducts(product, artist))
+                }
+
+                return result
+            }
+        }),
+
+        store_item: t.field({
+            type: 'ShopItem',
+            args: {
+                slug: t.arg({
+                    type: 'String',
+                    required: false,
+                    description: 'The slug for the item'
+                }),
+                product_id: t.arg({
+                    type: 'String',
+                    required: false,
+                    description: 'The product id for the item'
+                }),
+                options: t.arg({
+                    type: 'DownloadOptionsInputType',
+                    required: false,
+                    description: 'The options for the download type'
+                })
+            },
+            nullable: true,
+            resolve: async (artist, args) => {
+                const product = await prisma.storeItem.findFirst({
+                    where: {
+                        artistId: artist.id,
+                        slug: args.slug || undefined,
+                        id: args.product_id || undefined
+                    }
+                })
+
+                if (!product) {
+                    return null
+                }
+
+                const result = await CreateShopItemFromProducts(
+                    product,
+                    artist,
+                    args.options
+                        ? {
+                              editable: args.options?.editable!,
+                              get_download_asset: args.options.get_download_asset!,
+                              get_download_key: args.options.get_download_key!,
+                              get_featured_image_key: args.options.get_featured_image_key!
+                          }
+                        : undefined
+                )
+
+                if (!result) {
+                    return null
                 }
 
                 return result

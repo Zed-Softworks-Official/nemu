@@ -1,3 +1,4 @@
+import { AWSFileModification } from './form-structures'
 import { KanbanContainerData } from './kanban-structures'
 
 /**
@@ -29,16 +30,20 @@ export interface PortfolioItem {
  * @prop {string} prod_id - Product ID of product on stripe
  */
 export interface ShopItem {
-    name: string
+    title: string
     description: string
     price: number
 
     featured_image: string
+    featured_image_key?: string
     images?: string[]
+    edit_images?: AWSFileModification[]
     downloadable_asset?: string
+    download_key?: string
 
-    stripeAccId?: string
-    prod_id?: string
+    artist_id?: string
+    stripe_account?: string
+    id?: string
     slug?: string
 }
 

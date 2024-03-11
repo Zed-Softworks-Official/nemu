@@ -1,7 +1,7 @@
 'use client'
 
 import { Transition } from '@headlessui/react'
-import { Appearance, Stripe, loadStripe } from '@stripe/stripe-js'
+import { Appearance, loadStripe } from '@stripe/stripe-js'
 import { Elements } from '@stripe/react-stripe-js'
 import { useEffect, useMemo, useState } from 'react'
 import { CheckoutType, StripeCommissionCheckoutData, StripeProductCheckoutData } from '@/core/structures'
@@ -11,19 +11,16 @@ import Loading from '../loading'
 export default function PaymentForm({
     submitted,
     checkout_data,
-    form_type,
+    form_type
 }: {
     submitted: boolean
-    checkout_data: StripeCommissionCheckoutData | StripeProductCheckoutData,
+    checkout_data: StripeCommissionCheckoutData | StripeProductCheckoutData
     form_type: 'commission' | 'product'
 }) {
-    const [stripePromise, setStripePromise] = useState<Promise<Stripe | null>>()
-    useMemo(() => {
-        setStripePromise(
-            loadStripe('pk_test_51NBSJ1BUuzvTmMJLd6WdDax5MPbpyO0MOl4EvBc9WwnEk9vUvxuN9lavCkH5YvdhJxF7QMxa04lIe2qiAx5cA7s600fo7oHS8d', {
-                stripeAccount: checkout_data.stripe_account
-            })
-        )
+    const stripePromise = useMemo(() => {
+        return loadStripe('pk_test_51NBSJ1BUuzvTmMJLd6WdDax5MPbpyO0MOl4EvBc9WwnEk9vUvxuN9lavCkH5YvdhJxF7QMxa04lIe2qiAx5cA7s600fo7oHS8d', {
+            stripeAccount: checkout_data.stripe_account
+        })
     }, [checkout_data])
 
     const [clientSecret, setClientSecret] = useState('')

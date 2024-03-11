@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server'
 
-import { StripeGetRawProductInfo, StripeGetStoreProductInfo, StripeGetWebhookEvent as StripeStripeWebhookEvent } from '@/core/payments'
+import { StripeGetWebhookEvent as StripeStripeWebhookEvent } from '@/core/payments'
 import { NemuResponse, StatusCode } from '@/core/responses'
 import { prisma } from '@/lib/prisma'
 import { PaymentStatus, PurchaseType, StripePaymentMetadata } from '@/core/structures'
-import { CheckCreateSendbirdUser, CreateSendbirdMessageChannel, UpdateCommissionAvailability } from '@/core/helpers'
+import { UpdateCommissionAvailability } from '@/core/helpers'
+import { CheckCreateSendbirdUser, CreateSendbirdMessageChannel } from '@/core/server-helpers'
 
 export async function POST(req: Request) {
     const sig = req.headers.get('stripe-signature')
@@ -122,20 +123,20 @@ export async function POST(req: Request) {
                     ////////////////////////////////////////////////////////////
                     case PurchaseType.ArtistCorner:
                         {
-                            const artist = await prisma.artist.findFirst({
+                            const product = await prisma.storeItem.findFirst({
                                 where: {
-                                    id: metadata.artist_id
+                                    id: metadata.product_id,
+                                    artistId: metadata.artist_id
                                 }
                             })
-
-                            const product = await StripeGetRawProductInfo(metadata.product_id!, artist?.stripeAccId!)
 
                             await prisma.downloads.create({
                                 data: {
                                     userId: metadata.user_id,
                                     artistId: metadata.artist_id!,
-                                    fileKey: product.metadata.downloadable_asset!,
-                                    receiptURL: charge.receipt_url || undefined
+                                    fileKey: product?.downloadableAsset!,
+                                    receiptURL: charge.receipt_url || undefined,
+                                    productId: product?.id
                                 }
                             })
                         }

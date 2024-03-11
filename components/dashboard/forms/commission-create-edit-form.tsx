@@ -412,17 +412,13 @@ export default function CommissionCreateEditForm({ data }: { data?: { commission
                 </p>
                 <FormSubmitButtons
                     cancel_url="/dashboard/commissions"
+                    disabled={submitting}
+                    button_icon={submitting ? <span className="loading loading-spinner"></span> : <CheckCircleIcon className="w-6 h-6" />}
                     submit_text={
                         submitting ? (
-                            <>
-                                <span className="loading loading-spinner"></span>
-                                {data ? 'Updating Commission' : 'Creating Commission'}
-                            </>
+                            <>{data ? 'Updating Commission' : 'Creating Commission'}</>
                         ) : (
-                            <>
-                                <CheckCircleIcon className="w-6 h-6" />
-                                {data ? 'Update Commission' : 'Create Commission'}
-                            </>
+                            <>{data ? 'Update Commission' : 'Create Commission'}</>
                         )
                     }
                 />

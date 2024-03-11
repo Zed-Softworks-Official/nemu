@@ -34,14 +34,14 @@ export default function ArtistPageClient({ handle }: { handle: string }) {
                     use_invoicing
                 }
                 store_items {
-                    name
+                    title
                     description
                     price
                     featured_image
                     images
-                    prod_id
+                    id
                     slug
-                    stripeAccId
+                    stripe_account
                 }
                 portfolio_items {
                     signed_url

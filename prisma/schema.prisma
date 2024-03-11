@@ -147,7 +147,6 @@ model User {
   accounts        Account[]
   sessions        Session[]
   artist          Artist?
-  purchased       Purchased[]
   formSubmissions FormSubmission[]
   customerIds     StripeCustomerIds[]
   downloads       Downloads[]
@@ -166,14 +165,15 @@ model StripeCustomerIds {
 }
 
 model Downloads {
-  id         String @id @default(auto()) @map("_id") @db.ObjectId
-  userId     String @db.ObjectId
+  id         String  @id @default(auto()) @map("_id") @db.ObjectId
+  userId     String  @db.ObjectId
   fileKey    String
   receiptURL String?
 
   createdAt DateTime @default(now())
 
   artistId         String
+  productId        String?
   commissionId     String?
   formSubmissionId String?
 
@@ -185,26 +185,21 @@ model Downloads {
 //////////////////////////////////////////////////////////
 
 model StoreItem {
-  id          String  @id @default(auto()) @map("_id") @db.ObjectId
-  artistId    String  @db.ObjectId
-  product     String
-  stripeAccId String
-  handle      String
-  slug        String
-  published   Boolean @default(true)
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  artistId String @db.ObjectId
+
+  title             String
+  description       String
+  price             Float
+  featuredImage     String
+  additionalImages  String[]
+  downloadableAsset String
+  slug              String
+
+  published Boolean  @default(true)
+  createdAt DateTime @default(now())
 
   artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
-}
-
-model Purchased {
-  id          String  @id @default(auto()) @map("_id") @db.ObjectId
-  userId      String  @db.ObjectId
-  customerId  String
-  productId   String
-  stripeAccId String
-  complete    Boolean @default(false)
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 //////////////////////////////////////////////////////////

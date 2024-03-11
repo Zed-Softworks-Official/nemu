@@ -36,52 +36,60 @@ builder.prismaObject('User', {
                 })
         }),
 
-        purchased: t.field({
+        downloads: t.field({
             type: ['DownloadData'],
-            description: 'Gets all purchases for user',
+            description: 'Gets all downloads for user',
+            nullable: true,
             resolve: async (current_user) => {
-                // Get the user and their purchases
-                const user = await prisma.user.findFirst({
-                    where: {
-                        id: current_user.id
-                    },
-                    include: {
-                        purchased: true
-                    }
-                })
-
-                // Get the data associated with the downloads
-                const downloads: DownloadData[] = []
-                if (user?.purchased) {
-                    for (let i = 0; i < user?.purchased.length; i++) {
-                        if (!user.purchased[i].complete) {
-                            break
-                        }
-
-                        const product = await StripeGetStoreProductInfo(
-                            user?.purchased[i].productId,
-                            user?.purchased[i].stripeAccId,
-                            true
-                        )
-
-                        const artist = await prisma.artist.findFirst({
-                            where: {
-                                stripeAccId: user.purchased[i].stripeAccId
-                            }
-                        })
-
-                        downloads.push({
-                            name: product.name!,
-                            price: product.price,
-                            artist: artist?.handle!,
-                            url: product.downloadable_asset!
-                        })
-                    }
-                }
-
-                return downloads
+                return null
             }
         })
+        // purchased: t.field({
+        //     type: ['DownloadData'],
+        //     description: 'Gets all purchases for user',
+        //     resolve: async (current_user) => {
+        //         // Get the user and their purchases
+        //         const user = await prisma.user.findFirst({
+        //             where: {
+        //                 id: current_user.id
+        //             },
+        //             include: {
+        //                 purchased: true
+        //             }
+        //         })
+
+        //         // Get the data associated with the downloads
+        //         const downloads: DownloadData[] = []
+        //         if (user?.purchased) {
+        //             for (let i = 0; i < user?.purchased.length; i++) {
+        //                 if (!user.purchased[i].complete) {
+        //                     break
+        //                 }
+
+        //                 const product = await StripeGetStoreProductInfo(
+        //                     user?.purchased[i].productId,
+        //                     user?.purchased[i].stripeAccId,
+        //                     true
+        //                 )
+
+        //                 const artist = await prisma.artist.findFirst({
+        //                     where: {
+        //                         stripeAccId: user.purchased[i].stripeAccId
+        //                     }
+        //                 })
+
+        //                 downloads.push({
+        //                     name: product.name!,
+        //                     price: product.price,
+        //                     artist: artist?.handle!,
+        //                     url: product.downloadable_asset!
+        //                 })
+        //             }
+        //         }
+
+        //         return downloads
+        //     }
+        // })
     })
 })
 
@@ -91,8 +99,7 @@ builder.prismaObject('User', {
 builder.queryField('users', (t) =>
     t.prismaField({
         type: ['User'],
-        resolve: (query, _parent, _args, _ctx, _info) =>
-            prisma.user.findMany({ ...query })
+        resolve: (query, _parent, _args, _ctx, _info) => prisma.user.findMany({ ...query })
     })
 )
 

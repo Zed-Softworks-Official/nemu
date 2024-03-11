@@ -1,12 +1,12 @@
 import { NemuResponse, StatusCode } from '@/core/responses'
 import { S3Delete, S3Upload } from '@/core/storage'
 import { AWSFileModification, AWSMoficiation, StringToAWSLocationsEnum } from '@/core/structures'
-import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 
 export async function POST(req: Request, { params }: { params: { artist_id: string; location: string } }) {
     const aws_data = await req.formData()
-    const commission_id = aws_data.get('commission_id') as string
+    // const commission_id = aws_data.get('commission_id') as string | null
+    // const product_id = aws_data.get('product_id') as string | null
     const old_featured_key = aws_data.get('old_featured_key') as string
     const additional_files = JSON.parse(aws_data.get('additional_files') as string) as AWSFileModification[]
 
@@ -25,7 +25,7 @@ export async function POST(req: Request, { params }: { params: { artist_id: stri
     // Check if the additional files were updated
     const new_additional_file_keys: string[] = []
     for (let i = 1; i < additional_files.length; i++) {
-        // check if it was removed and remove it from aws
+        // check if it was removed then remove it from aws
         if (additional_files[i].modification == AWSMoficiation.Removed) {
             await S3Delete(params.artist_id, additional_files[i].aws_location, additional_files[i].file_key)
         } else {
@@ -46,16 +46,18 @@ export async function POST(req: Request, { params }: { params: { artist_id: stri
         }
     }
 
-    // Update the database
-    await prisma.commission.update({
-        where: {
-            id: commission_id
-        },
-        data: {
-            featuredImage: featured_image_key,
-            additionalImages: new_additional_file_keys.length != 0 ? new_additional_file_keys : undefined
-        }
-    })
+    // if (commission_id) {
+    //     // Update the database
+    //     await prisma.commission.update({
+    //         where: {
+    //             id: commission_id
+    //         },
+    //         data: {
+    //             featuredImage: featured_image_key,
+    //             additionalImages: new_additional_file_keys.length != 0 ? new_additional_file_keys : undefined
+    //         }
+    //     })
+    // }
 
     return NextResponse.json<NemuResponse>({
         status: StatusCode.Success

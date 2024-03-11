@@ -1,12 +1,12 @@
-import DashboardContainer from "@/components/dashboard/dashboard-container";
-import ShopEditForm from "@/components/dashboard/forms/shop-edit-form";
-import { FormProvider } from "@/components/form/form-context";
+import DashboardContainer from '@/components/dashboard/dashboard-container'
+import ShopFormDataFetcher from '@/components/dashboard/forms/shop-form-data-fetcher'
+import { FormProvider } from '@/components/form/form-context'
 
-export default function ShopItemEdit() {
+export default function ShopItemEdit({ params }: { params: { id: string } }) {
     return (
         <DashboardContainer title="Edit Artist's Corner Product">
             <FormProvider>
-                <ShopEditForm />
+                <ShopFormDataFetcher product_id={params.id} />
             </FormProvider>
         </DashboardContainer>
     )

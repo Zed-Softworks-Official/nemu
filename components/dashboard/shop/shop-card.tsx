@@ -5,6 +5,7 @@ import ShopDisplay from '@/components/artist-page/shop-display'
 import NemuImage from '@/components/nemu-image'
 import { useState } from 'react'
 import Modal from '@/components/modal'
+import { FormatNumberToCurrency } from '@/core/helpers'
 
 export default function ShopCard({
     product,
@@ -17,20 +18,20 @@ export default function ShopCard({
     handle?: string
     dashboard?: boolean
 }) {
-    const href = dashboard ? `/dashboard/shop/item/${product.prod_id}` : `/@${handle}/shop/${product.slug}`
+    const href = dashboard ? `/dashboard/shop/item/${product.id}` : `/@${handle}/shop/${product.slug}`
 
     const [showModal, setShowModal] = useState(false)
 
     return (
-        <div key={product.name} className="bg-base-100 card rounded-xl overflow-hidden h-fit shadow-xl transition-all duration-200 animate-pop-in">
+        <div key={product.title} className="bg-base-100 card rounded-xl overflow-hidden h-fit shadow-xl transition-all duration-200 animate-pop-in">
             <div>
-                <NemuImage width={500} height={500} src={product.featured_image} alt={product.name} />
+                <NemuImage width={500} height={500} src={product.featured_image} alt={product.title} />
             </div>
             <div className="p-5">
                 <div className="card-body">
                     <div>
-                        <p className="card-title">{product.name}</p>
-                        <p className="text-lg font-bold">${product.price}</p>
+                        <p className="card-title">{product.title}</p>
+                        <p className="text-lg font-bold">{FormatNumberToCurrency(product.price)}</p>
                     </div>
                     <div className="card-actions justify-end">
                         {dashboard ? (

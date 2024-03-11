@@ -13,7 +13,7 @@ import { StripeCreateCustomer } from '@/core/payments'
 import Stripe from 'stripe'
 import { CommissionStatus } from '@/core/data-structures/form-structures'
 import { sendbird } from '@/lib/sendbird'
-import { CheckCreateSendbirdUser, CreateSendbirdMessageChannel } from '@/core/helpers'
+import { CheckCreateSendbirdUser, CreateSendbirdMessageChannel } from '@/core/server-helpers'
 
 builder.mutationField('check_create_customer', (t) =>
     t.field({

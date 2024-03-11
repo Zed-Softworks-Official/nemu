@@ -1,8 +1,10 @@
 import { Variables, request } from 'graphql-request'
-import { CommissionAvailability } from './structures'
+import { AWSLocations, CommissionAvailability, ConvertShopItemFromProductOptions, ShopItem } from './structures'
 import { prisma } from '@/lib/prisma'
 import { sendbird } from '@/lib/sendbird'
 import { SendbirdUserData } from '@/sendbird/sendbird-structures'
+import { Artist, StoreItem } from '@prisma/client'
+import { S3GetSignedURL } from './storage'
 
 /**
  * Joins variable amount of classnames into one string
@@ -30,6 +32,10 @@ export const Fetcher = (...args: Parameters<typeof fetch>) => fetch(...args).the
 // export const GraphQLFetcher = (query: string) => request('/api/graphql', query)
 
 export function GraphQLFetcher<T>(query: string, variables?: Variables | undefined) {
+    return request<T>(`/api/graphql`, query, variables)
+}
+
+export function GraphQLFetcherVariables<T>({query, variables}: {query: string, variables?: Variables | undefined}) {
     return request<T>(`/api/graphql`, query, variables)
 }
 
@@ -126,76 +132,4 @@ export async function UpdateCommissionAvailability(form_id: string) {
  */
 export function ConvertDateToLocaleString(timestamp: Date) {
     return timestamp.toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true })
-}
-
-/**
- *
- * @param submission_id
- * @param sendbird_channel_url
- */
-export async function CreateSendbirdMessageChannel(submission_id: string, sendbird_channel_url: string) {
-    const submission = await prisma.formSubmission.findFirst({
-        where: {
-            id: submission_id
-        },
-        include: {
-            user: {
-                include: {
-                    artist: true
-                }
-            },
-            form: {
-                include: {
-                    commission: {
-                        include: {
-                            artist: true
-                        }
-                    }
-                }
-            }
-        }
-    })
-
-    await sendbird.CreateGroupChannel({
-        name: `${submission?.user.artist ? '@' + submission.user.artist.handle : submission?.user.name}`,
-        channel_url: sendbird_channel_url,
-        cover_url: submission?.user.artist?.profilePhoto ? submission.user.artist.profilePhoto : `${process.env.BASE_URL}/profile.png`,
-        user_ids: [submission?.userId!, submission?.form.commission?.artist.userId!],
-        operator_ids: [submission?.form.commission?.artist.userId!],
-        block_sdk_user_channel_join: false,
-        is_distinct: false
-    })
-}
-
-export async function CheckCreateSendbirdUser(user_id: string) {
-    // Get the user
-    const user = await prisma.user.findFirst({
-        where: {
-            id: user_id
-        }
-    })
-
-    // Check if the user has a sendbird account
-    if (user?.hasSendbirdAccount) {
-        return
-    }
-
-    // Create a new sendbird account
-    const user_data: SendbirdUserData = {
-        user_id: user_id,
-        nickname: user?.name!,
-        profile_url: user?.image || `${process.env.BASE_URL}/profile.png`
-    }
-
-    await sendbird.CreateUser(user_data)
-
-    // Update User in database
-    await prisma.user.update({
-        where: {
-            id: user_id
-        },
-        data: {
-            hasSendbirdAccount: true
-        }
-    })
 }

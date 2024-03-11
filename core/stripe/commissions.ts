@@ -2,7 +2,7 @@ import Stripe from 'stripe'
 
 import { stripe } from '@/lib/stripe'
 import { CommissionItem, InvoiceCommissionItem, PurchaseType, StripeCommissionCheckoutData, StripePaymentMetadata } from '../structures'
-import { StripeCreatePrice, StripeGetPriceInfo } from './prices'
+import { StripeGetPriceInfo } from './prices'
 import { CalculateApplicationFee } from '../payments'
 
 ////////////////////////////////////////
