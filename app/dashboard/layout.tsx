@@ -1,10 +1,9 @@
 import 'react-toastify/ReactToastify.min.css'
 import type { Metadata } from 'next'
 
-import DsahboardSetContext from '@/components/dashboard/dashboard-set-context'
-
 import Navbar from '@/components/navigation/dashboard/Navbar'
 import Footer from '@/components/footer'
+import { DashboardProvider } from '@/components/navigation/dashboard/dashboard-context'
 
 export const metadata: Metadata = {
     title: 'Nemu | Artist Dashboard',
@@ -13,11 +12,11 @@ export const metadata: Metadata = {
 
 export default function Layout({ children }: { children: React.ReactNode }) {
     return (
-        <DsahboardSetContext>
+        <DashboardProvider>
             <Navbar>
                 {children}
                 <Footer />
             </Navbar>
-        </DsahboardSetContext>
+        </DashboardProvider>
     )
 }

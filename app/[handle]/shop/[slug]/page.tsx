@@ -1,46 +1,32 @@
-'use client'
-
 import DefaultPageLayout from '@/app/(default)/layout'
-import ShopDisplay from '@/components/artist-page/shop-display'
-import Loading from '@/components/loading'
-import { GraphQLFetcher } from '@/core/helpers'
-import { ShopItem } from '@/core/structures'
-import useSWR from 'swr'
+import ShopPageClient from '@/components/artist-page/shop-page-client'
+import { ImageData, ShopItem } from '@/core/structures'
+import { Metadata, ResolvingMetadata } from 'next'
 
-export default function ArtistShopView({ params }: { params: { handle: string; slug: string } }) {
-    
-    const { data, isLoading } = useSWR(
-        `{
-            artist(handle:"${params.handle.substring(3, params.handle.length)}") {
-                id
-                handle
-                store_item(slug: "${params.slug}") {
-                    title
-                    description
-                    featured_image
-                    images
-                    price
-                    id
-                    stripe_account
-                }
-            }
-        }`,
-        GraphQLFetcher<{
-            artist: {
-                id: string
-                handle: string
-                store_item: ShopItem
-            }
-        }>
-    )
+type Props = {
+    params: { handle: string; slug: string }
+}
 
-    if (isLoading) {
-        return <Loading />
+export async function generateMetadata({ params }: Props, parent: ResolvingMetadata): Promise<Metadata> {
+    const handle = params.handle.substring(3, params.handle.length)
+
+    const response = await fetch(`${process.env.BASE_URL}/api/metadata/${handle}/${params.slug}`)
+    const json = (await response.json()) as { title: string; description: string; featured_image: ImageData }
+
+    return {
+        title: `Nemu | @${handle} | ${json.title}`,
+        description: 'Some description goes here',
+        openGraph: {
+            title: json.title,
+            images: [json.featured_image.signed_url]
+        }
     }
+}
 
+export default function ArtistShopView({ params }: Props) {
     return (
         <DefaultPageLayout>
-            <ShopDisplay handle={data?.artist.handle!} product={data?.artist.store_item!} artist_id={data?.artist.id!} />
+            <ShopPageClient handle={params.handle} slug={params.slug} />
         </DefaultPageLayout>
     )
 }

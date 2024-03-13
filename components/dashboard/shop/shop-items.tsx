@@ -15,7 +15,11 @@ export default function ShopItems() {
         `{
             artist(id: "${artistId}") {
                 store_items {
-                    featured_image
+                    featured_image {
+                        signed_url
+                        blur_data
+                        image_key
+                    }
                     title
                     price
                     id

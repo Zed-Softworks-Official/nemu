@@ -10,6 +10,7 @@ import './types/forms'
 import './types/form-submissions'
 import './types/stripe-id'
 import './types/kanban'
+import './types/downloads'
 
 import './fields/stripe'
 

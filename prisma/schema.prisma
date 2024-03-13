@@ -21,19 +21,9 @@ model Portfolio {
   image    String
   name     String
 
-  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
-}
+  createdAt DateTime @default(now())
 
-model Device {
-  id        String  @id @default(auto()) @map("_id") @db.ObjectId
-  userId    String
-  browser   String
-  os        String
-  platform  String
-  ip        String
-  location  String
-  isDesktop Boolean
-  isMobile  Boolean
+  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
 }
 
 //////////////////////////////////////////////////////////
@@ -44,6 +34,8 @@ model Artist {
   id          String @id @default(auto()) @map("_id") @db.ObjectId
   userId      String @unique @db.ObjectId
   stripeAccId String
+
+  createdAt DateTime @default(now())
 
   handle   String
   about    String @default("Peko Peko")
@@ -72,6 +64,8 @@ model Artist {
 model AritstCode {
   id   String @id @default(auto()) @map("_id") @db.ObjectId
   code String
+
+  createdAt DateTime @default(now())
 }
 
 model VerificationToken {
@@ -88,9 +82,9 @@ model ArtistVerification {
   userId          String @unique
   requestedHandle String @unique
   username        String
-  twitter         String
-  pixiv           String
   location        String
+
+  createdAt DateTime @default(now())
 }
 
 model Social {

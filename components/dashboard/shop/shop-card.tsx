@@ -25,7 +25,14 @@ export default function ShopCard({
     return (
         <div key={product.title} className="bg-base-100 card rounded-xl overflow-hidden h-fit shadow-xl transition-all duration-200 animate-pop-in">
             <div>
-                <NemuImage width={500} height={500} src={product.featured_image} alt={product.title} />
+                <NemuImage
+                    width={500}
+                    height={500}
+                    src={product.featured_image.signed_url}
+                    blurDataURL={product.featured_image.blur_data}
+                    placeholder="blur"
+                    alt={product.title}
+                />
             </div>
             <div className="p-5">
                 <div className="card-body">

@@ -16,7 +16,9 @@ import {
     CommissionForm,
     CommissionItem,
     DownloadData,
+    DownloadDataInputType,
     DownloadOptionsInputType,
+    ImageData,
     KanbanContainerData,
     KanbanTask,
     PortfolioItem,
@@ -37,6 +39,7 @@ export const builder = new SchemaBuilder<{
         KanbanContainerData: KanbanContainerData
         KanbanTask: KanbanTask
         ShopItem: ShopItem
+        ImageData: ImageData
 
         // Response Objects
         NemuResponse: NemuResponse
@@ -49,6 +52,7 @@ export const builder = new SchemaBuilder<{
     Inputs: {
         StoreProductInputType: StoreProductInputType
         DownloadOptionsInputType: DownloadOptionsInputType
+        DownloadDataInputType: DownloadDataInputType
     }
     Scalars: { Date: { Input: Date; Output: Date } }
 }>({
@@ -80,10 +84,11 @@ builder.objectRef<PortfolioItem>('PortfolioData').implement({
 
 builder.objectRef<DownloadData>('DownloadData').implement({
     fields: (t) => ({
-        name: t.exposeString('name'),
-        artist_handle: t.exposeString('artist'),
-        price: t.exposeFloat('price'),
-        download_url: t.exposeString('url')
+        download_url: t.exposeString('download_url'),
+        receipts_ur: t.exposeString('receipt_url'),
+        artist_handle: t.exposeString('artist_handle'),
+
+        created_at: t.expose('created_at', { type: 'Date' })
     })
 })
 
@@ -137,15 +142,22 @@ builder.objectRef<KanbanTask>('KanbanTask').implement({
     })
 })
 
+builder.objectRef<ImageData>('ImageData').implement({
+    fields: (t) => ({
+        signed_url: t.exposeString('signed_url'),
+        blur_data: t.exposeString('blur_data'),
+        image_key: t.exposeString('image_key', { nullable: true })
+    })
+})
+
 builder.objectRef<ShopItem>('ShopItem').implement({
     fields: (t) => ({
         title: t.exposeString('title'),
         description: t.exposeString('description'),
         price: t.exposeInt('price'),
 
-        featured_image: t.exposeString('featured_image'),
-        featured_image_key: t.exposeString('featured_image_key', { nullable: true }),
-        images: t.exposeStringList('images', { nullable: true }),
+        featured_image: t.expose('featured_image', { type: 'ImageData' }),
+        images: t.expose('images', { type: ['ImageData'], nullable: true }),
         edit_images: t.expose('edit_images', { type: ['AWSFileModification'], nullable: true }),
         downloadable_asset: t.exposeString('downloadable_asset', { nullable: true }),
         download_key: t.exposeString('download_key', { nullable: true }),
@@ -222,7 +234,8 @@ builder.inputRef<StoreProductInputType>('StoreProductInputType').implement({
         price: t.float(),
         featured_image: t.string(),
         additional_images: t.stringList(),
-        downloadable_asset: t.string()
+        downloadable_asset: t.string(),
+        published: t.boolean()
     })
 })
 
@@ -232,6 +245,19 @@ builder.inputRef<DownloadOptionsInputType>('DownloadOptionsInputType').implement
         editable: t.boolean(),
         get_download_key: t.boolean(),
         get_featured_image_key: t.boolean()
+    })
+})
+
+builder.inputRef<DownloadDataInputType>('DownloadDataInputType').implement({
+    fields: (t) => ({
+        user_id: t.string(),
+        file_key: t.string(),
+        receipt_url: t.string(),
+
+        artist_id: t.string(),
+        product_id: t.string(),
+        commission_id: t.string(),
+        form_submission_id: t.string()
     })
 })
 

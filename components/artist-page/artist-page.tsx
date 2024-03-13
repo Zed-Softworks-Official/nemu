@@ -37,8 +37,15 @@ export default function ArtistPageClient({ handle }: { handle: string }) {
                     title
                     description
                     price
-                    featured_image
-                    images
+                    featured_image {
+                        signed_url
+                        blur_data
+                    }
+                    images {
+                        signed_url
+                        blur_data
+                        image_key
+                    }
                     id
                     slug
                     stripe_account

@@ -1,13 +1,9 @@
 'use client'
 
-import {
-    createContext,
-    useContext,
-    useState,
-    Dispatch,
-    SetStateAction,
-    useEffect
-} from 'react'
+import { GraphQLFetcher } from '@/core/helpers'
+import { useSession } from 'next-auth/react'
+import { createContext, useContext, useState, Dispatch, SetStateAction, useEffect } from 'react'
+import useSWR from 'swr'
 
 type DashboardContextType = {
     handle?: string | null
@@ -17,7 +13,7 @@ type DashboardContextType = {
     setArtistId?: Dispatch<SetStateAction<string>>
 
     userId?: string | null
-    setUserId?: Dispatch<SetStateAction<string>>
+    setUserId?: Dispatch<SetStateAction<string | undefined>>
 
     stripeId?: string | null
     setStripeId?: Dispatch<SetStateAction<string>>
@@ -25,27 +21,50 @@ type DashboardContextType = {
 
 const DashboardContext = createContext<DashboardContextType>({})
 
-export const DashboardProvider = ({
-    children,
-    artist_handle,
-    artist_id,
-    artist_stripe_id,
-    user_id
-}: {
-    children: React.ReactNode
-    artist_id: string
-    artist_handle: string
-    artist_stripe_id: string,
-    user_id: string
-}) => {
-    const [handle, setHandle] = useState(artist_handle)
-    const [artistId, setArtistId] = useState(artist_id)
-    const [stripeId, setStripeId] = useState(artist_stripe_id)
-    const [userId, setUserId] = useState(user_id)
+export function DashboardProvider({ children }: { children: React.ReactNode }) {
+    const { data: session } = useSession()
+
+    const [handle, setHandle] = useState('')
+    const [artistId, setArtistId] = useState('')
+    const [stripeId, setStripeId] = useState('')
+
+    const [userId, setUserId] = useState<string | undefined>(undefined)
 
     useEffect(() => {
+        // Set Background
         document.body.classList.add('background-pattern')
-    })
+
+        // Check if we have a valid session
+        if (!session) {
+            return
+        }
+
+        // Get Artist Data
+        GraphQLFetcher<{
+            user: {
+                artist: {
+                    id: string
+                    handle: string
+                    stripeAccount: string
+                }
+            }
+        }>(
+            `{
+                user(id: "${session.user.user_id}") {
+                    artist {
+                        id
+                        handle
+                        stripeAccount
+                    }
+                }
+            }`
+        ).then((response) => {
+            setHandle(response.user.artist.handle)
+            setArtistId(response.user.artist.id)
+            setStripeId(response.user.artist.stripeAccount)
+            setUserId(session.user.user_id!)
+        })
+    }, [session])
 
     return (
         <DashboardContext.Provider
@@ -57,7 +76,7 @@ export const DashboardProvider = ({
                 userId,
                 setUserId,
                 stripeId,
-                setStripeId,
+                setStripeId
             }}
         >
             {children}

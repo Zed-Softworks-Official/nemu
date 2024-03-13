@@ -23,6 +23,8 @@ builder.prismaObject('Artist', {
 
         customerIds: t.relation('customerIds'),
 
+        createdAt: t.expose('createdAt', { type: 'Date' }),
+
         user: t.relation('user'),
 
         commissions: t.field({

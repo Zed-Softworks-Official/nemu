@@ -23,6 +23,7 @@ export async function POST(req: Request, { params }: { params: { artist_id: stri
     }
 
     // Check if the additional files were updated
+    // TODO: Figure out why this is causing an error
     const new_additional_file_keys: string[] = []
     for (let i = 1; i < additional_files.length; i++) {
         // check if it was removed then remove it from aws

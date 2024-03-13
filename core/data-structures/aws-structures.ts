@@ -60,3 +60,9 @@ export function StringToAWSLocationsEnum(location: string) {
 
     return AWSLocations.Default
 }
+
+export interface ImageData {
+    signed_url: string
+    blur_data: string
+    image_key?: string
+}

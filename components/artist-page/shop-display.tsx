@@ -8,16 +8,16 @@ import { ShareIcon, ShoppingCartIcon } from '@heroicons/react/20/solid'
 
 import Loading from '@/components/loading'
 import { useSession } from 'next-auth/react'
-import NemuImage from '../nemu-image'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { toast } from 'react-toastify'
 
 import 'react-toastify/ReactToastify.min.css'
-import { CheckoutType, ShopItem } from '@/core/structures'
+import { CheckoutType, ImageData, ShopItem } from '@/core/structures'
 import { Transition } from '@headlessui/react'
 import useSWR from 'swr'
 import { FormatNumberToCurrency, GraphQLFetcher } from '@/core/helpers'
+import ImageViewer from './image-veiwer'
 
 const PaymentForm = dynamic(() => import('../payments/payment-form'))
 
@@ -40,7 +40,7 @@ export default function ShopDisplay({ handle, product, artist_id }: { handle: st
         }>
     )
 
-    const [currentImage, setCurrentImage] = useState('')
+    const [currentImage, setCurrentImage] = useState<ImageData | undefined>(undefined)
     const [buyFormVisible, setBuyFormVisible] = useState(false)
 
     if (isLoading) {
@@ -49,38 +49,7 @@ export default function ShopDisplay({ handle, product, artist_id }: { handle: st
 
     return (
         <div className="flex gap-5 bg-base-300 rounded-xl p-5">
-            <div>
-                <NemuImage
-                    src={currentImage == '' ? product.featured_image! : currentImage}
-                    width={1000}
-                    height={1000}
-                    alt={product?.title!}
-                    className="rounded-xl"
-                />
-                <div className="flex flex-wrap gap-3 my-5 justify-evenly">
-                    <div className="overflow-hidden rounded-xl cursor-pointer aspect-square transition-all duration-150 scale-100 hover:scale-110">
-                        <NemuImage
-                            src={product?.featured_image!}
-                            width={100}
-                            height={100}
-                            alt={product?.title!}
-                            onClick={() => setCurrentImage(product.featured_image!)}
-                        />
-                    </div>
-                    {product?.images?.map((image: string) => (
-                        <div className="overflow-hidden rounded-xl cursor-pointer aspect-square transition-all duration-150 scale-100 hover:scale-110">
-                            <NemuImage
-                                key={product.title}
-                                src={image}
-                                width={100}
-                                height={100}
-                                alt={product.title!}
-                                onClick={() => setCurrentImage(image)}
-                            />
-                        </div>
-                    ))}
-                </div>
-            </div>
+            <ImageViewer featured_image={product.featured_image} additional_images={product.images} />
             <div className="card bg-base-100 w-full shadow-xl max-h-fit">
                 <div className="card-body">
                     <div>
@@ -123,7 +92,7 @@ export default function ShopDisplay({ handle, product, artist_id }: { handle: st
                         leaveFrom="opacity-100"
                         leaveTo="opacity-0"
                     >
-                        <h2 className='card-title'>{FormatNumberToCurrency(product.price)}</h2>
+                        <h2 className="card-title">{FormatNumberToCurrency(product.price)}</h2>
                         <button type="button" className="btn btn-primary" onClick={() => setBuyFormVisible(true)}>
                             <ShoppingCartIcon className="w-6 h-6" />
                             Buy Now

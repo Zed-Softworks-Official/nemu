@@ -17,6 +17,7 @@ const nunito = Nunito({
 })
 
 export const metadata: Metadata = {
+    metadataBase: new URL(process.env.BASE_URL),
     title: 'Nemu',
     description: 'An Artists Best Friend'
 }

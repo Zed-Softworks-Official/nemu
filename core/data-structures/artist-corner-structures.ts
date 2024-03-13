@@ -12,6 +12,7 @@ export interface StoreProductInputType {
     featured_image?: string
     additional_images?: string[]
     downloadable_asset?: string
+    published?: boolean
 }
 
 export interface DownloadOptionsInputType extends ConvertShopItemFromProductOptions {}

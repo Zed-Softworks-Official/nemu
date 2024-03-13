@@ -14,6 +14,8 @@ builder.prismaObject('StoreItem', {
         additionalImages: t.exposeStringList('additionalImages'),
         slug: t.exposeString('slug'),
 
+        createdAt: t.expose('createdAt', { type: 'Date' }),
+
         artist: t.relation('artist')
     })
 })
@@ -128,7 +130,8 @@ builder.mutationField('update_store_item', (t) =>
                         price: args.product_data.price || undefined,
                         featuredImage: args.product_data.featured_image || undefined,
                         additionalImages: args.product_data.additional_images || undefined,
-                        downloadableAsset: args.product_data.downloadable_asset || undefined
+                        downloadableAsset: args.product_data.downloadable_asset || undefined,
+                        published: args.product_data.published != undefined ? args.product_data.published : undefined
                     }
                 })
             } catch (e) {

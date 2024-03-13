@@ -1,3 +1,4 @@
+import { ImageData } from './aws-structures'
 import { AWSFileModification } from './form-structures'
 import { KanbanContainerData } from './kanban-structures'
 
@@ -34,9 +35,8 @@ export interface ShopItem {
     description: string
     price: number
 
-    featured_image: string
-    featured_image_key?: string
-    images?: string[]
+    featured_image: ImageData
+    images?: ImageData[]
     edit_images?: AWSFileModification[]
     downloadable_asset?: string
     download_key?: string
@@ -116,7 +116,7 @@ export interface CommissionItem {
 }
 
 /**
- * 
+ *
  */
 export interface InvoiceCommissionItem {
     description: string
@@ -125,18 +125,18 @@ export interface InvoiceCommissionItem {
 }
 
 /**
- * 
+ *
  */
 export interface UpdateInvoiceData {
     items: InvoiceCommissionItem[]
-    submission_id: string,
+    submission_id: string
 
-    customer_id: string,
+    customer_id: string
     stripe_account: string
 }
 
 /**
- * 
+ *
  */
 export interface CommissionForm {
     user_submitted: boolean
@@ -144,30 +144,14 @@ export interface CommissionForm {
 }
 
 /**
- * PurchasePageData
- * Handles the main information for the purchase page
- *
- * @prop {string} product_id - The product id
- * @prop {string} stripe_account - The stripe account for product
- */
-export interface PurchasePageData {
-    product_id: string
-    stripe_account: string
-    user_id: string
-}
-
-/**
  * Download Data
  * Holds information about a download
  *
- * @prop {string} name - The name of the download
- * @prop {string} artist - The artist handle the download is from
- * @prop {number} price - The price of the download from the product page
- * @prop {string} url - The url of where to download the item
  */
 export interface DownloadData {
-    name: string
-    artist: string
-    price: number
-    url: string
+    download_url: string
+    receipt_url: string
+    artist_handle: string
+
+    created_at: Date
 }

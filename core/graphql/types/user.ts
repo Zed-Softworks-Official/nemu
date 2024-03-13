@@ -2,7 +2,6 @@ import { prisma } from '@/lib/prisma'
 import { builder } from '../builder'
 import { StatusCode } from '@/core/responses'
 import { DownloadData } from '@/core/structures'
-import { StripeGetStoreProductInfo } from '@/core/payments'
 
 builder.prismaObject('User', {
     fields: (t) => ({
@@ -36,14 +35,16 @@ builder.prismaObject('User', {
                 })
         }),
 
-        downloads: t.field({
-            type: ['DownloadData'],
-            description: 'Gets all downloads for user',
-            nullable: true,
-            resolve: async (current_user) => {
-                return null
-            }
-        })
+        downloads: t.relation('downloads')
+
+        // downloads: t.field({
+        //     type: ['DownloadData'],
+        //     description: 'Gets all downloads for user',
+        //     nullable: true,
+        //     resolve: async (current_user) => {
+        //         return null
+        //     }
+        // })
         // purchased: t.field({
         //     type: ['DownloadData'],
         //     description: 'Gets all purchases for user',

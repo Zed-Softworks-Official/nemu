@@ -23,6 +23,7 @@ import { useState } from 'react'
 import { CheckCircleIcon } from '@heroicons/react/20/solid'
 import NemuImage from '@/components/nemu-image'
 import Link from 'next/link'
+import ProductPublishButton from '../shop/product-publish-button'
 
 const productSchema = z.object({
     title: z.string(),
@@ -171,7 +172,7 @@ export default function ShopCreateEditForm({ data }: { data?: ShopItem }) {
             if (image) {
                 update_data.featured_image = crypto.randomUUID()
 
-                awsData.append('old_featured_key', data?.featured_image_key!)
+                awsData.append('old_featured_key', data?.featured_image.image_key!)
                 awsData.append('featured_image', image!)
                 awsData.append('featured_image_key', update_data.featured_image)
             }
@@ -195,7 +196,7 @@ export default function ShopCreateEditForm({ data }: { data?: ShopItem }) {
                 body: awsData
             })
         }
-        
+
         // Update the data
         const graphql_response = await GraphQLFetcher<{ update_store_item: NemuResponse }>(
             `mutation UpdateStoreMutation($product_data: StoreProductInputType!) {
@@ -231,6 +232,13 @@ export default function ShopCreateEditForm({ data }: { data?: ShopItem }) {
 
     return (
         <div className="max-w-xl mx-auto">
+            {data && (
+                <div className="flex justify-between items-center">
+                    <h2 className="card-title">Edit Visibility</h2>
+                    <ProductPublishButton product_id={data.id!} published={true} />
+                </div>
+            )}
+            <div className="divider"></div>
             <form className="flex flex-col gap-5" onSubmit={form.handleSubmit(SubmitProduct)}>
                 <TextField label="Product Name" placeholder="Your product name here!" {...form.register('title')} />
                 <Controller
@@ -254,7 +262,7 @@ export default function ShopCreateEditForm({ data }: { data?: ShopItem }) {
                         <div className="card-body">
                             <h2 className="card-title">Current Featured Image</h2>
                             <div className="divider"></div>
-                            <NemuImage src={data.featured_image} alt="Featured Image" className="w-full h-full" width={400} height={400} />
+                            <NemuImage src={data.featured_image.signed_url} alt="Featured Image" className="w-full h-full" width={400} height={400} />
                         </div>
                     </div>
                 )}

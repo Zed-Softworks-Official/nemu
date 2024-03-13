@@ -1,9 +1,11 @@
-import { Artist, StoreItem } from "@prisma/client"
-import { AWSLocations, ConvertShopItemFromProductOptions, ShopItem } from "./structures"
-import { S3GetSignedURL } from "./storage"
-import { sendbird } from "@/lib/sendbird"
-import { prisma } from "@/lib/prisma"
-import { SendbirdUserData } from "@/sendbird/sendbird-structures"
+import { Artist, StoreItem } from '@prisma/client'
+import { AWSLocations, ConvertShopItemFromProductOptions, ShopItem } from './structures'
+import { S3GetSignedURL } from './storage'
+import { sendbird } from '@/lib/sendbird'
+import { prisma } from '@/lib/prisma'
+import { SendbirdUserData } from '@/sendbird/sendbird-structures'
+
+import { getPlaiceholder } from 'plaiceholder'
 
 /**
  *
@@ -45,9 +47,9 @@ export async function CreateSendbirdMessageChannel(submission_id: string, sendbi
 }
 
 /**
- * 
- * @param user_id 
- * @returns 
+ *
+ * @param user_id
+ * @returns
  */
 export async function CheckCreateSendbirdUser(user_id: string) {
     // Get the user
@@ -83,20 +85,26 @@ export async function CheckCreateSendbirdUser(user_id: string) {
 }
 
 /**
- * 
- * @param product 
- * @param artist 
- * @param options 
- * @returns 
+ *
+ * @param product
+ * @param artist
+ * @param options
+ * @returns
  */
 export async function CreateShopItemFromProducts(product: StoreItem, artist: Artist, options?: ConvertShopItemFromProductOptions) {
+    const featured_image_signed_url = await S3GetSignedURL(artist.id, AWSLocations.Store, product.featuredImage)
+
     let item: ShopItem = {
         id: product.id,
 
         title: product.title,
         description: product.description,
         price: product.price,
-        featured_image: await S3GetSignedURL(artist.id, AWSLocations.Store, product.featuredImage),
+        featured_image: {
+            signed_url: featured_image_signed_url,
+            blur_data: (await GetBlurData(featured_image_signed_url)).base64,
+            image_key: options?.get_featured_image_key ? product.featuredImage : undefined
+        },
         images: [],
         edit_images: [],
 
@@ -113,10 +121,6 @@ export async function CreateShopItemFromProducts(product: StoreItem, artist: Art
         item.download_key = product.downloadableAsset
     }
 
-    if (options?.get_featured_image_key) {
-        item.featured_image_key = product.featuredImage
-    }
-
     if (options?.editable) {
         for (const image of product.additionalImages) {
             const signed_url = await S3GetSignedURL(artist.id, AWSLocations.Store, image)
@@ -131,9 +135,22 @@ export async function CreateShopItemFromProducts(product: StoreItem, artist: Art
         }
     } else {
         for (const image of product.additionalImages) {
-            item.images?.push(await S3GetSignedURL(artist.id, AWSLocations.Store, image))
+            const signed_url = await S3GetSignedURL(artist.id, AWSLocations.Store, image)
+            
+            item.images?.push({
+                signed_url: signed_url,
+                blur_data: (await GetBlurData(signed_url)).base64,
+                image_key: image
+            })
         }
     }
 
     return item
+}
+
+export async function GetBlurData(src: string) {
+    const buffer = await fetch(src).then(async (res) => Buffer.from(await res.arrayBuffer()))
+    const data = await getPlaiceholder(buffer)
+
+    return data
 }

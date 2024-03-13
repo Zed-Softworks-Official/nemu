@@ -10,7 +10,9 @@ builder.prismaObject('Portfolio', {
         artistId: t.exposeString('artistId'),
         image: t.exposeString('image'),
         name: t.exposeString('name'),
-        artist: t.relation('artist')
+        artist: t.relation('artist'),
+
+        createdAt: t.expose('createdAt', { type: 'Date' })
     })
 })
 
@@ -42,11 +44,7 @@ builder.queryField('portfolio_item', (t) =>
                 }
             })
 
-            const signed_url = await S3GetSignedURL(
-                args.artist_id,
-                AWSLocations.Portfolio,
-                portfolio_item.image
-            )
+            const signed_url = await S3GetSignedURL(args.artist_id, AWSLocations.Portfolio, portfolio_item.image)
 
             return {
                 signed_url: signed_url,
@@ -123,8 +121,7 @@ builder.mutationField('update_portfolio_item', (t) =>
             image_key: t.arg({
                 type: 'String',
                 required: true,
-                description:
-                    'the image key used to find the particular item in the database'
+                description: 'the image key used to find the particular item in the database'
             }),
             new_image_key: t.arg({
                 type: 'String',
