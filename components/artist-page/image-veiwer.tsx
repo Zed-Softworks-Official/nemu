@@ -4,58 +4,91 @@ import { ImageData } from '@/core/structures'
 import { useState } from 'react'
 import NemuImage from '../nemu-image'
 
+import { Swiper, SwiperSlide } from 'swiper/react'
+import { Navigation, FreeMode, Thumbs } from 'swiper/modules'
+import { Swiper as SwiperType } from 'swiper/types'
+
+import 'swiper/css'
+import 'swiper/css/navigation'
+import 'swiper/css/free-mode'
+import 'swiper/css/thumbs'
+
 export default function ImageViewer({ featured_image, additional_images }: { featured_image: ImageData; additional_images?: ImageData[] }) {
-    const [currentImage, setCurrentImage] = useState(featured_image)
-    const [loadingNewImage, setLoadingNewImage] = useState(false)
+    const [thumbsSwiper, setThumbsSwiper] = useState<SwiperType | null>(null)
 
     return (
-        <div>
-            <div className="relative overflow-auto rounded-xl">
-                {loadingNewImage && (
-                    <div className="absolute w-full h-full backdrop-blur-2xl top-0 left-0">
-                        <div className="flex justify-center items-center h-full">
-                            <span className="loading loading-spinner loading-lg"></span>
+        <div className="flex flex-col gap-5">
+            <div>
+                <Swiper
+                    navigation
+                    loop
+                    thumbs={{ swiper: thumbsSwiper && !thumbsSwiper.destroyed ? thumbsSwiper : null }}
+                    modules={[FreeMode, Navigation, Thumbs]}
+                    className="rounded-xl h-full w-full max-w-[35rem]"
+                >
+                    <SwiperSlide>
+                        <div className="flex h-full w-full items-center justify-center">
+                            <NemuImage
+                                src={featured_image.signed_url!}
+                                placeholder="blur"
+                                blurDataURL={featured_image.blur_data!}
+                                width={800}
+                                height={800}
+                                alt={'Featured Image'}
+                                className="block w-full h-full object-cover"
+                            />
                         </div>
-                    </div>
-                )}
-                <NemuImage
-                    src={!currentImage ? featured_image.signed_url! : currentImage.signed_url}
-                    placeholder="blur"
-                    blurDataURL={!currentImage ? featured_image.blur_data! : currentImage.blur_data}
-                    width={1000}
-                    height={1000}
-                    loading="lazy"
-                    alt={'Featured Image'}
-                    className="rounded-xl"
-                />
+                    </SwiperSlide>
+                    {additional_images?.map((image: ImageData, index) => (
+                        <SwiperSlide key={index}>
+                            <NemuImage
+                                src={image.signed_url}
+                                alt="Image"
+                                placeholder="blur"
+                                blurDataURL={image.blur_data}
+                                width={800}
+                                height={800}
+                                className="block w-full h-full object-cover"
+                            />
+                        </SwiperSlide>
+                    ))}
+                </Swiper>
             </div>
-            <div className="flex flex-wrap gap-3 my-5 justify-evenly">
-                <div className="overflow-hidden rounded-xl cursor-pointer aspect-square transition-all duration-150 scale-100 hover:scale-110">
+            <Swiper
+                onSwiper={setThumbsSwiper}
+                loop
+                spaceBetween={12}
+                slidesPerView={4}
+                freeMode
+                watchSlidesProgress
+                modules={[FreeMode, Navigation, Thumbs]}
+                className="thumbs h-full w-full max-w-[35rem] !overflow-visible"
+            >
+                <SwiperSlide>
                     <NemuImage
-                        src={featured_image.signed_url}
-                        blurDataURL={featured_image.blur_data}
+                        src={featured_image.signed_url!}
                         placeholder="blur"
-                        width={100}
-                        height={100}
+                        blurDataURL={featured_image.blur_data!}
+                        width={200}
+                        height={200}
                         alt={'Featured Image'}
-                        onClick={() => setCurrentImage(featured_image)}
+                        className="block w-full h-full object-cover rounded-xl cursor-pointer transition-all scale-100 duration-150 hover:scale-105"
                     />
-                </div>
-                {additional_images?.map((image: ImageData) => (
-                    <div className="overflow-hidden rounded-xl cursor-pointer aspect-square transition-all duration-150 scale-100 hover:scale-110">
+                </SwiperSlide>
+                {additional_images?.map((image: ImageData, index) => (
+                    <SwiperSlide key={index}>
                         <NemuImage
-                            key={image.image_key}
                             src={image.signed_url}
+                            alt="Image"
                             placeholder="blur"
                             blurDataURL={image.blur_data}
-                            width={100}
-                            height={100}
-                            alt={'Additional Images'}
-                            onClick={() => setCurrentImage(image)}
+                            width={200}
+                            height={200}
+                            className="block w-fit h-fit object-cover rounded-xl cursor-pointer transition-all scale-100 duration-150 hover:scale-105"
                         />
-                    </div>
+                    </SwiperSlide>
                 ))}
-            </div>
+            </Swiper>
         </div>
     )
 }
