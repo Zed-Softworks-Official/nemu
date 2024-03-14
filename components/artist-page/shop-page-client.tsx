@@ -12,7 +12,7 @@ export default function ShopPageClient({ handle, slug }: { handle: string; slug:
             artist(handle:"${handle.substring(3, handle.length)}") {
                 id
                 handle
-                store_item(slug: "${slug}") {
+                product(slug: "${slug}") {
                     title
                     description
                     featured_image {
@@ -34,7 +34,7 @@ export default function ShopPageClient({ handle, slug }: { handle: string; slug:
             artist: {
                 id: string
                 handle: string
-                store_item: ShopItem
+                product: ShopItem
             }
         }>
     )
@@ -43,5 +43,5 @@ export default function ShopPageClient({ handle, slug }: { handle: string; slug:
         return <Loading />
     }
 
-    return <ShopDisplay handle={data?.artist.handle!} product={data?.artist.store_item!} artist_id={data?.artist.id!} />
+    return <ShopDisplay handle={data?.artist.handle!} product={data?.artist.product!} artist_id={data?.artist.id!} />
 }

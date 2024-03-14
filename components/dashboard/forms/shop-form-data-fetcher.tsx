@@ -13,18 +13,20 @@ export default function ShopFormDataFetcher({ product_id }: { product_id?: strin
     const { data, isLoading } = useSWR(
         product_id
             ? {
-                  query: `query GetStoreItems($options: DownloadOptionsInputType) {
+                  query: `query GetProduct($options: DownloadOptionsInputType) {
                             artist(id: "${artistId}") {
-                                store_item(product_id: "${product_id}", options: $options) {
+                                product(product_id: "${product_id}", options: $options) {
                                     id 
-                                    featured_image
-                                    featured_image_key
+                                    featured_image {
+                                        signed_url
+                                        blur_data
+                                    }
                                     edit_images {
                                         signed_url
                                         file_name
                                         file_key
                                         aws_location
-                                        featured   
+                                        featured
                                     }
                                     title
                                     price
@@ -46,7 +48,7 @@ export default function ShopFormDataFetcher({ product_id }: { product_id?: strin
             : null,
         GraphQLFetcherVariables<{
             artist: {
-                store_item: ShopItem
+                product: ShopItem
             }
         }>
     )
@@ -55,5 +57,5 @@ export default function ShopFormDataFetcher({ product_id }: { product_id?: strin
         return <Loading />
     }
 
-    return <ShopCreateEditForm data={data?.artist.store_item} />
+    return <ShopCreateEditForm data={data?.artist.product} />
 }

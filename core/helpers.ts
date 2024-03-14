@@ -3,7 +3,7 @@ import { AWSLocations, CommissionAvailability, ConvertShopItemFromProductOptions
 import { prisma } from '@/lib/prisma'
 import { sendbird } from '@/lib/sendbird'
 import { SendbirdUserData } from '@/sendbird/sendbird-structures'
-import { Artist, StoreItem } from '@prisma/client'
+import { Artist, Product } from '@prisma/client'
 import { S3GetSignedURL } from './storage'
 
 /**

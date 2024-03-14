@@ -96,9 +96,9 @@ export default function ShopCreateEditForm({ data }: { data?: ShopItem }) {
         })
 
         // Make request to GraphQL to create new shop object
-        const graphql_response = await GraphQLFetcher<{ create_store_item: NemuResponse }>(
+        const graphql_response = await GraphQLFetcher<{ create_product: NemuResponse }>(
             `mutation CreateStoreMutation($product_data: StoreProductInputType!) {
-                create_store_item(artist_id: "${artistId}", product_data: $product_data) {
+                create_product(artist_id: "${artistId}", product_data: $product_data) {
                     status
                     message
                 }
@@ -115,9 +115,9 @@ export default function ShopCreateEditForm({ data }: { data?: ShopItem }) {
             }
         )
 
-        if (graphql_response.create_store_item.status! != StatusCode.Success) {
+        if (graphql_response.create_product.status! != StatusCode.Success) {
             toast.update(toast_id, {
-                render: graphql_response.create_store_item.message,
+                render: graphql_response.create_product.message,
                 type: 'error',
                 autoClose: 5000,
                 isLoading: false
@@ -198,9 +198,9 @@ export default function ShopCreateEditForm({ data }: { data?: ShopItem }) {
         }
 
         // Update the data
-        const graphql_response = await GraphQLFetcher<{ update_store_item: NemuResponse }>(
+        const graphql_response = await GraphQLFetcher<{ update_product: NemuResponse }>(
             `mutation UpdateStoreMutation($product_data: StoreProductInputType!) {
-                update_store_item(product_id: "${data?.id}", product_data: $product_data) {
+                update_product(product_id: "${data?.id}", product_data: $product_data) {
                     status
                     message
                 }
@@ -210,9 +210,9 @@ export default function ShopCreateEditForm({ data }: { data?: ShopItem }) {
             }
         )
 
-        if (graphql_response.update_store_item.status! != StatusCode.Success) {
+        if (graphql_response.update_product.status! != StatusCode.Success) {
             toast.update(toast_id, {
-                render: graphql_response.update_store_item.message,
+                render: graphql_response.update_product.message,
                 type: 'error',
                 autoClose: 5000,
                 isLoading: false

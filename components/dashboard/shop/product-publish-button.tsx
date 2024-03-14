@@ -13,9 +13,9 @@ export default function ProductPublishButton({ product_id, published }: { produc
     async function UpdatePublishedCommissionState(new_state: boolean) {
         setLoading(true)
 
-        const response = await GraphQLFetcherVariables<{ update_store_item: NemuResponse }>({
-            query: `mutation UpdateStoreItem($product_data: StoreProductInputType!) {
-                    update_store_item(product_id: "${product_id}", product_data: $product_data) {
+        const response = await GraphQLFetcherVariables<{ update_product: NemuResponse }>({
+            query: `mutation UpdateProduct($product_data: StoreProductInputType!) {
+                    update_product(product_id: "${product_id}", product_data: $product_data) {
                         status
                         message
                     }
@@ -27,10 +27,10 @@ export default function ProductPublishButton({ product_id, published }: { produc
             }
         })
 
-        if (response.update_store_item.status == StatusCode.Success) {
+        if (response.update_product.status == StatusCode.Success) {
             toast('Successfully Updated Commission', { theme: 'dark', type: 'success' })
         } else {
-            toast(response.update_store_item.message, { theme: 'dark', type: 'error' })
+            toast(response.update_product.message, { theme: 'dark', type: 'error' })
         }
 
         setLoading(false)

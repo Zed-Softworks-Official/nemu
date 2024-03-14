@@ -123,7 +123,7 @@ export async function POST(req: Request) {
                     ////////////////////////////////////////////////////////////
                     case PurchaseType.ArtistCorner:
                         {
-                            const product = await prisma.storeItem.findFirst({
+                            const product = await prisma.product.findFirst({
                                 where: {
                                     id: metadata.product_id,
                                     artistId: metadata.artist_id

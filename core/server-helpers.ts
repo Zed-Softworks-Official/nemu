@@ -1,4 +1,4 @@
-import { Artist, StoreItem } from '@prisma/client'
+import { Artist, Product } from '@prisma/client'
 import { AWSLocations, ConvertShopItemFromProductOptions, ShopItem } from './structures'
 import { S3GetSignedURL } from './storage'
 import { sendbird } from '@/lib/sendbird'
@@ -91,7 +91,7 @@ export async function CheckCreateSendbirdUser(user_id: string) {
  * @param options
  * @returns
  */
-export async function CreateShopItemFromProducts(product: StoreItem, artist: Artist, options?: ConvertShopItemFromProductOptions) {
+export async function CreateShopItemFromProducts(product: Product, artist: Artist, options?: ConvertShopItemFromProductOptions) {
     const featured_image_signed_url = await S3GetSignedURL(artist.id, AWSLocations.Store, product.featuredImage)
 
     let item: ShopItem = {

@@ -27,7 +27,7 @@ export interface ArtistPageResponse {
         about: string
         location: string
         stripeAccount: string
-        store_items: ShopItem[]
+        products: ShopItem[]
         commissions: CommissionItem[]
         portfolio_items: PortfolioItem[]
         socials: SocialData[]

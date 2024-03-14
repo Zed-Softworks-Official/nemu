@@ -14,7 +14,7 @@ export default function ShopItems() {
     const { data, isLoading } = useSWR(
         `{
             artist(id: "${artistId}") {
-                store_items {
+                products {
                     featured_image {
                         signed_url
                         blur_data
@@ -29,7 +29,7 @@ export default function ShopItems() {
         }`,
         GraphQLFetcher<{
             artist: {
-                store_items: ShopItem[]
+                products: ShopItem[]
             }
         }>
     )
@@ -40,7 +40,7 @@ export default function ShopItems() {
 
     return (
         <div className="grid grid-cols-4 gap-4">
-            {data?.artist.store_items?.map((product: ShopItem) => <ShopCard key={product.title} product={product} artist_id={artistId!} dashboard />)}
+            {data?.artist.products?.map((product: ShopItem) => <ShopCard key={product.title} product={product} artist_id={artistId!} dashboard />)}
         </div>
     )
 }

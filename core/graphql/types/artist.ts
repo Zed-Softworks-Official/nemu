@@ -70,12 +70,12 @@ builder.prismaObject('Artist', {
                 return result
             }
         }),
-        store_items: t.field({
+        products: t.field({
             type: ['ShopItem'],
             resolve: async (artist) => {
                 const result: ShopItem[] = []
 
-                const products = await prisma.storeItem.findMany({
+                const products = await prisma.product.findMany({
                     where: {
                         artistId: artist.id
                     }
@@ -89,7 +89,7 @@ builder.prismaObject('Artist', {
             }
         }),
 
-        store_item: t.field({
+        product: t.field({
             type: 'ShopItem',
             args: {
                 slug: t.arg({
@@ -110,7 +110,7 @@ builder.prismaObject('Artist', {
             },
             nullable: true,
             resolve: async (artist, args) => {
-                const product = await prisma.storeItem.findFirst({
+                const product = await prisma.product.findFirst({
                     where: {
                         artistId: artist.id,
                         slug: args.slug || undefined,

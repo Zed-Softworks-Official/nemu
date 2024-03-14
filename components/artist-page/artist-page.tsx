@@ -33,7 +33,7 @@ export default function ArtistPageClient({ handle }: { handle: string }) {
                     published
                     use_invoicing
                 }
-                store_items {
+                products {
                     title
                     description
                     price

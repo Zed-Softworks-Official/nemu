@@ -54,7 +54,7 @@ model Artist {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   commissions    Commission[]
-  storeItems     StoreItem[]
+  products       Product[]
   portfolioItems Portfolio[]
   forms          Form[]
   socials        Social[]
@@ -178,7 +178,7 @@ model Downloads {
 // Store
 //////////////////////////////////////////////////////////
 
-model StoreItem {
+model Product {
   id       String @id @default(auto()) @map("_id") @db.ObjectId
   artistId String @db.ObjectId
 

@@ -28,7 +28,7 @@ export default function ArtistBody({ data }: { data: ArtistPageResponse }) {
                 return (
                     <>
                         <h1 className="font-bold text-2xl">Store</h1>
-                        <Shop shop_items={data.artist?.store_items!} handle={data.artist?.handle!} artist_id={data.artist?.id!} />
+                        <Shop shop_items={data.artist?.products!} handle={data.artist?.handle!} artist_id={data.artist?.id!} />
                     </>
                 )
             case 2:

@@ -10,7 +10,7 @@ export async function GET(req: Request, {params}: {params: {handle: string, slug
         }
     })
 
-    const db_product = await prisma.storeItem.findFirst({
+    const db_product = await prisma.product.findFirst({
         where: {
             artistId: artist?.id,
             slug: params.slug

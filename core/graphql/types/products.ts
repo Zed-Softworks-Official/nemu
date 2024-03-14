@@ -2,7 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { builder } from '../builder'
 import { StatusCode } from '@/core/responses'
 
-builder.prismaObject('StoreItem', {
+builder.prismaObject('Product', {
     fields: (t) => ({
         id: t.exposeString('id'),
         artistId: t.exposeString('artistId'),
@@ -20,9 +20,9 @@ builder.prismaObject('StoreItem', {
     })
 })
 
-builder.queryField('store_item', (t) =>
+builder.queryField('product', (t) =>
     t.prismaField({
-        type: 'StoreItem',
+        type: 'Product',
         args: {
             product_id: t.arg({
                 type: 'String',
@@ -36,7 +36,7 @@ builder.queryField('store_item', (t) =>
             })
         },
         resolve: (query, _parent, args, _ctx, _info) =>
-            prisma.storeItem.findFirstOrThrow({
+            prisma.product.findFirstOrThrow({
                 ...query,
                 where: {
                     id: args.product_id,
@@ -46,7 +46,7 @@ builder.queryField('store_item', (t) =>
     })
 )
 
-builder.mutationField('create_store_item', (t) =>
+builder.mutationField('create_product', (t) =>
     t.field({
         type: 'NemuResponse',
         args: {
@@ -83,7 +83,7 @@ builder.mutationField('create_store_item', (t) =>
                 .replaceAll(' ', '-')
 
             // Create the item in the database
-            await prisma.storeItem.create({
+            await prisma.product.create({
                 data: {
                     artistId: args.artist_id,
                     title: args.product_data.title!,
@@ -103,7 +103,7 @@ builder.mutationField('create_store_item', (t) =>
     })
 )
 
-builder.mutationField('update_store_item', (t) =>
+builder.mutationField('update_product', (t) =>
     t.field({
         type: 'NemuResponse',
         args: {
@@ -120,7 +120,7 @@ builder.mutationField('update_store_item', (t) =>
         },
         resolve: async (_parent, args) => {
             try {
-                await prisma.storeItem.update({
+                await prisma.product.update({
                     where: {
                         id: args.product_id
                     },
