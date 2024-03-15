@@ -21,6 +21,6 @@ export interface UserResponse extends NemuResponse {
  */
 export interface DownloadsResponse {
     user?: {
-        purchased: DownloadData[]
+        downloads: DownloadData[]
     }
 }

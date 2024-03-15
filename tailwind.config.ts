@@ -14,7 +14,14 @@ const config: Config = {
                 nunito: ['var(--font-nunito)']
             },
             animation: {
-                'pop-in': 'button-pop 0.25s ease-out'
+                'pop-in': 'button-pop 0.25s ease-out',
+                'favorite-button': 'favorite-transition .3s steps(4) 1'
+            },
+            keyframes: {
+                'favorite-transition': {
+                    '0%': { 'background-position': 'left' },
+                    '100%': { 'background-position': 'right' }
+                }
             }
         }
     },

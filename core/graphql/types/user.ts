@@ -1,7 +1,9 @@
 import { prisma } from '@/lib/prisma'
 import { builder } from '../builder'
 import { StatusCode } from '@/core/responses'
-import { DownloadData } from '@/core/structures'
+import { AWSLocations, DownloadData } from '@/core/structures'
+import { Commission, Product } from '@prisma/client'
+import { S3GetSignedURL } from '@/core/storage'
 
 builder.prismaObject('User', {
     fields: (t) => ({
@@ -35,62 +37,68 @@ builder.prismaObject('User', {
                 })
         }),
 
-        downloads: t.relation('downloads')
+        downloads: t.field({
+            type: ['DownloadData'],
+            description: 'Gets all downloads for the user',
+            nullable: true,
+            resolve: async (current_user) => {
+                const downloads = await prisma.downloads.findMany({
+                    where: {
+                        userId: current_user.id
+                    }
+                })
 
-        // downloads: t.field({
-        //     type: ['DownloadData'],
-        //     description: 'Gets all downloads for user',
-        //     nullable: true,
-        //     resolve: async (current_user) => {
-        //         return null
-        //     }
-        // })
-        // purchased: t.field({
-        //     type: ['DownloadData'],
-        //     description: 'Gets all purchases for user',
-        //     resolve: async (current_user) => {
-        //         // Get the user and their purchases
-        //         const user = await prisma.user.findFirst({
-        //             where: {
-        //                 id: current_user.id
-        //             },
-        //             include: {
-        //                 purchased: true
-        //             }
-        //         })
+                if (!downloads) {
+                    return null
+                }
 
-        //         // Get the data associated with the downloads
-        //         const downloads: DownloadData[] = []
-        //         if (user?.purchased) {
-        //             for (let i = 0; i < user?.purchased.length; i++) {
-        //                 if (!user.purchased[i].complete) {
-        //                     break
-        //                 }
+                const result: DownloadData[] = []
+                // Get the data associated with the downloads
+                for (const download of downloads) {
+                    const artist = await prisma.artist.findFirst({
+                        where: {
+                            id: download.artistId
+                        }
+                    })
 
-        //                 const product = await StripeGetStoreProductInfo(
-        //                     user?.purchased[i].productId,
-        //                     user?.purchased[i].stripeAccId,
-        //                     true
-        //                 )
+                    if (!artist) {
+                        return result
+                    }
 
-        //                 const artist = await prisma.artist.findFirst({
-        //                     where: {
-        //                         stripeAccId: user.purchased[i].stripeAccId
-        //                     }
-        //                 })
+                    let item: Commission | Product | undefined | null
+                    if (download.commissionId) {
+                        item = await prisma.commission.findFirst({
+                            where: {
+                                id: download.commissionId
+                            }
+                        })
+                    } else if (download.productId) {
+                        item = await prisma.product.findFirst({
+                            where: {
+                                id: download.productId
+                            }
+                        })
+                    }
 
-        //                 downloads.push({
-        //                     name: product.name!,
-        //                     price: product.price,
-        //                     artist: artist?.handle!,
-        //                     url: product.downloadable_asset!
-        //                 })
-        //             }
-        //         }
+                    if (!item) {
+                        return null
+                    }
 
-        //         return downloads
-        //     }
-        // })
+                    result.push({
+                        download_url: await S3GetSignedURL(
+                            artist.id,
+                            download.commissionId ? AWSLocations.Commission : AWSLocations.Store,
+                            download.fileKey
+                        ),
+                        receipt_url: download.receiptURL || undefined,
+                        created_at: download.createdAt,
+                        artist_handle: artist.handle
+                    })
+                }
+
+                return result
+            }
+        })
     })
 })
 

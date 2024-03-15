@@ -14,6 +14,7 @@ import {
 } from '../responses'
 import {
     CommissionForm,
+    CommissionInputType,
     CommissionItem,
     DownloadData,
     DownloadDataInputType,
@@ -53,6 +54,7 @@ export const builder = new SchemaBuilder<{
         StoreProductInputType: StoreProductInputType
         DownloadOptionsInputType: DownloadOptionsInputType
         DownloadDataInputType: DownloadDataInputType
+        CommissionInputType: CommissionInputType
     }
     Scalars: { Date: { Input: Date; Output: Date } }
 }>({
@@ -85,7 +87,7 @@ builder.objectRef<PortfolioItem>('PortfolioData').implement({
 builder.objectRef<DownloadData>('DownloadData').implement({
     fields: (t) => ({
         download_url: t.exposeString('download_url'),
-        receipts_ur: t.exposeString('receipt_url'),
+        receipt_url: t.exposeString('receipt_url', { nullable: true }),
         artist_handle: t.exposeString('artist_handle'),
 
         created_at: t.expose('created_at', { type: 'Date' })
@@ -98,12 +100,12 @@ builder.objectRef<CommissionItem>('CommissionData').implement({
         description: t.exposeString('description'),
         price: t.exposeFloat('price'),
 
-        featured_image: t.exposeString('featured_image', { nullable: true }),
+        featured_image: t.expose('featured_image', { type: 'ImageData', nullable: true }),
         availability: t.exposeInt('availability', { nullable: true }),
         form_id: t.exposeString('form_id', { nullable: true }),
         handle: t.exposeString('handle', { nullable: true }),
         slug: t.exposeString('slug', { nullable: true }),
-        images: t.exposeStringList('images', { nullable: true }),
+        images: t.expose('images', { type: ['ImageData'], nullable: true }),
         commission_id: t.exposeString('commission_id', { nullable: true }),
         published: t.exposeBoolean('published', { nullable: true }),
         use_invoicing: t.exposeBoolean('use_invoicing', { nullable: true })
@@ -261,20 +263,23 @@ builder.inputRef<DownloadDataInputType>('DownloadDataInputType').implement({
     })
 })
 
-export const CommissionInputType = builder.inputType('CommissionInputType', {
+builder.inputRef<CommissionInputType>('CommissionInputType').implement({
     fields: (t) => ({
+        artist_id: t.string(),
         title: t.string(),
         description: t.string(),
-        price: t.float(),
-        availability: t.boolean(),
-        published: t.boolean(),
-        use_invoicing: t.boolean(),
-        max_commissions_until_waitlist: t.int(),
-        max_commissions_until_closed: t.int(),
+        availability: t.int(),
+        featured_image: t.string(),
+        additional_images: t.stringList(),
         rush_orders_allowed: t.boolean(),
         rush_charge: t.float(),
         rush_percentage: t.boolean(),
-        additional_images: t.stringList()
+        form_id: t.string(),
+        price: t.float(),
+        use_invoicing: t.boolean(),
+        max_commission_until_closed: t.int(),
+        max_commission_until_waitlist: t.int(),
+        published: t.boolean()
     })
 })
 

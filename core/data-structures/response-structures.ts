@@ -101,10 +101,10 @@ export interface CommissionItem {
     price: number
     due_date?: Date
 
-    featured_image?: string
+    featured_image?: ImageData
     availability?: CommissionAvailability
 
-    images?: string[]
+    images?: ImageData[]
     orders?: CommissionOrders[]
     form_id?: string
     handle?: string
@@ -150,7 +150,7 @@ export interface CommissionForm {
  */
 export interface DownloadData {
     download_url: string
-    receipt_url: string
+    receipt_url?: string
     artist_handle: string
 
     created_at: Date

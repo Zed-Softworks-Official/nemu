@@ -1,11 +1,10 @@
 'use client'
 
-import { useState } from 'react'
-import NemuImage from '../nemu-image'
 import Markdown from 'react-markdown'
 
 import { CommissionAvailability, CommissionItem } from '@/core/structures'
 import CommissionPaymentInfo from '../payments/commission-payment-info'
+import ImageViewer from './image-veiwer'
 
 export default function CommissionsDisplay({
     commission,
@@ -16,8 +15,6 @@ export default function CommissionsDisplay({
     terms: string
     setShowForm: (showForm: boolean) => void
 }) {
-    const [currentImage, setCurrentImage] = useState(commission.featured_image!)
-
     function convertAvailabilityToBadge(availability: CommissionAvailability) {
         switch (availability) {
             case CommissionAvailability.Closed:
@@ -31,30 +28,7 @@ export default function CommissionsDisplay({
 
     return (
         <div className="grid md:grid-cols-3 grid-cols-1 gap-5 scrollbar-none">
-            <div className="bg-base-300 rounded-xl overflow-hidden">
-                <NemuImage src={currentImage} alt={'Image'} width={500} height={500} />
-                <div className="grid grid-cols-3 mt-5 gap-5">
-                    <NemuImage
-                        src={commission.featured_image!}
-                        className="hover:cursor-pointer roundex-xl transition-all hover:scale-110 scale-100 duration-200"
-                        alt={'Image'}
-                        width={100}
-                        height={100}
-                        onClick={() => setCurrentImage(commission.featured_image!)}
-                    />
-                    {commission.images?.map((image, i) => (
-                        <NemuImage
-                            key={i}
-                            src={image}
-                            className="hover:cursor-pointer rounded-xl transition-all hover:scale-110 scale-100 duration-200"
-                            alt={'image'}
-                            width={100}
-                            height={100}
-                            onClick={() => setCurrentImage(image)}
-                        />
-                    ))}
-                </div>
-            </div>
+            <ImageViewer featured_image={commission.featured_image!} additional_images={commission.images!} />
             <div className="bg-base-300 rounded-xl col-span-2">
                 <div className="card h-full">
                     <div className="card-body">

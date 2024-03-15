@@ -12,7 +12,7 @@ export enum CommissionStatus {
     Rejected
 }
 
-export enum AWSMoficiation {
+export enum AWSModification {
     Added,
     Removed
 }
@@ -24,7 +24,7 @@ export interface AWSFileModification {
     file_name?: string
     featured?: boolean
 
-    modification?: AWSMoficiation
+    modification?: AWSModification
     updated_file?: File
     blob?: string
 }

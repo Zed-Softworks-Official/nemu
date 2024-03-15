@@ -3,7 +3,7 @@ import { builder } from '../builder'
 import { StatusCode } from '@/core/responses'
 import { S3GetSignedURL } from '@/core/storage'
 import { AWSLocations } from '@/core/structures'
-import { AWSFileModification, AWSMoficiation } from '@/core/data-structures/form-structures'
+import { AWSFileModification, AWSModification } from '@/core/data-structures/form-structures'
 
 builder.prismaObject('Commission', {
     fields: (t) => ({
@@ -163,69 +163,10 @@ builder.mutationField('create_commission', (t) =>
                 required: true,
                 description: 'The id of the artist'
             }),
-            title: t.arg({
-                type: 'String',
+            commission_data: t.arg({
+                type: 'CommissionInputType',
                 required: true,
-                description: 'The title of the commission'
-            }),
-
-            description: t.arg({
-                type: 'String',
-                required: true,
-                description: 'The description of the commission'
-            }),
-            availability: t.arg({
-                type: 'Int',
-                required: true,
-                description: 'The availability of the commission'
-            }),
-            featured_image: t.arg({
-                type: 'String',
-                required: true,
-                description: 'The featured image key'
-            }),
-            additional_images: t.arg({
-                type: ['String'],
-                required: true,
-                description: 'An array of the additional images for the commission'
-            }),
-            rush_orders_allowed: t.arg({
-                type: 'Boolean',
-                required: true,
-                description: 'Determines wether rush orders are allowed or not'
-            }),
-            rush_charge: t.arg({
-                type: 'Float',
-                required: true,
-                description: ''
-            }),
-            rush_percentage: t.arg({
-                type: 'Boolean',
-                required: true,
-                description: ''
-            }),
-            form_id: t.arg({
-                type: 'String',
-                required: true,
-                description: 'The id of the form'
-            }),
-            price: t.arg({
-                type: 'Float',
-                required: false,
-                description: 'The price of the commission'
-            }),
-            use_invoicing: t.arg({
-                type: 'Boolean',
-                required: false,
-                description: 'Wether to create invoices or use a fixed price'
-            }),
-            max_commission_until_waitlist: t.arg({
-                type: 'Int',
-                required: true
-            }),
-            max_commission_until_closed: t.arg({
-                type: 'Int',
-                required: true
+                description: 'Data for the commision'
             })
         },
         resolve: async (_parent, args, _ctx, _info) => {
@@ -244,8 +185,8 @@ builder.mutationField('create_commission', (t) =>
             }
 
             // Create Slug
-            const slug = args.title
-                .toLowerCase()
+            const slug = args.commission_data
+                .title!.toLowerCase()
                 .replace(/[^a-zA-Z ]/g, '')
                 .replaceAll(' ', '-')
 
@@ -267,27 +208,29 @@ builder.mutationField('create_commission', (t) =>
             const db_commission = await prisma.commission.create({
                 data: {
                     artistId: args.artist_id,
-                    price: args.price,
-                    formId: args.form_id,
-                    title: args.title,
-                    description: args.description,
-                    featuredImage: args.featured_image,
-                    additionalImages: args.additional_images,
-                    rushOrdersAllowed: args.rush_orders_allowed,
-                    availability: args.availability,
-                    useInvoicing: args.use_invoicing || undefined,
+                    price: args.commission_data.price,
+                    formId: args.commission_data.form_id!,
+                    title: args.commission_data.title!,
+                    description: args.commission_data.description!,
+                    featuredImage: args.commission_data.featured_image!,
+                    additionalImages: args.commission_data.additional_images!,
+                    rushOrdersAllowed: args.commission_data.rush_orders_allowed!,
+                    availability: args.commission_data.availability!,
+                    useInvoicing: args.commission_data.use_invoicing || undefined,
                     slug: slug,
-                    maxCommissionsUntilWaitlist: args.max_commission_until_waitlist <= 0 ? undefined : args.max_commission_until_waitlist,
-                    maxCommissionsUntilClosed: args.max_commission_until_closed <= 0 ? undefined : args.max_commission_until_closed,
-                    rushCharge: args.rush_charge,
-                    rushPercentage: args.rush_percentage
+                    maxCommissionsUntilWaitlist:
+                        args.commission_data.max_commission_until_waitlist! <= 0 ? undefined : args.commission_data.max_commission_until_waitlist!,
+                    maxCommissionsUntilClosed:
+                        args.commission_data.max_commission_until_closed! <= 0 ? undefined : args.commission_data.max_commission_until_closed!,
+                    rushCharge: args.commission_data.rush_charge!,
+                    rushPercentage: args.commission_data.rush_percentage!
                 }
             })
 
             // Update the form to also include the commission
             await prisma.form.update({
                 where: {
-                    id: args.form_id
+                    id: args.commission_data.form_id!
                 },
                 data: {
                     commissionId: db_commission.id
@@ -314,72 +257,13 @@ builder.mutationField('update_commission', (t) =>
             commission_id: t.arg({
                 type: 'String',
                 required: true,
-                description: ''
+                description: 'The id of the commission to update'
             }),
 
-            title: t.arg({
-                type: 'String',
-                required: false,
-                description: ''
-            }),
-            description: t.arg({
-                type: 'String',
-                required: false,
-                description: ''
-            }),
-            price: t.arg({
-                type: 'Int',
-                required: false,
-                description: ''
-            }),
-            availability: t.arg({
-                type: 'Int',
-                required: false,
-                description: ''
-            }),
-
-            published: t.arg({
-                type: 'Boolean',
-                required: false,
-                description: ''
-            }),
-            use_invoicing: t.arg({
-                type: 'Boolean',
-                required: false,
-                description: ''
-            }),
-
-            max_commissions_until_waitlist: t.arg({
-                type: 'Int',
-                required: false,
-                description: ''
-            }),
-            max_commissions_until_closed: t.arg({
-                type: 'Int',
-                required: false,
-                description: ''
-            }),
-
-            rush_orders_allowed: t.arg({
-                type: 'Boolean',
-                required: false,
-                description: 'Determines wether rush orders are allowed or not'
-            }),
-            rush_charge: t.arg({
-                type: 'Float',
-                required: false,
-                description: ''
-            }),
-            rush_percentage: t.arg({
-                type: 'Boolean',
-                required: false,
-                description: ''
-            }),
-
-            additional_images: t.arg({
-                type: 'String',
-                required: false,
-                description: ''
+            commission_data: t.arg({
+                type: 'CommissionInputType',
+                required: true,
+                description: 'The data to update for the commission'
             })
         },
         resolve: async (_parent, args, _ctx, _info) => {
@@ -389,20 +273,25 @@ builder.mutationField('update_commission', (t) =>
                         id: args.commission_id
                     },
                     data: {
-                        title: args.title ? args.title : undefined,
-                        description: args.description ? args.description : undefined,
-                        price: args.price ? args.price : undefined,
-                        availability: args.availability ? args.availability : undefined,
+                        title: args.commission_data.title ? args.commission_data.title : undefined,
+                        description: args.commission_data.description ? args.commission_data.description : undefined,
+                        price: args.commission_data.price ? args.commission_data.price : undefined,
+                        availability: args.commission_data.availability ? args.commission_data.availability : undefined,
 
-                        published: args.published != undefined ? args.published : undefined,
-                        useInvoicing: args.use_invoicing != undefined ? args.use_invoicing : undefined,
+                        published: args.commission_data.published != undefined ? args.commission_data.published : undefined,
+                        useInvoicing: args.commission_data.use_invoicing != undefined ? args.commission_data.use_invoicing : undefined,
 
-                        maxCommissionsUntilWaitlist: args.max_commissions_until_waitlist ? args.max_commissions_until_waitlist : undefined,
-                        maxCommissionsUntilClosed: args.max_commissions_until_closed ? args.max_commissions_until_closed : undefined,
+                        maxCommissionsUntilWaitlist: args.commission_data.max_commission_until_waitlist
+                            ? args.commission_data.max_commission_until_waitlist
+                            : undefined,
+                        maxCommissionsUntilClosed: args.commission_data.max_commission_until_closed
+                            ? args.commission_data.max_commission_until_closed
+                            : undefined,
 
-                        rushOrdersAllowed: args.rush_orders_allowed != undefined ? args.rush_orders_allowed : undefined,
-                        rushCharge: args.rush_charge ? args.rush_charge : undefined,
-                        rushPercentage: args.rush_percentage != undefined ? args.rush_percentage : undefined
+                        rushOrdersAllowed:
+                            args.commission_data.rush_orders_allowed != undefined ? args.commission_data.rush_orders_allowed : undefined,
+                        rushCharge: args.commission_data.rush_charge ? args.commission_data.rush_charge : undefined,
+                        rushPercentage: args.commission_data.rush_percentage != undefined ? args.commission_data.rush_percentage : undefined
                     }
                 })
             } catch (e) {

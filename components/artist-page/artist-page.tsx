@@ -21,13 +21,20 @@ export default function ArtistPageClient({ handle }: { handle: string }) {
                 about
                 location
                 stripeAccount
+                terms
                 commissions {
                     title
                     description
                     price
                     form_id
-                    featured_image
-                    images
+                    featured_image {
+                        signed_url
+                        blur_data
+                    }
+                    images {
+                        signed_url
+                        blur_data
+                    }
                     availability
                     commission_id
                     published

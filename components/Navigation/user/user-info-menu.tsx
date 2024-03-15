@@ -22,6 +22,7 @@ import { ClassNames } from '@/core/helpers'
 import { UserInfoIcon, UserInfoLink, UserInfoObject, Role } from '@/core/structures'
 import ThemeSwitcher from '@/components/theme/theme-switcher'
 import NemuImage from '@/components/nemu-image'
+import Notifications from '../notifications'
 
 export default function UserInfoMenu() {
     const { data: session } = useSession()
@@ -79,9 +80,9 @@ export default function UserInfoMenu() {
     let navbar_items: UserInfoLink[] = GetCurrentNavbarItems(session ? true : false, session?.user.role!, session?.user.handle)
 
     return (
-        <Menu as="div" className="relative inline-block text-left mt-3 ml-20">
-            <div>
-                <Menu.Button className="inline-flex w-full justify-center gap-x-1.5 rounded-md font-semibold btn btn-ghost btn-circle hover:bg-transparent">
+        <Menu as="div" className="relative inline-block text-left">
+            <div className="flex gap-10 items-center justify-end">
+                <Menu.Button className="rounded-md font-semibold btn btn-ghost btn-circle hover:bg-transparent">
                     {session?.user ? (
                         session?.user?.image ? (
                             <NemuImage src={session?.user?.image!} alt="profile image" width={50} height={50} className="rounded-full w-16" />

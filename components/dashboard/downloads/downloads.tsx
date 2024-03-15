@@ -3,22 +3,23 @@
 import useSWR from 'swr'
 import { GraphQLFetcher } from '@/core/helpers'
 
-import Link from 'next/link'
 import Loading from '@/components/loading'
 import { DownloadsResponse } from '@/core/responses'
-import { DownloadData } from '@/core/structures'
-import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
 import NemuImage from '@/components/nemu-image'
+import { useSession } from 'next-auth/react'
+import { DownloadData } from '@/core/structures'
+import Link from 'next/link'
 
 export default function DownloadsList() {
-    const { userId } = useDashboardContext()
+    const { data: session } = useSession()
+
     const { data, isLoading } = useSWR(
         `{
-            user(id: "${userId}") {
-                purchased {
-                    price
-                    name
+            user(id: "${session?.user.user_id}") {
+                downloads {
                     download_url
+                    created_at
+                    receipt_url
                     artist_handle
                 }
             }
@@ -32,47 +33,45 @@ export default function DownloadsList() {
 
     return (
         <>
-            {data?.user?.purchased.length != 0 ? (
-                <div className="overflow-x-auto w-full rounded-xl">
-                    <table className="table table-zebra">
-                        <thead className=" bg-base-200">
-                            <th>Item Name</th>
-                            <th>Artist</th>
-                            <th>Price</th>
-                            <th>Download</th>
+            {data?.user?.downloads.length != 0 ? (
+                <div className="overflow-x-auto w-full bg-base-100 overflow-hidden rounded-xl">
+                    <table className="table table-zebra w-full rounded-xl">
+                        <thead>
+                            <tr>
+                                <th>Artist</th>
+                                <th>Date Received</th>
+                                <th>Receipt</th>
+                                <th>Download</th>
+                            </tr>
                         </thead>
                         <tbody>
-                            {data?.user?.purchased.map(
-                                (download: DownloadData) => (
-                                    <tr key={download.name}>
-                                        <td>{download.name}</td>
-                                        <td>{download.artist}</td>
-                                        <td>${download.price}</td>
+                            {data?.user?.downloads.map((download: DownloadData) => (
+                                <tr>
+                                    <th>{download.artist_handle}</th>
+                                    <td>{new Date(download.created_at).toLocaleDateString()}</td>
+                                    {download.receipt_url ? (
                                         <td>
-                                            <Link
-                                                href={download.url}
-                                                className="btn btn-primary"
-                                                download
-                                            >
-                                                Download
+                                            <Link href={download.receipt_url} className="btn btn-outline" target="_blank">
+                                                Receipt
                                             </Link>
                                         </td>
-                                    </tr>
-                                )
-                            )}
+                                    ) : (
+                                        <td></td>
+                                    )}
+                                    <td>
+                                        <Link href={download.download_url} className="btn btn-primary">
+                                            Download
+                                        </Link>
+                                    </td>
+                                </tr>
+                            ))}
                         </tbody>
                     </table>
                 </div>
             ) : (
                 <div className="flex flex-col justify-center items-center w-full h-full gap-5">
-                    <NemuImage
-                        src={'/nemu/sad.png'}
-                        alt="Nemu Sad"
-                        width={200}
-                        height={200}
-                        priority
-                    />
-                    <h2 className='card-title'>You have no downloads yet</h2>
+                    <NemuImage src={'/nemu/sad.png'} alt="Nemu Sad" width={200} height={200} priority />
+                    <h2 className="card-title">You have no downloads yet</h2>
                 </div>
             )}
         </>

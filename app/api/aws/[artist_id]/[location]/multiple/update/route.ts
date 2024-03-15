@@ -1,6 +1,6 @@
 import { NemuResponse, StatusCode } from '@/core/responses'
 import { S3Delete, S3Upload } from '@/core/storage'
-import { AWSFileModification, AWSMoficiation, StringToAWSLocationsEnum } from '@/core/structures'
+import { AWSFileModification, AWSModification, StringToAWSLocationsEnum } from '@/core/structures'
 import { NextResponse } from 'next/server'
 
 export async function POST(req: Request, { params }: { params: { artist_id: string; location: string } }) {
@@ -27,7 +27,7 @@ export async function POST(req: Request, { params }: { params: { artist_id: stri
     const new_additional_file_keys: string[] = []
     for (let i = 1; i < additional_files.length; i++) {
         // check if it was removed then remove it from aws
-        if (additional_files[i].modification == AWSMoficiation.Removed) {
+        if (additional_files[i].modification == AWSModification.Removed) {
             await S3Delete(params.artist_id, additional_files[i].aws_location, additional_files[i].file_key)
         } else {
             // Add it to the new file keys since it should exist by the end of this
@@ -37,7 +37,7 @@ export async function POST(req: Request, { params }: { params: { artist_id: stri
         }
 
         // Check if it was added and upload it to aws
-        if (additional_files[i].modification == AWSMoficiation.Added) {
+        if (additional_files[i].modification == AWSModification.Added) {
             await S3Upload(
                 params.artist_id,
                 additional_files[i].aws_location,

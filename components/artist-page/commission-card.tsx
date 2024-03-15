@@ -12,6 +12,7 @@ import { ConvertAvailabilityToBadge } from '@/core/react-helpers'
 import Markdown from 'react-markdown'
 import { ArrowLeftCircleIcon } from '@heroicons/react/20/solid'
 import CommissionPaymentInfo from '../payments/commission-payment-info'
+import FavoriteButton from './favorite-button'
 
 export default function CommissionCard({ commission, terms }: { commission: CommissionItem; terms: string }) {
     const [showModal, setShowModal] = useState(false)
@@ -20,13 +21,24 @@ export default function CommissionCard({ commission, terms }: { commission: Comm
     return (
         <div key={commission.slug} className="card lg:card-side bg-base-100 shadow-xl animate-pop-in transition-all duration-200">
             <figure>
-                <NemuImage src={commission.featured_image!} alt={commission.title} width={400} height={400} className="w-full h-full max-h-[22rem]" />
+                <NemuImage
+                    src={commission.featured_image?.signed_url!}
+                    placeholder="blur"
+                    blurDataURL={commission.featured_image?.blur_data}
+                    alt={commission.title}
+                    width={400}
+                    height={400}
+                    className="w-full h-full max-h-[22rem]"
+                />
             </figure>
-            <div className="card-body">
-                <h2 className="card-title">
-                    {commission.title}
-                    {ConvertAvailabilityToBadge(commission.availability!)}
-                </h2>
+            <div className="card-body relative">
+                <div className='flex justify-between pb-5'>
+                    <h2 className="card-title">
+                        {commission.title}
+                        {ConvertAvailabilityToBadge(commission.availability!)}
+                    </h2>
+                    <FavoriteButton />
+                </div>
                 <p>
                     <Markdown>{commission.description}</Markdown>
                 </p>

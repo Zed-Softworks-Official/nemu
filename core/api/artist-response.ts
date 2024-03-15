@@ -21,6 +21,7 @@ export interface ArtistResponse extends NemuResponse {
 export interface ArtistPageResponse {
     artist?: {
         id: string
+        terms: string
         headerPhoto: string
         profilePhoto: string
         handle: string

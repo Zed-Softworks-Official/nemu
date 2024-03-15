@@ -4,22 +4,18 @@ import useSWR from 'swr'
 import DashboardContainer from '../../dashboard-container'
 import { GraphQLFetcher } from '@/core/helpers'
 import Loading from '@/components/loading'
-import { KanbanContainerData, PaymentStatus } from '@/core/structures'
+import { PaymentStatus } from '@/core/structures'
 import Kanban from '@/components/kanban/kanban'
 import CommissionFormSubmissionContent from '../submissions/commission-form-submission-content'
 import CommissionInvoicing from '../../invoices/commission-invoicing'
 import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
 import { KanbanResponse } from '@/core/responses'
-import SendbirdProvider from '@sendbird/uikit-react/SendbirdProvider'
-import { useSession } from 'next-auth/react'
-import { MessagesProvider } from '@/components/messages/messages-context'
-import Channel from '@/components/messages/channel'
-import ChannelList from '@/components/messages/channel-list'
 import MessagesClient from '@/components/messages/messages-client'
+import DownloadsUpload from '../../downloads/downloads-upload'
+import { FormProvider } from '@/components/form/form-context'
 
 export default function DashboardCommissionDetailView({ slug, order_id }: { slug: string; order_id: string }) {
     const { artistId } = useDashboardContext()
-    const { data: session } = useSession()
     const { data, isLoading } = useSWR(
         `{
             form_submission(order_id: "${order_id}") {
@@ -100,7 +96,7 @@ export default function DashboardCommissionDetailView({ slug, order_id }: { slug
                         <div className="card-body">
                             <h2 className="card-title">Form Responses</h2>
                             <div className="divider"></div>
-                            <CommissionFormSubmissionContent content={data?.form_submission.content!} />
+                            <CommissionFormSubmissionContent content={data?.form_submission.content} />
                         </div>
                     </div>
                     {data?.form_submission.form.commission.useInvoicing && (
@@ -118,16 +114,27 @@ export default function DashboardCommissionDetailView({ slug, order_id }: { slug
                             </div>
                         </div>
                     )}
+                    <div className="card bg-base-100 shadow-xl w-1/2">
+                        <div className="card-body">
+                            <h2 className="card-title">Create Download</h2>
+                            <div className="divider"></div>
+                            <FormProvider>
+                                <DownloadsUpload />
+                            </FormProvider>
+                        </div>
+                    </div>
                 </div>
                 <div className="card bg-base-100 shadow-xl">
                     <div className="card-body">
-                        <Kanban
-                            title={data?.form_submission.form.commission.title!}
-                            client={data?.form_submission.user.name!}
-                            kanban_containers={data?.form_submission.kanban.containers!}
-                            kanban_tasks={data?.form_submission.kanban.tasks!}
-                            submission_id={data?.form_submission.id!}
-                        />
+                        {data && (
+                            <Kanban
+                                title={data?.form_submission.form.commission.title}
+                                client={data?.form_submission.user.name}
+                                kanban_containers={data?.form_submission.kanban.containers!}
+                                kanban_tasks={data?.form_submission.kanban.tasks!}
+                                submission_id={data?.form_submission.id}
+                            />
+                        )}
                     </div>
                 </div>
                 <div className="card bg-base-100 shadow-xl w-full mx-auto">

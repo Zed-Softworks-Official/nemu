@@ -1,6 +1,6 @@
 'use client'
 
-import { AWSFileModification, AWSLocations, AWSMoficiation } from '@/core/structures'
+import { AWSFileModification, AWSLocations, AWSModification } from '@/core/structures'
 import { InputHTMLAttributes, forwardRef, useEffect, useState } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { useFormContext } from '../form-context'
@@ -24,7 +24,7 @@ const ImageEditor = forwardRef<HTMLInputElement, InputProps>(({ label, images, l
         maxFiles: 5,
         multiple: true,
         accept: {
-            'image/*': []
+            'image/*': ['.png', '.jpg', '.jpeg', '.svg', '.gif'],
         },
         onDrop: (acceptedFiles) => {
             if (totalFiles > 5) {
@@ -42,7 +42,7 @@ const ImageEditor = forwardRef<HTMLInputElement, InputProps>(({ label, images, l
                     file_key: crypto.randomUUID(),
                     aws_location: location,
                     updated_file: file,
-                    modification: AWSMoficiation.Added,
+                    modification: AWSModification.Added,
                     blob: URL.createObjectURL(file)
                 })
             }
@@ -59,7 +59,7 @@ const ImageEditor = forwardRef<HTMLInputElement, InputProps>(({ label, images, l
         if (edit_mode) {
             // If we're in edit Mode, Update the additional images to mark the one removed as removed
             const updatedImages = [...filePreviews]
-            updatedImages[index].modification = AWSMoficiation.Removed
+            updatedImages[index].modification = AWSModification.Removed
             setFilePreviews(updatedImages)
             setAdditionalImages!(updatedImages)
         } else {
@@ -89,7 +89,7 @@ const ImageEditor = forwardRef<HTMLInputElement, InputProps>(({ label, images, l
     const thumbs = (
         <div className="flex gap-5 overflow-x-auto">
             {(filePreviews as AWSFileModification[]).map((preview, i) => {
-                if (preview.modification == AWSMoficiation.Removed) {
+                if (preview.modification == AWSModification.Removed) {
                     return null
                 }
 

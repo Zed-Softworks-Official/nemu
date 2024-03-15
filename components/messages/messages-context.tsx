@@ -4,6 +4,7 @@ import { GraphQLFetcher } from '@/core/helpers'
 import { BaseMessage } from '@sendbird/chat/message'
 import { EveryMessage } from '@sendbird/uikit-react'
 import { Dispatch, SetStateAction, createContext, useContext, useEffect, useState } from 'react'
+import NemuImage from '../nemu-image'
 
 type MessagesContextType = {
     artistUserId: string
@@ -58,6 +59,8 @@ export function MessagesProvider({ channel_url, children }: { channel_url: strin
     const [message, setMessage] = useState<EveryMessage | null>(null)
     const [placeholder, setPlaceholder] = useState('Send Message')
 
+    const [hasSubmissions, setHasSubmissions] = useState(true)
+
     useEffect(() => {
         GraphQLFetcher<FormSubmissionReponseGraphQLResponse>(
             `{
@@ -72,10 +75,14 @@ export function MessagesProvider({ channel_url, children }: { channel_url: strin
                     }
                 }
             }`
-        ).then((response: FormSubmissionReponseGraphQLResponse) => {
-            setArtistUserId(response.form_submission.form.artist.userId)
-            setKanbanId(response.form_submission.kanban.id)
-        })
+        )
+            .then((response: FormSubmissionReponseGraphQLResponse) => {
+                setArtistUserId(response.form_submission.form.artist.userId)
+                setKanbanId(response.form_submission.kanban.id)
+            })
+            .catch((e) => {
+                setHasSubmissions(false)
+            })
     }, [channel_url])
 
     return (
@@ -99,7 +106,14 @@ export function MessagesProvider({ channel_url, children }: { channel_url: strin
                 setPlaceholder
             }}
         >
-            {children}
+            {hasSubmissions ? (
+                children
+            ) : (
+                <div className="flex flex-col w-full h-full justify-center items-center gap-5">
+                    <NemuImage src={'/nemu/sad.png'} alt="Sad Nemu" width={200} height={200} />
+                    <h2 className="card-title">You have no messages</h2>
+                </div>
+            )}
         </MessagesContext.Provider>
     )
 }

@@ -1,8 +1,8 @@
 import { prisma } from '@/lib/prisma'
 import { builder } from '../builder'
 import { S3GetSignedURL } from '@/core/storage'
-import { AWSLocations, CommissionItem, PortfolioItem, ShopItem } from '@/core/structures'
-import { CreateShopItemFromProducts } from '@/core/server-helpers'
+import { AWSLocations, CommissionItem, ImageData, PortfolioItem, ShopItem } from '@/core/structures'
+import { CreateShopItemFromProducts, GetBlurData } from '@/core/server-helpers'
 
 builder.prismaObject('Artist', {
     fields: (t) => ({
@@ -42,9 +42,14 @@ builder.prismaObject('Artist', {
                     const featured_signed_url = await S3GetSignedURL(artist.id, AWSLocations.Commission, commissions[i].featuredImage)
 
                     // Get the rest of the images
-                    const images: string[] = []
+                    const images: ImageData[] = []
                     for (let j = 0; j < commissions[i].additionalImages.length; j++) {
-                        images.push(await S3GetSignedURL(artist.id, AWSLocations.Commission, commissions[i].additionalImages[j]))
+                        const signed_url = await S3GetSignedURL(artist.id, AWSLocations.Commission, commissions[i].additionalImages[j])
+
+                        images.push({
+                            signed_url: signed_url,
+                            blur_data: (await GetBlurData(signed_url)).base64
+                        })
                     }
 
                     if (!featured_signed_url) {
@@ -56,7 +61,10 @@ builder.prismaObject('Artist', {
                         description: commissions[i].description,
                         price: commissions[i].price || -1,
                         images: images,
-                        featured_image: featured_signed_url,
+                        featured_image: {
+                            signed_url: featured_signed_url,
+                            blur_data: (await GetBlurData(featured_signed_url)).base64
+                        },
                         availability: commissions[i].availability,
                         slug: commissions[i].slug,
                         form_id: commissions[i].formId || undefined,

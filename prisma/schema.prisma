@@ -12,21 +12,6 @@ datasource db {
 }
 
 //////////////////////////////////////////////////////////
-// Portfolio
-//////////////////////////////////////////////////////////
-
-model Portfolio {
-  id       String @id @default(auto()) @map("_id") @db.ObjectId
-  artistId String @db.ObjectId
-  image    String
-  name     String
-
-  createdAt DateTime @default(now())
-
-  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
-}
-
-//////////////////////////////////////////////////////////
 // Artists
 //////////////////////////////////////////////////////////
 
@@ -144,6 +129,8 @@ model User {
   formSubmissions FormSubmission[]
   customerIds     StripeCustomerIds[]
   downloads       Downloads[]
+  reviews         Review[]
+  favorites       Favorite[]
 }
 
 model StripeCustomerIds {
@@ -174,6 +161,51 @@ model Downloads {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+model Review {
+  id      String @id @default(auto()) @map("_id") @db.ObjectId
+  userId  String @db.ObjectId
+  rating  Float
+  content String
+
+  createdAt DateTime @default(now())
+  delivered Boolean  @default(false)
+
+  commissionId String? @db.ObjectId
+  productId    String? @db.ObjectId
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  commissions Commission? @relation(fields: [commissionId], references: [id], onDelete: Cascade)
+  products    Product?    @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model Favorite {
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  userId String @db.ObjectId
+  artistId String @db.ObjectId
+
+  commissionId String?
+  productId    String?
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+//////////////////////////////////////////////////////////
+// Portfolio
+//////////////////////////////////////////////////////////
+
+model Portfolio {
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  artistId String @db.ObjectId
+  image    String
+  name     String
+
+  createdAt DateTime @default(now())
+
+  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+}
+
 //////////////////////////////////////////////////////////
 // Store
 //////////////////////////////////////////////////////////
@@ -193,7 +225,8 @@ model Product {
   published Boolean  @default(true)
   createdAt DateTime @default(now())
 
-  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  artist  Artist   @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  reviews Review[]
 }
 
 //////////////////////////////////////////////////////////
@@ -225,8 +258,9 @@ model Commission {
   rushCharge        Float
   rushPercentage    Boolean @default(false)
 
-  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
-  Form   Form?  @relation(fields: [formId], references: [id], onDelete: Cascade)
+  artist  Artist   @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  Form    Form?    @relation(fields: [formId], references: [id], onDelete: Cascade)
+  reviews Review[]
 }
 
 model Form {

@@ -45,7 +45,7 @@ export default function PaymentForm({
             })
                 .then((res) => res.json())
                 .then((data) => setClientSecret(data.clientSecret))
-        } else {
+        } else if (checkout_data.checkout_type == CheckoutType.Product) {
             fetch(`/api/stripe/product`, {
                 method: 'post',
                 body: JSON.stringify({

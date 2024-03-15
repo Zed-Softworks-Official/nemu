@@ -7,6 +7,7 @@ export default function Store() {
         <DashboardContainer
             title="Aritst's Corner"
             addButtonUrl="/dashboard/shop/add"
+            breadcrumbs
         >
             <ShopItems />
         </DashboardContainer>

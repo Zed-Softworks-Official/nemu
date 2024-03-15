@@ -90,16 +90,12 @@ export default function CommissionCreateEditForm({ data }: { data?: { commission
     const [submitting, setSubmitting] = useState(false)
     const [images, setImages] = useState<AWSFileModification[] | undefined>(data?.commission.get_images.images)
 
-    function convertArrayToGraphQLArray(string_array: AWSFileModification[]) {
+    function GetFileKeysAsArray(string_array: AWSFileModification[]) {
         const array = string_array.slice(1, string_array.length)
-        let result = `[`
+        let result: string[] = []
 
         for (let i = 0; i < array.length; i++) {
-            if (i != array.length - 1) {
-                result += `"${array[i].file_key}", `
-            } else {
-                result += `"${array[i].file_key}"]`
-            }
+            result.push(array[i].file_key)
         }
 
         return result
@@ -157,23 +153,26 @@ export default function CommissionCreateEditForm({ data }: { data?: { commission
         const graphql_response = await GraphQLFetcher<{
             update_commission: NemuResponse
         }>(
-            `mutation {
+            `mutation UpdateCommission($commission_data: CommissionInputType!) {
                 update_commission(
-                    commission_id: "${data?.commission.id}"
-                    title: "${values.title}"
-                    description: "${values.description}"
-                    price: ${values.price}
-                    availability: ${values.commission_availability}
-                    max_commissions_until_waitlist: ${values.max_commissions_until_waitlist}
-                    max_commissions_until_closed: ${values.max_commissions_until_closed}
-                    rush_orders_allowed: ${values.rush}
-                    rush_charge: ${values.rush_charge}
-                    rush_percentage: ${values.rush_percentage}
-                ) {
+                    commission_id: "${data?.commission.id}", commission_data: $commission_data) {
                     status
                     message
                 }
-            }`
+            }`,
+            {
+                commission_data: {
+                    title: values.title,
+                    description: values.description,
+                    price: values.price,
+                    availability: values.commission_availability,
+                    max_commission_until_waitlist: values.max_commissions_until_waitlist,
+                    max_commission_until_closed: values.max_commissions_until_closed,
+                    rush_orders_allowed: values.rush,
+                    rush_charge: values.rush_charge,
+                    rush_percentage: values.rush_percentage
+                }
+            }
         )
 
         if (graphql_response.update_commission.status != StatusCode.Success) {
@@ -223,28 +222,32 @@ export default function CommissionCreateEditForm({ data }: { data?: { commission
         // Make Request to GraphQL to create new commission object
         const graphql_response = await GraphQLFetcher<{
             create_commission: NemuResponse
-        }>(`
-        mutation {
-            create_commission(
-                artist_id: "${artistId}"
-                title: "${values.title}"
-                description: "${values.description}"
-                additional_images: ${convertArrayToGraphQLArray(additionalImages!)}
-                featured_image: "${featured_image_key}"
-                price: ${values.price}
-                availability: ${values.commission_availability}
-                form_id: "${values.form}"
-                use_invoicing: ${values.use_invoicing}
-                max_commission_until_waitlist: ${values.max_commissions_until_waitlist}
-                max_commission_until_closed: ${values.max_commissions_until_closed}
-                rush_orders_allowed: ${values.rush}
-                rush_charge: ${values.rush_charge}
-                rush_percentage: ${values.rush_percentage}
-            ) {
+        }>(
+            `
+        mutation CreateCommission($commission_data: CommissionInputType!) {
+            create_commission(artist_id: "${artistId}", commission_data: $commission_data ) {
                 status
                 message
             }
-        }`)
+        }`,
+            {
+                commission_data: {
+                    title: values.title,
+                    description: values.description,
+                    featured_image: featured_image_key,
+                    additional_images: GetFileKeysAsArray(additionalImages!),
+                    price: values.price,
+                    availability: values.commission_availability,
+                    form_id: values.form,
+                    use_invoicing: values.use_invoicing,
+                    max_commission_until_waitlist: values.max_commissions_until_waitlist,
+                    max_commission_until_closed: values.max_commissions_until_closed,
+                    rush_orders_allowed: values.rush,
+                    rush_charge: values.rush_charge,
+                    rush_percentage: values.rush_percentage
+                }
+            }
+        )
 
         if (graphql_response?.create_commission?.status != StatusCode.Success) {
             toast.update(toast_id, {

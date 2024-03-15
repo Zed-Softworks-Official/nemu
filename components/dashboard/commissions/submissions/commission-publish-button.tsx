@@ -6,26 +6,27 @@ import { EyeIcon, EyeSlashIcon } from '@heroicons/react/20/solid'
 import { useState } from 'react'
 import { toast } from 'react-toastify'
 
-export default function CommissionPublishButton({
-    commission_id,
-    published
-}: {
-    commission_id: string
-    published: boolean
-}) {
+export default function CommissionPublishButton({ commission_id, published }: { commission_id: string; published: boolean }) {
     const [loading, setLoading] = useState(false)
     const [currentlyPublished, setCurrentlyPublished] = useState(published)
 
     async function UpdatePublishedCommissionState(new_state: boolean) {
         setLoading(true)
 
-        const response = await GraphQLFetcher<{ update_commission: NemuResponse }>(`
-            mutation {
-                update_commission(commission_id: "${commission_id}", published: ${new_state}) {
+        const response = await GraphQLFetcher<{ update_commission: NemuResponse }>(
+            `
+            mutation PublishCommission($commission_data: CommissionInputType!){
+                update_commission(commission_id: "${commission_id}", commission_data: $commission_data) {
                     status
                     message
                 }
-            }`)
+            }`,
+            {
+                commission_data: {
+                    published: new_state
+                }
+            }
+        )
 
         if (response.update_commission.status == StatusCode.Success) {
             toast('Successfully Updated Commission', { theme: 'dark', type: 'success' })
@@ -40,10 +41,7 @@ export default function CommissionPublishButton({
     return (
         <button
             type="button"
-            className={ClassNames(
-                'btn',
-                currentlyPublished ? 'btn-error' : 'btn-primary'
-            )}
+            className={ClassNames('btn', currentlyPublished ? 'btn-error' : 'btn-primary')}
             onClick={() => {
                 UpdatePublishedCommissionState(!currentlyPublished)
             }}
