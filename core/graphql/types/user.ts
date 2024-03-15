@@ -87,7 +87,7 @@ builder.prismaObject('User', {
                     result.push({
                         download_url: await S3GetSignedURL(
                             artist.id,
-                            download.commissionId ? AWSLocations.Commission : AWSLocations.Store,
+                            AWSLocations.Downloads,
                             download.fileKey
                         ),
                         receipt_url: download.receiptURL || undefined,

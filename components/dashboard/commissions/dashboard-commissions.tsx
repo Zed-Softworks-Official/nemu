@@ -20,7 +20,10 @@ export default function DashboardCommissions() {
                     title
                     description
                     price
-                    featured_image
+                    featured_image {
+                        signed_url
+                        blur_data
+                    }
                     availability
                     slug
                     published
@@ -41,7 +44,9 @@ export default function DashboardCommissions() {
                     <div key={commission.title} className="card bg-base-100 shadow-xl animate-pop-in transition-all duration-200">
                         <figure>
                             <NemuImage
-                                src={commission.featured_image!}
+                                src={commission.featured_image?.signed_url!}
+                                placeholder='blur'
+                                blurDataURL={commission.featured_image?.blur_data}
                                 alt={`${commission.title} Featured Image`}
                                 width={450}
                                 height={450}

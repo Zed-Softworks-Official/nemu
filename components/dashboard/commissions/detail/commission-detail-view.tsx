@@ -11,8 +11,8 @@ import CommissionInvoicing from '../../invoices/commission-invoicing'
 import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
 import { KanbanResponse } from '@/core/responses'
 import MessagesClient from '@/components/messages/messages-client'
-import DownloadsUpload from '../../downloads/downloads-upload'
 import { FormProvider } from '@/components/form/form-context'
+import DownloadDropzone from '@/components/form/download-dropzone'
 
 export default function DashboardCommissionDetailView({ slug, order_id }: { slug: string; order_id: string }) {
     const { artistId } = useDashboardContext()
@@ -27,6 +27,7 @@ export default function DashboardCommissionDetailView({ slug, order_id }: { slug
                 invoiceSent
                 sendbirdChannelURL
                 user {
+                    id
                     name
                     find_customer_id(artist_id: "${artistId}") {
                         customerId
@@ -35,6 +36,7 @@ export default function DashboardCommissionDetailView({ slug, order_id }: { slug
                 }
                 form {
                     commission {
+                        id
                         title
                         useInvoicing
                     }
@@ -63,6 +65,7 @@ export default function DashboardCommissionDetailView({ slug, order_id }: { slug
                 invoiceSent: boolean
                 sendbirdChannelURL: string
                 user: {
+                    id: string
                     name: string
                     find_customer_id: {
                         customerId: string
@@ -71,6 +74,7 @@ export default function DashboardCommissionDetailView({ slug, order_id }: { slug
                 }
                 form: {
                     commission: {
+                        id: string
                         title: string
                         useInvoicing: boolean
                     }
@@ -118,9 +122,19 @@ export default function DashboardCommissionDetailView({ slug, order_id }: { slug
                         <div className="card-body">
                             <h2 className="card-title">Create Download</h2>
                             <div className="divider"></div>
-                            <FormProvider>
-                                <DownloadsUpload />
-                            </FormProvider>
+                            {data?.form_submission.paymentStatus == PaymentStatus.Captured ? (
+                                <div className="h-full">
+                                    <DownloadDropzone
+                                        form_submission_id={data.form_submission.id}
+                                        commission_id={data.form_submission.form.commission.id}
+                                        user_id={data.form_submission.user.id}
+                                    />
+                                </div>
+                            ) : (
+                                <div className="flex flex-col justify-center items-center w-full h-full text-center">
+                                    <h2 className="card-title">You'll be able to upload a file once the user has paid</h2>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

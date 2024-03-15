@@ -310,6 +310,8 @@ model FormSubmission {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   kanban Kanban @relation(fields: [kanbanId], references: [id], onDelete: Cascade)
 
+  downloadId String?
+
   content String
 }
 

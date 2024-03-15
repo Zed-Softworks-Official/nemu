@@ -59,7 +59,7 @@ export default function DownloadsList() {
                                         <td></td>
                                     )}
                                     <td>
-                                        <Link href={download.download_url} className="btn btn-primary">
+                                        <Link href={download.download_url} className="btn btn-primary" download target="_blank" rel="noreferrer">
                                             Download
                                         </Link>
                                     </td>

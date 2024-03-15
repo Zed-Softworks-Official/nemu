@@ -16,6 +16,39 @@ builder.prismaObject('Downloads', {
         commissionId: t.exposeString('commissionId', { nullable: true }),
         formSubmissionId: t.exposeString('formSubmissionId', { nullable: true }),
 
+        product: t.prismaField({
+            type: 'Product',
+            nullable: true,
+            resolve: (query, parent) => prisma.product.findFirst({
+                ...query,
+                where: {
+                    id: parent.productId!
+                }
+            })
+        }),
+
+        commission: t.prismaField({
+            type: 'Commission',
+            nullable: true,
+            resolve: (query, parent) => prisma.commission.findFirst({
+                ...query,
+                where: {
+                    id: parent.commissionId!
+                }
+            })
+        }),
+
+        formSubmission: t.prismaField({
+            type: 'FormSubmission',
+            nullable: true,
+            resolve: (query, parent) => prisma.formSubmission.findFirst({
+                ...query,
+                where: {
+                    id: parent.formSubmissionId!
+                }
+            })
+        }),
+
         user: t.relation('user')
     })
 })

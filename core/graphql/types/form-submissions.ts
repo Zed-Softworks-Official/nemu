@@ -22,6 +22,18 @@ builder.prismaObject('FormSubmission', {
 
         sendbirdChannelURL: t.exposeString('sendbirdChannelURL', {nullable: true}),
 
+        downloadId: t.exposeString('downloadId', {nullable: true}),
+        download: t.prismaField({
+            type: 'Downloads',
+            nullable: true,
+            resolve: (query, parent) => prisma.downloads.findFirst({
+                ...query,
+                where: {
+                    id: parent.downloadId!
+                }
+            })
+        }),
+
         form: t.relation('form'),
         user: t.relation('user'),
         kanban: t.field({
