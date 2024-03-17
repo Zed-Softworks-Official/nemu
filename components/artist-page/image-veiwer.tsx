@@ -62,7 +62,7 @@ export default function ImageViewer({ featured_image, additional_images }: { fea
                 freeMode
                 watchSlidesProgress
                 modules={[FreeMode, Navigation, Thumbs]}
-                className="thumbs h-full w-full max-w-[35rem] !overflow-visible"
+                className="thumbs h-full w-full max-w-[35rem] "
             >
                 <SwiperSlide>
                     <NemuImage

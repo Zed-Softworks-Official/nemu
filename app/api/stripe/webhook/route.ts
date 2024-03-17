@@ -156,6 +156,17 @@ export async function POST(req: Request) {
                                     product_name: product?.title
                                 }
                             })
+
+                            // Notify User that download is ready
+                            novu.trigger('downloads-available', {
+                                to: {
+                                    subscriberId: metadata.user_id
+                                },
+                                payload: {
+                                    item_name: product?.title,
+                                    artist_handle: artist?.handle
+                                }
+                            })
                         }
                         break
                 }

@@ -67,7 +67,7 @@ model ArtistVerification {
   location        String
 
   twitter String?
-  pixiv String?
+  pixiv   String?
   website String?
 
   createdAt DateTime @default(now())
@@ -180,8 +180,8 @@ model Review {
 }
 
 model Favorite {
-  id     String @id @default(auto()) @map("_id") @db.ObjectId
-  userId String @db.ObjectId
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  userId   String @db.ObjectId
   artistId String @db.ObjectId
 
   commissionId String?
@@ -248,9 +248,8 @@ model Commission {
   availability     Int
   slug             String
 
-  published    Boolean  @default(false)
-  createdAt    DateTime @default(now())
-  useInvoicing Boolean  @default(false)
+  published Boolean  @default(false)
+  createdAt DateTime @default(now())
 
   maxCommissionsUntilWaitlist Int @default(0)
   maxCommissionsUntilClosed   Int @default(0)
@@ -292,6 +291,7 @@ model FormSubmission {
   formId    String   @db.ObjectId
   userId    String   @db.ObjectId
   createdAt DateTime @default(now())
+  waitlist  Boolean  @default(false)
 
   commissionStatus Int @default(0)
 

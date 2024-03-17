@@ -14,18 +14,11 @@ import { CheckoutType, CommissionForm } from '@/core/structures'
 import PaymentForm from '../../payments/payment-form'
 import { CreateFormSubmissionStructure } from '@/core/data-structures/form-structures'
 
-export default function CommissionFormSubmitView({
-    commission_id,
-    form_id
-}: {
-    commission_id: string
-    form_id: string
-}) {
+export default function CommissionFormSubmitView({ commission_id, form_id }: { commission_id: string; form_id: string }) {
     const { data: session } = useSession()
     const { data, isLoading } = useSWR(
         `{
             commission(id: "${commission_id}") {
-                useInvoicing
                 price
                 artist {
                     handle
@@ -40,7 +33,6 @@ export default function CommissionFormSubmitView({
         }`,
         GraphQLFetcher<{
             commission: {
-                useInvoicing: boolean
                 formId: string
                 price: number
                 artist: { stripeAccount: string; id: string; handle: string }
@@ -74,14 +66,11 @@ export default function CommissionFormSubmitView({
         }
 
         const newFormData: { [key: string]: { value: string; label: string } } = {}
-        const formElements = JSON.parse(
-            data?.commission.get_form_content.content!
-        ) as FormElementInstance[]
+        const formElements = JSON.parse(data?.commission.get_form_content.content!) as FormElementInstance[]
         for (let key in formValues.current) {
             newFormData[key] = {
                 value: formValues.current[key],
-                label: formElements.find((element) => element.id == key)?.extra_attributes
-                    ?.label
+                label: formElements.find((element) => element.id == key)?.extra_attributes?.label
             }
         }
 
@@ -110,31 +99,27 @@ export default function CommissionFormSubmitView({
         setSubmitted(true)
 
         // Check if we're using invoicing
-        if (data?.commission.useInvoicing) {
-            const JsonData: CreateFormSubmissionStructure = {
-                user_id: session?.user.user_id!,
-                form_id: form_id,
-                content: JSON.stringify(newFormData)
-            }
+        const JsonData: CreateFormSubmissionStructure = {
+            user_id: session?.user.user_id!,
+            form_id: form_id,
+            content: JSON.stringify(newFormData)
+        }
 
-            const response = await fetch(`/api/forms/submission`, {
-                method: 'post',
-                body: JSON.stringify(JsonData)
-            })
+        const response = await fetch(`/api/forms/submission`, {
+            method: 'post',
+            body: JSON.stringify(JsonData)
+        })
 
-            const json = (await response.json()) as NemuResponse
-            if (json.status != StatusCode.Success) {
-                toast(json.message, { theme: 'dark', type: 'error' })
-            }
+        const json = (await response.json()) as NemuResponse
+        if (json.status != StatusCode.Success) {
+            toast(json.message, { theme: 'dark', type: 'error' })
         }
 
         setFormData(newFormData)
     }
 
     const validateForm: () => boolean = useCallback(() => {
-        for (const field of JSON.parse(
-            data?.commission.get_form_content.content!
-        ) as FormElementInstance[]) {
+        for (const field of JSON.parse(data?.commission.get_form_content.content!) as FormElementInstance[]) {
             const actualValue = formValues.current[field.id] || ''
             const valid = FormElements[field.type].validate(field, actualValue)
 
@@ -157,29 +142,16 @@ export default function CommissionFormSubmitView({
     return (
         <>
             {!submitted ? (
-                <div
-                    key={renderKey}
-                    className="flex flex-col w-full p-5 gap-4 bg-base-300 rounded-xl h-full max-w-xl mx-auto"
-                >
+                <div key={renderKey} className="flex flex-col w-full p-5 gap-4 bg-base-300 rounded-xl h-full max-w-xl mx-auto">
                     <div className="flex flex-col justify-center items-center gap-3">
-                        <NemuImage
-                            src={'/nemu/fillout.png'}
-                            alt="Nemu filling out form"
-                            width={200}
-                            height={200}
-                        />
+                        <NemuImage src={'/nemu/fillout.png'} alt="Nemu filling out form" width={200} height={200} />
                         <h2 className="card-title">You're onto the next step!</h2>
                         <p className="text-base-content/80">
-                            We'll need you to fill out this form provided by the artist to
-                            get a better understanding of your commission.
+                            We'll need you to fill out this form provided by the artist to get a better understanding of your commission.
                         </p>
                         <div className="divider"></div>
                     </div>
-                    {(
-                        JSON.parse(
-                            data?.commission.get_form_content.content!
-                        ) as FormElementInstance[]
-                    ).map((element) => {
+                    {(JSON.parse(data?.commission.get_form_content.content!) as FormElementInstance[]).map((element) => {
                         const FormComponent = FormElements[element.type].form_component
 
                         return (
@@ -197,11 +169,7 @@ export default function CommissionFormSubmitView({
                         type="button"
                         className="btn btn-primary"
                         onClick={() => startTransition(submitForm)}
-                        disabled={
-                            pending ||
-                            data?.commission.get_form_content.user_submitted ||
-                            submitted
-                        }
+                        disabled={pending || data?.commission.get_form_content.user_submitted || submitted}
                     >
                         {pending ? (
                             <>
@@ -215,35 +183,13 @@ export default function CommissionFormSubmitView({
                         )}
                     </button>
                 </div>
-            ) : data?.commission.useInvoicing == false ? (
-                <PaymentForm
-                    submitted={submitted}
-                    form_type='commission'
-                    checkout_data={{
-                        checkout_type: CheckoutType.Commission,
-                        user_id: session?.user.user_id!,
-                        customer_id: '',
-                        form_content: JSON.stringify(formData),
-                        form_id: form_id,
-                        price: data?.commission.price!,
-                        return_url: `http://localhost:3000/@${data?.commission.artist.handle}`,
-                        stripe_account: data?.commission.artist.stripeAccount!,
-                        commission_id: commission_id
-                    }}
-                />
             ) : (
                 <div>
                     <div className="flex flex-col justify-center items-center gap-3">
-                        <NemuImage
-                            src={'/nemu/sparkles.png'}
-                            alt="Nemu Excited"
-                            width={200}
-                            height={200}
-                        />
+                        <NemuImage src={'/nemu/sparkles.png'} alt="Nemu Excited" width={200} height={200} />
                         <h2 className="card-title">Things are happening!</h2>
                         <p className="text-base-content/80">
-                            You'll recieve an email from the artist about wether your
-                            commission has been accepted or rejected. Until then hold on
+                            You'll recieve an email from the artist about wether your commission has been accepted or rejected. Until then hold on
                             tight!
                         </p>
                     </div>

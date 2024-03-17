@@ -4,22 +4,7 @@ import { ArtistVerificationInputType, Role } from './structures'
 import { Prisma } from '@prisma/client'
 import { novu } from '@/lib/novu'
 
-export async function ArtistCodeVerification(verification_data: ArtistVerificationInputType): Promise<NemuResponse> {
-    // Check if code exists
-    const artist_code = await prisma.aritstCode.findFirst({
-        where: {
-            code: verification_data.artist_code!
-        }
-    })
-
-    if (!artist_code) {
-        return {
-            status: StatusCode.InternalError,
-            message: 'Artist code does not exist'
-        }
-    }
-
-    // Create Social Connections
+export async function CreateArtist(verification_data: ArtistVerificationInputType) {
     const socials: Prisma.SocialCreateWithoutArtistInput[] = []
 
     if (verification_data.twitter) {
@@ -44,7 +29,7 @@ export async function ArtistCodeVerification(verification_data: ArtistVerificati
     }
 
     // Create Artist inside database
-    const artist = await prisma.artist.create({
+    return await prisma.artist.create({
         data: {
             stripeAccId: '',
             userId: verification_data.user_id!,
@@ -56,6 +41,25 @@ export async function ArtistCodeVerification(verification_data: ArtistVerificati
             }
         }
     })
+}
+
+export async function ArtistCodeVerification(verification_data: ArtistVerificationInputType): Promise<NemuResponse> {
+    // Check if code exists
+    const artist_code = await prisma.aritstCode.findFirst({
+        where: {
+            code: verification_data.artist_code!
+        }
+    })
+
+    if (!artist_code) {
+        return {
+            status: StatusCode.InternalError,
+            message: 'Artist code does not exist'
+        }
+    }
+
+    // Create Artist
+    const artist = await CreateArtist(verification_data)
 
     if (!artist) {
         return {
@@ -82,11 +86,12 @@ export async function ArtistCodeVerification(verification_data: ArtistVerificati
     })
 
     // Notify user of status
-    novu.trigger('artist-verification-result', {
+    novu.trigger('artist-verification', {
         to: {
             subscriberId: verification_data.user_id!
         },
         payload: {
+            result: true,
             intro_message: `Congratulations ${artist.handle}!`,
             status: 'accepted'
         }

@@ -23,7 +23,6 @@ export default function DashboardCommissionDetail({ slug }: { slug: string }) {
                 id
                 formId
                 published
-                useInvoicing
                 get_form_data {
                     id
                     name
@@ -58,7 +57,6 @@ export default function DashboardCommissionDetail({ slug }: { slug: string }) {
                 id: string
                 formId: string
                 published: boolean
-                useInvoicing: boolean
                 get_form_data: {
                     id: string
                     name: string
@@ -124,7 +122,6 @@ export default function DashboardCommissionDetail({ slug }: { slug: string }) {
                 <div role="tabpanel" className="tab-content bg-base-100 p-5 rounded-xl">
                     <CommissionFormSubmissions
                         form_data={data?.commission.get_form_data!}
-                        use_invoicing={data?.commission.useInvoicing!}
                         stripe_account={data?.commission.artist.stripeAccount!}
                     />
                 </div>

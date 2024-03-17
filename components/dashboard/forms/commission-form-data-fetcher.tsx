@@ -18,7 +18,6 @@ export default function CommissionFormDataFetcher({ slug }: { slug?: string }) {
                         title
                         description
                         price
-                        useInvoicing
                         formId
                         rushOrdersAllowed
                         rushCharge

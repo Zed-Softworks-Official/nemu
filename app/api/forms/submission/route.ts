@@ -2,6 +2,7 @@ import { CreateFormSubmissionStructure } from '@/core/data-structures/form-struc
 import { UpdateCommissionAvailability } from '@/core/helpers'
 import { NemuResponse, StatusCode } from '@/core/responses'
 import { PaymentStatus } from '@/core/structures'
+import { novu } from '@/lib/novu'
 import { prisma } from '@/lib/prisma'
 import { sendbird } from '@/lib/sendbird'
 import { NextResponse } from 'next/server'
@@ -22,7 +23,7 @@ export async function POST(req: Request) {
             content: data.content,
             paymentStatus: PaymentStatus.RequiresInvoice,
             orderId: crypto.randomUUID(),
-            kanbanId: kanban.id,
+            kanbanId: kanban.id
         },
         include: {
             form: {
@@ -60,7 +61,28 @@ export async function POST(req: Request) {
         data: {
             submissions: {
                 increment: 1
+            },
+            newSubmissions: {
+                increment: 1
             }
+        }
+    })
+
+    const user = await prisma.user.findFirst({
+        where: {
+            id: data.user_id
+        }
+    })
+
+    // Notify artist of commission
+    novu.trigger('commission-request', {
+        to: {
+            subscriberId: form_submission.form.commission?.artist.userId!
+        },
+        payload: {
+            username: user?.name!,
+            commission_name: form_submission.form.commission?.title,
+            slug: form_submission.form.commission?.slug
         }
     })
 

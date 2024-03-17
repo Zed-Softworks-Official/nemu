@@ -32,7 +32,6 @@ const commissionSchema = z.object({
     description: z.string().min(10).max(500),
     form: z.string().min(1),
 
-    use_invoicing: z.boolean().default(true),
     price: z.number().min(0).default(0).optional(),
 
     featured_image: z.any(z.instanceof(File).refine((file: File) => file.size != 0)).optional(),
@@ -65,8 +64,6 @@ export default function CommissionCreateEditForm({ data }: { data?: { commission
             rush: data ? data.commission.rushOrdersAllowed : false,
             rush_charge: data ? data.commission.rushCharge! : 0,
 
-            use_invoicing: data ? data.commission.useInvoicing : true,
-
             max_commissions_until_waitlist: data ? data.commission.maxCommissionsUntilWaitlist! : 0,
             max_commissions_until_closed: data ? data.commission.maxCommissionsUntilClosed! : 0,
 
@@ -81,10 +78,19 @@ export default function CommissionCreateEditForm({ data }: { data?: { commission
                 forms {
                     id
                     name
+                    commissionId
                 }
             }
         }`,
-        GraphQLFetcher<{ artist: { forms: { id: string; name: string }[] } }>
+        GraphQLFetcher<{
+            artist: {
+                forms: {
+                    id: string
+                    name: string
+                    commissionId: string | undefined
+                }[]
+            }
+        }>
     )
 
     const [submitting, setSubmitting] = useState(false)
@@ -239,7 +245,6 @@ export default function CommissionCreateEditForm({ data }: { data?: { commission
                     price: values.price,
                     availability: values.commission_availability,
                     form_id: values.form,
-                    use_invoicing: values.use_invoicing,
                     max_commission_until_waitlist: values.max_commissions_until_waitlist,
                     max_commission_until_closed: values.max_commissions_until_closed,
                     rush_orders_allowed: values.rush,
@@ -273,6 +278,10 @@ export default function CommissionCreateEditForm({ data }: { data?: { commission
     function getFormsNames() {
         const result: SelectFieldOptions[] = []
         artist_data?.artist.forms.forEach((form) => {
+            if (form.commissionId) {
+                return
+            }
+
             result.push({
                 key: form.name,
                 value: form.id
@@ -305,25 +314,12 @@ export default function CommissionCreateEditForm({ data }: { data?: { commission
                         />
                     )}
                 />
-                <div className="card bg-base-100 shadow-xl">
-                    <div className="card-body">
-                        <div
-                            className="tooltip"
-                            data-tip="If checked, you will be able to send out invoices and change the price of the commission based on the clients requests"
-                        >
-                            <CheckboxField label="Use Invoicing" {...form.register('use_invoicing')} disabled={data != undefined} />
-                        </div>
 
-                        {!form.watch('use_invoicing') && (
-                            <CurrencyField
-                                min={0}
-                                label="Price"
-                                placeholder="Price"
-                                additionalClassnames="bg-base-300"
-                                {...form.register('price', { valueAsNumber: true })}
-                            />
-                        )}
-                    </div>
+                <div
+                    className="tooltip"
+                    data-tip="This will be the starting price, you'll be able to adjust it later based off of the commissioners requests"
+                >
+                    <CurrencyField min={0} label="Price" placeholder="Price" {...form.register('price', { valueAsNumber: true })} />
                 </div>
                 <div className="divider"></div>
 

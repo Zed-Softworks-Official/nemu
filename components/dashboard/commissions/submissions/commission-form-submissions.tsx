@@ -4,7 +4,6 @@ import { PaymentStatus } from '@/core/structures'
 
 export default function CommissionFormSubmissions({
     form_data,
-    use_invoicing,
     stripe_account
 }: {
     form_data: {
@@ -25,7 +24,6 @@ export default function CommissionFormSubmissions({
             user: { name: string; find_customer_id: { customerId: string } }
         }[]
     }
-    use_invoicing: boolean
     stripe_account: string
 }) {
     return (
@@ -72,7 +70,6 @@ export default function CommissionFormSubmissions({
                                         submission={submission}
                                         form_id={form_data.id}
                                         stripe_account={stripe_account}
-                                        use_invoicing={use_invoicing}
                                     />
                                 )
                         )}

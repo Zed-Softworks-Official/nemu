@@ -3,7 +3,7 @@ import { builder } from '../builder'
 import { StatusCode } from '@/core/responses'
 import { S3GetSignedURL } from '@/core/storage'
 import { AWSLocations } from '@/core/structures'
-import { AWSFileModification, AWSModification } from '@/core/data-structures/form-structures'
+import { AWSFileModification } from '@/core/data-structures/form-structures'
 
 builder.prismaObject('Commission', {
     fields: (t) => ({
@@ -21,7 +21,6 @@ builder.prismaObject('Commission', {
 
         published: t.exposeBoolean('published'),
         createdAt: t.expose('createdAt', { type: 'Date' }),
-        useInvoicing: t.exposeBoolean('useInvoicing'),
 
         rushOrdersAllowed: t.exposeBoolean('rushOrdersAllowed'),
         rushCharge: t.exposeFloat('rushCharge'),
@@ -216,7 +215,6 @@ builder.mutationField('create_commission', (t) =>
                     additionalImages: args.commission_data.additional_images!,
                     rushOrdersAllowed: args.commission_data.rush_orders_allowed!,
                     availability: args.commission_data.availability!,
-                    useInvoicing: args.commission_data.use_invoicing || undefined,
                     slug: slug,
                     maxCommissionsUntilWaitlist:
                         args.commission_data.max_commission_until_waitlist! <= 0 ? undefined : args.commission_data.max_commission_until_waitlist!,
@@ -279,7 +277,6 @@ builder.mutationField('update_commission', (t) =>
                         availability: args.commission_data.availability ? args.commission_data.availability : undefined,
 
                         published: args.commission_data.published != undefined ? args.commission_data.published : undefined,
-                        useInvoicing: args.commission_data.use_invoicing != undefined ? args.commission_data.use_invoicing : undefined,
 
                         maxCommissionsUntilWaitlist: args.commission_data.max_commission_until_waitlist
                             ? args.commission_data.max_commission_until_waitlist

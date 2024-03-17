@@ -9,6 +9,7 @@ builder.prismaObject('FormSubmission', {
         userId: t.exposeString('userId'),
         createdAt: t.expose('createdAt', { type: 'Date' }),
         content: t.exposeString('content'),
+        waitlist: t.exposeBoolean('waitlist'),
 
         commissionStatus: t.exposeInt('commissionStatus'),
 

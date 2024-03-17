@@ -12,8 +12,7 @@ import CommissionFormSubmissionContent from './commission-form-submission-conten
 export default function CommissionFormSubmissionDisplay({
     submission,
     stripe_account,
-    form_id,
-    use_invoicing
+    form_id
 }: {
     submission: {
         id: string
@@ -30,62 +29,33 @@ export default function CommissionFormSubmissionDisplay({
     }
     stripe_account: string
     form_id: string
-    use_invoicing: boolean
 }) {
     const [showModal, setShowModal] = useState(false)
     const [accepted, setAccepted] = useState(false)
     const [rejected, setRejected] = useState(false)
 
     async function UpdateRequest(accepted_commission: boolean) {
-        // Check if we're using invoincing
-        if (use_invoicing) {
-            const response = await GraphQLFetcher<{ update_commission_invoice: NemuResponse }>(
-                `mutation {
+        // Update the request and create the invoice if accetpted
+        const response = await GraphQLFetcher<{ update_commission_invoice: NemuResponse }>(
+            `mutation {
                     update_commission_invoice(customer_id: "${submission.user.find_customer_id.customerId}", stripe_account: "${stripe_account}", submission_id: "${submission.id}", form_id: "${form_id}", accepted: ${accepted_commission}) {
                         status
                         message
                     }
                 }`
-            )
-
-            if (response.update_commission_invoice.status != StatusCode.Success) {
-                toast('Failed to accept request', { theme: 'dark', type: 'error' })
-            }
-
-            return
-        }
-
-        // Accept Payment intent if we're not using invoicing
-        const response = await GraphQLFetcher<{
-            update_payment_intent: NemuResponse
-        }>(
-            `mutation {
-                update_payment_intent(payment_intent:"${submission.paymentIntent}", stripe_account: "${stripe_account}", submission_id: "${submission.id}", form_id: "${form_id}", accepted: ${accepted_commission}) {
-                    status
-                    message
-                }
-            }`
         )
 
-        if (response.update_payment_intent.status == StatusCode.Success) {
-            toast('Commission Request Updated', {
-                theme: 'dark',
-                type: 'success'
-            })
-        } else {
-            toast(response.update_payment_intent.message, {
-                theme: 'dark',
-                type: 'error'
-            })
+        if (response.update_commission_invoice.status != StatusCode.Success) {
+            toast('Failed to accept request', { theme: 'dark', type: 'error' })
         }
+
+        return
     }
 
     return (
         <>
             <tr>
-                <th>
-                    {submission.user.name}
-                </th>
+                <th>{submission.user.name}</th>
                 <td>
                     <p>{new Date(submission.createdAt).toDateString()}</p>
                 </td>

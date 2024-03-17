@@ -33,7 +33,7 @@ export default function CommissionCard({ commission, terms }: { commission: Comm
             </figure>
             <div className="card-body relative">
                 <div className='flex justify-between pb-5'>
-                    <h2 className="card-title">
+                    <h2 className="card-title text-2xl">
                         {commission.title}
                         {ConvertAvailabilityToBadge(commission.availability!)}
                     </h2>
@@ -42,8 +42,8 @@ export default function CommissionCard({ commission, terms }: { commission: Comm
                 <p>
                     <Markdown>{commission.description}</Markdown>
                 </p>
-                <div className="card-actions justify-end">
-                    <CommissionPaymentInfo price={commission.price} use_invoicing={commission.use_invoicing!} />
+                <div className="card-actions justify-between items-center">
+                    <CommissionPaymentInfo price={commission.price} />
                     <button
                         type="button"
                         className="btn btn-primary"
