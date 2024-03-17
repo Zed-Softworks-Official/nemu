@@ -13,6 +13,7 @@ import {
     StripeCustomerIdResponse
 } from '../responses'
 import {
+    ArtistVerificationInputType,
     CommissionForm,
     CommissionInputType,
     CommissionItem,
@@ -55,6 +56,7 @@ export const builder = new SchemaBuilder<{
         DownloadOptionsInputType: DownloadOptionsInputType
         DownloadDataInputType: DownloadDataInputType
         CommissionInputType: CommissionInputType
+        ArtistVerificationInputType: ArtistVerificationInputType
     }
     Scalars: { Date: { Input: Date; Output: Date } }
 }>({
@@ -280,6 +282,20 @@ builder.inputRef<CommissionInputType>('CommissionInputType').implement({
         max_commission_until_closed: t.int(),
         max_commission_until_waitlist: t.int(),
         published: t.boolean()
+    })
+})
+
+builder.inputRef<ArtistVerificationInputType>('ArtistVerificationInputType').implement({
+    fields: (t) => ({
+        method: t.int(),
+        requested_handle: t.string(),
+        username: t.string(),
+        twitter: t.string(),
+        pixiv: t.string(),
+        website: t.string(),
+        location: t.string(),
+        user_id: t.string(),
+        artist_code: t.string()
     })
 })
 

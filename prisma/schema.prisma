@@ -22,19 +22,16 @@ model Artist {
 
   createdAt DateTime @default(now())
 
-  handle   String
+  handle   String @unique
   about    String @default("Peko Peko")
   location String @default("Nemu's basement")
-  twitter  String
-  pixiv    String
-  website  String
   terms    String @default("Pls Feed Nemu")
 
   automatedCommissionMessage String?
   automatedMessageEnabled    Boolean @default(false)
 
-  headerPhoto  String
-  profilePhoto String
+  headerPhoto  String @default("/curved0.jpg")
+  profilePhoto String @default("/profile.png")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -68,6 +65,10 @@ model ArtistVerification {
   requestedHandle String @unique
   username        String
   location        String
+
+  twitter String?
+  pixiv String?
+  website String?
 
   createdAt DateTime @default(now())
 }

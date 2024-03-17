@@ -13,6 +13,7 @@ import './types/kanban'
 import './types/downloads'
 
 import './fields/stripe'
+import './fields/artist-verification'
 
 import { builder } from './builder'
 

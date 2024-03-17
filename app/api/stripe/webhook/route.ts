@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma'
 import { PaymentStatus, PurchaseType, StripePaymentMetadata } from '@/core/structures'
 import { UpdateCommissionAvailability } from '@/core/helpers'
 import { CheckCreateSendbirdUser, CreateSendbirdMessageChannel } from '@/core/server-helpers'
+import { novu } from '@/lib/novu'
 
 export async function POST(req: Request) {
     const sig = req.headers.get('stripe-signature')
@@ -137,6 +138,22 @@ export async function POST(req: Request) {
                                     fileKey: product?.downloadableAsset!,
                                     receiptURL: charge.receipt_url || undefined,
                                     productId: product?.id
+                                }
+                            })
+
+                            // Notify artist of purchase
+                            const artist = await prisma.artist.findFirst({
+                                where: {
+                                    id: metadata.artist_id
+                                }
+                            })
+
+                            novu.trigger('artist-corner-purchase', {
+                                to: {
+                                    subscriberId: artist?.userId!
+                                },
+                                payload: {
+                                    product_name: product?.title
                                 }
                             })
                         }

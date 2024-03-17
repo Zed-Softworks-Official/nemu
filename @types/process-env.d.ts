@@ -26,6 +26,8 @@ declare namespace NodeJS {
         SENDBIRD_APP_ID: string
         SENDBIRD_API_TOKEN: string
 
+        NOVU_API_KEY: string
+
         BASE_URL: string
     }
 }
