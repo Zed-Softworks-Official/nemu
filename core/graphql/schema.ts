@@ -11,6 +11,8 @@ import './types/form-submissions'
 import './types/stripe-id'
 import './types/kanban'
 import './types/downloads'
+import './types/invoice'
+import './types/invoice-items'
 
 import './fields/stripe'
 import './fields/artist-verification'

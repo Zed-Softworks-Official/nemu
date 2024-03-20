@@ -17,22 +17,42 @@ builder.prismaObject('FormSubmission', {
         paymentStatus: t.exposeInt('paymentStatus'),
         orderId: t.exposeString('orderId'),
         invoiceId: t.exposeString('invoiceId', { nullable: true }),
-        invoiceSent: t.exposeBoolean('invoiceSent'),
-        invoiceContent: t.exposeString('invoiceContent', { nullable: true }),
-        invoiceHostedUrl: t.exposeString('invoiceHostedUrl', { nullable: true }),
 
-        sendbirdChannelURL: t.exposeString('sendbirdChannelURL', {nullable: true}),
+        invoice: t.prismaField({
+            type: 'Invoice',
+            args: {
+                include_items: t.arg({
+                    type: 'Boolean',
+                    description: 'Determines wether to include invoice items or not',
+                    defaultValue: false,
+                    required: true
+                })
+            },
+            resolve: (query, submission, args) =>
+                prisma.invoice.findFirstOrThrow({
+                    ...query,
+                    where: {
+                        id: submission.invoiceId!
+                    },
+                    include: {
+                        items: args.include_items
+                    }
+                })
+        }),
 
-        downloadId: t.exposeString('downloadId', {nullable: true}),
+        sendbirdChannelURL: t.exposeString('sendbirdChannelURL', { nullable: true }),
+
+        downloadId: t.exposeString('downloadId', { nullable: true }),
         download: t.prismaField({
             type: 'Downloads',
             nullable: true,
-            resolve: (query, parent) => prisma.downloads.findFirst({
-                ...query,
-                where: {
-                    id: parent.downloadId!
-                }
-            })
+            resolve: (query, parent) =>
+                prisma.downloads.findFirst({
+                    ...query,
+                    where: {
+                        id: parent.downloadId!
+                    }
+                })
         }),
 
         form: t.relation('form'),

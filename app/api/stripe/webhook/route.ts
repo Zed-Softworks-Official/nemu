@@ -74,52 +74,6 @@ export async function POST(req: Request) {
 
                 switch (Number(metadata.purchase_type) as PurchaseType) {
                     ////////////////////////////////////////////////////////////
-                    // Payment Hold for commissions
-                    ////////////////////////////////////////////////////////////
-                    case PurchaseType.CommissionSetupPayment:
-                        {
-                            const kanban = await prisma.kanban.create({})
-                            const sendbird_channel_url = crypto.randomUUID()
-
-                            // Create Form Submission
-                            const submission = await prisma.formSubmission.create({
-                                data: {
-                                    formId: metadata.form_id!,
-                                    content: metadata.form_content!,
-                                    userId: metadata.user_id,
-                                    paymentIntent: charge.payment_intent?.toString(),
-                                    paymentStatus: PaymentStatus.RequiresCapture,
-                                    orderId: crypto.randomUUID(),
-                                    kanbanId: kanban.id,
-                                    sendbirdChannelURL: sendbird_channel_url
-                                }
-                            })
-
-                            // Update Form Availability if necesary
-                            await UpdateCommissionAvailability(metadata.form_id!)
-
-                            // Create a sendbird user if the user that commissioned the artist doesn't have a sendbird account
-                            await CheckCreateSendbirdUser(metadata.user_id)
-
-                            // Create Sendbird channel
-                            await CreateSendbirdMessageChannel(submission.id, sendbird_channel_url)
-
-                            // Update new submissions count field
-                            await prisma.form.update({
-                                where: {
-                                    id: metadata.form_id
-                                },
-                                data: {
-                                    newSubmissions: {
-                                        increment: 1
-                                    }
-                                }
-                            })
-                        }
-                        break
-                    case PurchaseType.CommissionInvoice:
-                        break
-                    ////////////////////////////////////////////////////////////
                     // Payment for Artist Corner Items
                     ////////////////////////////////////////////////////////////
                     case PurchaseType.ArtistCorner:
@@ -179,12 +133,40 @@ export async function POST(req: Request) {
                 const metadata = invoice.metadata as unknown as StripePaymentMetadata
 
                 if (metadata.purchase_type == PurchaseType.CommissionInvoice) {
-                    await prisma.formSubmission.update({
+                    const updated_submission = await prisma.formSubmission.update({
                         where: {
                             orderId: metadata.order_id
                         },
                         data: {
                             paymentStatus: PaymentStatus.Captured
+                        },
+                        include: {
+                            form: {
+                                include: {
+                                    commission: {
+                                        include: {
+                                            artist: true
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    })
+
+                    // Notify Artist that invoice has been paid
+                    const user = await prisma.user.findFirst({
+                        where: {
+                            id: metadata.user_id
+                        }
+                    })
+
+                    novu.trigger('invoices', {
+                        to: {
+                            subscriberId: updated_submission.form.commission?.artist.userId!
+                        },
+                        payload: {
+                            status: 'paid',
+                            username: user?.name!
                         }
                     })
                 }

@@ -1,7 +1,6 @@
 export enum PurchaseType {
     ArtistCorner = 0,
     CommissionInvoice,
-    CommissionSetupPayment
 }
 
 export enum PaymentStatus {

@@ -33,10 +33,11 @@ const DownloadDropzone = forwardRef<HTMLInputElement, Props>(({ form_submission_
         onDrop: (acceptedFiles) => {
             const last_dot = acceptedFiles[0].name.lastIndexOf('.')
             const file_extension = acceptedFiles[0].name.substring(last_dot, acceptedFiles[0].name.length)
+            const file_key = crypto.randomUUID() + file_extension
 
             setFile({
                 aws_location: AWSLocations.Downloads,
-                file_key: crypto.randomUUID() + file_extension,
+                file_key: file_key,
                 updated_file: acceptedFiles[0],
                 modification: AWSModification.Added
             })
@@ -49,7 +50,7 @@ const DownloadDropzone = forwardRef<HTMLInputElement, Props>(({ form_submission_
             const awsData = new FormData()
             awsData.append('file', acceptedFiles[0])
 
-            fetch(`/api/aws/${artistId}/downloads/${file?.file_key!}`, { method: 'post', body: awsData })
+            fetch(`/api/aws/${artistId}/downloads/${file_key}`, { method: 'post', body: awsData })
                 .then((response) => response.json())
                 .then((json: NemuResponse) => {
                     if (json.status != StatusCode.Success) {
@@ -78,7 +79,7 @@ const DownloadDropzone = forwardRef<HTMLInputElement, Props>(({ form_submission_
                                 artist_id: artistId,
                                 form_submission_id: form_submission_id,
                                 commission_id: commission_id,
-                                file_key: file?.file_key
+                                file_key: file_key
                             }
                         }
                     ).then((response) => {

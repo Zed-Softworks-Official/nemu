@@ -14,6 +14,7 @@ import Stripe from 'stripe'
 import { CommissionStatus } from '@/core/data-structures/form-structures'
 import { sendbird } from '@/lib/sendbird'
 import { CheckCreateSendbirdUser, CreateSendbirdMessageChannel } from '@/core/server-helpers'
+import { novu } from '@/lib/novu'
 
 builder.mutationField('check_create_customer', (t) =>
     t.field({
@@ -92,251 +93,217 @@ builder.mutationField('check_create_customer', (t) =>
     })
 )
 
-builder.mutationField('update_payment_intent', (t) =>
-    t.field({
-        type: 'NemuResponse',
-        args: {
-            submission_id: t.arg({
-                type: 'String',
-                required: true,
-                description: ''
-            }),
-            form_id: t.arg({
-                type: 'String',
-                required: true,
-                description: ''
-            }),
-            payment_intent: t.arg({
-                type: 'String',
-                required: true,
-                description: ''
-            }),
-            stripe_account: t.arg({
-                type: 'String',
-                required: true,
-                description: ''
-            }),
+// builder.mutationField('update_commission_invoice', (t) =>
+//     t.field({
+//         type: 'NemuResponse',
+//         args: {
+//             customer_id: t.arg({
+//                 type: 'String',
+//                 required: true,
+//                 description: ''
+//             }),
+//             stripe_account: t.arg({
+//                 type: 'String',
+//                 required: true,
+//                 description: ''
+//             }),
+//             submission_id: t.arg({
+//                 type: 'String',
+//                 required: true,
+//                 description: ''
+//             }),
+//             form_id: t.arg({
+//                 type: 'String',
+//                 required: true,
+//                 description: ''
+//             }),
+//             accepted: t.arg({
+//                 type: 'Boolean',
+//                 required: true,
+//                 description: ''
+//             })
+//         },
+//         resolve: async (_parent, args, _ctx, _info) => {
+//             // Get Form Submission for metadata requests on stripe
+//             const submission = await prisma.formSubmission.findFirst({
+//                 where: {
+//                     id: args.submission_id
+//                 },
+//                 include: {
+//                     user: true,
+//                     form: {
+//                         include: {
+//                             commission: {
+//                                 include: {
+//                                     artist: true
+//                                 }
+//                             }
+//                         }
+//                     }
+//                 }
+//             })
 
-            accepted: t.arg({
-                type: 'Boolean',
-                required: true,
-                description: ''
-            })
-        },
-        resolve: async (_parent, args, _ctx, _info) => {
-            // Capture or Reject the Charge
-            if (args.accepted) {
-                await StripeAcceptCommissionPaymentIntent(args.payment_intent, args.stripe_account)
-            } else {
-                await StripeRejectCommissionPaymentIntent(args.payment_intent, args.stripe_account)
-            }
+//             // Update the form
+//             await prisma.form.update({
+//                 where: {
+//                     id: args.form_id
+//                 },
+//                 data: {
+//                     newSubmissions: {
+//                         decrement: 1
+//                     },
+//                     acceptedSubmissions: {
+//                         increment: args.accepted ? 1 : 0
+//                     },
+//                     rejectedSubmissions: {
+//                         increment: !args.accepted ? 1 : 0
+//                     }
+//                 }
+//             })
 
-            // Update Form Submission
-            await prisma.formSubmission.update({
-                where: {
-                    id: args.submission_id
-                },
-                data: {
-                    paymentStatus: args.accepted ? PaymentStatus.Captured : PaymentStatus.Cancelled,
-                    commissionStatus: args.accepted ? CommissionStatus.Accepted : CommissionStatus.Rejected
-                }
-            })
+//             novu.trigger('commission-accepted-rejected', {
+//                 to: {
+//                     subscriberId: submission?.userId!
+//                 },
+//                 payload: {
+//                     commission_name: submission?.form.commission?.title,
+//                     artist_handle: submission?.form.commission?.artist.handle,
+//                     status: args.accepted ? 'accepted' : 'rejected'
+//                 }
+//             })
 
-            // Update the form
-            await prisma.form.update({
-                where: {
-                    id: args.form_id
-                },
-                data: {
-                    newSubmissions: {
-                        decrement: 1
-                    },
-                    acceptedSubmissions: {
-                        increment: args.accepted ? 1 : 0
-                    },
-                    rejectedSubmissions: {
-                        increment: !args.accepted ? 1 : 0
-                    }
-                }
-            })
+//             // Check if we rejected the request
+//             if (!args.accepted) {
+//                 await prisma.formSubmission.update({
+//                     where: {
+//                         id: args.submission_id
+//                     },
+//                     data: {
+//                         paymentStatus: PaymentStatus.Cancelled,
+//                         commissionStatus: CommissionStatus.Rejected
+//                     }
+//                 })
 
-            return {
-                status: StatusCode.Success
-            }
-        }
-    })
-)
+//                 return { status: StatusCode.Success }
+//             }
 
-builder.mutationField('update_commission_invoice', (t) =>
-    t.field({
-        type: 'NemuResponse',
-        args: {
-            customer_id: t.arg({
-                type: 'String',
-                required: true,
-                description: ''
-            }),
-            stripe_account: t.arg({
-                type: 'String',
-                required: true,
-                description: ''
-            }),
-            submission_id: t.arg({
-                type: 'String',
-                required: true,
-                description: ''
-            }),
-            form_id: t.arg({
-                type: 'String',
-                required: true,
-                description: ''
-            }),
-            accepted: t.arg({
-                type: 'Boolean',
-                required: true,
-                description: ''
-            })
-        },
-        resolve: async (_parent, args, _ctx, _info) => {
-            // Get Form Submission for metadata requests on stripe
-            const submission = await prisma.formSubmission.findFirst({
-                where: {
-                    id: args.submission_id
-                },
-                include: {
-                    user: true,
-                    form: true
-                }
-            })
+//             // Create a sendbird user if they don't have one already
+//             await CheckCreateSendbirdUser(submission?.userId!)
 
-            // Update the form
-            await prisma.form.update({
-                where: {
-                    id: args.form_id
-                },
-                data: {
-                    newSubmissions: {
-                        decrement: 1
-                    },
-                    acceptedSubmissions: {
-                        increment: args.accepted ? 1 : 0
-                    },
-                    rejectedSubmissions: {
-                        increment: !args.accepted ? 1 : 0
-                    }
-                }
-            })
+//             // Create Channel For Sendbird
+//             const sendbird_channel_url = crypto.randomUUID()
+//             await CreateSendbirdMessageChannel(submission?.id!, sendbird_channel_url)
 
-            // Check if we rejected the request
-            if (!args.accepted) {
-                await prisma.formSubmission.update({
-                    where: {
-                        id: args.submission_id
-                    },
-                    data: {
-                        paymentStatus: PaymentStatus.Cancelled,
-                        commissionStatus: CommissionStatus.Rejected
-                    }
-                })
+//             // Update Form Submission
+//             await prisma.formSubmission.update({
+//                 where: {
+//                     id: submission?.id
+//                 },
+//                 data: {
+//                     sendbirdChannelURL: sendbird_channel_url
+//                 }
+//             })
 
-                return { status: StatusCode.Success }
-            }
+//             // Create The Invoice Draft on Stripe
+//             const invoice_draft = await StripeCreateCommissionInvoice(
+//                 args.customer_id,
+//                 args.stripe_account,
+//                 submission?.user.id!,
+//                 submission?.orderId!,
+//                 submission?.form.commissionId!
+//             )
 
+//             // Update the form submission
+//             await prisma.formSubmission.update({
+//                 where: {
+//                     id: args.submission_id
+//                 },
+//                 data: {
+//                     invoiceId: invoice_draft.id,
+//                     paymentStatus: PaymentStatus.InvoiceCreated,
+//                     commissionStatus: CommissionStatus.Accepted
+//                 }
+//             })
 
-            // Create a sendbird user if they don't have one already
-            await CheckCreateSendbirdUser(submission?.userId!)
-            
-            // Create Channel For Sendbird
-            const sendbird_channel_url = crypto.randomUUID()
-            await CreateSendbirdMessageChannel(submission?.id!, sendbird_channel_url)
+//             return { status: StatusCode.Success }
+//         }
+//     })
+// )
 
-            // Update Form Submission
-            await prisma.formSubmission.update({
-                where: {
-                    id: submission?.id
-                },
-                data: {
-                    sendbirdChannelURL: sendbird_channel_url
-                }
-            })
+// builder.mutationField('finalize_invoice', (t) =>
+//     t.field({
+//         type: 'NemuResponse',
+//         args: {
+//             submission_id: t.arg({
+//                 type: 'String',
+//                 required: true,
+//                 description: ''
+//             }),
+//             stripe_acccount: t.arg({
+//                 type: 'String',
+//                 required: true,
+//                 description: ''
+//             })
+//         },
+//         resolve: async (_parent, args, _ctx, _info) => {
+//             const submission = await prisma.formSubmission.findFirst({
+//                 where: {
+//                     id: args.submission_id
+//                 }
+//             })
 
-            // Create The Invoice Draft on Stripe
-            const invoice_draft = await StripeCreateCommissionInvoice(
-                args.customer_id,
-                args.stripe_account,
-                submission?.user.id!,
-                submission?.orderId!,
-                submission?.form.commissionId!
-            )
+//             if (!submission) {
+//                 return {
+//                     status: StatusCode.InternalError,
+//                     message: 'Failed to find submission'
+//                 }
+//             }
 
-            // Update the form submission
-            await prisma.formSubmission.update({
-                where: {
-                    id: args.submission_id
-                },
-                data: {
-                    invoiceId: invoice_draft.id,
-                    paymentStatus: PaymentStatus.InvoiceCreated,
-                    commissionStatus: CommissionStatus.Accepted
-                }
-            })
+//             const invoice = await StripeFinalizeCommissionInvoice(submission.invoiceId!, args.stripe_acccount)
 
-            return { status: StatusCode.Success }
-        }
-    })
-)
+//             // Update Submission
+//             const updated_submission = await prisma.formSubmission.update({
+//                 where: {
+//                     id: args.submission_id
+//                 },
+//                 data: {
+//                     paymentStatus: PaymentStatus.InvoiceNeedsPayment,
+//                     invoiceHostedUrl: invoice.hosted_invoice_url,
+//                     invoiceSent: true
+//                 },
+//                 include: {
+//                     form: {
+//                         include: {
+//                             commission: {
+//                                 include: {
+//                                     artist: true
+//                                 }
+//                             }
+//                         }
+//                     }
+//                 }
+//             })
 
-builder.mutationField('finalize_invoice', (t) =>
-    t.field({
-        type: 'NemuResponse',
-        args: {
-            submission_id: t.arg({
-                type: 'String',
-                required: true,
-                description: ''
-            }),
-            stripe_acccount: t.arg({
-                type: 'String',
-                required: true,
-                description: ''
-            })
-        },
-        resolve: async (_parent, args, _ctx, _info) => {
-            const submission = await prisma.formSubmission.findFirst({
-                where: {
-                    id: args.submission_id
-                }
-            })
+//             // Notify User of the invoice being sent
+//             novu.trigger('invoices', {
+//                 to: {
+//                     subscriberId: updated_submission.userId
+//                 },
+//                 payload: {
+//                     status: 'sent',
+//                     username: updated_submission.form.commission?.artist.handle,
+//                     invoice_url: '/invoices'
+//                 }
+//             })
 
-            if (!submission) {
-                return {
-                    status: StatusCode.InternalError,
-                    message: 'Failed to find submission'
-                }
-            }
+//             if (!updated_submission) {
+//                 return {
+//                     status: StatusCode.InternalError,
+//                     message: 'Failed to update submission'
+//                 }
+//             }
 
-            const invoice = await StripeFinalizeCommissionInvoice(submission.invoiceId!, args.stripe_acccount)
-
-            // Update Submission
-            const updated_submission = await prisma.formSubmission.update({
-                where: {
-                    id: args.submission_id
-                },
-                data: {
-                    paymentStatus: PaymentStatus.InvoiceNeedsPayment,
-                    invoiceHostedUrl: invoice.hosted_invoice_url,
-                    invoiceSent: true
-                }
-            })
-
-            if (!updated_submission) {
-                return {
-                    status: StatusCode.InternalError,
-                    message: 'Failed to update submission'
-                }
-            }
-
-            return { status: StatusCode.Success }
-        }
-    })
-)
+//             return { status: StatusCode.Success }
+//         }
+//     })
+// )

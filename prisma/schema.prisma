@@ -263,6 +263,36 @@ model Commission {
   reviews Review[]
 }
 
+model Invoice {
+  id        String  @id @default(auto()) @map("_id") @db.ObjectId
+  sent      Boolean @default(false)
+  hostedUrl String?
+
+  stripeId  String?
+  createdAt DateTime @default(now())
+
+  customerId    String
+  stripeAccount String
+
+  userId   String
+  artistId String
+
+  items InvoiceItem[]
+}
+
+model InvoiceItem {
+  id        String @id @default(auto()) @map("_id") @db.ObjectId
+  invoiceId String @db.ObjectId
+
+  name     String
+  price    Float
+  quantity Int
+
+  createdAt DateTime @default(now())
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
+
 model Form {
   id           String  @id @default(auto()) @map("_id") @db.ObjectId
   artistId     String  @db.ObjectId
@@ -295,13 +325,10 @@ model FormSubmission {
 
   commissionStatus Int @default(0)
 
-  paymentStatus    Int
-  paymentIntent    String?
-  orderId          String  @unique
-  invoiceId        String?
-  invoiceSent      Boolean @default(false)
-  invoiceContent   String?
-  invoiceHostedUrl String?
+  paymentStatus Int
+  paymentIntent String?
+  orderId       String  @unique
+  invoiceId     String? @db.ObjectId
 
   sendbirdChannelURL String?
 

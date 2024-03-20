@@ -38,7 +38,6 @@ export default function DashboardCommissionDetailView({ slug, order_id }: { slug
                     commission {
                         id
                         title
-                        useInvoicing
                     }
                 }
                 kanban {
@@ -76,7 +75,6 @@ export default function DashboardCommissionDetailView({ slug, order_id }: { slug
                     commission: {
                         id: string
                         title: string
-                        useInvoicing: boolean
                     }
                 }
                 kanban: KanbanResponse
@@ -103,21 +101,19 @@ export default function DashboardCommissionDetailView({ slug, order_id }: { slug
                             <CommissionFormSubmissionContent content={data?.form_submission.content} />
                         </div>
                     </div>
-                    {data?.form_submission.form.commission.useInvoicing && (
-                        <div className="card bg-base-100 shadow-xl w-1/2">
-                            <div className="card-body">
-                                <h2 className="card-title">Invoicing</h2>
-                                <div className="divider"></div>
-                                <CommissionInvoicing
-                                    submission_id={data.form_submission.id}
-                                    customer_id={data.form_submission.user.find_customer_id.customerId}
-                                    stripe_account={data.form_submission.user.find_customer_id.stripeAccount}
-                                    invoice_content={data.form_submission.invoiceContent}
-                                    invoice_sent={data.form_submission.invoiceSent}
-                                />
-                            </div>
+                    <div className="card bg-base-100 shadow-xl w-1/2">
+                        <div className="card-body">
+                            <h2 className="card-title">Invoicing</h2>
+                            <div className="divider"></div>
+                            <CommissionInvoicing
+                                submission_id={data?.form_submission.id!}
+                                customer_id={data?.form_submission.user.find_customer_id.customerId!}
+                                stripe_account={data?.form_submission.user.find_customer_id.stripeAccount!}
+                                invoice_content={data?.form_submission.invoiceContent!}
+                                invoice_sent={data?.form_submission.invoiceSent!}
+                            />
                         </div>
-                    )}
+                    </div>
                     <div className="card bg-base-100 shadow-xl w-1/2">
                         <div className="card-body">
                             <h2 className="card-title">Create Download</h2>

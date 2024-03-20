@@ -36,18 +36,18 @@ export default function CommissionFormSubmissionDisplay({
 
     async function UpdateRequest(accepted_commission: boolean) {
         // Update the request and create the invoice if accetpted
-        const response = await GraphQLFetcher<{ update_commission_invoice: NemuResponse }>(
-            `mutation {
-                    update_commission_invoice(customer_id: "${submission.user.find_customer_id.customerId}", stripe_account: "${stripe_account}", submission_id: "${submission.id}", form_id: "${form_id}", accepted: ${accepted_commission}) {
-                        status
-                        message
-                    }
-                }`
-        )
+        // const response = await GraphQLFetcher<{ update_commission_invoice: NemuResponse }>(
+        //     `mutation {
+        //             update_commission_invoice(customer_id: "${submission.user.find_customer_id.customerId}", stripe_account: "${stripe_account}", submission_id: "${submission.id}", form_id: "${form_id}", accepted: ${accepted_commission}) {
+        //                 status
+        //                 message
+        //             }
+        //         }`
+        // )
 
-        if (response.update_commission_invoice.status != StatusCode.Success) {
-            toast('Failed to accept request', { theme: 'dark', type: 'error' })
-        }
+        // if (response.update_commission_invoice.status != StatusCode.Success) {
+        //     toast('Failed to accept request', { theme: 'dark', type: 'error' })
+        // }
 
         return
     }

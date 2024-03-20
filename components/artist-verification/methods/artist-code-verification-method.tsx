@@ -22,7 +22,7 @@ export default function ArtistCodeVerificiationMethod() {
                     type="text"
                     name="artistCode"
                     placeholder={"Artist Code"} 
-                    className="bg-white dark:bg-charcoal p-5 rounded-xl w-full" 
+                    className="input w-full" 
                     onChange={(e) => setArtistCode(e.target.value)}
                     required 
                 />

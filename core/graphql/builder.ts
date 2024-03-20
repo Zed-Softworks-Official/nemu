@@ -21,6 +21,8 @@ import {
     DownloadDataInputType,
     DownloadOptionsInputType,
     ImageData,
+    InoviceCreateInputType,
+    InvoiceItemInputType,
     KanbanContainerData,
     KanbanTask,
     PortfolioItem,
@@ -57,6 +59,8 @@ export const builder = new SchemaBuilder<{
         DownloadDataInputType: DownloadDataInputType
         CommissionInputType: CommissionInputType
         ArtistVerificationInputType: ArtistVerificationInputType
+        InvoiceCreateInputType: InoviceCreateInputType
+        InvoiceItemInputType: InvoiceItemInputType
     }
     Scalars: { Date: { Input: Date; Output: Date } }
 }>({
@@ -296,6 +300,30 @@ builder.inputRef<ArtistVerificationInputType>('ArtistVerificationInputType').imp
         location: t.string(),
         user_id: t.string(),
         artist_code: t.string()
+    })
+})
+
+builder.inputRef<InoviceCreateInputType>('InvoiceCreateInputType').implement({
+    fields: (t) => ({
+        customer_id: t.string(),
+        user_id: t.string({ required: true }),
+        artist_id: t.string(),
+        stripe_account: t.string(),
+
+        initial_item_name: t.string(),
+        initial_item_price: t.float(),
+        initial_item_quantity: t.int(),
+
+        form_submission_id: t.string({ required: true })
+    })
+})
+
+builder.inputRef<InvoiceItemInputType>('InvoiceItemInputType').implement({
+    fields: (t) => ({
+        id: t.string(),
+        name: t.string(),
+        price: t.float(),
+        quantity: t.int()
     })
 })
 

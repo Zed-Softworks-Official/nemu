@@ -1,6 +1,7 @@
 import { StatusCode } from '@/core/responses'
 import { builder } from '../builder'
 import { prisma } from '@/lib/prisma'
+import { novu } from '@/lib/novu'
 
 builder.prismaObject('Downloads', {
     fields: (t) => ({
@@ -82,6 +83,26 @@ builder.mutationField('create_download', (t) =>
                     message: 'Failed to create new download'
                 }
             }
+
+            // Notify User
+            const commission = await prisma.commission.findFirst({
+                where: {
+                    id: args.download_data.commission_id!
+                },
+                include: {
+                    artist: true
+                }
+            })
+
+            novu.trigger('downloads-available', {
+                to: {
+                    subscriberId: args.download_data.user_id!
+                },
+                payload: {
+                    item_name: commission?.title,
+                    artist_handle: commission?.artist.handle
+                }
+            })
 
             return { 
                 status: StatusCode.Success,

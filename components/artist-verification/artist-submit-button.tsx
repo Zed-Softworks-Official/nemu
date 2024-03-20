@@ -8,7 +8,6 @@ import { useSession } from 'next-auth/react'
 import { toast } from 'react-toastify'
 
 import useVerificationFormStore, { MethodEnum } from '@/store/VerificationForm'
-import { ArtistCodeVerification, ArtistTwitterVerification } from '@/core/verification'
 
 export default function ArtistSubmitButton() {
     const { 
@@ -26,49 +25,49 @@ export default function ArtistSubmitButton() {
     async function handleSubmit(event: MouseEvent<HTMLButtonElement>) {
         event.preventDefault()
 
-        try {
-            // Check to see what method was used
-            switch (verificationMethod.method) {
-                // If they used an artist code
-                case MethodEnum.ArtistCode:
-                    await ArtistCodeVerification(artistCode!, session?.user.user_id!, {
-                        user_id: session?.user.user_id!,
-                        username: session?.user.name!,
-                        requested_handle: requestedHandle,
-                        twitter: twitter,
-                        pixiv: pixiv,
-                        location: location
-                    })
-                    break;
-                // If they used twitter
-                case MethodEnum.Twitter:
-                    await ArtistTwitterVerification(session?.user.user_id!, {
-                        user_id: session?.user.user_id!,
-                        username: session?.user.name!,
-                        requested_handle: requestedHandle,
-                        twitter: twitter,
-                        pixiv: pixiv,
-                        location: location
-                    })
-                    break;
-                // If they used email
-                case MethodEnum.Email:
-                    break;
-            }
+        // try {
+        //     // Check to see what method was used
+        //     switch (verificationMethod.method) {
+        //         // If they used an artist code
+        //         case MethodEnum.ArtistCode:
+        //             await ArtistCodeVerification(artistCode!, session?.user.user_id!, {
+        //                 user_id: session?.user.user_id!,
+        //                 username: session?.user.name!,
+        //                 requested_handle: requestedHandle,
+        //                 twitter: twitter,
+        //                 pixiv: pixiv,
+        //                 location: location
+        //             })
+        //             break;
+        //         // If they used twitter
+        //         case MethodEnum.Twitter:
+        //             await ArtistTwitterVerification(session?.user.user_id!, {
+        //                 user_id: session?.user.user_id!,
+        //                 username: session?.user.name!,
+        //                 requested_handle: requestedHandle,
+        //                 twitter: twitter,
+        //                 pixiv: pixiv,
+        //                 location: location
+        //             })
+        //             break;
+        //         // If they used email
+        //         case MethodEnum.Email:
+        //             break;
+        //     }
 
-            // Send Toast Message
+        //     // Send Toast Message
 
-            // If they used an artist code take them to their new profile
-            if (artistCode) {
-                push(`/@${requestedHandle}`)
-            }
+        //     // If they used an artist code take them to their new profile
+        //     if (artistCode) {
+        //         push(`/@${requestedHandle}`)
+        //     }
 
-            // Go Back to homepage
-            push('/');
+        //     // Go Back to homepage
+        //     push('/');
 
-        } catch (error) {
-            console.log(error)
-        }
+        // } catch (error) {
+        //     console.log(error)
+        // }
     }
 
     return (

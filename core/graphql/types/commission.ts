@@ -2,8 +2,11 @@ import { prisma } from '@/lib/prisma'
 import { builder } from '../builder'
 import { StatusCode } from '@/core/responses'
 import { S3GetSignedURL } from '@/core/storage'
-import { AWSLocations } from '@/core/structures'
-import { AWSFileModification } from '@/core/data-structures/form-structures'
+import { AWSLocations, PaymentStatus } from '@/core/structures'
+import { AWSFileModification, CommissionStatus } from '@/core/data-structures/form-structures'
+import { StripeCreateCommissionInvoice } from '@/core/stripe/commissions'
+import { novu } from '@/lib/novu'
+import { CheckCreateSendbirdUser, CreateSendbirdMessageChannel } from '@/core/server-helpers'
 
 builder.prismaObject('Commission', {
     fields: (t) => ({
@@ -297,6 +300,145 @@ builder.mutationField('update_commission', (t) =>
                     message: 'An error has occured updating your commission'
                 }
             }
+
+            return {
+                status: StatusCode.Success
+            }
+        }
+    })
+)
+
+builder.mutationField('accept_reject_commission', (t) =>
+    t.field({
+        type: 'NemuResponse',
+        args: {
+            accepted: t.arg({
+                type: 'Boolean',
+                required: true
+            }),
+            create_data: t.arg({
+                type: 'InvoiceCreateInputType',
+                required: true
+            })
+        },
+        resolve: async (_parent, args) => {
+            // Get the form submission
+            const submission = await prisma.formSubmission.findFirst({
+                where: {
+                    id: args.create_data.form_submission_id
+                },
+                include: {
+                    form: {
+                        include: {
+                            commission: {
+                                include: {
+                                    artist: true
+                                }
+                            }
+                        }
+                    }
+                }
+            })
+
+            // Update form based on rejection or submission
+            await prisma.form.update({
+                where: {
+                    id: submission?.form.id
+                },
+                data: {
+                    newSubmissions: {
+                        decrement: 1
+                    },
+                    acceptedSubmissions: {
+                        increment: args.accepted ? 1 : 0
+                    },
+                    rejectedSubmissions: {
+                        increment: !args.accepted ? 1 : 0
+                    }
+                }
+            })
+
+            // notify user
+            novu.trigger('commission-accepted-rejected', {
+                to: {
+                    subscriberId: args.create_data.user_id
+                },
+                payload: {
+                    commission_name: submission?.form.commission?.title,
+                    artist_handle: submission?.form.commission?.artist.handle,
+                    status: args.accepted ? 'accepted' : 'rejected'
+                }
+            })
+
+            ///////////////////////////////////////////////////
+            // Handle Commission Rejection
+            ///////////////////////////////////////////////////
+            if (!args.accepted) {
+                await prisma.formSubmission.update({
+                    where: {
+                        id: args.create_data.form_submission_id
+                    },
+                    data: {
+                        paymentStatus: PaymentStatus.Cancelled,
+                        commissionStatus: CommissionStatus.Rejected
+                    }
+                })
+
+                return {
+                    status: StatusCode.Success
+                }
+            }
+
+            ///////////////////////////////////////////////////
+            // Handle Commission Acceptance
+            ///////////////////////////////////////////////////
+
+            // Create Stripe Draft
+            const stripe_draft = await StripeCreateCommissionInvoice(
+                args.create_data.customer_id!,
+                args.create_data.stripe_account!,
+                args.create_data.user_id!,
+                submission?.orderId!,
+                submission?.form.commissionId!
+            )
+
+            // Create the invoice with the initial item
+            const invoice = await prisma.invoice.create({
+                data: {
+                    stripeId: stripe_draft.id,
+                    customerId: args.create_data.customer_id!,
+                    stripeAccount: args.create_data.stripe_account!,
+                    userId: args.create_data.user_id!,
+                    artistId: args.create_data.artist_id!,
+                    items: {
+                        create: {
+                            name: args.create_data.initial_item_name!,
+                            price: args.create_data.initial_item_price!,
+                            quantity: args.create_data.initial_item_quantity!
+                        }
+                    }
+                }
+            })
+
+            // Create a sendbird user if they don't have one
+            await CheckCreateSendbirdUser(args.create_data.user_id)
+
+            // Create Channel for sendbird
+            const sendbird_channel_url = crypto.randomUUID()
+            await CreateSendbirdMessageChannel(args.create_data.form_submission_id, sendbird_channel_url)
+
+            // Update the form submission to keep track of the item
+            await prisma.formSubmission.update({
+                where: {
+                    id: args.create_data.form_submission_id!
+                },
+                data: {
+                    invoiceId: invoice.id,
+                    paymentStatus: PaymentStatus.InvoiceCreated,
+                    commissionStatus: CommissionStatus.Accepted,
+                    sendbirdChannelURL: sendbird_channel_url
+                }
+            })
 
             return {
                 status: StatusCode.Success
