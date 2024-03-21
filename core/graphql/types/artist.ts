@@ -8,7 +8,7 @@ builder.prismaObject('Artist', {
     fields: (t) => ({
         id: t.exposeString('id'),
         userId: t.exposeString('userId'),
-        stripeAccount: t.exposeString('stripeAccId'),
+        stripeAccount: t.exposeString('stripeAccount'),
 
         handle: t.exposeString('handle'),
         about: t.exposeString('about'),
@@ -70,8 +70,7 @@ builder.prismaObject('Artist', {
                         form_id: commissions[i].formId || undefined,
                         handle: artist.handle,
                         commission_id: commissions[i].id,
-                        published: commissions[i].published,
-                        use_invoicing: commissions[i].useInvoicing
+                        published: commissions[i].published
                     })
                 }
 

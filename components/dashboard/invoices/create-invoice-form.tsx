@@ -50,10 +50,10 @@ export default function CreateInvoiceForm({
             customer_id: customer_id
         }
 
-        await CreateToastPromise(fetch(`/api/invoice`, { method: 'post', body: JSON.stringify(data) }), {
-            pending: 'Updating Invoice',
-            success: 'Invoice Updated'
-        })
+        // await CreateToastPromise(fetch(`/api/invoice`, { method: 'post', body: JSON.stringify(data) }), {
+        //     pending: 'Updating Invoice',
+        //     success: 'Invoice Updated'
+        // })
     }
 
     function CalculateTotalPrice() {

@@ -21,7 +21,7 @@ export async function StripeGetPurchasePage(
 ) {
     const artist = await prisma.artist.findFirst({
         where: {
-            stripeAccId: stripe_account
+            stripeAccount: stripe_account
         }
     })
 

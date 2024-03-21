@@ -11,7 +11,6 @@ import CommissionInvoicing from '../../invoices/commission-invoicing'
 import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
 import { KanbanResponse } from '@/core/responses'
 import MessagesClient from '@/components/messages/messages-client'
-import { FormProvider } from '@/components/form/form-context'
 import DownloadDropzone from '@/components/form/download-dropzone'
 
 export default function DashboardCommissionDetailView({ slug, order_id }: { slug: string; order_id: string }) {

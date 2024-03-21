@@ -1,14 +1,19 @@
 import { StatusCode } from '@/core/responses'
 import { builder } from '../builder'
 import { prisma } from '@/lib/prisma'
+import { StripeFinalizeCommissionInvoice, StripeUpdateCommissionInvoice } from '@/core/stripe/commissions'
+import { novu } from '@/lib/novu'
+import { PaymentStatus } from '@/core/structures'
 
 builder.prismaObject('Invoice', {
     fields: (t) => ({
         id: t.exposeString('id'),
         sent: t.exposeBoolean('sent'),
         hostedUrl: t.exposeString('hostedUrl', { nullable: true }),
+        paymentStatus: t.exposeInt('paymentStatus'),
+        paymentIntent: t.exposeString('paymentIntent', { nullable: true }),
 
-        stripeId: t.exposeString('stripeId'),
+        stripeId: t.exposeString('stripeId', { nullable: true }),
         createdAt: t.expose('createdAt', { type: 'Date' }),
 
         customerId: t.exposeString('customerId'),
@@ -87,16 +92,55 @@ builder.mutationField('send_invoice', (t) =>
             const invoice = await prisma.invoice.findFirst({
                 where: {
                     id: args.invoice_id
+                },
+                include: {
+                    items: true
                 }
             })
 
+            if (!invoice) {
+                return {
+                    status: StatusCode.InternalError,
+                    message: 'Could not retrieve invoice'
+                }
+            }
+
             // Update the stripe invoice draft
+            await StripeUpdateCommissionInvoice(invoice.customerId, invoice.stripeAccount, invoice.stripeId!, invoice.items!)
 
             // Finialize the invoice
+            const stripe_invoice = await StripeFinalizeCommissionInvoice(invoice.stripeId!, invoice.stripeAccount)
 
             // Update invoice
+            await prisma.invoice.update({
+                where: {
+                    id: invoice.id
+                },
+                data: {
+                    sent: true,
+                    hostedUrl: stripe_invoice.hosted_invoice_url,
+                    paymentStatus: PaymentStatus.InvoiceNeedsPayment
+                }
+            })
 
-            // Notify User
+            // Retrieve Artist
+            const artist = await prisma.artist.findFirst({
+                where: {
+                    id: invoice.artistId
+                }
+            }) 
+
+            // Notify User of the invoice being sent
+            novu.trigger('invoices', {
+                to: {
+                    subscriberId: invoice?.userId
+                },
+                payload: {
+                    status: 'sent',
+                    username: artist?.handle,
+                    invoice_url: '/invoices'
+                }
+            })
 
             return {
                 status: StatusCode.Success

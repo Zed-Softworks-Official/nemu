@@ -16,9 +16,9 @@ datasource db {
 //////////////////////////////////////////////////////////
 
 model Artist {
-  id          String @id @default(auto()) @map("_id") @db.ObjectId
-  userId      String @unique @db.ObjectId
-  stripeAccId String
+  id            String @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String @unique @db.ObjectId
+  stripeAccount String
 
   createdAt DateTime @default(now())
 
@@ -264,9 +264,11 @@ model Commission {
 }
 
 model Invoice {
-  id        String  @id @default(auto()) @map("_id") @db.ObjectId
-  sent      Boolean @default(false)
-  hostedUrl String?
+  id            String  @id @default(auto()) @map("_id") @db.ObjectId
+  sent          Boolean @default(false)
+  hostedUrl     String?
+  paymentStatus Int
+  paymentIntent String?
 
   stripeId  String?
   createdAt DateTime @default(now())
@@ -274,8 +276,9 @@ model Invoice {
   customerId    String
   stripeAccount String
 
-  userId   String
-  artistId String
+  userId       String
+  artistId     String
+  submissionId String
 
   items InvoiceItem[]
 }
@@ -325,18 +328,15 @@ model FormSubmission {
 
   commissionStatus Int @default(0)
 
-  paymentStatus Int
-  paymentIntent String?
-  orderId       String  @unique
-  invoiceId     String? @db.ObjectId
+  orderId   String  @unique
+  invoiceId String? @db.ObjectId
 
   sendbirdChannelURL String?
 
-  kanbanId String @unique @db.ObjectId
+  kanbanId String? @db.ObjectId
 
   form   Form   @relation(fields: [formId], references: [id], onDelete: Cascade)
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  kanban Kanban @relation(fields: [kanbanId], references: [id], onDelete: Cascade)
 
   downloadId String?
 
@@ -348,5 +348,5 @@ model Kanban {
   containers String @default("[]")
   tasks      String @default("[]")
 
-  formSubmission FormSubmission?
+  formSubmissionId String
 }

@@ -50,7 +50,7 @@ export async function POST(req: Request) {
         //                     userId: user?.id,
         //                     customerId: checkout_session.customer?.toString(),
         //                     productId: checkout_session.metadata?.product_id,
-        //                     stripeAccId: checkout_session.metadata?.stripe_account
+        //                     stripeAccount: checkout_session.metadata?.stripe_account
         //                 }
         //             })
 

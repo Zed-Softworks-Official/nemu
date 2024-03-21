@@ -52,7 +52,7 @@ export async function POST(req: Request) {
         where: {
             userId: data.user_id,
             productId: data.product_id,
-            stripeAccId: data.stripe_account
+            stripeAccount: data.stripe_account
         }
     })
 
@@ -63,7 +63,7 @@ export async function POST(req: Request) {
         customer_id = await prisma.purchased.findFirst({
             where: {
                 userId: data.user_id,
-                stripeAccId: data.stripe_account
+                stripeAccount: data.stripe_account
             }
         })
 
@@ -97,7 +97,7 @@ export async function POST(req: Request) {
                 purchased: {
                     create: {
                         productId: data.product_id!,
-                        stripeAccId: data.stripe_account!,
+                        stripeAccount: data.stripe_account!,
                         customerId: customer.id
                     }
                 }

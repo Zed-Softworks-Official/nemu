@@ -25,7 +25,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 
     // Check if they have a stripe account
     // if they don't then create one and return the onboarding url
-    if (!artist?.stripeAccId) {
+    if (!artist?.stripeAccount) {
         const stripe_account = await StripeCreateAccount()
         return NextResponse.json<StripeAccountResponse>({
             status: StatusCode.Success,
@@ -34,7 +34,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     }
 
     // Get the stripe account if they have one
-    const stripe_account = await StripeGetAccount(artist?.stripeAccId)
+    const stripe_account = await StripeGetAccount(artist?.stripeAccount)
 
     // If the user has not completed the onboarding, return an onboarding url
     if (!stripe_account.charges_enabled) {

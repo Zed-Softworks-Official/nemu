@@ -8,46 +8,48 @@ import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/20/solid'
 import { useState } from 'react'
 import { toast } from 'react-toastify'
 import CommissionFormSubmissionContent from './commission-form-submission-content'
+import { Commission, FormSubmission, User } from '@prisma/client'
 
 export default function CommissionFormSubmissionDisplay({
     submission,
+    commission,
     stripe_account,
-    form_id
 }: {
-    submission: {
-        id: string
-        content: string
-        createdAt: Date
-        paymentIntent: string
-        paymentStatus: PaymentStatus
-        user: {
-            name: string
-            find_customer_id: {
-                customerId: string
-            }
-        }
-    }
+    submission: FormSubmission & { user: User & { find_customer_id: { customerId: string } } },
+    commission: Commission
     stripe_account: string
-    form_id: string
 }) {
     const [showModal, setShowModal] = useState(false)
     const [accepted, setAccepted] = useState(false)
     const [rejected, setRejected] = useState(false)
 
     async function UpdateRequest(accepted_commission: boolean) {
-        // Update the request and create the invoice if accetpted
-        // const response = await GraphQLFetcher<{ update_commission_invoice: NemuResponse }>(
-        //     `mutation {
-        //             update_commission_invoice(customer_id: "${submission.user.find_customer_id.customerId}", stripe_account: "${stripe_account}", submission_id: "${submission.id}", form_id: "${form_id}", accepted: ${accepted_commission}) {
-        //                 status
-        //                 message
-        //             }
-        //         }`
-        // )
+        const response = await GraphQLFetcher<{ accept_reject_commission: NemuResponse }>(
+            `mutation AcceptRejectCommission($invoice_create_data: InvoiceCreateInputType!) {
+                accept_reject_commission(create_data: $invoice_create_data, accepted: ${accepted_commission}) {
+                    status
+                    message
+                }
+            }`,
+            {
+                invoice_create_data: {
+                    customer_id: submission.user.find_customer_id.customerId,
+                    user_id: submission.user.id,
+                    artist_id: commission.artistId,
+                    stripe_account: stripe_account,
 
-        // if (response.update_commission_invoice.status != StatusCode.Success) {
-        //     toast('Failed to accept request', { theme: 'dark', type: 'error' })
-        // }
+                    initial_item_name: commission.title,
+                    initial_item_price: commission.price,
+                    initial_item_quantity: 1,
+
+                    form_submission_id: submission.id
+                }
+            }
+        )
+
+        if (response.accept_reject_commission.status != StatusCode.Success) {
+            toast('Failed to accept request', { theme: 'dark', type: 'error' })
+        }
 
         return
     }

@@ -32,18 +32,20 @@ export default function CommissionInvoicing({
                     type="button"
                     className="btn btn-success"
                     onClick={async () => {
-                        const response = await GraphQLFetcher<{ finalize_invoice: NemuResponse }>(
-                            `mutation {
-                                finalize_invoice(submission_id: "${submission_id}", stripe_acccount: "${stripe_account}") {
-                                    status
-                                    message
-                                }
-                            }`
-                        )
+                        // const response = await GraphQLFetcher<{ finalize_invoice: NemuResponse }>(
+                        //     `mutation {
+                        //         finalize_invoice(submission_id: "${submission_id}", stripe_acccount: "${stripe_account}") {
+                        //             status
+                        //             message
+                        //         }
+                        //     }`
+                        // )
 
-                        if (response.finalize_invoice.status != StatusCode.Success) {
-                            toast(response.finalize_invoice.message, { theme: 'dark', type: 'error' })
-                        }
+                        // if (response.finalize_invoice.status != StatusCode.Success) {
+                        //     toast(response.finalize_invoice.message, { theme: 'dark', type: 'error' })
+                        // } else {
+                        //     toast('Invoice Sent', { theme: 'dark', type: 'success' })
+                        // }
                     }}
                     disabled={invoice_sent}
                 >
@@ -54,7 +56,12 @@ export default function CommissionInvoicing({
                 </button>
             </div>
             <Modal showModal={showModal} setShowModal={setShowModal}>
-                <CreateInvoiceForm submission_id={submission_id} customer_id={customer_id} stripe_account={stripe_account} invoice_content={invoice_content} />
+                <CreateInvoiceForm
+                    submission_id={submission_id}
+                    customer_id={customer_id}
+                    stripe_account={stripe_account}
+                    invoice_content={invoice_content}
+                />
             </Modal>
         </>
     )

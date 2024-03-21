@@ -4,6 +4,7 @@ import { stripe } from '@/lib/stripe'
 import { CommissionItem, InvoiceCommissionItem, PurchaseType, StripeCommissionCheckoutData, StripePaymentMetadata } from '../structures'
 import { StripeGetPriceInfo } from './prices'
 import { CalculateApplicationFee } from '../payments'
+import { InvoiceItem } from '@prisma/client'
 
 ////////////////////////////////////////
 // Your Character Here Type Commissions
@@ -156,7 +157,7 @@ export async function StripeUpdateCommissionInvoice(
     customer: string,
     stripe_account: string,
     invoice_id: string,
-    items: InvoiceCommissionItem[],
+    items: InvoiceItem[],
     days_until_due?: number
 ) {
     // Clear Invoice items if any
@@ -175,7 +176,7 @@ export async function StripeUpdateCommissionInvoice(
             {
                 customer: customer,
                 unit_amount: item.price * 100,
-                description: item.description,
+                description: item.name,
                 quantity: item.quantity,
                 invoice: invoice_id
             },

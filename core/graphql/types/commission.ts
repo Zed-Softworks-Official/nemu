@@ -358,7 +358,9 @@ builder.mutationField('accept_reject_commission', (t) =>
                 }
             })
 
-            // notify user
+            ///////////////////////////////////////////////////
+            // Notify User
+            ///////////////////////////////////////////////////
             novu.trigger('commission-accepted-rejected', {
                 to: {
                     subscriberId: args.create_data.user_id
@@ -379,7 +381,6 @@ builder.mutationField('accept_reject_commission', (t) =>
                         id: args.create_data.form_submission_id
                     },
                     data: {
-                        paymentStatus: PaymentStatus.Cancelled,
                         commissionStatus: CommissionStatus.Rejected
                     }
                 })
@@ -410,6 +411,8 @@ builder.mutationField('accept_reject_commission', (t) =>
                     stripeAccount: args.create_data.stripe_account!,
                     userId: args.create_data.user_id!,
                     artistId: args.create_data.artist_id!,
+                    paymentStatus: PaymentStatus.InvoiceCreated,
+                    submissionId: submission?.id!,
                     items: {
                         create: {
                             name: args.create_data.initial_item_name!,
@@ -427,6 +430,13 @@ builder.mutationField('accept_reject_commission', (t) =>
             const sendbird_channel_url = crypto.randomUUID()
             await CreateSendbirdMessageChannel(args.create_data.form_submission_id, sendbird_channel_url)
 
+            // Create Kanban for the user
+            const kanban = await prisma.kanban.create({
+                data: {
+                    formSubmissionId: submission?.id!
+                }
+            })
+
             // Update the form submission to keep track of the item
             await prisma.formSubmission.update({
                 where: {
@@ -434,9 +444,9 @@ builder.mutationField('accept_reject_commission', (t) =>
                 },
                 data: {
                     invoiceId: invoice.id,
-                    paymentStatus: PaymentStatus.InvoiceCreated,
                     commissionStatus: CommissionStatus.Accepted,
-                    sendbirdChannelURL: sendbird_channel_url
+                    sendbirdChannelURL: sendbird_channel_url,
+                    kanbanId: kanban.id
                 }
             })
 

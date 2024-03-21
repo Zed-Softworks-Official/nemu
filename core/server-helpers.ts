@@ -110,7 +110,7 @@ export async function CreateShopItemFromProducts(product: Product, artist: Artis
 
         slug: product.slug,
         artist_id: artist.id,
-        stripe_account: artist.stripeAccId
+        stripe_account: artist.stripeAccount
     }
 
     if (options?.get_download_asset) {

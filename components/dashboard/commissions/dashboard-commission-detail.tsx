@@ -12,7 +12,8 @@ import { PaymentStatus } from '@/core/structures'
 import CommissionPublishButton from './submissions/commission-publish-button'
 import { ClipboardDocumentListIcon, PencilIcon } from '@heroicons/react/20/solid'
 import Link from 'next/link'
-import { CommissionStatus } from '@/core/data-structures/form-structures'
+import { CommissionStatus, GraphQLFormSubmissionStructure } from '@/core/data-structures/form-structures'
+import { Artist, Commission, Form, FormSubmission, User } from '@prisma/client'
 
 export default function DashboardCommissionDetail({ slug }: { slug: string }) {
     const { artistId } = useDashboardContext()
@@ -20,9 +21,11 @@ export default function DashboardCommissionDetail({ slug }: { slug: string }) {
         `{
             commission(artist_id:"${artistId}", slug: "${slug}") {
                 title
+                price
                 id
                 formId
                 published
+                artistId
                 get_form_data {
                     id
                     name
@@ -34,11 +37,10 @@ export default function DashboardCommissionDetail({ slug }: { slug: string }) {
                         id
                         content
                         createdAt
-                        paymentIntent
-                        paymentStatus
                         commissionStatus
                         orderId
                         user {
+                            id
                             name
                             find_customer_id(artist_id: "${artistId}") {
                                 customerId
@@ -52,37 +54,11 @@ export default function DashboardCommissionDetail({ slug }: { slug: string }) {
             }
         }`,
         GraphQLFetcher<{
-            commission: {
-                title: string
-                id: string
-                formId: string
-                published: boolean
-                get_form_data: {
-                    id: string
-                    name: string
-                    description: string
-                    newSubmissions: number
-                    acceptedSubmissions: number
-                    rejectedSubmissions: number
-                    formSubmissions: {
-                        id: string
-                        content: string
-                        createdAt: Date
-                        paymentIntent: string
-                        paymentStatus: PaymentStatus
-                        commissionStatus: CommissionStatus
-                        orderId: string
-                        user: {
-                            name: string
-                            find_customer_id: {
-                                customerId: string
-                            }
-                        }
-                    }[]
+            commission: Commission & {
+                get_form_data: Form & {
+                    formSubmissions: GraphQLFormSubmissionStructure[]
                 }
-                artist: {
-                    stripeAccount: string
-                }
+                artist: Artist
             }
         }>
     )
@@ -122,6 +98,7 @@ export default function DashboardCommissionDetail({ slug }: { slug: string }) {
                 <div role="tabpanel" className="tab-content bg-base-100 p-5 rounded-xl">
                     <CommissionFormSubmissions
                         form_data={data?.commission.get_form_data!}
+                        commission={data?.commission!}
                         stripe_account={data?.commission.artist.stripeAccount!}
                     />
                 </div>

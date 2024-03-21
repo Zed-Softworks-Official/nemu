@@ -31,7 +31,7 @@ export async function CreateArtist(verification_data: ArtistVerificationInputTyp
     // Create Artist inside database
     return await prisma.artist.create({
         data: {
-            stripeAccId: '',
+            stripeAccount: '',
             userId: verification_data.user_id!,
             handle: verification_data.requested_handle!,
             socials: {

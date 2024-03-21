@@ -1,29 +1,16 @@
-import { CommissionStatus } from '@/core/data-structures/form-structures'
+import { CommissionStatus, GraphQLFormSubmissionStructure } from '@/core/data-structures/form-structures'
 import CommissionFormSubmissionDisplay from './commission-form-submission-display'
-import { PaymentStatus } from '@/core/structures'
+import { Commission, Form, FormSubmission, User } from '@prisma/client'
 
 export default function CommissionFormSubmissions({
     form_data,
+    commission,
     stripe_account
 }: {
-    form_data: {
-        id: string
-        name: string
-        description: string
-        newSubmissions: number
-        acceptedSubmissions: number
-        rejectedSubmissions: number
-        formSubmissions: {
-            id: string
-            content: string
-            createdAt: Date
-            orderId: string
-            paymentIntent: string
-            paymentStatus: PaymentStatus
-            commissionStatus: CommissionStatus
-            user: { name: string; find_customer_id: { customerId: string } }
-        }[]
-    }
+    form_data: Form & {
+        formSubmissions: GraphQLFormSubmissionStructure[]
+    },
+    commission: Commission
     stripe_account: string
 }) {
     return (
@@ -63,16 +50,13 @@ export default function CommissionFormSubmissions({
                         </tr>
                     </thead>
                     <tbody>
-                        {form_data.formSubmissions?.map(
-                            (submission) =>
-                                submission.commissionStatus == CommissionStatus.WaitingApproval && (
-                                    <CommissionFormSubmissionDisplay
-                                        submission={submission}
-                                        form_id={form_data.id}
-                                        stripe_account={stripe_account}
-                                    />
-                                )
-                        )}
+                        {form_data.formSubmissions?.map((submission) => (
+                            <>
+                                {submission.commissionStatus == CommissionStatus.WaitingApproval && (
+                                    <CommissionFormSubmissionDisplay commission={commission} submission={submission} stripe_account={stripe_account} />
+                                )}
+                            </>
+                        ))}
                     </tbody>
                 </table>
             </div>

@@ -1,4 +1,5 @@
-import { AWSLocations } from "./aws-structures"
+import { FormSubmission, User } from '@prisma/client'
+import { AWSLocations } from './aws-structures'
 
 export interface CreateFormSubmissionStructure {
     user_id: string
@@ -27,4 +28,12 @@ export interface AWSFileModification {
     modification?: AWSModification
     updated_file?: File
     blob?: string
+}
+
+export type GraphQLFormSubmissionStructure = FormSubmission & {
+    user: User & {
+        find_customer_id: {
+            customerId: string
+        }
+    }
 }

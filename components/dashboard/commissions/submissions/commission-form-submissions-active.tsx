@@ -1,7 +1,6 @@
 'use client'
 
-import { CommissionStatus } from '@/core/data-structures/form-structures'
-import { PaymentStatus } from '@/core/structures'
+import { CommissionStatus, GraphQLFormSubmissionStructure } from '@/core/data-structures/form-structures'
 import Link from 'next/link'
 import Masonry, { ResponsiveMasonry } from 'react-responsive-masonry'
 
@@ -10,16 +9,7 @@ export default function ActiveCommissionFormSubmissions({
     commission_slug
 }: {
     commission_slug: string
-    form_submissions: {
-        id: string
-        content: string
-        createdAt: Date
-        orderId: string
-        paymentIntent: string
-        paymentStatus: PaymentStatus
-        commissionStatus: CommissionStatus
-        user: { name: string }
-    }[]
+    form_submissions: GraphQLFormSubmissionStructure[]
 }) {
     return (
         <ResponsiveMasonry columnsCountBreakPoints={{ 350: 1, 900: 2, 1024: 3, 1280: 4 }}>

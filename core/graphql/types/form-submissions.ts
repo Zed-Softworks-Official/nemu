@@ -13,8 +13,6 @@ builder.prismaObject('FormSubmission', {
 
         commissionStatus: t.exposeInt('commissionStatus'),
 
-        paymentIntent: t.exposeString('paymentIntent', { nullable: true }),
-        paymentStatus: t.exposeInt('paymentStatus'),
         orderId: t.exposeString('orderId'),
         invoiceId: t.exposeString('invoiceId', { nullable: true }),
 
@@ -62,7 +60,7 @@ builder.prismaObject('FormSubmission', {
             resolve: async (parent, _args, _ctx, _info) => {
                 const kanban = await prisma.kanban.findFirst({
                     where: {
-                        id: parent.kanbanId
+                        id: parent.kanbanId || undefined
                     }
                 })
 

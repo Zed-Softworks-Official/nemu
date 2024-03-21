@@ -28,7 +28,7 @@
     "@plaiceholder/next": "^3.0.0",
     "@pothos/core": "^3.41.0",
     "@pothos/plugin-prisma": "^3.63.1",
-    "@prisma/client": "^5.10.2",
+    "@prisma/client": "^5.11.0",
     "@sendbird/chat": "^4.11.0",
     "@sendbird/uikit-react": "^3.13.0",
     "@stripe/react-stripe-js": "^2.5.0",

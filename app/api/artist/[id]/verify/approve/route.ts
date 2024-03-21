@@ -14,7 +14,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     await prisma.artist.create({
         data: {
             userId: params.id,
-            stripeAccId: '',
+            stripeAccount: '',
 
             handle: verify_info?.requestedHandle!,
             about: 'Peko Peko',
