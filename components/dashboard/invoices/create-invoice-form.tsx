@@ -6,14 +6,16 @@ import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ArrowDownOnSquareStackIcon, CurrencyDollarIcon, HashtagIcon, PlusCircleIcon, XCircleIcon } from '@heroicons/react/20/solid'
 import { FormatNumberToCurrency, GraphQLFetcher } from '@/core/helpers'
-import { UpdateInvoiceData } from '@/core/structures'
-import { CreateToastPromise } from '@/core/promise'
+import { InvoiceItem } from '@prisma/client'
+import { NemuResponse, StatusCode } from '@/core/responses'
+import { toast } from 'react-toastify'
 
 const invoiceSchema = z.object({
     items: z
         .array(
             z.object({
-                description: z.string().min(2).max(256),
+                id: z.string().optional(),
+                name: z.string().min(2).max(256),
                 quantity: z.number().min(1),
                 price: z.number().min(1)
             })
@@ -23,37 +25,33 @@ const invoiceSchema = z.object({
 
 type InvoiceSchemaType = z.infer<typeof invoiceSchema>
 
-export default function CreateInvoiceForm({
-    submission_id,
-    customer_id,
-    stripe_account,
-    invoice_content
-}: {
-    submission_id: string
-    customer_id: string
-    stripe_account: string
-    invoice_content?: string
-}) {
+export default function CreateInvoiceForm({ invoice_id, invoice_items }: { invoice_id: string; invoice_items?: InvoiceItem[] }) {
     const form = useForm<InvoiceSchemaType>({
         resolver: zodResolver(invoiceSchema),
         mode: 'onSubmit',
         defaultValues: {
-            items: invoice_content ? JSON.parse(invoice_content) : []
+            items: invoice_items ? invoice_items : []
         }
     })
 
     async function ApplyChanges(values: InvoiceSchemaType) {
-        const data: UpdateInvoiceData = {
-            items: values.items,
-            submission_id: submission_id,
-            stripe_account: stripe_account,
-            customer_id: customer_id
-        }
+        const response = await GraphQLFetcher<{ update_invoice: NemuResponse }>(
+            `mutation UpdateInvoice($invoice_items: [InvoiceItemInputType!]!){
+                update_invoice(invoice_id: "${invoice_id}", invoice_items: $invoice_items) {
+                    status
+                    message
+                }
+            }`,
+            {
+                invoice_items: values.items
+            }
+        )
 
-        // await CreateToastPromise(fetch(`/api/invoice`, { method: 'post', body: JSON.stringify(data) }), {
-        //     pending: 'Updating Invoice',
-        //     success: 'Invoice Updated'
-        // })
+        if (response.update_invoice.status == StatusCode.Success) {
+            toast('Invoice Updated!', { theme: 'dark', type: 'success' })
+        } else {
+            toast(response.update_invoice.message, {theme: 'dark', type: 'error' })
+        }
     }
 
     function CalculateTotalPrice() {
@@ -88,7 +86,7 @@ export default function CreateInvoiceForm({
                                                 if (!form.getValues('items')) {
                                                     form.setValue('items', [
                                                         {
-                                                            description: '',
+                                                            name: '',
                                                             price: 0,
                                                             quantity: 0
                                                         }
@@ -97,7 +95,7 @@ export default function CreateInvoiceForm({
                                                     form.setValue(
                                                         'items',
                                                         form.getValues('items').concat({
-                                                            description: '',
+                                                            name: '',
                                                             price: 0,
                                                             quantity: 0
                                                         })
@@ -138,10 +136,11 @@ export default function CreateInvoiceForm({
                                                         className="textarea resize-none w-full"
                                                         rows={4}
                                                         placeholder="Enter Description"
-                                                        value={item.description}
+                                                        value={item.name}
                                                         onChange={(e) => {
                                                             field.value[index] = {
-                                                                description: e.currentTarget.value,
+                                                                id: field.value[index].id,
+                                                                name: e.currentTarget.value,
                                                                 price: field.value[index].price,
                                                                 quantity: field.value[index].quantity
                                                             }
@@ -162,7 +161,8 @@ export default function CreateInvoiceForm({
                                                             value={item.price}
                                                             onChange={(e) => {
                                                                 field.value[index] = {
-                                                                    description: field.value[index].description,
+                                                                    id: field.value[index].id,
+                                                                    name: field.value[index].name,
                                                                     price: Number(e.currentTarget.value),
                                                                     quantity: field.value[index].quantity
                                                                 }
@@ -180,11 +180,12 @@ export default function CreateInvoiceForm({
                                                         <input
                                                             className="input w-full join-item"
                                                             inputMode="numeric"
-                                                            placeholder="Item Quanityt"
+                                                            placeholder="Item Quantity"
                                                             value={item.quantity}
                                                             onChange={(e) => {
                                                                 field.value[index] = {
-                                                                    description: field.value[index].description,
+                                                                    id: field.value[index].id,
+                                                                    name: field.value[index].name,
                                                                     price: field.value[index].price,
                                                                     quantity: Number(e.currentTarget.value)
                                                                 }

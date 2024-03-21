@@ -45,6 +45,18 @@ builder.mutationField('update_invoice', (t) =>
                 // If we have an item id then that means this item
                 // already exists and we should update it
                 if (item.id) {
+                    // Check if the item has been deleted
+                    if (item.delete) {
+                        await prisma.invoiceItem.delete({
+                            where: {
+                                id: item.id
+                            }
+                        })
+
+                        continue
+                    }
+
+                    // If not then just update the item
                     await prisma.invoiceItem.update({
                         where: {
                             id: item.id
@@ -56,7 +68,7 @@ builder.mutationField('update_invoice', (t) =>
                         }
                     })
 
-                    break
+                    continue
                 }
 
                 // If we don't have an id then we want to create the
@@ -128,7 +140,7 @@ builder.mutationField('send_invoice', (t) =>
                 where: {
                     id: invoice.artistId
                 }
-            }) 
+            })
 
             // Notify User of the invoice being sent
             novu.trigger('invoices', {

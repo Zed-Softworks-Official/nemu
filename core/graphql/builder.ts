@@ -323,7 +323,8 @@ builder.inputRef<InvoiceItemInputType>('InvoiceItemInputType').implement({
         id: t.string(),
         name: t.string(),
         price: t.float(),
-        quantity: t.int()
+        quantity: t.int(),
+        delete: t.boolean()
     })
 })
 

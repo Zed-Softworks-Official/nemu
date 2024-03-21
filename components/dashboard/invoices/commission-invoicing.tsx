@@ -6,19 +6,20 @@ import { useState } from 'react'
 import { GraphQLFetcher } from '@/core/helpers'
 import { NemuResponse, StatusCode } from '@/core/responses'
 import { toast } from 'react-toastify'
+import { Invoice, InvoiceItem } from '@prisma/client'
 
 export default function CommissionInvoicing({
     submission_id,
     customer_id,
     stripe_account,
-    invoice_sent,
-    invoice_content
+    invoice,
+    invoice_items
 }: {
     submission_id: string
     customer_id: string
     stripe_account: string
-    invoice_sent: boolean
-    invoice_content?: string
+    invoice: Invoice,
+    invoice_items: InvoiceItem[]
 }) {
     const [showModal, setShowModal] = useState(false)
 
@@ -40,27 +41,21 @@ export default function CommissionInvoicing({
                         //         }
                         //     }`
                         // )
-
                         // if (response.finalize_invoice.status != StatusCode.Success) {
                         //     toast(response.finalize_invoice.message, { theme: 'dark', type: 'error' })
                         // } else {
                         //     toast('Invoice Sent', { theme: 'dark', type: 'success' })
                         // }
                     }}
-                    disabled={invoice_sent}
+                    disabled={invoice.sent}
                 >
                     Send Invoice
-                </button>
-                <button type="button" className="btn btn-error">
-                    Cancel Invoice
                 </button>
             </div>
             <Modal showModal={showModal} setShowModal={setShowModal}>
                 <CreateInvoiceForm
-                    submission_id={submission_id}
-                    customer_id={customer_id}
-                    stripe_account={stripe_account}
-                    invoice_content={invoice_content}
+                    invoice_id={invoice.id}
+                    invoice_items={invoice_items}
                 />
             </Modal>
         </>

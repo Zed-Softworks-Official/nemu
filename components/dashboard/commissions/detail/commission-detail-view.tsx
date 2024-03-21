@@ -7,10 +7,11 @@ import Loading from '@/components/loading'
 import { PaymentStatus } from '@/core/structures'
 import Kanban from '@/components/kanban/kanban'
 import CommissionFormSubmissionContent from '../submissions/commission-form-submission-content'
-import CommissionInvoicing from '../../invoices/commission-invoicing'
 import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
 import { KanbanResponse } from '@/core/responses'
 import MessagesClient from '@/components/messages/messages-client'
+import { Commission, Form, FormSubmission, Invoice, InvoiceItem, User } from '@prisma/client'
+import CommissionInvoicing from '../../invoices/commission-invoicing'
 import DownloadDropzone from '@/components/form/download-dropzone'
 
 export default function DashboardCommissionDetailView({ slug, order_id }: { slug: string; order_id: string }) {
@@ -21,9 +22,6 @@ export default function DashboardCommissionDetailView({ slug, order_id }: { slug
                 id
                 content
                 createdAt
-                paymentStatus
-                invoiceContent
-                invoiceSent
                 sendbirdChannelURL
                 user {
                     id
@@ -37,6 +35,17 @@ export default function DashboardCommissionDetailView({ slug, order_id }: { slug
                     commission {
                         id
                         title
+                    }
+                }
+                invoice {
+                    id
+                    sent
+                    paymentStatus
+                    items {
+                        id
+                        name
+                        price
+                        quantity
                     }
                 }
                 kanban {
@@ -54,28 +63,10 @@ export default function DashboardCommissionDetailView({ slug, order_id }: { slug
             }
         }`,
         GraphQLFetcher<{
-            form_submission: {
-                id: string
-                content: string
-                createdAt: Date
-                paymentStatus: PaymentStatus
-                invoiceContent: string
-                invoiceSent: boolean
-                sendbirdChannelURL: string
-                user: {
-                    id: string
-                    name: string
-                    find_customer_id: {
-                        customerId: string
-                        stripeAccount: string
-                    }
-                }
-                form: {
-                    commission: {
-                        id: string
-                        title: string
-                    }
-                }
+            form_submission: FormSubmission & {
+                user: User & { find_customer_id: { customerId: string; stripeAccount: string } }
+                form: Form & { commission: Commission }
+                invoice: Invoice & { items: InvoiceItem[] }
                 kanban: KanbanResponse
             }
         }>
@@ -108,8 +99,8 @@ export default function DashboardCommissionDetailView({ slug, order_id }: { slug
                                 submission_id={data?.form_submission.id!}
                                 customer_id={data?.form_submission.user.find_customer_id.customerId!}
                                 stripe_account={data?.form_submission.user.find_customer_id.stripeAccount!}
-                                invoice_content={data?.form_submission.invoiceContent!}
-                                invoice_sent={data?.form_submission.invoiceSent!}
+                                invoice_items={data?.form_submission.invoice.items!}
+                                invoice={data?.form_submission.invoice!}
                             />
                         </div>
                     </div>
@@ -117,7 +108,7 @@ export default function DashboardCommissionDetailView({ slug, order_id }: { slug
                         <div className="card-body">
                             <h2 className="card-title">Create Download</h2>
                             <div className="divider"></div>
-                            {data?.form_submission.paymentStatus == PaymentStatus.Captured ? (
+                            {data?.form_submission.invoice.paymentStatus == PaymentStatus.Captured ? (
                                 <div className="h-full">
                                     <DownloadDropzone
                                         form_submission_id={data.form_submission.id}
@@ -138,7 +129,7 @@ export default function DashboardCommissionDetailView({ slug, order_id }: { slug
                         {data && (
                             <Kanban
                                 title={data?.form_submission.form.commission.title}
-                                client={data?.form_submission.user.name}
+                                client={data?.form_submission.user.name!}
                                 kanban_containers={data?.form_submission.kanban.containers!}
                                 kanban_tasks={data?.form_submission.kanban.tasks!}
                                 submission_id={data?.form_submission.id}
@@ -150,7 +141,7 @@ export default function DashboardCommissionDetailView({ slug, order_id }: { slug
                     <div className="card-body h-[60rem] overflow-hidden">
                         <h2 className="card-title">Messages</h2>
                         <div className="divider"></div>
-                        <MessagesClient hide_channel_list channel_url={data?.form_submission.sendbirdChannelURL} />
+                        <MessagesClient hide_channel_list channel_url={data?.form_submission.sendbirdChannelURL!} />
                     </div>
                 </div>
             </div>

@@ -1,3 +1,4 @@
+import { InvoiceItem } from '@prisma/client'
 import { ImageData } from './aws-structures'
 import { AWSFileModification } from './form-structures'
 import { KanbanContainerData } from './kanban-structures'
@@ -119,7 +120,8 @@ export interface CommissionItem {
  *
  */
 export interface InvoiceCommissionItem {
-    description: string
+    id: string
+    name: string
     quantity: number
     price: number
 }
@@ -128,7 +130,7 @@ export interface InvoiceCommissionItem {
  *
  */
 export interface UpdateInvoiceData {
-    items: InvoiceCommissionItem[]
+    items: InvoiceItem[]
     submission_id: string
 
     customer_id: string

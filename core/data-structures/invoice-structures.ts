@@ -16,4 +16,5 @@ export interface InvoiceItemInputType {
     name?: string
     price?: number
     quantity?: number
+    delete?: boolean
 }
