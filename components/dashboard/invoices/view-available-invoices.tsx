@@ -1,8 +1,8 @@
 'use client'
 
 import Loading from '@/components/loading'
-import { GraphQLFetcher } from '@/core/helpers'
-import { PaymentStatus } from '@/core/structures'
+import { FormatNumberToCurrency, GraphQLFetcher } from '@/core/helpers'
+import { InvoiceResponse, PaymentStatus } from '@/core/structures'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import useSWR from 'swr'
@@ -11,34 +11,20 @@ export default function ViewAvailableInvoices() {
     const { data: session } = useSession()
     const { data, isLoading } = useSWR(
         `{
-            form_submissions(user_id: "${session?.user.user_id}") {
+            invoices(user_id: "${session?.user.user_id}" newest_first: true) {
                 paymentStatus
-                invoiceHostedUrl
-                invoiceSent
-                form {
-                    commission {
-                        title
-                        artist {
-                            handle
-                        }
-                    }
+                hostedUrl
+                sent
+                commission_data {
+                    title
+                    artist_handle
+                    total_price
+                    commission_url
                 }
             }
         }`,
         GraphQLFetcher<{
-            form_submissions: {
-                paymentStatus: PaymentStatus
-                invoiceHostedUrl?: string
-                invoiceSent: boolean
-                form: {
-                    commission: {
-                        title: string
-                        artist: {
-                            handle: string
-                        }
-                    }
-                }
-            }[]
+            invoices: InvoiceResponse[]
         }>
     )
 
@@ -48,7 +34,7 @@ export default function ViewAvailableInvoices() {
 
     return (
         <>
-            {data?.form_submissions.length == 0 ? (
+            {data?.invoices.length == 0 ? (
                 <div className="flex w-full h-full justify-center items-center">
                     <h2 className="card-title text-base-content/80">No Invoices Here Yet</h2>
                 </div>
@@ -59,31 +45,33 @@ export default function ViewAvailableInvoices() {
                             <tr>
                                 <th>Commission Title</th>
                                 <th>Artist</th>
+                                <th>Amount</th>
                                 <th>Payment Status</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {data?.form_submissions.map((submission) => (
+                            {data?.invoices.map((invoice) => (
                                 <>
-                                    {submission.invoiceSent && (
+                                    {invoice.sent && (
                                         <tr>
-                                            <th>{submission.form.commission.title}</th>
-                                            <td>{submission.form.commission.artist.handle}</td>
+                                            <th>{invoice.commission_data.title}</th>
+                                            <td>{invoice.commission_data.artist_handle}</td>
+                                            <td>{FormatNumberToCurrency(invoice.commission_data.total_price)}</td>
                                             <td>
-                                                {submission.paymentStatus == PaymentStatus.InvoiceNeedsPayment ? (
+                                                {invoice.paymentStatus == PaymentStatus.InvoiceNeedsPayment ? (
                                                     <span className="badge badge-error badge-lg">Unpaid</span>
                                                 ) : (
-                                                    submission.paymentStatus == PaymentStatus.Captured && (
+                                                    invoice.paymentStatus == PaymentStatus.Captured && (
                                                         <span className="badge badge-success badge-lg">Paid</span>
                                                     )
                                                 )}
                                             </td>
                                             <td>
-                                                <Link href={submission.invoiceHostedUrl || '#'} target="_blank" className="btn btn-primary">
-                                                    {submission.paymentStatus == PaymentStatus.InvoiceNeedsPayment
+                                                <Link href={invoice.hostedUrl || '#'} target="_blank" className="btn btn-primary">
+                                                    {invoice.paymentStatus == PaymentStatus.InvoiceNeedsPayment
                                                         ? 'Pay Invoice'
-                                                        : submission.paymentStatus == PaymentStatus.Captured && 'View Invoice'}
+                                                        : invoice.paymentStatus == PaymentStatus.Captured && 'View Invoice'}
                                                 </Link>
                                             </td>
                                         </tr>

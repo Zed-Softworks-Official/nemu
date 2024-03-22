@@ -1,3 +1,5 @@
+import { Invoice } from '@prisma/client'
+
 export interface InoviceCreateInputType {
     customer_id?: string
     user_id: string
@@ -18,3 +20,12 @@ export interface InvoiceItemInputType {
     quantity?: number
     delete?: boolean
 }
+
+export interface InvoiceCommissionData {
+    title: string
+    total_price: number
+    artist_handle: string
+    commission_url: string
+}
+
+export type InvoiceResponse = Invoice & { commission_data: InvoiceCommissionData }

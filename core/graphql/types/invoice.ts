@@ -22,9 +22,80 @@ builder.prismaObject('Invoice', {
         userId: t.exposeString('userId'),
         artistId: t.exposeString('artistId'),
 
-        items: t.relation('items')
+        submissionId: t.exposeString('submissionId'),
+
+        items: t.relation('items'),
+
+        commission_data: t.field({
+            type: 'InvoiceCommissionData',
+            resolve: async (invoice) => {
+                // Get Form Submission with all relavent data
+                const submission = await prisma.formSubmission.findFirst({
+                    where: {
+                        invoiceId: invoice.id
+                    },
+                    include: {
+                        form: {
+                            include: {
+                                commission: {
+                                    include: {
+                                        artist: true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                })
+
+                // Get invoice items
+                const invoice_items = await prisma.invoiceItem.findMany({
+                    where: {
+                        invoiceId: invoice.id
+                    }
+                })
+
+                // Get total price
+                let total_price: number = 0
+                for (const item of invoice_items) {
+                    total_price += (item.price * item.quantity)
+                }
+
+                return {
+                    title: submission?.form.commission?.title!,
+                    total_price: total_price,
+                    artist_handle: submission?.form.commission?.artist.handle!,
+                    commission_url: `${process.env.BASE_URL}/@${submission?.form.commission?.artist.handle}/${submission?.form.commission?.slug}`
+                }
+            }
+        })
     })
 })
+
+builder.queryField('invoices', (t) =>
+    t.prismaField({
+        type: ['Invoice'],
+        args: {
+            user_id: t.arg({
+                type: 'String',
+                description: 'The user id to get the invoices for'
+            }),
+            newest_first: t.arg({
+                type: 'Boolean',
+                description: 'Order by newest'
+            })
+        },
+        resolve: (query, _parent, args) =>
+            prisma.invoice.findMany({
+                ...query,
+                where: {
+                    userId: args.user_id || undefined
+                },
+                orderBy: {
+                    createdAt: args.newest_first ? 'desc' : 'asc'
+                }
+            })
+    })
+)
 
 builder.mutationField('update_invoice', (t) =>
     t.field({
@@ -150,7 +221,7 @@ builder.mutationField('send_invoice', (t) =>
                 payload: {
                     status: 'sent',
                     username: artist?.handle,
-                    invoice_url: '/invoices'
+                    invoice_url: `${process.env.BASE_URL}/invoices`
                 }
             })
 

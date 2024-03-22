@@ -270,7 +270,7 @@ model Invoice {
   paymentStatus Int
   paymentIntent String?
 
-  stripeId  String?
+  stripeId  String?  @db.ObjectId
   createdAt DateTime @default(now())
 
   customerId    String
@@ -329,14 +329,14 @@ model FormSubmission {
   commissionStatus Int @default(0)
 
   orderId   String  @unique
-  invoiceId String? @db.ObjectId
+  invoiceId String? @db.ObjectId @unique
 
   sendbirdChannelURL String?
 
   kanbanId String? @db.ObjectId
 
-  form   Form   @relation(fields: [formId], references: [id], onDelete: Cascade)
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  form Form @relation(fields: [formId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   downloadId String?
 

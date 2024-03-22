@@ -133,23 +133,26 @@ export async function POST(req: Request) {
                 const metadata = invoice.metadata as unknown as StripePaymentMetadata
 
                 if (metadata.purchase_type == PurchaseType.CommissionInvoice) {
-                    const updated_submission = await prisma.formSubmission.update({
+                    // Get the submission so we know the invoice id 
+                    const submission = await prisma.formSubmission.findFirst({
                         where: {
                             orderId: metadata.order_id
+                        }
+                    })
+
+                    // Update the invoice in the database
+                    const db_invoice = await prisma.invoice.findFirst({
+                        where: {
+                            stripeId: submission?.invoiceId!
+                        }
+                    })
+
+                    await prisma.invoice.update({
+                        where: {
+                            id: db_invoice?.id
                         },
                         data: {
                             paymentStatus: PaymentStatus.Captured
-                        },
-                        include: {
-                            form: {
-                                include: {
-                                    commission: {
-                                        include: {
-                                            artist: true
-                                        }
-                                    }
-                                }
-                            }
                         }
                     })
 
@@ -162,7 +165,7 @@ export async function POST(req: Request) {
 
                     novu.trigger('invoices', {
                         to: {
-                            subscriberId: updated_submission.form.commission?.artist.userId!
+                            subscriberId: metadata.user_id
                         },
                         payload: {
                             status: 'paid',

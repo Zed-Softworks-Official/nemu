@@ -1,12 +1,10 @@
 import { NemuResponse, StatusCode } from '@/core/responses'
 
 import { toast } from 'react-toastify'
-import { request } from 'graphql-request'
+import { request, Variables } from 'graphql-request'
+import { GraphQLFetcher } from './helpers'
 
-export async function CreateToastPromise(
-    promise: Promise<Response>,
-    { pending, success }: { pending: string; success: string }
-) {
+export async function CreateToastPromise(promise: Promise<Response>, { pending, success }: { pending: string; success: string }) {
     const id = toast.loading(pending, {
         theme: 'dark'
     })
@@ -30,3 +28,16 @@ export async function CreateToastPromise(
         })
     }
 }
+
+// export async function CreateToastPromiseGraphQL<T>(
+//     data: { query: string; variables: Variables | undefined },
+//     { pending, success }: { pending: string; success: string }
+// ) {
+//     const id = toast.loading(pending, {
+//         theme: 'dark'
+//     })
+
+//     const response = await GraphQLFetcher<>(data.query, data.variables)
+
+//     if (response)
+// }

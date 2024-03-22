@@ -18,10 +18,11 @@ export default function CommissionInvoicing({
     submission_id: string
     customer_id: string
     stripe_account: string
-    invoice: Invoice,
+    invoice: Invoice
     invoice_items: InvoiceItem[]
 }) {
     const [showModal, setShowModal] = useState(false)
+    const [sent, setSent] = useState(false)
 
     return (
         <>
@@ -33,30 +34,41 @@ export default function CommissionInvoicing({
                     type="button"
                     className="btn btn-success"
                     onClick={async () => {
-                        // const response = await GraphQLFetcher<{ finalize_invoice: NemuResponse }>(
-                        //     `mutation {
-                        //         finalize_invoice(submission_id: "${submission_id}", stripe_acccount: "${stripe_account}") {
-                        //             status
-                        //             message
-                        //         }
-                        //     }`
-                        // )
-                        // if (response.finalize_invoice.status != StatusCode.Success) {
-                        //     toast(response.finalize_invoice.message, { theme: 'dark', type: 'error' })
-                        // } else {
-                        //     toast('Invoice Sent', { theme: 'dark', type: 'success' })
-                        // }
+                        setSent(true)
+                        const toast_id = toast.loading('Sending Invoice!', { theme: 'dark' })
+
+                        const response = await GraphQLFetcher<{ send_invoice: NemuResponse }>(
+                            `mutation {
+                                send_invoice(invoice_id: "${invoice.id}") {
+                                    status
+                                    message
+                                }
+                            }`
+                        )
+
+                        if (response.send_invoice.status == StatusCode.Success) {
+                            toast.update(toast_id, {
+                                render: 'Invoice Sent',
+                                type: 'success',
+                                autoClose: 5000,
+                                isLoading: false
+                            })
+                        } else {
+                            toast.update(toast_id, {
+                                render: response.send_invoice.message,
+                                type: 'error',
+                                autoClose: 5000,
+                                isLoading: false
+                            })
+                        }
                     }}
-                    disabled={invoice.sent}
+                    disabled={invoice.sent || sent}
                 >
                     Send Invoice
                 </button>
             </div>
             <Modal showModal={showModal} setShowModal={setShowModal}>
-                <CreateInvoiceForm
-                    invoice_id={invoice.id}
-                    invoice_items={invoice_items}
-                />
+                <CreateInvoiceForm invoice_id={invoice.id} invoice_items={invoice_items} />
             </Modal>
         </>
     )

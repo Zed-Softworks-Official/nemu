@@ -17,6 +17,7 @@ export interface StripePaymentMetadata {
     purchase_type: PurchaseType
     user_id: string
     commission_id?: string
+    invoice_id?: string
     order_id?: string
     file_key?: string
     artist_id?: string

@@ -22,6 +22,7 @@ import {
     DownloadOptionsInputType,
     ImageData,
     InoviceCreateInputType,
+    InvoiceCommissionData,
     InvoiceItemInputType,
     KanbanContainerData,
     KanbanTask,
@@ -44,6 +45,7 @@ export const builder = new SchemaBuilder<{
         KanbanTask: KanbanTask
         ShopItem: ShopItem
         ImageData: ImageData
+        InvoiceCommissionData: InvoiceCommissionData
 
         // Response Objects
         NemuResponse: NemuResponse
@@ -174,6 +176,15 @@ builder.objectRef<ShopItem>('ShopItem').implement({
         slug: t.exposeString('slug', { nullable: true }),
         artist_id: t.exposeString('artist_id', { nullable: true }),
         stripe_account: t.exposeString('stripe_account', { nullable: true })
+    })
+})
+
+builder.objectRef<InvoiceCommissionData>('InvoiceCommissionData').implement({
+    fields: (t) => ({
+        title: t.exposeString('title'),
+        total_price: t.exposeFloat('total_price'),
+        artist_handle: t.exposeString('artist_handle'),
+        commission_url: t.exposeString('commission_url')
     })
 })
 
