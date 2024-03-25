@@ -13,9 +13,9 @@ import { Commission, FormSubmission, User } from '@prisma/client'
 export default function CommissionFormSubmissionDisplay({
     submission,
     commission,
-    stripe_account,
+    stripe_account
 }: {
-    submission: FormSubmission & { user: User & { find_customer_id: { customerId: string } } },
+    submission: FormSubmission & { user: User & { find_customer_id: { customerId: string } } }
     commission: Commission
     stripe_account: string
 }) {
@@ -57,7 +57,9 @@ export default function CommissionFormSubmissionDisplay({
     return (
         <>
             <tr>
-                <th>{submission.user.name}</th>
+                <th>
+                    {submission.user.name} {submission.waitlist && <span className="badge badge-warning ml-1">Waitlist</span>}
+                </th>
                 <td>
                     <p>{new Date(submission.createdAt).toDateString()}</p>
                 </td>

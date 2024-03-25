@@ -1,6 +1,7 @@
-import { CreateFormSubmissionStructure } from '@/core/data-structures/form-structures'
+import { CommissionStatus, CreateFormSubmissionStructure } from '@/core/data-structures/form-structures'
 import { UpdateCommissionAvailability } from '@/core/helpers'
 import { NemuResponse, StatusCode } from '@/core/responses'
+import { CommissionAvailability } from '@/core/structures'
 import { novu } from '@/lib/novu'
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
@@ -17,7 +18,7 @@ export async function POST(req: Request) {
             userId: data.user_id,
             formId: data.form_id,
             content: data.content,
-            orderId: crypto.randomUUID(),
+            orderId: crypto.randomUUID()
         },
         include: {
             form: {
@@ -65,6 +66,16 @@ export async function POST(req: Request) {
     const user = await prisma.user.findFirst({
         where: {
             id: data.user_id
+        }
+    })
+
+    // Add the user to the waitlist if they're waitlisted
+    await prisma.formSubmission.update({
+        where: {
+            id: form_submission.id
+        },
+        data: {
+            waitlist: form_submission.form.commission?.availability == CommissionAvailability.Waitlist ? true : false
         }
     })
 

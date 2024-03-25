@@ -42,7 +42,6 @@ export default function CommissionsDisplay({
                         <div className="card-actions justify-between">
                             <CommissionPaymentInfo
                                 price={commission.price}
-                                use_invoicing={commission.use_invoicing!}
                             />
                             <button
                                 type="button"

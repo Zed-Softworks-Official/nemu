@@ -8,12 +8,11 @@ import useSWR from 'swr'
 import { GraphQLFetcher } from '@/core/helpers'
 import Loading from '@/components/loading'
 import ActiveCommissionFormSubmissions from './submissions/commission-form-submissions-active'
-import { PaymentStatus } from '@/core/structures'
 import CommissionPublishButton from './submissions/commission-publish-button'
 import { ClipboardDocumentListIcon, PencilIcon } from '@heroicons/react/20/solid'
 import Link from 'next/link'
-import { CommissionStatus, GraphQLFormSubmissionStructure } from '@/core/data-structures/form-structures'
-import { Artist, Commission, Form, FormSubmission, User } from '@prisma/client'
+import { GraphQLFormSubmissionStructure } from '@/core/data-structures/form-structures'
+import { Artist, Commission, Form } from '@prisma/client'
 
 export default function DashboardCommissionDetail({ slug }: { slug: string }) {
     const { artistId } = useDashboardContext()
@@ -30,6 +29,7 @@ export default function DashboardCommissionDetail({ slug }: { slug: string }) {
                     id
                     name
                     description
+                    submissions
                     newSubmissions
                     acceptedSubmissions
                     rejectedSubmissions
@@ -39,6 +39,7 @@ export default function DashboardCommissionDetail({ slug }: { slug: string }) {
                         createdAt
                         commissionStatus
                         orderId
+                        waitlist
                         user {
                             id
                             name

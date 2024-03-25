@@ -57,7 +57,7 @@ builder.prismaObject('Invoice', {
                 // Get total price
                 let total_price: number = 0
                 for (const item of invoice_items) {
-                    total_price += (item.price * item.quantity)
+                    total_price += item.price * item.quantity
                 }
 
                 return {
@@ -139,6 +139,10 @@ builder.mutationField('update_invoice', (t) =>
                         }
                     })
 
+                    continue
+                }
+
+                if (item.delete) {
                     continue
                 }
 

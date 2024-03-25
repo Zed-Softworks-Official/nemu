@@ -17,7 +17,8 @@ const invoiceSchema = z.object({
                 id: z.string().optional(),
                 name: z.string().min(2).max(256),
                 quantity: z.number().min(1),
-                price: z.number().min(1)
+                price: z.number().min(1),
+                delete: z.boolean().default(false)
             })
         )
         .default([])
@@ -50,13 +51,17 @@ export default function CreateInvoiceForm({ invoice_id, invoice_items }: { invoi
         if (response.update_invoice.status == StatusCode.Success) {
             toast('Invoice Updated!', { theme: 'dark', type: 'success' })
         } else {
-            toast(response.update_invoice.message, {theme: 'dark', type: 'error' })
+            toast(response.update_invoice.message, { theme: 'dark', type: 'error' })
         }
     }
 
     function CalculateTotalPrice() {
         let result = 0
         for (let item of form.getValues('items')) {
+            if (item.delete) {
+                continue
+            }
+
             result += item.price * item.quantity
         }
 
@@ -88,7 +93,8 @@ export default function CreateInvoiceForm({ invoice_id, invoice_items }: { invoi
                                                         {
                                                             name: '',
                                                             price: 0,
-                                                            quantity: 0
+                                                            quantity: 0,
+                                                            delete: false
                                                         }
                                                     ])
                                                 } else {
@@ -97,7 +103,8 @@ export default function CreateInvoiceForm({ invoice_id, invoice_items }: { invoi
                                                         form.getValues('items').concat({
                                                             name: '',
                                                             price: 0,
-                                                            quantity: 0
+                                                            quantity: 0,
+                                                            delete: false
                                                         })
                                                     )
                                                 }
@@ -110,91 +117,103 @@ export default function CreateInvoiceForm({ invoice_id, invoice_items }: { invoi
                                     <div className="divider"></div>
                                     {form.getValues('items') &&
                                         form.watch('items').map((item, index) => (
-                                            <div key={index} className="flex flex-col rounded-xl p-5 bg-base-300 gap-5">
-                                                <div>
-                                                    <div className="flex justify-between items-center">
-                                                        <h2 className="card-title">Item {index + 1}</h2>
-                                                        <button
-                                                            type="button"
-                                                            className="btn btn-error"
-                                                            onClick={(e) => {
-                                                                e.preventDefault()
+                                            <>
+                                                {!item.delete && (
+                                                    <div key={index} className="flex flex-col rounded-xl p-5 bg-base-300 gap-5">
+                                                        <div>
+                                                            <div className="flex justify-between items-center">
+                                                                <h2 className="card-title">Item {index + 1}</h2>
+                                                                <button
+                                                                    type="button"
+                                                                    className="btn btn-error"
+                                                                    onClick={(e) => {
+                                                                        e.preventDefault()
 
-                                                                const newItems = [...field.value]
-                                                                newItems.splice(index, 1)
-                                                                field.onChange(newItems)
-                                                            }}
-                                                        >
-                                                            <XCircleIcon className="w-6 h-6" />
-                                                        </button>
-                                                    </div>
-                                                    <div className="divider"></div>
-                                                </div>
-                                                <div className="form-control">
-                                                    <label className="label">Description:</label>
-                                                    <textarea
-                                                        className="textarea resize-none w-full"
-                                                        rows={4}
-                                                        placeholder="Enter Description"
-                                                        value={item.name}
-                                                        onChange={(e) => {
-                                                            field.value[index] = {
-                                                                id: field.value[index].id,
-                                                                name: e.currentTarget.value,
-                                                                price: field.value[index].price,
-                                                                quantity: field.value[index].quantity
-                                                            }
-                                                            field.onChange(field.value)
-                                                        }}
-                                                    />
-                                                </div>
-                                                <div className="form-control">
-                                                    <label className="label">Item Price:</label>
-                                                    <div className="join">
-                                                        <div className="join-item flex jutify-center items-center px-5 bg-base-200">
-                                                            <CurrencyDollarIcon className="w-6 h-6" />
+                                                                        field.value[index] = {
+                                                                            id: field.value[index].id,
+                                                                            name: field.value[index].name,
+                                                                            price: field.value[index].price,
+                                                                            quantity: field.value[index].quantity,
+                                                                            delete: true
+                                                                        }
+                                                                        field.onChange(field.value)
+                                                                    }}
+                                                                >
+                                                                    <XCircleIcon className="w-6 h-6" />
+                                                                </button>
+                                                            </div>
+                                                            <div className="divider"></div>
                                                         </div>
-                                                        <input
-                                                            className="input w-full"
-                                                            inputMode="numeric"
-                                                            placeholder="Item Price"
-                                                            value={item.price}
-                                                            onChange={(e) => {
-                                                                field.value[index] = {
-                                                                    id: field.value[index].id,
-                                                                    name: field.value[index].name,
-                                                                    price: Number(e.currentTarget.value),
-                                                                    quantity: field.value[index].quantity
-                                                                }
-                                                                field.onChange(field.value)
-                                                            }}
-                                                        />
-                                                    </div>
-                                                </div>
-                                                <div className="form-control">
-                                                    <label className="label">Item Quantity:</label>
-                                                    <div className="join">
-                                                        <div className="join-item flex jutify-center items-center px-5 bg-base-200">
-                                                            <HashtagIcon className="w-6 h-6" />
+                                                        <div className="form-control">
+                                                            <label className="label">Description:</label>
+                                                            <textarea
+                                                                className="textarea resize-none w-full"
+                                                                rows={4}
+                                                                placeholder="Enter Description"
+                                                                value={item.name}
+                                                                onChange={(e) => {
+                                                                    field.value[index] = {
+                                                                        id: field.value[index].id,
+                                                                        name: e.currentTarget.value,
+                                                                        price: field.value[index].price,
+                                                                        quantity: field.value[index].quantity,
+                                                                        delete: field.value[index].delete
+                                                                    }
+                                                                    field.onChange(field.value)
+                                                                }}
+                                                            />
                                                         </div>
-                                                        <input
-                                                            className="input w-full join-item"
-                                                            inputMode="numeric"
-                                                            placeholder="Item Quantity"
-                                                            value={item.quantity}
-                                                            onChange={(e) => {
-                                                                field.value[index] = {
-                                                                    id: field.value[index].id,
-                                                                    name: field.value[index].name,
-                                                                    price: field.value[index].price,
-                                                                    quantity: Number(e.currentTarget.value)
-                                                                }
-                                                                field.onChange(field.value)
-                                                            }}
-                                                        />
+                                                        <div className="form-control">
+                                                            <label className="label">Item Price:</label>
+                                                            <div className="join">
+                                                                <div className="join-item flex jutify-center items-center px-5 bg-base-200">
+                                                                    <CurrencyDollarIcon className="w-6 h-6" />
+                                                                </div>
+                                                                <input
+                                                                    className="input w-full"
+                                                                    inputMode="numeric"
+                                                                    placeholder="Item Price"
+                                                                    value={item.price}
+                                                                    onChange={(e) => {
+                                                                        field.value[index] = {
+                                                                            id: field.value[index].id,
+                                                                            name: field.value[index].name,
+                                                                            price: Number(e.currentTarget.value),
+                                                                            quantity: field.value[index].quantity,
+                                                                            delete: field.value[index].delete
+                                                                        }
+                                                                        field.onChange(field.value)
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                        <div className="form-control">
+                                                            <label className="label">Item Quantity:</label>
+                                                            <div className="join">
+                                                                <div className="join-item flex jutify-center items-center px-5 bg-base-200">
+                                                                    <HashtagIcon className="w-6 h-6" />
+                                                                </div>
+                                                                <input
+                                                                    className="input w-full join-item"
+                                                                    inputMode="numeric"
+                                                                    placeholder="Item Quantity"
+                                                                    value={item.quantity}
+                                                                    onChange={(e) => {
+                                                                        field.value[index] = {
+                                                                            id: field.value[index].id,
+                                                                            name: field.value[index].name,
+                                                                            price: field.value[index].price,
+                                                                            quantity: Number(e.currentTarget.value),
+                                                                            delete: field.value[index].delete
+                                                                        }
+                                                                        field.onChange(field.value)
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            </div>
+                                                )}
+                                            </>
                                         ))}
                                 </div>
                             )}

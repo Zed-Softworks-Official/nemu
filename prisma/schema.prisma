@@ -270,7 +270,7 @@ model Invoice {
   paymentStatus Int
   paymentIntent String?
 
-  stripeId  String?  @db.ObjectId
+  stripeId  String?
   createdAt DateTime @default(now())
 
   customerId    String
@@ -329,7 +329,7 @@ model FormSubmission {
   commissionStatus Int @default(0)
 
   orderId   String  @unique
-  invoiceId String? @db.ObjectId @unique
+  invoiceId String? @unique @db.ObjectId
 
   sendbirdChannelURL String?
 
