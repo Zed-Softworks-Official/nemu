@@ -1,4 +1,4 @@
-import { SearchType } from "./structures"
+import { SearchParamType, SearchType } from './structures'
 
 export function SearchTypeToString(type: SearchType) {
     switch (type) {
@@ -10,6 +10,43 @@ export function SearchTypeToString(type: SearchType) {
             return 'Free Asset'
         case SearchType.PaidAsset:
             return 'Paid Asset'
+    }
+}
+
+export function SearchTypeToAlgoliaIndex(type: SearchType) {
+    switch (type) {
+        case SearchType.Artist:
+            return 'artists'
+        case SearchType.Commission:
+            return 'commissions'
+    }
+
+    return 'products'
+}
+
+export function SearchTypeToSearchParam(type: SearchType): SearchParamType {
+    switch (type) {
+        case SearchType.Artist:
+            return 'artist'
+        case SearchType.Commission:
+            return 'commission'
+        case SearchType.FreeAsset:
+            return 'freeasset'
+        case SearchType.PaidAsset:
+            return 'paidasset'
+    }
+}
+
+export function SearchParamToSearchType(type: SearchParamType): SearchType {
+    switch (type) {
+        case 'artist':
+            return SearchType.Artist
+        case 'commission':
+            return SearchType.Commission
+        case 'freeasset':
+            return SearchType.FreeAsset
+        case 'paidasset':
+            return SearchType.PaidAsset
     }
 }
 

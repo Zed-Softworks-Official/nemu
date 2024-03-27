@@ -15,7 +15,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <DashboardProvider>
             <Navbar>
                 {children}
-                <Footer />
+                <div className="relative w-full">
+                    <Footer />
+                </div>
             </Navbar>
         </DashboardProvider>
     )

@@ -2,6 +2,9 @@
 
 import { Dispatch, SetStateAction, createContext, useContext, useState } from 'react'
 import { SearchType } from '@/core/structures'
+import { InstantSearch } from 'react-instantsearch'
+
+import algoliasearch from 'algoliasearch'
 
 type SearchContextType = {
     type?: SearchType
@@ -9,6 +12,8 @@ type SearchContextType = {
 }
 
 const SearchContext = createContext<SearchContextType>({})
+
+const algolia = algoliasearch('ATSQ2LY0T4', 'eae26c6706f2918a50a3c8b804023718')
 
 export default function SearchProvider({ children }: { children: React.ReactNode }) {
     const [type, setType] = useState(SearchType.Artist)

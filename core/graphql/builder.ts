@@ -10,6 +10,8 @@ import {
     CommissionImagesResponse,
     KanbanResponse,
     NemuResponse,
+    SearchResponse,
+    StatusCode,
     StripeCustomerIdResponse
 } from '../responses'
 import {
@@ -27,10 +29,12 @@ import {
     KanbanContainerData,
     KanbanTask,
     PortfolioItem,
+    SearchResult,
     ShopItem,
     StoreProductInputType
 } from '../structures'
 import { AWSFileModification } from '../data-structures/form-structures'
+import { algolia } from '@/lib/algoliasearch'
 
 export const builder = new SchemaBuilder<{
     PrismaTypes: PrismaTypes
@@ -168,7 +172,10 @@ builder.objectRef<ShopItem>('ShopItem').implement({
 
         featured_image: t.expose('featured_image', { type: 'ImageData' }),
         images: t.expose('images', { type: ['ImageData'], nullable: true }),
-        edit_images: t.expose('edit_images', { type: ['AWSFileModification'], nullable: true }),
+        edit_images: t.expose('edit_images', {
+            type: ['AWSFileModification'],
+            nullable: true
+        }),
         downloadable_asset: t.exposeString('downloadable_asset', { nullable: true }),
         download_key: t.exposeString('download_key', { nullable: true }),
 
@@ -207,13 +214,15 @@ builder.objectRef<ArtistCodeResponse>('ArtistCodeResponse').implement({
     })
 })
 
-builder.objectRef<CommissionFormCreateResponse>('CommissionFormCreateResponse').implement({
-    fields: (t) => ({
-        status: t.exposeInt('status'),
-        message: t.exposeString('message', { nullable: true }),
-        form_id: t.exposeString('form_id')
+builder
+    .objectRef<CommissionFormCreateResponse>('CommissionFormCreateResponse')
+    .implement({
+        fields: (t) => ({
+            status: t.exposeInt('status'),
+            message: t.exposeString('message', { nullable: true }),
+            form_id: t.exposeString('form_id')
+        })
     })
-})
 
 builder.objectRef<StripeCustomerIdResponse>('StripeCustomerIdResponse').implement({
     fields: (t) => ({
@@ -237,7 +246,10 @@ builder.objectRef<KanbanResponse>('KanbanResponse').implement({
         status: t.exposeInt('status'),
         message: t.exposeString('message', { nullable: true }),
         id: t.exposeString('id', { nullable: true }),
-        containers: t.expose('containers', { nullable: true, type: ['KanbanContainerData'] }),
+        containers: t.expose('containers', {
+            nullable: true,
+            type: ['KanbanContainerData']
+        }),
         tasks: t.expose('tasks', { nullable: true, type: ['KanbanTask'] })
     })
 })
@@ -344,3 +356,63 @@ builder.inputRef<InvoiceItemInputType>('InvoiceItemInputType').implement({
 //////////////////////////////////////
 
 builder.addScalarType('Date', DateTimeResolver, {})
+
+//////////////////////////////////////
+// TODO: Remove This
+//
+// it's only for testing
+//////////////////////////////////////
+builder.queryField('test_algolia', (t) =>
+    t.field({
+        type: 'NemuResponse',
+        resolve: async () => {
+            const artists = await prisma.artist.findMany()
+            const commissions = await prisma.commission.findMany({
+                include: {
+                    artist: true
+                }
+            })
+            const products = await prisma.product.findMany({
+                include: {
+                    artist: true
+                }
+            })
+
+            for (const artist of artists) {
+                algolia.artistIndex
+                    .saveObject({
+                        objectID: artist.id,
+                        handle: artist.handle,
+                        profilePhoto: artist.profilePhoto
+                    })
+                    .wait()
+            }
+
+            for (const commission of commissions) {
+                algolia.commissionIndex
+                    .saveObject({
+                        objectID: commission.id,
+                        title: commission.title,
+                        price: commission.price,
+                        slug: commission.slug,
+                        featured_image: commission.featuredImage,
+
+                        artist_handle: commission.artist.handle
+                    })
+                    .wait()
+            }
+
+            for (const product of products) {
+                algolia.productIndex.saveObject({
+                    objectID: product.id,
+                    title: product.title,
+                    price: product.price,
+                    featured_image: product.featuredImage,
+                    artist_handle: product.artist.handle
+                }).wait()
+            }
+
+            return { status: StatusCode.Success }
+        }
+    })
+)

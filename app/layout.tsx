@@ -10,7 +10,7 @@ import ThemeProvider from '@/components/theme/theme-context'
 import NextTopLoader from 'nextjs-toploader'
 import CookieConsentBanner from '@/components/cookie-consent-banner'
 
-const nunito = Nunito({
+export const nunito = Nunito({
     subsets: ['latin'],
     display: 'swap',
     variable: '--font-nunito'

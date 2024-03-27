@@ -29,7 +29,7 @@ export default function SearchListBox() {
             {({ open }) => (
                 <>
                     <div className="relative">
-                        <Listbox.Button className="relative w-full cursor-default rounded-md rounded-r-none bg-base-300 py-5 pr-16 pl-3 text-left text-base-content focus:outline-none focus:ring-2 sm:text-sm sm:leading-6">
+                        <Listbox.Button className="relative w-full cursor-pointer rounded-md rounded-r-none bg-base-300 py-5 pr-16 pl-3 text-left text-base-content focus:outline-none focus:ring-2 sm:text-sm sm:leading-6">
                             <span className="flex items-center">
                                 <span className="ml-3 block truncate font-bold">
                                     {selected.name}
@@ -57,9 +57,9 @@ export default function SearchListBox() {
                                         className={({ active }) =>
                                             ClassNames(
                                                 active
-                                                    ? 'bg-indigo-600 text-primary'
+                                                    ? 'bg-base-100 text-primary'
                                                     : 'text-base-content',
-                                                'relative cursor-default select-none py-2 pl-3 pr-2'
+                                                'relative cursor-pointer select-none py-2 pl-3 pr-2'
                                             )
                                         }
                                         value={person}

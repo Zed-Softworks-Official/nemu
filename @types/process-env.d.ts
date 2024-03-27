@@ -28,6 +28,9 @@ declare namespace NodeJS {
 
         NOVU_API_KEY: string
 
+        ALGOLIA_APP_ID: string
+        ALGOLIA_API_KEY: string
+
         BASE_URL: string
     }
 }
