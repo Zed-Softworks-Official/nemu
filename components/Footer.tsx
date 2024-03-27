@@ -10,7 +10,7 @@ export default function Footer() {
     const pathname = usePathname()
 
     return (
-        <div className="absolute bottom-0 w-full">
+        <div className="w-full h-16">
             <div className="bg-base-200">
                 <footer className="footer p-10 container mx-auto text-base-content">
                     <aside className="h-full flex flex-col justify-between">
@@ -29,17 +29,23 @@ export default function Footer() {
                     </aside>
                     <nav>
                         <h6 className="footer-title">Services</h6>
-                        <a className="link link-hover">Branding</a>
-                        <a className="link link-hover">Design</a>
-                        <a className="link link-hover">Marketing</a>
-                        <a className="link link-hover">Advertisement</a>
+                        <Link href={'/artists'} className="link link-hover">
+                            Become an Artist
+                        </Link>
+                        <Link href={'/roadmap'} className="link link-hover">
+                            Roadmap
+                        </Link>
                     </nav>
                     <nav>
                         <h6 className="footer-title">Company</h6>
-                        <a className="link link-hover">About us</a>
+                        <Link
+                            href="https://zedsoftworks.com/about"
+                            target="_blank"
+                            className="link link-hover"
+                        >
+                            About us
+                        </Link>
                         <a className="link link-hover">Contact</a>
-                        <a className="link link-hover">Jobs</a>
-                        <a className="link link-hover">Press kit</a>
                     </nav>
                     <nav>
                         <h6 className="footer-title">Legal</h6>

@@ -1,18 +1,13 @@
 'use client'
 
-import { useEffect } from "react"
+import { useEffect } from 'react'
 
-export default function StandardLayoutBody({children}: {children: React.ReactNode}) {
+export default function StandardLayoutBody({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         if (document.body.classList.contains('background-pattern')) {
-            document.body.classList.remove('background-pattern');
+            document.body.classList.remove('background-pattern')
         }
-
     })
 
-    return (
-        <div className="container mx-auto">
-            {children}
-        </div>
-    )
+    return <div className="flex-[1] container mx-auto min-h-screen">{children}</div>
 }
