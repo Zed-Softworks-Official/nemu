@@ -1,10 +1,7 @@
-'use client'
-
-import React, { Suspense } from 'react'
+import React from 'react'
 
 import { notFound } from 'next/navigation'
 
-import Loading from '@/components/loading'
 import Portfolio from './portfolio'
 import { useTabsContext } from './tabs-context'
 import Shop from './shop'
@@ -22,15 +19,15 @@ export default function ArtistBody({ data }: { data: ArtistPageResponse }) {
                     <>
                         <h1 className="font-bold text-2xl">Commissions</h1>
                         <div className="divider"></div>
-                        <Commissions commissions={data.artist?.commissions!} handle={data.artist?.handle!} terms={''} />
+                        <Commissions artist_id={data?.id!} terms={data?.terms!} />
                     </>
                 )
             case 1:
                 return (
                     <>
-                        <h1 className="font-bold text-2xl">Store</h1>
+                        <h1 className="font-bold text-2xl">Artist's Corner</h1>
                         <div className="divider"></div>
-                        <Shop shop_items={data.artist?.products!} handle={data.artist?.handle!} artist_id={data.artist?.id!} />
+                        <Shop handle={data?.handle!} artist_id={data?.id!} />
                     </>
                 )
             case 2:
@@ -38,7 +35,7 @@ export default function ArtistBody({ data }: { data: ArtistPageResponse }) {
                     <>
                         <h1 className="font-bold text-2xl">Portfolio</h1>
                         <div className="divider"></div>
-                        <Portfolio portfolio_items={data.artist?.portfolio_items!} />
+                        <Portfolio artist_id={data?.id!} />
                     </>
                 )
             default:
@@ -53,14 +50,16 @@ export default function ArtistBody({ data }: { data: ArtistPageResponse }) {
                     <div className="flex flex-col justify-center gap-5">
                         <div className="flex flex-col">
                             <div className="divider card-title">About</div>
-                            <p>{data.artist?.about}</p>
-                            <p className="mt-10">Location: {data.artist?.location}</p>
+                            <p>{data?.about}</p>
+                            <p className="mt-10">Location: {data?.location}</p>
                         </div>
-                        <ArtistSocials socials={data.artist?.socials!} />
+                        <ArtistSocials socials={data?.socials!} />
                     </div>
                 </div>
                 <div className="flex flex-row gap-10 w-full mx-auto">
-                    <div className="bg-base-300 p-10 rounded-xl w-full">{RenderBody(currentIndex || 0)}</div>
+                    <div className="bg-base-300 p-10 rounded-xl w-full">
+                        {RenderBody(currentIndex || 0)}
+                    </div>
                 </div>
             </div>
         </>

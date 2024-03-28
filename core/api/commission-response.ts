@@ -1,10 +1,13 @@
 import { CommissionItem } from '../data-structures/response-structures'
-import { NemuResponse } from './base-response'
+import { NemuResponse, RouterOutput } from './base-response'
 
 import { FormSubmission, Form } from '@prisma/client'
 import { FormElementInstance } from '@/components/form-builder/elements/form-elements'
 import { AWSFileModification } from '../data-structures/form-structures'
 import { KanbanContainerData, KanbanTask } from '../structures'
+
+export type CommissionsResponse = RouterOutput['get_commission']
+
 
 /**
  * FormResponses

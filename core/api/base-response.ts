@@ -1,3 +1,6 @@
+import { AppRouter } from "@/server"
+import { inferRouterOutputs } from "@trpc/server"
+
 /**
  * StatusCode
  * Generic http status codes used inside of nemu
@@ -24,3 +27,5 @@ export interface NemuResponse {
     status: StatusCode
     message?: string
 }
+
+export type RouterOutput = inferRouterOutputs<AppRouter>

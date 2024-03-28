@@ -1,6 +1,8 @@
-import { Artist, User, ArtistVerification } from '@prisma/client'
-import { NemuResponse } from './base-response'
-import { CommissionItem, PortfolioItem, ShopItem, SocialData } from '../structures'
+import { Artist, User, ArtistVerification, Commission, Social } from '@prisma/client'
+import { NemuResponse, RouterOutput } from './base-response'
+import { CommissionItem } from '../structures'
+
+export type ArtistPageResponse = RouterOutput['get_artist']
 
 /**
  * ArtistResponse
@@ -10,32 +12,6 @@ import { CommissionItem, PortfolioItem, ShopItem, SocialData } from '../structur
  */
 export interface ArtistResponse extends NemuResponse {
     info: Artist | null
-}
-
-/**
- * ArtistPageResponse
- * Handles transfering the full artist object with the user
- *
- * @prop {Artist | null} info - The artist info from our database
- */
-export interface ArtistPageResponse {
-    artist?: {
-        id: string
-        terms: string
-        headerPhoto: string
-        profilePhoto: string
-        handle: string
-        about: string
-        location: string
-        stripeAccount: string
-        products: ShopItem[]
-        commissions: CommissionItem[]
-        portfolio_items: PortfolioItem[]
-        socials: SocialData[]
-        user: {
-            name: string
-        }
-    }
 }
 
 /**

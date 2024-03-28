@@ -1,16 +1,20 @@
+import { trpc } from '@/app/_trpc/client'
 import NemuImage from '../nemu-image'
 import { PortfolioItem } from '@/core/structures'
 import Masonary, { ResponsiveMasonry } from 'react-responsive-masonry'
+import Loading from '../loading'
 
-export default function Portfolio({
-    portfolio_items
-}: {
-    portfolio_items: PortfolioItem[]
-}) {
+export default function Portfolio({ artist_id }: { artist_id: string }) {
+    const { data, isLoading, error } = trpc.get_portfolio_items.useQuery({ artist_id })
+
+    if (isLoading) {
+        return <Loading />
+    }
+
     return (
         <ResponsiveMasonry columnsCountBreakPoints={{ 350: 1, 1024: 2, 1280: 3 }}>
             <Masonary>
-                {portfolio_items.map((item, i) => {
+                {data?.map((item, i) => {
                     return (
                         <div
                             key={item.name}

@@ -1,3 +1,4 @@
+import { trpc } from '@/app/_trpc/client'
 import NemuImage from '../nemu-image'
 
 import ArtistProfileTabs from '@/components/artist-page/tabs'
@@ -13,7 +14,7 @@ export default function ArtistHeader({ data }: { data: ArtistPageResponse }) {
                         <div className="avatar">
                             <div className="w-24 rounded-full avatar">
                                 <NemuImage
-                                    src={data.artist?.profilePhoto ? data.artist.profilePhoto : '/profile.png'}
+                                    src={data?.profilePhoto ? data.profilePhoto : '/profile.png'}
                                     alt="Profile Photo"
                                     width={100}
                                     height={100}
@@ -21,8 +22,8 @@ export default function ArtistHeader({ data }: { data: ArtistPageResponse }) {
                             </div>
                         </div>
                         <div className="text-left mt-3 px-10">
-                            <h2 className="pb-2 font-bold text-2xl">@{data.artist?.handle}</h2>
-                            <h3 className="text-lg">{data.artist?.user.name}</h3>
+                            <h2 className="pb-2 font-bold text-2xl">@{data?.handle}</h2>
+                            <h3 className="text-lg">{data?.user.name}</h3>
                         </div>
                     </div>
                     <div className="flex items-center">

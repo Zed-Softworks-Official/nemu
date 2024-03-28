@@ -111,7 +111,6 @@ export interface CommissionItem {
     handle?: string
     commission_id?: string
     published?: boolean
-    use_invoicing?: boolean
 
     slug?: string
 }
