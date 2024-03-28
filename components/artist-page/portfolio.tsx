@@ -5,7 +5,7 @@ import Masonary, { ResponsiveMasonry } from 'react-responsive-masonry'
 import Loading from '../loading'
 
 export default function Portfolio({ artist_id }: { artist_id: string }) {
-    const { data, isLoading, error } = trpc.get_portfolio_items.useQuery({ artist_id })
+    const { data, isLoading } = trpc.portfolio.get_portfolio_items.useQuery({ artist_id })
 
     if (isLoading) {
         return <Loading />

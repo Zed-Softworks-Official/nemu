@@ -1,4 +1,4 @@
-import NextAuth, { NextAuthOptions } from 'next-auth'
+import NextAuth, { getServerSession, NextAuthOptions } from 'next-auth'
 
 import { prisma } from '@/lib/prisma'
 import { PrismaAdapter } from '@next-auth/prisma-adapter'
@@ -67,7 +67,9 @@ export const authOptions: NextAuthOptions = {
 
                 // Add Extra Session Data
                 session.user.user_id = token.sub
-                session.user.provider = token.provider ? (token.provider as string) : undefined
+                session.user.provider = token.provider
+                    ? (token.provider as string)
+                    : undefined
                 session.user.role = db_user?.role as Role
 
                 // TODO: Check If Needed
@@ -90,8 +92,13 @@ export const authOptions: NextAuthOptions = {
                                     // Create Sendbird user
                                     const user_data: SendbirdUserData = {
                                         user_id: db_user?.id!,
-                                        nickname: session.user.handle != undefined ? session.user.handle : db_user?.name!,
-                                        profile_url: db_artist?.profilePhoto ? db_artist?.profilePhoto : `${process.env.BASE_URL}/profile.png`
+                                        nickname:
+                                            session.user.handle != undefined
+                                                ? session.user.handle
+                                                : db_user?.name!,
+                                        profile_url: db_artist?.profilePhoto
+                                            ? db_artist?.profilePhoto
+                                            : `${process.env.BASE_URL}/profile.png`
                                     }
 
                                     sendbird.CreateUser(user_data)
@@ -118,6 +125,8 @@ export const authOptions: NextAuthOptions = {
         }
     }
 }
+
+export const getServerAuthSession = () => getServerSession(authOptions)
 
 const handler = NextAuth(authOptions)
 export { handler as GET, handler as POST }

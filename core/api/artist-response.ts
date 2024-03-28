@@ -2,7 +2,7 @@ import { Artist, User, ArtistVerification, Commission, Social } from '@prisma/cl
 import { NemuResponse, RouterOutput } from './base-response'
 import { CommissionItem } from '../structures'
 
-export type ArtistPageResponse = RouterOutput['get_artist']
+export type ArtistPageResponse = RouterOutput['artist']['get_artist']
 
 /**
  * ArtistResponse

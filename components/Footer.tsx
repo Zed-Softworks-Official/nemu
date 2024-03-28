@@ -30,7 +30,7 @@ export default function Footer() {
                     <nav>
                         <h6 className="footer-title">Services</h6>
                         <Link href={'/artists'} className="link link-hover">
-                            Become an Artist
+                            Become an artist
                         </Link>
                         <Link href={'/roadmap'} className="link link-hover">
                             Roadmap

@@ -120,7 +120,6 @@ builder.objectRef<CommissionItem>('CommissionData').implement({
         images: t.expose('images', { type: ['ImageData'], nullable: true }),
         commission_id: t.exposeString('commission_id', { nullable: true }),
         published: t.exposeBoolean('published', { nullable: true }),
-        use_invoicing: t.exposeBoolean('use_invoicing', { nullable: true })
     })
 })
 
@@ -356,63 +355,3 @@ builder.inputRef<InvoiceItemInputType>('InvoiceItemInputType').implement({
 //////////////////////////////////////
 
 builder.addScalarType('Date', DateTimeResolver, {})
-
-//////////////////////////////////////
-// TODO: Remove This
-//
-// it's only for testing
-//////////////////////////////////////
-builder.queryField('test_algolia', (t) =>
-    t.field({
-        type: 'NemuResponse',
-        resolve: async () => {
-            const artists = await prisma.artist.findMany()
-            const commissions = await prisma.commission.findMany({
-                include: {
-                    artist: true
-                }
-            })
-            const products = await prisma.product.findMany({
-                include: {
-                    artist: true
-                }
-            })
-
-            for (const artist of artists) {
-                algolia.artistIndex
-                    .saveObject({
-                        objectID: artist.id,
-                        handle: artist.handle,
-                        profilePhoto: artist.profilePhoto
-                    })
-                    .wait()
-            }
-
-            for (const commission of commissions) {
-                algolia.commissionIndex
-                    .saveObject({
-                        objectID: commission.id,
-                        title: commission.title,
-                        price: commission.price,
-                        slug: commission.slug,
-                        featured_image: commission.featuredImage,
-
-                        artist_handle: commission.artist.handle
-                    })
-                    .wait()
-            }
-
-            for (const product of products) {
-                algolia.productIndex.saveObject({
-                    objectID: product.id,
-                    title: product.title,
-                    price: product.price,
-                    featured_image: product.featuredImage,
-                    artist_handle: product.artist.handle
-                }).wait()
-            }
-
-            return { status: StatusCode.Success }
-        }
-    })
-)

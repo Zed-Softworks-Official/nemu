@@ -15,30 +15,26 @@ import { toast } from 'react-toastify'
 import 'react-toastify/ReactToastify.min.css'
 import { CheckoutType, ImageData, ShopItem } from '@/core/structures'
 import { Transition } from '@headlessui/react'
-import useSWR from 'swr'
 import { FormatNumberToCurrency, GraphQLFetcher } from '@/core/helpers'
 import ImageViewer from './image-veiwer'
+import { trpc } from '@/app/_trpc/client'
 
 const PaymentForm = dynamic(() => import('../payments/payment-form'))
 
-export default function ShopDisplay({ handle, product, artist_id }: { handle: string; product: ShopItem; artist_id: string }) {
+export default function ShopDisplay({
+    handle,
+    product,
+    artist_id
+}: {
+    handle: string
+    product: ShopItem
+    artist_id: string
+}) {
     const { data: session } = useSession()
-    const { data, isLoading } = useSWR(
-        `{
-            user(id: "${session?.user.user_id}") {
-                find_customer_id(artist_id: "${artist_id}") {
-                    customerId
-                }
-            }
-        }`,
-        GraphQLFetcher<{
-            user: {
-                find_customer_id: {
-                    customerId: string
-                }
-            }
-        }>
-    )
+    const { data, isLoading } = trpc.user.get_customer_id.useQuery({
+        artist_id,
+        user_id: session?.user.user_id!
+    })
 
     const [currentImage, setCurrentImage] = useState<ImageData | undefined>(undefined)
     const [buyFormVisible, setBuyFormVisible] = useState(false)
@@ -49,7 +45,10 @@ export default function ShopDisplay({ handle, product, artist_id }: { handle: st
 
     return (
         <div className="flex gap-5 bg-base-300 rounded-xl p-5">
-            <ImageViewer featured_image={product.featured_image} additional_images={product.images} />
+            <ImageViewer
+                featured_image={product.featured_image}
+                additional_images={product.images}
+            />
             <div className="card bg-base-100 w-full shadow-xl max-h-fit">
                 <div className="card-body">
                     <div>
@@ -58,7 +57,11 @@ export default function ShopDisplay({ handle, product, artist_id }: { handle: st
                                 <h1 className="font-bold text-3xl">{product?.title}</h1>
                                 <p className="text-xl text-base-content/80">
                                     By{' '}
-                                    <Link href={`/@${handle}`} target="_blank" className="text-base-content hover:underline hover:underline-offset-4">
+                                    <Link
+                                        href={`/@${handle}`}
+                                        target="_blank"
+                                        className="text-base-content hover:underline hover:underline-offset-4"
+                                    >
                                         {handle}
                                     </Link>
                                 </p>
@@ -68,7 +71,9 @@ export default function ShopDisplay({ handle, product, artist_id }: { handle: st
                                     type="button"
                                     className="btn btn-outline btn-accent"
                                     onClick={async () => {
-                                        await navigator.clipboard.writeText(`http://localhost:3000/@${handle}/shop/${product.slug}`)
+                                        await navigator.clipboard.writeText(
+                                            `http://localhost:3000/@${handle}/shop/${product.slug}`
+                                        )
                                         toast('Copied to clipboard', {
                                             type: 'info',
                                             theme: 'dark'
@@ -92,8 +97,14 @@ export default function ShopDisplay({ handle, product, artist_id }: { handle: st
                         leaveFrom="opacity-100"
                         leaveTo="opacity-0"
                     >
-                        <h2 className="card-title">{FormatNumberToCurrency(product.price)}</h2>
-                        <button type="button" className="btn btn-primary" onClick={() => setBuyFormVisible(true)}>
+                        <h2 className="card-title">
+                            {FormatNumberToCurrency(product.price)}
+                        </h2>
+                        <button
+                            type="button"
+                            className="btn btn-primary"
+                            onClick={() => setBuyFormVisible(true)}
+                        >
                             <ShoppingCartIcon className="w-6 h-6" />
                             Buy Now
                         </button>
@@ -104,7 +115,7 @@ export default function ShopDisplay({ handle, product, artist_id }: { handle: st
                             form_type="product"
                             checkout_data={{
                                 checkout_type: CheckoutType.Product,
-                                customer_id: data?.user.find_customer_id.customerId!,
+                                customer_id: data?.customerId!,
                                 price: product.price,
                                 stripe_account: product.stripe_account!,
                                 return_url: `http://localhost:3000/$${handle}`,

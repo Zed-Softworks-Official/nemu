@@ -236,12 +236,6 @@ builder.queryField('artist', (t) =>
                 throw 'Artist handle or id needs to be defined'
             }
 
-            const cachedArtist = await redis.get(args.handle! || args.id!)
-
-            if (cachedArtist) {
-                return JSON.parse(cachedArtist) as Artist
-            }
-
             const artist = await prisma.artist.findFirstOrThrow({
                 ...query,
                 where: {
@@ -249,8 +243,6 @@ builder.queryField('artist', (t) =>
                     handle: args.handle || undefined
                 }
             })
-
-            await redis.set(args.handle! || args.id!, JSON.stringify(artist))
 
             return artist
         }

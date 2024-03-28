@@ -13,7 +13,7 @@ export default function Shop({
     handle: string
     artist_id: string
 }) {
-    const { data, isLoading, error } = trpc.get_products.useQuery({ artist_id })
+    const { data, isLoading, error } = trpc.artist_corner.get_products.useQuery({ artist_id })
 
     if (isLoading) {
         return <Loading />

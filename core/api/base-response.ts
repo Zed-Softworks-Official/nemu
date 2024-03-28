@@ -1,4 +1,4 @@
-import { AppRouter } from "@/server"
+import { AppRouter } from "@/server/root"
 import { inferRouterOutputs } from "@trpc/server"
 
 /**

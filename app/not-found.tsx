@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 export default function NotFound() {
     return (
         <DefaultPageLayout>
-            <div className="flex flex-col justify-center items-center text-center">
+            <div className="flex flex-col justify-center items-center text-center h-full">
                 <div>
                     <NemuImage
                         src={'/nemu/this-is-fine.png'}

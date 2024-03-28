@@ -7,11 +7,20 @@ type Props = {
     params: { handle: string; slug: string }
 }
 
-export async function generateMetadata({ params }: Props, parent: ResolvingMetadata): Promise<Metadata> {
+export async function generateMetadata(
+    { params }: Props,
+    parent: ResolvingMetadata
+): Promise<Metadata> {
     const handle = params.handle.substring(3, params.handle.length)
 
-    const response = await fetch(`${process.env.BASE_URL}/api/metadata/${handle}/${params.slug}`)
-    const json = (await response.json()) as { title: string; description: string; featured_image: ImageData }
+    const response = await fetch(
+        `${process.env.BASE_URL}/api/metadata/${handle}/${params.slug}`
+    )
+    const json = (await response.json()) as {
+        title: string
+        description: string
+        featured_image: ImageData
+    }
 
     return {
         title: `Nemu | @${handle} | ${json.title}`,
