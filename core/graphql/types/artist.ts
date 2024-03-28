@@ -1,8 +1,16 @@
 import { prisma } from '@/lib/prisma'
 import { builder } from '../builder'
 import { S3GetSignedURL } from '@/core/storage'
-import { AWSLocations, CommissionItem, ImageData, PortfolioItem, ShopItem } from '@/core/structures'
+import {
+    AWSLocations,
+    CommissionItem,
+    ImageData,
+    PortfolioItem,
+    ShopItem
+} from '@/core/structures'
 import { CreateShopItemFromProducts, GetBlurData } from '@/core/server-helpers'
+import { redis } from '@/lib/redis'
+import { Artist } from '@prisma/client'
 
 builder.prismaObject('Artist', {
     fields: (t) => ({
@@ -15,7 +23,9 @@ builder.prismaObject('Artist', {
         location: t.exposeString('location'),
         terms: t.exposeString('terms'),
 
-        automatedCommissionMessage: t.exposeString('automatedCommissionMessage', { nullable: true }),
+        automatedCommissionMessage: t.exposeString('automatedCommissionMessage', {
+            nullable: true
+        }),
         automatedMessageEnabled: t.exposeBoolean('automatedMessageEnabled'),
 
         headerPhoto: t.exposeString('headerPhoto'),
@@ -39,12 +49,20 @@ builder.prismaObject('Artist', {
 
                 for (let i = 0; i < commissions.length; i++) {
                     // Get Featured Image from S3
-                    const featured_signed_url = await S3GetSignedURL(artist.id, AWSLocations.Commission, commissions[i].featuredImage)
+                    const featured_signed_url = await S3GetSignedURL(
+                        artist.id,
+                        AWSLocations.Commission,
+                        commissions[i].featuredImage
+                    )
 
                     // Get the rest of the images
                     const images: ImageData[] = []
                     for (let j = 0; j < commissions[i].additionalImages.length; j++) {
-                        const signed_url = await S3GetSignedURL(artist.id, AWSLocations.Commission, commissions[i].additionalImages[j])
+                        const signed_url = await S3GetSignedURL(
+                            artist.id,
+                            AWSLocations.Commission,
+                            commissions[i].additionalImages[j]
+                        )
 
                         images.push({
                             signed_url: signed_url,
@@ -161,7 +179,11 @@ builder.prismaObject('Artist', {
                 })
 
                 for (let i = 0; i < portfolio.length; i++) {
-                    const signed_url = await S3GetSignedURL(artist.id, AWSLocations.Portfolio, portfolio[i].image)
+                    const signed_url = await S3GetSignedURL(
+                        artist.id,
+                        AWSLocations.Portfolio,
+                        portfolio[i].image
+                    )
 
                     if (!signed_url) {
                         return result
@@ -186,7 +208,8 @@ builder.prismaObject('Artist', {
 builder.queryField('artists', (t) =>
     t.prismaField({
         type: ['Artist'],
-        resolve: (query, _parent, _args, _ctx, _info) => prisma.artist.findMany({ ...query })
+        resolve: (query, _parent, _args, _ctx, _info) =>
+            prisma.artist.findMany({ ...query })
     })
 )
 
@@ -208,13 +231,28 @@ builder.queryField('artist', (t) =>
                 description: 'Handle of the artist'
             })
         },
-        resolve: (query, _parent, args, _ctx, _info) =>
-            prisma.artist.findFirstOrThrow({
+        resolve: async (query, _parent, args, _ctx, _info) => {
+            if (!args.handle && !args.id) {
+                throw 'Artist handle or id needs to be defined'
+            }
+
+            const cachedArtist = await redis.get(args.handle! || args.id!)
+
+            if (cachedArtist) {
+                return JSON.parse(cachedArtist) as Artist
+            }
+
+            const artist = await prisma.artist.findFirstOrThrow({
                 ...query,
                 where: {
                     id: args.id || undefined,
                     handle: args.handle || undefined
                 }
             })
+
+            await redis.set(args.handle! || args.id!, JSON.stringify(artist))
+
+            return artist
+        }
     })
 )
