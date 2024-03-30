@@ -2,12 +2,10 @@
 
 import NemuImage from '@/components/nemu-image'
 
-import { useSession } from 'next-auth/react'
 import { FormElementInstance, FormElements } from '../elements/form-elements'
 import Loading from '@/components/loading'
 import { useCallback, useRef, useState, useTransition } from 'react'
 import { toast } from 'react-toastify'
-import { CreateFormSubmissionStructure } from '@/core/data-structures/form-structures'
 import { api } from '@/core/trpc/react'
 
 export default function CommissionFormSubmitView({
@@ -18,6 +16,14 @@ export default function CommissionFormSubmitView({
     form_id: string
 }) {
     const { data, isLoading } = api.form.get_user_submitted.useQuery(form_id)
+    const mutation = api.form.set_submission.useMutation({
+        onSuccess: () => {
+            toast('Request Submitted!', { theme: 'dark', type: 'success' })
+        },
+        onError: () => {
+            toast('Request could not be submitted!', { theme: 'dark', type: 'success' })
+        }
+    })
 
     const formValues = useRef<{ [key: string]: string }>({})
     const formErrors = useRef<{ [key: string]: boolean }>({})
@@ -44,9 +50,7 @@ export default function CommissionFormSubmitView({
         }
 
         const newFormData: { [key: string]: { value: string; label: string } } = {}
-        const formElements = JSON.parse(
-            data?.content!
-        ) as FormElementInstance[]
+        const formElements = JSON.parse(data?.content!) as FormElementInstance[]
         for (let key in formValues.current) {
             newFormData[key] = {
                 value: formValues.current[key],
@@ -55,54 +59,21 @@ export default function CommissionFormSubmitView({
             }
         }
 
-        // Create Customer If they don't exist
-        // const create_customer_response = await GraphQLFetcher<{
-        //     check_create_customer: StripeCustomerIdResponse
-        // }>(
-        //     `mutation {
-        //         check_create_customer(user_id: "${session?.user.user_id}", artist_id:"${data?.commission.artist.id}") {
-        //             status
-        //             message
-        //         }
-        //     }`
-        // )
-
-        // if (create_customer_response.check_create_customer.status != StatusCode.Success) {
-        //     toast(create_customer_response.check_create_customer.message, {
-        //         theme: 'dark',
-        //         type: 'error'
-        //     })
-        //     return
-        // }
-
         // Set submitted to true so the commission can either be sent
         // or the user can put in there payment information
         setSubmitted(true)
 
-        // Check if we're using invoicing
-        // const JsonData: CreateFormSubmissionStructure = {
-        //     user_id: session?.user.user_id!,
-        //     form_id: form_id,
-        //     content: JSON.stringify(newFormData)
-        // }
-
-        // const response = await fetch(`/api/forms/submission`, {
-        //     method: 'post',
-        //     body: JSON.stringify(JsonData)
-        // })
-
-        // const json = (await response.json()) as NemuResponse
-        // if (json.status != StatusCode.Success) {
-        //     toast(json.message, { theme: 'dark', type: 'error' })
-        // }
+        mutation.mutate({
+            form_id,
+            commission_id,
+            content: JSON.stringify(newFormData)
+        })
 
         setFormData(newFormData)
     }
 
     const validateForm: () => boolean = useCallback(() => {
-        for (const field of JSON.parse(
-            data?.content!
-        ) as FormElementInstance[]) {
+        for (const field of JSON.parse(data?.content!) as FormElementInstance[]) {
             const actualValue = formValues.current[field.id] || ''
             const valid = FormElements[field.type].validate(field, actualValue)
 
@@ -143,33 +114,28 @@ export default function CommissionFormSubmitView({
                         </p>
                         <div className="divider"></div>
                     </div>
-                    {(
-                        JSON.parse(
-                            data?.content!
-                        ) as FormElementInstance[]
-                    ).map((element) => {
-                        const FormComponent = FormElements[element.type].form_component
+                    {(JSON.parse(data?.content!) as FormElementInstance[]).map(
+                        (element) => {
+                            const FormComponent =
+                                FormElements[element.type].form_component
 
-                        return (
-                            <FormComponent
-                                key={element.id}
-                                elementInstance={element}
-                                submitValue={submitValue}
-                                isInvalid={formErrors.current[element.id]}
-                                defaultValue={formValues.current[element.id]}
-                            />
-                        )
-                    })}
+                            return (
+                                <FormComponent
+                                    key={element.id}
+                                    elementInstance={element}
+                                    submitValue={submitValue}
+                                    isInvalid={formErrors.current[element.id]}
+                                    defaultValue={formValues.current[element.id]}
+                                />
+                            )
+                        }
+                    )}
                     <div className="divider"></div>
                     <button
                         type="button"
                         className="btn btn-primary"
                         onClick={() => startTransition(submitForm)}
-                        disabled={
-                            pending ||
-                            data?.user_submitted ||
-                            submitted
-                        }
+                        disabled={pending || data?.user_submitted || submitted}
                     >
                         {pending ? (
                             <>

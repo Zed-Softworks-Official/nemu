@@ -13,7 +13,7 @@ import dynamic from 'next/dynamic'
 import { toast } from 'react-toastify'
 
 import 'react-toastify/ReactToastify.min.css'
-import { CheckoutType, ImageData, ShopItem } from '@/core/structures'
+import { ImageData, ShopItem } from '@/core/structures'
 import { Transition } from '@headlessui/react'
 import { FormatNumberToCurrency } from '@/core/helpers'
 import ImageViewer from './image-veiwer'
@@ -30,13 +30,8 @@ export default function ShopDisplay({
     product: ShopItem
     artist_id: string
 }) {
-    const { data: session } = useSession()
-    const { data, isLoading } = api.user.get_customer_id.useQuery({
-        artist_id,
-        user_id: session?.user.user_id!
-    })
+    const { data, isLoading } = api.user.get_customer_id.useQuery(artist_id)
 
-    const [currentImage, setCurrentImage] = useState<ImageData | undefined>(undefined)
     const [buyFormVisible, setBuyFormVisible] = useState(false)
 
     if (isLoading) {
@@ -112,16 +107,11 @@ export default function ShopDisplay({
                     {buyFormVisible && (
                         <PaymentForm
                             submitted={buyFormVisible}
-                            form_type="product"
                             checkout_data={{
-                                checkout_type: CheckoutType.Product,
-                                customer_id: data?.customerId!,
-                                price: product.price,
+                                customer_id: data?.customerId,
                                 stripe_account: product.stripe_account!,
-                                return_url: `http://localhost:3000/$${handle}`,
-                                user_id: session?.user.user_id!,
-                                product_id: product.id!,
-                                artist_id: artist_id
+                                return_url: `http://localhost:3000/@${handle}`,
+                                product_id: product.id!
                             }}
                         />
                     )}

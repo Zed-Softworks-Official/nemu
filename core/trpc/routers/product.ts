@@ -8,7 +8,7 @@ import {
 import { redis } from '@/lib/redis'
 import { Artist } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
-import { Role, ShopItem } from '@/core/structures'
+import { ImageData, Role, ShopItem } from '@/core/structures'
 import { CreateShopItemFromProducts } from '@/core/server-helpers'
 import { AsRedisKey } from '@/core/helpers'
 
@@ -312,5 +312,66 @@ export const artistCornerRouter = createTRPCRouter({
             await redis.del(AsRedisKey('products', updated_product.artistId))
 
             return { success: true }
+        }),
+
+    /**
+     * Retreives data from commissions to use for metadata when someone
+     * pastes a link
+     */
+    get_metadata: publicProcedure
+        .input(
+            z.object({
+                handle: z.string(),
+                product_slug: z.string()
+            })
+        )
+        .query(async (opts) => {
+            const { input } = opts
+
+            const cachedMetadata = await redis.get(
+                AsRedisKey('products_metadata', input.handle, input.product_slug)
+            )
+
+            if (cachedMetadata) {
+                return JSON.parse(cachedMetadata) as {
+                    title: string
+                    description: string
+                    featured_image: ImageData
+                }
+            }
+
+            const artist = await prisma.artist.findFirst({
+                where: {
+                    handle: input.handle
+                }
+            })
+
+            const db_product = await prisma.product.findFirst({
+                where: {
+                    artistId: artist?.id,
+                    slug: input.product_slug
+                }
+            })
+
+            const product = await CreateShopItemFromProducts(db_product!, artist!)
+            const truncate = 128
+
+            const result = {
+                title: product.title,
+                description:
+                    product.description.length > truncate
+                        ? product.description.substring(0, truncate) + '...'
+                        : product.description,
+                featured_image: product.featured_image
+            }
+
+            await redis.set(
+                AsRedisKey('products_metadata', input.handle, input.product_slug),
+                JSON.stringify(result),
+                'EX',
+                3600
+            )
+
+            return result
         })
 })

@@ -3,15 +3,13 @@ import {
     adminProcedure,
     artistProcedure,
     createTRPCRouter,
-    protectedProcedure,
-    publicProcedure
+    protectedProcedure
 } from '../trpc'
 import { redis } from '@/lib/redis'
 import { Commission, Product, StripeCustomerIds } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { AWSLocations, DownloadData } from '@/core/structures'
 import { S3GetSignedURL } from '@/core/storage'
-import { Role } from '@/core/structures'
 import { AsRedisKey } from '@/core/helpers'
 import { novu } from '@/lib/novu'
 
@@ -19,44 +17,37 @@ export const userRouter = createTRPCRouter({
     /**
      * Gets the stripe customer id and stripe customer data
      */
-    get_customer_id: protectedProcedure
-        .input(
-            z.object({
-                user_id: z.string(),
-                artist_id: z.string()
-            })
+    get_customer_id: protectedProcedure.input(z.string()).query(async (opts) => {
+        const { input, ctx } = opts
+
+        const cachedCustomerId = await redis.get(
+            AsRedisKey('stripe_accounts', input, ctx.session.user.user_id!)
         )
-        .query(async (opts) => {
-            const { input } = opts
 
-            const cachedCustomerId = await redis.get(
-                AsRedisKey('stripe_accounts', input.artist_id, input.user_id)
-            )
+        if (cachedCustomerId) {
+            return JSON.parse(cachedCustomerId) as StripeCustomerIds
+        }
 
-            if (cachedCustomerId) {
-                return JSON.parse(cachedCustomerId) as StripeCustomerIds
+        const stripeAccountId = await prisma.stripeCustomerIds.findFirst({
+            where: {
+                artistId: input,
+                userId: ctx.session.user.user_id!
             }
+        })
 
-            const stripeAccountId = await prisma.stripeCustomerIds.findFirst({
-                where: {
-                    artistId: input.artist_id,
-                    userId: input.user_id
-                }
-            })
+        if (!stripeAccountId) {
+            return undefined
+        }
 
-            if (!stripeAccountId) {
-                return undefined
-            }
+        await redis.set(
+            AsRedisKey('stripe_accounts', input, ctx.session.user.user_id!),
+            JSON.stringify(stripeAccountId),
+            'EX',
+            3600
+        )
 
-            await redis.set(
-                AsRedisKey('stripe_accounts', input.artist_id, input.user_id),
-                JSON.stringify(stripeAccountId),
-                'EX',
-                3600
-            )
-
-            return stripeAccountId
-        }),
+        return stripeAccountId
+    }),
     /**
      * Gets all downloads associated with the user
      */

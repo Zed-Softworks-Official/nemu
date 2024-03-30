@@ -131,6 +131,7 @@ export function AsRedisKey(
         | 'portfolio_items'
         | 'stripe_accounts'
         | 'products'
+        | 'products_metadata'
         | 'forms'
         | 'form_submissions'
         | 'artists'

@@ -4,10 +4,10 @@ import DashboardContainer from '@/components/dashboard/dashboard-container'
 
 import CommissionCreateForm from '@/components/dashboard/forms/commission-form-create-form'
 import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
-import { api } from '@/app/_trpc/client'
 import Loading from '@/components/loading'
 import Link from 'next/link'
 import { PencilSquareIcon } from '@heroicons/react/20/solid'
+import { api } from '@/core/trpc/react'
 
 export default function DashboardForms() {
     const { artist } = useDashboardContext()!

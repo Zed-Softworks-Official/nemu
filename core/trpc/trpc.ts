@@ -1,7 +1,6 @@
 import { getServerAuthSession } from '@/app/api/auth/[...nextauth]/route'
 import { Role } from '@/core/structures'
 import superjson from 'superjson'
-import { prisma } from '@/lib/prisma'
 import { initTRPC, TRPCError } from '@trpc/server'
 import { ZodError } from 'zod'
 
@@ -10,10 +9,10 @@ import { ZodError } from 'zod'
  *
  * Create the TRPC Context for later use in the backend
  */
-export const createTRPCContext = async (opts: { headers: Headers }) => {
+export const createTRPCContext = async (opts: { headers: Headers | undefined }) => {
     const session = await getServerAuthSession()
 
-    return { prisma, session, ...opts }
+    return { session, ...opts }
 }
 
 /**

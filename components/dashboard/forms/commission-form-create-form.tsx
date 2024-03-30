@@ -1,9 +1,9 @@
 'use client'
 
-import { api } from '@/app/_trpc/client'
 import TextArea from '@/components/form/text-area'
 import TextInput from '@/components/form/text-input'
 import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
+import { api } from '@/core/trpc/react'
 
 import { CheckCircleIcon } from '@heroicons/react/20/solid'
 import { zodResolver } from '@hookform/resolvers/zod'

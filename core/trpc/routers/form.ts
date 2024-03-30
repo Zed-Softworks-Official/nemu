@@ -16,8 +16,14 @@ import {
     Kanban,
     User
 } from '@prisma/client'
-import { AsRedisKey } from '@/core/helpers'
-import { CommissionDataInvoice, CommissionStatus, Role } from '@/core/structures'
+import { AsRedisKey, UpdateCommissionAvailability } from '@/core/helpers'
+import {
+    CommissionAvailability,
+    CommissionDataInvoice,
+    CommissionStatus
+} from '@/core/structures'
+import { TRPCError } from '@trpc/server'
+import { novu } from '@/lib/novu'
 
 export const formsRouter = createTRPCRouter({
     /**
@@ -201,6 +207,95 @@ export const formsRouter = createTRPCRouter({
 
             return result
         }),
+
+    /**
+     * Creates a new submission for the user
+     */
+    set_submission: protectedProcedure
+        .input(
+            z.object({
+                commission_id: z.string(),
+                form_id: z.string(),
+                content: z.string()
+            })
+        )
+        .mutation(async (opts) => {
+            const { input, ctx } = opts
+
+            const submission = await prisma.formSubmission.create({
+                data: {
+                    userId: ctx.session.user.user_id!,
+                    formId: input.form_id,
+                    content: input.content,
+                    orderId: crypto.randomUUID()
+                }
+            })
+
+            if (!submission) {
+                throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' })
+            }
+
+            // Update Commission availability
+            await UpdateCommissionAvailability(input.form_id)
+
+            // Update form values
+            const updated_form = await prisma.form.update({
+                where: {
+                    id: input.form_id
+                },
+                data: {
+                    submissions: {
+                        increment: 1
+                    },
+                    newSubmissions: {
+                        increment: 1
+                    }
+                }
+            })
+
+            if (!updated_form) {
+                throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' })
+            }
+
+            const commission = await prisma.commission.findFirst({
+                where: {
+                    id: input.commission_id
+                },
+                include: {
+                    artist: true
+                }
+            })
+
+            if (!commission) {
+                throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' })
+            }
+
+            await prisma.formSubmission.update({
+                where: {
+                    id: submission.id
+                },
+                data: {
+                    waitlist:
+                        commission.availability == CommissionAvailability.Waitlist
+                            ? true
+                            : false
+                }
+            })
+
+            novu.trigger('commission-request', {
+                to: {
+                    subscriberId: commission.artist.userId!
+                },
+                payload: {
+                    username: ctx.session.user.name!,
+                    commission_name: commission.title,
+                    slug:
+                        process.env.BASE_URL +
+                        `@${commission.artist.handle}/${commission.slug}`
+                }
+            })
+        }),
+
     /**
      * Checks wether a user has submitted a commission for the artist
      */
@@ -271,6 +366,43 @@ export const formsRouter = createTRPCRouter({
             if (cachedForms) {
                 await redis.del(AsRedisKey('forms', input.artist_id))
             }
+
+            return { success: true }
+        }),
+
+    /**
+     * Sets the form content
+     */
+    set_form_content: artistProcedure
+        .input(
+            z.object({
+                form_id: z.string(),
+                content: z.string()
+            })
+        )
+        .mutation(async (opts) => {
+            const { input } = opts
+
+            const updated = await prisma.form.update({
+                where: {
+                    id: input.form_id
+                },
+                data: {
+                    content: input.content
+                }
+            })
+
+            if (!updated) {
+                return { success: false }
+            }
+
+            // Update Cache
+            await redis.set(
+                AsRedisKey('forms', updated.artistId, updated.id),
+                JSON.stringify(updated),
+                'EX',
+                3600
+            )
 
             return { success: true }
         })

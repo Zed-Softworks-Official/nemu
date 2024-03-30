@@ -3,27 +3,39 @@
 import { Transition } from '@headlessui/react'
 import { Appearance, loadStripe } from '@stripe/stripe-js'
 import { Elements } from '@stripe/react-stripe-js'
-import { useEffect, useMemo, useState } from 'react'
-import { CheckoutType, StripeCommissionCheckoutData, StripeProductCheckoutData } from '@/core/structures'
+import { useMemo, useState } from 'react'
+import { StripeGetClientSecretInput } from '@/core/structures'
 import CommissionCheckoutForm from './commission-checkout-form'
 import Loading from '../loading'
+import { api } from '@/core/trpc/react'
 
 export default function PaymentForm({
     submitted,
-    checkout_data,
-    form_type
+    checkout_data
 }: {
     submitted: boolean
-    checkout_data: StripeCommissionCheckoutData | StripeProductCheckoutData
-    form_type: 'commission' | 'product'
+    checkout_data: StripeGetClientSecretInput
 }) {
-    const stripePromise = useMemo(() => {
-        return loadStripe('pk_test_51NBSJ1BUuzvTmMJLd6WdDax5MPbpyO0MOl4EvBc9WwnEk9vUvxuN9lavCkH5YvdhJxF7QMxa04lIe2qiAx5cA7s600fo7oHS8d', {
-            stripeAccount: checkout_data.stripe_account
-        })
-    }, [checkout_data])
+    const stripePromise = useMemo(
+        () =>
+            loadStripe(
+                'pk_test_51NBSJ1BUuzvTmMJLd6WdDax5MPbpyO0MOl4EvBc9WwnEk9vUvxuN9lavCkH5YvdhJxF7QMxa04lIe2qiAx5cA7s600fo7oHS8d',
+                {
+                    stripeAccount: checkout_data.stripe_account
+                }
+            ),
+        [checkout_data]
+    )
 
-    const [clientSecret, setClientSecret] = useState('')
+    const { data, isLoading } = api.stripe.get_client_secret.useQuery(checkout_data, {
+        refetchOnMount: false,
+        refetchOnReconnect: false,
+        refetchOnWindowFocus: false,
+        onSuccess: (res) => {
+            setClientSecret(res.client_secret)
+        }
+    })
+    const [clientSecret, setClientSecret] = useState(data?.client_secret)
 
     const appearance: Appearance = {
         theme: 'flat',
@@ -35,35 +47,20 @@ export default function PaymentForm({
         }
     }
 
-    useEffect(() => {
-        if (checkout_data.checkout_type == CheckoutType.Commission) {
-            fetch(`/api/stripe/commission`, {
-                method: 'post',
-                body: JSON.stringify({
-                    checkout_data
-                })
-            })
-                .then((res) => res.json())
-                .then((data) => setClientSecret(data.clientSecret))
-        } else if (checkout_data.checkout_type == CheckoutType.Product) {
-            fetch(`/api/stripe/product`, {
-                method: 'post',
-                body: JSON.stringify({
-                    checkout_data
-                })
-            })
-                .then((res) => res.json())
-                .then((data) => setClientSecret(data.clientSecret))
-        }
-    }, [checkout_data])
+    if (isLoading) {
+        return <Loading />
+    }
 
     return (
         <Transition as="div" show={submitted}>
             <div className="card bg-base-300 shadow-xl rounded-xl max-w-md mx-auto">
                 <div className="card-body">
                     {clientSecret && stripePromise ? (
-                        <Elements stripe={stripePromise} options={{ clientSecret, appearance: appearance }}>
-                            <CommissionCheckoutForm form_type={form_type} />
+                        <Elements
+                            stripe={stripePromise}
+                            options={{ clientSecret, appearance: appearance }}
+                        >
+                            <CommissionCheckoutForm />
                         </Elements>
                     ) : (
                         <Loading />

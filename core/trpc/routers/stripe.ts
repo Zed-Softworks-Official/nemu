@@ -1,13 +1,17 @@
 import { z } from 'zod'
-import { createTRPCRouter, protectedProcedure } from '../trpc'
+import { createCallerFactory, createTRPCRouter, protectedProcedure } from '../trpc'
 import { prisma } from '@/lib/prisma'
 import {
     StripeCreateAccount,
     StripeCreateAccountLink,
     StripeCreateCustomer,
     StripeCreateLoginLink,
+    StripeCreateProductPaymentIntent,
     StripeGetAccount
 } from '@/core/payments'
+import { TRPCError } from '@trpc/server'
+import { StripeProductCheckoutData } from '@/core/structures'
+import { createCaller } from '../root'
 
 export const stripeRouter = createTRPCRouter({
     /**
@@ -26,7 +30,6 @@ export const stripeRouter = createTRPCRouter({
         // If it exists then return that we have one
         if (customer_id) {
             return {
-                success: true,
                 stripe_account: customer_id.stripeAccount,
                 customer_id: customer_id.customerId
             }
@@ -39,7 +42,7 @@ export const stripeRouter = createTRPCRouter({
         })
 
         if (!user) {
-            return { success: false }
+            throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' })
         }
 
         const artist = await prisma.artist.findFirst({
@@ -49,7 +52,7 @@ export const stripeRouter = createTRPCRouter({
         })
 
         if (!artist) {
-            return { success: false }
+            throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' })
         }
 
         // Otherwise we need to create a customer id for the user
@@ -70,7 +73,6 @@ export const stripeRouter = createTRPCRouter({
         })
 
         return {
-            success: true,
             customer_id: customer.customerId,
             stripe_account: customer.stripeAccount
         }
@@ -116,5 +118,56 @@ export const stripeRouter = createTRPCRouter({
             type: 'dashboard',
             url: (await StripeCreateLoginLink(stripe_account.id)).url
         }
-    })
+    }),
+
+    /**
+     * Gets stripe checkout data
+     */
+    get_client_secret: protectedProcedure
+        .input(
+            z.object({
+                customer_id: z.string().optional(),
+                stripe_account: z.string(),
+                product_id: z.string(),
+                return_url: z.string()
+            })
+        )
+        .query(async (opts) => {
+            const { input, ctx } = opts
+
+            // Get Product from db
+            const product = await prisma.product.findFirst({
+                where: {
+                    id: input.product_id
+                }
+            })
+
+            if (!product) {
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Could not find product!'
+                })
+            }
+
+            // if we don't have the customer id then we want to try and set it
+            if (!input.customer_id) {
+                const trpc = createCaller(ctx)
+                const res = await trpc.stripe.set_customer_id(product?.artistId)
+
+                input.customer_id = res.customer_id
+            }
+
+            // Create the payment intent
+            const payment_intent = await StripeCreateProductPaymentIntent({
+                customer_id: input.customer_id,
+                price: product.price,
+                stripe_account: input.stripe_account,
+                return_url: input.return_url,
+                product_id: input.product_id,
+                user_id: ctx.session.user.user_id!,
+                artist_id: product.artistId
+            })
+
+            return { client_secret: payment_intent.client_secret }
+        })
 })

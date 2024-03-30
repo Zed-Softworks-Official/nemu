@@ -1,7 +1,7 @@
 import Stripe from 'stripe'
 
 import { stripe } from '@/lib/stripe'
-import { CommissionItem, InvoiceCommissionItem, PurchaseType, StripeCommissionCheckoutData, StripePaymentMetadata } from '../structures'
+import { CommissionItem, InvoiceCommissionItem, PurchaseType, StripePaymentMetadata } from '../structures'
 import { StripeGetPriceInfo } from './prices'
 import { CalculateApplicationFee } from '../payments'
 import { InvoiceItem } from '@prisma/client'
@@ -9,49 +9,6 @@ import { InvoiceItem } from '@prisma/client'
 ////////////////////////////////////////
 // Your Character Here Type Commissions
 ////////////////////////////////////////
-
-/**
- *
- * @param checkout_data
- * @param amount
- * @param commission
- * @returns
- */
-export async function StripeCreateCommissionPaymentIntent(checkout_data: StripeCommissionCheckoutData) {
-    const metadata: StripePaymentMetadata = {
-        user_id: checkout_data.user_id,
-        purchase_type: PurchaseType.CommissionSetupPayment,
-        form_id: checkout_data.form_id,
-        form_content: checkout_data.form_content,
-        commission_id: checkout_data.commission_id
-    }
-
-    // TODO: Add Title of commission to payment intent
-    return await stripe.paymentIntents.create(
-        {
-            amount: checkout_data.price * 100,
-            currency: 'usd',
-            customer: checkout_data.customer_id,
-            payment_method_types: ['card', 'link'],
-            payment_method_options: {
-                card: {
-                    capture_method: 'manual'
-                },
-                link: {
-                    capture_method: 'manual'
-                }
-                // paypal: {
-                //     capture_method: 'manual'
-                // }
-            },
-            application_fee_amount: CalculateApplicationFee(checkout_data.price) * 100,
-            metadata: metadata as unknown as Stripe.MetadataParam
-        },
-        {
-            stripeAccount: checkout_data.stripe_account
-        }
-    )
-}
 
 /**
  *

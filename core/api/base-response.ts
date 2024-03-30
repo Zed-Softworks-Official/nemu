@@ -1,5 +1,5 @@
-import { AppRouter } from "@/server/root"
 import { inferRouterInputs, inferRouterOutputs } from "@trpc/server"
+import { AppRouter } from "../trpc/root"
 
 /**
  * StatusCode

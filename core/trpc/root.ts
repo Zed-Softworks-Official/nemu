@@ -11,10 +11,9 @@ import { invoicesRouter } from './routers/invoice'
 import { stripeRouter } from './routers/stripe'
 import { kanbanRouter } from './routers/kanban'
 import { verificationRouter } from './routers/verification'
-import { awsRouter } from './routers/aws'
 
 /**
- * Primary tRPC Router 
+ * Primary tRPC Router
  */
 export const appRouter = createTRPCRouter({
     artist: artistRouter,
@@ -27,8 +26,7 @@ export const appRouter = createTRPCRouter({
     invoices: invoicesRouter,
     stripe: stripeRouter,
     kanban: kanbanRouter,
-    verification: verificationRouter,
-    aws: awsRouter
+    verification: verificationRouter
 })
 
 /**

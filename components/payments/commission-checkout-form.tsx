@@ -1,13 +1,19 @@
 'use client'
 
 import { XCircleIcon } from '@heroicons/react/20/solid'
-import { ExpressCheckoutElement, LinkAuthenticationElement, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js'
+import {
+    ExpressCheckoutElement,
+    LinkAuthenticationElement,
+    PaymentElement,
+    useElements,
+    useStripe
+} from '@stripe/react-stripe-js'
 import { FormEvent, useState } from 'react'
-import NemuImage from '../nemu-image'
 import { useSession } from 'next-auth/react'
+import Loading from '../loading'
 
-export default function CommissionCheckoutForm({ form_type }: { form_type: 'commission' | 'product' }) {
-    const { data: session } = useSession()
+export default function CommissionCheckoutForm() {
+    const { data: session, status } = useSession()
     const stripe = useStripe()
     const elements = useElements()
     const [message, setMessage] = useState<string | undefined>('')
@@ -42,39 +48,37 @@ export default function CommissionCheckoutForm({ form_type }: { form_type: 'comm
         setIsLoading(false)
     }
 
-    return (
-        <>
-            {form_type === 'commission' ? (
-                <div className="flex flex-col justify-center items-center gap-3">
-                    <NemuImage src={'/nemu/fillout.png'} alt="Nemu filling out form" width={200} height={200} />
-                    <h2 className="card-title">One more thing!</h2>
-                    <p className="text-base-content/80">
-                        We'll need a payment method so that the artist can charge you when the accept you commission. You will only be charged after
-                        the artist accepts your request
-                    </p>
-                    <div className="divider"></div>
-                </div>
-            ) : (
-                <div className="flex flex-col justify-center items-center gap-3"></div>
-            )}
+    if (status === 'loading') {
+        return <Loading />
+    }
 
-            <form id="payment-form" className="flex flex-col gap-5" onSubmit={handleSubmit}>
-                {message && (
-                    <div className="alert alert-error">
-                        <XCircleIcon className="w-6 h-6" />
-                        <span>{message}</span>
-                    </div>
-                )}
-                <LinkAuthenticationElement id="link-authentication-element" options={{ defaultValues: { email: session?.user.email || '' } }} />
-                <div className="divider"></div>
-                <ExpressCheckoutElement id="express-payment-element" onConfirm={() => console.log('hello, world')} />
-                <div className="divider">OR</div>
-                <PaymentElement id="payment-element" />
-                <button id="submit" className="btn btn-primary" disabled={isLoading || !stripe || !elements}>
-                    {isLoading && <span className="loading loading-spinner"></span>}
-                    {form_type === 'commission' ? 'Request Commission' : 'Buy Now'}
-                </button>
-            </form>
-        </>
+    return (
+        <form id="payment-form" className="flex flex-col gap-5" onSubmit={handleSubmit}>
+            {message && (
+                <div className="alert alert-error">
+                    <XCircleIcon className="w-6 h-6" />
+                    <span>{message}</span>
+                </div>
+            )}
+            <LinkAuthenticationElement
+                id="link-authentication-element"
+                options={{ defaultValues: { email: session?.user.email || '' } }}
+            />
+            <div className="divider"></div>
+            <ExpressCheckoutElement
+                id="express-payment-element"
+                onConfirm={() => console.log('hello, world')}
+            />
+            <div className="divider">OR</div>
+            <PaymentElement id="payment-element" />
+            <button
+                id="submit"
+                className="btn btn-primary"
+                disabled={isLoading || !stripe || !elements}
+            >
+                {isLoading && <span className="loading loading-spinner"></span>}
+                Buy Now
+            </button>
+        </form>
     )
 }

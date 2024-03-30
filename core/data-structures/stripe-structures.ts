@@ -1,7 +1,8 @@
+import { RouterInput } from "../responses"
+
 export enum PurchaseType {
     ArtistCorner = 0,
-    CommissionInvoice,
-    CommissionSetupPayment
+    CommissionInvoice
 }
 
 export enum PaymentStatus {
@@ -26,13 +27,7 @@ export interface StripePaymentMetadata {
     form_id?: string
 }
 
-export enum CheckoutType {
-    Commission,
-    Product
-}
-
 export interface CheckoutData {
-    checkout_type: CheckoutType
     customer_id: string
     price: number
     stripe_account: string
@@ -40,13 +35,9 @@ export interface CheckoutData {
     user_id: string
 }
 
-export interface StripeCommissionCheckoutData extends CheckoutData {
-    form_id: string
-    form_content: string,
-    commission_id: string
-}
-
 export interface StripeProductCheckoutData extends CheckoutData {
     product_id: string
     artist_id: string
 }
+
+export type StripeGetClientSecretInput = RouterInput['stripe']['get_client_secret']

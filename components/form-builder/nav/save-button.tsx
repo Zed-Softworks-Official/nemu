@@ -3,26 +3,29 @@
 import { useState } from 'react'
 import { ArrowDownOnSquareStackIcon } from '@heroicons/react/20/solid'
 import { DesignerContextType, useDesigner } from '../designer/designer-context'
-import { CreateToastPromise } from '@/core/promise'
+import { api } from '@/core/trpc/react'
+import { toast } from 'react-toastify'
 
 export default function SaveButton({ form_id }: { form_id: string }) {
     const { elements } = useDesigner() as DesignerContextType
     const [isSaving, setIsSaving] = useState(false)
+    const mutation = api.form.set_form_content.useMutation({
+        onSuccess: () => {
+            toast('Form Updated!', { theme: 'dark', type: 'success' })
+            setIsSaving(false)
+        },
+        onError: () => {
+            toast('Failed to update form!', { theme: 'dark', type: 'success' })
+        }
+    })
 
-    async function updateFormContext() {
+    async function UpdateFormContext() {
         const JsonElements = JSON.stringify(elements)
-        await CreateToastPromise(
-            fetch(`/api/forms/${form_id}`, {
-                method: 'post',
-                body: JsonElements
-            }),
-            {
-                pending: 'Saving Form',
-                success: 'Form Saved'
-            }
-        )
 
-        setIsSaving(false)
+        mutation.mutate({
+            form_id,
+            content: JsonElements
+        })
     }
 
     return (
@@ -30,7 +33,7 @@ export default function SaveButton({ form_id }: { form_id: string }) {
             className="btn btn-primary"
             onClick={() => {
                 setIsSaving(true)
-                updateFormContext()
+                UpdateFormContext()
             }}
             disabled={isSaving}
         >

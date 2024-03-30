@@ -1,6 +1,6 @@
 import DefaultPageLayout from '@/app/(default)/layout'
 import ShopPageClient from '@/components/artist-page/shop-page-client'
-import { ImageData, ShopItem } from '@/core/structures'
+import { createCaller } from '@/core/trpc/root'
 import { Metadata, ResolvingMetadata } from 'next'
 
 type Props = {
@@ -13,21 +13,18 @@ export async function generateMetadata(
 ): Promise<Metadata> {
     const handle = params.handle.substring(3, params.handle.length)
 
-    const response = await fetch(
-        `${process.env.BASE_URL}/api/metadata/${handle}/${params.slug}`
-    )
-    const json = (await response.json()) as {
-        title: string
-        description: string
-        featured_image: ImageData
-    }
+    const trpc = createCaller({ headers: undefined, session: null })
+    const data = await trpc.artist_corner.get_metadata({
+        handle,
+        product_slug: params.slug
+    })
 
     return {
-        title: `Nemu | @${handle} | ${json.title}`,
-        description: 'Some description goes here',
+        title: `Nemu | @${handle} | ${data.title}`,
+        description: 'Check out this product on Nemu!' + data.description,
         openGraph: {
-            title: json.title,
-            images: [json.featured_image.signed_url]
+            title: data.title,
+            images: [data.featured_image.signed_url]
         }
     }
 }
