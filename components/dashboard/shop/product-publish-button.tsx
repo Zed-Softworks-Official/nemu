@@ -1,36 +1,37 @@
 'use client'
 
-import { ClassNames, GraphQLFetcherVariables } from '@/core/helpers'
-import { NemuResponse, StatusCode } from '@/core/responses'
+import { ClassNames } from '@/core/helpers'
+import { api } from '@/core/trpc/react'
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/20/solid'
 import { useState } from 'react'
 import { toast } from 'react-toastify'
 
-export default function ProductPublishButton({ product_id, published }: { product_id: string; published: boolean }) {
+export default function ProductPublishButton({
+    product_id,
+    published
+}: {
+    product_id: string
+    published: boolean
+}) {
     const [loading, setLoading] = useState(false)
     const [currentlyPublished, setCurrentlyPublished] = useState(published)
+
+    const mutation = api.artist_corner.update_product.useMutation()
 
     async function UpdatePublishedCommissionState(new_state: boolean) {
         setLoading(true)
 
-        const response = await GraphQLFetcherVariables<{ update_product: NemuResponse }>({
-            query: `mutation UpdateProduct($product_data: StoreProductInputType!) {
-                    update_product(product_id: "${product_id}", product_data: $product_data) {
-                        status
-                        message
-                    }
-                }`,
-            variables: {
-                product_data: {
-                    published: new_state
-                }
+        const res = await mutation.mutateAsync({
+            product_id,
+            product_data: {
+                published: new_state
             }
         })
 
-        if (response.update_product.status == StatusCode.Success) {
-            toast('Successfully Updated Commission', { theme: 'dark', type: 'success' })
+        if (!res.success) {
+            toast('Failed to update commission!', { theme: 'dark', type: 'error' })
         } else {
-            toast(response.update_product.message, { theme: 'dark', type: 'error' })
+            toast('Successfully Updated Commission', { theme: 'dark', type: 'success' })
         }
 
         setLoading(false)
@@ -40,7 +41,10 @@ export default function ProductPublishButton({ product_id, published }: { produc
     return (
         <button
             type="button"
-            className={ClassNames('btn', currentlyPublished ? 'btn-error' : 'btn-primary')}
+            className={ClassNames(
+                'btn',
+                currentlyPublished ? 'btn-error' : 'btn-primary'
+            )}
             onClick={() => {
                 UpdatePublishedCommissionState(!currentlyPublished)
             }}

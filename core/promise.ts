@@ -1,8 +1,6 @@
 import { NemuResponse, StatusCode } from '@/core/responses'
 
 import { toast } from 'react-toastify'
-import { request, Variables } from 'graphql-request'
-import { GraphQLFetcher } from './helpers'
 
 export async function CreateToastPromise(promise: Promise<Response>, { pending, success }: { pending: string; success: string }) {
     const id = toast.loading(pending, {

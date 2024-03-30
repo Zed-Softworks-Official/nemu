@@ -6,8 +6,8 @@ import { FormElementInstance } from '@/components/form-builder/elements/form-ele
 import { AWSFileModification } from '../data-structures/form-structures'
 import { KanbanContainerData, KanbanTask } from '../structures'
 
-export type CommissionsResponse = RouterOutput['get_commission']
-
+export type CommissionsResponse = RouterOutput['commissions']['get_commission']
+export type CommissionEditableResponse = RouterOutput['commissions']['get_commission_editable']
 
 /**
  * FormResponses
@@ -28,26 +28,6 @@ export interface FormResponses {
 export interface CommissionResponse extends NemuResponse {
     commission?: CommissionItem
     commissions?: CommissionItem[]
-}
-
-/**
- * 
- */
-export interface GraphQLCommissionFormResponse {
-    form?: Form 
-}
-
-/**
- * 
- */
-export interface ListGraphQLCommissionFormResponse {
-    artist: {
-        forms: {
-            id: string
-            name: string
-            description: string
-        }[]
-    }
 }
 
 /**

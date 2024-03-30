@@ -12,20 +12,24 @@ import TextField from '@/components/form/text-input'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/20/solid'
 import SelectField, { SelectFieldOptions } from '@/components/form/select-input'
-import { GraphQLFetcher } from '@/core/helpers'
 import Loading from '@/components/loading'
 import CheckboxField from '@/components/form/checkbox-input'
 import MarkdownEditor from '@/components/form/markdown-text-area'
 import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
 import FormDropzone from '@/components/form/form-dropzone'
 import CurrencyField from '@/components/form/currency-field'
-import { AWSFileModification, AWSLocations, CommissionAvailability } from '@/core/structures'
+import {
+    AWSFileModification,
+    AWSLocations,
+    CommissionAvailability
+} from '@/core/structures'
 import { toast } from 'react-toastify'
-import { CommissionImagesResponse, NemuResponse, StatusCode } from '@/core/responses'
-import { Commission } from '@prisma/client'
+import { CommissionEditableResponse, NemuResponse, StatusCode } from '@/core/responses'
 import ImageEditor from '@/components/form/image-editor/image-editor'
 import NemuImage from '@/components/nemu-image'
 import FormSubmitButtons from './submit-buttons'
+import { useRouter } from 'next/navigation'
+import { api } from '@/core/trpc/react'
 
 const commissionSchema = z.object({
     title: z.string().min(2).max(50),
@@ -34,7 +38,9 @@ const commissionSchema = z.object({
 
     price: z.number().min(0).default(0).optional(),
 
-    featured_image: z.any(z.instanceof(File).refine((file: File) => file.size != 0)).optional(),
+    featured_image: z
+        .any(z.instanceof(File).refine((file: File) => file.size != 0))
+        .optional(),
     additional_images: z.any().optional(),
 
     rush: z.boolean().default(false),
@@ -49,9 +55,20 @@ const commissionSchema = z.object({
 
 type CommissionSchemaType = z.infer<typeof commissionSchema>
 
-export default function CommissionCreateEditForm({ data }: { data?: { commission: Commission & { get_images: CommissionImagesResponse } } }) {
-    const { artistId } = useDashboardContext()
+export default function CommissionCreateEditForm({
+    data
+}: {
+    data?: CommissionEditableResponse
+}) {
+    const { artist } = useDashboardContext()!
     const { image, additionalImages } = useFormContext()
+    const { data: artistFormsData, isLoading: artistFormsIsLoading } =
+        api.form.get_forms.useQuery({ artist_id: artist?.id! })
+
+    const create_mutation = api.commissions.set_commission.useMutation()
+    const update_mutation = api.commissions.update_commission.useMutation()
+
+    const { push } = useRouter()
 
     const form = useForm<CommissionSchemaType>({
         resolver: zodResolver(commissionSchema),
@@ -64,37 +81,22 @@ export default function CommissionCreateEditForm({ data }: { data?: { commission
             rush: data ? data.commission.rushOrdersAllowed : false,
             rush_charge: data ? data.commission.rushCharge! : 0,
 
-            max_commissions_until_waitlist: data ? data.commission.maxCommissionsUntilWaitlist! : 0,
-            max_commissions_until_closed: data ? data.commission.maxCommissionsUntilClosed! : 0,
+            max_commissions_until_waitlist: data
+                ? data.commission.maxCommissionsUntilWaitlist!
+                : 0,
+            max_commissions_until_closed: data
+                ? data.commission.maxCommissionsUntilClosed!
+                : 0,
 
             form: data && data.commission.formId,
             commission_availability: data && data.commission.availability
         }
     })
 
-    const { data: artist_data, isLoading: artist_is_loading } = useSWR(
-        `{
-            artist(id: "${artistId}") {
-                forms {
-                    id
-                    name
-                    commissionId
-                }
-            }
-        }`,
-        GraphQLFetcher<{
-            artist: {
-                forms: {
-                    id: string
-                    name: string
-                    commissionId: string | undefined
-                }[]
-            }
-        }>
-    )
-
     const [submitting, setSubmitting] = useState(false)
-    const [images, setImages] = useState<AWSFileModification[] | undefined>(data?.commission.get_images.images)
+    const [images, setImages] = useState<AWSFileModification[] | undefined>(
+        data?.images as AWSFileModification[] | undefined
+    )
 
     function GetFileKeysAsArray(string_array: AWSFileModification[]) {
         const array = string_array.slice(1, string_array.length)
@@ -149,55 +151,51 @@ export default function CommissionCreateEditForm({ data }: { data?: { commission
             }
 
             // Make Request to AWS Rest API to handle multiple files
-            await fetch(`/api/aws/${artistId}/commission/multiple/update`, {
+            await fetch(`/api/aws/${artist?.id}/commission/multiple/update`, {
                 method: 'post',
                 body: awsData
             })
         }
 
         // Update the data
-        const graphql_response = await GraphQLFetcher<{
-            update_commission: NemuResponse
-        }>(
-            `mutation UpdateCommission($commission_data: CommissionInputType!) {
-                update_commission(
-                    commission_id: "${data?.commission.id}", commission_data: $commission_data) {
-                    status
-                    message
-                }
-            }`,
-            {
+        update_mutation
+            .mutateAsync({
+                commission_id: data?.commission.id!,
                 commission_data: {
                     title: values.title,
                     description: values.description,
                     price: values.price,
                     availability: values.commission_availability,
-                    max_commission_until_waitlist: values.max_commissions_until_waitlist,
-                    max_commission_until_closed: values.max_commissions_until_closed,
+                    max_commissions_until_waitlist: values.max_commissions_until_waitlist,
+                    max_commissions_until_closed: values.max_commissions_until_closed,
                     rush_orders_allowed: values.rush,
                     rush_charge: values.rush_charge,
                     rush_percentage: values.rush_percentage
                 }
-            }
-        )
-
-        if (graphql_response.update_commission.status != StatusCode.Success) {
-            toast.update(toast_id, {
-                render: graphql_response.update_commission.message,
-                type: 'error',
-                autoClose: 5000,
-                isLoading: false
             })
-        } else {
-            toast.update(toast_id, {
-                render: 'Updated Commission',
-                type: 'success',
-                autoClose: 5000,
-                isLoading: false
-            })
-        }
+            .then((response) => {
+                setSubmitting(false)
 
-        setSubmitting(false)
+                if (!response.success) {
+                    toast.update(toast_id, {
+                        render: 'Unable to Update Commission',
+                        type: 'error',
+                        autoClose: 5000,
+                        isLoading: false
+                    })
+
+                    return
+                }
+
+                toast.update(toast_id, {
+                    render: 'Updated Commission',
+                    type: 'success',
+                    autoClose: 5000,
+                    isLoading: false
+                })
+
+                push('/dashboard/commissions')
+            })
     }
 
     /**
@@ -220,64 +218,61 @@ export default function CommissionCreateEditForm({ data }: { data?: { commission
         }
 
         // Make Request to AWS Rest API to handle multiple files
-        await fetch(`/api/aws/${artistId}/commission/multiple`, {
+        await fetch(`/api/aws/${artist?.id}/commission/multiple`, {
             method: 'post',
             body: awsData
         })
 
-        // Make Request to GraphQL to create new commission object
-        const graphql_response = await GraphQLFetcher<{
-            create_commission: NemuResponse
-        }>(
-            `
-        mutation CreateCommission($commission_data: CommissionInputType!) {
-            create_commission(artist_id: "${artistId}", commission_data: $commission_data ) {
-                status
-                message
-            }
-        }`,
-            {
+        // create new commission object
+        create_mutation
+            .mutateAsync({
+                artist_id: artist?.id!,
                 commission_data: {
-                    title: values.title,
-                    description: values.description,
+                    title: values.title!,
+                    description: values.description!,
                     featured_image: featured_image_key,
                     additional_images: GetFileKeysAsArray(additionalImages!),
-                    price: values.price,
-                    availability: values.commission_availability,
-                    form_id: values.form,
-                    max_commission_until_waitlist: values.max_commissions_until_waitlist,
-                    max_commission_until_closed: values.max_commissions_until_closed,
-                    rush_orders_allowed: values.rush,
-                    rush_charge: values.rush_charge,
-                    rush_percentage: values.rush_percentage
+                    price: values.price!,
+                    availability: values.commission_availability!,
+                    form_id: values.form!,
+                    max_commissions_until_waitlist:
+                        values.max_commissions_until_waitlist!,
+                    max_commissions_until_closed: values.max_commissions_until_closed!,
+                    rush_orders_allowed: values.rush!,
+                    rush_charge: values.rush_charge!,
+                    rush_percentage: values.rush_percentage!
                 }
-            }
-        )
+            })
+            .then((response) => {
+                if (!response.success) {
+                    toast.update(toast_id, {
+                        render: 'Unable to Create Commission',
+                        type: 'error',
+                        autoClose: 5000,
+                        isLoading: false
+                    })
 
-        if (graphql_response?.create_commission?.status != StatusCode.Success) {
-            toast.update(toast_id, {
-                render: graphql_response.create_commission.message,
-                type: 'error',
-                autoClose: 5000,
-                isLoading: false
+                    return
+                }
+
+                toast.update(toast_id, {
+                    render: 'Commission Created',
+                    type: 'success',
+                    autoClose: 5000,
+                    isLoading: false
+                })
+
+                push('/dashboard/commissions')
             })
-        } else {
-            toast.update(toast_id, {
-                render: 'Commission Created',
-                type: 'success',
-                autoClose: 5000,
-                isLoading: false
-            })
-        }
     }
 
-    if (artist_is_loading) {
+    if (artistFormsIsLoading) {
         return <Loading />
     }
 
     function getFormsNames() {
         const result: SelectFieldOptions[] = []
-        artist_data?.artist.forms.forEach((form) => {
+        artistFormsData?.forEach((form) => {
             if (form.commissionId) {
                 return
             }
@@ -293,14 +288,21 @@ export default function CommissionCreateEditForm({ data }: { data?: { commission
 
     return (
         <div className="max-w-xl mx-auto">
-            <form onSubmit={form.handleSubmit(SubmitCommission)} className="flex flex-col gap-5">
+            <form
+                onSubmit={form.handleSubmit(SubmitCommission)}
+                className="flex flex-col gap-5"
+            >
                 {/* {form.formState.errors && (
                     <div className='alert alert-error'>
                         <XCircleIcon className='w-6 h-6' />
                         <span>Oh Nyo! Something Went Wrong!</span>
                     </div>
                 )} */}
-                <TextField label="Title" placeholder="Title" {...form.register('title')} />
+                <TextField
+                    label="Title"
+                    placeholder="Title"
+                    {...form.register('title')}
+                />
                 <Controller
                     control={form.control}
                     name="description"
@@ -319,11 +321,23 @@ export default function CommissionCreateEditForm({ data }: { data?: { commission
                     className="tooltip"
                     data-tip="This will be the starting price, you'll be able to adjust it later based off of the commissioners requests"
                 >
-                    <CurrencyField min={0} label="Price" placeholder="Price" {...form.register('price', { valueAsNumber: true })} />
+                    <CurrencyField
+                        min={0}
+                        label="Price"
+                        placeholder="Price"
+                        {...form.register('price', { valueAsNumber: true })}
+                    />
                 </div>
                 <div className="divider"></div>
 
-                <SelectField label="Form" options={getFormsNames()} placeholder="Select a form to use" join {...form.register('form')} />
+                <SelectField
+                    label="Form"
+                    options={getFormsNames()}
+                    disabled={data != undefined}
+                    placeholder="Select a form to use"
+                    join
+                    {...form.register('form')}
+                />
                 <SelectField
                     label="Commission Availabilty"
                     options={[
@@ -361,14 +375,17 @@ export default function CommissionCreateEditForm({ data }: { data?: { commission
                 />
                 <div className="divider"></div>
 
-                <FormDropzone label="Featured Image" {...form.register('featured_image')} />
+                <FormDropzone
+                    label="Featured Image"
+                    {...form.register('featured_image')}
+                />
                 {data && (
                     <div className="card shadow-xl bg-base-100">
                         <div className="card-body">
                             <h2 className="card-title">Current Featured Image</h2>
                             <div className="divider"></div>
                             <NemuImage
-                                src={data?.commission.get_images.images![0].signed_url!}
+                                src={data?.images![0].signed_url!}
                                 alt="Featured Image"
                                 className="w-full h-full"
                                 width={400}
@@ -381,15 +398,21 @@ export default function CommissionCreateEditForm({ data }: { data?: { commission
                     label="Additional Images"
                     location={AWSLocations.Commission}
                     {...form.register('additional_images')}
-                    images={data && data.commission.get_images.images}
+                    images={data && (data.images as AWSFileModification[])}
                     edit_mode={data ? true : false}
                 />
 
                 <div className="divider"></div>
                 <div className="card bg-base-100 shadow-xl">
                     <div className="card-body">
-                        <CheckboxField label="Allow Rush Orders" {...form.register('rush')} />
-                        <CheckboxField label="Use Percentage" {...form.register('rush_percentage')} />
+                        <CheckboxField
+                            label="Allow Rush Orders"
+                            {...form.register('rush')}
+                        />
+                        <CheckboxField
+                            label="Use Percentage"
+                            {...form.register('rush_percentage')}
+                        />
                         {form.watch('rush') && (
                             <CurrencyField
                                 label="Rush Charge"
@@ -405,14 +428,20 @@ export default function CommissionCreateEditForm({ data }: { data?: { commission
                 <div className="divider"></div>
                 <p className="text-base-content/80">
                     <i>
-                        Note: Commissions will need to be published. Make sure you have created the commission form for users to fill out upon a
-                        request.
+                        Note: Commissions will need to be published. Make sure you have
+                        created the commission form for users to fill out upon a request.
                     </i>
                 </p>
                 <FormSubmitButtons
                     cancel_url="/dashboard/commissions"
                     disabled={submitting}
-                    button_icon={submitting ? <span className="loading loading-spinner"></span> : <CheckCircleIcon className="w-6 h-6" />}
+                    button_icon={
+                        submitting ? (
+                            <span className="loading loading-spinner"></span>
+                        ) : (
+                            <CheckCircleIcon className="w-6 h-6" />
+                        )
+                    }
                     submit_text={
                         submitting ? (
                             <>{data ? 'Updating Commission' : 'Creating Commission'}</>

@@ -1,76 +1,27 @@
 'use client'
 
-import useSWR from 'swr'
 import DashboardContainer from '../../dashboard-container'
-import { GraphQLFetcher } from '@/core/helpers'
 import Loading from '@/components/loading'
-import { PaymentStatus } from '@/core/structures'
+import { KanbanContainerData, KanbanTask, PaymentStatus } from '@/core/structures'
 import Kanban from '@/components/kanban/kanban'
 import CommissionFormSubmissionContent from '../submissions/commission-form-submission-content'
-import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
-import { KanbanResponse } from '@/core/responses'
 import MessagesClient from '@/components/messages/messages-client'
-import { Commission, Form, FormSubmission, Invoice, InvoiceItem, User } from '@prisma/client'
+import { Invoice, InvoiceItem } from '@prisma/client'
 import CommissionInvoicing from '../../invoices/commission-invoicing'
 import DownloadDropzone from '@/components/form/download-dropzone'
+import { api } from '@/core/trpc/react'
 
-export default function DashboardCommissionDetailView({ slug, order_id }: { slug: string; order_id: string }) {
-    const { artistId } = useDashboardContext()
-    const { data, isLoading } = useSWR(
-        `{
-            form_submission(order_id: "${order_id}") {
-                id
-                content
-                createdAt
-                sendbirdChannelURL
-                user {
-                    id
-                    name
-                    find_customer_id(artist_id: "${artistId}") {
-                        customerId
-                        stripeAccount
-                    }
-                }
-                form {
-                    commission {
-                        id
-                        title
-                    }
-                }
-                invoice {
-                    id
-                    sent
-                    paymentStatus
-                    items {
-                        id
-                        name
-                        price
-                        quantity
-                    }
-                }
-                kanban {
-                    status
-                    tasks {
-                        id
-                        content
-                        container_id
-                    }
-                    containers {
-                        id
-                        title
-                    }
-                }
-            }
-        }`,
-        GraphQLFetcher<{
-            form_submission: FormSubmission & {
-                user: User & { find_customer_id: { customerId: string; stripeAccount: string } }
-                form: Form & { commission: Commission }
-                invoice: Invoice & { items: InvoiceItem[] }
-                kanban: KanbanResponse
-            }
-        }>
-    )
+export default function DashboardCommissionDetailView({
+    slug,
+    order_id
+}: {
+    slug: string
+    order_id: string
+}) {
+    const { data, isLoading } = api.form.get_submission.useQuery({
+        order_id,
+        include_invoice_items: true
+    })
 
     if (isLoading) {
         return (
@@ -81,14 +32,16 @@ export default function DashboardCommissionDetailView({ slug, order_id }: { slug
     }
 
     return (
-        <DashboardContainer title={`Commission For ${data?.form_submission.user.name}`}>
+        <DashboardContainer title={`Commission For ${data?.submission.user.name}`}>
             <div className="flex flex-col gap-5">
                 <div className="flex flex-grow gap-5 w-full">
                     <div className="card bg-base-100 shadow-xl w-full">
                         <div className="card-body">
                             <h2 className="card-title">Form Responses</h2>
                             <div className="divider"></div>
-                            <CommissionFormSubmissionContent content={data?.form_submission.content} />
+                            <CommissionFormSubmissionContent
+                                content={data?.submission.content}
+                            />
                         </div>
                     </div>
                     <div className="card bg-base-100 shadow-xl w-1/2">
@@ -96,11 +49,8 @@ export default function DashboardCommissionDetailView({ slug, order_id }: { slug
                             <h2 className="card-title">Invoicing</h2>
                             <div className="divider"></div>
                             <CommissionInvoicing
-                                submission_id={data?.form_submission.id!}
-                                customer_id={data?.form_submission.user.find_customer_id.customerId!}
-                                stripe_account={data?.form_submission.user.find_customer_id.stripeAccount!}
-                                invoice_items={data?.form_submission.invoice.items!}
-                                invoice={data?.form_submission.invoice!}
+                                invoice_items={data?.invoice?.items as InvoiceItem[]}
+                                invoice={data?.invoice as Invoice}
                             />
                         </div>
                     </div>
@@ -108,17 +58,21 @@ export default function DashboardCommissionDetailView({ slug, order_id }: { slug
                         <div className="card-body">
                             <h2 className="card-title">Create Download</h2>
                             <div className="divider"></div>
-                            {data?.form_submission.invoice.paymentStatus == PaymentStatus.Captured ? (
+                            {data?.invoice?.paymentStatus == PaymentStatus.Captured ? (
                                 <div className="h-full">
                                     <DownloadDropzone
-                                        form_submission_id={data.form_submission.id}
-                                        commission_id={data.form_submission.form.commission.id}
-                                        user_id={data.form_submission.user.id}
+                                        form_submission_id={data.submission.id}
+                                        commission_id={data.submission.form.commissionId!}
+                                        user_id={data.submission.user.id}
+                                        receipt_url={data.invoice.hostedUrl || ''}
                                     />
                                 </div>
                             ) : (
                                 <div className="flex flex-col justify-center items-center w-full h-full text-center">
-                                    <h2 className="card-title">You'll be able to upload a file once the user has paid</h2>
+                                    <h2 className="card-title">
+                                        You'll be able to upload a file once the user has
+                                        paid
+                                    </h2>
                                 </div>
                             )}
                         </div>
@@ -128,11 +82,17 @@ export default function DashboardCommissionDetailView({ slug, order_id }: { slug
                     <div className="card-body">
                         {data && (
                             <Kanban
-                                title={data?.form_submission.form.commission.title}
-                                client={data?.form_submission.user.name!}
-                                kanban_containers={data?.form_submission.kanban.containers!}
-                                kanban_tasks={data?.form_submission.kanban.tasks!}
-                                submission_id={data?.form_submission.id}
+                                title={data?.submission.form.commissionId!}
+                                client={data?.submission.user.name!}
+                                kanban_containers={
+                                    JSON.parse(
+                                        data?.kanban?.containers!
+                                    ) as KanbanContainerData[]
+                                }
+                                kanban_tasks={
+                                    JSON.parse(data?.kanban?.tasks!) as KanbanTask[]
+                                }
+                                kanban_id={data.kanban?.id}
                             />
                         )}
                     </div>
@@ -141,7 +101,10 @@ export default function DashboardCommissionDetailView({ slug, order_id }: { slug
                     <div className="card-body h-[60rem] overflow-hidden">
                         <h2 className="card-title">Messages</h2>
                         <div className="divider"></div>
-                        <MessagesClient hide_channel_list channel_url={data?.form_submission.sendbirdChannelURL!} />
+                        <MessagesClient
+                            hide_channel_list
+                            channel_url={data?.submission.sendbirdChannelURL!}
+                        />
                     </div>
                 </div>
             </div>

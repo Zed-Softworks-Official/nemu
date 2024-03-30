@@ -9,5 +9,5 @@ export default function StandardLayoutBody({ children }: { children: React.React
         }
     })
 
-    return <div className="flex-[1] container mx-auto min-h-screen">{children}</div>
+    return <div className="container mx-auto min-h-screen">{children}</div>
 }

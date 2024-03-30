@@ -14,16 +14,21 @@ import TextField from '@/components/form/text-input'
 import MarkdownEditor from '@/components/form/markdown-text-area'
 import CurrencyField from '@/components/form/currency-field'
 import ImageEditor from '@/components/form/image-editor/image-editor'
-import { AWSLocations, ShopItem, StoreProductInputType } from '@/core/structures'
+import {
+    AWSFileModification,
+    AWSLocations,
+    ShopItemEditableResponse,
+    StoreProductInputType
+} from '@/core/structures'
 import FormSubmitButtons from './submit-buttons'
 import FileField from '@/components/form/file-input'
-import { GraphQLFetcher } from '@/core/helpers'
 import { NemuResponse, StatusCode } from '@/core/responses'
 import { useState } from 'react'
 import { CheckCircleIcon } from '@heroicons/react/20/solid'
 import NemuImage from '@/components/nemu-image'
 import Link from 'next/link'
 import ProductPublishButton from '../shop/product-publish-button'
+import { api } from '@/core/trpc/react'
 
 const productSchema = z.object({
     title: z.string(),
@@ -38,11 +43,18 @@ const productSchema = z.object({
 
 type ProductSchemaType = z.infer<typeof productSchema>
 
-export default function ShopCreateEditForm({ data }: { data?: ShopItem }) {
-    const { artistId } = useDashboardContext()
+export default function ShopCreateEditForm({
+    data
+}: {
+    data?: ShopItemEditableResponse
+}) {
+    const { artist } = useDashboardContext()!
     const { image, additionalImages } = useFormContext()
 
     const [submitting, setSubmitting] = useState(false)
+
+    const create_mutation = api.artist_corner.set_product.useMutation()
+    const update_mutation = api.artist_corner.update_product.useMutation()
 
     const form = useForm<ProductSchemaType>({
         resolver: zodResolver(productSchema),
@@ -90,48 +102,45 @@ export default function ShopCreateEditForm({ data }: { data?: ShopItem }) {
         }
 
         // Make Request to AWS Rest API to handle multiple files
-        await fetch(`/api/aws/${artistId}/store/multiple`, {
+        await fetch(`/api/aws/${artist?.id}/store/multiple`, {
             method: 'post',
             body: awsData
         })
 
-        // Make request to GraphQL to create new shop object
-        const graphql_response = await GraphQLFetcher<{ create_product: NemuResponse }>(
-            `mutation CreateStoreMutation($product_data: StoreProductInputType!) {
-                create_product(artist_id: "${artistId}", product_data: $product_data) {
-                    status
-                    message
-                }
-            }`,
-            {
+        create_mutation
+            .mutateAsync({
+                artist_id: artist?.id!,
                 product_data: {
                     title: values.title,
                     description: values.description,
                     price: values.price,
                     featured_image: featured_image_key,
                     additional_images: additionalImagesStringList,
-                    downloadable_asset: downloadable_asset_key
+                    downloadable_asset: downloadable_asset_key,
+                    published: false
                 }
-            }
-        )
-
-        if (graphql_response.create_product.status! != StatusCode.Success) {
-            toast.update(toast_id, {
-                render: graphql_response.create_product.message,
-                type: 'error',
-                autoClose: 5000,
-                isLoading: false
             })
-        } else {
-            toast.update(toast_id, {
-                render: 'Product Created',
-                type: 'success',
-                autoClose: 5000,
-                isLoading: false
-            })
-        }
+            .then((response) => {
+                if (!response) {
+                    toast.update(toast_id, {
+                        render: 'Unable to create product',
+                        type: 'error',
+                        autoClose: 5000,
+                        isLoading: false
+                    })
 
-        replace('/dashboard/shop')
+                    return
+                }
+
+                toast.update(toast_id, {
+                    render: 'Successfully Created Product',
+                    type: 'success',
+                    autoClose: 5000,
+                    isLoading: false
+                })
+
+                replace('/dashboard/shop')
+            })
     }
 
     async function UpdateProduct(values: ProductSchemaType) {
@@ -149,7 +158,10 @@ export default function ShopCreateEditForm({ data }: { data?: ShopItem }) {
             awsData.append('file', values.downloadable_asset[0])
             awsData.append('new_image_key', data?.download_key!)
 
-            const response = await fetch(`/api/aws/${artistId}/downloads/${data?.download_key!}`, { method: 'post', body: awsData })
+            const response = await fetch(
+                `/api/aws/${artist?.id!}/downloads/${data?.download_key!}`,
+                { method: 'post', body: awsData }
+            )
             const json = (await response.json()) as NemuResponse
 
             if (json.status != StatusCode.Success) {
@@ -191,43 +203,40 @@ export default function ShopCreateEditForm({ data }: { data?: ShopItem }) {
                 }
             }
 
-            await fetch(`/api/aws/${artistId}/store/multiple/update`, {
+            await fetch(`/api/aws/${artist?.id!}/store/multiple/update`, {
                 method: 'post',
                 body: awsData
             })
         }
 
-        // Update the data
-        const graphql_response = await GraphQLFetcher<{ update_product: NemuResponse }>(
-            `mutation UpdateStoreMutation($product_data: StoreProductInputType!) {
-                update_product(product_id: "${data?.id}", product_data: $product_data) {
-                    status
-                    message
-                }
-            }`,
-            {
-                product_data: update_data
-            }
-        )
-
-        if (graphql_response.update_product.status! != StatusCode.Success) {
-            toast.update(toast_id, {
-                render: graphql_response.update_product.message,
-                type: 'error',
-                autoClose: 5000,
-                isLoading: false
-            })
-        } else {
-            toast.update(toast_id, {
-                render: 'Product Updated',
-                type: 'success',
-                autoClose: 5000,
-                isLoading: false
-            })
-        }
-
         setSubmitting(false)
-        replace('/dashboard/shop')
+
+        update_mutation
+            .mutateAsync({
+                product_id: data?.id!,
+                product_data: update_data
+            })
+            .then((response) => {
+                if (!response.success) {
+                    toast.update(toast_id, {
+                        render: 'Unable to update product',
+                        type: 'error',
+                        autoClose: 5000,
+                        isLoading: false
+                    })
+
+                    return
+                }
+
+                toast.update(toast_id, {
+                    render: 'Successfully Updated Product',
+                    type: 'success',
+                    autoClose: 5000,
+                    isLoading: false
+                })
+
+                replace('/dashboard/shop')
+            })
     }
 
     return (
@@ -239,8 +248,15 @@ export default function ShopCreateEditForm({ data }: { data?: ShopItem }) {
                 </div>
             )}
             <div className="divider"></div>
-            <form className="flex flex-col gap-5" onSubmit={form.handleSubmit(SubmitProduct)}>
-                <TextField label="Product Name" placeholder="Your product name here!" {...form.register('title')} />
+            <form
+                className="flex flex-col gap-5"
+                onSubmit={form.handleSubmit(SubmitProduct)}
+            >
+                <TextField
+                    label="Product Name"
+                    placeholder="Your product name here!"
+                    {...form.register('title')}
+                />
                 <Controller
                     control={form.control}
                     name="description"
@@ -254,15 +270,29 @@ export default function ShopCreateEditForm({ data }: { data?: ShopItem }) {
                         />
                     )}
                 />
-                <CurrencyField min={0} label="Price" placeholder="Price" {...form.register('price', { valueAsNumber: true })} />
+                <CurrencyField
+                    min={0}
+                    label="Price"
+                    placeholder="Price"
+                    {...form.register('price', { valueAsNumber: true })}
+                />
                 <div className="divider"></div>
-                <FormDropzone label="Featured Image" {...form.register('featured_image')} />
+                <FormDropzone
+                    label="Featured Image"
+                    {...form.register('featured_image')}
+                />
                 {data && (
                     <div className="card shadow-xl bg-base-100">
                         <div className="card-body">
                             <h2 className="card-title">Current Featured Image</h2>
                             <div className="divider"></div>
-                            <NemuImage src={data.featured_image.signed_url} alt="Featured Image" className="w-full h-full" width={400} height={400} />
+                            <NemuImage
+                                src={data.featured_image.signed_url}
+                                alt="Featured Image"
+                                className="w-full h-full"
+                                width={400}
+                                height={400}
+                            />
                         </div>
                     </div>
                 )}
@@ -271,16 +301,24 @@ export default function ShopCreateEditForm({ data }: { data?: ShopItem }) {
                     location={AWSLocations.Store}
                     {...form.register('additional_images')}
                     edit_mode={data ? true : false}
-                    images={data && data.edit_images}
+                    images={data && (data.edit_images as AWSFileModification[])}
                 />
                 <div className="divider"></div>
-                <FileField label="Downloadable Asset" {...form.register('downloadable_asset')} accept="application/zip" />
+                <FileField
+                    label="Downloadable Asset"
+                    {...form.register('downloadable_asset')}
+                    accept="application/zip"
+                />
                 {data && (
                     <div className="card shadow-xl bg-base-100">
                         <div className="card-body">
                             <h2 className="card-title">Current Downloadable Asset</h2>
                             <div className="divider"></div>
-                            <Link href={data.downloadable_asset!} download className="btn btn-primary">
+                            <Link
+                                href={data.downloadable_asset!}
+                                download
+                                className="btn btn-primary"
+                            >
                                 Download
                             </Link>
                         </div>
@@ -289,10 +327,20 @@ export default function ShopCreateEditForm({ data }: { data?: ShopItem }) {
                 <div className="divider"></div>
                 <FormSubmitButtons
                     cancel_url="/dashboard/shop"
-                    button_icon={submitting ? <span className="loading loading-spinner"></span> : <CheckCircleIcon className="w-6 h-6" />}
+                    button_icon={
+                        submitting ? (
+                            <span className="loading loading-spinner"></span>
+                        ) : (
+                            <CheckCircleIcon className="w-6 h-6" />
+                        )
+                    }
                     disabled={submitting}
                     submit_text={
-                        submitting ? <>{data ? 'Updating Product' : 'Creating Product'}</> : <>{data ? 'Update Product' : 'Create Product'}</>
+                        submitting ? (
+                            <>{data ? 'Updating Product' : 'Creating Product'}</>
+                        ) : (
+                            <>{data ? 'Update Product' : 'Create Product'}</>
+                        )
                     }
                 />
             </form>

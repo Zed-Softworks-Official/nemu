@@ -1,26 +1,45 @@
 'use client'
-import { Bars3Icon, ChatBubbleOvalLeftEllipsisIcon, PaperAirplaneIcon, PaperClipIcon } from '@heroicons/react/20/solid'
+import {
+    Bars3Icon,
+    ChatBubbleOvalLeftEllipsisIcon,
+    PaperAirplaneIcon,
+    PaperClipIcon
+} from '@heroicons/react/20/solid'
 import ChatBubble from './chat-buble'
-import { ChatMessageType, ChatStatus, KanbanContainerData, KanbanTask } from '@/core/structures'
+import {
+    ChatMessageType,
+    ChatStatus,
+    KanbanContainerData,
+    KanbanTask
+} from '@/core/structures'
 import { useSession } from 'next-auth/react'
 import { Transition } from '@headlessui/react'
 import { MouseEvent, useEffect, useRef, useState } from 'react'
 import NemuImage from '../nemu-image'
 
 import { GroupChannelUI } from '@sendbird/uikit-react/GroupChannel/components/GroupChannelUI'
-import { GroupChannelProvider, useGroupChannelContext } from '@sendbird/uikit-react/GroupChannel/context'
-import { BaseMessage, FileMessage, MessageType, SendingStatus, UserMessage } from '@sendbird/chat/message'
+import {
+    GroupChannelProvider,
+    useGroupChannelContext
+} from '@sendbird/uikit-react/GroupChannel/context'
+import {
+    BaseMessage,
+    FileMessage,
+    MessageType,
+    SendingStatus,
+    UserMessage
+} from '@sendbird/chat/message'
 import { EveryMessage } from '@sendbird/uikit-react/'
 
 import Loading from '../loading'
 import ChannelSettings from './channel-settings'
-import { ClassNames, GraphQLFetcher } from '@/core/helpers'
+import { ClassNames } from '@/core/helpers'
 import MessagesContextMenu from './messages-context-menu'
 import { useMessagesContext } from './messages-context'
 import MessagesModal from '../messages-modal'
 import { toast } from 'react-toastify'
-import { NemuResponse, StatusCode } from '@/core/responses'
 import { BsReplyFill } from 'react-icons/bs'
+import { api } from '@/core/trpc/react'
 
 const initialContextMenu = {
     show: false,
@@ -29,7 +48,8 @@ const initialContextMenu = {
 }
 
 function CustomChannel() {
-    const { currentChannel, sendUserMessage, sendFileMessage, deleteMessage } = useGroupChannelContext()
+    const { currentChannel, sendUserMessage, sendFileMessage, deleteMessage } =
+        useGroupChannelContext()
     const {
         setMessage,
         editingId,
@@ -52,10 +72,17 @@ function CustomChannel() {
     const [showDeletingModal, setShowDeletingModal] = useState(false)
     const [showKanbanModal, setShowKanbanModal] = useState(false)
 
-    const [kanbanContainers, setKanbanConatiners] = useState<KanbanContainerData[] | undefined>(undefined)
+    const [kanbanContainers, setKanbanConatiners] = useState<
+        KanbanContainerData[] | undefined
+    >(undefined)
 
     const ref = useRef<HTMLSpanElement>(null)
     const inputRef = useRef<HTMLInputElement>(null)
+
+    const { data: kanbanData, isLoading: kanbanLoading } =
+        api.kanban.get_kanban.useQuery(kanbanId)
+
+    const mutation = api.kanban.add_task.useMutation()
 
     useEffect(() => {
         // Check if the value has changed for any of these variables
@@ -63,22 +90,13 @@ function CustomChannel() {
         setShowKanbanModal(messageToAddToKanban != undefined)
 
         if (messageToAddToKanban != undefined && kanbanId) {
-            GraphQLFetcher<{
-                kanban: {
-                    containers: string
-                    tasks: string
-                }
-            }>(
-                `{
-                    kanban(id:"${kanbanId}") {
-                        containers
-                    }
-                }`
-            ).then((response: { kanban: { containers: string; tasks: string } }) => {
-                setKanbanConatiners(JSON.parse(response.kanban.containers) as KanbanContainerData[])
-            })
+            if (!kanbanLoading) {
+                setKanbanConatiners(
+                    JSON.parse(kanbanData?.containers!) as KanbanContainerData[]
+                )
+            }
         }
-    }, [deletingMessage, messageToAddToKanban])
+    }, [deletingMessage, messageToAddToKanban, kanbanData])
 
     function ConvertSendbirdToNemuMessageType(message_type: MessageType | undefined) {
         if (!message_type) {
@@ -99,12 +117,18 @@ function CustomChannel() {
 
     function ConvertSendbirdToNemuStatus(status: SendingStatus, message: BaseMessage) {
         // Check if the message has been read
-        if (status === SendingStatus.SUCCEEDED && currentChannel?.getUnreadMemberCount(message) === 0) {
+        if (
+            status === SendingStatus.SUCCEEDED &&
+            currentChannel?.getUnreadMemberCount(message) === 0
+        ) {
             return ChatStatus.Read
         }
 
         // Check if the message has been delivered
-        if (status === SendingStatus.SUCCEEDED && currentChannel?.getUndeliveredMemberCount(message) === 0) {
+        if (
+            status === SendingStatus.SUCCEEDED &&
+            currentChannel?.getUndeliveredMemberCount(message) === 0
+        ) {
             return ChatStatus.Delivered
         }
 
@@ -116,7 +140,10 @@ function CustomChannel() {
         return ChatStatus.Sent
     }
 
-    function HandleContextMenu(e: MouseEvent<HTMLDivElement, globalThis.MouseEvent>, message: EveryMessage) {
+    function HandleContextMenu(
+        e: MouseEvent<HTMLDivElement, globalThis.MouseEvent>,
+        message: EveryMessage
+    ) {
         e.preventDefault()
 
         const { pageX, pageY } = e
@@ -169,7 +196,12 @@ function CustomChannel() {
             <GroupChannelUI
                 renderPlaceholderInvalid={() => (
                     <div className="flex flex-col w-full h-full bg-base-100 justify-center items-center gap-5">
-                        <NemuImage src="/nemu/sad.png" alt="Sad nemu" width={200} height={200} />
+                        <NemuImage
+                            src="/nemu/sad.png"
+                            alt="Sad nemu"
+                            width={200}
+                            height={200}
+                        />
                         <h2 className="card-title">There's no channel selected</h2>
                     </div>
                 )}
@@ -214,7 +246,10 @@ function CustomChannel() {
                                     <BsReplyFill className="w-5 h-5" />
                                     <p className="text-sm">Replying to</p>
                                 </div>
-                                <p className="text-sm">{replyMessage?.isUserMessage() && replyMessage.message}</p>
+                                <p className="text-sm">
+                                    {replyMessage?.isUserMessage() &&
+                                        replyMessage.message}
+                                </p>
                             </div>
                         </Transition>
                         <div
@@ -256,10 +291,24 @@ function CustomChannel() {
                                 placeholder={placeholder}
                             ></span>
                             <div className="join-item">
-                                <button type="button" className="btn btn-ghost btn-sm" onClick={HandleButtonStates}>
+                                <button
+                                    type="button"
+                                    className="btn btn-ghost btn-sm"
+                                    onClick={HandleButtonStates}
+                                >
                                     <div className="swap swap-rotate">
-                                        <PaperAirplaneIcon className={ClassNames('w-6 h-6', messageContent ? 'swap-off' : 'swap-on')} />
-                                        <PaperClipIcon className={ClassNames('w-6 h-6', messageContent ? 'swap-on' : 'swap-off')} />
+                                        <PaperAirplaneIcon
+                                            className={ClassNames(
+                                                'w-6 h-6',
+                                                messageContent ? 'swap-off' : 'swap-on'
+                                            )}
+                                        />
+                                        <PaperClipIcon
+                                            className={ClassNames(
+                                                'w-6 h-6',
+                                                messageContent ? 'swap-on' : 'swap-off'
+                                            )}
+                                        />
                                     </div>
                                 </button>
                                 <input
@@ -271,14 +320,18 @@ function CustomChannel() {
                                     max={1}
                                     accept="image/*"
                                     onChange={() => {
-                                        const file = document.querySelector<HTMLInputElement>('#sendbird-attach-file')?.files![0]
+                                        const file =
+                                            document.querySelector<HTMLInputElement>(
+                                                '#sendbird-attach-file'
+                                            )?.files![0]
 
                                         if (file) {
                                             if (replyMessage) {
                                                 sendFileMessage({
                                                     file: file,
                                                     isReplyToChannel: true,
-                                                    parentMessageId: replyMessage.messageId
+                                                    parentMessageId:
+                                                        replyMessage.messageId
                                                 })
                                                 setReplyMessage(undefined)
                                                 setPlaceholder('Send Message')
@@ -301,11 +354,20 @@ function CustomChannel() {
                         message={{
                             username: message.sender.nickname,
                             profile_photo: message.sender.profileUrl,
-                            message: message.isUserMessage() ? (message as UserMessage).message : '',
-                            signed_url: message.isFileMessage() ? (message as FileMessage).url : '',
+                            message: message.isUserMessage()
+                                ? (message as UserMessage).message
+                                : '',
+                            signed_url: message.isFileMessage()
+                                ? (message as FileMessage).url
+                                : '',
                             sent_timestamp: new Date(message.createdAt),
-                            status: ConvertSendbirdToNemuStatus((message as UserMessage).sendingStatus, message),
-                            message_type: ConvertSendbirdToNemuMessageType(message.messageType)
+                            status: ConvertSendbirdToNemuStatus(
+                                (message as UserMessage).sendingStatus,
+                                message
+                            ),
+                            message_type: ConvertSendbirdToNemuMessageType(
+                                message.messageType
+                            )
                         }}
                         handle_context_menu={(e) => HandleContextMenu(e, message)}
                         current_user={message.sender.userId == session?.user.user_id}
@@ -315,7 +377,11 @@ function CustomChannel() {
                         has_been_edited={message.updatedAt != 0}
                         has_separator={hasSeparator}
                         parent_message={message.parentMessage || undefined}
-                        parent_type={ConvertSendbirdToNemuMessageType(message.parentMessage ? message.parentMessage.messageType : undefined)}
+                        parent_type={ConvertSendbirdToNemuMessageType(
+                            message.parentMessage
+                                ? message.parentMessage.messageType
+                                : undefined
+                        )}
                     />
                 )}
             />
@@ -329,7 +395,10 @@ function CustomChannel() {
                 show={showDetail}
             >
                 <div className="w-[21rem] p-5 bg-base-200/80 backdrop-blur-xl absolute right-0 top-0 z-20 h-full rounded-r-xl">
-                    <ChannelSettings channel_url={currentChannel?.url!} on_close={() => setShowDetail(false)} />
+                    <ChannelSettings
+                        channel_url={currentChannel?.url!}
+                        on_close={() => setShowDetail(false)}
+                    />
                 </div>
                 <div
                     className="w-full h-full absolute top-0 left-0"
@@ -347,7 +416,11 @@ function CustomChannel() {
                 leaveTo="opacity-0"
                 show={contextMenu.show}
             >
-                <MessagesContextMenu x={contextMenu.x} y={contextMenu.y} close_context_menu={() => setContextMenu(initialContextMenu)} />
+                <MessagesContextMenu
+                    x={contextMenu.x}
+                    y={contextMenu.y}
+                    close_context_menu={() => setContextMenu(initialContextMenu)}
+                />
             </Transition>
             <MessagesModal
                 showModal={showDeletingModal}
@@ -408,19 +481,29 @@ function CustomChannel() {
                                             content: messageToAddToKanban.message
                                         }
 
-                                        fetch(`/api/kanban/${kanbanId}/add`, { method: 'post', body: JSON.stringify({ new_task: new_task }) }).then(
-                                            (response: NemuResponse) => {
-                                                // Alert the user that stuff happened
-                                                if (response.status != StatusCode.InternalError) {
-                                                    toast(`Added to "${container.title}" container`, { theme: 'dark', type: 'info' })
-                                                } else {
-                                                    toast(`Failed to add "${container.title}" container`, { theme: 'dark', type: 'error' })
+                                        mutation
+                                            .mutateAsync({
+                                                kanban_id: kanbanId,
+                                                new_task
+                                            })
+                                            .then((res) => {
+                                                if (!res.success) {
+                                                    toast(
+                                                        `Failed to add "${container.title}" container`,
+                                                        { theme: 'dark', type: 'error' }
+                                                    )
+
+                                                    return
                                                 }
+
+                                                toast(
+                                                    `Added to "${container.title}" container`,
+                                                    { theme: 'dark', type: 'info' }
+                                                )
 
                                                 setShowKanbanModal(false)
                                                 setMessageToAddToKanban(undefined)
-                                            }
-                                        )
+                                            })
                                     }
                                 }}
                             >

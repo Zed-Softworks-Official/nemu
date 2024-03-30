@@ -1,10 +1,9 @@
 'use client'
 
+import { api } from '@/app/_trpc/client'
 import TextArea from '@/components/form/text-area'
 import TextInput from '@/components/form/text-input'
 import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
-import { GraphQLFetcher } from '@/core/helpers'
-import { CommissionFormCreateResponse } from '@/core/responses'
 
 import { CheckCircleIcon } from '@heroicons/react/20/solid'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -21,26 +20,44 @@ const commissionCreateFormSchema = z.object({
 
 type CommissionCreateFormSchemaType = z.infer<typeof commissionCreateFormSchema>
 
-export default function CommissionCreateForm() {
-    const { artistId } = useDashboardContext()
+export default function CommissionCreateForm({ refetch }: { refetch: any }) {
+    const { artist } = useDashboardContext()!
+    const mutation = api.form.set_form.useMutation({
+        onSuccess: () => {
+            refetch()
+        }
+    })
     const form = useForm<CommissionCreateFormSchemaType>({
         resolver: zodResolver(commissionCreateFormSchema),
         mode: 'onSubmit'
     })
 
-    const { refresh } = useRouter()
-
     async function CreateCommissionForm(values: CommissionCreateFormSchemaType) {
-        const response = await GraphQLFetcher<CommissionFormCreateResponse>(`mutation {
-            create_new_form(artist_id: "${artistId}", form_name: "${values.form_name}", form_desc: "${values.form_desc}") {
-                status
-            }
-        }`)
+        const toast_id = toast.loading('Creating form', { theme: 'dark' })
 
-        toast('Form Created Successfully', { type: 'success', theme: 'dark' })
+        mutation
+            .mutateAsync({
+                artist_id: artist?.id!,
+                form_name: values.form_name,
+                form_desc: values.form_desc
+            })
+            .then((res) => {
+                if (!res.success) {
+                    toast.update(toast_id, {
+                        render: 'Form could not be created',
+                        type: 'error',
+                        autoClose: 5000,
+                        isLoading: false
+                    })
+                }
 
-        // TODO: Navigate to new form
-        refresh()
+                toast.update(toast_id, {
+                    render: 'Form Created',
+                    type: 'success',
+                    autoClose: 5000,
+                    isLoading: false
+                })
+            })
     }
 
     return (

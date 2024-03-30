@@ -15,11 +15,11 @@ import DashboardArtistManagmentSection from './artist-managment-section'
 
 export default function DashboardUserSection() {
     const pathname = usePathname()
-    const { handle } = useDashboardContext()
+    const { artist } = useDashboardContext()!
 
     return (
         <div>
-            {handle && <DashboardArtistManagmentSection />}
+            {artist && <DashboardArtistManagmentSection />}
             <li className="my-2">
                 <Link
                     href={'/dashboard/downloads'}

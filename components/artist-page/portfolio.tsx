@@ -1,11 +1,11 @@
-import { trpc } from '@/app/_trpc/client'
 import NemuImage from '../nemu-image'
 import { PortfolioItem } from '@/core/structures'
 import Masonary, { ResponsiveMasonry } from 'react-responsive-masonry'
 import Loading from '../loading'
+import { api } from '@/core/trpc/react'
 
 export default function Portfolio({ artist_id }: { artist_id: string }) {
-    const { data, isLoading } = trpc.portfolio.get_portfolio_items.useQuery({ artist_id })
+    const { data, isLoading } = api.portfolio.get_portfolio_items.useQuery({ artist_id })
 
     if (isLoading) {
         return <Loading />

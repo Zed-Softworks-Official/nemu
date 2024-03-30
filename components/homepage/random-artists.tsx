@@ -1,17 +1,12 @@
 'use client'
 
-import { RandomArtistsResponse } from '@/core/responses'
-import { Fetcher } from '@/core/helpers'
-import useSWR from 'swr'
 import Link from 'next/link'
 import ArtistsSkeleton from '../skeleton/homepage/artists-skeleton'
 import NemuImage from '../nemu-image'
+import { api } from '@/core/trpc/react'
 
 export default function RandomArtists() {
-    const { data, isLoading } = useSWR<RandomArtistsResponse>(
-        `/api/artist/random`,
-        Fetcher
-    )
+    const { data, isLoading } = api.artist.get_random.useQuery()
 
     if (isLoading) {
         return <ArtistsSkeleton />
@@ -23,7 +18,7 @@ export default function RandomArtists() {
                 <h1>Artists</h1>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
-                {data?.artists?.map((artist) => (
+                {data?.map((artist) => (
                     <Link
                         href={`/@${artist.handle}`}
                         key={artist.handle}

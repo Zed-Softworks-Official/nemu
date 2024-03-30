@@ -2,6 +2,7 @@ import { InvoiceItem } from '@prisma/client'
 import { ImageData } from './aws-structures'
 import { AWSFileModification } from './form-structures'
 import { KanbanContainerData } from './kanban-structures'
+import { RouterOutput } from '../responses'
 
 /**
  * Portfolio Item
@@ -16,6 +17,9 @@ export interface PortfolioItem {
     image_key: string
     name: string
 }
+
+export type ShopItemResponse = RouterOutput['artist_corner']['get_products']
+export type ShopItemEditableResponse = RouterOutput['artist_corner']['get_product_editable']
 
 /**
  * Shop Item

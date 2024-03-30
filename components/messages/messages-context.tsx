@@ -1,10 +1,18 @@
 'use client'
 
-import { GraphQLFetcher } from '@/core/helpers'
 import { BaseMessage } from '@sendbird/chat/message'
 import { EveryMessage } from '@sendbird/uikit-react'
-import { Dispatch, SetStateAction, createContext, useContext, useEffect, useState } from 'react'
+import {
+    Dispatch,
+    SetStateAction,
+    createContext,
+    useContext,
+    useEffect,
+    useState
+} from 'react'
 import NemuImage from '../nemu-image'
+import Loading from '../loading'
+import { api } from '@/core/trpc/react'
 
 type MessagesContextType = {
     artistUserId: string
@@ -34,26 +42,23 @@ type MessagesContextType = {
 
 const MessagesContext = createContext<MessagesContextType | null>(null)
 
-type FormSubmissionReponseGraphQLResponse = {
-    form_submission: {
-        kanban: {
-            id: string
-        }
-        form: {
-            artist: {
-                userId: string
-            }
-        }
-    }
-}
-
-export function MessagesProvider({ channel_url, children }: { channel_url: string; children: React.ReactNode }) {
+export function MessagesProvider({
+    channel_url,
+    children
+}: {
+    channel_url: string
+    children: React.ReactNode
+}) {
     const [artistUserId, setArtistUserId] = useState('')
     const [kanbanId, setKanbanId] = useState('')
 
     const [editingId, setEditingId] = useState<number | undefined>(undefined)
-    const [deletingMessage, setDeletingMessage] = useState<BaseMessage | undefined>(undefined)
-    const [messageToAddToKanban, setMessageToAddToKanban] = useState<BaseMessage | undefined>(undefined)
+    const [deletingMessage, setDeletingMessage] = useState<BaseMessage | undefined>(
+        undefined
+    )
+    const [messageToAddToKanban, setMessageToAddToKanban] = useState<
+        BaseMessage | undefined
+    >(undefined)
     const [replyMessage, setReplyMessage] = useState<BaseMessage | undefined>(undefined)
 
     const [message, setMessage] = useState<EveryMessage | null>(null)
@@ -61,29 +66,22 @@ export function MessagesProvider({ channel_url, children }: { channel_url: strin
 
     const [hasSubmissions, setHasSubmissions] = useState(true)
 
+    const { isLoading, refetch } = api.form.get_submission.useQuery({ channel_url })
+
     useEffect(() => {
-        GraphQLFetcher<FormSubmissionReponseGraphQLResponse>(
-            `{
-                form_submission(channel_url:"${channel_url}") {
-                    kanban {
-                        id
-                    }
-                    form {
-                        artist {
-                            userId
-                        }
-                    }
-                }
-            }`
-        )
-            .then((response: FormSubmissionReponseGraphQLResponse) => {
-                setArtistUserId(response.form_submission.form.artist.userId)
-                setKanbanId(response.form_submission.kanban.id)
-            })
-            .catch((e) => {
+        refetch().then(({ data }) => {
+            if (data?.submission) {
+                setArtistUserId(data.submission.form.artist.userId)
+                setKanbanId(data.kanban?.id!)
+            } else {
                 setHasSubmissions(false)
-            })
+            }
+        })
     }, [channel_url])
+
+    if (isLoading) {
+        return <Loading />
+    }
 
     return (
         <MessagesContext.Provider
@@ -106,14 +104,20 @@ export function MessagesProvider({ channel_url, children }: { channel_url: strin
                 setPlaceholder
             }}
         >
-            {hasSubmissions ? (
+            {children}
+            {/* {hasSubmissions ? (
                 children
             ) : (
                 <div className="flex flex-col w-full h-full justify-center items-center gap-5">
-                    <NemuImage src={'/nemu/sad.png'} alt="Sad Nemu" width={200} height={200} />
+                    <NemuImage
+                        src={'/nemu/sad.png'}
+                        alt="Sad Nemu"
+                        width={200}
+                        height={200}
+                    />
                     <h2 className="card-title">You have no messages</h2>
                 </div>
-            )}
+            )} */}
         </MessagesContext.Provider>
     )
 }

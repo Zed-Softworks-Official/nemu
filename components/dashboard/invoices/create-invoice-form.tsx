@@ -4,11 +4,17 @@ import * as z from 'zod'
 
 import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ArrowDownOnSquareStackIcon, CurrencyDollarIcon, HashtagIcon, PlusCircleIcon, XCircleIcon } from '@heroicons/react/20/solid'
-import { FormatNumberToCurrency, GraphQLFetcher } from '@/core/helpers'
+import {
+    ArrowDownOnSquareStackIcon,
+    CurrencyDollarIcon,
+    HashtagIcon,
+    PlusCircleIcon,
+    XCircleIcon
+} from '@heroicons/react/20/solid'
+import { FormatNumberToCurrency } from '@/core/helpers'
 import { InvoiceItem } from '@prisma/client'
-import { NemuResponse, StatusCode } from '@/core/responses'
 import { toast } from 'react-toastify'
+import { api } from '@/core/trpc/react'
 
 const invoiceSchema = z.object({
     items: z
@@ -26,7 +32,13 @@ const invoiceSchema = z.object({
 
 type InvoiceSchemaType = z.infer<typeof invoiceSchema>
 
-export default function CreateInvoiceForm({ invoice_id, invoice_items }: { invoice_id: string; invoice_items?: InvoiceItem[] }) {
+export default function CreateInvoiceForm({
+    invoice_id,
+    invoice_items
+}: {
+    invoice_id: string
+    invoice_items?: InvoiceItem[]
+}) {
     const form = useForm<InvoiceSchemaType>({
         resolver: zodResolver(invoiceSchema),
         mode: 'onSubmit',
@@ -35,24 +47,35 @@ export default function CreateInvoiceForm({ invoice_id, invoice_items }: { invoi
         }
     })
 
-    async function ApplyChanges(values: InvoiceSchemaType) {
-        const response = await GraphQLFetcher<{ update_invoice: NemuResponse }>(
-            `mutation UpdateInvoice($invoice_items: [InvoiceItemInputType!]!){
-                update_invoice(invoice_id: "${invoice_id}", invoice_items: $invoice_items) {
-                    status
-                    message
-                }
-            }`,
-            {
-                invoice_items: values.items
-            }
-        )
+    const mutation = api.invoices.update_invoice.useMutation()
 
-        if (response.update_invoice.status == StatusCode.Success) {
-            toast('Invoice Updated!', { theme: 'dark', type: 'success' })
-        } else {
-            toast(response.update_invoice.message, { theme: 'dark', type: 'error' })
-        }
+    async function ApplyChanges(values: InvoiceSchemaType) {
+        const toast_id = toast.loading('Updating invoice', { theme: 'dark' })
+
+        mutation
+            .mutateAsync({
+                invoice_id,
+                invoice_items: values.items
+            })
+            .then((res) => {
+                if (!res.success) {
+                    toast.update(toast_id, {
+                        isLoading: false,
+                        autoClose: 5000,
+                        render: 'Could not update invoice',
+                        type: 'error'
+                    })
+
+                    return
+                }
+
+                toast.update(toast_id, {
+                    isLoading: false,
+                    autoClose: 5000,
+                    render: 'Updated Invoice',
+                    type: 'success'
+                })
+            })
     }
 
     function CalculateTotalPrice() {
@@ -74,7 +97,10 @@ export default function CreateInvoiceForm({ invoice_id, invoice_items }: { invoi
             <div className="divider"></div>
             <div className="card bg-base-300 max-w-xl shadow-xl mx-auto w-full">
                 <div className="card-body">
-                    <form className="flex flex-col gap-5" onSubmit={form.handleSubmit(ApplyChanges)}>
+                    <form
+                        className="flex flex-col gap-5"
+                        onSubmit={form.handleSubmit(ApplyChanges)}
+                    >
                         <Controller
                             name="items"
                             control={form.control}
@@ -119,24 +145,47 @@ export default function CreateInvoiceForm({ invoice_id, invoice_items }: { invoi
                                         form.watch('items').map((item, index) => (
                                             <>
                                                 {!item.delete && (
-                                                    <div key={index} className="flex flex-col rounded-xl p-5 bg-base-300 gap-5">
+                                                    <div
+                                                        key={index}
+                                                        className="flex flex-col rounded-xl p-5 bg-base-300 gap-5"
+                                                    >
                                                         <div>
                                                             <div className="flex justify-between items-center">
-                                                                <h2 className="card-title">Item {index + 1}</h2>
+                                                                <h2 className="card-title">
+                                                                    Item {index + 1}
+                                                                </h2>
                                                                 <button
                                                                     type="button"
                                                                     className="btn btn-error"
                                                                     onClick={(e) => {
                                                                         e.preventDefault()
 
-                                                                        field.value[index] = {
-                                                                            id: field.value[index].id,
-                                                                            name: field.value[index].name,
-                                                                            price: field.value[index].price,
-                                                                            quantity: field.value[index].quantity,
+                                                                        field.value[
+                                                                            index
+                                                                        ] = {
+                                                                            id: field
+                                                                                .value[
+                                                                                index
+                                                                            ].id,
+                                                                            name: field
+                                                                                .value[
+                                                                                index
+                                                                            ].name,
+                                                                            price: field
+                                                                                .value[
+                                                                                index
+                                                                            ].price,
+                                                                            quantity:
+                                                                                field
+                                                                                    .value[
+                                                                                    index
+                                                                                ]
+                                                                                    .quantity,
                                                                             delete: true
                                                                         }
-                                                                        field.onChange(field.value)
+                                                                        field.onChange(
+                                                                            field.value
+                                                                        )
                                                                     }}
                                                                 >
                                                                     <XCircleIcon className="w-6 h-6" />
@@ -145,7 +194,9 @@ export default function CreateInvoiceForm({ invoice_id, invoice_items }: { invoi
                                                             <div className="divider"></div>
                                                         </div>
                                                         <div className="form-control">
-                                                            <label className="label">Description:</label>
+                                                            <label className="label">
+                                                                Description:
+                                                            </label>
                                                             <textarea
                                                                 className="textarea resize-none w-full"
                                                                 rows={4}
@@ -153,18 +204,33 @@ export default function CreateInvoiceForm({ invoice_id, invoice_items }: { invoi
                                                                 value={item.name}
                                                                 onChange={(e) => {
                                                                     field.value[index] = {
-                                                                        id: field.value[index].id,
-                                                                        name: e.currentTarget.value,
-                                                                        price: field.value[index].price,
-                                                                        quantity: field.value[index].quantity,
-                                                                        delete: field.value[index].delete
+                                                                        id: field.value[
+                                                                            index
+                                                                        ].id,
+                                                                        name: e
+                                                                            .currentTarget
+                                                                            .value,
+                                                                        price: field
+                                                                            .value[index]
+                                                                            .price,
+                                                                        quantity:
+                                                                            field.value[
+                                                                                index
+                                                                            ].quantity,
+                                                                        delete: field
+                                                                            .value[index]
+                                                                            .delete
                                                                     }
-                                                                    field.onChange(field.value)
+                                                                    field.onChange(
+                                                                        field.value
+                                                                    )
                                                                 }}
                                                             />
                                                         </div>
                                                         <div className="form-control">
-                                                            <label className="label">Item Price:</label>
+                                                            <label className="label">
+                                                                Item Price:
+                                                            </label>
                                                             <div className="join">
                                                                 <div className="join-item flex jutify-center items-center px-5 bg-base-200">
                                                                     <CurrencyDollarIcon className="w-6 h-6" />
@@ -175,20 +241,44 @@ export default function CreateInvoiceForm({ invoice_id, invoice_items }: { invoi
                                                                     placeholder="Item Price"
                                                                     value={item.price}
                                                                     onChange={(e) => {
-                                                                        field.value[index] = {
-                                                                            id: field.value[index].id,
-                                                                            name: field.value[index].name,
-                                                                            price: Number(e.currentTarget.value),
-                                                                            quantity: field.value[index].quantity,
-                                                                            delete: field.value[index].delete
+                                                                        field.value[
+                                                                            index
+                                                                        ] = {
+                                                                            id: field
+                                                                                .value[
+                                                                                index
+                                                                            ].id,
+                                                                            name: field
+                                                                                .value[
+                                                                                index
+                                                                            ].name,
+                                                                            price: Number(
+                                                                                e
+                                                                                    .currentTarget
+                                                                                    .value
+                                                                            ),
+                                                                            quantity:
+                                                                                field
+                                                                                    .value[
+                                                                                    index
+                                                                                ]
+                                                                                    .quantity,
+                                                                            delete: field
+                                                                                .value[
+                                                                                index
+                                                                            ].delete
                                                                         }
-                                                                        field.onChange(field.value)
+                                                                        field.onChange(
+                                                                            field.value
+                                                                        )
                                                                     }}
                                                                 />
                                                             </div>
                                                         </div>
                                                         <div className="form-control">
-                                                            <label className="label">Item Quantity:</label>
+                                                            <label className="label">
+                                                                Item Quantity:
+                                                            </label>
                                                             <div className="join">
                                                                 <div className="join-item flex jutify-center items-center px-5 bg-base-200">
                                                                     <HashtagIcon className="w-6 h-6" />
@@ -199,14 +289,35 @@ export default function CreateInvoiceForm({ invoice_id, invoice_items }: { invoi
                                                                     placeholder="Item Quantity"
                                                                     value={item.quantity}
                                                                     onChange={(e) => {
-                                                                        field.value[index] = {
-                                                                            id: field.value[index].id,
-                                                                            name: field.value[index].name,
-                                                                            price: field.value[index].price,
-                                                                            quantity: Number(e.currentTarget.value),
-                                                                            delete: field.value[index].delete
+                                                                        field.value[
+                                                                            index
+                                                                        ] = {
+                                                                            id: field
+                                                                                .value[
+                                                                                index
+                                                                            ].id,
+                                                                            name: field
+                                                                                .value[
+                                                                                index
+                                                                            ].name,
+                                                                            price: field
+                                                                                .value[
+                                                                                index
+                                                                            ].price,
+                                                                            quantity:
+                                                                                Number(
+                                                                                    e
+                                                                                        .currentTarget
+                                                                                        .value
+                                                                                ),
+                                                                            delete: field
+                                                                                .value[
+                                                                                index
+                                                                            ].delete
                                                                         }
-                                                                        field.onChange(field.value)
+                                                                        field.onChange(
+                                                                            field.value
+                                                                        )
                                                                     }}
                                                                 />
                                                             </div>
@@ -220,8 +331,14 @@ export default function CreateInvoiceForm({ invoice_id, invoice_items }: { invoi
                         />
 
                         <div className="flex flex-col gap-5 bg-base-100 p-5 rounded-xl">
-                            <p>Total Items: {form.watch('items') ? form.watch('items').length : 0}</p>
-                            <p>Total Cost: {form.watch('items') ? CalculateTotalPrice() : '$0.00'}</p>
+                            <p>
+                                Total Items:{' '}
+                                {form.watch('items') ? form.watch('items').length : 0}
+                            </p>
+                            <p>
+                                Total Cost:{' '}
+                                {form.watch('items') ? CalculateTotalPrice() : '$0.00'}
+                            </p>
                         </div>
                         <button type="submit" className="btn btn-primary w-full">
                             <ArrowDownOnSquareStackIcon className="w-6 h-6" />

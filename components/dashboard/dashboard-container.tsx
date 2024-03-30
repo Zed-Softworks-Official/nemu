@@ -25,7 +25,7 @@ export default function DashboardContainer({
     const [showModal, setShowModal] = useState(false)
 
     return (
-        <main className="py-14 justify-around w-[90%] transition-all duration-200 ease-in-out">
+        <main className="py-14 justify-around w-[90%] transition-all duration-200 ease-in-out relative">
             <div className="bg-base-300 p-10 mx-auto rounded-xl">
                 <div className={ClassNames(ignoreTitle ? '' : 'pb-10')}>
                     {breadcrumbs && (
@@ -43,7 +43,7 @@ export default function DashboardContainer({
                     )}
                 </div>
                 {addButtonUrl && (
-                    <div className="fixed bottom-20 right-20">
+                    <div className="absolute bottom-20 right-20">
                         <Link href={addButtonUrl} className="btn btn-square btn-primary btn-lg">
                             <PlusCircleIcon className="w-10 h-10 inline " />
                         </Link>
@@ -51,7 +51,7 @@ export default function DashboardContainer({
                 )}
                 {modal && (
                     <>
-                        <div className="fixed bottom-20 right-20">
+                        <div className="absolute bottom-20 right-20">
                             <button type="button" className="btn btn-square btn-primary btn-lg" onClick={() => setShowModal(true)}>
                                 <PlusCircleIcon className="w-10 h-10 inline " />
                             </button>

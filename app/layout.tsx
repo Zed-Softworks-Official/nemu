@@ -9,7 +9,7 @@ import 'react-toastify/ReactToastify.min.css'
 import ThemeProvider from '@/components/theme/theme-context'
 import NextTopLoader from 'nextjs-toploader'
 import CookieConsentBanner from '@/components/cookie-consent-banner'
-import TRPCProvider from './_trpc/trpc-provider'
+import TRPCProvider from '@/core/trpc/react'
 
 export const nunito = Nunito({
     subsets: ['latin'],

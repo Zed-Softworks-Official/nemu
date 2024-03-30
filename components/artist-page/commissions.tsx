@@ -1,8 +1,8 @@
-import { trpc } from '@/app/_trpc/client'
 import CommissionCard from './commission-card'
 import { CommissionItem } from '@/core/structures'
 import { notFound } from 'next/navigation'
 import CommissionsSkeleton from '../skeleton/artist-page/commissions-skeleton'
+import { api } from '@/core/trpc/react'
 
 export default function Commissions({
     artist_id,
@@ -11,7 +11,7 @@ export default function Commissions({
     artist_id: string
     terms: string
 }) {
-    const { data, isLoading, error } = trpc.commissions.get_commissions.useQuery({ artist_id })
+    const { data, isLoading, error } = api.commissions.get_commissions.useQuery({ artist_id })
 
     if (isLoading) {
         return <CommissionsSkeleton />

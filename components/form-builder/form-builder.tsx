@@ -1,10 +1,7 @@
 'use client'
 
-import useSWR from 'swr'
 import Designer from './designer/designer'
 import SaveButton from './nav/save-button'
-
-import { GraphQLFetcher } from '@/core/helpers'
 
 import PreviewButton from './nav/preview-button'
 import {
@@ -19,20 +16,14 @@ import { DesignerContextType, useDesigner } from './designer/designer-context'
 import { useEffect } from 'react'
 import Loading from '../loading'
 import { useDashboardContext } from '../navigation/dashboard/dashboard-context'
-import { GraphQLCommissionFormResponse } from '@/core/responses'
+import { api } from '@/core/trpc/react'
 
 export default function FormBuilder({ form_id }: { form_id: string }) {
-    const { artistId } = useDashboardContext()
-    const { data, isLoading } = useSWR(
-        `{
-            form(artistId: "${artistId}", formId: "${form_id}") {
-                name
-                description
-                content
-            }
-        }`,
-        GraphQLFetcher<GraphQLCommissionFormResponse>
-    )
+    const { artist } = useDashboardContext()!
+    const { data, isLoading } = api.form.get_form.useQuery({
+        artist_id: artist?.id!,
+        form_id
+    })
     const { setElements } = useDesigner() as DesignerContextType
 
     const mouseSensor = useSensor(MouseSensor, {
@@ -52,7 +43,7 @@ export default function FormBuilder({ form_id }: { form_id: string }) {
 
     useEffect(() => {
         if (!isLoading) {
-            const elements = JSON.parse(data?.form?.content!)
+            const elements = JSON.parse(data?.content!)
             setElements(elements)
         }
     }, [data, setElements])
@@ -66,8 +57,8 @@ export default function FormBuilder({ form_id }: { form_id: string }) {
             <main className="flex flex-col w-full min-h-[90rem]">
                 <nav className="flex justify-between p-4 gap-3 items-center">
                     <div>
-                        <h2 className="card-title">Form: {data?.form?.name}</h2>
-                        <p>Description: {data?.form?.description}</p>
+                        <h2 className="card-title">Form: {data?.name}</h2>
+                        <p>Description: {data?.description}</p>
                     </div>
                     <div className="flex items-center gap-2">
                         <PreviewButton />

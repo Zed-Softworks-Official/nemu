@@ -6,10 +6,10 @@ import ArtistBody from './body'
 import ArtistHeader from './header'
 
 import Loading from '../loading'
-import { trpc } from '@/app/_trpc/client'
+import { api } from '@/core/trpc/react'
 
 export default function ArtistPageClient({ handle }: { handle: string }) {
-    const { data, isLoading, error } = trpc.artist.get_artist.useQuery({ handle })
+    const { data, isLoading, error } = api.artist.get_artist.useQuery({ handle })
 
     if (isLoading) {
         return <Loading />

@@ -1,9 +1,7 @@
 'use client'
 
-import useSWR from 'swr'
-
 import { toast } from 'react-toastify'
-import { GetItemId, GraphQLFetcher } from '@/core/helpers'
+import { GetItemId } from '@/core/helpers'
 
 import { usePathname, useRouter } from 'next/navigation'
 import FormDropzone from '@/components/form/form-dropzone'
@@ -20,6 +18,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import TextField from '@/components/form/text-input'
 import NemuImage from '@/components/nemu-image'
 import Loading from '@/components/loading'
+import { api } from '@/core/trpc/react'
 
 const portfolioSchema = z.object({
     name: z.string().min(2).max(50).optional(),
@@ -33,16 +32,13 @@ export default function PortfolioEditForm() {
 
     const { push, replace } = useRouter()
     const { image } = useFormContext()
-    const { artistId } = useDashboardContext()
-    const { data, isLoading } = useSWR(
-        `{
-            portfolio_item(artist_id: "${artistId}", item_id: "${image_id}") {
-                name
-                signed_url
-            }
-        }`,
-        GraphQLFetcher
-    )
+    const { artist } = useDashboardContext()!
+    const { data, isLoading } = api.portfolio.get_portfolio_item.useQuery({
+        artist_id: artist?.id!,
+        item_id: image_id
+    })
+    const update_mutation = api.portfolio.update_portfolio_item.useMutation()
+    const del_mutation = api.portfolio.del_portfolio_item.useMutation()
 
     const form = useForm<PortfolioSchemaType>({
         resolver: zodResolver(portfolioSchema),
@@ -72,9 +68,10 @@ export default function PortfolioEditForm() {
             updated_values += `, name: "${values.name}"`
         }
 
+        let new_image_key = undefined
         // Generate Key
-        if (values.file.length != 0) {
-            const new_image_key = crypto.randomUUID()
+        if (values.file) {
+            new_image_key = crypto.randomUUID()
 
             formData.append('new_image_key', new_image_key)
             formData.append('file', image as any)
@@ -82,7 +79,7 @@ export default function PortfolioEditForm() {
             updated_values += `, new_image_key: "${new_image_key}"`
 
             const aws_response = await fetch(
-                `/api/aws/${artistId}/portfolio/${image_id}/update`,
+                `/api/aws/${artist?.id}/portfolio/${image_id}/update`,
                 {
                     method: 'post',
                     body: formData
@@ -100,40 +97,43 @@ export default function PortfolioEditForm() {
             }
         }
 
-        const database_response = await GraphQLFetcher(`mutation {
-            update_portfolio_item(artist_id: "${artistId}", image_key: "${image_id}" ${updated_values}) {
-                status
-            }
-        }`)
-
-        // Check if database was successful
-        if (
-            (database_response as { update_portfolio_item: NemuResponse })
-                .update_portfolio_item.status != StatusCode.Success
-        ) {
-            toast.update(toast_uploading, {
-                render: 'Error saving to database',
-                type: 'error',
-                autoClose: 5000,
-                isLoading: false
+        update_mutation
+            .mutateAsync({
+                artist_id: artist?.id!,
+                image_key: image_id,
+                name: values.name || undefined,
+                new_image_key: new_image_key
             })
+            .then((response) => {
+                if (!response.success) {
+                    toast.update(toast_uploading, {
+                        render: 'Error saving to database',
+                        type: 'error',
+                        autoClose: 5000,
+                        isLoading: false
+                    })
 
-            return
-        }
+                    return
+                }
 
-        toast.update(toast_uploading, {
-            render: 'Item Updated',
-            type: 'success',
-            autoClose: 5000,
-            isLoading: false
-        })
+                toast.update(toast_uploading, {
+                    render: 'Item Updated',
+                    type: 'success',
+                    autoClose: 5000,
+                    isLoading: false
+                })
 
-        push('/dashboard/portfolio')
+                push('/dashboard/portfolio')
+            })
     }
 
     // Object Deletion
     async function handleDeletion() {
-        fetch(`/api/aws/${artistId}/portfolio/${image_id}/delete`).then((response) => {
+        const toast_deleting = toast.loading('Deleting Portfolio Item', {
+            theme: 'dark'
+        })
+
+        fetch(`/api/aws/${artist?.id}/portfolio/${image_id}/delete`).then((response) => {
             response.json().then((json_response) => {
                 if ((json_response as NemuResponse).status != StatusCode.Success) {
                     toast('Unable to delete portfolio item from AWS ')
@@ -141,20 +141,36 @@ export default function PortfolioEditForm() {
             })
         })
 
-        const deletion_response = await GraphQLFetcher(`mutation {
-            delete_portfolio_item(artist_id:"${artistId}", image_key:"${image_id}") {
-              status
-            }
-          }`)
+        del_mutation
+            .mutateAsync({
+                artist_id: artist?.id!,
+                image_key: image_id
+            })
+            .then((response) => {
+                if (!response.success) {
+                    toast.update(toast_deleting, {
+                        render: 'Error deleting from database',
+                        type: 'error',
+                        autoClose: 5000,
+                        isLoading: false
+                    })
 
-        if (
-            (deletion_response as { delete_portfolio_item: NemuResponse })
-                .delete_portfolio_item.status != StatusCode.Success
-        ) {
-            toast('Unable to delete portfolio item from database', { theme: 'dark' })
-        }
+                    return
+                }
 
-        push('/dashboard/portfolio')
+                toast.update(toast_deleting, {
+                    render: 'Portfolio Item Deleted',
+                    type: 'success',
+                    autoClose: 5000,
+                    isLoading: false
+                })
+
+                push('/dashboard/portfolio')
+            })
+    }
+
+    if (isLoading) {
+        return <Loading />
     }
 
     return (
@@ -165,8 +181,8 @@ export default function PortfolioEditForm() {
             >
                 <TextField
                     label="Title"
-                    placeholder={(data as PortfolioResponse).portfolio_item?.name}
-                    defaultValue={(data as PortfolioResponse).portfolio_item?.name}
+                    placeholder={data?.name}
+                    defaultValue={data?.name}
                     {...form.register('name')}
                 />
 
@@ -175,7 +191,7 @@ export default function PortfolioEditForm() {
                         <label className="label font-bold">Current Image</label>
                         <div className="divider"></div>
                         <NemuImage
-                            src={(data as PortfolioResponse).portfolio_item?.signed_url!}
+                            src={data?.signed_url!}
                             width={500}
                             height={500}
                             alt="Portfolio Item"

@@ -3,7 +3,7 @@
 import { ShopItem } from '@/core/structures'
 import Loading from '../loading'
 import ShopDisplay from './shop-display'
-import { trpc } from '@/app/_trpc/client'
+import { api } from '@/core/trpc/react'
 
 export default function ShopPageClient({
     handle,
@@ -12,7 +12,7 @@ export default function ShopPageClient({
     handle: string
     slug: string
 }) {
-    const { data, isLoading } = trpc.artist.get_product.useQuery({
+    const { data, isLoading } = api.artist_corner.get_product.useQuery({
         slug,
         artist_handle: handle.substring(3, handle.length)
     })

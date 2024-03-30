@@ -2,44 +2,22 @@
 
 import NemuImage from '@/components/nemu-image'
 
-import { NemuResponse, StatusCode, StripeCustomerIdResponse } from '@/core/responses'
-import { GraphQLFetcher } from '@/core/helpers'
 import { useSession } from 'next-auth/react'
-import useSWR from 'swr'
 import { FormElementInstance, FormElements } from '../elements/form-elements'
 import Loading from '@/components/loading'
 import { useCallback, useRef, useState, useTransition } from 'react'
 import { toast } from 'react-toastify'
-import { CheckoutType, CommissionForm } from '@/core/structures'
-import PaymentForm from '../../payments/payment-form'
 import { CreateFormSubmissionStructure } from '@/core/data-structures/form-structures'
+import { api } from '@/core/trpc/react'
 
-export default function CommissionFormSubmitView({ commission_id, form_id }: { commission_id: string; form_id: string }) {
-    const { data: session } = useSession()
-    const { data, isLoading } = useSWR(
-        `{
-            commission(id: "${commission_id}") {
-                price
-                artist {
-                    handle
-                    id
-                    stripeAccount
-                }
-                get_form_content(user_id: "${session?.user.user_id}") {
-                    user_submitted
-                    content
-                }
-            }
-        }`,
-        GraphQLFetcher<{
-            commission: {
-                formId: string
-                price: number
-                artist: { stripeAccount: string; id: string; handle: string }
-                get_form_content: CommissionForm
-            }
-        }>
-    )
+export default function CommissionFormSubmitView({
+    commission_id,
+    form_id
+}: {
+    commission_id: string
+    form_id: string
+}) {
+    const { data, isLoading } = api.form.get_user_submitted.useQuery(form_id)
 
     const formValues = useRef<{ [key: string]: string }>({})
     const formErrors = useRef<{ [key: string]: boolean }>({})
@@ -66,60 +44,65 @@ export default function CommissionFormSubmitView({ commission_id, form_id }: { c
         }
 
         const newFormData: { [key: string]: { value: string; label: string } } = {}
-        const formElements = JSON.parse(data?.commission.get_form_content.content!) as FormElementInstance[]
+        const formElements = JSON.parse(
+            data?.content!
+        ) as FormElementInstance[]
         for (let key in formValues.current) {
             newFormData[key] = {
                 value: formValues.current[key],
-                label: formElements.find((element) => element.id == key)?.extra_attributes?.label
+                label: formElements.find((element) => element.id == key)?.extra_attributes
+                    ?.label
             }
         }
 
         // Create Customer If they don't exist
-        const create_customer_response = await GraphQLFetcher<{
-            check_create_customer: StripeCustomerIdResponse
-        }>(
-            `mutation {
-                check_create_customer(user_id: "${session?.user.user_id}", artist_id:"${data?.commission.artist.id}") {
-                    status
-                    message
-                }
-            }`
-        )
+        // const create_customer_response = await GraphQLFetcher<{
+        //     check_create_customer: StripeCustomerIdResponse
+        // }>(
+        //     `mutation {
+        //         check_create_customer(user_id: "${session?.user.user_id}", artist_id:"${data?.commission.artist.id}") {
+        //             status
+        //             message
+        //         }
+        //     }`
+        // )
 
-        if (create_customer_response.check_create_customer.status != StatusCode.Success) {
-            toast(create_customer_response.check_create_customer.message, {
-                theme: 'dark',
-                type: 'error'
-            })
-            return
-        }
+        // if (create_customer_response.check_create_customer.status != StatusCode.Success) {
+        //     toast(create_customer_response.check_create_customer.message, {
+        //         theme: 'dark',
+        //         type: 'error'
+        //     })
+        //     return
+        // }
 
         // Set submitted to true so the commission can either be sent
         // or the user can put in there payment information
         setSubmitted(true)
 
         // Check if we're using invoicing
-        const JsonData: CreateFormSubmissionStructure = {
-            user_id: session?.user.user_id!,
-            form_id: form_id,
-            content: JSON.stringify(newFormData)
-        }
+        // const JsonData: CreateFormSubmissionStructure = {
+        //     user_id: session?.user.user_id!,
+        //     form_id: form_id,
+        //     content: JSON.stringify(newFormData)
+        // }
 
-        const response = await fetch(`/api/forms/submission`, {
-            method: 'post',
-            body: JSON.stringify(JsonData)
-        })
+        // const response = await fetch(`/api/forms/submission`, {
+        //     method: 'post',
+        //     body: JSON.stringify(JsonData)
+        // })
 
-        const json = (await response.json()) as NemuResponse
-        if (json.status != StatusCode.Success) {
-            toast(json.message, { theme: 'dark', type: 'error' })
-        }
+        // const json = (await response.json()) as NemuResponse
+        // if (json.status != StatusCode.Success) {
+        //     toast(json.message, { theme: 'dark', type: 'error' })
+        // }
 
         setFormData(newFormData)
     }
 
     const validateForm: () => boolean = useCallback(() => {
-        for (const field of JSON.parse(data?.commission.get_form_content.content!) as FormElementInstance[]) {
+        for (const field of JSON.parse(
+            data?.content!
+        ) as FormElementInstance[]) {
             const actualValue = formValues.current[field.id] || ''
             const valid = FormElements[field.type].validate(field, actualValue)
 
@@ -133,7 +116,7 @@ export default function CommissionFormSubmitView({ commission_id, form_id }: { c
         }
 
         return true
-    }, [data?.commission.get_form_content.content])
+    }, [data?.content])
 
     if (isLoading) {
         return <Loading />
@@ -142,16 +125,29 @@ export default function CommissionFormSubmitView({ commission_id, form_id }: { c
     return (
         <>
             {!submitted ? (
-                <div key={renderKey} className="flex flex-col w-full p-5 gap-4 bg-base-300 rounded-xl h-full max-w-xl mx-auto">
+                <div
+                    key={renderKey}
+                    className="flex flex-col w-full p-5 gap-4 bg-base-300 rounded-xl h-full max-w-xl mx-auto"
+                >
                     <div className="flex flex-col justify-center items-center gap-3">
-                        <NemuImage src={'/nemu/fillout.png'} alt="Nemu filling out form" width={200} height={200} />
+                        <NemuImage
+                            src={'/nemu/fillout.png'}
+                            alt="Nemu filling out form"
+                            width={200}
+                            height={200}
+                        />
                         <h2 className="card-title">You're onto the next step!</h2>
                         <p className="text-base-content/80">
-                            We'll need you to fill out this form provided by the artist to get a better understanding of your commission.
+                            We'll need you to fill out this form provided by the artist to
+                            get a better understanding of your commission.
                         </p>
                         <div className="divider"></div>
                     </div>
-                    {(JSON.parse(data?.commission.get_form_content.content!) as FormElementInstance[]).map((element) => {
+                    {(
+                        JSON.parse(
+                            data?.content!
+                        ) as FormElementInstance[]
+                    ).map((element) => {
                         const FormComponent = FormElements[element.type].form_component
 
                         return (
@@ -169,14 +165,18 @@ export default function CommissionFormSubmitView({ commission_id, form_id }: { c
                         type="button"
                         className="btn btn-primary"
                         onClick={() => startTransition(submitForm)}
-                        disabled={pending || data?.commission.get_form_content.user_submitted || submitted}
+                        disabled={
+                            pending ||
+                            data?.user_submitted ||
+                            submitted
+                        }
                     >
                         {pending ? (
                             <>
                                 <div className="loading loading-spinner"></div>
                                 Loading
                             </>
-                        ) : data?.commission.get_form_content.user_submitted ? (
+                        ) : data?.user_submitted ? (
                             <>Commission Already Submitted</>
                         ) : (
                             <>Next</>
@@ -186,10 +186,16 @@ export default function CommissionFormSubmitView({ commission_id, form_id }: { c
             ) : (
                 <div>
                     <div className="flex flex-col justify-center items-center gap-3">
-                        <NemuImage src={'/nemu/sparkles.png'} alt="Nemu Excited" width={200} height={200} />
+                        <NemuImage
+                            src={'/nemu/sparkles.png'}
+                            alt="Nemu Excited"
+                            width={200}
+                            height={200}
+                        />
                         <h2 className="card-title">Things are happening!</h2>
                         <p className="text-base-content/80">
-                            You'll recieve an email from the artist about wether your commission has been accepted or rejected. Until then hold on
+                            You'll recieve an email from the artist about wether your
+                            commission has been accepted or rejected. Until then hold on
                             tight!
                         </p>
                     </div>

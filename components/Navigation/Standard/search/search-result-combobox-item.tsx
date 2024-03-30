@@ -1,10 +1,9 @@
 'use client'
 
 import NemuImage from '@/components/nemu-image'
-import { FormatNumberToCurrency, GraphQLFetcher } from '@/core/helpers'
+import { FormatNumberToCurrency } from '@/core/helpers'
 import { ChevronRightIcon } from '@heroicons/react/20/solid'
 import Link from 'next/link'
-import useSWR from 'swr'
 
 export function ArtistSearchResult({
     item_name,

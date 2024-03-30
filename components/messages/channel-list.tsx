@@ -1,7 +1,7 @@
 'use client'
 
 import { useChannelListContext, ChannelListProvider } from '@sendbird/uikit-react/ChannelList/context'
-import { UserMessage, BaseMessage, SendingStatus } from '@sendbird/chat/message'
+import { UserMessage, BaseMessage } from '@sendbird/chat/message'
 
 import MessagesCard from './messages-card'
 import { ExclamationTriangleIcon } from '@heroicons/react/20/solid'
@@ -17,7 +17,7 @@ interface ChannelListProps {
 }
 
 function CustomChannelList({ selected_channel, set_channel_url }: ChannelListProps) {
-    const { allChannels, loading, initialized } = useChannelListContext()
+    const { loading, initialized } = useChannelListContext()
     const { data: session } = useSession()
 
     function GetLastMessage(last_message: BaseMessage) {

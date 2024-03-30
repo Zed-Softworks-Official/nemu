@@ -1,10 +1,14 @@
 'use client'
 
 import { PlusCircleIcon } from '@heroicons/react/20/solid'
-import { useMemo, useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import Masonry, { ResponsiveMasonry } from 'react-responsive-masonry'
 import KanbanContainerComponent from './kanban-container'
-import { KanbanContainerData, KanbanTask } from '@/core/structures'
+import {
+    CommissionDataSubmission,
+    KanbanContainerData,
+    KanbanTask
+} from '@/core/structures'
 import {
     DndContext,
     DragEndEvent,
@@ -23,30 +27,49 @@ import { useAutosave } from 'react-autosave'
 import { NemuResponse, StatusCode } from '@/core/responses'
 import { toast } from 'react-toastify'
 import { BsFloppy2Fill } from 'react-icons/bs'
+import { FormSubmission, User } from '@prisma/client'
+import { api } from '@/core/trpc/react'
 
 export default function Kanban({
     title,
     client,
-    submission_id,
+    header,
+    kanban_id,
+    disable_user_saving,
+    disable_container_editing,
+    disable_item_editing,
+    submissions,
     kanban_containers,
     kanban_tasks
 }: {
-    title: string
-    client: string
-    submission_id: string
+    title?: string
+    client?: string
+    header?: React.ReactNode
+    kanban_id?: string
+    disable_user_saving?: boolean
+    disable_container_editing?: boolean
+    submissions?: CommissionDataSubmission[]
+    disable_item_editing?: boolean
     kanban_containers: KanbanContainerData[]
     kanban_tasks: KanbanTask[]
 }) {
     const [containers, setContainers] = useState<KanbanContainerData[]>(kanban_containers)
     const [tasks, setTasks] = useState<KanbanTask[]>(kanban_tasks)
 
-    const [activeContainer, setActiveContainer] = useState<KanbanContainerData | null>(null)
+    const [activeContainer, setActiveContainer] = useState<KanbanContainerData | null>(
+        null
+    )
     const [activeTask, setActiveTask] = useState<KanbanTask | null>(null)
 
     const [saving, setSaving] = useState(false)
     const [autosave, setAutosave] = useState(true)
 
-    const containerIds = useMemo(() => containers.map((container) => container.id), [containers])
+    const containerIds = useMemo(
+        () => containers.map((container) => container.id),
+        [containers]
+    )
+
+    const mutation = api.kanban.update_kanban.useMutation()
 
     // useAutosave({
     //     data: {
@@ -66,16 +89,22 @@ export default function Kanban({
         })
     )
 
-    async function SaveKanban(data: { containers: KanbanContainerData[]; tasks: KanbanTask[] }) {
+    async function SaveKanban(data: {
+        containers: KanbanContainerData[]
+        tasks: KanbanTask[]
+    }) {
         if (saving || !autosave) return
 
         setSaving(true)
 
-        const response = await fetch(`/api/kanban/${submission_id}`, { method: 'post', body: JSON.stringify(data) })
-        const json = (await response.json()) as NemuResponse
+        if (kanban_id) {
+            const res = await mutation.mutateAsync({ kanban_id, containers, tasks })
 
-        if (json.status != StatusCode.Success) {
-            toast(json.message, { type: 'error', theme: 'dark' })
+            if (!res.success) {
+                toast('Unable to save kanban', { type: 'error', theme: 'dark' })
+            } else {
+                toast('Saved Kanban', { type: 'success', theme: 'dark' })
+            }
         }
 
         setSaving(false)
@@ -91,7 +120,9 @@ export default function Kanban({
     }
 
     function DeleteContainer(container_id: UniqueIdentifier) {
-        const filteredContainers = containers.filter((container) => container.id !== container_id)
+        const filteredContainers = containers.filter(
+            (container) => container.id !== container_id
+        )
         setContainers(filteredContainers)
 
         const newTasks = tasks.filter((task) => task.container_id !== container_id)
@@ -158,8 +189,12 @@ export default function Kanban({
         if (activeId === overId) return
 
         setContainers((containers) => {
-            const activeContainerIndex = containers.findIndex((container) => container.id === activeId)
-            const overContainerIndex = containers.findIndex((container) => container.id === overId)
+            const activeContainerIndex = containers.findIndex(
+                (container) => container.id === activeId
+            )
+            const overContainerIndex = containers.findIndex(
+                (container) => container.id === overId
+            )
 
             return arrayMove(containers, activeContainerIndex, overContainerIndex)
         })
@@ -208,69 +243,100 @@ export default function Kanban({
     }
 
     return (
-        <DndContext sensors={sesnors} onDragStart={OnDragStart} onDragEnd={OnDragEnd} onDragOver={OnDragOver}>
+        <DndContext
+            sensors={sesnors}
+            onDragStart={OnDragStart}
+            onDragEnd={OnDragEnd}
+            onDragOver={OnDragOver}
+        >
             <div className="card bg-base-100">
                 <div className="card-body gap-5">
                     <div className="flex justify-between items-center">
-                        <div>
-                            <h2 className="text-xl font-bold">Kanban for {client}</h2>
-                            <p>Commission Title: {title}</p>
-                        </div>
-                        <div className="flex items-center gap-5">
-                            <div className="tooltip" data-tip={autosave ? 'Disable Autosave' : 'Enable Autosave'}>
-                                <input
-                                    type="checkbox"
-                                    className="toggle toggle-primary"
-                                    checked={autosave}
-                                    onChange={(e) => {
-                                        setAutosave(e.currentTarget.checked)
-                                    }}
-                                />
+                        {header ? (
+                            <>{header}</>
+                        ) : (
+                            <div>
+                                <h2 className="text-xl font-bold">Kanban for {client}</h2>
+                                <p>Commission Title: {title}</p>
                             </div>
-                            <button
-                                type="button"
-                                className="btn disabled:bg-base-200"
-                                disabled={saving}
-                                onClick={() => {
-                                    SaveKanban({
-                                        containers: containers,
-                                        tasks: tasks
-                                    })
-                                }}
-                            >
-                                {saving ? (
-                                    <>
-                                        <span className="loading loading-spinner"></span>
-                                        <p>Saving</p>
-                                    </>
-                                ) : (
-                                    <>
-                                        <BsFloppy2Fill className="w-6 h-6" />
-                                        <p>Save</p>
-                                    </>
-                                )}
-                            </button>
-                            <button type="button" className="btn btn-primary" onClick={() => CreateNewContainer()}>
-                                <PlusCircleIcon className="w-6 h-6" />
-                                Add Container
-                            </button>
-                        </div>
+                        )}
+
+                        {!disable_user_saving && (
+                            <div className="flex items-center gap-5">
+                                <div
+                                    className="tooltip"
+                                    data-tip={
+                                        autosave ? 'Disable Autosave' : 'Enable Autosave'
+                                    }
+                                >
+                                    <input
+                                        type="checkbox"
+                                        className="toggle toggle-primary"
+                                        checked={autosave}
+                                        onChange={(e) => {
+                                            setAutosave(e.currentTarget.checked)
+                                        }}
+                                    />
+                                </div>
+                                <button
+                                    type="button"
+                                    className="btn disabled:bg-base-200"
+                                    disabled={saving}
+                                    onClick={() => {
+                                        SaveKanban({
+                                            containers: containers,
+                                            tasks: tasks
+                                        })
+                                    }}
+                                >
+                                    {saving ? (
+                                        <>
+                                            <span className="loading loading-spinner"></span>
+                                            <p>Saving</p>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <BsFloppy2Fill className="w-6 h-6" />
+                                            <p>Save</p>
+                                        </>
+                                    )}
+                                </button>
+                                <button
+                                    type="button"
+                                    className="btn btn-primary"
+                                    onClick={() => CreateNewContainer()}
+                                >
+                                    <PlusCircleIcon className="w-6 h-6" />
+                                    Add Container
+                                </button>
+                            </div>
+                        )}
                     </div>
                     <div className="divider"></div>
 
                     <SortableContext items={containerIds}>
-                        <ResponsiveMasonry columnsCountBreakPoints={{ 350: 1, 980: 2, 1280: 3 }} className="overflox-x-auto">
+                        <ResponsiveMasonry
+                            columnsCountBreakPoints={{ 350: 1, 980: 2, 1280: 3 }}
+                            className="overflox-x-auto"
+                        >
                             <Masonry gutter="3rem">
                                 {containers.map((container) => (
                                     <KanbanContainerComponent
                                         key={container.id}
                                         container_data={container}
-                                        tasks={tasks.filter((task) => task.container_id === container.id)}
+                                        tasks={tasks.filter(
+                                            (task) => task.container_id === container.id
+                                        )}
                                         DeleteContainer={DeleteContainer}
                                         UpdateContainer={UpdateContainer}
                                         CreateTask={CreateTask}
                                         DeleteTask={DeleteTask}
                                         UpdateTask={UpdateTask}
+                                        disable_container_editing={
+                                            disable_container_editing
+                                        }
+                                        disable_item_editing={disable_item_editing}
+                                        submissions={submissions}
                                     />
                                 ))}
                             </Masonry>
@@ -282,15 +348,25 @@ export default function Kanban({
                 {activeContainer && (
                     <KanbanContainerComponent
                         container_data={activeContainer}
-                        tasks={tasks.filter((task) => task.container_id === activeContainer.id)}
+                        tasks={tasks.filter(
+                            (task) => task.container_id === activeContainer.id
+                        )}
                         DeleteContainer={DeleteContainer}
                         UpdateContainer={UpdateContainer}
                         CreateTask={CreateTask}
                         DeleteTask={DeleteTask}
                         UpdateTask={UpdateTask}
+                        disable_container_editing={disable_container_editing}
                     />
                 )}
-                {activeTask && <KanbanItemComponent item_data={activeTask} UpdateTask={UpdateTask} DeleteTask={DeleteTask} />}
+                {activeTask && (
+                    <KanbanItemComponent
+                        item_data={activeTask}
+                        UpdateTask={UpdateTask}
+                        DeleteTask={DeleteTask}
+                        disable_item_editing={disable_item_editing}
+                    />
+                )}
             </DragOverlay>
         </DndContext>
     )

@@ -1,5 +1,9 @@
-import { Variables, request } from 'graphql-request'
-import { AWSLocations, CommissionAvailability, ConvertShopItemFromProductOptions, ShopItem } from './structures'
+import {
+    AWSLocations,
+    CommissionAvailability,
+    ConvertShopItemFromProductOptions,
+    ShopItem
+} from './structures'
 import { prisma } from '@/lib/prisma'
 import { sendbird } from '@/lib/sendbird'
 import { SendbirdUserData } from '@/sendbird/sendbird-structures'
@@ -14,29 +18,6 @@ import { S3GetSignedURL } from './storage'
  */
 export function ClassNames(...classes: any) {
     return classes.filter(Boolean).join(' ')
-}
-
-/**
- * General Fetcher for use with SWR library
- *
- * @param args - Takes in a variable amount of parameters from the fetch function
- * @returns JSON data for the requested data
- */
-export const Fetcher = (...args: Parameters<typeof fetch>) => fetch(...args).then((res) => res.json())
-
-/**
- *
- * @param query
- * @returns
- */
-// export const GraphQLFetcher = (query: string) => request('/api/graphql', query)
-
-export function GraphQLFetcher<T>(query: string, variables?: Variables | undefined) {
-    return request<T>(`/api/graphql`, query, variables)
-}
-
-export function GraphQLFetcherVariables<T>({query, variables}: {query: string, variables?: Variables | undefined}) {
-    return request<T>(`/api/graphql`, query, variables)
 }
 
 /**
@@ -100,12 +81,18 @@ export async function UpdateCommissionAvailability(form_id: string) {
     let new_availability: CommissionAvailability = CommissionAvailability.Open
 
     // Check if we have reached our max number of commissions until WAITLIST
-    if (form?.newSubmissions! + 1 >= form?.commission?.maxCommissionsUntilWaitlist! && form?.commission?.maxCommissionsUntilWaitlist != 0) {
+    if (
+        form?.newSubmissions! + 1 >= form?.commission?.maxCommissionsUntilWaitlist! &&
+        form?.commission?.maxCommissionsUntilWaitlist != 0
+    ) {
         new_availability = CommissionAvailability.Waitlist
     }
 
     // Check if we have reached our max number of commmissions until CLOSED
-    if (form?.newSubmissions! + 1 >= form?.commission?.maxCommissionsUntilClosed! && form?.commission?.maxCommissionsUntilClosed != 0) {
+    if (
+        form?.newSubmissions! + 1 >= form?.commission?.maxCommissionsUntilClosed! &&
+        form?.commission?.maxCommissionsUntilClosed != 0
+    ) {
         new_availability = CommissionAvailability.Closed
     }
 
@@ -131,5 +118,29 @@ export async function UpdateCommissionAvailability(form_id: string) {
  * @returns
  */
 export function ConvertDateToLocaleString(timestamp: Date) {
-    return timestamp.toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true })
+    return timestamp.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: 'numeric',
+        hour12: true
+    })
+}
+
+export function AsRedisKey(
+    object:
+        | 'users'
+        | 'portfolio_items'
+        | 'stripe_accounts'
+        | 'products'
+        | 'forms'
+        | 'form_submissions'
+        | 'artists'
+        | 'commissions'
+        | 'commissions_editable'
+        | 'commissions_data'
+        | 'kanbans'
+        | 'invoices'
+        | 'downloads',
+    ...unique_identifiers: string[]
+) {
+    return `${object}:${unique_identifiers.join(':')}`
 }

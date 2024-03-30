@@ -1,32 +1,13 @@
 'use client'
 
 import Loading from '@/components/loading'
-import { FormatNumberToCurrency, GraphQLFetcher } from '@/core/helpers'
-import { InvoiceResponse, PaymentStatus } from '@/core/structures'
-import { useSession } from 'next-auth/react'
+import { FormatNumberToCurrency } from '@/core/helpers'
+import { PaymentStatus } from '@/core/structures'
+import { api } from '@/core/trpc/react'
 import Link from 'next/link'
-import useSWR from 'swr'
 
 export default function ViewAvailableInvoices() {
-    const { data: session } = useSession()
-    const { data, isLoading } = useSWR(
-        `{
-            invoices(user_id: "${session?.user.user_id}" newest_first: true) {
-                paymentStatus
-                hostedUrl
-                sent
-                commission_data {
-                    title
-                    artist_handle
-                    total_price
-                    commission_url
-                }
-            }
-        }`,
-        GraphQLFetcher<{
-            invoices: InvoiceResponse[]
-        }>
-    )
+    const {data, isLoading} = api.invoices.get_invoices.useQuery()
 
     if (isLoading) {
         return <Loading />
@@ -34,7 +15,7 @@ export default function ViewAvailableInvoices() {
 
     return (
         <>
-            {data?.invoices.length == 0 ? (
+            {data?.length == 0 ? (
                 <div className="flex w-full h-full justify-center items-center">
                     <h2 className="card-title text-base-content/80">No Invoices Here Yet</h2>
                 </div>
@@ -51,7 +32,7 @@ export default function ViewAvailableInvoices() {
                             </tr>
                         </thead>
                         <tbody>
-                            {data?.invoices.map((invoice) => (
+                            {data?.map((invoice) => (
                                 <>
                                     {invoice.sent && (
                                         <tr>

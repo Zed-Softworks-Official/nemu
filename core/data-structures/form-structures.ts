@@ -1,4 +1,4 @@
-import { FormSubmission, User } from '@prisma/client'
+import { FormSubmission, Invoice, InvoiceItem, User } from '@prisma/client'
 import { AWSLocations } from './aws-structures'
 
 export interface CreateFormSubmissionStructure {
@@ -10,7 +10,8 @@ export interface CreateFormSubmissionStructure {
 export enum CommissionStatus {
     WaitingApproval,
     Accepted,
-    Rejected
+    Rejected,
+    Delivered
 }
 
 export enum AWSModification {
@@ -30,10 +31,8 @@ export interface AWSFileModification {
     blob?: string
 }
 
-export type GraphQLFormSubmissionStructure = FormSubmission & {
-    user: User & {
-        find_customer_id: {
-            customerId: string
-        }
-    }
-}
+export type CommissionDataSubmission = FormSubmission & { user: User }
+
+export type CommissionDataInvoice =
+    | (Invoice & { items: InvoiceItem[] | undefined })
+    | undefined

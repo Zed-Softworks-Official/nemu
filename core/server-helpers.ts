@@ -1,4 +1,4 @@
-import { Artist, Product } from '@prisma/client'
+import { Artist, Prisma, Product } from '@prisma/client'
 import { AWSLocations, ConvertShopItemFromProductOptions, ShopItem } from './structures'
 import { S3GetSignedURL } from './storage'
 import { sendbird } from '@/lib/sendbird'
@@ -6,13 +6,17 @@ import { prisma } from '@/lib/prisma'
 import { SendbirdUserData } from '@/sendbird/sendbird-structures'
 
 import { getPlaiceholder } from 'plaiceholder'
+import { RouterInput } from './responses'
 
 /**
  *
  * @param submission_id
  * @param sendbird_channel_url
  */
-export async function CreateSendbirdMessageChannel(submission_id: string, sendbird_channel_url: string) {
+export async function CreateSendbirdMessageChannel(
+    submission_id: string,
+    sendbird_channel_url: string
+) {
     const submission = await prisma.formSubmission.findFirst({
         where: {
             id: submission_id
@@ -36,9 +40,15 @@ export async function CreateSendbirdMessageChannel(submission_id: string, sendbi
     })
 
     await sendbird.CreateGroupChannel({
-        name: `${submission?.user.artist ? '@' + submission.user.artist.handle : submission?.user.name}`,
+        name: `${
+            submission?.user.artist
+                ? '@' + submission.user.artist.handle
+                : submission?.user.name
+        }`,
         channel_url: sendbird_channel_url,
-        cover_url: submission?.user.artist?.profilePhoto ? submission.user.artist.profilePhoto : `${process.env.BASE_URL}/profile.png`,
+        cover_url: submission?.user.artist?.profilePhoto
+            ? submission.user.artist.profilePhoto
+            : `${process.env.BASE_URL}/profile.png`,
         user_ids: [submission?.userId!, submission?.form.commission?.artist.userId!],
         operator_ids: [submission?.form.commission?.artist.userId!],
         block_sdk_user_channel_join: false,
@@ -91,8 +101,16 @@ export async function CheckCreateSendbirdUser(user_id: string) {
  * @param options
  * @returns
  */
-export async function CreateShopItemFromProducts(product: Product, artist: Artist, options?: ConvertShopItemFromProductOptions) {
-    const featured_image_signed_url = await S3GetSignedURL(artist.id, AWSLocations.Store, product.featuredImage)
+export async function CreateShopItemFromProducts(
+    product: Product,
+    artist: Artist,
+    options?: ConvertShopItemFromProductOptions
+) {
+    const featured_image_signed_url = await S3GetSignedURL(
+        artist.id,
+        AWSLocations.Store,
+        product.featuredImage
+    )
 
     let item: ShopItem = {
         id: product.id,
@@ -114,7 +132,11 @@ export async function CreateShopItemFromProducts(product: Product, artist: Artis
     }
 
     if (options?.get_download_asset) {
-        item.downloadable_asset = await S3GetSignedURL(artist.id, AWSLocations.Downloads, product.downloadableAsset)
+        item.downloadable_asset = await S3GetSignedURL(
+            artist.id,
+            AWSLocations.Downloads,
+            product.downloadableAsset
+        )
     }
 
     if (options?.get_download_key) {
@@ -136,7 +158,7 @@ export async function CreateShopItemFromProducts(product: Product, artist: Artis
     } else {
         for (const image of product.additionalImages) {
             const signed_url = await S3GetSignedURL(artist.id, AWSLocations.Store, image)
-            
+
             item.images?.push({
                 signed_url: signed_url,
                 blur_data: (await GetBlurData(signed_url)).base64,
@@ -149,8 +171,58 @@ export async function CreateShopItemFromProducts(product: Product, artist: Artis
 }
 
 export async function GetBlurData(src: string) {
-    const buffer = await fetch(src).then(async (res) => Buffer.from(await res.arrayBuffer()))
+    const buffer = await fetch(src).then(async (res) =>
+        Buffer.from(await res.arrayBuffer())
+    )
     const data = await getPlaiceholder(buffer)
 
     return data
+}
+
+export async function CreateArtist(
+    input: RouterInput['verification']['set_verification'],
+    user_id: string
+) {
+    const socials: Prisma.SocialCreateWithoutArtistInput[] = []
+
+    if (input.twitter) {
+        socials.push({
+            agent: 'TWITTER',
+            url: input.twitter
+        })
+    }
+
+    if (input.pixiv) {
+        socials.push({
+            agent: 'PIXIV',
+            url: input.pixiv
+        })
+    }
+
+    if (input.website) {
+        socials.push({
+            agent: 'WEBSITE',
+            url: input.website
+        })
+    }
+
+    // Create Artist inside database
+    const artist = await prisma.artist.create({
+        data: {
+            stripeAccount: '',
+            userId: user_id,
+            handle: input.requested_handle!,
+            socials: {
+                createMany: {
+                    data: socials
+                }
+            }
+        }
+    })
+
+    if (!artist) {
+        throw 'Could not create artist'
+    }
+
+    return artist
 }

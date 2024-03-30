@@ -1,31 +1,20 @@
 'use client'
 
-import useSWR from 'swr'
 import Link from 'next/link'
 import Image from 'next/image'
 
-import { GraphQLFetcher } from '@/core/helpers'
-import { PortfolioResponse } from '@/core/responses'
 import { PortfolioItem } from '@/core/structures'
 import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
 import Loading from '@/components/loading'
 
 import Masonary, { ResponsiveMasonry } from 'react-responsive-masonry'
+import { api } from '@/core/trpc/react'
 
 export default function PortfolioItems() {
-    const { artistId } = useDashboardContext()
-    const { data, isLoading } = useSWR(
-        `{
-            artist(id: "${artistId}") {
-                portfolio_items {
-                    signed_url
-                    image_key
-                    name
-                }
-            }
-        }`,
-        GraphQLFetcher<PortfolioResponse>
-    )
+    const { artist } = useDashboardContext()!
+    const { data, isLoading } = api.portfolio.get_portfolio_items.useQuery({
+        artist_id: artist?.id!
+    })
 
     if (isLoading) {
         return <Loading />
@@ -34,7 +23,7 @@ export default function PortfolioItems() {
     return (
         <ResponsiveMasonry columnsCountBreakPoints={{ 350: 1, 900: 2, 1024: 3, 1280: 4 }}>
             <Masonary gutter="3rem">
-                {data?.artist?.portfolio_items.map((item: PortfolioItem) => {
+                {data?.map((item: PortfolioItem) => {
                     return (
                         <Link
                             href={`/dashboard/portfolio/item/${item.image_key}`}

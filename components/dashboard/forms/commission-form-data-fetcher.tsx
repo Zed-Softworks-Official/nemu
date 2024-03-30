@@ -2,43 +2,15 @@
 
 import Loading from '@/components/loading'
 import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
-import { GraphQLFetcher } from '@/core/helpers'
-import { Commission } from '@prisma/client'
-import useSWR from 'swr'
 import CommissionCreateEditForm from './commission-create-edit-form'
-import { CommissionImagesResponse } from '@/core/responses'
+import { api } from '@/core/trpc/react'
 
 export default function CommissionFormDataFetcher({ slug }: { slug?: string }) {
-    const { artistId } = useDashboardContext()
-    const { data, isLoading } = useSWR(
+    const { artist } = useDashboardContext()!
+    const { data, isLoading } = api.commissions.get_commission_editable.useQuery({
+        artist_id: artist?.id!,
         slug
-            ? `{
-                    commission(artist_id:"${artistId}", slug:"${slug}") {
-                        id
-                        title
-                        description
-                        price
-                        formId
-                        rushOrdersAllowed
-                        rushCharge
-                        rushPercentage
-                        maxCommissionsUntilWaitlist
-                        maxCommissionsUntilClosed
-                        availability
-                        get_images {
-                            images {
-                                file_key
-                                file_name
-                                signed_url
-                                aws_location
-                                featured
-                            }
-                        }
-                    }
-                }`
-            : null,
-        GraphQLFetcher<{ commission: Commission & { get_images: CommissionImagesResponse } }>
-    )
+    })
 
     if (isLoading) {
         return <Loading />

@@ -3,8 +3,8 @@
 import Masonry, { ResponsiveMasonry } from 'react-responsive-masonry'
 import ShopCard from '../dashboard/shop/shop-card'
 import { ShopItem } from '@/core/structures'
-import { trpc } from '@/app/_trpc/client'
 import Loading from '../loading'
+import { api } from '@/core/trpc/react'
 
 export default function Shop({
     handle,
@@ -13,7 +13,7 @@ export default function Shop({
     handle: string
     artist_id: string
 }) {
-    const { data, isLoading, error } = trpc.artist_corner.get_products.useQuery({ artist_id })
+    const { data, isLoading, error } = api.artist_corner.get_products.useQuery({ artist_id })
 
     if (isLoading) {
         return <Loading />

@@ -11,6 +11,9 @@ import { Role } from '@/core/structures'
 
 import { sendbird } from '@/lib/sendbird'
 import { SendbirdUserData } from '@/sendbird/sendbird-structures'
+import { redis } from '@/lib/redis'
+import { User } from '@prisma/client'
+import { AsRedisKey } from '@/core/helpers'
 
 export const authOptions: NextAuthOptions = {
     adapter: PrismaAdapter(prisma),
@@ -58,12 +61,26 @@ export const authOptions: NextAuthOptions = {
         },
         async session({ session, token }) {
             try {
-                // Get User Role
-                const db_user = await prisma.user.findFirst({
-                    where: {
-                        id: token.sub
-                    }
-                })
+                const cachedUser = await redis.get(AsRedisKey('users', token.sub!))
+                let db_user: User | undefined = undefined
+
+                if (cachedUser) {
+                    db_user = JSON.parse(cachedUser) as User
+                } else {
+                    db_user =
+                        (await prisma.user.findFirst({
+                            where: {
+                                id: token.sub
+                            }
+                        })) || undefined
+
+                    await redis.set(
+                        AsRedisKey('users', token.sub!),
+                        JSON.stringify(db_user),
+                        'EX',
+                        3600
+                    )
+                }
 
                 // Add Extra Session Data
                 session.user.user_id = token.sub

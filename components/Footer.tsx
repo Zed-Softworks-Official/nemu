@@ -10,7 +10,7 @@ export default function Footer() {
     const pathname = usePathname()
 
     return (
-        <div className="w-full h-16">
+        <div className="sticky top-[100%] w-full">
             <div className="bg-base-200">
                 <footer className="footer p-10 container mx-auto text-base-content">
                     <aside className="h-full flex flex-col justify-between">

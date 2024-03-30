@@ -1,5 +1,5 @@
 import { AppRouter } from "@/server/root"
-import { inferRouterOutputs } from "@trpc/server"
+import { inferRouterInputs, inferRouterOutputs } from "@trpc/server"
 
 /**
  * StatusCode
@@ -29,3 +29,4 @@ export interface NemuResponse {
 }
 
 export type RouterOutput = inferRouterOutputs<AppRouter>
+export type RouterInput = inferRouterInputs<AppRouter>

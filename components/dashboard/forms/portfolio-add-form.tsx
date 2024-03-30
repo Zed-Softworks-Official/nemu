@@ -14,8 +14,8 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 
 import TextField from '@/components/form/text-input'
-import { GraphQLFetcher } from '@/core/helpers'
 import { NemuResponse, StatusCode } from '@/core/responses'
+import { api } from '@/core/trpc/react'
 
 const portfolioSchema = z.object({
     name: z.string().min(2).max(50),
@@ -28,8 +28,10 @@ export default function PortfolioAddForm() {
     const { image } = useFormContext()
 
     const [isLoading, setIsLoading] = useState(false)
-    const { artistId } = useDashboardContext()
+    const { artist } = useDashboardContext()!
     const { push } = useRouter()
+
+    const portfolio_mutation = api.portfolio.set_portfolio_item.useMutation()
 
     const form = useForm<PortfolioSchemaType>({
         resolver: zodResolver(portfolioSchema),
@@ -50,10 +52,13 @@ export default function PortfolioAddForm() {
         formData.append('file', image as any)
 
         // Upload File
-        const aws_response = await fetch(`/api/aws/${artistId}/portfolio/${image_key}`, {
-            method: 'post',
-            body: formData
-        })
+        const aws_response = await fetch(
+            `/api/aws/${artist?.id}/portfolio/${image_key}`,
+            {
+                method: 'post',
+                body: formData
+            }
+        )
 
         // Check if everything was successful
         const aws_json = await aws_response.json()
@@ -68,37 +73,33 @@ export default function PortfolioAddForm() {
             return
         }
 
-        // Update database
-        const database_response = await GraphQLFetcher(`mutation {
-            create_portfolio_item(artist_id: "${artistId}", image: "${image_key}", name: "${values.name}") {
-              status
-            }
-          }`)
-
-        console.log(database_response)
-
-        if (
-            (database_response as { create_portfolio_item: NemuResponse })
-                .create_portfolio_item.status != StatusCode.Success
-        ) {
-            toast.update(toast_uploading, {
-                render: 'Error saving to database',
-                type: 'error',
-                autoClose: 5000,
-                isLoading: false
+        portfolio_mutation
+            .mutateAsync({
+                artist_id: artist?.id!,
+                iamge_key: image_key,
+                name: values.name
             })
+            .then((response) => {
+                if (!response.success) {
+                    toast.update(toast_uploading, {
+                        render: 'Error saving to database',
+                        type: 'error',
+                        autoClose: 5000,
+                        isLoading: false
+                    })
 
-            return
-        }
+                    return
+                }
 
-        toast.update(toast_uploading, {
-            render: 'Portfolio Item Created',
-            type: 'success',
-            autoClose: 5000,
-            isLoading: false
-        })
+                toast.update(toast_uploading, {
+                    render: 'Portfolio Item Created',
+                    type: 'success',
+                    autoClose: 5000,
+                    isLoading: false
+                })
 
-        push('/dashboard/portfolio')
+                push('/dashboard/portfolio')
+            })
     }
 
     return (
