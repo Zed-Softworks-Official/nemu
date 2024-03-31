@@ -1,5 +1,4 @@
 import NemuImage from '../nemu-image'
-import { PortfolioItem } from '@/core/structures'
 import Masonary, { ResponsiveMasonry } from 'react-responsive-masonry'
 import Loading from '../loading'
 import { api } from '@/core/trpc/react'
@@ -13,7 +12,7 @@ export default function Portfolio({ artist_id }: { artist_id: string }) {
 
     return (
         <ResponsiveMasonry columnsCountBreakPoints={{ 350: 1, 1024: 2, 1280: 3 }}>
-            <Masonary>
+            <Masonary gutter='3rem'>
                 {data?.map((item, i) => {
                     return (
                         <div

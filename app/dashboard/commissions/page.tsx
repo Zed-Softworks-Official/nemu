@@ -1,4 +1,3 @@
-import Commissions from '@/components/artist-page/commissions'
 import DashboardCommissions from '@/components/dashboard/commissions/dashboard-commissions'
 import DashboardContainer from '@/components/dashboard/dashboard-container'
 

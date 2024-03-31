@@ -4,6 +4,7 @@ import { novu } from '@/lib/novu'
 import { adminProcedure, createTRPCRouter, protectedProcedure } from '../trpc'
 import { Role, VerificationMethod } from '@/core/structures'
 import { CreateArtist } from '@/core/server-helpers'
+import { TRPCError } from '@trpc/server'
 
 const verification_data = z.object({
     method: z.number(),
@@ -142,7 +143,7 @@ export const verificationRouter = createTRPCRouter({
             })
         )
         .mutation(async (opts) => {
-            const { input, ctx } = opts
+            const { input } = opts
 
             // Get Verification Object
             const artist_verification = await prisma.artistVerification.findFirst({
@@ -152,7 +153,10 @@ export const verificationRouter = createTRPCRouter({
             })
 
             if (!artist_verification) {
-                return { success: false }
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Could not find artist verification'
+                })
             }
 
             // Create Artist Object
@@ -170,7 +174,10 @@ export const verificationRouter = createTRPCRouter({
             )
 
             if (!artist) {
-                return { success: false }
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Could not create artist'
+                })
             }
 
             // Delete Verification Object

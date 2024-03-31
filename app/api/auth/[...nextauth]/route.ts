@@ -103,33 +103,10 @@ export const authOptions: NextAuthOptions = {
                                     }
                                 })
                                 session.user.handle = db_artist?.handle
-
-                                // Check if the artist has a sendbird account
-                                if (!db_user?.hasSendbirdAccount) {
-                                    // Create Sendbird user
-                                    const user_data: SendbirdUserData = {
-                                        user_id: db_user?.id!,
-                                        nickname:
-                                            session.user.handle != undefined
-                                                ? session.user.handle
-                                                : db_user?.name!,
-                                        profile_url: db_artist?.profilePhoto
-                                            ? db_artist?.profilePhoto
-                                            : `${process.env.BASE_URL}/profile.png`
-                                    }
-
-                                    sendbird.CreateUser(user_data)
-
-                                    // Update database
-                                    await prisma.user.update({
-                                        where: {
-                                            id: db_user.id
-                                        },
-                                        data: {
-                                            hasSendbirdAccount: true
-                                        }
-                                    })
-                                }
+                            }
+                            break
+                        case Role.Admin:
+                            {
                             }
                             break
                     }

@@ -7,6 +7,8 @@ import { SendbirdUserData } from '@/sendbird/sendbird-structures'
 
 import { getPlaiceholder } from 'plaiceholder'
 import { RouterInput } from './responses'
+import { StripeCreateAccount } from './payments'
+import { TRPCError } from '@trpc/server'
 
 /**
  *
@@ -206,10 +208,12 @@ export async function CreateArtist(
         })
     }
 
+    const stripe_account = await StripeCreateAccount()
+
     // Create Artist inside database
     const artist = await prisma.artist.create({
         data: {
-            stripeAccount: '',
+            stripeAccount: stripe_account.id,
             userId: user_id,
             handle: input.requested_handle!,
             socials: {
@@ -217,11 +221,41 @@ export async function CreateArtist(
                     data: socials
                 }
             }
+        },
+        include: {
+            user: true
         }
     })
 
     if (!artist) {
-        throw 'Could not create artist'
+        throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'Could not create artist'
+        })
+    }
+
+    // Check if the user already has a sendbird account
+    if (!artist.user?.hasSendbirdAccount) {
+        // Create Sendbird user
+        const user_data: SendbirdUserData = {
+            user_id: user_id,
+            nickname: artist.handle,
+            profile_url: artist?.profilePhoto
+                ? artist?.profilePhoto
+                : `${process.env.BASE_URL}/profile.png`
+        }
+
+        sendbird.CreateUser(user_data)
+
+        // Update database
+        await prisma.user.update({
+            where: {
+                id: user_id
+            },
+            data: {
+                hasSendbirdAccount: true
+            }
+        })
     }
 
     return artist

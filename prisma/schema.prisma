@@ -2,10 +2,6 @@ generator client {
   provider = "prisma-client-js"
 }
 
-generator pothos {
-  provider = "prisma-pothos-types"
-}
-
 datasource db {
   provider = "mongodb"
   url      = env("DATABASE_URL")

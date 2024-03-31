@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 import { hasCookie, setCookie } from 'cookies-next'
 
 export default function CookieConsentBanner() {
-    const [showConsent, setShowConsent] = useState(true)
+    const [showConsent, setShowConsent] = useState(false)
 
     useEffect(() => {
         setShowConsent(!hasCookie('nemu-cookie-consent'))

@@ -9,7 +9,7 @@ import { ZodError } from 'zod'
  *
  * Create the TRPC Context for later use in the backend
  */
-export const createTRPCContext = async (opts: { headers: Headers | undefined }) => {
+export const createTRPCContext = async (opts: { headers: Headers }) => {
     const session = await getServerAuthSession()
 
     return { session, ...opts }

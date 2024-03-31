@@ -13,15 +13,15 @@ export default function Shop({
     handle: string
     artist_id: string
 }) {
-    const { data, isLoading, error } = api.artist_corner.get_products.useQuery({ artist_id })
+    const { data, isLoading } = api.artist_corner.get_products.useQuery({ artist_id })
 
     if (isLoading) {
         return <Loading />
     }
 
     return (
-        <ResponsiveMasonry>
-            <Masonry>
+        <ResponsiveMasonry columnsCountBreakPoints={{ 350: 1, 900: 2, 1024: 3 }}>
+            <Masonry gutter='3rem'>
                 {data?.map((item) => (
                     <ShopCard
                         key={item.id}

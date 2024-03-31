@@ -8,7 +8,7 @@ import {
 import { redis } from '@/lib/redis'
 import { Artist } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
-import { ImageData, Role, ShopItem } from '@/core/structures'
+import { ImageData, ShopItem } from '@/core/structures'
 import { CreateShopItemFromProducts } from '@/core/server-helpers'
 import { AsRedisKey } from '@/core/helpers'
 

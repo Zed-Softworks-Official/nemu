@@ -21,6 +21,9 @@ export async function StripeCreateAccount() {
         capabilities: {
             card_payments: {
                 requested: true
+            },
+            tax_reporting_us_1099_k: {
+                requested: true
             }
         }
     })

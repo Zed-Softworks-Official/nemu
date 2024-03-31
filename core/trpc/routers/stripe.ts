@@ -91,15 +91,11 @@ export const stripeRouter = createTRPCRouter({
             }
         })
 
-        // Check if they have a stripe account
-        // if they don't then create one and return the onboarding url
-        if (!artist?.stripeAccount) {
-            const stripe_account = await StripeCreateAccount()
-
-            return {
-                type: 'onboarding',
-                url: (await StripeCreateAccountLink(stripe_account.id)).url
-            }
+        if (!artist) {
+            throw new TRPCError({
+                code: 'INTERNAL_SERVER_ERROR',
+                message: 'Artist does not exist'
+            })
         }
 
         // Get the stripe account if they have one

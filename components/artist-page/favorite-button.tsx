@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import NemuImage from '../nemu-image'
 import { ClassNames } from '@/core/helpers'
 
 export default function FavoriteButton() {

@@ -21,8 +21,7 @@ export default function ArtistPageClient({ handle }: { handle: string }) {
 
     return (
         <>
-            <ArtistHeader data={data} />
-            <ArtistBody data={data} />
+            
         </>
     )
 }

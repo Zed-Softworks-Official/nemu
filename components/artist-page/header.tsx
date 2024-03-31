@@ -1,4 +1,3 @@
-import { api } from '@/app/_trpc/client'
 import NemuImage from '../nemu-image'
 
 import ArtistProfileTabs from '@/components/artist-page/tabs'
