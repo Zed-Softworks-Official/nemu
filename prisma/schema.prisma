@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mongodb"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -12,8 +12,8 @@ datasource db {
 //////////////////////////////////////////////////////////
 
 model Artist {
-  id            String @id @default(auto()) @map("_id") @db.ObjectId
-  userId        String @unique @db.ObjectId
+  id            String @id @default(cuid())
+  userId        String @unique
   stripeAccount String
 
   createdAt DateTime @default(now())
@@ -40,14 +40,14 @@ model Artist {
 }
 
 model AritstCode {
-  id   String @id @default(auto()) @map("_id") @db.ObjectId
+  id   String @id @default(cuid())
   code String
 
   createdAt DateTime @default(now())
 }
 
 model VerificationToken {
-  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  id         String   @id @default(cuid())
   identifier String
   token      String   @unique
   expires    DateTime
@@ -56,7 +56,7 @@ model VerificationToken {
 }
 
 model ArtistVerification {
-  id              String @id @default(auto()) @map("_id") @db.ObjectId
+  id              String @id @default(cuid()) @map("_id")
   userId          String @unique
   requestedHandle String @unique
   username        String
@@ -70,8 +70,8 @@ model ArtistVerification {
 }
 
 model Social {
-  id       String @id @default(auto()) @map("_id") @db.ObjectId
-  artistId String @db.ObjectId
+  id       String @id @default(cuid()) @map("_id")
+  artistId String
   agent    String
   url      String
 
@@ -83,17 +83,17 @@ model Social {
 //////////////////////////////////////////////////////////
 
 model Account {
-  id                String  @id @default(auto()) @map("_id") @db.ObjectId
-  userId            String  @db.ObjectId
+  id                String  @id @default(cuid()) @map("_id")
+  userId            String
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String? @db.String
-  access_token      String? @db.String
+  refresh_token     String?
+  access_token      String?
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String? @db.String
+  id_token          String?
   session_state     String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -102,21 +102,21 @@ model Account {
 }
 
 model Session {
-  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  id           String   @id @default(cuid())
   sessionToken String   @unique
-  userId       String   @db.ObjectId
+  userId       String
   expires      DateTime
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model User {
-  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  id            String    @id @default(cuid())
   name          String?   @unique
   email         String?   @unique
   emailVerified DateTime?
   image         String?
-  role          Int?
+  role          Int       @default(0)
 
   hasSendbirdAccount Boolean @default(false)
 
@@ -131,20 +131,20 @@ model User {
 }
 
 model StripeCustomerIds {
-  id            String @id @default(auto()) @map("_id") @db.ObjectId
+  id            String @id @default(cuid())
   customerId    String
   stripeAccount String
 
-  artistId String @db.ObjectId
-  userId   String @db.ObjectId
+  artistId String
+  userId   String
 
   artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Downloads {
-  id         String  @id @default(auto()) @map("_id") @db.ObjectId
-  userId     String  @db.ObjectId
+  id         String  @id @default(cuid())
+  userId     String
   fileKey    String
   receiptURL String?
 
@@ -159,16 +159,16 @@ model Downloads {
 }
 
 model Review {
-  id      String @id @default(auto()) @map("_id") @db.ObjectId
-  userId  String @db.ObjectId
+  id      String @id @default(cuid())
+  userId  String
   rating  Float
   content String
 
   createdAt DateTime @default(now())
   delivered Boolean  @default(false)
 
-  commissionId String? @db.ObjectId
-  productId    String? @db.ObjectId
+  commissionId String?
+  productId    String?
 
   user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   commissions Commission? @relation(fields: [commissionId], references: [id], onDelete: Cascade)
@@ -176,9 +176,9 @@ model Review {
 }
 
 model Favorite {
-  id       String @id @default(auto()) @map("_id") @db.ObjectId
-  userId   String @db.ObjectId
-  artistId String @db.ObjectId
+  id       String @id @default(cuid())
+  userId   String
+  artistId String
 
   commissionId String?
   productId    String?
@@ -193,8 +193,8 @@ model Favorite {
 //////////////////////////////////////////////////////////
 
 model Portfolio {
-  id       String @id @default(auto()) @map("_id") @db.ObjectId
-  artistId String @db.ObjectId
+  id       String @id @default(cuid())
+  artistId String
   image    String
   name     String
 
@@ -208,8 +208,8 @@ model Portfolio {
 //////////////////////////////////////////////////////////
 
 model Product {
-  id       String @id @default(auto()) @map("_id") @db.ObjectId
-  artistId String @db.ObjectId
+  id       String @id @default(cuid())
+  artistId String
 
   title             String
   description       String
@@ -231,11 +231,11 @@ model Product {
 //////////////////////////////////////////////////////////
 
 model Commission {
-  id       String @id @default(auto()) @map("_id") @db.ObjectId
-  artistId String @db.ObjectId
+  id       String @id @default(cuid())
+  artistId String
   price    Int?
 
-  formId String @unique @db.ObjectId
+  formId String @unique
 
   title            String
   description      String
@@ -260,7 +260,7 @@ model Commission {
 }
 
 model Invoice {
-  id            String  @id @default(auto()) @map("_id") @db.ObjectId
+  id            String  @id @default(cuid())
   sent          Boolean @default(false)
   hostedUrl     String?
   paymentStatus Int
@@ -280,8 +280,8 @@ model Invoice {
 }
 
 model InvoiceItem {
-  id        String @id @default(auto()) @map("_id") @db.ObjectId
-  invoiceId String @db.ObjectId
+  id        String @id @default(cuid())
+  invoiceId String
 
   name     String
   price    Float
@@ -293,8 +293,8 @@ model InvoiceItem {
 }
 
 model Form {
-  id           String  @id @default(auto()) @map("_id") @db.ObjectId
-  artistId     String  @db.ObjectId
+  id           String  @id @default(cuid())
+  artistId     String
   commissionId String?
 
   name        String
@@ -316,20 +316,20 @@ model Form {
 }
 
 model FormSubmission {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  formId    String   @db.ObjectId
-  userId    String   @db.ObjectId
+  id        String   @id @default(cuid())
+  formId    String
+  userId    String
   createdAt DateTime @default(now())
   waitlist  Boolean  @default(false)
 
   commissionStatus Int @default(0)
 
   orderId   String  @unique
-  invoiceId String? @unique @db.ObjectId
+  invoiceId String? @unique
 
   sendbirdChannelURL String?
 
-  kanbanId String? @db.ObjectId
+  kanbanId String?
 
   form Form @relation(fields: [formId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -340,7 +340,7 @@ model FormSubmission {
 }
 
 model Kanban {
-  id         String @id @default(auto()) @map("_id") @db.ObjectId
+  id         String @id @default(cuid())
   containers String @default("[]")
   tasks      String @default("[]")
 

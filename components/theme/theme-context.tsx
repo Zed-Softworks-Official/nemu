@@ -53,7 +53,7 @@ export default function ThemeProvider({
     }
 
     useEffect(() => {
-        //rawSetTheme(theme)
+        rawSetTheme(theme)
     }, [theme])
 
     return (

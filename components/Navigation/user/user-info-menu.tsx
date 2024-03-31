@@ -1,27 +1,25 @@
 'use client'
 
-import Link from 'next/link'
-import React, { Fragment } from 'react'
-import { useSession } from 'next-auth/react'
-
 import { Menu, Transition } from '@headlessui/react'
+import { Fragment } from 'react'
 import {
+    ArrowRightEndOnRectangleIcon,
+    ArrowRightStartOnRectangleIcon,
     ChartBarIcon,
+    CheckCircleIcon,
+    CodeBracketIcon,
     Cog6ToothIcon,
     EnvelopeIcon,
     PaintBrushIcon,
     StarIcon,
-    UserIcon,
-    CheckCircleIcon,
-    CodeBracketIcon,
-    ArrowRightStartOnRectangleIcon,
-    ArrowRightEndOnRectangleIcon
+    UserIcon
 } from '@heroicons/react/20/solid'
-
-import { ClassNames } from '@/core/helpers'
-import { UserInfoIcon, UserInfoLink, UserInfoObject, Role } from '@/core/structures'
-import ThemeSwitcher from '@/components/theme/theme-switcher'
+import { useSession } from 'next-auth/react'
 import NemuImage from '@/components/nemu-image'
+import { Role, UserInfoIcon, UserInfoLink, UserInfoObject } from '@/core/structures'
+import { ClassNames } from '@/core/helpers'
+import ThemeSwitcher from '@/components/theme/theme-switcher'
+import Link from 'next/link'
 
 export default function UserInfoMenu() {
     const { data: session } = useSession()
@@ -76,42 +74,60 @@ export default function UserInfoMenu() {
     }
 
     // initialize the navbar items
-    let navbar_items: UserInfoLink[] = GetCurrentNavbarItems(session ? true : false, session?.user.role!, session?.user.handle)
+    let navbar_items: UserInfoLink[] = GetCurrentNavbarItems(
+        session ? true : false,
+        session?.user.role!,
+        session?.user.handle
+    )
 
     return (
-        <Menu as="div" className="relative inline-block text-left">
-            <div className="flex gap-10 items-center justify-end">
-                <Menu.Button className="rounded-md font-semibold btn btn-ghost btn-circle hover:bg-transparent">
-                    {session?.user ? (
-                        session?.user?.image ? (
-                            <NemuImage src={session?.user?.image!} alt="profile image" width={50} height={50} className="rounded-full w-16" />
+        <div className="">
+            <Menu as="div" className="relative inline-block text-left">
+                <div>
+                    <Menu.Button className="inline-flex w-full justify-center px-4 py-2 text-base-content btn btn-circle btn-ghost hover:bg-transparent rounded-full">
+                        {session?.user ? (
+                            session?.user?.image ? (
+                                <NemuImage
+                                    src={session?.user?.image!}
+                                    alt="profile image"
+                                    width={50}
+                                    height={50}
+                                    className="rounded-full w-16"
+                                />
+                            ) : (
+                                <NemuImage
+                                    src={'/profile.png'}
+                                    alt="profile image"
+                                    width={50}
+                                    height={50}
+                                    className="avatar rounded-full w-16"
+                                />
+                            )
                         ) : (
-                            <NemuImage src={'/profile.png'} alt="profile image" width={50} height={50} className="avatar rounded-full w-16" />
-                        )
-                    ) : (
-                        <div className="avatar rounded-full skeleton w-12 h-12"></div>
-                    )}
-                </Menu.Button>
-            </div>
-            <Transition
-                as={Fragment}
-                enter="transition ease-out duration-100"
-                enterFrom="transform opacity-0 scale-95"
-                enterTo="transform opacity-100 scale-100"
-                leave="transition ease-in duration-95"
-                leaveFrom="transform opacity-100 scale-100"
-                leaveTo="transform opacity-0 scale-95"
-            >
-                <Menu.Items className="absolute right-0 z-10 mt-5 w-56 scale-0 origin-top rounded-md bg-base-300 shadow-lg focus:outline-none">
-                    <div className="py-2">
-                        {navbar_items.map((item: UserInfoLink) => {
-                            return (
+                            <UserIcon className="w-6 h-6" />
+                        )}
+                    </Menu.Button>
+                </div>
+                <Transition
+                    as={Fragment}
+                    enter="transition ease-out duration-100"
+                    enterFrom="transform opacity-0 scale-95"
+                    enterTo="transform opacity-100 scale-100"
+                    leave="transition ease-in duration-75"
+                    leaveFrom="transform opacity-100 scale-100"
+                    leaveTo="transform opacity-0 scale-95"
+                >
+                    <Menu.Items className="absolute right-0 mt-2 w-56 origin-top-right divide-y divide-gray-100 rounded-md bg-base-300 shadow-lg">
+                        <div className="px-1 py-1 ">
+                            {navbar_items.map((item: UserInfoLink) => (
                                 <Menu.Item key={item.title}>
                                     {({ active }) => (
                                         <Link
                                             href={item.path}
                                             className={ClassNames(
-                                                active ? 'bg-base-100 text-base-content' : 'bg-base-300 text-base-content',
+                                                active
+                                                    ? 'bg-base-100 text-base-content'
+                                                    : 'bg-base-300 text-base-content',
                                                 'flex justify-start items-center gap-5 w-full px-5 py-2 text-sm'
                                             )}
                                         >
@@ -120,12 +136,14 @@ export default function UserInfoMenu() {
                                         </Link>
                                     )}
                                 </Menu.Item>
-                            )
-                        })}
-                        <Menu.Item>{({ active }) => <ThemeSwitcher active={active} />}</Menu.Item>
-                    </div>
-                </Menu.Items>
-            </Transition>
-        </Menu>
+                            ))}
+                            <Menu.Item>
+                                {({ active }) => <ThemeSwitcher active={active} />}
+                            </Menu.Item>
+                        </div>
+                    </Menu.Items>
+                </Transition>
+            </Menu>
+        </div>
     )
 }
