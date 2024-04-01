@@ -32,6 +32,9 @@ declare namespace NodeJS {
         ALGOLIA_APP_ID: string
         ALGOLIA_API_KEY: string
 
+        DISCORD_CLIENT_ID: string
+        DISCORD_CLIENT_SECRET: string
+
         BASE_URL: string
     }
 }

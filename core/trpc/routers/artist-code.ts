@@ -6,7 +6,7 @@ export const artistCodeRouter = createTRPCRouter({
     /**
      * Gets an artist code form the database
      */
-    get_artist_code: publicProcedure.input(z.string()).query(async (opts) => {
+    get_artist_code: publicProcedure.input(z.string()).mutation(async (opts) => {
         const { input } = opts
 
         const result = await prisma.aritstCode.findFirst({

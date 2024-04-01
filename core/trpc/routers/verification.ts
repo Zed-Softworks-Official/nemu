@@ -9,12 +9,12 @@ import { TRPCError } from '@trpc/server'
 const verification_data = z.object({
     method: z.number(),
     requested_handle: z.string(),
-    username: z.string(),
     twitter: z.string().optional(),
     pixiv: z.string().optional(),
     website: z.string().optional(),
     location: z.string(),
-    artist_code: z.string().optional()
+    artist_code: z.string().optional(),
+    username: z.string().optional()
 })
 
 export const verificationRouter = createTRPCRouter({
@@ -47,7 +47,10 @@ export const verificationRouter = createTRPCRouter({
             })
 
             if (artist_exists) {
-                return { success: false }
+                throw new TRPCError({
+                    message: 'Artist already Exists',
+                    code: 'INTERNAL_SERVER_ERROR'
+                })
             }
 
             // Work on the appropriate method
@@ -63,7 +66,10 @@ export const verificationRouter = createTRPCRouter({
                     })
 
                     if (!artist_code) {
-                        return { success: false }
+                        throw new TRPCError({
+                            message: 'Artist code does not exist',
+                            code: 'INTERNAL_SERVER_ERROR'
+                        })
                     }
 
                     // Create Artist
@@ -105,7 +111,7 @@ export const verificationRouter = createTRPCRouter({
                     const artistVerification = await prisma.artistVerification.create({
                         data: {
                             userId: ctx.session.user.user_id!,
-                            username: input.username,
+                            username: ctx.session.user.name!,
                             location: input.location,
                             requestedHandle: input.requested_handle,
                             twitter: input.twitter,
@@ -115,7 +121,10 @@ export const verificationRouter = createTRPCRouter({
                     })
 
                     if (!artistVerification) {
-                        return { success: false }
+                        throw new TRPCError({
+                            message: 'Verification object could not be created',
+                            code: 'INTERNAL_SERVER_ERROR'
+                        })
                     }
 
                     novu.trigger('artist-verification-submit', {
@@ -202,5 +211,37 @@ export const verificationRouter = createTRPCRouter({
             })
 
             return { success: true }
+        }),
+
+    /**
+     * Checks the requested handle to make sure nobody else has requested it,
+     * since we can only have one of each
+     */
+    handle_exists: protectedProcedure.input(z.string()).mutation(async (opts) => {
+        const { input } = opts
+
+        // check handle inside artists
+        const artist_handle_exists = await prisma.artist.findFirst({
+            where: {
+                handle: input
+            }
         })
+
+        if (artist_handle_exists) {
+            return { exists: true }
+        }
+
+        // check handle inside of verification table
+        const verification_handle_exists = await prisma.artistVerification.findFirst({
+            where: {
+                requestedHandle: input
+            }
+        })
+
+        if (verification_handle_exists) {
+            return { exists: true }
+        }
+
+        return { exists: false }
+    })
 })

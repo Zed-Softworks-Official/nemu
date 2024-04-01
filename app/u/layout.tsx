@@ -9,7 +9,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 <div className="bg-base-300/60 p-10 rounded-xl backdrop-blur-3xl flex flex-col gap-5 max-w-xl w-full">
                     <div className="text-center">
                         <Logo />
-                        <hr className="seperation" />
+                        <div className='divider'></div>
                     </div>
 
                     {children}

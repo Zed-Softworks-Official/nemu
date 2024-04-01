@@ -84,7 +84,7 @@ export default function UserInfoMenu() {
         <div className="">
             <Menu as="div" className="relative inline-block text-left">
                 <div>
-                    <Menu.Button className="inline-flex w-full justify-center px-4 py-2 text-base-content btn btn-circle btn-ghost hover:bg-transparent rounded-full">
+                    <Menu.Button className="inline-flex w-20 justify-center px-4 py-2 text-base-content btn btn-circle btn-ghost hover:bg-transparent rounded-full">
                         {session?.user ? (
                             session?.user?.image ? (
                                 <NemuImage
@@ -117,7 +117,7 @@ export default function UserInfoMenu() {
                     leaveFrom="transform opacity-100 scale-100"
                     leaveTo="transform opacity-0 scale-95"
                 >
-                    <Menu.Items className="absolute right-0 mt-2 w-56 origin-top-right divide-y divide-gray-100 rounded-md bg-base-300 shadow-lg">
+                    <Menu.Items className="absolute z-10 right-0 mt-2 w-56 origin-top-right divide-y divide-gray-100 rounded-md bg-base-300 shadow-lg">
                         <div className="px-1 py-1 ">
                             {navbar_items.map((item: UserInfoLink) => (
                                 <Menu.Item key={item.title}>

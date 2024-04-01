@@ -1,14 +1,15 @@
 import type { Config } from 'tailwindcss'
+const {
+    default: flattenColorPalette,
+  } = require("tailwindcss/lib/util/flattenColorPalette");
 
 const config: Config = {
-    content: ['./pages/**/*.{js,ts,jsx,tsx,mdx}', './components/**/*.{js,ts,jsx,tsx,mdx}', './app/**/*.{js,ts,jsx,tsx,mdx}'],
+    content: [
+        './pages/**/*.{js,ts,jsx,tsx,mdx}',
+        './components/**/*.{js,ts,jsx,tsx,mdx}',
+        './app/**/*.{js,ts,jsx,tsx,mdx}'
+    ],
     theme: {
-        colors: {
-            white: '#f3f3f3',
-            charcoal: '#333333',
-            primarylight: '#0e90f9',
-            azure: '#1B72BA'
-        },
         extend: {
             fontFamily: {
                 nunito: ['var(--font-nunito)']
@@ -22,6 +23,12 @@ const config: Config = {
                     '0%': { 'background-position': 'left' },
                     '100%': { 'background-position': 'right' }
                 }
+            },
+            colors: {
+                white: '#f3f3f3',
+                charcoal: '#333333',
+                primarylight: '#0e90f9',
+                azure: '#1B72BA'
             }
         }
     },
@@ -51,6 +58,23 @@ const config: Config = {
         themeRoot: ':root' // The element that receives theme color CSS variables
     },
     darkMode: 'class',
-    plugins: [require('@tailwindcss/typography'), require('daisyui'), require('tailwind-scrollbar')]
+    plugins: [
+        require('@tailwindcss/typography'),
+        require('daisyui'),
+        require('tailwind-scrollbar'),
+        addVariablesForColors
+    ]
 }
+
 export default config
+
+function addVariablesForColors({ addBase, theme }: any) {
+    let allColors = flattenColorPalette(theme('colors'))
+    let newVars = Object.fromEntries(
+        Object.entries(allColors).map(([key, val]) => [`--${key}`, val])
+    )
+
+    addBase({
+        ':root': newVars
+    })
+}
