@@ -14,7 +14,7 @@ import FileInput from '@/components/form/file-input'
 import FormDropzone from '@/components/form/form-dropzone'
 
 import { MDXEditorMethods } from '@mdxeditor/editor'
-import { Fetcher, GetItemId } from '@/core/helpers'
+import { GetItemId } from '@/core/helpers'
 import { CreateToastPromise } from '@/core/promise'
 import { ShopResponse } from '@/core/responses'
 import {

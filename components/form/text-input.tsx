@@ -5,11 +5,12 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
     label: string
     additionalClassnames?: string
     error?: boolean
+    errorMessage?: string
     labelDisabled?: boolean
 }
 
 const TextField = forwardRef<HTMLInputElement, InputProps>(
-    ({ label, error, labelDisabled, additionalClassnames, ...props }, ref) => {
+    ({ label, error, errorMessage, labelDisabled, additionalClassnames, ...props }, ref) => {
         return (
             <>
                 <div className="form-control">
@@ -23,6 +24,7 @@ const TextField = forwardRef<HTMLInputElement, InputProps>(
                             additionalClassnames && additionalClassnames
                         )}
                     />
+                    {errorMessage && <label className='label text-error'>{errorMessage}</label>}
                 </div>
             </>
         )
