@@ -5,6 +5,8 @@ import { adminProcedure, createTRPCRouter, protectedProcedure } from '../trpc'
 import { Role, VerificationMethod } from '@/core/structures'
 import { CreateArtist } from '@/core/server-helpers'
 import { TRPCError } from '@trpc/server'
+import { redis } from '@/lib/redis'
+import { AsRedisKey } from '@/core/helpers'
 
 const verification_data = z.object({
     method: z.number(),
@@ -91,6 +93,9 @@ export const verificationRouter = createTRPCRouter({
                             id: artist_code.id
                         }
                     })
+
+                    // Delete User Cache
+                    await redis.del(AsRedisKey('users', ctx.session.user.user_id!))
 
                     // Notify user of status
                     novu.trigger('artist-verification', {

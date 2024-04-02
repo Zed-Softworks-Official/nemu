@@ -4,6 +4,7 @@ import { redis } from '@/lib/redis'
 import { prisma } from '@/lib/prisma'
 import { AsRedisKey } from '@/core/helpers'
 import { Kanban } from '@prisma/client'
+import { TRPCError } from '@trpc/server'
 
 export const kanbanRouter = createTRPCRouter({
     /**
@@ -73,7 +74,10 @@ export const kanbanRouter = createTRPCRouter({
             })
 
             if (!updated_kanban) {
-                return { success: false }
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Could not update kanban'
+                })
             }
 
             // Delete redis cache

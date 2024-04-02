@@ -96,6 +96,7 @@ export default function ArtistApplyForm() {
     const handleExistsMutation = api.verification.handle_exists.useMutation()
     const verificationMutation = api.verification.set_verification.useMutation({
         onSuccess: () => {
+            setSubmitting(false)
             toast('Verification submitted!', { theme: 'dark', type: 'success' })
         },
         onError: (error) => {
@@ -103,6 +104,7 @@ export default function ArtistApplyForm() {
         }
     })
 
+    const [submitting, setSubmitting] = useState(false)
     const [previousStep, setPreviousStep] = useState(0)
     const [currentStep, setCurrentStep] = useState(0)
     const delta = currentStep - previousStep
@@ -129,7 +131,9 @@ export default function ArtistApplyForm() {
 
     type FieldName = keyof VerificationSchemaType
 
-    async function ProcessForm(data: VerificationSchemaType) {
+    function ProcessForm(data: VerificationSchemaType) {
+        setSubmitting(true)
+
         verificationMutation.mutate({
             location: data.location,
             requested_handle: data.requested_handle,
@@ -159,7 +163,7 @@ export default function ArtistApplyForm() {
                     { message: 'Oh Nyo! The handle you requested is already taken!' },
                     { shouldFocus: true }
                 )
-                
+
                 return
             }
         }
@@ -457,7 +461,7 @@ export default function ArtistApplyForm() {
                     onClick={async () => await Next()}
                 >
                     {currentStep === 2 ? (
-                        'Submit'
+                        submitting && <span className='loading loading-spinner'></span>
                     ) : (
                         <ChevronRightIcon className="w-6 h-6" />
                     )}

@@ -69,7 +69,16 @@ export default function Kanban({
         [containers]
     )
 
-    const mutation = api.kanban.update_kanban.useMutation()
+    const mutation = api.kanban.update_kanban.useMutation({
+        onSuccess() {
+            setSaving(false)
+            toast('Saved Kanban', { type: 'success', theme: 'dark' })
+        },
+        onError(error) {
+            setSaving(false)
+            toast(error.message, { type: 'error', theme: 'dark' })
+        }
+    })
 
     // useAutosave({
     //     data: {
@@ -98,16 +107,8 @@ export default function Kanban({
         setSaving(true)
 
         if (kanban_id) {
-            const res = await mutation.mutateAsync({ kanban_id, containers, tasks })
-
-            if (!res.success) {
-                toast('Unable to save kanban', { type: 'error', theme: 'dark' })
-            } else {
-                toast('Saved Kanban', { type: 'success', theme: 'dark' })
-            }
+            mutation.mutate({ kanban_id, containers, tasks })
         }
-
-        setSaving(false)
     }
 
     function CreateNewContainer() {

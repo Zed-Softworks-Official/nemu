@@ -11,6 +11,7 @@ import Modal from '../modal'
 import CommissionFormSubmissionContent from '../dashboard/commissions/submissions/commission-form-submission-content'
 import { usePathname, useRouter } from 'next/navigation'
 import { api } from '@/core/trpc/react'
+import { toast } from 'react-toastify'
 
 export default function KanbanItemComponent({
     item_data,
@@ -28,11 +29,21 @@ export default function KanbanItemComponent({
     const [mouseIsOver, setMouseIsOver] = useState(false)
     const [editMode, setEditMode] = useState(false)
     const [showModal, setShowModal] = useState(false)
+    const [submitting, setSubmitting] = useState(false)
 
     const pathname = usePathname()
     const slug = pathname.substring(pathname.lastIndexOf('/') + 1, pathname.length)
 
-    // const mutation = api.commissions.accept_reject_commission.useMutation()
+    const mutation = api.commissions.accept_reject_commission.useMutation({
+        onSuccess: () => {
+            setSubmitting(false)
+            toast('Commission Accepted!', { theme: 'dark', type: 'success' })
+        },
+        onError: (error) => {
+            setSubmitting(false)
+            toast(error.message, { theme: 'dark', type: 'error' })
+        }
+    })
 
     const { setNodeRef, attributes, listeners, transform, transition, isDragging } =
         useSortable({
@@ -44,7 +55,7 @@ export default function KanbanItemComponent({
             disabled: editMode
         })
 
-    const {replace} = useRouter()
+    const { replace } = useRouter()
 
     const style = {
         transition,
@@ -55,34 +66,6 @@ export default function KanbanItemComponent({
         setEditMode(!editMode)
         setMouseIsOver(false)
     }
-
-    // TODO:?????
-    // const response = await GraphQLFetcher<{ accept_reject_commission: NemuResponse }>(
-    //     `mutation AcceptRejectCommission($invoice_create_data: InvoiceCreateInputType!) {
-    //         accept_reject_commission(create_data: $invoice_create_data, accepted: ${accepted_commission}) {
-    //             status
-    //             message
-    //         }
-    //     }`,
-    //     {
-    //         invoice_create_data: {
-    //             customer_id: submission.user.find_customer_id.customerId,
-    //             user_id: submission.user.id,
-    //             artist_id: commission.artistId,
-    //             stripe_account: stripe_account,
-
-    //             initial_item_name: commission.title,
-    //             initial_item_price: commission.price,
-    //             initial_item_quantity: 1,
-
-    //             form_submission_id: submission.id
-    //         }
-    //     }
-    // )
-
-    // if (response.accept_reject_commission.status != StatusCode.Success) {
-    //     toast('Failed to accept request', { theme: 'dark', type: 'error' })
-    // }
 
     if (isDragging) {
         return (
@@ -143,8 +126,13 @@ export default function KanbanItemComponent({
                 onClick={() => {
                     if (disable_item_editing) {
                         if (submission_data) {
-                            if (submission_data.commissionStatus == CommissionStatus.Accepted) {
-                                return replace(`/dashboard/commissions/${slug}/${submission_data.orderId}`)
+                            if (
+                                submission_data.commissionStatus ==
+                                CommissionStatus.Accepted
+                            ) {
+                                return replace(
+                                    `/dashboard/commissions/${slug}/${submission_data.orderId}`
+                                )
                             }
                         }
                     }
@@ -203,9 +191,15 @@ export default function KanbanItemComponent({
                                 <button
                                     type="button"
                                     className="btn btn-primary"
+                                    disabled={submitting}
                                     onClick={() => {
-                                        // setAccepted(true)
-                                        // UpdateRequest(true)
+                                        setSubmitting(true)
+                                        mutation.mutate({
+                                            accepted: true,
+                                            create_data: {
+                                                form_submission_id: submission_data.id
+                                            }
+                                        })
                                     }}
                                 >
                                     <CheckCircleIcon className="w-6 h-6" />
@@ -214,9 +208,15 @@ export default function KanbanItemComponent({
                                 <button
                                     type="button"
                                     className="btn btn-error"
+                                    disabled={submitting}
                                     onClick={() => {
-                                        // setRejected(true)
-                                        // UpdateRequest(false)
+                                        setSubmitting(true)
+                                        mutation.mutate({
+                                            accepted: false,
+                                            create_data: {
+                                                form_submission_id: submission_data.id
+                                            }
+                                        })
                                     }}
                                 >
                                     <XCircleIcon className="w-6 h-6" />
@@ -226,7 +226,9 @@ export default function KanbanItemComponent({
                         </div>
                         <div className="divider"></div>
                         <div className="flex flex-col gap-5 w-full rp">
-                            <CommissionFormSubmissionContent content={submission_data.content} />
+                            <CommissionFormSubmissionContent
+                                content={submission_data.content}
+                            />
                         </div>
                     </div>
                 </Modal>

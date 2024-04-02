@@ -1,23 +1,5 @@
 'use client'
 
-// const points = [
-//     {
-//         name: '95/5 Revenue Split',
-//         blurb: 'Blurb',
-//         desc: 'description 1'
-//     },
-//     {
-//         name: 'Streamlined Workflow',
-//         blurb: 'Built in Kanban, Client Messaging, and SOMETHING',
-//         desc: 'description 2'
-//     },
-//     {
-//         name: 'Commission Queues',
-//         blurb: 'Something Cool',
-//         desc: 'description 3'
-//     }
-// ]
-
 import React from 'react'
 
 import { AnimatePresence, motion } from 'framer-motion'

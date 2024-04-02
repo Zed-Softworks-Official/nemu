@@ -19,9 +19,11 @@ import {
     GetBlurData
 } from '@/core/server-helpers'
 import { AsRedisKey } from '@/core/helpers'
-import { Artist, Commission, Form, FormSubmission, User } from '@prisma/client'
+import { Commission, Form, FormSubmission, User } from '@prisma/client'
 import { novu } from '@/lib/novu'
 import { StripeCreateCommissionInvoice } from '@/core/stripe/commissions'
+import { TRPCError } from '@trpc/server'
+import { StripeCreateCustomer } from '@/core/payments'
 
 type FormSubmissionResponse = FormSubmission & { user: User }
 
@@ -533,15 +535,6 @@ export const commissionsRouter = createTRPCRouter({
             z.object({
                 accepted: z.boolean(),
                 create_data: z.object({
-                    customer_id: z.string(),
-                    user_id: z.string(),
-                    artist_id: z.string(),
-                    stripe_account: z.string(),
-
-                    initial_item_name: z.string(),
-                    initial_item_price: z.number(),
-                    initial_item_quantity: z.number(),
-
                     form_submission_id: z.string()
                 })
             })
@@ -563,12 +556,50 @@ export const commissionsRouter = createTRPCRouter({
                                 }
                             }
                         }
-                    }
+                    },
+                    user: true
                 }
             })
 
             if (!submission) {
-                return { success: false }
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Failed to find submission'
+                })
+            }
+
+            // Get Stripe customer_id
+            let customer_id = await prisma.stripeCustomerIds.findFirst({
+                where: {
+                    artistId: submission.form.artistId,
+                    userId: submission.userId
+                }
+            })
+
+            if (!customer_id) {
+                // Create new stripe customer for user
+                const stripe_customer = await StripeCreateCustomer(
+                    submission.form.commission?.artist.stripeAccount!,
+                    submission.user.name!,
+                    submission.user.email || undefined
+                )
+
+                // Update user with stripe account id
+                customer_id = await prisma.stripeCustomerIds.create({
+                    data: {
+                        customerId: stripe_customer.id,
+                        stripeAccount: submission.form.commission?.artist.stripeAccount!,
+                        artistId: submission.form.commission?.artistId!,
+                        userId: submission.userId
+                    }
+                })
+
+                if (!customer_id) {
+                    throw new TRPCError({
+                        code: 'INTERNAL_SERVER_ERROR',
+                        message: 'Could not create stripe account for user!'
+                    })
+                }
             }
 
             // Update form based on rejection or submission
@@ -590,7 +621,10 @@ export const commissionsRouter = createTRPCRouter({
             })
 
             if (!updated_form) {
-                return { success: false }
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Failed to update form'
+                })
             }
 
             ///////////////////////////////////////////////////
@@ -598,7 +632,7 @@ export const commissionsRouter = createTRPCRouter({
             ///////////////////////////////////////////////////
             novu.trigger('commission-accepted-rejected', {
                 to: {
-                    subscriberId: input.create_data.user_id
+                    subscriberId: submission.userId
                 },
                 payload: {
                     commission_name: submission?.form.commission?.title,
@@ -629,9 +663,9 @@ export const commissionsRouter = createTRPCRouter({
 
             // Create Stripe Draft
             const stripe_draft = await StripeCreateCommissionInvoice(
-                input.create_data.customer_id!,
-                input.create_data.stripe_account!,
-                input.create_data.user_id!,
+                customer_id.customerId,
+                customer_id.stripeAccount,
+                customer_id.userId,
                 submission?.orderId!,
                 submission?.form.commissionId!
             )
@@ -640,28 +674,31 @@ export const commissionsRouter = createTRPCRouter({
             const invoice = await prisma.invoice.create({
                 data: {
                     stripeId: stripe_draft.id,
-                    customerId: input.create_data.customer_id,
-                    stripeAccount: input.create_data.stripe_account,
-                    userId: input.create_data.user_id,
-                    artistId: input.create_data.artist_id,
+                    customerId: customer_id.customerId,
+                    stripeAccount: customer_id.stripeAccount,
+                    userId: customer_id.userId,
+                    artistId: customer_id.artistId,
                     paymentStatus: PaymentStatus.InvoiceCreated,
                     submissionId: submission?.id,
                     items: {
                         create: {
-                            name: input.create_data.initial_item_name,
-                            price: input.create_data.initial_item_price,
-                            quantity: input.create_data.initial_item_quantity
+                            name: submission.form.commission?.title!,
+                            price: submission.form.commission?.price!,
+                            quantity: 1
                         }
                     }
                 }
             })
 
             if (!invoice) {
-                return { success: false }
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Failed to create invoice'
+                })
             }
 
             // Create a sendbird user if they don't have one
-            await CheckCreateSendbirdUser(input.create_data.user_id)
+            await CheckCreateSendbirdUser(customer_id.userId)
 
             // Create Channel for sendbird
             const sendbird_channel_url = crypto.randomUUID()
@@ -670,10 +707,27 @@ export const commissionsRouter = createTRPCRouter({
                 sendbird_channel_url
             )
 
+            // Create Default containers for the kanban
+            const defaultContainers: KanbanContainerData[] = [
+                {
+                    id: crypto.randomUUID(),
+                    title: 'Todo'
+                },
+                {
+                    id: crypto.randomUUID(),
+                    title: 'In Progress'
+                },
+                {
+                    id: crypto.randomUUID(),
+                    title: 'Done'
+                }
+            ]
+
             // Create Kanban for the user
             const kanban = await prisma.kanban.create({
                 data: {
-                    formSubmissionId: submission?.id!
+                    formSubmissionId: submission?.id!,
+                    containers: JSON.stringify(defaultContainers)
                 }
             })
 
@@ -690,8 +744,11 @@ export const commissionsRouter = createTRPCRouter({
                 }
             })
 
-            if (updated_submission) {
-                return { success: false }
+            if (!updated_submission) {
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Failed to update form submission!'
+                })
             }
 
             return { success: true }
