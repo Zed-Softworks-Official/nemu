@@ -12,6 +12,7 @@ import { AWSLocations, DownloadData } from '@/core/structures'
 import { S3GetSignedURL } from '@/core/storage'
 import { AsRedisKey } from '@/core/helpers'
 import { novu } from '@/lib/novu'
+import { TRPCError } from '@trpc/server'
 
 export const userRouter = createTRPCRouter({
     /**
@@ -137,7 +138,7 @@ export const userRouter = createTRPCRouter({
         })
 
         if (username) {
-            return { success: false }
+            return new TRPCError({code: 'INTERNAL_SERVER_ERROR', message: ''})
         }
 
         // Update the username

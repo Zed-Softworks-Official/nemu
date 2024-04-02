@@ -1,3 +1,5 @@
+import React from "react"
+
 /**
  * Social Media Places Available To Use
  * 
@@ -30,6 +32,12 @@ export enum Role {
     Standard,
     Artist,
     Admin
+}
+
+export interface UserInfoItem {
+    icon: React.ReactNode
+    title: string
+    url: string
 }
 
 /**
@@ -100,18 +108,18 @@ export const UserInfoObject: Record<string, UserInfoLink[]> = {
 
     Standard: [
         {
-            title: 'Favourites',
-            path: '/favourites',
+            title: 'Favorites',
+            path: '/favorites',
             icon: UserInfoIcon.Favourite
         },
         {
             title: 'Messages',
-            path: '/dashboard/messages',
+            path: '/messages',
             icon: UserInfoIcon.Messages
         },
         {
             title: 'Account Settings',
-            path: '/dashboard/settings',
+            path: '/account',
             icon: UserInfoIcon.Settings
         },
         {

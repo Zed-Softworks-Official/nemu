@@ -1,5 +1,3 @@
-import React from 'react'
-
 import Logo from '@/components/navigation/standard/logo'
 import Search from '@/components/navigation/standard/search/search'
 import UserInfoMenu from '@/components/navigation/user/user-info-menu'
