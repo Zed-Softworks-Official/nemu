@@ -140,7 +140,8 @@ export function AsRedisKey(
         | 'commissions_data'
         | 'kanbans'
         | 'invoices'
-        | 'downloads',
+        | 'downloads'
+        | 'reviews',
     ...unique_identifiers: string[]
 ) {
     return `${object}:${unique_identifiers.join(':')}`

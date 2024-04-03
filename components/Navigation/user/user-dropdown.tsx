@@ -19,6 +19,7 @@ import {
     CodeBracketIcon,
     Cog6ToothIcon,
     EnvelopeIcon,
+    FingerPrintIcon,
     PaintBrushIcon,
     StarIcon,
     UserIcon
@@ -26,6 +27,10 @@ import {
 
 export default function UserDropdown({ session }: { session: Session | null }) {
     const items = useMemo(() => {
+        if (!session) {
+            return []
+        }
+
         let result: UserInfoItem[] = [
             {
                 title: 'Favorites',
@@ -54,10 +59,6 @@ export default function UserDropdown({ session }: { session: Session | null }) {
             }
         ]
 
-        if (!session) {
-            return result
-        }
-
         switch (session.user.role) {
             case Role.Artist:
                 {
@@ -78,6 +79,19 @@ export default function UserDropdown({ session }: { session: Session | null }) {
                 break
             case Role.Admin:
                 {
+                    result = [
+                        {
+                            title: 'Verify Artists',
+                            url: '/artists/verify',
+                            icon: <CheckCircleIcon className="w-6 h-6" />
+                        },
+                        {
+                            title: 'Generate Artist Code',
+                            url: '/artist/gen-code',
+                            icon: <FingerPrintIcon className="w-6 h-6" />
+                        },
+                        ...result
+                    ]
                 }
                 break
         }
@@ -151,7 +165,7 @@ export default function UserDropdown({ session }: { session: Session | null }) {
                                             )}
                                         >
                                             <ArrowRightStartOnRectangleIcon className="w-6 h-6" />
-                                            Signout
+                                            Sign out
                                         </Link>
                                     )}
                                 </Menu.Item>

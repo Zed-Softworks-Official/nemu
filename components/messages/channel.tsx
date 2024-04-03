@@ -29,7 +29,6 @@ import {
     SendingStatus,
     UserMessage
 } from '@sendbird/chat/message'
-import { EveryMessage } from '@sendbird/uikit-react/'
 
 import Loading from '../loading'
 import ChannelSettings from './channel-settings'
@@ -142,7 +141,7 @@ function CustomChannel() {
 
     function HandleContextMenu(
         e: MouseEvent<HTMLDivElement, globalThis.MouseEvent>,
-        message: EveryMessage
+        message: BaseMessage
     ) {
         e.preventDefault()
 

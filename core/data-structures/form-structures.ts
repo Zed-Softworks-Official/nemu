@@ -1,5 +1,6 @@
 import { FormSubmission, Invoice, InvoiceItem, User } from '@prisma/client'
 import { AWSLocations } from './aws-structures'
+import { RouterOutput } from '../responses'
 
 export interface CreateFormSubmissionStructure {
     user_id: string
@@ -32,6 +33,8 @@ export interface AWSFileModification {
 }
 
 export type CommissionDataSubmission = FormSubmission & { user: User }
+
+export type GetSubmissionsResponse = RouterOutput['user']['get_submissions']
 
 export type CommissionDataInvoice =
     | (Invoice & { items: InvoiceItem[] | undefined })

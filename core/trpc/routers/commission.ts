@@ -19,7 +19,7 @@ import {
     GetBlurData
 } from '@/core/server-helpers'
 import { AsRedisKey } from '@/core/helpers'
-import { Commission, Form, FormSubmission, User } from '@prisma/client'
+import { Commission, Form, FormSubmission, Review, User } from '@prisma/client'
 import { novu } from '@/lib/novu'
 import { StripeCreateCommissionInvoice } from '@/core/stripe/commissions'
 import { TRPCError } from '@trpc/server'
@@ -751,6 +751,38 @@ export const commissionsRouter = createTRPCRouter({
                 })
             }
 
+            await redis.del(
+                AsRedisKey(
+                    'commissions_data',
+                    submission.form.commission?.artistId!,
+                    submission.form.commission?.slug!
+                )
+            )
+
             return { success: true }
+        }),
+
+    get_reviews: publicProcedure.input(z.string()).query(async (opts) => {
+        const { input } = opts
+
+        const cachedReviews = await redis.get(AsRedisKey('reviews', input))
+
+        if (cachedReviews) {
+            return JSON.parse(cachedReviews) as Review[]
+        }
+
+        const reviews = await prisma.review.findMany({
+            where: {
+                commissionId: input
+            },
+            include: {
+                user: true,
+                submission: true
+            }
         })
+
+        await redis.set(AsRedisKey('reviews', input), JSON.stringify(reviews), 'EX', 3600)
+
+        return reviews
+    })
 })

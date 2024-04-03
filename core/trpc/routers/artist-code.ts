@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { adminProcedure, createTRPCRouter, publicProcedure } from '../trpc'
 import { prisma } from '@/lib/prisma'
+import { TRPCError } from '@trpc/server'
 
 export const artistCodeRouter = createTRPCRouter({
     /**
@@ -35,9 +36,12 @@ export const artistCodeRouter = createTRPCRouter({
         })
 
         if (!result) {
-            return { success: false }
+            throw new TRPCError({
+                code: 'INTERNAL_SERVER_ERROR',
+                message: 'Could not generate artist code!'
+            })
         }
 
-        return { success: true, generated_code: new_code }
+        return { generated_code: new_code }
     })
 })

@@ -138,7 +138,7 @@ export const userRouter = createTRPCRouter({
         })
 
         if (username) {
-            return new TRPCError({code: 'INTERNAL_SERVER_ERROR', message: ''})
+            return new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: '' })
         }
 
         // Update the username
@@ -242,5 +242,35 @@ export const userRouter = createTRPCRouter({
             })
 
             return { success: true }
+        }),
+
+    /**
+     * Gets all of the submissions for the user
+     */
+    get_submissions: protectedProcedure.query(async (opts) => {
+        const { ctx } = opts
+
+        const submissions = await prisma.formSubmission.findMany({
+            where: {
+                userId: ctx.session.user.user_id
+            },
+            include: {
+                form: {
+                    include: {
+                        commission: {
+                            include: {
+                                artist: true
+                            }
+                        }
+                    }
+                }
+            }
         })
+
+        if (!submissions) {
+            return []
+        }
+
+        return submissions
+    })
 })

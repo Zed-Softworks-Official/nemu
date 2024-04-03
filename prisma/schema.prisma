@@ -169,10 +169,12 @@ model Review {
 
   commissionId String?
   productId    String?
+  submissionId String?
 
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  commissions Commission? @relation(fields: [commissionId], references: [id], onDelete: Cascade)
-  products    Product?    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  commissions Commission?     @relation(fields: [commissionId], references: [id], onDelete: Cascade)
+  products    Product?        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  submission  FormSubmission? @relation(fields: [submissionId], references: [id], onDelete: Cascade)
 }
 
 model Favorite {
@@ -337,6 +339,7 @@ model FormSubmission {
   downloadId String?
 
   content String
+  Review  Review[]
 }
 
 model Kanban {

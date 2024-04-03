@@ -52,7 +52,7 @@ export const Tabs = ({
                         }}
                         onMouseEnter={() => setHovering(true)}
                         onMouseLeave={() => setHovering(false)}
-                        className={cn('relative px-4 py-2 rounded-full', tabClassName)}
+                        className={cn('relative px-4 py-2 rounded-xl', tabClassName)}
                         style={{
                             transformStyle: 'preserve-3d'
                         }}
@@ -66,7 +66,7 @@ export const Tabs = ({
                                     duration: 0.6
                                 }}
                                 className={cn(
-                                    'absolute inset-0 bg-primary rounded-full ',
+                                    'absolute inset-0 bg-primary rounded-xl',
                                     activeTabClassName
                                 )}
                             />

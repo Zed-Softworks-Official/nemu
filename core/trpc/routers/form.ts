@@ -294,6 +294,10 @@ export const formsRouter = createTRPCRouter({
                         `@${commission.artist.handle}/${commission.slug}`
                 }
             })
+
+            await redis.del(
+                AsRedisKey('commissions', commission.artistId, commission.slug)
+            )
         }),
 
     /**

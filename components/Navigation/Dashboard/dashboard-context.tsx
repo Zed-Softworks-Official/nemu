@@ -3,6 +3,7 @@
 import Loading from '@/components/loading'
 import { ArtistPageResponse } from '@/core/responses'
 import { api } from '@/core/trpc/react'
+import { Artist } from '@prisma/client'
 import {
     createContext,
     useContext,
@@ -19,9 +20,13 @@ type DashboardContextType = {
 
 const DashboardContext = createContext<DashboardContextType | undefined>(undefined)
 
-export function DashboardProvider({ children }: { children: React.ReactNode }) {
-    const { data, isLoading } = api.artist.get_artist.useQuery()
-
+export function DashboardProvider({
+    data,
+    children
+}: {
+    data: ArtistPageResponse
+    children: React.ReactNode
+}) {
     const [artist, setArtist] = useState(data)
 
     useEffect(() => {
@@ -29,14 +34,6 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
         setArtist(data)
     }, [data])
-
-    if (isLoading && !data) {
-        return (
-            <div className="w-screen h-screen">
-                <Loading />
-            </div>
-        )
-    }
 
     return (
         <DashboardContext.Provider
