@@ -1,4 +1,5 @@
-import { CommissionAvailability } from './structures'
+import { cn } from '@/lib/utils'
+import { CommissionAvailability, CommissionStatus } from './structures'
 
 /**
  *
@@ -19,9 +20,9 @@ export function ConvertAvailabilityToBadge(
 }
 
 /**
- * 
- * @param published 
- * @returns 
+ *
+ * @param published
+ * @returns
  */
 export function ConvertPublishedToBadge(published: boolean): React.ReactNode {
     if (published) {
@@ -29,4 +30,33 @@ export function ConvertPublishedToBadge(published: boolean): React.ReactNode {
     } else {
         return <span className="badge badge-error badge-lg">Unpublished</span>
     }
+}
+
+export function ConvertCommissionStatusToBadge(status: CommissionStatus) {
+    let [className, badgeText] = ['', '']
+
+    switch (status) {
+        case CommissionStatus.Accepted:
+            {
+                ;(className = 'badge-success'), (badgeText = 'In Progress')
+            }
+            break
+        case CommissionStatus.Delivered:
+            {
+                ;(className = 'badge-primary'), (badgeText = 'Delivered')
+            }
+            break
+        case CommissionStatus.Rejected:
+            {
+                ;(className = 'badge-error'), (badgeText = 'Rejected')
+            }
+            break
+        case CommissionStatus.WaitingApproval:
+            {
+                ;(className = 'badge-warning'), (badgeText = 'Pending')
+            }
+            break
+    }
+
+    return <span className={cn('badge badge-lg', className)}>{badgeText}</span>
 }

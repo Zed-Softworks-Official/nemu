@@ -12,12 +12,14 @@ type Tab = {
 
 export const Tabs = ({
     tabs: propTabs,
+    absolute,
     containerClassName,
     activeTabClassName,
     tabClassName,
     contentClassName
 }: {
     tabs: Tab[]
+    absolute?: boolean
     containerClassName?: string
     activeTabClassName?: string
     tabClassName?: string
@@ -78,13 +80,23 @@ export const Tabs = ({
                     </button>
                 ))}
             </div>
-            <FadeInDiv
-                tabs={tabs}
-                active={active}
-                key={active.value}
-                hovering={hovering}
-                className={cn('mt-32', contentClassName)}
-            />
+            {absolute ? (
+                <FadeInDiv
+                    tabs={tabs}
+                    active={active}
+                    key={active.value}
+                    hovering={hovering}
+                    className={cn('mt-32', contentClassName)}
+                />
+            ) : (
+                <ScaleInDiv
+                    tabs={tabs}
+                    active={active}
+                    key={active.value}
+                    hovering={hovering}
+                    className={cn('mt-20', contentClassName)}
+                />
+            )}
         </>
     )
 }
@@ -119,6 +131,40 @@ export const FadeInDiv = ({
                         y: isActive(tab) ? [0, 40, 0] : 0
                     }}
                     className={cn('w-full h-full absolute top-0 left-0', className)}
+                >
+                    {tab.content}
+                </motion.div>
+            ))}
+        </div>
+    )
+}
+
+export const ScaleInDiv = ({
+    className,
+    tabs,
+    hovering
+}: {
+    className?: string
+    key?: string
+    tabs: Tab[]
+    active: Tab
+    hovering?: boolean
+}) => {
+    const isActive = (tab: Tab) => {
+        return tab.value === tabs[0].value
+    }
+
+    return (
+        <div className="w-full h-fit">
+            {tabs.map((tab, idx) => (
+                <motion.div
+                    key={tab.value}
+                    layoutId={tab.value}
+                    animate={{
+                        opacity: isActive(tab) ? [0, 100] : [100, 0],
+                        scale: isActive(tab) ? [0, 1] : [1, 0]
+                    }}
+                    className={cn('w-full', className)}
                 >
                     {tab.content}
                 </motion.div>

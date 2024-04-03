@@ -61,13 +61,28 @@ export const artistRouter = createTRPCRouter({
      * Gets random artists from the database
      */
     get_random: publicProcedure.query(async (opts) => {
+        const randomArtistCache = await redis.get(AsRedisKey('artists', 'random'))
+
+        if (randomArtistCache) {
+            return JSON.parse(randomArtistCache) as Artist[]
+        }
+
         const artistCount = await prisma.artist.count()
         const artistSkip = Math.floor(Math.random() * artistCount)
 
-        return await prisma.artist.findMany({
+        const randomArtists = await prisma.artist.findMany({
             take: 5
             // skip: artistSkip
         })
+
+        await redis.set(
+            AsRedisKey('artists', 'random'),
+            JSON.stringify(randomArtists),
+            'EX',
+            3600
+        )
+
+        return randomArtists
     }),
 
     /**

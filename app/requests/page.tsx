@@ -3,6 +3,7 @@ import { Tabs } from '@/components/ui/tabs'
 
 import DefaultPageLayout from '../(default)/layout'
 import RequestTable from '@/components/ui/request-table'
+import { CommissionStatus } from '@/core/structures'
 
 export default async function DeliveryPage() {
     const submissions = await api.user.get_submissions()
@@ -21,12 +22,56 @@ export default async function DeliveryPage() {
                                 content: <RequestTable submissions={submissions} />
                             },
                             {
-                                title: 'Pending',
-                                value: 'pending',
+                                title: 'In Progress',
+                                value: 'inprogress',
+                                content: (
+                                    <RequestTable
+                                        submissions={submissions.filter(
+                                            (submission) =>
+                                                submission.commissionStatus ===
+                                                CommissionStatus.Accepted
+                                        )}
+                                    />
+                                )
                             },
                             {
-                                title: 'Completed',
-                                value: 'completed'
+                                title: 'Pending',
+                                value: 'pending',
+                                content: (
+                                    <RequestTable
+                                        submissions={submissions.filter(
+                                            (submission) =>
+                                                submission.commissionStatus ===
+                                                CommissionStatus.WaitingApproval
+                                        )}
+                                    />
+                                )
+                            },
+                            {
+                                title: 'Rejected',
+                                value: 'rejected',
+                                content: (
+                                    <RequestTable
+                                        submissions={submissions.filter(
+                                            (submission) =>
+                                                submission.commissionStatus ===
+                                                CommissionStatus.Rejected
+                                        )}
+                                    />
+                                )
+                            },
+                            {
+                                title: 'Delivered',
+                                value: 'delivered',
+                                content: (
+                                    <RequestTable
+                                        submissions={submissions.filter(
+                                            (submission) =>
+                                                submission.commissionStatus ===
+                                                CommissionStatus.Delivered
+                                        )}
+                                    />
+                                )
                             }
                         ]}
                     />

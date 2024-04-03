@@ -1,0 +1,187 @@
+import DefaultPageLayout from '@/app/(default)/layout'
+import CommissionFormSubmissionContent from '@/components/dashboard/commissions/submissions/commission-form-submission-content'
+import MessagesClient from '@/components/messages/messages-client'
+import { Tabs } from '@/components/ui/tabs'
+import { ConvertCommissionStatusToBadge } from '@/core/react-helpers'
+import { CommissionStatus, PaymentStatus } from '@/core/structures'
+import { api } from '@/core/trpc/server'
+import { faJar } from '@fortawesome/free-solid-svg-icons'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { BanknotesIcon } from '@heroicons/react/20/solid'
+import { Metadata, ResolvingMetadata } from 'next'
+import Link from 'next/link'
+import { notFound } from 'next/navigation'
+
+type Props = {
+    params: { order_id: string }
+}
+
+export async function generateMetadata(
+    { params }: Props,
+    parent: ResolvingMetadata
+): Promise<Metadata> {
+    const request = await api.form.get_submission({ order_id: params.order_id })
+
+    return {
+        title: `Nemu | ${request?.submission.form.commission?.title} Request`
+    }
+}
+
+export default async function OrderPage({ params }: Props) {
+    const request = await api.form.get_submission({ order_id: params.order_id })
+
+    if (!request) {
+        return notFound()
+    }
+
+    return (
+        <DefaultPageLayout>
+            <div className="flex gap-5 w-full justify-between">
+                <div className="card shadow-xl bg-base-300 w-full h-fit">
+                    <div className="card-body">
+                        <div className="flex justify-between">
+                            <div className="flex flex-col gap-2">
+                                <h2 className="card-title">
+                                    {request?.submission.form.commission?.title}
+                                </h2>
+                                <p>
+                                    By{' '}
+                                    <Link
+                                        href={`/@${request.submission.form.artist.handle}`}
+                                        className="link link-hover"
+                                    >
+                                        @{request?.submission.form.artist.handle}
+                                    </Link>
+                                </p>
+                            </div>
+                            {ConvertCommissionStatusToBadge(
+                                request.submission.commissionStatus
+                            )}
+                        </div>
+                        <div className="divider"></div>
+                        <Tabs
+                            tabClassName=""
+                            tabs={[
+                                {
+                                    title: 'Details',
+                                    value: 'details',
+                                    content: (
+                                        <div className="card bg-base-200 shadow-xl">
+                                            <div className="card-body">
+                                                <h2 className="card-title">
+                                                    General Details
+                                                </h2>
+                                                <div className="divider"></div>
+                                                <CommissionFormSubmissionContent
+                                                    content={request.submission.content}
+                                                    classNames="bg-base-100"
+                                                />
+                                            </div>
+                                        </div>
+                                    )
+                                },
+                                {
+                                    title: 'Messages',
+                                    value: 'messages',
+                                    content: (
+                                        <div className="card bg-base-200 shadow-xl">
+                                            <div className="card-body">
+                                                <h2 className="card-title">
+                                                   Messages
+                                                </h2>
+                                                <div className="divider"></div>
+                                                
+                                            </div>
+                                        </div>
+                                    )
+                                },
+                                {
+                                    title: 'Delivery',
+                                    value: 'delivery',
+                                    content: (
+                                        <div className="card bg-base-300 shadow-xl">
+                                            <div className="card-body">
+                                                <h2>Nothing here yet!</h2>
+                                            </div>
+                                        </div>
+                                    )
+                                }
+                            ]}
+                        />
+                    </div>
+                </div>
+                <div className="flex flex-col gap-5 col-span-3">
+                    {request.invoice && (
+                        <div className="card shadow-xl bg-base-300">
+                            <div className="card-body">
+                                <div className="flex gap-5 items-center">
+                                    <BanknotesIcon className="w-6 h-6" />
+                                    <h2 className="card-title">
+                                        Invoice{' '}
+                                        {request.invoice.paymentStatus ==
+                                        PaymentStatus.InvoiceNeedsPayment ? (
+                                            <span className="badge badge-error badge-lg">
+                                                Unpaid
+                                            </span>
+                                        ) : (
+                                            request.invoice.paymentStatus ==
+                                                PaymentStatus.Captured && (
+                                                <span className="badge badge-success badge-lg">
+                                                    Paid
+                                                </span>
+                                            )
+                                        )}
+                                    </h2>
+                                </div>
+                                <div className="divider"></div>
+                                <Link
+                                    href={request.invoice.hostedUrl || '#'}
+                                    target="_blank"
+                                    className="btn btn-primary"
+                                >
+                                    {request.invoice.paymentStatus ==
+                                    PaymentStatus.InvoiceNeedsPayment
+                                        ? 'Pay Invoice'
+                                        : request.invoice.paymentStatus ==
+                                              PaymentStatus.Captured && 'View Invoice'}
+                                </Link>
+                            </div>
+                        </div>
+                    )}
+                    {request.download && (
+                        <div className="card shadow-xl bg-base-300">
+                            <div className="card-body">
+                                <h2 className="card-title">Download</h2>
+                                <div className="divider"></div>
+                                <Link
+                                    href={request.download.fileKey}
+                                    className="btn btn-primary"
+                                >
+                                    {request.download.fileKey}
+                                </Link>
+                            </div>
+                        </div>
+                    )}
+                    {request.submission.commissionStatus ===
+                        CommissionStatus.Delivered && (
+                        <div className="card bg-base-300 shadow-xl">
+                            <div className="card-body">
+                                <div className="flex gap-5">
+                                    <FontAwesomeIcon icon={faJar} className="w-6 h-6" />
+                                    <h2 className="card-title">Tip Jar</h2>
+                                </div>
+                                <div className="divider"></div>
+                                <span className="italic text-base-content/80">
+                                    Want to give an extra for the artists hard work?
+                                </span>
+                                <Link href={'#'} className="btn btn-primary">
+                                    Tip Here
+                                </Link>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </DefaultPageLayout>
+    )
+}

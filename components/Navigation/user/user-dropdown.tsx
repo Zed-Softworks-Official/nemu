@@ -22,6 +22,7 @@ import {
     FingerPrintIcon,
     PaintBrushIcon,
     StarIcon,
+    TruckIcon,
     UserIcon
 } from '@heroicons/react/20/solid'
 
@@ -32,6 +33,11 @@ export default function UserDropdown({ session }: { session: Session | null }) {
         }
 
         let result: UserInfoItem[] = [
+            {
+                title: 'Requests',
+                url: '/requests',
+                icon: <TruckIcon className="w-6 h-6" />
+            },
             {
                 title: 'Favorites',
                 url: '/favorites',
