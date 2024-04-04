@@ -6,7 +6,7 @@ import {
     protectedProcedure
 } from '../trpc'
 import { redis } from '@/lib/redis'
-import { Commission, Product, StripeCustomerIds } from '@prisma/client'
+import { Commission, Product, StripeCustomerIds, User } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { AWSLocations, DownloadData } from '@/core/structures'
 import { S3GetSignedURL } from '@/core/storage'
@@ -272,5 +272,40 @@ export const userRouter = createTRPCRouter({
         }
 
         return submissions
+    }),
+
+    /**
+     * Gets the currently logged in user
+     */
+    get_user: protectedProcedure.query(async (opts) => {
+        const { ctx } = opts
+
+        const cachedUser = await redis.get(AsRedisKey('users', ctx.session.user.user_id!))
+
+        if (cachedUser) {
+            return JSON.parse(cachedUser) as User
+        }
+
+        const user = await prisma.user.findFirst({
+            where: {
+                id: ctx.session.user.user_id
+            }
+        })
+
+        if (!user) {
+            throw new TRPCError({
+                code: 'INTERNAL_SERVER_ERROR',
+                message: 'Could not find user'
+            })
+        }
+
+        await redis.set(
+            AsRedisKey('users', ctx.session.user.user_id!),
+            JSON.stringify(user),
+            'EX',
+            3600
+        )
+
+        return user
     })
 })
