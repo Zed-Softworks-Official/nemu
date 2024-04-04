@@ -10,7 +10,7 @@ export const kanbanRouter = createTRPCRouter({
     /**
      * Gets a specific kanban given the ID of the kanban
      */
-    get_kanban: artistProcedure.input(z.string()).query(async (opts) => {
+    get_kanban: protectedProcedure.input(z.string()).query(async (opts) => {
         const { input } = opts
 
         if (input.length === 0) {

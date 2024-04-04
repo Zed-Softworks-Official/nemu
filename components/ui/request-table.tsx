@@ -1,9 +1,9 @@
 'use client'
 
-import { CommissionStatus, GetSubmissionsResponse } from '@/core/structures'
-import NemuImage from '../nemu-image'
 import Link from 'next/link'
-import { cn } from '@/lib/utils'
+import NemuImage from '../nemu-image'
+
+import { GetSubmissionsResponse } from '@/core/structures'
 import { ConvertCommissionStatusToBadge } from '@/core/react-helpers'
 
 export default function RequestTable({
@@ -46,7 +46,7 @@ export default function RequestTable({
                                 </p>
                             </div>
                             <div className="card shadow-xl bg-base-300 w-full">
-                                <div className="card-body">
+                                <div className="card-body justify-center items-center">
                                     <Link
                                         href={`/requests/${submission.orderId}`}
                                         className="btn btn-primary btn-wide"
@@ -55,6 +55,7 @@ export default function RequestTable({
                                     </Link>
                                 </div>
                             </div>
+                            
                         </div>
                     </div>
                 ))}

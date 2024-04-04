@@ -34,24 +34,14 @@ export default function UserDropdown({ session }: { session: Session | null }) {
 
         let result: UserInfoItem[] = [
             {
-                title: 'Requests',
-                url: '/requests',
-                icon: <TruckIcon className="w-6 h-6" />
-            },
-            {
                 title: 'Favorites',
                 url: '/favorites',
                 icon: <StarIcon className="w-6 h-6" />
             },
             {
-                title: 'Invoices',
-                url: '/invoices',
-                icon: <BanknotesIcon className="w-6 h-6" />
-            },
-            {
-                title: 'Downloads',
-                url: '/downloads',
-                icon: <ArrowDownTrayIcon className="w-6 h-6" />
+                title: 'Requests',
+                url: '/requests',
+                icon: <TruckIcon className="w-6 h-6" />
             },
             {
                 title: 'Messages',

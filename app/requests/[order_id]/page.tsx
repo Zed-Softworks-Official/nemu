@@ -60,7 +60,7 @@ export default async function OrderPage({ params }: Props) {
                         </div>
                         <div className="divider"></div>
                         <Tabs
-                            tabClassName=""
+                            containerClassName='bg-base-200 p-5 rounded-xl shadow-xl'
                             tabs={[
                                 {
                                     title: 'Details',
@@ -86,11 +86,15 @@ export default async function OrderPage({ params }: Props) {
                                     content: (
                                         <div className="card bg-base-200 shadow-xl">
                                             <div className="card-body">
-                                                <h2 className="card-title">
-                                                   Messages
-                                                </h2>
+                                                <h2 className="card-title">Messages</h2>
                                                 <div className="divider"></div>
-                                                
+                                                <MessagesClient
+                                                    hide_channel_list
+                                                    channel_url={
+                                                        request.submission
+                                                            .sendbirdChannelURL || ''
+                                                    }
+                                                />
                                             </div>
                                         </div>
                                     )
@@ -110,7 +114,7 @@ export default async function OrderPage({ params }: Props) {
                         />
                     </div>
                 </div>
-                <div className="flex flex-col gap-5 col-span-3">
+                <div className="flex flex-col gap-5 max-w-80 w-full">
                     {request.invoice && (
                         <div className="card shadow-xl bg-base-300">
                             <div className="card-body">
@@ -162,24 +166,30 @@ export default async function OrderPage({ params }: Props) {
                             </div>
                         </div>
                     )}
-                    {request.submission.commissionStatus ===
-                        CommissionStatus.Delivered && (
-                        <div className="card bg-base-300 shadow-xl">
-                            <div className="card-body">
-                                <div className="flex gap-5">
-                                    <FontAwesomeIcon icon={faJar} className="w-6 h-6" />
-                                    <h2 className="card-title">Tip Jar</h2>
+                    {request.submission.commissionStatus === CommissionStatus.Delivered &&
+                        request.submission.form.artist.tipJarUrl && (
+                            <div className="card bg-base-300 shadow-xl">
+                                <div className="card-body">
+                                    <div className="flex gap-5">
+                                        <FontAwesomeIcon
+                                            icon={faJar}
+                                            className="w-6 h-6"
+                                        />
+                                        <h2 className="card-title">Tip Jar</h2>
+                                    </div>
+                                    <div className="divider"></div>
+                                    <span className="italic text-base-content/80">
+                                        Want to give an extra for the artists hard work?
+                                    </span>
+                                    <Link
+                                        href={request.submission.form.artist.tipJarUrl}
+                                        className="btn btn-primary"
+                                    >
+                                        Tip Here
+                                    </Link>
                                 </div>
-                                <div className="divider"></div>
-                                <span className="italic text-base-content/80">
-                                    Want to give an extra for the artists hard work?
-                                </span>
-                                <Link href={'#'} className="btn btn-primary">
-                                    Tip Here
-                                </Link>
                             </div>
-                        </div>
-                    )}
+                        )}
                 </div>
             </div>
         </DefaultPageLayout>

@@ -18,10 +18,11 @@ model Artist {
 
   createdAt DateTime @default(now())
 
-  handle   String @unique
-  about    String @default("Peko Peko")
-  location String @default("Nemu's basement")
-  terms    String @default("Pls Feed Nemu")
+  handle    String  @unique
+  about     String  @default("Peko Peko")
+  location  String  @default("Nemu's basement")
+  terms     String  @default("Pls Feed Nemu")
+  tipJarUrl String?
 
   automatedCommissionMessage String?
   automatedMessageEnabled    Boolean @default(false)

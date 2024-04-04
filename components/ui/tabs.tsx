@@ -93,8 +93,7 @@ export const Tabs = ({
                     tabs={tabs}
                     active={active}
                     key={active.value}
-                    hovering={hovering}
-                    className={cn('mt-20', contentClassName)}
+                    className={cn('mt-5', contentClassName)}
                 />
             )}
         </>
@@ -141,14 +140,12 @@ export const FadeInDiv = ({
 
 export const ScaleInDiv = ({
     className,
-    tabs,
-    hovering
+    tabs
 }: {
     className?: string
     key?: string
     tabs: Tab[]
     active: Tab
-    hovering?: boolean
 }) => {
     const isActive = (tab: Tab) => {
         return tab.value === tabs[0].value
@@ -160,6 +157,11 @@ export const ScaleInDiv = ({
                 <motion.div
                     key={tab.value}
                     layoutId={tab.value}
+                    style={
+                        {
+                            display: isActive(tab) ? 'block' : 'none'
+                        }
+                    }
                     animate={{
                         opacity: isActive(tab) ? [0, 100] : [100, 0],
                         scale: isActive(tab) ? [0, 1] : [1, 0]
