@@ -1,3 +1,5 @@
+import { Artist, User } from '@prisma/client'
+
 export interface ConvertShopItemFromProductOptions {
     get_download_asset?: boolean
     editable?: boolean
@@ -34,3 +36,5 @@ export interface ArtistVerificationInputType {
     user_id?: string
     artist_code?: string
 }
+
+export type RandomArtists = Artist & { user: User }

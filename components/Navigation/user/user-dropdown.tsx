@@ -25,10 +25,15 @@ import {
     TruckIcon,
     UserIcon
 } from '@heroicons/react/20/solid'
+import { RouterOutput } from '@/core/responses'
 
-export default function UserDropdown({ session }: { session: Session | null }) {
+export default function UserDropdown({
+    data
+}: {
+    data: RouterOutput['user']['get_user']
+}) {
     const items = useMemo(() => {
-        if (!session) {
+        if (!data) {
             return []
         }
 
@@ -55,7 +60,7 @@ export default function UserDropdown({ session }: { session: Session | null }) {
             }
         ]
 
-        switch (session.user.role) {
+        switch (data.user.role) {
             case Role.Artist:
                 {
                     result = [
@@ -93,17 +98,17 @@ export default function UserDropdown({ session }: { session: Session | null }) {
         }
 
         return result
-    }, [session])
+    }, [data])
 
     return (
         <div className="">
             <Menu as="div" className="relative inline-block text-left">
                 <div>
                     <Menu.Button className="inline-flex w-20 justify-center px-4 py-2 text-base-content btn btn-circle btn-ghost hover:bg-transparent rounded-full">
-                        {session?.user ? (
-                            session?.user?.image ? (
+                        {data?.user ? (
+                            data?.user?.image ? (
                                 <NemuImage
-                                    src={session?.user?.image!}
+                                    src={data?.user?.image}
                                     alt="profile image"
                                     width={50}
                                     height={50}
@@ -150,7 +155,7 @@ export default function UserDropdown({ session }: { session: Session | null }) {
                                     )}
                                 </Menu.Item>
                             ))}
-                            {session ? (
+                            {data ? (
                                 <Menu.Item>
                                     {({ active }) => (
                                         <Link

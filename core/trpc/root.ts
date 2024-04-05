@@ -26,7 +26,7 @@ export const appRouter = createTRPCRouter({
     invoices: invoicesRouter,
     stripe: stripeRouter,
     kanban: kanbanRouter,
-    verification: verificationRouter
+    verification: verificationRouter,
 })
 
 /**

@@ -1,4 +1,5 @@
 import React from "react"
+import { RouterOutput } from "../responses"
 
 /**
  * Social Media Places Available To Use
@@ -65,6 +66,8 @@ export interface UserInfoLink {
     path: string
     icon: UserInfoIcon,
 }
+
+export type AccountSettingsResponse = RouterOutput['user']['get_user']
 
 
 ///////////////////////////////

@@ -1,7 +1,7 @@
 import type { Config } from 'tailwindcss'
 const {
-    default: flattenColorPalette,
-  } = require("tailwindcss/lib/util/flattenColorPalette");
+    default: flattenColorPalette
+} = require('tailwindcss/lib/util/flattenColorPalette')
 
 const config: Config = {
     content: [
@@ -45,9 +45,19 @@ const config: Config = {
                     success: '#1ece53',
                     warning: '#e2ef2b',
                     error: '#d82750'
+                },
+                light: {
+                    primary: '#2185d5',
+                    secondary: '#0e90f9',
+                    accent: '#ffffff',
+                    neutral: '#0e90f9',
+                    'base-100': '#f3f3f3',
+                    info: '#1B72BA',
+                    success: '#1ece53',
+                    warning: '#e2ef2b',
+                    error: '#d82750'
                 }
-            },
-            'light'
+            }
         ],
         darkTheme: 'nemu-dark', // name of one of the included themes for dark mode
         base: true, // applies background color and foreground color for root element by default

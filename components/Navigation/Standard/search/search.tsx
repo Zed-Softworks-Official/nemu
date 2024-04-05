@@ -2,7 +2,8 @@
 
 import { MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/20/solid'
 import algoliasearch from 'algoliasearch'
-import { Hits, Index, InstantSearch, SearchBox } from 'react-instantsearch'
+import { Hits, Index, SearchBox, InstantSearch } from 'react-instantsearch'
+// import { InstantSearchNext } from 'react-instantsearch-nextjs'
 import { ArtistSearchResult, CommissionSearchResult } from './search-result-combobox-item'
 import { useState } from 'react'
 import { Transition } from '@headlessui/react'

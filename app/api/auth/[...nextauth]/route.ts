@@ -8,11 +8,12 @@ import AppleProvider from 'next-auth/providers/apple'
 import TwitterProvider from 'next-auth/providers/twitter'
 import EmailProvider from 'next-auth/providers/email'
 import DiscordProvider from 'next-auth/providers/discord'
-import { Role } from '@/core/structures'
+import { AWSLocations, Role } from '@/core/structures'
 
 import { redis } from '@/lib/redis'
-import { User } from '@prisma/client'
+import { Artist, User } from '@prisma/client'
 import { AsRedisKey } from '@/core/helpers'
+import { S3GetSignedURL } from '@/core/storage'
 
 export const authOptions: NextAuthOptions = {
     adapter: PrismaAdapter(prisma),
@@ -47,7 +48,7 @@ export const authOptions: NextAuthOptions = {
         }),
         DiscordProvider({
             clientId: process.env.DISCORD_CLIENT_ID,
-            clientSecret: process.env.DISCORD_CLIENT_SECRET,
+            clientSecret: process.env.DISCORD_CLIENT_SECRET
         })
     ],
     callbacks: {
@@ -59,60 +60,65 @@ export const authOptions: NextAuthOptions = {
             return token
         },
         async session({ session, token }) {
-            try {
-                const cachedUser = await redis.get(AsRedisKey('users', token.sub!))
-                let db_user: User | undefined = undefined
+            const cachedUser = await redis.get(AsRedisKey('users', token.sub!))
 
-                if (cachedUser) {
-                    db_user = JSON.parse(cachedUser) as User
-                } else {
-                    db_user =
-                        (await prisma.user.findFirst({
-                            where: {
-                                id: token.sub
-                            }
-                        })) || undefined
+            let user_data: { user: User | null; artist: Artist | null } = {
+                user: null,
+                artist: null
+            }
 
-                    await redis.set(
-                        AsRedisKey('users', token.sub!),
-                        JSON.stringify(db_user),
-                        'EX',
-                        3600
+            if (cachedUser) {
+                user_data = JSON.parse(cachedUser)
+            }
+
+            // Set the cached user if we don't have one
+            if (!cachedUser) {
+                const user = await prisma.user.findFirst({
+                    where: {
+                        id: token.sub
+                    }
+                })
+
+                if (user?.role === Role.Artist) {
+                    const artist = await prisma.artist.findFirst({
+                        where: {
+                            userId: user.id
+                        }
+                    })
+
+                    user_data.artist = artist
+                }
+
+                // Fetch User Image if they have a key instead of a url
+                if (user?.image && !user.image.includes('http')) {
+                    user.image = await S3GetSignedURL(
+                        user_data.artist ? user_data.artist.id : user.id,
+                        AWSLocations.Profile,
+                        user?.image!
                     )
                 }
 
-                // Add Extra Session Data
-                session.user.user_id = token.sub
-                session.user.provider = token.provider
-                    ? (token.provider as string)
-                    : undefined
-                session.user.role = db_user?.role as Role
+                user_data.user = user
 
-                // TODO: Check If Needed
-                session.user.name = db_user?.name
-
-                // If the user's role is an artist we need some additional information
-                if (db_user?.role) {
-                    switch (db_user?.role as Role) {
-                        case Role.Artist:
-                            {
-                                const db_artist = await prisma.artist.findFirst({
-                                    where: {
-                                        userId: db_user?.id
-                                    }
-                                })
-                                session.user.handle = db_artist?.handle
-                            }
-                            break
-                        case Role.Admin:
-                            {
-                            }
-                            break
-                    }
-                }
-            } catch (e) {
-                console.log(e)
+                await redis.set(
+                    AsRedisKey('users', token.sub!),
+                    JSON.stringify(user_data),
+                    'EX',
+                    3600
+                )
             }
+
+            // Set Extra Session Variables
+            session.user.user_id = token.sub
+            session.user.provider = token.provider
+                ? (token.provider as string)
+                : undefined
+            session.user.name = user_data.user?.name
+            session.user.image = user_data.user?.image
+
+            session.user.role = user_data.user?.role
+            session.user.handle = user_data.artist?.handle
+            session.user.artist_id = user_data.artist?.id
 
             return session
         }

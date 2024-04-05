@@ -1,8 +1,6 @@
 'use client'
 
 import * as z from 'zod'
-import useSWR from 'swr'
-import Link from 'next/link'
 
 import { useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
@@ -62,8 +60,11 @@ export default function CommissionCreateEditForm({
 }) {
     const { artist } = useDashboardContext()!
     const { image, additionalImages } = useFormContext()
-    const { data: artistFormsData, isLoading: artistFormsIsLoading } =
-        api.form.get_forms.useQuery({ artist_id: artist?.id! })
+    const {
+        data: artistFormsData,
+        isLoading: artistFormsIsLoading,
+        refetch: artistFormsRefetch
+    } = api.form.get_forms.useQuery({ artist_id: artist?.id! })
 
     const create_mutation = api.commissions.set_commission.useMutation()
     const update_mutation = api.commissions.update_commission.useMutation()

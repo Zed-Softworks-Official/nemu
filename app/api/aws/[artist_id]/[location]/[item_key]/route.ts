@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { S3Upload } from '@/core/storage'
 import { StringToAWSLocationsEnum } from '@/core/structures'
-import { NemuResponse, StatusCode } from '@/core/responses'
+import { FileResponse, NemuResponse, StatusCode } from '@/core/responses'
 
 /**
  * POST Method for API for a SINGLE item
@@ -34,7 +34,8 @@ export async function POST(
         params.item_key
     )
 
-    return NextResponse.json<NemuResponse>({
-        status: upload.$metadata.httpStatusCode as StatusCode
+    return NextResponse.json<FileResponse>({
+        status: upload.$metadata.httpStatusCode as StatusCode,
+        file_key: params.item_key
     })
 }

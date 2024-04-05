@@ -6,9 +6,9 @@ import {
     protectedProcedure
 } from '../trpc'
 import { redis } from '@/lib/redis'
-import { Commission, Product, StripeCustomerIds, User } from '@prisma/client'
+import { Artist, Commission, Product, StripeCustomerIds, User } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
-import { AWSLocations, DownloadData } from '@/core/structures'
+import { AWSLocations, DownloadData, Role } from '@/core/structures'
 import { S3GetSignedURL } from '@/core/storage'
 import { AsRedisKey } from '@/core/helpers'
 import { novu } from '@/lib/novu'
@@ -49,6 +49,7 @@ export const userRouter = createTRPCRouter({
 
         return stripeAccountId
     }),
+
     /**
      * Gets all downloads associated with the user
      */
@@ -124,25 +125,15 @@ export const userRouter = createTRPCRouter({
 
         return result
     }),
+
     /**
      * Update the users username
      */
     set_username: protectedProcedure.input(z.string()).mutation(async (opts) => {
         const { input, ctx } = opts
 
-        // Check if username already exists
-        const username = await prisma.user.findFirst({
-            where: {
-                name: input
-            }
-        })
-
-        if (username) {
-            return new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: '' })
-        }
-
         // Update the username
-        const response = await prisma.user.update({
+        const username_set = await prisma.user.update({
             where: {
                 id: ctx.session.user.user_id
             },
@@ -151,12 +142,16 @@ export const userRouter = createTRPCRouter({
             }
         })
 
-        if (!response) {
-            return { success: false }
+        if (!username_set) {
+            throw new TRPCError({
+                code: 'INTERNAL_SERVER_ERROR',
+                message: 'Could not set username!'
+            })
         }
 
         return { success: true }
     }),
+
     /**
      * Updates a users role
      */
@@ -254,6 +249,9 @@ export const userRouter = createTRPCRouter({
             where: {
                 userId: ctx.session.user.user_id
             },
+            orderBy: {
+                createdAt: 'desc'
+            },
             include: {
                 form: {
                     include: {
@@ -283,7 +281,7 @@ export const userRouter = createTRPCRouter({
         const cachedUser = await redis.get(AsRedisKey('users', ctx.session.user.user_id!))
 
         if (cachedUser) {
-            return JSON.parse(cachedUser) as User
+            return JSON.parse(cachedUser) as { user: User; artist: Artist | undefined }
         }
 
         const user = await prisma.user.findFirst({
@@ -299,13 +297,105 @@ export const userRouter = createTRPCRouter({
             })
         }
 
+        if (
+            ctx.session.user.role === Role.Standard ||
+            ctx.session.user.role === Role.Admin
+        ) {
+            await redis.set(
+                AsRedisKey('users', ctx.session.user.user_id!),
+                JSON.stringify(user),
+                'EX',
+                3600
+            )
+
+            return {
+                user,
+                artist: undefined
+            }
+        }
+
+        const artist = await prisma.artist.findFirst({
+            where: {
+                userId: ctx.session.user.user_id
+            }
+        })
+
+        if (!artist) {
+            throw new TRPCError({
+                code: 'INTERNAL_SERVER_ERROR',
+                message: 'Could not find artist with that userId'
+            })
+        }
+
         await redis.set(
             AsRedisKey('users', ctx.session.user.user_id!),
-            JSON.stringify(user),
+            JSON.stringify({ user, artist }),
             'EX',
             3600
         )
 
-        return user
-    })
+        return { user, artist }
+    }),
+
+    /**
+     * Updates a users profile image
+     */
+    set_profile_photo: protectedProcedure.input(z.string()).mutation(async (opts) => {
+        const { input, ctx } = opts
+
+        const updated_user = await prisma.user.update({
+            where: {
+                id: ctx.session.user.user_id
+            },
+            data: {
+                image: input
+            }
+        })
+
+        if (!updated_user) {
+            throw new TRPCError({
+                code: 'INTERNAL_SERVER_ERROR',
+                message: 'Could not update user'
+            })
+        }
+
+        await redis.del(AsRedisKey('users', ctx.session.user.user_id!))
+
+        return { success: true }
+    }),
+
+    /**
+     * Updates a users information
+     */
+    update_user: protectedProcedure
+        .input(
+            z.object({
+                username: z.string().optional(),
+                email: z.string().email().optional()
+            })
+        )
+        .mutation(async (opts) => {
+            const { input, ctx } = opts
+
+            const updated_user = await prisma.user.update({
+                where: {
+                    id: ctx.session.user.user_id
+                },
+                data: {
+                    name: input.username,
+                    email: input.email
+                }
+            })
+
+            if (!updated_user) {
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Unable to update user account!'
+                })
+            }
+
+            await redis.del(AsRedisKey('users', ctx.session.user.user_id!))
+
+            return { success: true }
+        })
 })

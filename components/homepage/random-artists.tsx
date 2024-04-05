@@ -37,11 +37,7 @@ export default function RandomArtists() {
                             <div className="card-body">
                                 <div className="relative w-full">
                                     <NemuImage
-                                        src={
-                                            artist.profilePhoto
-                                                ? artist.profilePhoto
-                                                : '/profile.png'
-                                        }
+                                        src={artist.user.image!}
                                         width={50}
                                         height={50}
                                         alt="profile photo"

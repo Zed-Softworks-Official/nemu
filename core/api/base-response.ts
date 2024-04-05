@@ -28,5 +28,9 @@ export interface NemuResponse {
     message?: string
 }
 
+export interface FileResponse extends NemuResponse {
+    file_key: string
+}
+
 export type RouterOutput = inferRouterOutputs<AppRouter>
 export type RouterInput = inferRouterInputs<AppRouter>

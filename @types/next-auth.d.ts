@@ -8,6 +8,7 @@ declare module 'next-auth' {
             role?: Role
             provider?: string
             handle?: string
+            artist_id?: string
         } & DefaultSession['user']
     }
 }
