@@ -27,38 +27,49 @@ export default function RequestTable({
                                 height={200}
                             />
                         </figure>
-                        <div className="card-body flex-row items-center gap-5">
-                            <div className="flex flex-col gap-5">
-                                <h2 className="card-title">
-                                    {submission.form.commission?.title}
-                                    {ConvertCommissionStatusToBadge(
-                                        submission.commissionStatus
-                                    )}
-                                </h2>
-                                <p>
-                                    By{' '}
-                                    <Link
-                                        href={`/@${submission.form.commission?.artist.handle}`}
-                                        className="link link-hover"
-                                    >
-                                        @{submission.form.commission?.artist.handle}
-                                    </Link>
-                                </p>
+                        <div className="card-body flex-row justify-between gap-5">
+                            <div className="flex flex-col h-full">
+                                <div className="flex flex-col gap-2">
+                                    <h2 className="card-title">
+                                        {submission.form.commission?.title}
+                                        {ConvertCommissionStatusToBadge(
+                                            submission.commissionStatus
+                                        )}
+                                    </h2>
+                                    <p>
+                                        By{' '}
+                                        <Link
+                                            href={`/@${submission.form.commission?.artist.handle}`}
+                                            className="link link-hover"
+                                        >
+                                            @{submission.form.commission?.artist.handle}
+                                        </Link>
+                                    </p>
+                                </div>
+                                <span className="flex h-full items-end italic text-base-content/80">
+                                    Requested on:{' '}
+                                    {new Date(submission.createdAt).toDateString()}
+                                </span>
                             </div>
-                            {submission.commissionStatus === CommissionStatus.Accepted ||
-                                (submission.commissionStatus ===
-                                    CommissionStatus.Delivered && (
-                                    <div className="card shadow-xl bg-base-300 w-full">
-                                        <div className="card-body justify-center items-center">
-                                            <Link
-                                                href={`/requests/${submission.orderId}`}
-                                                className="btn btn-primary btn-wide"
-                                            >
-                                                View Request
-                                            </Link>
-                                        </div>
+                            <div className="card shadow-xl bg-base-300">
+                                <div className="card-body">
+                                    <h2 className="card-title">Quick Access</h2>
+                                    <div className="divider"></div>
+                                    <div className="flex gap-5">
+                                        {submission.commissionStatus ===
+                                            CommissionStatus.Accepted ||
+                                            (submission.commissionStatus ===
+                                                CommissionStatus.Delivered && (
+                                                <Link
+                                                    href={`/requests/${submission.orderId}`}
+                                                    className="btn btn-primary"
+                                                >
+                                                    View Request
+                                                </Link>
+                                            ))}
                                     </div>
-                                ))}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 ))}

@@ -162,7 +162,7 @@ model Downloads {
 model Review {
   id      String @id @default(cuid())
   userId  String
-  rating  Float
+  rating  Int
   content String
 
   createdAt DateTime @default(now())

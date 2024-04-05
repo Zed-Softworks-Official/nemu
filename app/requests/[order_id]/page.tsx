@@ -1,6 +1,7 @@
 import DefaultPageLayout from '@/app/(default)/layout'
 import CommissionFormSubmissionContent from '@/components/dashboard/commissions/submissions/commission-form-submission-content'
 import MessagesClient from '@/components/messages/messages-client'
+import ReviewForm from '@/components/review/review-form'
 import { Tabs } from '@/components/ui/tabs'
 import { ConvertCommissionStatusToBadge } from '@/core/react-helpers'
 import { CommissionStatus, PaymentStatus } from '@/core/structures'
@@ -60,7 +61,7 @@ export default async function OrderPage({ params }: Props) {
                         </div>
                         <div className="divider"></div>
                         <Tabs
-                            containerClassName='bg-base-200 p-5 rounded-xl shadow-xl'
+                            containerClassName="bg-base-200 p-5 rounded-xl shadow-xl"
                             tabs={[
                                 {
                                     title: 'Details',
@@ -76,6 +77,16 @@ export default async function OrderPage({ params }: Props) {
                                                     content={request.submission.content}
                                                     classNames="bg-base-100"
                                                 />
+                                                {request.submission.commissionStatus ===
+                                                    CommissionStatus.Delivered && (
+                                                    <>
+                                                        <h2 className="card-title mt-5">
+                                                            Leave a review
+                                                        </h2>
+                                                        <div className="divider"></div>
+                                                        <ReviewForm />
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
                                     )
