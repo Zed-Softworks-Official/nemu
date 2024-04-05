@@ -208,7 +208,7 @@ export const userRouter = createTRPCRouter({
                     artistId: input.artist_id!,
                     productId: input.product_id,
                     commissionId: input.commission_id,
-                    formSubmissionId: input.form_submission_id
+                    requestId: input.form_submission_id
                 }
             })
 
@@ -245,7 +245,7 @@ export const userRouter = createTRPCRouter({
     get_submissions: protectedProcedure.query(async (opts) => {
         const { ctx } = opts
 
-        const submissions = await prisma.formSubmission.findMany({
+        const submissions = await prisma.request.findMany({
             where: {
                 userId: ctx.session.user.user_id
             },

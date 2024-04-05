@@ -1,4 +1,4 @@
-import { FormSubmission, Invoice, InvoiceItem, User } from '@prisma/client'
+import { Request, Invoice, InvoiceItem, User } from '@prisma/client'
 import { AWSLocations } from './aws-structures'
 import { RouterOutput } from '../responses'
 
@@ -32,7 +32,7 @@ export interface AWSFileModification {
     blob?: string
 }
 
-export type CommissionDataSubmission = FormSubmission & { user: User }
+export type CommissionRequestData = Request & { user: User }
 
 export type GetSubmissionsResponse = RouterOutput['user']['get_submissions']
 

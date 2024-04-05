@@ -1,6 +1,6 @@
 'use client'
 
-import { FormSubmission } from '@prisma/client'
+import { Request } from '@prisma/client'
 import { createContext, useContext, useState, Dispatch, SetStateAction } from 'react'
 
 type DashboardCommissionContextType = {
@@ -19,8 +19,8 @@ type DashboardCommissionContextType = {
     rejectedCount: number
     setRejectedCount: Dispatch<SetStateAction<number>>
 
-    formSubmissions: FormSubmission[]
-    setFormSubmissions: Dispatch<SetStateAction<FormSubmission[]>>
+    requests: Request[]
+    setRequests: Dispatch<SetStateAction<Request[]>>
 }
 
 const DashboardCommissionContext = createContext<DashboardCommissionContextType | null>(
@@ -41,7 +41,7 @@ export function DashboardCommissionProvider({
     submission_count: number
     accepted_count: number
     rejected_count: number
-    form_submissions: FormSubmission[]
+    form_submissions: Request[]
     children: React.ReactNode
 }) {
     const [name, setName] = useState(title)
@@ -49,7 +49,7 @@ export function DashboardCommissionProvider({
     const [submissionCount, setSubmissionCount] = useState(submission_count)
     const [acceptedCount, setAcceptedCount] = useState(accepted_count)
     const [rejectedCount, setRejectedCount] = useState(rejected_count)
-    const [formSubmissions, setFormSubmissions] = useState(form_submissions)
+    const [requests, setRequests] = useState(form_submissions)
 
     return (
         <DashboardCommissionContext.Provider
@@ -64,8 +64,8 @@ export function DashboardCommissionProvider({
                 setAcceptedCount,
                 rejectedCount,
                 setRejectedCount,
-                formSubmissions,
-                setFormSubmissions
+                requests,
+                setRequests
             }}
         >
             {children}

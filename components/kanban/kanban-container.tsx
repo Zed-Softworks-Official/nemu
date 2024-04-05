@@ -1,7 +1,7 @@
 'use client'
 
 import {
-    CommissionDataSubmission,
+    CommissionRequestData,
     KanbanContainerData,
     KanbanTask
 } from '@/core/structures'
@@ -33,7 +33,7 @@ export default function KanbanContainerComponent({
     UpdateTask: (id: UniqueIdentifier, content: string) => void
     disable_container_editing?: boolean
     disable_item_editing?: boolean
-    submissions?: CommissionDataSubmission[]
+    submissions?: CommissionRequestData[]
 }) {
     const [editMode, setEditMode] = useState(false)
     const { setNodeRef, attributes, listeners, transform, transition, isDragging } =

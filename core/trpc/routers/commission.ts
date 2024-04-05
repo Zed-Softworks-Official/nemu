@@ -1,5 +1,10 @@
 import { z } from 'zod'
-import { artistProcedure, createTRPCRouter, publicProcedure } from '../trpc'
+import {
+    artistProcedure,
+    createTRPCRouter,
+    protectedProcedure,
+    publicProcedure
+} from '../trpc'
 import { redis } from '@/lib/redis'
 import { prisma } from '@/lib/prisma'
 import {
@@ -19,13 +24,13 @@ import {
     GetBlurData
 } from '@/core/server-helpers'
 import { AsRedisKey } from '@/core/helpers'
-import { Commission, Form, FormSubmission, Review, User } from '@prisma/client'
+import { Commission, Form, Request, Review, User } from '@prisma/client'
 import { novu } from '@/lib/novu'
 import { StripeCreateCommissionInvoice } from '@/core/stripe/commissions'
 import { TRPCError } from '@trpc/server'
 import { StripeCreateCustomer } from '@/core/payments'
 
-type FormSubmissionResponse = FormSubmission & { user: User }
+type RequestResponse = Request & { user: User }
 
 export const commissionsRouter = createTRPCRouter({
     /**
@@ -180,7 +185,7 @@ export const commissionsRouter = createTRPCRouter({
 
             if (cachedCommissionData) {
                 return JSON.parse(cachedCommissionData) as Commission & {
-                    form: Form & { formSubmissions: FormSubmissionResponse[] }
+                    form: Form & { request: RequestResponse[] }
                 } & {
                     containers: KanbanContainerData[]
                     tasks: KanbanTask[]
@@ -196,7 +201,7 @@ export const commissionsRouter = createTRPCRouter({
                 include: {
                     form: {
                         include: {
-                            formSubmissions: {
+                            reqeusts: {
                                 include: {
                                     user: true
                                 }
@@ -223,12 +228,12 @@ export const commissionsRouter = createTRPCRouter({
             ]
 
             const tasks: KanbanTask[] = []
-            for (const submission of commission?.form?.formSubmissions!) {
+            for (const submission of commission?.form?.reqeusts!) {
                 const container_id =
                     submission.waitlist &&
-                    submission.commissionStatus == CommissionStatus.WaitingApproval
+                    submission.status == CommissionStatus.WaitingApproval
                         ? containers[2].id
-                        : containers[submission.commissionStatus].id
+                        : containers[submission.status].id
 
                 tasks.push({
                     id: submission.id,
@@ -543,7 +548,7 @@ export const commissionsRouter = createTRPCRouter({
             const { input } = opts
 
             // Get the form submission
-            const submission = await prisma.formSubmission.findFirst({
+            const submission = await prisma.request.findFirst({
                 where: {
                     id: input.create_data.form_submission_id
                 },
@@ -645,12 +650,12 @@ export const commissionsRouter = createTRPCRouter({
             // Handle Commission Rejection
             ///////////////////////////////////////////////////
             if (!input.accepted) {
-                await prisma.formSubmission.update({
+                await prisma.request.update({
                     where: {
                         id: input.create_data.form_submission_id
                     },
                     data: {
-                        commissionStatus: CommissionStatus.Rejected
+                        status: CommissionStatus.Rejected
                     }
                 })
 
@@ -726,19 +731,19 @@ export const commissionsRouter = createTRPCRouter({
             // Create Kanban for the user
             const kanban = await prisma.kanban.create({
                 data: {
-                    formSubmissionId: submission?.id!,
+                    requestId: submission?.id!,
                     containers: JSON.stringify(defaultContainers)
                 }
             })
 
             // Update the form submission to keep track of the item
-            const updated_submission = await prisma.formSubmission.update({
+            const updated_submission = await prisma.request.update({
                 where: {
                     id: input.create_data.form_submission_id!
                 },
                 data: {
                     invoiceId: invoice.id,
-                    commissionStatus: CommissionStatus.Accepted,
+                    status: CommissionStatus.Accepted,
                     sendbirdChannelURL: sendbird_channel_url,
                     kanbanId: kanban.id
                 }
@@ -762,6 +767,9 @@ export const commissionsRouter = createTRPCRouter({
             return { success: true }
         }),
 
+    /**
+     * Gets all reviews for a given commission
+     */
     get_reviews: publicProcedure.input(z.string()).query(async (opts) => {
         const { input } = opts
 
@@ -777,12 +785,31 @@ export const commissionsRouter = createTRPCRouter({
             },
             include: {
                 user: true,
-                submission: true
+                request: true
             }
         })
 
         await redis.set(AsRedisKey('reviews', input), JSON.stringify(reviews), 'EX', 3600)
 
         return reviews
-    })
+    }),
+
+    /**
+     * Creates a new review for the given user on the given commission
+     */
+    set_review: protectedProcedure
+        .input(
+            z.object({
+                commission_id: z.string(),
+                request_id: z.string(),
+
+                rating: z.number(),
+                description: z.string()
+            })
+        )
+        .mutation(async (opts) => {
+            const { input, ctx } = opts
+
+            console.log(input)
+        })
 })

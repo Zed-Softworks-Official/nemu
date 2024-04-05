@@ -18,7 +18,7 @@ export default function DashboardCommissionDetailView({
     slug: string
     order_id: string
 }) {
-    const { data, isLoading } = api.form.get_submission.useQuery({
+    const { data, isLoading } = api.form.get_request.useQuery({
         order_id,
         include_invoice_items: true
     })

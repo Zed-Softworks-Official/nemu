@@ -81,9 +81,9 @@ export const kanbanRouter = createTRPCRouter({
             }
 
             // Delete redis cache
-            const submission = await prisma.formSubmission.findFirst({
+            const submission = await prisma.request.findFirst({
                 where: {
-                    id: updated_kanban.formSubmissionId
+                    id: updated_kanban.requestId
                 }
             })
 

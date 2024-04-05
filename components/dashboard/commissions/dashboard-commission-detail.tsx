@@ -96,7 +96,7 @@ export default function DashboardCommissionDetail({ slug }: { slug: string }) {
                                 </div>
                             }
 
-                            submissions={data?.form?.formSubmissions}
+                            requests={data?.formId}
                             disable_user_saving
                             disable_container_editing
                             disable_item_editing

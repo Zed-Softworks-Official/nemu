@@ -14,7 +14,7 @@ export default function MessagesCard({
     selected?: boolean
     onClick?: MouseEventHandler<HTMLDivElement> | undefined
 }) {
-    const { data, isLoading } = api.form.get_submission.useQuery({
+    const { data, isLoading } = api.form.get_request.useQuery({
         channel_url: message_preview.channel_url
     })
 

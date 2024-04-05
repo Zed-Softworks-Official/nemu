@@ -19,7 +19,7 @@ export async function CreateSendbirdMessageChannel(
     submission_id: string,
     sendbird_channel_url: string
 ) {
-    const submission = await prisma.formSubmission.findFirst({
+    const request = await prisma.request.findFirst({
         where: {
             id: submission_id
         },
@@ -43,16 +43,16 @@ export async function CreateSendbirdMessageChannel(
 
     await sendbird.CreateGroupChannel({
         name: `${
-            submission?.user.artist
-                ? '@' + submission.user.artist.handle
-                : submission?.user.name
+            request?.user.artist
+                ? '@' + request.user.artist.handle
+                : request?.user.name
         }`,
         channel_url: sendbird_channel_url,
-        cover_url: submission?.user.artist?.profilePhoto
-            ? submission.user.artist.profilePhoto
+        cover_url: request?.user.artist?.profilePhoto
+            ? request.user.artist.profilePhoto
             : `${process.env.BASE_URL}/profile.png`,
-        user_ids: [submission?.userId!, submission?.form.commission?.artist.userId!],
-        operator_ids: [submission?.form.commission?.artist.userId!],
+        user_ids: [request?.userId!, request?.commission?.artist.userId!],
+        operator_ids: [request?.commission.artist],
         block_sdk_user_channel_join: false,
         is_distinct: false
     })

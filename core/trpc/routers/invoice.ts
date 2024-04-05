@@ -47,7 +47,7 @@ export const invoicesRouter = createTRPCRouter({
 
         const result: InvoiceReturnType[] = []
         for (const invoice of invoices) {
-            const submission = await prisma.formSubmission.findFirst({
+            const submission = await prisma.request.findFirst({
                 where: {
                     invoiceId: invoice.id
                 },

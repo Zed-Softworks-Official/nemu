@@ -21,7 +21,7 @@ export async function generateMetadata(
     { params }: Props,
     parent: ResolvingMetadata
 ): Promise<Metadata> {
-    const request = await api.form.get_submission({ order_id: params.order_id })
+    const request = await api.form.get_request({ order_id: params.order_id })
 
     return {
         title: `Nemu | ${request?.submission.form.commission?.title} Request`
@@ -29,7 +29,7 @@ export async function generateMetadata(
 }
 
 export default async function OrderPage({ params }: Props) {
-    const request = await api.form.get_submission({ order_id: params.order_id })
+    const request = await api.form.get_request({ order_id: params.order_id })
 
     if (!request) {
         return notFound()
@@ -84,7 +84,15 @@ export default async function OrderPage({ params }: Props) {
                                                             Leave a review
                                                         </h2>
                                                         <div className="divider"></div>
-                                                        <ReviewForm />
+                                                        <ReviewForm
+                                                            request_id={
+                                                                request.submission.id
+                                                            }
+                                                            commission_id={
+                                                                request.submission.form
+                                                                    .commissionId!
+                                                            }
+                                                        />
                                                     </>
                                                 )}
                                             </div>

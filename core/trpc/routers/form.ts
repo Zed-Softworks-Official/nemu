@@ -12,7 +12,7 @@ import {
     Commission,
     Downloads,
     Form,
-    FormSubmission,
+    Request,
     Kanban,
     User
 } from '@prisma/client'
@@ -101,9 +101,9 @@ export const formsRouter = createTRPCRouter({
         }),
 
     /**
-     * Gets a FormSubmission
+     * Gets a Request
      */
-    get_submission: publicProcedure
+    get_request: publicProcedure
         .input(
             z.object({
                 order_id: z.string().optional(),
@@ -131,7 +131,7 @@ export const formsRouter = createTRPCRouter({
 
             if (cachedSubmission) {
                 return JSON.parse(cachedSubmission) as {
-                    submission: FormSubmission & {
+                    submission: Request & {
                         form: Form & { artist: Artist; commission: Commission }
                         user: User
                     }
@@ -141,7 +141,7 @@ export const formsRouter = createTRPCRouter({
                 }
             }
 
-            const submission = await prisma.formSubmission.findFirst({
+            const submission = await prisma.request.findFirst({
                 where: {
                     orderId: input.order_id || undefined,
                     id: input.submission_id || undefined,
@@ -211,7 +211,7 @@ export const formsRouter = createTRPCRouter({
     /**
      * Creates a new submission for the user
      */
-    set_submission: protectedProcedure
+    set_request: protectedProcedure
         .input(
             z.object({
                 commission_id: z.string(),
@@ -222,11 +222,12 @@ export const formsRouter = createTRPCRouter({
         .mutation(async (opts) => {
             const { input, ctx } = opts
 
-            const submission = await prisma.formSubmission.create({
+            const submission = await prisma.request.create({
                 data: {
                     userId: ctx.session.user.user_id!,
                     formId: input.form_id,
                     content: input.content,
+                    commissionId: input.commission_id,
                     orderId: crypto.randomUUID()
                 }
             })
@@ -270,7 +271,7 @@ export const formsRouter = createTRPCRouter({
                 throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' })
             }
 
-            await prisma.formSubmission.update({
+            await prisma.request.update({
                 where: {
                     id: submission.id
                 },
@@ -311,7 +312,7 @@ export const formsRouter = createTRPCRouter({
                 id: input
             },
             include: {
-                formSubmissions: true
+                requests: true
             }
         })
 
@@ -319,15 +320,15 @@ export const formsRouter = createTRPCRouter({
             return undefined
         }
 
-        const submitted = form.formSubmissions.find(
-            (submission) => submission.userId === ctx.session.user.user_id!
+        const submitted = form.requests.find(
+            (request) => request.userId === ctx.session.user.user_id!
         )
 
         if (!submitted) {
             return { user_submitted: false, content: form.content }
         }
 
-        if (submitted.commissionStatus != CommissionStatus.WaitingApproval) {
+        if (submitted.status != CommissionStatus.WaitingApproval) {
             return { user_submitted: true }
         }
 

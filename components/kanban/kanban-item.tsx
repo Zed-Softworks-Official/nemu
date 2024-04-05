@@ -1,7 +1,7 @@
 'use client'
 
 import { ClassNames } from '@/core/helpers'
-import { CommissionDataSubmission, CommissionStatus, KanbanTask } from '@/core/structures'
+import { CommissionRequestData, CommissionStatus, KanbanTask } from '@/core/structures'
 import { UniqueIdentifier } from '@dnd-kit/core'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -24,7 +24,7 @@ export default function KanbanItemComponent({
     DeleteTask: (id: UniqueIdentifier) => void
     UpdateTask: (id: UniqueIdentifier, content: string) => void
     disable_item_editing?: boolean
-    submission_data?: CommissionDataSubmission
+    submission_data?: CommissionRequestData
 }) {
     const [mouseIsOver, setMouseIsOver] = useState(false)
     const [editMode, setEditMode] = useState(false)
