@@ -4,7 +4,7 @@ import DashboardContainer from '../../dashboard-container'
 import Loading from '@/components/loading'
 import { KanbanContainerData, KanbanTask, PaymentStatus } from '@/core/structures'
 import Kanban from '@/components/kanban/kanban'
-import CommissionFormSubmissionContent from '../submissions/commission-form-submission-content'
+import CommissionRequestContent from '../requests/commission-request-content'
 import MessagesClient from '@/components/messages/messages-client'
 import { Invoice, InvoiceItem } from '@prisma/client'
 import CommissionInvoicing from '../../invoices/commission-invoicing'
@@ -18,7 +18,7 @@ export default function DashboardCommissionDetailView({
     slug: string
     order_id: string
 }) {
-    const { data, isLoading } = api.form.get_submission.useQuery({
+    const { data, isLoading } = api.form.get_request.useQuery({
         order_id,
         include_invoice_items: true
     })
@@ -39,7 +39,7 @@ export default function DashboardCommissionDetailView({
                         <div className="card-body">
                             <h2 className="card-title">Form Responses</h2>
                             <div className="divider"></div>
-                            <CommissionFormSubmissionContent
+                            <CommissionRequestContent
                                 content={data?.submission.content}
                             />
                         </div>

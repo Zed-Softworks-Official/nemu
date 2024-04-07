@@ -71,7 +71,7 @@ export default function AccountSettings({
         <form className="flex flex-col gap-5" onBlur={form.handleSubmit(ProcessForm)}>
             <ProfilePhotoDropzone
                 initialPhoto={user.image || '/profile.png'}
-                id={artist_id ? artist_id : user.id}
+                id={user.id}
             />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <TextField

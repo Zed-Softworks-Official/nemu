@@ -16,7 +16,7 @@ export default function CommissionFormSubmitView({
     form_id: string
 }) {
     const { data, isLoading } = api.form.get_user_submitted.useQuery(form_id)
-    const mutation = api.form.set_submission.useMutation({
+    const mutation = api.form.set_request.useMutation({
         onSuccess: () => {
             setSubmitted(false)
             toast('Request Submitted!', { theme: 'dark', type: 'success' })

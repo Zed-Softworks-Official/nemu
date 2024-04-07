@@ -11,7 +11,9 @@ export default function Commissions({
     artist_id: string
     terms: string
 }) {
-    const { data, isLoading, error } = api.commissions.get_commissions.useQuery({ artist_id })
+    const { data, isLoading, error } = api.commissions.get_commissions.useQuery({
+        artist_id
+    })
 
     if (isLoading) {
         return <CommissionsSkeleton />

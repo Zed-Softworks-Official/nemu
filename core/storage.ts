@@ -1,4 +1,10 @@
-import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, PutObjectCommandInput, S3Client } from '@aws-sdk/client-s3'
+import {
+    DeleteObjectCommand,
+    GetObjectCommand,
+    PutObjectCommand,
+    PutObjectCommandInput,
+    S3Client
+} from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { AWSLocations, AWSLocationEnumToString } from './data-structures/aws-structures'
 
@@ -55,7 +61,12 @@ export function AsKey(artist_id: string, location: AWSLocations, file_key: strin
  * @param {string} filename - The filename to be used with AWS S3
  * @returns {Promise<PutObjectCommandOutput>} A promise determining wether the upload failed or succedded
  */
-export async function S3Upload(artist_id: string, location: AWSLocations, file: File, filename: string) {
+export async function S3Upload(
+    artist_id: string,
+    location: AWSLocations,
+    file: File,
+    filename: string
+) {
     const uploadParams: PutObjectCommandInput = {
         Bucket: 'nemuart',
         Body: Buffer.from(await file.arrayBuffer()),
@@ -76,7 +87,11 @@ export async function S3Upload(artist_id: string, location: AWSLocations, file: 
  * @param {string} key - The filename of the object
  * @returns {Promise<string>} A promise containing a string which is a signed url to the object the user requested
  */
-export async function S3GetSignedURL(artist_id: string, location: AWSLocations, key: string) {
+export async function S3GetSignedURL(
+    artist_id: string,
+    location: AWSLocations,
+    key: string,
+) {
     const downloadParams = {
         Bucket: 'nemuart',
         Key: AsKey(artist_id, location, key)

@@ -9,45 +9,41 @@ import {
     useState
 } from 'react'
 
-export function GetInitialTheme() {
+type ThemeType = 'nemu-dark' | 'nemu-light'
+
+export function GetInitialTheme(): ThemeType {
     if (typeof window !== 'undefined' && window.localStorage) {
         const storedPrefs = window.localStorage.getItem('color-theme')
 
         if (typeof storedPrefs === 'string') {
-            return storedPrefs
+            return storedPrefs as ThemeType
         }
 
         const userMedia = window.matchMedia('(prefers-color-scheme: dark)')
         if (userMedia.matches) {
-            return 'dark'
+            return 'nemu-dark'
         }
     }
 
-    return 'dark'
+    return 'nemu-dark'
 }
 
 type ThemeContextType = {
-    theme?: string
-    setTheme?: Dispatch<SetStateAction<string>>
+    theme?: ThemeType
+    setTheme?: Dispatch<SetStateAction<ThemeType>>
 }
 
 const ThemeContext = createContext<ThemeContextType>({})
 
 export default function ThemeProvider({
-    initial_theme,
     children
 }: {
-    initial_theme?: string
     children: React.ReactNode
 }) {
-    const [theme, setTheme] = useState(GetInitialTheme())
+    const [theme, setTheme] = useState<ThemeType>(GetInitialTheme())
 
     function rawSetTheme(theme: string) {
-        const root = window.document.documentElement
-        const isDark = theme === 'dark'
-
-        // root.classList.remove(isDark ? 'light' : 'dark')
-        // root.classList.add(theme)
+        document.querySelector('html')?.setAttribute('data-theme', theme)
 
         localStorage.setItem('color-theme', theme)
     }

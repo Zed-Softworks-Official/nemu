@@ -4,12 +4,13 @@ import { TextareaHTMLAttributes, forwardRef } from 'react'
 interface InputProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
     label: string
     error?: boolean
+    errorMessage?: string
     labelDisabled?: boolean
     additionalClasses?: string
 }
 
 const TextAreaInput = forwardRef<HTMLTextAreaElement, InputProps>(
-    ({ label, labelDisabled, additionalClasses, error, ...props }, ref) => {
+    ({ label, labelDisabled, additionalClasses, error, errorMessage, ...props }, ref) => {
         return (
             <div className="mb-5">
                 {!labelDisabled && (
@@ -27,6 +28,9 @@ const TextAreaInput = forwardRef<HTMLTextAreaElement, InputProps>(
                         additionalClasses && additionalClasses
                     )}
                 ></textarea>
+                {errorMessage && (
+                    <label className="label text-error">{errorMessage}</label>
+                )}
             </div>
         )
     }

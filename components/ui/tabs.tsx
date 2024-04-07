@@ -157,11 +157,9 @@ export const ScaleInDiv = ({
                 <motion.div
                     key={tab.value}
                     layoutId={tab.value}
-                    style={
-                        {
-                            display: isActive(tab) ? 'block' : 'none'
-                        }
-                    }
+                    style={{
+                        display: isActive(tab) ? 'block' : 'none'
+                    }}
                     animate={{
                         opacity: isActive(tab) ? [0, 100] : [100, 0],
                         scale: isActive(tab) ? [0, 1] : [1, 0]

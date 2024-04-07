@@ -1,6 +1,5 @@
 'use client'
 
-import { Session } from 'next-auth'
 import { Role, UserInfoItem } from '@/core/structures'
 import { Fragment, useMemo } from 'react'
 import { Menu, Transition } from '@headlessui/react'

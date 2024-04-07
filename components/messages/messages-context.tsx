@@ -66,7 +66,7 @@ export function MessagesProvider({
 
     const [hasSubmissions, setHasSubmissions] = useState(true)
 
-    const { isLoading, refetch } = api.form.get_submission.useQuery({ channel_url })
+    const { isLoading, refetch } = api.form.get_request.useQuery({ channel_url })
 
     useEffect(() => {
         refetch().then(({ data }) => {

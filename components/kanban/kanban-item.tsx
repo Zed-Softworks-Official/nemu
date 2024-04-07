@@ -1,14 +1,14 @@
 'use client'
 
 import { ClassNames } from '@/core/helpers'
-import { CommissionDataSubmission, CommissionStatus, KanbanTask } from '@/core/structures'
+import { CommissionRequestData, CommissionStatus, KanbanTask } from '@/core/structures'
 import { UniqueIdentifier } from '@dnd-kit/core'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { CheckCircleIcon, TrashIcon, XCircleIcon } from '@heroicons/react/20/solid'
 import { useState } from 'react'
 import Modal from '../modal'
-import CommissionFormSubmissionContent from '../dashboard/commissions/submissions/commission-form-submission-content'
+import CommissionRequestContent from '../dashboard/commissions/requests/commission-request-content'
 import { usePathname, useRouter } from 'next/navigation'
 import { api } from '@/core/trpc/react'
 import { toast } from 'react-toastify'
@@ -24,7 +24,7 @@ export default function KanbanItemComponent({
     DeleteTask: (id: UniqueIdentifier) => void
     UpdateTask: (id: UniqueIdentifier, content: string) => void
     disable_item_editing?: boolean
-    submission_data?: CommissionDataSubmission
+    submission_data?: CommissionRequestData
 }) {
     const [mouseIsOver, setMouseIsOver] = useState(false)
     const [editMode, setEditMode] = useState(false)
@@ -226,7 +226,7 @@ export default function KanbanItemComponent({
                         </div>
                         <div className="divider"></div>
                         <div className="flex flex-col gap-5 w-full rp">
-                            <CommissionFormSubmissionContent
+                            <CommissionRequestContent
                                 content={submission_data.content}
                             />
                         </div>

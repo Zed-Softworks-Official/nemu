@@ -13,7 +13,7 @@ export default function Logo() {
                 <p className="text-xs">Beta</p>
             </div> */}
             <Link href={'/'}>
-                {theme == 'dark' ? (
+                {theme == 'nemu-dark' ? (
                     <NemuImage
                         src={'/logos/logo-dark.png'}
                         alt="Nemu"

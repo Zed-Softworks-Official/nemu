@@ -1,10 +1,10 @@
 import { cn } from '@/lib/utils'
 
-export default function CommissionFormSubmissionContent({
+export default function CommissionRequestContent({
     content,
     classNames
 }: {
-    content?: string
+    content: string
     classNames?: string
 }) {
     return (

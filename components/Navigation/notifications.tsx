@@ -1,6 +1,6 @@
-import { getServerAuthSession } from '@/app/api/auth/[...nextauth]/route'
 import { INotificationCenterStyles } from '@novu/notification-center'
 import NotificationPopover from './notification-popover'
+import { getServerAuthSession } from '@/core/auth'
 
 export default async function Notifications() {
     const session = await getServerAuthSession()

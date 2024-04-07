@@ -101,7 +101,7 @@ export async function POST(req: Request) {
 
                 if (metadata.purchase_type == PurchaseType.CommissionInvoice) {
                     // Get the submission so we know the invoice id
-                    const submission = await prisma.formSubmission.findFirst({
+                    const submission = await prisma.request.findFirst({
                         where: {
                             orderId: metadata.order_id
                         }

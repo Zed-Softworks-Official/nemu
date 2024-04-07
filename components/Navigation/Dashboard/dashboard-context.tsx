@@ -1,9 +1,6 @@
 'use client'
 
-import Loading from '@/components/loading'
 import { ArtistPageResponse } from '@/core/responses'
-import { api } from '@/core/trpc/react'
-import { Artist } from '@prisma/client'
 import {
     createContext,
     useContext,

@@ -1,3 +1,4 @@
+import { env } from '@/env'
 import { stripe } from '@/lib/stripe'
 
 /**
@@ -41,8 +42,8 @@ export async function StripeCreateAccount() {
 export async function StripeCreateAccountLink(stripe_account: string) {
     return await stripe.accountLinks.create({
         account: stripe_account,
-        refresh_url: process.env.BASE_URL + `/api/stripe/${stripe_account}/reauth`,
-        return_url: process.env.BASE_URL + '/dashboard',
+        refresh_url: env.BASE_URL + `/api/stripe/${stripe_account}/reauth`,
+        return_url: env.BASE_URL + '/dashboard',
         type: 'account_onboarding'
     })
 }

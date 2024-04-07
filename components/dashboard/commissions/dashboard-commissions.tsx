@@ -11,7 +11,7 @@ import { api } from '@/core/trpc/react'
 
 export default function DashboardCommissions() {
     const { artist } = useDashboardContext()!
-    const { data, isLoading } = api.commissions.get_commissions.useQuery({
+    const { data, isLoading, isError, error } = api.commissions.get_commissions.useQuery({
         artist_id: artist?.id!
     })
 
