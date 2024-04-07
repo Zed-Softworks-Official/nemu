@@ -5,7 +5,7 @@ import { CommissionRequestData } from '@/core/structures'
 import { api } from '@/core/trpc/react'
 import { RefetchOptions } from '@tanstack/react-query'
 import { useState } from 'react'
-import CommissionFormSubmissionContent from './requests/commission-form-submission-content'
+import CommissionRequestContent from './requests/commission-request-content'
 import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/20/solid'
 import { toast } from 'react-toastify'
 
@@ -87,7 +87,7 @@ export default function RequestCard({
                         </div>
                     </div>
                     <div className="divider"></div>
-                    <CommissionFormSubmissionContent content={data.content} />
+                    <CommissionRequestContent content={data.content} />
                 </div>
             </Modal>
         </>

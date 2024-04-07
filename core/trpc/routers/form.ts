@@ -229,7 +229,10 @@ export const formsRouter = createTRPCRouter({
             })
 
             if (!request) {
-                throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' })
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Could not create request'
+                })
             }
 
             // Update Commission availability

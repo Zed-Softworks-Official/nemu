@@ -8,7 +8,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { CheckCircleIcon, TrashIcon, XCircleIcon } from '@heroicons/react/20/solid'
 import { useState } from 'react'
 import Modal from '../modal'
-import CommissionFormSubmissionContent from '../dashboard/commissions/requests/commission-form-submission-content'
+import CommissionRequestContent from '../dashboard/commissions/requests/commission-request-content'
 import { usePathname, useRouter } from 'next/navigation'
 import { api } from '@/core/trpc/react'
 import { toast } from 'react-toastify'
@@ -226,7 +226,7 @@ export default function KanbanItemComponent({
                         </div>
                         <div className="divider"></div>
                         <div className="flex flex-col gap-5 w-full rp">
-                            <CommissionFormSubmissionContent
+                            <CommissionRequestContent
                                 content={submission_data.content}
                             />
                         </div>

@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils'
 
-export default function CommissionFormSubmissionContent({
+export default function CommissionRequestContent({
     content,
     classNames
 }: {

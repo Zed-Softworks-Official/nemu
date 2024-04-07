@@ -1,5 +1,5 @@
 import DefaultPageLayout from '@/app/(default)/layout'
-import CommissionFormSubmissionContent from '@/components/dashboard/commissions/requests/commission-form-submission-content'
+import CommissionRequestContent from '@/components/dashboard/commissions/requests/commission-request-content'
 import MessagesClient from '@/components/messages/messages-client'
 import ReviewForm from '@/components/review/review-form'
 import { Tabs } from '@/components/ui/tabs'
@@ -73,7 +73,7 @@ export default async function OrderPage({ params }: Props) {
                                                     General Details
                                                 </h2>
                                                 <div className="divider"></div>
-                                                <CommissionFormSubmissionContent
+                                                <CommissionRequestContent
                                                     content={request.submission.content}
                                                     classNames="bg-base-100"
                                                 />
