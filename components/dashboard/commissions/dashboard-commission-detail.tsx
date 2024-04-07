@@ -4,23 +4,28 @@ import { useDashboardContext } from '@/components/navigation/dashboard/dashboard
 
 import DashboardContainer from '../dashboard-container'
 import Loading from '@/components/loading'
-import CommissionPublishButton from './submissions/commission-publish-button'
+import CommissionPublishButton from './requests/commission-publish-button'
 import { ClipboardDocumentListIcon, PencilIcon } from '@heroicons/react/20/solid'
 import Link from 'next/link'
 import { api } from '@/core/trpc/react'
 
 import { Pie } from 'react-chartjs-2'
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, ChartData } from 'chart.js'
-import Kanban from '@/components/kanban/kanban'
+import { Tabs } from '@/components/ui/tabs'
+import { usePathname } from 'next/navigation'
+import RequestCard from './request-card'
+import { CommissionStatus } from '@/core/structures'
 
 ChartJS.register(ArcElement, Tooltip, Legend)
 
 export default function DashboardCommissionDetail({ slug }: { slug: string }) {
     const { artist } = useDashboardContext()!
-    const { data, isLoading } = api.commissions.get_commission_data.useQuery({
+    const { data, isLoading, refetch } = api.commissions.get_commission_data.useQuery({
         artist_id: artist?.id!,
         slug: slug
     })
+
+    const pathname = usePathname()
 
     if (isLoading) {
         return (
@@ -74,47 +79,57 @@ export default function DashboardCommissionDetail({ slug }: { slug: string }) {
                 </div>
             </div>
             <div className="flex flex-col gap-5">
-                <div role="tabslist" className="tabs tabs-lifted">
-                    <input
-                        type="radio"
-                        name="dashboard_commission_tabs"
-                        role="tab"
-                        className="tab"
-                        aria-label="Requests"
-                        defaultChecked
-                    />
-                    <div
-                        role="tabpanel"
-                        className="tab-content bg-base-100 p-5 rounded-xl"
-                    >
-                        <Kanban
-                            kanban_containers={data?.containers!}
-                            kanban_tasks={data?.tasks!}
-                            header={
-                                <div>
-                                    <h2 className="card-title">Requests</h2>
+                <Tabs
+                    containerClassName="bg-base-100 p-5 rounded-xl shadow-xl"
+                    contentClassName="bg-base-100 card card-body shadow-xl"
+                    tabs={[
+                        {
+                            title: 'New Requests',
+                            value: 'new_requests',
+                            content: (
+                                <div className="flex flex-col gap-5">
+                                    <h2 className="card-title">New Requests</h2>
+                                    <div className="divider"></div>
+                                    {data?.requests
+                                        .filter(
+                                            (request) =>
+                                                request.status ===
+                                                CommissionStatus.WaitingApproval
+                                        )
+                                        .map((request) => (
+                                            <RequestCard
+                                                refetch={refetch}
+                                                data={request}
+                                            />
+                                        ))}
                                 </div>
-                            }
-
-                            requests={data?.formId}
-                            disable_user_saving
-                            disable_container_editing
-                            disable_item_editing
-                        />
-                    </div>
-
-                    <input
-                        type="radio"
-                        name="dashboard_commission_tabs"
-                        role="tab"
-                        className="tab"
-                        aria-label="Delivered"
-                    />
-                    <div
-                        role="tabpanel"
-                        className="tab-content bg-base-100 p-5 rounded-xl"
-                    ></div>
-                </div>
+                            )
+                        },
+                        {
+                            title: 'Active Requests',
+                            value: 'active_requests',
+                            content: (
+                                <div className="flex gap-5">
+                                    <div></div>
+                                </div>
+                            )
+                        },
+                        {
+                            title: 'Waitlisted Requests',
+                            value: 'waitlisted_requests',
+                            content: (
+                                <div className="flex gap-5">
+                                    <div></div>
+                                </div>
+                            )
+                        },
+                        {
+                            title: 'Delivered',
+                            value: 'delivered',
+                            content: <>Delivered</>
+                        }
+                    ]}
+                />
                 <div className="bg-base-100 card shadow-xl">
                     <div className="card-body">
                         <h2 className="card-title">Commission Stats</h2>

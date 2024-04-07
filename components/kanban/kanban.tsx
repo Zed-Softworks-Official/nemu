@@ -23,11 +23,8 @@ import {
 import { SortableContext, arrayMove } from '@dnd-kit/sortable'
 import KanbanItemComponent from './kanban-item'
 
-import { useAutosave } from 'react-autosave'
-import { NemuResponse, StatusCode } from '@/core/responses'
 import { toast } from 'react-toastify'
 import { BsFloppy2Fill } from 'react-icons/bs'
-import { Request, User } from '@prisma/client'
 import { api } from '@/core/trpc/react'
 
 export default function Kanban({
@@ -79,16 +76,6 @@ export default function Kanban({
             toast(error.message, { type: 'error', theme: 'dark' })
         }
     })
-
-    // useAutosave({
-    //     data: {
-    //         containers: containers,
-    //         tasks: tasks
-    //     },
-    //     onSave: SaveKanban,
-    //     saveOnUnmount: true,
-    //     interval: 30000
-    // })
 
     const sesnors = useSensors(
         useSensor(PointerSensor, {
@@ -337,7 +324,7 @@ export default function Kanban({
                                             disable_container_editing
                                         }
                                         disable_item_editing={disable_item_editing}
-                                        submissions={submissions}
+                                        requests={requests}
                                     />
                                 ))}
                             </Masonry>

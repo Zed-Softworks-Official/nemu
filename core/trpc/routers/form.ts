@@ -16,7 +16,7 @@ import {
     Kanban,
     User
 } from '@prisma/client'
-import { AsRedisKey, UpdateCommissionAvailability } from '@/core/helpers'
+import { AsRedisKey } from '@/core/helpers'
 import {
     CommissionAvailability,
     CommissionDataInvoice,
@@ -24,6 +24,8 @@ import {
 } from '@/core/structures'
 import { TRPCError } from '@trpc/server'
 import { novu } from '@/lib/novu'
+import { env } from '@/env'
+import { UpdateCommissionAvailability } from '@/core/server-helpers'
 
 export const formsRouter = createTRPCRouter({
     /**
@@ -107,7 +109,7 @@ export const formsRouter = createTRPCRouter({
         .input(
             z.object({
                 order_id: z.string().optional(),
-                submission_id: z.string().optional(),
+                request_id: z.string().optional(),
                 channel_url: z.string().optional(),
                 include_invoice_items: z.boolean().default(false).optional()
             })
@@ -115,17 +117,14 @@ export const formsRouter = createTRPCRouter({
         .query(async (opts) => {
             const { input } = opts
 
-            if (!input.order_id && !input.channel_url && !input.submission_id) {
+            if (!input.order_id && !input.channel_url && !input.request_id) {
                 return undefined
             }
 
             const cachedSubmission = await redis.get(
                 AsRedisKey(
                     'form_submissions',
-                    input.order_id ||
-                        input.submission_id ||
-                        input.channel_url ||
-                        'undefined'
+                    input.order_id || input.request_id || input.channel_url || 'undefined'
                 )
             )
 
@@ -141,42 +140,42 @@ export const formsRouter = createTRPCRouter({
                 }
             }
 
-            const submission = await prisma.request.findFirst({
+            const request = await prisma.request.findFirst({
                 where: {
                     orderId: input.order_id || undefined,
-                    id: input.submission_id || undefined,
+                    id: input.request_id || undefined,
                     sendbirdChannelURL: input.channel_url || undefined
                 },
                 include: {
                     form: {
                         include: {
                             artist: true,
-                            commission: true
+                            commissions: true
                         }
                     },
                     user: true
                 }
             })
 
-            if (!submission) {
+            if (!request) {
                 return undefined
             }
 
             const kanban = await prisma.kanban.findFirst({
                 where: {
-                    id: submission.kanbanId || undefined
+                    id: request.kanbanId || undefined
                 }
             })
 
             const download = await prisma.downloads.findFirst({
                 where: {
-                    id: submission.downloadId || undefined
+                    id: request.downloadId || undefined
                 }
             })
 
             const invoice = await prisma.invoice.findFirst({
                 where: {
-                    id: submission.invoiceId || undefined
+                    id: request.invoiceId || undefined
                 },
                 include: {
                     items: input.include_invoice_items
@@ -186,7 +185,7 @@ export const formsRouter = createTRPCRouter({
             })
 
             const result = {
-                submission,
+                submission: request,
                 kanban: kanban || undefined,
                 download: download || undefined,
                 invoice: invoice || undefined
@@ -195,10 +194,7 @@ export const formsRouter = createTRPCRouter({
             await redis.set(
                 AsRedisKey(
                     'form_submissions',
-                    input.order_id ||
-                        input.submission_id ||
-                        input.channel_url ||
-                        'undefined'
+                    input.order_id || input.request_id || input.channel_url || 'undefined'
                 ),
                 JSON.stringify(result),
                 'EX',
@@ -222,9 +218,9 @@ export const formsRouter = createTRPCRouter({
         .mutation(async (opts) => {
             const { input, ctx } = opts
 
-            const submission = await prisma.request.create({
+            const request = await prisma.request.create({
                 data: {
-                    userId: ctx.session.user.user_id!,
+                    userId: ctx.session.user.id!,
                     formId: input.form_id,
                     content: input.content,
                     commissionId: input.commission_id,
@@ -232,12 +228,12 @@ export const formsRouter = createTRPCRouter({
                 }
             })
 
-            if (!submission) {
+            if (!request) {
                 throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' })
             }
 
             // Update Commission availability
-            await UpdateCommissionAvailability(input.form_id)
+            await UpdateCommissionAvailability(input.form_id, input.commission_id)
 
             // Update form values
             const updated_form = await prisma.form.update({
@@ -273,7 +269,7 @@ export const formsRouter = createTRPCRouter({
 
             await prisma.request.update({
                 where: {
-                    id: submission.id
+                    id: request.id
                 },
                 data: {
                     waitlist:
@@ -290,9 +286,7 @@ export const formsRouter = createTRPCRouter({
                 payload: {
                     username: ctx.session.user.name!,
                     commission_name: commission.title,
-                    slug:
-                        process.env.BASE_URL +
-                        `@${commission.artist.handle}/${commission.slug}`
+                    slug: env.BASE_URL + `@${commission.artist.handle}/${commission.slug}`
                 }
             })
 
@@ -321,7 +315,7 @@ export const formsRouter = createTRPCRouter({
         }
 
         const submitted = form.requests.find(
-            (request) => request.userId === ctx.session.user.user_id!
+            (request) => request.userId === ctx.session.user.id!
         )
 
         if (!submitted) {

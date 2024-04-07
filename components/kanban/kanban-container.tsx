@@ -22,7 +22,7 @@ export default function KanbanContainerComponent({
     UpdateTask,
     disable_container_editing,
     disable_item_editing,
-    submissions
+    requests
 }: {
     container_data: KanbanContainerData
     tasks: KanbanTask[]
@@ -33,7 +33,7 @@ export default function KanbanContainerComponent({
     UpdateTask: (id: UniqueIdentifier, content: string) => void
     disable_container_editing?: boolean
     disable_item_editing?: boolean
-    submissions?: CommissionRequestData[]
+    requests?: CommissionRequestData[]
 }) {
     const [editMode, setEditMode] = useState(false)
     const { setNodeRef, attributes, listeners, transform, transition, isDragging } =
@@ -177,9 +177,9 @@ export default function KanbanContainerComponent({
                                 UpdateTask={UpdateTask}
                                 disable_item_editing={disable_item_editing}
                                 submission_data={
-                                    submissions &&
-                                    submissions.find(
-                                        (submission) => submission.id === task.id
+                                    requests &&
+                                    requests.find(
+                                        (request) => request.id === task.id
                                     )
                                 }
                             />

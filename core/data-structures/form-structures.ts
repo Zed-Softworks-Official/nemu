@@ -34,7 +34,7 @@ export interface AWSFileModification {
 
 export type CommissionRequestData = Request & { user: User }
 
-export type GetSubmissionsResponse = RouterOutput['user']['get_submissions']
+export type GetUserRequestsResponse = RouterOutput['user']['get_requests']
 
 export type CommissionDataInvoice =
     | (Invoice & { items: InvoiceItem[] | undefined })

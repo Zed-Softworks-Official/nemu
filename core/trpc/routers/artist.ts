@@ -4,9 +4,9 @@ import { redis } from '@/lib/redis'
 import { Artist, Social, User } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { AsRedisKey } from '@/core/helpers'
-import { AWSLocations, RandomArtists } from '@/core/structures'
-import { S3GetSignedURL } from '@/core/storage'
+import { RandomArtists } from '@/core/structures'
 import { TRPCError } from '@trpc/server'
+import { GetProfilePhoto } from '@/core/server-helpers'
 
 export const artistRouter = createTRPCRouter({
     /**
@@ -29,7 +29,8 @@ export const artistRouter = createTRPCRouter({
             )
 
             if (cachedArtist) {
-                return JSON.parse(cachedArtist) as Artist & { user: User } & {
+                return JSON.parse(cachedArtist) as Artist & {
+                    user: User
                     socials: Social[]
                 }
             }
@@ -47,8 +48,13 @@ export const artistRouter = createTRPCRouter({
 
             // If the artist wasn't found just return undefined
             if (!artist) {
-                return undefined
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Could not find artist!'
+                })
             }
+
+            artist.user.image = await GetProfilePhoto(artist.user)
 
             await redis.set(
                 AsRedisKey('artists', input ? input.handle : ctx.session?.user.handle!),
@@ -83,11 +89,7 @@ export const artistRouter = createTRPCRouter({
 
         for (const artist of randomArtists) {
             if (!artist.user.image?.includes('http')) {
-                artist.user.image = await S3GetSignedURL(
-                    artist.id,
-                    AWSLocations.Profile,
-                    artist.user.image!
-                )
+                artist.user.image = await GetProfilePhoto(artist.user)
             }
         }
 

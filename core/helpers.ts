@@ -1,14 +1,4 @@
-import {
-    AWSLocations,
-    CommissionAvailability,
-    ConvertShopItemFromProductOptions,
-    ShopItem
-} from './structures'
-import { prisma } from '@/lib/prisma'
-import { sendbird } from '@/lib/sendbird'
-import { SendbirdUserData } from '@/sendbird/sendbird-structures'
-import { Artist, Product } from '@prisma/client'
-import { S3GetSignedURL } from './storage'
+import { CommissionAvailability } from './structures'
 
 /**
  * Joins variable amount of classnames into one string
@@ -61,55 +51,6 @@ export function FormatNumberToCurrency(number: number) {
     })
 
     return formatter.format(number)
-}
-
-/**
- *
- * @param form_id
- * @returns
- */
-export async function UpdateCommissionAvailability(form_id: string) {
-    const form = await prisma.form.findFirst({
-        where: {
-            id: form_id
-        },
-        include: {
-            commission: true
-        }
-    })
-
-    let new_availability: CommissionAvailability = CommissionAvailability.Open
-
-    // Check if we have reached our max number of commissions until WAITLIST
-    if (
-        form?.newSubmissions! + 1 >= form?.commission?.maxCommissionsUntilWaitlist! &&
-        form?.commission?.maxCommissionsUntilWaitlist != 0
-    ) {
-        new_availability = CommissionAvailability.Waitlist
-    }
-
-    // Check if we have reached our max number of commmissions until CLOSED
-    if (
-        form?.newSubmissions! + 1 >= form?.commission?.maxCommissionsUntilClosed! &&
-        form?.commission?.maxCommissionsUntilClosed != 0
-    ) {
-        new_availability = CommissionAvailability.Closed
-    }
-
-    // If the availability hasn't changed then just return
-    if (new_availability == CommissionAvailability.Open) {
-        return
-    }
-
-    // Otherwise update the commission
-    await prisma.commission.update({
-        where: {
-            id: form?.commissionId!
-        },
-        data: {
-            availability: new_availability
-        }
-    })
 }
 
 /**

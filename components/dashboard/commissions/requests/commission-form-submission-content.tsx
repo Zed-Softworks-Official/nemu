@@ -4,7 +4,7 @@ export default function CommissionFormSubmissionContent({
     content,
     classNames
 }: {
-    content?: string
+    content: string
     classNames?: string
 }) {
     return (

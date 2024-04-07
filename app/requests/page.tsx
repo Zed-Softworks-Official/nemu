@@ -6,7 +6,7 @@ import RequestTable from '@/components/ui/request-table'
 import { CommissionStatus } from '@/core/structures'
 
 export default async function DeliveryPage() {
-    const submissions = await api.user.get_submissions()
+    const requests = await api.user.get_requests()
 
     return (
         <DefaultPageLayout>
@@ -19,42 +19,43 @@ export default async function DeliveryPage() {
                             {
                                 title: 'All Requests',
                                 value: 'allrequests',
-                                content: <RequestTable submissions={submissions} />
-                            },
-                            {
-                                title: 'In Progress',
-                                value: 'inprogress',
-                                content: (
-                                    <RequestTable
-                                        submissions={submissions.filter(
-                                            (submission) =>
-                                                submission.commissionStatus ===
-                                                CommissionStatus.Accepted
-                                        )}
-                                    />
-                                )
+                                content: <RequestTable requests={requests} />
                             },
                             {
                                 title: 'Pending',
                                 value: 'pending',
                                 content: (
                                     <RequestTable
-                                        submissions={submissions.filter(
-                                            (submission) =>
-                                                submission.commissionStatus ===
+                                        requests={requests.filter(
+                                            (request) =>
+                                                request.status ===
                                                 CommissionStatus.WaitingApproval
                                         )}
                                     />
                                 )
                             },
                             {
+                                title: 'In Progress',
+                                value: 'inprogress',
+                                content: (
+                                    <RequestTable
+                                        requests={requests.filter(
+                                            (request) =>
+                                                request.status ===
+                                                CommissionStatus.Accepted
+                                        )}
+                                    />
+                                )
+                            },
+
+                            {
                                 title: 'Rejected',
                                 value: 'rejected',
                                 content: (
                                     <RequestTable
-                                        submissions={submissions.filter(
-                                            (submission) =>
-                                                submission.commissionStatus ===
+                                        requests={requests.filter(
+                                            (request) =>
+                                                request.status ===
                                                 CommissionStatus.Rejected
                                         )}
                                     />
@@ -65,9 +66,9 @@ export default async function DeliveryPage() {
                                 value: 'delivered',
                                 content: (
                                     <RequestTable
-                                        submissions={submissions.filter(
-                                            (submission) =>
-                                                submission.commissionStatus ===
+                                        requests={requests.filter(
+                                            (request) =>
+                                                request.status ===
                                                 CommissionStatus.Delivered
                                         )}
                                     />

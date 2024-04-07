@@ -3,16 +3,13 @@
 import { ChangeEvent } from 'react'
 import { useThemeContext } from './theme-context'
 import { MoonIcon, SunIcon } from '@heroicons/react/20/solid'
+import { cn } from '@/lib/utils'
 
 export default function ThemeSwitcher({ active }: { active?: boolean }) {
     const { theme, setTheme } = useThemeContext()
 
-    function isDark() {
-        return theme === 'dark'
-    }
-
     function toggleTheme(event: ChangeEvent<HTMLInputElement>) {
-        setTheme!(event.target.checked ? 'light' : 'dark')
+        setTheme!(event.target.checked ? 'nemu-light' : 'nemu-dark')
     }
 
     return (
@@ -21,15 +18,15 @@ export default function ThemeSwitcher({ active }: { active?: boolean }) {
             <input
                 type="checkbox"
                 className="theme-controller"
-                value="light"
+                value={'nemu-light'}
                 onChange={(e) => toggleTheme(e)}
             />
 
             {/* sun icon */}
-            <SunIcon className='swap-off fill-current w-6 h-6 inline-grid' />
+            <SunIcon className={cn('swap-off fill-current w-6 h-6 inline-grid')} />
 
             {/* moon icon */}
-            <MoonIcon className='swap-on fill-current w-6 h-6 inline-grid' />
+            <MoonIcon className={cn('swap-on fill-current w-6 h-6 inline-grid')} />
         </label>
     )
 }

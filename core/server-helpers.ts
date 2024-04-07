@@ -1,5 +1,10 @@
-import { Artist, Prisma, Product } from '@prisma/client'
-import { AWSLocations, ConvertShopItemFromProductOptions, ShopItem } from './structures'
+import { Artist, Prisma, Product, User } from '@prisma/client'
+import {
+    AWSLocations,
+    CommissionAvailability,
+    ConvertShopItemFromProductOptions,
+    ShopItem
+} from './structures'
 import { S3GetSignedURL } from './storage'
 import { sendbird } from '@/lib/sendbird'
 import { prisma } from '@/lib/prisma'
@@ -9,19 +14,20 @@ import { getPlaiceholder } from 'plaiceholder'
 import { RouterInput } from './responses'
 import { StripeCreateAccount } from './payments'
 import { TRPCError } from '@trpc/server'
+import { env } from '@/env'
 
 /**
  *
- * @param submission_id
+ * @param request_id
  * @param sendbird_channel_url
  */
 export async function CreateSendbirdMessageChannel(
-    submission_id: string,
+    request_id: string,
     sendbird_channel_url: string
 ) {
     const request = await prisma.request.findFirst({
         where: {
-            id: submission_id
+            id: request_id
         },
         include: {
             user: {
@@ -29,13 +35,9 @@ export async function CreateSendbirdMessageChannel(
                     artist: true
                 }
             },
-            form: {
+            commission: {
                 include: {
-                    commission: {
-                        include: {
-                            artist: true
-                        }
-                    }
+                    artist: true
                 }
             }
         }
@@ -43,16 +45,14 @@ export async function CreateSendbirdMessageChannel(
 
     await sendbird.CreateGroupChannel({
         name: `${
-            request?.user.artist
-                ? '@' + request.user.artist.handle
-                : request?.user.name
+            request?.user.artist ? '@' + request.user.artist.handle : request?.user.name
         }`,
         channel_url: sendbird_channel_url,
         cover_url: request?.user.artist?.profilePhoto
             ? request.user.artist.profilePhoto
-            : `${process.env.BASE_URL}/profile.png`,
+            : `${env.BASE_URL}/profile.png`,
         user_ids: [request?.userId!, request?.commission?.artist.userId!],
-        operator_ids: [request?.commission.artist],
+        operator_ids: [request?.commission.artistId!],
         block_sdk_user_channel_join: false,
         is_distinct: false
     })
@@ -80,7 +80,7 @@ export async function CheckCreateSendbirdUser(user_id: string) {
     const user_data: SendbirdUserData = {
         user_id: user_id,
         nickname: user?.name!,
-        profile_url: user?.image || `${process.env.BASE_URL}/profile.png`
+        profile_url: user?.image || `${env.BASE_URL}/profile.png`
     }
 
     await sendbird.CreateUser(user_data)
@@ -242,7 +242,7 @@ export async function CreateArtist(
             nickname: artist.handle,
             profile_url: artist?.profilePhoto
                 ? artist?.profilePhoto
-                : `${process.env.BASE_URL}/profile.png`
+                : `${env.BASE_URL}/profile.png`
         }
 
         sendbird.CreateUser(user_data)
@@ -259,4 +259,67 @@ export async function CreateArtist(
     }
 
     return artist
+}
+
+export async function GetProfilePhoto(user: User) {
+    if (!user.image) {
+        return null
+    }
+
+    return await S3GetSignedURL(user.id, AWSLocations.Profile, user.image)
+}
+
+/**
+ *
+ * @param form_id
+ * @returns
+ */
+export async function UpdateCommissionAvailability(
+    form_id: string,
+    commission_id: string
+) {
+    const form = await prisma.form.findFirst({
+        where: {
+            id: form_id
+        }
+    })
+
+    const commission = await prisma.commission.findFirst({
+        where: {
+            id: commission_id
+        }
+    })
+
+    let new_availability: CommissionAvailability = CommissionAvailability.Open
+
+    // Check if we have reached our max number of commissions until WAITLIST
+    if (
+        form?.newSubmissions! + 1 >= commission?.maxCommissionsUntilWaitlist! &&
+        commission?.maxCommissionsUntilWaitlist != 0
+    ) {
+        new_availability = CommissionAvailability.Waitlist
+    }
+
+    // Check if we have reached our max number of commmissions until CLOSED
+    if (
+        form?.newSubmissions! + 1 >= commission?.maxCommissionsUntilClosed! &&
+        commission?.maxCommissionsUntilClosed != 0
+    ) {
+        new_availability = CommissionAvailability.Closed
+    }
+
+    // If the availability hasn't changed then just return
+    if (new_availability == CommissionAvailability.Open) {
+        return
+    }
+
+    // Otherwise update the commission
+    await prisma.commission.update({
+        where: {
+            id: form?.commissionId!
+        },
+        data: {
+            availability: new_availability
+        }
+    })
 }

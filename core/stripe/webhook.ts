@@ -1,3 +1,4 @@
+import { env } from '@/env'
 import { stripe } from '@/lib/stripe'
 
 /**
@@ -14,6 +15,6 @@ export function StripeGetWebhookEvent(
     return stripe.webhooks.constructEvent(
         payload,
         header,
-        process.env.STRIPE_WEBHOOK_SECRET!
+        env.STRIPE_WEBHOOK_SECRET!
     )
 }

@@ -14,6 +14,8 @@ import {
     StripeFinalizeCommissionInvoice,
     StripeUpdateCommissionInvoice
 } from '@/core/stripe/commissions'
+import { env } from '@/env'
+import { TRPCError } from '@trpc/server'
 
 type InvoiceReturnType = Invoice & { commission_data: InvoiceCommissionData }
 
@@ -25,7 +27,7 @@ export const invoicesRouter = createTRPCRouter({
         const { ctx } = opts
 
         const cachedInvoices = await redis.get(
-            AsRedisKey('invoices', ctx.session.user.user_id!)
+            AsRedisKey('invoices', ctx.session.user.id!)
         )
 
         if (cachedInvoices) {
@@ -34,7 +36,7 @@ export const invoicesRouter = createTRPCRouter({
 
         const invoices = await prisma.invoice.findMany({
             where: {
-                userId: ctx.session.user.user_id!
+                userId: ctx.session.user.id!
             },
             orderBy: {
                 createdAt: 'desc'
@@ -47,22 +49,25 @@ export const invoicesRouter = createTRPCRouter({
 
         const result: InvoiceReturnType[] = []
         for (const invoice of invoices) {
-            const submission = await prisma.request.findFirst({
+            const request = await prisma.request.findFirst({
                 where: {
                     invoiceId: invoice.id
                 },
                 include: {
-                    form: {
+                    commission: {
                         include: {
-                            commission: {
-                                include: {
-                                    artist: true
-                                }
-                            }
+                            artist: true
                         }
                     }
                 }
             })
+
+            if (!request) {
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Failed to find request with invoice id'
+                })
+            }
 
             // Get invoice items
             const invoice_items = await prisma.invoiceItem.findMany({
@@ -80,16 +85,16 @@ export const invoicesRouter = createTRPCRouter({
             result.push({
                 ...invoice,
                 commission_data: {
-                    title: submission?.form.commission?.title!,
+                    title: request.commission.title!,
                     total_price: total_price,
-                    artist_handle: submission?.form.commission?.artist.handle!,
-                    commission_url: `${process.env.BASE_URL}/@${submission?.form.commission?.artist.handle}/${submission?.form.commission?.slug}`
+                    artist_handle: request.commission?.artist.handle!,
+                    commission_url: `${env.BASE_URL}/@${request?.commission?.artist.handle}/${request?.commission?.slug}`
                 }
             })
         }
 
         await redis.set(
-            AsRedisKey('invoices', ctx.session.user.user_id!),
+            AsRedisKey('invoices', ctx.session.user.id!),
             JSON.stringify(result),
             'EX',
             3600
@@ -230,7 +235,7 @@ export const invoicesRouter = createTRPCRouter({
             payload: {
                 status: 'sent',
                 username: artist?.handle,
-                invoice_url: `${process.env.BASE_URL}/invoices`
+                invoice_url: `${env.BASE_URL}/invoices`
             }
         })
 

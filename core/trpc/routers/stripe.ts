@@ -22,7 +22,7 @@ export const stripeRouter = createTRPCRouter({
 
         const customer_id = await prisma.stripeCustomerIds.findFirst({
             where: {
-                userId: ctx.session.user.user_id!,
+                userId: ctx.session.user.id!,
                 artistId: input
             }
         })
@@ -37,7 +37,7 @@ export const stripeRouter = createTRPCRouter({
 
         const user = await prisma.user.findFirst({
             where: {
-                id: ctx.session.user.user_id!
+                id: ctx.session.user.id!
             }
         })
 
@@ -160,7 +160,7 @@ export const stripeRouter = createTRPCRouter({
                 stripe_account: input.stripe_account,
                 return_url: input.return_url,
                 product_id: input.product_id,
-                user_id: ctx.session.user.user_id!,
+                user_id: ctx.session.user.id!,
                 artist_id: product.artistId
             })
 

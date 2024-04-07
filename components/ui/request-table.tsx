@@ -3,25 +3,25 @@
 import Link from 'next/link'
 import NemuImage from '../nemu-image'
 
-import { CommissionStatus, GetSubmissionsResponse } from '@/core/structures'
+import { CommissionStatus, GetUserRequestsResponse } from '@/core/structures'
 import { ConvertCommissionStatusToBadge } from '@/core/react-helpers'
 
 export default function RequestTable({
-    submissions
+    requests
 }: {
-    submissions: GetSubmissionsResponse
+    requests: GetUserRequestsResponse
 }) {
     return (
         <div className="card shadow-xl bg-base-200">
             <div className="card-body">
-                {submissions.map((submission) => (
+                {requests.map((request) => (
                     <div
-                        key={submission.id}
+                        key={request.id}
                         className="card lg:card-side shadow-xl bg-base-100"
                     >
                         <figure>
                             <NemuImage
-                                src={'/nemu/sparkles.png'}
+                                src={request.commission.featuredImage}
                                 alt="Commission Image"
                                 width={200}
                                 height={200}
@@ -31,49 +31,49 @@ export default function RequestTable({
                             <div className="flex flex-col h-full">
                                 <div className="flex flex-col gap-2">
                                     <h2 className="card-title">
-                                        {submission.form.commission?.title}
-                                        {ConvertCommissionStatusToBadge(
-                                            submission.commissionStatus
-                                        )}
+                                        {request.commission.title}
+                                        {ConvertCommissionStatusToBadge(request.status)}
                                     </h2>
                                     <p>
                                         By{' '}
                                         <Link
-                                            href={`/@${submission.form.commission?.artist.handle}`}
+                                            href={`/@${request.commission?.artist.handle}`}
                                             className="link link-hover"
                                         >
-                                            @{submission.form.commission?.artist.handle}
+                                            @{request.commission?.artist.handle}
                                         </Link>
                                     </p>
                                 </div>
                                 <span className="flex h-full items-end italic text-base-content/80">
                                     Requested on:{' '}
-                                    {new Date(submission.createdAt).toDateString()}
+                                    {new Date(request.createdAt).toDateString()}
                                 </span>
                             </div>
-                            <div className="card shadow-xl bg-base-300">
-                                <div className="card-body">
-                                    <h2 className="card-title">Quick Access</h2>
-                                    <div className="divider"></div>
-                                    <div className="flex gap-5">
-                                        {submission.commissionStatus ===
-                                            CommissionStatus.Accepted ||
-                                            (submission.commissionStatus ===
-                                                CommissionStatus.Delivered && (
-                                                <Link
-                                                    href={`/requests/${submission.orderId}`}
-                                                    className="btn btn-primary"
-                                                >
-                                                    View Request
-                                                </Link>
-                                            ))}
+                            {request.status !== CommissionStatus.WaitingApproval && (
+                                <div className="card shadow-xl bg-base-300">
+                                    <div className="card-body">
+                                        <h2 className="card-title">Quick Access</h2>
+                                        <div className="divider"></div>
+                                        <div className="flex gap-5">
+                                            {request.status ===
+                                                CommissionStatus.Accepted ||
+                                                (request.status ===
+                                                    CommissionStatus.Delivered && (
+                                                    <Link
+                                                        href={`/requests/${request.orderId}`}
+                                                        className="btn btn-primary"
+                                                    >
+                                                        View Request
+                                                    </Link>
+                                                ))}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
+                            )}
                         </div>
                     </div>
                 ))}
-                {submissions.length === 0 && (
+                {requests.length === 0 && (
                     <div className="flex flex-col w-full justify-center items-center gap-5">
                         <NemuImage
                             src={'/nemu/this-is-fine.png'}

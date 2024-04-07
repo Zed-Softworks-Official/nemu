@@ -1,5 +1,5 @@
 import DefaultPageLayout from '@/app/(default)/layout'
-import CommissionFormSubmissionContent from '@/components/dashboard/commissions/submissions/commission-form-submission-content'
+import CommissionFormSubmissionContent from '@/components/dashboard/commissions/requests/commission-form-submission-content'
 import MessagesClient from '@/components/messages/messages-client'
 import ReviewForm from '@/components/review/review-form'
 import { Tabs } from '@/components/ui/tabs'

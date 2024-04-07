@@ -13,7 +13,7 @@ export default function ArtistHeader({ data }: { data: ArtistPageResponse }) {
                         <div className="avatar">
                             <div className="w-24 rounded-full avatar">
                                 <NemuImage
-                                    src={data?.profilePhoto ? data.profilePhoto : '/profile.png'}
+                                    src={data?.user.image? data.user.image : '/profile.png'}
                                     alt="Profile Photo"
                                     width={100}
                                     height={100}

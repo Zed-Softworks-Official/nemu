@@ -75,12 +75,12 @@ export const verificationRouter = createTRPCRouter({
                     }
 
                     // Create Artist
-                    const artist = await CreateArtist(input, ctx.session.user.user_id!)
+                    const artist = await CreateArtist(input, ctx.session.user.id!)
 
                     // Update User Role
                     await prisma.user.update({
                         where: {
-                            id: ctx.session.user.user_id!
+                            id: ctx.session.user.id!
                         },
                         data: {
                             role: Role.Artist
@@ -95,12 +95,12 @@ export const verificationRouter = createTRPCRouter({
                     })
 
                     // Delete User Cache
-                    await redis.del(AsRedisKey('users', ctx.session.user.user_id!))
+                    await redis.del(AsRedisKey('users', ctx.session.user.id!))
 
                     // Notify user of status
                     novu.trigger('artist-verification', {
                         to: {
-                            subscriberId: ctx.session.user.user_id!
+                            subscriberId: ctx.session.user.id!
                         },
                         payload: {
                             result: true,
@@ -115,7 +115,7 @@ export const verificationRouter = createTRPCRouter({
                 case VerificationMethod.Twitter: {
                     const artistVerification = await prisma.artistVerification.create({
                         data: {
-                            userId: ctx.session.user.user_id!,
+                            userId: ctx.session.user.id!,
                             username: ctx.session.user.name!,
                             location: input.location,
                             requestedHandle: input.requested_handle,
@@ -134,7 +134,7 @@ export const verificationRouter = createTRPCRouter({
 
                     novu.trigger('artist-verification-submit', {
                         to: {
-                            subscriberId: ctx.session.user.user_id!
+                            subscriberId: ctx.session.user.id!
                         },
                         payload: {
                             method: 'Twitter'

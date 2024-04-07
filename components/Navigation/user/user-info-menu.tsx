@@ -1,9 +1,15 @@
-import { getServerAuthSession } from '@/app/api/auth/[...nextauth]/route'
+import { getServerAuthSession } from '@/core/auth'
 import UserDropdown from './user-dropdown'
 import { api } from '@/core/trpc/server'
+import { RouterOutput } from '@/core/responses'
 
 export default async function UserInfoMenu() {
-    const user = await api.user.get_user()
+    const session = await getServerAuthSession()
+
+    let user: RouterOutput['user']['get_user'] = undefined
+    if (session) {
+        user = await api.user.get_user()
+    }
 
     return <UserDropdown data={user} />
 }

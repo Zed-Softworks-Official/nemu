@@ -312,8 +312,8 @@ model Form {
   acceptedSubmissions Int @default(0)
   rejectedSubmissions Int @default(0)
 
-  artist     Artist       @relation(fields: [artistId], references: [id], onDelete: Cascade)
-  commission Commission[]
+  artist      Artist       @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  commissions Commission[]
 
   requests Request[]
 
@@ -344,7 +344,7 @@ model Request {
   commission Commission @relation(fields: [commissionId], references: [id])
   invoice    Invoice?   @relation(fields: [invoiceId], references: [id])
   kanban     Kanban?    @relation(fields: [kanbanId], references: [id])
-  Review     Review?
+  review     Review?
 }
 
 model Kanban {

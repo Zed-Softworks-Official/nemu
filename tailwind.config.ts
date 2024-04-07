@@ -46,7 +46,7 @@ const config: Config = {
                     warning: '#e2ef2b',
                     error: '#d82750'
                 },
-                light: {
+                'nemu-light': {
                     primary: '#2185d5',
                     secondary: '#0e90f9',
                     accent: '#ffffff',

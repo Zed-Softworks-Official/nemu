@@ -22,7 +22,7 @@ export const userRouter = createTRPCRouter({
         const { input, ctx } = opts
 
         const cachedCustomerId = await redis.get(
-            AsRedisKey('stripe_accounts', input, ctx.session.user.user_id!)
+            AsRedisKey('stripe_accounts', input, ctx.session.user.id!)
         )
 
         if (cachedCustomerId) {
@@ -32,7 +32,7 @@ export const userRouter = createTRPCRouter({
         const stripeAccountId = await prisma.stripeCustomerIds.findFirst({
             where: {
                 artistId: input,
-                userId: ctx.session.user.user_id!
+                userId: ctx.session.user.id!
             }
         })
 
@@ -41,7 +41,7 @@ export const userRouter = createTRPCRouter({
         }
 
         await redis.set(
-            AsRedisKey('stripe_accounts', input, ctx.session.user.user_id!),
+            AsRedisKey('stripe_accounts', input, ctx.session.user.id!),
             JSON.stringify(stripeAccountId),
             'EX',
             3600
@@ -55,7 +55,7 @@ export const userRouter = createTRPCRouter({
      */
     get_downloads: protectedProcedure.query(async (opts) => {
         const { ctx } = opts
-        const user_id = ctx.session.user.user_id!
+        const user_id = ctx.session.user.id!
 
         const cachedDownloads = await redis.get(AsRedisKey('downloads', user_id))
 
@@ -135,7 +135,7 @@ export const userRouter = createTRPCRouter({
         // Update the username
         const username_set = await prisma.user.update({
             where: {
-                id: ctx.session.user.user_id
+                id: ctx.session.user.id
             },
             data: {
                 name: input
@@ -242,34 +242,39 @@ export const userRouter = createTRPCRouter({
     /**
      * Gets all of the submissions for the user
      */
-    get_submissions: protectedProcedure.query(async (opts) => {
+    get_requests: protectedProcedure.query(async (opts) => {
         const { ctx } = opts
 
-        const submissions = await prisma.request.findMany({
+        const requests = await prisma.request.findMany({
             where: {
-                userId: ctx.session.user.user_id
+                userId: ctx.session.user.id
             },
             orderBy: {
                 createdAt: 'desc'
             },
             include: {
-                form: {
+                form: true,
+                commission: {
                     include: {
-                        commission: {
-                            include: {
-                                artist: true
-                            }
-                        }
+                        artist: true
                     }
                 }
             }
         })
 
-        if (!submissions) {
+        if (!requests) {
             return []
         }
 
-        return submissions
+        for (const request of requests) {
+            request.commission.featuredImage = await S3GetSignedURL(
+                request.commission.artistId,
+                AWSLocations.Commission,
+                request.commission.featuredImage
+            )
+        }
+
+        return requests
     }),
 
     /**
@@ -278,15 +283,17 @@ export const userRouter = createTRPCRouter({
     get_user: protectedProcedure.query(async (opts) => {
         const { ctx } = opts
 
-        const cachedUser = await redis.get(AsRedisKey('users', ctx.session.user.user_id!))
+        const cachedUser = await redis.get(AsRedisKey('users', ctx.session.user.id))
 
         if (cachedUser) {
-            return JSON.parse(cachedUser) as { user: User; artist: Artist | undefined }
+            return JSON.parse(cachedUser) as
+                | { user: User; artist: Artist | undefined }
+                | undefined
         }
 
         const user = await prisma.user.findFirst({
             where: {
-                id: ctx.session.user.user_id
+                id: ctx.session.user.id
             }
         })
 
@@ -297,13 +304,22 @@ export const userRouter = createTRPCRouter({
             })
         }
 
-        if (
-            ctx.session.user.role === Role.Standard ||
-            ctx.session.user.role === Role.Admin
-        ) {
+        // Get Signed Url for profile photo
+        let profile_photo: string | null = null
+        if (user.image) {
+            profile_photo = await S3GetSignedURL(
+                ctx.session.user.id,
+                AWSLocations.Profile,
+                user.image
+            )
+        }
+
+        user.image = profile_photo
+
+        if (ctx.session.user.role !== Role.Artist) {
             await redis.set(
-                AsRedisKey('users', ctx.session.user.user_id!),
-                JSON.stringify(user),
+                AsRedisKey('users', ctx.session.user.id!),
+                JSON.stringify({ user: user }),
                 'EX',
                 3600
             )
@@ -316,7 +332,7 @@ export const userRouter = createTRPCRouter({
 
         const artist = await prisma.artist.findFirst({
             where: {
-                userId: ctx.session.user.user_id
+                userId: ctx.session.user.id
             }
         })
 
@@ -328,7 +344,7 @@ export const userRouter = createTRPCRouter({
         }
 
         await redis.set(
-            AsRedisKey('users', ctx.session.user.user_id!),
+            AsRedisKey('users', ctx.session.user.id),
             JSON.stringify({ user, artist }),
             'EX',
             3600
@@ -343,9 +359,10 @@ export const userRouter = createTRPCRouter({
     set_profile_photo: protectedProcedure.input(z.string()).mutation(async (opts) => {
         const { input, ctx } = opts
 
+        // Update Database
         const updated_user = await prisma.user.update({
             where: {
-                id: ctx.session.user.user_id
+                id: ctx.session.user.id
             },
             data: {
                 image: input
@@ -359,7 +376,7 @@ export const userRouter = createTRPCRouter({
             })
         }
 
-        await redis.del(AsRedisKey('users', ctx.session.user.user_id!))
+        await redis.del(AsRedisKey('users', ctx.session.user.id))
 
         return { success: true }
     }),
@@ -379,7 +396,7 @@ export const userRouter = createTRPCRouter({
 
             const updated_user = await prisma.user.update({
                 where: {
-                    id: ctx.session.user.user_id
+                    id: ctx.session.user.id
                 },
                 data: {
                     name: input.username,
@@ -394,7 +411,7 @@ export const userRouter = createTRPCRouter({
                 })
             }
 
-            await redis.del(AsRedisKey('users', ctx.session.user.user_id!))
+            await redis.del(AsRedisKey('users', ctx.session.user.id!))
 
             return { success: true }
         })

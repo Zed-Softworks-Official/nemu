@@ -3,6 +3,7 @@ import { Stripe } from 'stripe'
 import { stripe } from '@/lib/stripe'
 import { prisma } from '@/lib/prisma'
 import { CalculateApplicationFee } from '../payments'
+import { env } from '@/env'
 
 /**
  * Creates a stripe checkout session for a given product
@@ -43,8 +44,8 @@ export async function StripeGetPurchasePage(
             },
             customer: customer_id,
             mode: 'payment',
-            success_url: `${process.env.BASE_URL}/payments/success`,
-            cancel_url: `${process.env.BASE_URL}/@${artist?.handle}`
+            success_url: `${env.BASE_URL}/payments/success`,
+            cancel_url: `${env.BASE_URL}/@${artist?.handle}`
         },
         {
             stripeAccount: stripe_account
