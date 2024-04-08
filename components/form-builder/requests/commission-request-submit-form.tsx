@@ -8,20 +8,24 @@ import { useCallback, useRef, useState, useTransition } from 'react'
 import { toast } from 'react-toastify'
 import { api } from '@/core/trpc/react'
 
-export default function CommissionFormSubmitView({
+export default function CommissionRequestSubmitView({
     commission_id,
     form_id
 }: {
     commission_id: string
     form_id: string
 }) {
-    const { data, isLoading } = api.form.get_user_submitted.useQuery(form_id)
+    const { data, isLoading } = api.form.get_user_submitted.useQuery(form_id, {
+        refetchOnMount: false,
+        refetchOnReconnect: false,
+        refetchOnWindowFocus: false
+    })
     const mutation = api.form.set_request.useMutation({
         onSuccess: () => {
-            setSubmitted(false)
             toast('Request Submitted!', { theme: 'dark', type: 'success' })
         },
         onError: () => {
+            setSubmitted(false)
             toast('Request could not be submitted!', { theme: 'dark', type: 'success' })
         }
     })

@@ -122,7 +122,6 @@ export const stripeRouter = createTRPCRouter({
     get_client_secret: protectedProcedure
         .input(
             z.object({
-                customer_id: z.string().optional(),
                 stripe_account: z.string(),
                 product_id: z.string(),
                 return_url: z.string()
@@ -146,16 +145,42 @@ export const stripeRouter = createTRPCRouter({
             }
 
             // if we don't have the customer id then we want to try and set it
-            if (!input.customer_id) {
-                const trpc = createCaller(ctx)
-                const res = await trpc.stripe.set_customer_id(product?.artistId)
+            // if (!input.customer_id) {
+            //     const trpc = createCaller(ctx)
+            //     const res = await trpc.stripe.set_customer_id(product?.artistId)
 
-                input.customer_id = res.customer_id
+            //     input.customer_id = res.customer_id
+            // }
+
+            // Find customer id if we have one,
+            // If not then just create one
+            let db_customer_link = await prisma.stripeCustomerIds.findFirst({
+                where: {
+                    userId: ctx.session.user.id,
+                    artistId: product.artistId
+                }
+            })
+
+            if (!db_customer_link) {
+                const new_stripe_customer = await StripeCreateCustomer(
+                    input.stripe_account,
+                    ctx.session.user.name!,
+                    ctx.session.user.email || undefined
+                )
+
+                db_customer_link = await prisma.stripeCustomerIds.create({
+                    data: {
+                        stripeAccount: input.stripe_account,
+                        customerId: new_stripe_customer.id,
+                        artistId: product.artistId,
+                        userId: ctx.session.user.id
+                    }
+                })
             }
 
             // Create the payment intent
             const payment_intent = await StripeCreateProductPaymentIntent({
-                customer_id: input.customer_id,
+                customer_id: db_customer_link.customerId,
                 price: product.price,
                 stripe_account: input.stripe_account,
                 return_url: input.return_url,

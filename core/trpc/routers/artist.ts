@@ -25,7 +25,7 @@ export const artistRouter = createTRPCRouter({
 
             // Get the cached artist if they are cached
             const cachedArtist = await redis.get(
-                AsRedisKey('artists', input ? input.handle : ctx.session?.user.handle!)
+                AsRedisKey('artists', input !== undefined ? input.handle : ctx.session?.user.handle!)
             )
 
             if (cachedArtist) {

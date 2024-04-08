@@ -48,6 +48,11 @@ export default function UserDropdown({
                 icon: <TruckIcon className="w-6 h-6" />
             },
             {
+                title: 'Downloads',
+                url: '/downloads',
+                icon: <ArrowDownTrayIcon className="w-6 h-6" />
+            },
+            {
                 title: 'Messages',
                 url: '/messages',
                 icon: <EnvelopeIcon className="w-6 h-6" />

@@ -1,3 +1,5 @@
+'use client'
+
 import CommissionCard from './commission-card'
 import { CommissionItem } from '@/core/structures'
 import { notFound } from 'next/navigation'

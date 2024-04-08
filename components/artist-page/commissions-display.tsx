@@ -5,6 +5,8 @@ import Markdown from 'react-markdown'
 import { CommissionAvailability, CommissionItem } from '@/core/structures'
 import CommissionPaymentInfo from '../payments/commission-payment-info'
 import ImageViewer from './image-veiwer'
+import { useSession } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
 
 export default function CommissionsDisplay({
     commission,
@@ -15,6 +17,9 @@ export default function CommissionsDisplay({
     terms: string
     setShowForm: (showForm: boolean) => void
 }) {
+    const { data: session } = useSession()
+    const { replace } = useRouter()
+
     function convertAvailabilityToBadge(availability: CommissionAvailability) {
         switch (availability) {
             case CommissionAvailability.Closed:
@@ -28,7 +33,10 @@ export default function CommissionsDisplay({
 
     return (
         <div className="grid md:grid-cols-3 grid-cols-1 gap-5 scrollbar-none">
-            <ImageViewer featured_image={commission.featured_image!} additional_images={commission.images!} />
+            <ImageViewer
+                featured_image={commission.featured_image!}
+                additional_images={commission.images!}
+            />
             <div className="bg-base-300 rounded-xl col-span-2">
                 <div className="card h-full">
                     <div className="card-body">
@@ -40,13 +48,17 @@ export default function CommissionsDisplay({
                             <Markdown>{commission.description}</Markdown>
                         </p>
                         <div className="card-actions justify-between">
-                            <CommissionPaymentInfo
-                                price={commission.price}
-                            />
+                            <CommissionPaymentInfo price={commission.price} />
                             <button
                                 type="button"
                                 className="btn btn-primary"
-                                onClick={() => setShowForm(true)}
+                                onClick={() => {
+                                    if (!session) {
+                                        return replace('/u/login')
+                                    }
+
+                                    setShowForm(true)
+                                }}
                             >
                                 Commission
                             </button>

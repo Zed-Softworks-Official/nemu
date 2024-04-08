@@ -9,9 +9,9 @@ export default function Logo() {
 
     return (
         <div className="btn btn-ghost btn-lg hover:bg-transparent relative">
-            {/* <div className="absolute bg-primary top-0 right-0 rounded-full px-2">
+            <div className="absolute bg-primary top-0 right-0 rounded-full px-2">
                 <p className="text-xs">Beta</p>
-            </div> */}
+            </div>
             <Link href={'/'}>
                 {theme == 'nemu-dark' ? (
                     <NemuImage

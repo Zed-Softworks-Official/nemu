@@ -13,7 +13,7 @@ type ThemeType = 'nemu-dark' | 'nemu-light'
 
 export function GetInitialTheme(): ThemeType {
     if (typeof window !== 'undefined' && window.localStorage) {
-        const storedPrefs = window.localStorage.getItem('color-theme')
+        const storedPrefs = window.localStorage.getItem('nemu-color-theme')
 
         if (typeof storedPrefs === 'string') {
             return storedPrefs as ThemeType

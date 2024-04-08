@@ -16,12 +16,16 @@ export default function Shop({
     const { data, isLoading } = api.artist_corner.get_products.useQuery({ artist_id })
 
     if (isLoading) {
-        return <Loading />
+        return (
+            <div className="w-full h-full">
+                <Loading />
+            </div>
+        )
     }
 
     return (
         <ResponsiveMasonry columnsCountBreakPoints={{ 350: 1, 900: 2, 1024: 3 }}>
-            <Masonry gutter='3rem'>
+            <Masonry gutter="3rem">
                 {data?.map((item) => (
                     <ShopCard
                         key={item.id}

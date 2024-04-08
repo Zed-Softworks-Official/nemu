@@ -60,6 +60,7 @@ export default function CommissionCreateEditForm({
 }) {
     const { artist } = useDashboardContext()!
     const { image, additionalImages } = useFormContext()
+    
     const {
         data: artistFormsData,
         isLoading: artistFormsIsLoading,
@@ -271,22 +272,6 @@ export default function CommissionCreateEditForm({
         return <Loading />
     }
 
-    function getFormsNames() {
-        const result: SelectFieldOptions[] = []
-        artistFormsData?.forEach((form) => {
-            if (form.commissionId) {
-                return
-            }
-
-            result.push({
-                key: form.name,
-                value: form.id
-            })
-        })
-
-        return result
-    }
-
     return (
         <div className="max-w-xl mx-auto">
             <form
@@ -333,7 +318,10 @@ export default function CommissionCreateEditForm({
 
                 <SelectField
                     label="Form"
-                    options={getFormsNames()}
+                    options={artistFormsData?.map((form) => ({
+                        key: form.name,
+                        value: form.id
+                    }))}
                     disabled={data != undefined}
                     placeholder="Select a form to use"
                     join

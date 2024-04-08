@@ -1,63 +1,65 @@
+'use client'
+
 import Link from 'next/link'
 
 import { ShopItem } from '@/core/structures'
-import ShopDisplay from '@/components/artist-page/shop-display'
 import NemuImage from '@/components/nemu-image'
 import { useState } from 'react'
 import Modal from '@/components/modal'
 import { FormatNumberToCurrency } from '@/core/helpers'
+import dynamic from 'next/dynamic'
+
+const ShopDisplay = dynamic(() => import('@/components/artist-page/shop-display'))
 
 export default function ShopCard({
     product,
     handle,
-    artist_id,
-    dashboard = false
+    artist_id
 }: {
     product: ShopItem
     artist_id: string
-    handle?: string
-    dashboard?: boolean
+    handle: string
 }) {
-    const href = dashboard ? `/dashboard/shop/item/${product.id}` : `/@${handle}/shop/${product.slug}`
-
     const [showModal, setShowModal] = useState(false)
 
     return (
-        <div key={product.title} className="bg-base-100 card rounded-xl overflow-hidden h-fit shadow-xl transition-all duration-200 animate-pop-in">
-            <div>
+        <div
+            key={product.id}
+            className="card bg-base-200 shadow-xl animate-pop-in transitiona-ll duration-150"
+        >
+            <figure>
                 <NemuImage
-                    width={500}
-                    height={500}
                     src={product.featured_image.signed_url}
                     blurDataURL={product.featured_image.blur_data}
                     placeholder="blur"
                     alt={product.title}
+                    width={300}
+                    height={300}
+                    className="w-full h-full"
                 />
-            </div>
-            <div className="p-5">
-                <div className="card-body">
-                    <div>
-                        <p className="card-title">{product.title}</p>
-                        <p className="text-lg font-bold">{FormatNumberToCurrency(product.price)}</p>
-                    </div>
-                    <div className="card-actions justify-end">
-                        {dashboard ? (
-                            <Link href={href} className="btn btn-primary">
-                                Edit Item
-                            </Link>
-                        ) : (
-                            <>
-                                <button type="button" className="btn btn-primary" onClick={() => setShowModal(true)}>
-                                    View Item
-                                </button>
-                                <Modal showModal={showModal} setShowModal={setShowModal} background="bg-base-300">
-                                    <ShopDisplay handle={handle!} product={product} artist_id={artist_id} />
-                                </Modal>
-                            </>
-                        )}
-                    </div>
+            </figure>
+            <div className="card-body">
+                <h2 className="card-title">{product.title}</h2>
+                <span className="text-lg font-bold">
+                    {FormatNumberToCurrency(product.price)}
+                </span>
+                <div className="card-actions justify-end mt-5">
+                    <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={() => setShowModal(true)}
+                    >
+                        View Product
+                    </button>
                 </div>
             </div>
+            <Modal
+                showModal={showModal}
+                setShowModal={setShowModal}
+                classNames="bg-base-300"
+            >
+                <ShopDisplay handle={handle} product={product} artist_id={artist_id} />
+            </Modal>
         </div>
     )
 }

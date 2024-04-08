@@ -1,10 +1,5 @@
 import { z } from 'zod'
-import {
-    artistProcedure,
-    createTRPCRouter,
-    protectedProcedure,
-    publicProcedure
-} from '../trpc'
+import { artistProcedure, createTRPCRouter, protectedProcedure } from '../trpc'
 import { redis } from '@/lib/redis'
 import { prisma } from '@/lib/prisma'
 import {
@@ -31,7 +26,7 @@ export const formsRouter = createTRPCRouter({
     /**
      * Gets all forms from an artist
      */
-    get_forms: publicProcedure
+    get_forms: protectedProcedure
         .input(z.object({ artist_id: z.string() }))
         .query(async (opts) => {
             const { input } = opts
@@ -64,7 +59,7 @@ export const formsRouter = createTRPCRouter({
     /**
      * Gets a SINGLE from from an artist given the artist id and the form id
      */
-    get_form: publicProcedure
+    get_form: protectedProcedure
         .input(
             z.object({
                 artist_id: z.string(),
@@ -105,7 +100,7 @@ export const formsRouter = createTRPCRouter({
     /**
      * Gets a Request
      */
-    get_request: publicProcedure
+    get_request: protectedProcedure
         .input(
             z.object({
                 order_id: z.string().optional(),

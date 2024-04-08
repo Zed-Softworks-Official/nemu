@@ -18,15 +18,15 @@ export default function ShopItems() {
     }
 
     return (
-        <div className="grid grid-cols-4 gap-4">
-            {data?.map((product) => (
-                <ShopCard
-                    key={product.title}
-                    product={product as ShopItem}
-                    artist_id={artist?.id!}
-                    dashboard
-                />
-            ))}
-        </div>
+        // <div className="grid grid-cols-4 gap-4">
+        //     {data?.map((product) => (
+        //         <ShopCard
+        //             key={product.title}
+        //             product={product as ShopItem}
+        //             artist_id={artist?.id!}
+        //         />
+        //     ))}
+        // </div>
+        <pre>{JSON.stringify(data, null, 2)}</pre>
     )
 }

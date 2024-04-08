@@ -307,11 +307,15 @@ export const userRouter = createTRPCRouter({
         // Get Signed Url for profile photo
         let profile_photo: string | null = null
         if (user.image) {
-            profile_photo = await S3GetSignedURL(
-                ctx.session.user.id,
-                AWSLocations.Profile,
-                user.image
-            )
+            if (!user.image.includes('https')) {
+                profile_photo = await S3GetSignedURL(
+                    ctx.session.user.id,
+                    AWSLocations.Profile,
+                    user.image
+                )
+            } else {
+                profile_photo = user.image
+            }
         }
 
         user.image = profile_photo

@@ -6,10 +6,12 @@ import { notFound } from 'next/navigation'
 
 import Portfolio from './portfolio'
 import { useTabsContext } from './tabs-context'
-import Shop from './shop'
 import Commissions from './commissions'
 import ArtistSocials from './socials'
 import { ArtistPageResponse } from '@/core/responses'
+import dynamic from 'next/dynamic'
+
+const Shop = dynamic(() => import('./shop'))
 
 export default function ArtistBody({ data }: { data: ArtistPageResponse }) {
     const { currentIndex } = useTabsContext()
@@ -59,7 +61,7 @@ export default function ArtistBody({ data }: { data: ArtistPageResponse }) {
                     </div>
                 </div>
                 <div className="flex flex-row gap-10 w-full mx-auto">
-                    <div className="bg-base-300 p-10 rounded-xl w-full">
+                    <div className="bg-base-300 p-10 rounded-xl w-full h-full flex flex-col">
                         {RenderBody(currentIndex || 0)}
                     </div>
                 </div>

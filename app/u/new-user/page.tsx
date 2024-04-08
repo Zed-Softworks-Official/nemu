@@ -1,5 +1,5 @@
-import { getServerAuthSession } from '@/app/api/auth/[...nextauth]/route'
 import CreateUsername from '@/components/auth/create-username'
+import { getServerAuthSession } from '@/core/auth'
 import { redirect } from 'next/navigation'
 
 export default async function NewUser() {

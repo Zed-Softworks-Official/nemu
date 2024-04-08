@@ -6,20 +6,29 @@ import { useState } from 'react'
 import NemuImage from '@/components/nemu-image'
 import CommissionsDisplay from './commissions-display'
 import Modal from '../modal'
-import CommissionFormSubmitView from '../form-builder/submissions/commission-form-submit-view'
 
 import { ConvertAvailabilityToBadge } from '@/core/react-helpers'
 import Markdown from 'react-markdown'
 import { ArrowLeftCircleIcon } from '@heroicons/react/20/solid'
 import CommissionPaymentInfo from '../payments/commission-payment-info'
 import FavoriteButton from './favorite-button'
+import CommissionRequestSubmitView from '../form-builder/requests/commission-request-submit-form'
 
-export default function CommissionCard({ commission, terms }: { commission: CommissionItem; terms: string }) {
+export default function CommissionCard({
+    commission,
+    terms
+}: {
+    commission: CommissionItem
+    terms: string
+}) {
     const [showModal, setShowModal] = useState(false)
     const [showForm, setShowForm] = useState(false)
 
     return (
-        <div key={commission.slug} className="card lg:card-side bg-base-100 shadow-xl animate-pop-in transition-all duration-200">
+        <div
+            key={commission.slug}
+            className="card lg:card-side bg-base-100 shadow-xl animate-pop-in transition-all duration-200"
+        >
             <figure>
                 <NemuImage
                     src={commission.featured_image?.signed_url!}
@@ -32,7 +41,7 @@ export default function CommissionCard({ commission, terms }: { commission: Comm
                 />
             </figure>
             <div className="card-body relative">
-                <div className='flex justify-between pb-5'>
+                <div className="flex justify-between pb-5">
                     <h2 className="card-title text-2xl">
                         {commission.title}
                         {ConvertAvailabilityToBadge(commission.availability!)}
@@ -47,7 +56,9 @@ export default function CommissionCard({ commission, terms }: { commission: Comm
                     <button
                         type="button"
                         className="btn btn-primary"
-                        disabled={commission.availability == CommissionAvailability.Closed}
+                        disabled={
+                            commission.availability == CommissionAvailability.Closed
+                        }
                         onClick={() => setShowModal(true)}
                     >
                         View Commission
@@ -56,15 +67,26 @@ export default function CommissionCard({ commission, terms }: { commission: Comm
                         {showForm ? (
                             <>
                                 <div className="absolute left-5">
-                                    <button type="button" className="btn btn-ghost" onClick={() => setShowForm(false)}>
+                                    <button
+                                        type="button"
+                                        className="btn btn-ghost"
+                                        onClick={() => setShowForm(false)}
+                                    >
                                         <ArrowLeftCircleIcon className="w-6 h-6" />
                                         Back
                                     </button>
                                 </div>
-                                <CommissionFormSubmitView commission_id={commission.commission_id!} form_id={commission.form_id!} />
+                                <CommissionRequestSubmitView
+                                    commission_id={commission.commission_id!}
+                                    form_id={commission.form_id!}
+                                />
                             </>
                         ) : (
-                            <CommissionsDisplay commission={commission} terms={terms} setShowForm={setShowForm} />
+                            <CommissionsDisplay
+                                commission={commission}
+                                terms={terms}
+                                setShowForm={setShowForm}
+                            />
                         )}
                     </Modal>
                 </div>
