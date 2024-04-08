@@ -109,8 +109,34 @@ export default function DashboardCommissionDetail({ slug }: { slug: string }) {
                             title: 'Active Requests',
                             value: 'active_requests',
                             content: (
-                                <div className="flex gap-5">
-                                    <div></div>
+                                <div className="flex flex-col gap-5">
+                                    <h2 className="card-title">Active Requests</h2>
+                                    <div className="divider"></div>
+                                    {data?.requests
+                                        .filter(
+                                            (request) =>
+                                                request.status ===
+                                                CommissionStatus.Accepted
+                                        )
+                                        .map((request) => (
+                                            <Link
+                                                key={request.id}
+                                                href={`/dashboard/commissions/${data.slug}/${request.orderId}`}
+                                            >
+                                                <div className="card bg-base-200 shadow-xl cursor-pointer">
+                                                    <div className="card-body">
+                                                        <h2 className="card-title">
+                                                            {request.user.name}
+                                                        </h2>
+                                                        <span className="text-base-content/80">
+                                                            {new Date(
+                                                                data.createdAt
+                                                            ).toDateString()}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </Link>
+                                        ))}
                                 </div>
                             )
                         },
@@ -126,7 +152,7 @@ export default function DashboardCommissionDetail({ slug }: { slug: string }) {
                         {
                             title: 'Delivered',
                             value: 'delivered',
-                            content: <>Delivered</>
+                            content: <>Waitlisted</>
                         }
                     ]}
                 />

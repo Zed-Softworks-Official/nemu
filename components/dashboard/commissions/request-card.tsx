@@ -17,12 +17,14 @@ export default function RequestCard({
     refetch: (options?: RefetchOptions | undefined) => any
 }) {
     const [show, setShow] = useState(false)
+    const [disabled, setDisabled] = useState(false)
     const mutation = api.commissions.accept_reject_commission.useMutation({
         onSuccess: (res) => {
             toast(`Commission ${res.accepted ? 'Accepted' : 'Rejected'}!`, {
                 theme: 'dark',
                 type: 'success'
             })
+            setDisabled(true)
             
             refetch()
         },
@@ -57,7 +59,7 @@ export default function RequestCard({
                             <button
                                 type="button"
                                 className="btn btn-primary"
-                                disabled={mutation.isPending}
+                                disabled={mutation.isPending || disabled}
                                 onClick={() => {
                                     mutation.mutate({
                                         accepted: true,
@@ -72,7 +74,7 @@ export default function RequestCard({
                             <button
                                 type="button"
                                 className="btn btn-error"
-                                disabled={mutation.isPending}
+                                disabled={mutation.isPending || disabled}
                                 onClick={() => {
                                     mutation.mutate({
                                         accepted: false,

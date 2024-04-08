@@ -1,5 +1,10 @@
 import { z } from 'zod'
-import { createCallerFactory, createTRPCRouter, protectedProcedure } from '../trpc'
+import {
+    artistProcedure,
+    createCallerFactory,
+    createTRPCRouter,
+    protectedProcedure
+} from '../trpc'
 import { prisma } from '@/lib/prisma'
 import {
     StripeCreateAccount,
@@ -134,6 +139,9 @@ export const stripeRouter = createTRPCRouter({
             const product = await prisma.product.findFirst({
                 where: {
                     id: input.product_id
+                },
+                include: {
+                    artist: true
                 }
             })
 
@@ -186,9 +194,21 @@ export const stripeRouter = createTRPCRouter({
                 return_url: input.return_url,
                 product_id: input.product_id,
                 user_id: ctx.session.user.id!,
-                artist_id: product.artistId
+                artist_id: product.artistId,
+                supporter: product.artist.supporter
             })
 
             return { client_secret: payment_intent.client_secret }
+        }),
+
+    /**
+     * Create checkout page for supporter
+     */
+    create_supporter_dashboard: artistProcedure.mutation(async (opts) => {
+        const { ctx } = opts
+
+        throw new TRPCError({
+            code: 'NOT_IMPLEMENTED'
         })
+    })
 })

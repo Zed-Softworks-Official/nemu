@@ -38,6 +38,7 @@ export interface CheckoutData {
 export interface StripeProductCheckoutData extends CheckoutData {
     product_id: string
     artist_id: string
+    supporter: boolean
 }
 
 export type StripeGetClientSecretInput = RouterInput['stripe']['get_client_secret']

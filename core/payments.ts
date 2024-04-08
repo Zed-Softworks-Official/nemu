@@ -1,5 +1,4 @@
 export * from './stripe/artist-corner'
-export * from './stripe/store'
 export * from './stripe/accounts'
 export * from './stripe/customers'
 export * from './stripe/prices'

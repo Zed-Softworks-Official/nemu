@@ -74,7 +74,7 @@ export function AsRedisKey(
         | 'products'
         | 'products_metadata'
         | 'forms'
-        | 'form_submissions'
+        | 'requests'
         | 'artists'
         | 'commissions'
         | 'commissions_editable'

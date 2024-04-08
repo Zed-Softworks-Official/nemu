@@ -118,15 +118,16 @@ export const formsRouter = createTRPCRouter({
 
             const cachedSubmission = await redis.get(
                 AsRedisKey(
-                    'form_submissions',
+                    'requests',
                     input.order_id || input.request_id || input.channel_url || 'undefined'
                 )
             )
 
             if (cachedSubmission) {
                 return JSON.parse(cachedSubmission) as {
-                    submission: Request & {
-                        form: Form & { artist: Artist; commission: Commission }
+                    data: Request & {
+                        form: Form
+                        commission: Commission & { artist: Artist }
                         user: User
                     }
                     kanban: Kanban | undefined
@@ -142,10 +143,10 @@ export const formsRouter = createTRPCRouter({
                     sendbirdChannelURL: input.channel_url || undefined
                 },
                 include: {
-                    form: {
+                    form: true,
+                    commission: {
                         include: {
-                            artist: true,
-                            commissions: true
+                            artist: true
                         }
                     },
                     user: true
@@ -153,7 +154,10 @@ export const formsRouter = createTRPCRouter({
             })
 
             if (!request) {
-                return undefined
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Could not find request'
+                })
             }
 
             const kanban = await prisma.kanban.findFirst({
@@ -180,7 +184,7 @@ export const formsRouter = createTRPCRouter({
             })
 
             const result = {
-                submission: request,
+                data: request,
                 kanban: kanban || undefined,
                 download: download || undefined,
                 invoice: invoice || undefined
@@ -188,7 +192,7 @@ export const formsRouter = createTRPCRouter({
 
             await redis.set(
                 AsRedisKey(
-                    'form_submissions',
+                    'requests',
                     input.order_id || input.request_id || input.channel_url || 'undefined'
                 ),
                 JSON.stringify(result),

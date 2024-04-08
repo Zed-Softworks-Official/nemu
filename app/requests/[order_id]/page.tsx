@@ -24,7 +24,7 @@ export async function generateMetadata(
     const request = await api.form.get_request({ order_id: params.order_id })
 
     return {
-        title: `Nemu | ${request?.submission.form.commission?.title} Request`
+        title: `Nemu | ${request?.data.commission.title} Request`
     }
 }
 
@@ -43,21 +43,19 @@ export default async function OrderPage({ params }: Props) {
                         <div className="flex justify-between">
                             <div className="flex flex-col gap-2">
                                 <h2 className="card-title">
-                                    {request?.submission.form.commission?.title}
+                                    {request?.data.commission?.title}
                                 </h2>
                                 <p>
                                     By{' '}
                                     <Link
-                                        href={`/@${request.submission.form.artist.handle}`}
+                                        href={`/@${request.data.commission.artist.handle}`}
                                         className="link link-hover"
                                     >
-                                        @{request?.submission.form.artist.handle}
+                                        @{request?.data.commission.artist.handle}
                                     </Link>
                                 </p>
                             </div>
-                            {ConvertCommissionStatusToBadge(
-                                request.submission.commissionStatus
-                            )}
+                            {ConvertCommissionStatusToBadge(request.data.status)}
                         </div>
                         <div className="divider"></div>
                         <Tabs
@@ -74,10 +72,10 @@ export default async function OrderPage({ params }: Props) {
                                                 </h2>
                                                 <div className="divider"></div>
                                                 <CommissionRequestContent
-                                                    content={request.submission.content}
+                                                    content={request.data.content}
                                                     classNames="bg-base-100"
                                                 />
-                                                {request.submission.commissionStatus ===
+                                                {request.data.status ===
                                                     CommissionStatus.Delivered && (
                                                     <>
                                                         <h2 className="card-title mt-5">
@@ -85,12 +83,9 @@ export default async function OrderPage({ params }: Props) {
                                                         </h2>
                                                         <div className="divider"></div>
                                                         <ReviewForm
-                                                            request_id={
-                                                                request.submission.id
-                                                            }
+                                                            request_id={request.data.id}
                                                             commission_id={
-                                                                request.submission.form
-                                                                    .commissionId!
+                                                                request.data.commissionId
                                                             }
                                                         />
                                                     </>
@@ -110,8 +105,8 @@ export default async function OrderPage({ params }: Props) {
                                                 <MessagesClient
                                                     hide_channel_list
                                                     channel_url={
-                                                        request.submission
-                                                            .sendbirdChannelURL || ''
+                                                        request.data.sendbirdChannelURL ||
+                                                        ''
                                                     }
                                                 />
                                             </div>
@@ -185,8 +180,8 @@ export default async function OrderPage({ params }: Props) {
                             </div>
                         </div>
                     )}
-                    {request.submission.commissionStatus === CommissionStatus.Delivered &&
-                        request.submission.form.artist.tipJarUrl && (
+                    {request.data.status === CommissionStatus.Delivered &&
+                        request.data.commission.artist.tipJarUrl && (
                             <div className="card bg-base-300 shadow-xl">
                                 <div className="card-body">
                                     <div className="flex gap-5">
@@ -201,7 +196,7 @@ export default async function OrderPage({ params }: Props) {
                                         Want to give an extra for the artists hard work?
                                     </span>
                                     <Link
-                                        href={request.submission.form.artist.tipJarUrl}
+                                        href={request.data.commission.artist.tipJarUrl}
                                         className="btn btn-primary"
                                     >
                                         Tip Here

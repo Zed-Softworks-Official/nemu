@@ -18,26 +18,28 @@ model Artist {
 
   createdAt DateTime @default(now())
 
-  handle    String  @unique
-  about     String  @default("Peko Peko")
-  location  String  @default("Nemu's basement")
-  terms     String  @default("Pls Feed Nemu")
-  tipJarUrl String?
+  handle      String  @unique
+  about       String  @default("Peko Peko")
+  location    String  @default("Nemu's basement")
+  terms       String  @default("Pls Feed Nemu")
+  tipJarUrl   String?
+  headerPhoto String  @default("/curved0.jpg")
+
+  supporter     Boolean @default(false)
+  zedCustomerId String?
 
   automatedCommissionMessage String?
   automatedMessageEnabled    Boolean @default(false)
 
-  headerPhoto  String @default("/curved0.jpg")
-  profilePhoto String @default("/profile.png")
-
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  commissions    Commission[]
-  products       Product[]
-  portfolioItems Portfolio[]
-  forms          Form[]
-  socials        Social[]
-  customerIds    StripeCustomerIds[]
+  commissions     Commission[]
+  products        Product[]
+  portfolioItems  Portfolio[]
+  forms           Form[]
+  socials         Social[]
+  customerIds     StripeCustomerIds[]
+  createdInvoices Invoice[]
 }
 
 model AritstCode {
@@ -281,7 +283,8 @@ model Invoice {
   submissionId String
 
   items   InvoiceItem[]
-  Request Request?
+  reqeust Request?
+  artist  Artist        @relation(fields: [artistId], references: [id])
 }
 
 model InvoiceItem {
@@ -321,11 +324,12 @@ model Form {
 }
 
 model Request {
-  id        String   @id @default(cuid())
-  formId    String
-  userId    String
-  createdAt DateTime @default(now())
-  waitlist  Boolean  @default(false)
+  id          String    @id @default(cuid())
+  formId      String
+  userId      String
+  createdAt   DateTime  @default(now())
+  deliveredAt DateTime?
+  waitlist    Boolean   @default(false)
 
   status       Int    @default(0)
   commissionId String

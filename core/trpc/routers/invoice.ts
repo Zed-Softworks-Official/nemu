@@ -1,9 +1,5 @@
 import { z } from 'zod'
-import {
-    artistProcedure,
-    createTRPCRouter,
-    protectedProcedure
-} from '../trpc'
+import { artistProcedure, createTRPCRouter, protectedProcedure } from '../trpc'
 import { redis } from '@/lib/redis'
 import { prisma } from '@/lib/prisma'
 import { novu } from '@/lib/novu'
@@ -186,12 +182,16 @@ export const invoicesRouter = createTRPCRouter({
                 id: input
             },
             include: {
-                items: true
+                items: true,
+                artist: true
             }
         })
 
         if (!invoice) {
-            return { success: false }
+            throw new TRPCError({
+                code: 'INTERNAL_SERVER_ERROR',
+                message: 'Could not find invoice'
+            })
         }
 
         // Update the stripe invoice draft
@@ -199,7 +199,8 @@ export const invoicesRouter = createTRPCRouter({
             invoice.customerId,
             invoice.stripeAccount,
             invoice.stripeId!,
-            invoice.items!
+            invoice.items!,
+            invoice.artist.supporter
         )
 
         // Finialize the invoice

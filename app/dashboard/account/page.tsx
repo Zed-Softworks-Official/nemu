@@ -1,10 +1,11 @@
 import AccountSettings from '@/components/account/account-settings'
-import DefaultPageLayout from '../(default)/layout'
-import { api } from '@/core/trpc/server'
 import ArtistSettings from '@/components/account/artist-settings'
+import DashboardContainer from '@/components/dashboard/dashboard-container'
+
+import { api } from '@/core/trpc/server'
 import { notFound } from 'next/navigation'
 
-export default async function AccountPage() {
+export default async function Settings() {
     const data = await api.user.get_user()
 
     if (!data) {
@@ -12,17 +13,15 @@ export default async function AccountPage() {
     }
 
     return (
-        <DefaultPageLayout>
+        <DashboardContainer title='Account Settings'>
             <div className="flex flex-col w-full gap-5">
-                <div className="card bg-base-300 shadow-xl">
+                <div className="card bg-base-200 shadow-xl">
                     <div className="card-body">
-                        <h2 className="card-title">Account Settings</h2>
-                        <div className="divider"></div>
                         <AccountSettings user={data.user} artist_id={data.artist?.id} />
                     </div>
                 </div>
                 {data.artist && (
-                    <div className="card bg-base-300 shadow-xl">
+                    <div className="card bg-base-200 shadow-xl">
                         <div className="card-body">
                             <h2 className="card-title">Artist Settings</h2>
                             <div className="divider"></div>
@@ -31,6 +30,6 @@ export default async function AccountPage() {
                     </div>
                 )}
             </div>
-        </DefaultPageLayout>
+        </DashboardContainer>
     )
 }

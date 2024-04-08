@@ -721,7 +721,7 @@ export const commissionsRouter = createTRPCRouter({
                 )
             )
 
-            return { success: true }
+            return { accepted: input.accepted }
         }),
 
     /**

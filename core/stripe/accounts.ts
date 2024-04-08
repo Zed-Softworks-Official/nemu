@@ -59,3 +59,18 @@ export async function StripeGetAccount(stripe_account: string) {
         stripeAccount: stripe_account
     })
 }
+
+// export async function StripeCreateSupporterPaymentLink(term: 'monthly' | 'yearly') {
+//     return await stripe.paymentLinks.create({
+//         line_items: [
+//             {
+//                 price: 'price_1P3AvcBUuzvTmMJLhUqSSC1T',
+//                 quantity: 1
+//             },
+//             { 
+//                 price: 'price_1P3AvcBUuzvTmMJL5eePHGpo', 
+//                 quantity: 1 
+//             }
+//         ]
+//     })
+// }

@@ -8,11 +8,11 @@ import { useDashboardContext } from '../dashboard-context'
 
 export default function DashboardSettingsSection() {
     const pathname = usePathname()
-    const { handle } = useDashboardContext()
+    const { artist } = useDashboardContext()!
 
     return (
         <>
-            {handle && (
+            {/* {handle && (
                 <li className="my-2">
                     <Link
                         href={`/@${handle}`}
@@ -22,12 +22,12 @@ export default function DashboardSettingsSection() {
                         <h3 className="inline text-lg font-bold">My Page</h3>
                     </Link>
                 </li>
-            )}
+            )} */}
             <li className="my-2">
                 <Link
-                    href={'/dashboard/settings'}
+                    href={'/dashboard/account'}
                     className={ClassNames(
-                        pathname.includes('settings')
+                        pathname.includes('account')
                             ? 'bg-primary text-white'
                             : 'hover:bg-primary/60',
                         'p-4 px-10 rounded-xl'

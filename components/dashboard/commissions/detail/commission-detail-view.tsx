@@ -18,7 +18,7 @@ export default function DashboardCommissionDetailView({
     slug: string
     order_id: string
 }) {
-    const { data, isLoading } = api.form.get_request.useQuery({
+    const { data: request, isLoading } = api.form.get_request.useQuery({
         order_id,
         include_invoice_items: true
     })
@@ -32,16 +32,14 @@ export default function DashboardCommissionDetailView({
     }
 
     return (
-        <DashboardContainer title={`Commission For ${data?.submission.user.name}`}>
+        <DashboardContainer title={`Commission For ${request?.data.user.name}`}>
             <div className="flex flex-col gap-5">
                 <div className="flex flex-grow gap-5 w-full">
                     <div className="card bg-base-100 shadow-xl w-full">
                         <div className="card-body">
                             <h2 className="card-title">Form Responses</h2>
                             <div className="divider"></div>
-                            <CommissionRequestContent
-                                content={data?.submission.content}
-                            />
+                            <CommissionRequestContent content={request?.data.content!} />
                         </div>
                     </div>
                     <div className="card bg-base-100 shadow-xl w-1/2">
@@ -49,8 +47,8 @@ export default function DashboardCommissionDetailView({
                             <h2 className="card-title">Invoicing</h2>
                             <div className="divider"></div>
                             <CommissionInvoicing
-                                invoice_items={data?.invoice?.items as InvoiceItem[]}
-                                invoice={data?.invoice as Invoice}
+                                invoice_items={request?.invoice?.items as InvoiceItem[]}
+                                invoice={request?.invoice as Invoice}
                             />
                         </div>
                     </div>
@@ -58,13 +56,13 @@ export default function DashboardCommissionDetailView({
                         <div className="card-body">
                             <h2 className="card-title">Create Download</h2>
                             <div className="divider"></div>
-                            {data?.invoice?.paymentStatus == PaymentStatus.Captured ? (
+                            {request?.invoice?.paymentStatus == PaymentStatus.Captured ? (
                                 <div className="h-full">
                                     <DownloadDropzone
-                                        form_submission_id={data.submission.id}
-                                        commission_id={data.submission.form.commissionId!}
-                                        user_id={data.submission.user.id}
-                                        receipt_url={data.invoice.hostedUrl || ''}
+                                        form_submission_id={request.data.id}
+                                        commission_id={request.data.form.commissionId!}
+                                        user_id={request.data.user.id}
+                                        receipt_url={request.invoice.hostedUrl || ''}
                                     />
                                 </div>
                             ) : (
@@ -80,19 +78,19 @@ export default function DashboardCommissionDetailView({
                 </div>
                 <div className="card bg-base-100 shadow-xl">
                     <div className="card-body">
-                        {data && (
+                        {request && (
                             <Kanban
-                                title={data?.submission.form.commissionId!}
-                                client={data?.submission.user.name!}
+                                title={request?.data.form.commissionId!}
+                                client={request?.data.user.name!}
                                 kanban_containers={
                                     JSON.parse(
-                                        data?.kanban?.containers!
+                                        request?.kanban?.containers!
                                     ) as KanbanContainerData[]
                                 }
                                 kanban_tasks={
-                                    JSON.parse(data?.kanban?.tasks!) as KanbanTask[]
+                                    JSON.parse(request?.kanban?.tasks!) as KanbanTask[]
                                 }
-                                kanban_id={data.kanban?.id}
+                                kanban_id={request.kanban?.id}
                             />
                         )}
                     </div>
@@ -103,7 +101,7 @@ export default function DashboardCommissionDetailView({
                         <div className="divider"></div>
                         <MessagesClient
                             hide_channel_list
-                            channel_url={data?.submission.sendbirdChannelURL!}
+                            channel_url={request?.data.sendbirdChannelURL!}
                         />
                     </div>
                 </div>

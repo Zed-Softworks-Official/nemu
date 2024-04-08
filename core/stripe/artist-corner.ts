@@ -1,10 +1,16 @@
 import Stripe from 'stripe'
 import { stripe } from '@/lib/stripe'
 
-import { StripePaymentMetadata, PurchaseType, StripeProductCheckoutData } from '../structures'
+import {
+    StripePaymentMetadata,
+    PurchaseType,
+    StripeProductCheckoutData
+} from '../structures'
 import { CalculateApplicationFee } from '../payments'
 
-export async function StripeCreateProductPaymentIntent(checkout_data: StripeProductCheckoutData) {
+export async function StripeCreateProductPaymentIntent(
+    checkout_data: StripeProductCheckoutData
+) {
     const metadata: StripePaymentMetadata = {
         user_id: checkout_data.user_id,
         product_id: checkout_data.product_id,
@@ -19,7 +25,10 @@ export async function StripeCreateProductPaymentIntent(checkout_data: StripeProd
             currency: 'usd',
             customer: checkout_data.customer_id,
             payment_method_types: ['card', 'link'],
-            application_fee_amount: CalculateApplicationFee(checkout_data.price) * 100,
+            application_fee_amount:
+                checkout_data.supporter === false
+                    ? CalculateApplicationFee(checkout_data.price) * 100
+                    : undefined,
             metadata: metadata as unknown as Stripe.MetadataParam
         },
         {

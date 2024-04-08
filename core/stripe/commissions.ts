@@ -1,77 +1,15 @@
 import Stripe from 'stripe'
 
 import { stripe } from '@/lib/stripe'
-import { CommissionItem, InvoiceCommissionItem, PurchaseType, StripePaymentMetadata } from '../structures'
+import {
+    CommissionItem,
+    InvoiceCommissionItem,
+    PurchaseType,
+    StripePaymentMetadata
+} from '../structures'
 import { StripeGetPriceInfo } from './prices'
 import { CalculateApplicationFee } from '../payments'
 import { InvoiceItem } from '@prisma/client'
-
-////////////////////////////////////////
-// Your Character Here Type Commissions
-////////////////////////////////////////
-
-/**
- *
- * @param payment_intent
- * @param stripe_account
- * @returns
- */
-export async function StripeAcceptCommissionPaymentIntent(payment_intent: string, stripe_account: string) {
-    return await stripe.paymentIntents.capture(payment_intent, {
-        stripeAccount: stripe_account
-    })
-}
-
-/**
- *
- * @param payment_intent
- * @param stripe_account
- * @returns
- */
-export async function StripeRejectCommissionPaymentIntent(payment_intent: string, stripe_account: string) {
-    return await stripe.paymentIntents.cancel(payment_intent, {
-        stripeAccount: stripe_account
-    })
-}
-
-/**
- *
- * @param {string} stripe_account
- * @param {CommissionItem} commission
- * @returns
- */
-export async function StripeCreateCommissionProduct(stripe_account: string, commission: CommissionItem) {
-    return await stripe.products.create(
-        {
-            name: commission.title,
-            description: commission.description,
-            default_price_data: {
-                currency: 'usd',
-                unit_amount: commission.price * 100
-            }
-        },
-        {
-            stripeAccount: stripe_account
-        }
-    )
-}
-
-/**
- *
- * @param {string} product_id
- * @param {string} stripe_account
- * @returns
- */
-export async function StripeGetCommissionProduct(product_id: string, stripe_account: string) {
-    const product = await stripe.products.retrieve(product_id, {
-        stripeAccount: stripe_account
-    })
-
-    return {
-        price: (await StripeGetPriceInfo(product.default_price!.toString(), stripe_account)).unit_amount! / 100,
-        product: product
-    }
-}
 
 ////////////////////////////////////////
 // Custom (Invoiced) Commissions
@@ -115,13 +53,18 @@ export async function StripeUpdateCommissionInvoice(
     stripe_account: string,
     invoice_id: string,
     items: InvoiceItem[],
+    supporter: boolean,
     days_until_due?: number
 ) {
     // Clear Invoice items if any
-    const line_items = await stripe.invoices.listLineItems(invoice_id, { stripeAccount: stripe_account })
+    const line_items = await stripe.invoices.listLineItems(invoice_id, {
+        stripeAccount: stripe_account
+    })
     if (line_items.data.length != 0) {
         for (const line_item of line_items.data) {
-            await stripe.invoiceItems.del(line_item.id, undefined, { stripeAccount: stripe_account })
+            await stripe.invoiceItems.del(line_item.id, undefined, {
+                stripeAccount: stripe_account
+            })
         }
     }
 
@@ -145,7 +88,10 @@ export async function StripeUpdateCommissionInvoice(
     await stripe.invoices.update(
         invoice_id,
         {
-            application_fee_amount: CalculateApplicationFee(total_price) * 100,
+            application_fee_amount:
+                supporter === false
+                    ? CalculateApplicationFee(total_price) * 100
+                    : undefined,
             days_until_due: days_until_due
         },
         { stripeAccount: stripe_account }
@@ -158,7 +104,10 @@ export async function StripeUpdateCommissionInvoice(
  * @param invoice_id
  * @returns
  */
-export async function StripeFinalizeCommissionInvoice(invoice_id: string, stripe_account: string) {
+export async function StripeFinalizeCommissionInvoice(
+    invoice_id: string,
+    stripe_account: string
+) {
     return await stripe.invoices.finalizeInvoice(invoice_id, {
         stripeAccount: stripe_account
     })

@@ -55,17 +55,17 @@ export default function RequestTable({
                                         <h2 className="card-title">Quick Access</h2>
                                         <div className="divider"></div>
                                         <div className="flex gap-5">
-                                            {request.status ===
+                                            {(request.status ===
                                                 CommissionStatus.Accepted ||
-                                                (request.status ===
-                                                    CommissionStatus.Delivered && (
-                                                    <Link
-                                                        href={`/requests/${request.orderId}`}
-                                                        className="btn btn-primary"
-                                                    >
-                                                        View Request
-                                                    </Link>
-                                                ))}
+                                                request.status ===
+                                                    CommissionStatus.Delivered) && (
+                                                <Link
+                                                    href={`/requests/${request.orderId}`}
+                                                    className="btn btn-primary"
+                                                >
+                                                    View Request
+                                                </Link>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
