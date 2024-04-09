@@ -1,18 +1,14 @@
-'use client'
-
 import Logo from '../standard/logo'
-import HomeSection from './sections/home-section'
-
-import { Bars3Icon } from '@heroicons/react/20/solid'
-
-import DashboardUserSection from '@/components/navigation/dashboard/sections/user-section'
-import DashboardArtistSection from '@/components/navigation/dashboard/sections/artist-section'
-import DashboardSettingsSection from '@/components/navigation/dashboard/sections/settings-section'
-import { usePathname } from 'next/navigation'
+import {
+    Bars3Icon,
+    BuildingStorefrontIcon,
+    ClipboardDocumentListIcon,
+    PhotoIcon,
+    RectangleStackIcon
+} from '@heroicons/react/20/solid'
+import SidebarLink from '@/components/ui/sidebar-link'
 
 export default function Navbar({ children }: { children: React.ReactNode }) {
-    const pathaname = usePathname()
-
     return (
         <aside className="drawer lg:drawer-open">
             <input id="nemu-drawer" type="checkbox" className="drawer-toggle" />
@@ -37,7 +33,81 @@ export default function Navbar({ children }: { children: React.ReactNode }) {
                         <Logo />
                     </li>
                     <div className="divider"></div>
-                    <HomeSection />
+                    <div className="collapse collapse-arrow">
+                        <input
+                            type="radio"
+                            name="dashboard-nav-accordian"
+                            title="artist sections"
+                        />
+                        <div className="collapse-title text-xl font-medium">
+                            Artist Sections
+                        </div>
+                        <div className="collapse-content">
+                            <SidebarLink
+                                title="Commissions"
+                                icon={<RectangleStackIcon className="w-6 h-6" />}
+                                href="/dashboard/commissions"
+                                path="commissions"
+                            />
+                            <SidebarLink
+                                title="Artist's Corner"
+                                icon={<BuildingStorefrontIcon className="w-6 h-6" />}
+                                href="/dashboard/shop"
+                                path="shop"
+                            />
+                            <SidebarLink
+                                title="Portfolio"
+                                icon={<PhotoIcon className="w-6 h-6" />}
+                                href="/dashboard/portfolio"
+                                path="portfolio"
+                            />
+                            <SidebarLink
+                                title="Forms"
+                                icon={<ClipboardDocumentListIcon className="w-6 h-6" />}
+                                href="/dashboard/forms"
+                                path="forms"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="collapse collapse-arrow">
+                        <input
+                            type="radio"
+                            name="dashboard-nav-accordian"
+                            title="artist sections"
+                        />
+                        <div className="collapse-title text-xl font-medium">
+                            Profile
+                        </div>
+                        <div className="collapse-content">
+                            <SidebarLink
+                                title="Commissions"
+                                icon={<RectangleStackIcon className="w-6 h-6" />}
+                                href="/dashboard/commissions"
+                                path="commissions"
+                            />
+                            <SidebarLink
+                                title="Artist's Corner"
+                                icon={<BuildingStorefrontIcon className="w-6 h-6" />}
+                                href="/dashboard/shop"
+                                path="shop"
+                            />
+                            <SidebarLink
+                                title="Portfolio"
+                                icon={<PhotoIcon className="w-6 h-6" />}
+                                href="/dashboard/portfolio"
+                                path="portfolio"
+                            />
+                            <SidebarLink
+                                title="Forms"
+                                icon={<ClipboardDocumentListIcon className="w-6 h-6" />}
+                                href="/dashboard/forms"
+                                path="forms"
+                            />
+                        </div>
+                    </div>
+
+                    {/* <HomeSection />
                     <div className="collapse collapse-arrow bg-base-200">
                         <input
                             type="radio"
@@ -67,7 +137,7 @@ export default function Navbar({ children }: { children: React.ReactNode }) {
                         </div>
                     </div>
 
-                    <DashboardSettingsSection />
+                    <DashboardSettingsSection /> */}
                 </ul>
             </div>
         </aside>
