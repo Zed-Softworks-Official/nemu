@@ -4,11 +4,7 @@ import { PlusCircleIcon } from '@heroicons/react/20/solid'
 import React, { useMemo, useState } from 'react'
 import Masonry, { ResponsiveMasonry } from 'react-responsive-masonry'
 import KanbanContainerComponent from './kanban-container'
-import {
-    CommissionRequestData,
-    KanbanContainerData,
-    KanbanTask
-} from '@/core/structures'
+import { KanbanContainerData, KanbanTask } from '@/core/structures'
 import {
     DndContext,
     DragEndEvent,
@@ -32,10 +28,6 @@ export default function Kanban({
     client,
     header,
     kanban_id,
-    disable_user_saving,
-    disable_container_editing,
-    disable_item_editing,
-    requests,
     kanban_containers,
     kanban_tasks
 }: {
@@ -43,10 +35,6 @@ export default function Kanban({
     client?: string
     header?: React.ReactNode
     kanban_id?: string
-    disable_user_saving?: boolean
-    disable_container_editing?: boolean
-    requests?: CommissionRequestData[]
-    disable_item_editing?: boolean
     kanban_containers: KanbanContainerData[]
     kanban_tasks: KanbanTask[]
 }) {
@@ -249,56 +237,39 @@ export default function Kanban({
                             </div>
                         )}
 
-                        {!disable_user_saving && (
-                            <div className="flex items-center gap-5">
-                                <div
-                                    className="tooltip"
-                                    data-tip={
-                                        autosave ? 'Disable Autosave' : 'Enable Autosave'
-                                    }
-                                >
-                                    <input
-                                        type="checkbox"
-                                        className="toggle toggle-primary"
-                                        checked={autosave}
-                                        onChange={(e) => {
-                                            setAutosave(e.currentTarget.checked)
-                                        }}
-                                    />
-                                </div>
-                                <button
-                                    type="button"
-                                    className="btn disabled:bg-base-200"
-                                    disabled={saving}
-                                    onClick={() => {
-                                        SaveKanban({
-                                            containers: containers,
-                                            tasks: tasks
-                                        })
-                                    }}
-                                >
-                                    {saving ? (
-                                        <>
-                                            <span className="loading loading-spinner"></span>
-                                            <p>Saving</p>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <BsFloppy2Fill className="w-6 h-6" />
-                                            <p>Save</p>
-                                        </>
-                                    )}
-                                </button>
-                                <button
-                                    type="button"
-                                    className="btn btn-primary"
-                                    onClick={() => CreateNewContainer()}
-                                >
-                                    <PlusCircleIcon className="w-6 h-6" />
-                                    Add Container
-                                </button>
-                            </div>
-                        )}
+                        <div className="flex items-center gap-5">
+                            <button
+                                type="button"
+                                className="btn disabled:bg-base-200"
+                                disabled={saving}
+                                onClick={() => {
+                                    SaveKanban({
+                                        containers: containers,
+                                        tasks: tasks
+                                    })
+                                }}
+                            >
+                                {saving ? (
+                                    <>
+                                        <span className="loading loading-spinner"></span>
+                                        <p>Saving</p>
+                                    </>
+                                ) : (
+                                    <>
+                                        <BsFloppy2Fill className="w-6 h-6" />
+                                        <p>Save</p>
+                                    </>
+                                )}
+                            </button>
+                            <button
+                                type="button"
+                                className="btn btn-primary"
+                                onClick={() => CreateNewContainer()}
+                            >
+                                <PlusCircleIcon className="w-6 h-6" />
+                                Add Container
+                            </button>
+                        </div>
                     </div>
                     <div className="divider"></div>
 
@@ -320,11 +291,6 @@ export default function Kanban({
                                         CreateTask={CreateTask}
                                         DeleteTask={DeleteTask}
                                         UpdateTask={UpdateTask}
-                                        disable_container_editing={
-                                            disable_container_editing
-                                        }
-                                        disable_item_editing={disable_item_editing}
-                                        requests={requests}
                                     />
                                 ))}
                             </Masonry>
@@ -344,7 +310,6 @@ export default function Kanban({
                         CreateTask={CreateTask}
                         DeleteTask={DeleteTask}
                         UpdateTask={UpdateTask}
-                        disable_container_editing={disable_container_editing}
                     />
                 )}
                 {activeTask && (
@@ -352,7 +317,6 @@ export default function Kanban({
                         item_data={activeTask}
                         UpdateTask={UpdateTask}
                         DeleteTask={DeleteTask}
-                        disable_item_editing={disable_item_editing}
                     />
                 )}
             </DragOverlay>

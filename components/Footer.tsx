@@ -32,6 +32,9 @@ export default function Footer() {
                         <Link href={'/artists'} className="link link-hover">
                             Become an artist
                         </Link>
+                        <Link href={'/artists/supporter'} className="link link-hover">
+                            Become an Supporter
+                        </Link>
                         <Link href={'/roadmap'} className="link link-hover">
                             Roadmap
                         </Link>

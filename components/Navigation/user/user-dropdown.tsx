@@ -92,7 +92,7 @@ export default function UserDropdown({
                         },
                         {
                             title: 'Generate Artist Code',
-                            url: '/artist/gen-code',
+                            url: '/artists/gen-code',
                             icon: <FingerPrintIcon className="w-6 h-6" />
                         },
                         ...result

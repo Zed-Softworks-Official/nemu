@@ -1,6 +1,6 @@
 import DefaultPageLayout from '@/app/(default)/layout'
-import { getServerAuthSession } from '@/app/api/auth/[...nextauth]/route'
 import GenerateAristCode from '@/components/artist-verification/generate-code'
+import { getServerAuthSession } from '@/core/auth'
 import { Role } from '@/core/structures'
 import { redirect } from 'next/navigation'
 

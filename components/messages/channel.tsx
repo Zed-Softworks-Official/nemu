@@ -369,7 +369,7 @@ function CustomChannel() {
                             )
                         }}
                         handle_context_menu={(e) => HandleContextMenu(e, message)}
-                        current_user={message.sender.userId == session?.user.user_id}
+                        current_user={message.sender.userId == session?.user.id}
                         chain_top={chainTop}
                         chain_bottom={chainBottom}
                         editing={message.messageId == editingId}

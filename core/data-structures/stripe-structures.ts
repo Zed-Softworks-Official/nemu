@@ -2,7 +2,8 @@ import { RouterInput } from "../responses"
 
 export enum PurchaseType {
     ArtistCorner = 0,
-    CommissionInvoice
+    CommissionInvoice,
+    Supporter
 }
 
 export enum PaymentStatus {

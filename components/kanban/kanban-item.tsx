@@ -1,14 +1,12 @@
 'use client'
 
 import { ClassNames } from '@/core/helpers'
-import { CommissionRequestData, CommissionStatus, KanbanTask } from '@/core/structures'
+import { KanbanTask } from '@/core/structures'
 import { UniqueIdentifier } from '@dnd-kit/core'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { CheckCircleIcon, TrashIcon, XCircleIcon } from '@heroicons/react/20/solid'
+import { TrashIcon } from '@heroicons/react/20/solid'
 import { useState } from 'react'
-import Modal from '../modal'
-import CommissionRequestContent from '../dashboard/commissions/requests/commission-request-content'
 import { usePathname, useRouter } from 'next/navigation'
 import { api } from '@/core/trpc/react'
 import { toast } from 'react-toastify'
@@ -16,15 +14,11 @@ import { toast } from 'react-toastify'
 export default function KanbanItemComponent({
     item_data,
     DeleteTask,
-    UpdateTask,
-    disable_item_editing,
-    submission_data
+    UpdateTask
 }: {
     item_data: KanbanTask
     DeleteTask: (id: UniqueIdentifier) => void
     UpdateTask: (id: UniqueIdentifier, content: string) => void
-    disable_item_editing?: boolean
-    submission_data?: CommissionRequestData
 }) {
     const [mouseIsOver, setMouseIsOver] = useState(false)
     const [editMode, setEditMode] = useState(false)
@@ -124,29 +118,10 @@ export default function KanbanItemComponent({
                     setMouseIsOver(false)
                 }}
                 onClick={() => {
-                    if (disable_item_editing) {
-                        if (submission_data) {
-                            if (
-                                submission_data.commissionStatus ==
-                                CommissionStatus.Accepted
-                            ) {
-                                return replace(
-                                    `/dashboard/commissions/${slug}/${submission_data.orderId}`
-                                )
-                            }
-                        }
-                    }
-
-                    if (disable_item_editing) {
-                        setShowModal(true)
-                        return
-                    }
-
                     ToggleEditMode()
                 }}
                 className={ClassNames(
-                    'card shadow-xl bg-base-100 hover:ring-inset hover:ring-primary hover:ring-2',
-                    disable_item_editing ? 'cursor-pointer' : 'cursor-grab'
+                    'card shadow-xl bg-base-100 hover:ring-inset hover:ring-primary hover:ring-2 cursor-grab'
                 )}
                 ref={setNodeRef}
                 style={style}
@@ -156,7 +131,7 @@ export default function KanbanItemComponent({
                 <div className="card-body">
                     <div className="flex justify-between items-center w-full h-6 max-h-full">
                         <p className="w-full whitespace-pre-wrap">{item_data.content}</p>
-                        {mouseIsOver && !disable_item_editing && (
+                        {mouseIsOver && (
                             <button
                                 type="button"
                                 className="btn btn-ghost"
@@ -170,69 +145,6 @@ export default function KanbanItemComponent({
                     </div>
                 </div>
             </div>
-            {submission_data && (
-                <Modal showModal={showModal} setShowModal={setShowModal}>
-                    <div className="flex flex-col w-full gap-5">
-                        <div className="flex justify-between gap-5 w-full">
-                            <div>
-                                <h2 className="card-title">
-                                    {submission_data.user.name}'s Request{' '}
-                                    {submission_data.waitlist && (
-                                        <span className="badge badge-warning ml-1">
-                                            Waitlist
-                                        </span>
-                                    )}
-                                </h2>
-                                <h2 className="font-bold text-md text-base-content/80">
-                                    {new Date(submission_data.createdAt).toDateString()}
-                                </h2>
-                            </div>
-                            <div className="flex gap-5 justify-between">
-                                <button
-                                    type="button"
-                                    className="btn btn-primary"
-                                    disabled={submitting}
-                                    onClick={() => {
-                                        setSubmitting(true)
-                                        mutation.mutate({
-                                            accepted: true,
-                                            create_data: {
-                                                form_submission_id: submission_data.id
-                                            }
-                                        })
-                                    }}
-                                >
-                                    <CheckCircleIcon className="w-6 h-6" />
-                                    Accept
-                                </button>
-                                <button
-                                    type="button"
-                                    className="btn btn-error"
-                                    disabled={submitting}
-                                    onClick={() => {
-                                        setSubmitting(true)
-                                        mutation.mutate({
-                                            accepted: false,
-                                            create_data: {
-                                                form_submission_id: submission_data.id
-                                            }
-                                        })
-                                    }}
-                                >
-                                    <XCircleIcon className="w-6 h-6" />
-                                    Reject
-                                </button>
-                            </div>
-                        </div>
-                        <div className="divider"></div>
-                        <div className="flex flex-col gap-5 w-full rp">
-                            <CommissionRequestContent
-                                content={submission_data.content}
-                            />
-                        </div>
-                    </div>
-                </Modal>
-            )}
         </>
     )
 }

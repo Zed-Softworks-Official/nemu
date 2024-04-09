@@ -3,6 +3,7 @@ export * from './stripe/accounts'
 export * from './stripe/customers'
 export * from './stripe/prices'
 export * from './stripe/webhook'
+export * from './stripe/supporter'
 
 /**
  * Calculates the application fee amount

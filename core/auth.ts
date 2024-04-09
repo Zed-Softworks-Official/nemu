@@ -83,17 +83,15 @@ export const authOptions: NextAuthOptions = {
                 }
             }
 
-            if (trigger !== 'update') {
-                if (user.role === Role.Artist) {
-                    const artist = await prisma.artist.findFirst({
-                        where: {
-                            userId: user.id
-                        }
-                    })
+            if (user.role === Role.Artist) {
+                const artist = await prisma.artist.findFirst({
+                    where: {
+                        userId: user.id
+                    }
+                })
 
-                    session.user.artist_id = artist?.id
-                    session.user.handle = artist?.handle
-                }
+                session.user.artist_id = artist?.id
+                session.user.handle = artist?.handle
             }
 
             return { ...session, user }

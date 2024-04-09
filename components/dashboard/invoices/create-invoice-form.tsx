@@ -93,8 +93,6 @@ export default function CreateInvoiceForm({
 
     return (
         <div className="flex flex-col">
-            <h2 className="card-title">Edit Invoice Items</h2>
-            <div className="divider"></div>
             <div className="card bg-base-300 max-w-xl shadow-xl mx-auto w-full">
                 <div className="card-body">
                     <form
@@ -340,7 +338,7 @@ export default function CreateInvoiceForm({
                                 {form.watch('items') ? CalculateTotalPrice() : '$0.00'}
                             </p>
                         </div>
-                        <button type="submit" className="btn btn-primary w-full">
+                        <button type="submit" className="btn btn-outline btn-accent w-full">
                             <ArrowDownOnSquareStackIcon className="w-6 h-6" />
                             Save Invoice
                         </button>

@@ -1,49 +1,54 @@
-import { CheckCircleIcon } from '@heroicons/react/20/solid'
 import DefaultPageLayout from '../(default)/layout'
+import { Timeline, TimelineEvent } from '@/components/ui/timeline'
+
+const events = [
+    {
+        title: 'Initial Launch',
+        occured: true
+    },
+    {
+        title: 'Something Else',
+        occured: true
+    },
+    {
+        title: 'Donations',
+        occured: false
+    },
+    {
+        title: 'Embedded Tipping',
+        occured: false
+    },
+    {
+        title: 'Something',
+        occured: false
+    },
+    {
+        title: 'Something',
+        occured: false
+    },
+    {
+        title: 'Something',
+        occured: false
+    }
+]
 
 export default function Roadmap() {
     return (
         <DefaultPageLayout>
-            <ul className="timeline timeline-vertical">
-                <li>
-                    <div className="timeline-start timeline-box">Initial Launch</div>
-                    <div className="timeline-middle">
-                        <CheckCircleIcon className="w-5 h-5 text-primary" />
-                    </div>
-                    <hr className="bg-primary" />
-                </li>
-                <li>
-                    <hr className="bg-primary" />
-                    <div className="timeline-middle">
-                        <CheckCircleIcon className="w-5 h-5 text-primary" />
-                    </div>
-                    <div className="timeline-end timeline-box">iMac</div>
-                    <hr className="bg-primary" />
-                </li>
-                <li>
-                    <hr className="bg-primary" />
-                    <div className="timeline-start timeline-box">iPod</div>
-                    <div className="timeline-middle">
-                        <CheckCircleIcon className="w-5 h-5 text-primary" />
-                    </div>
-                    <hr className="bg-accent" />
-                </li>
-                <li>
-                    <hr className="bg-accent" />
-                    <div className="timeline-middle">
-                        <CheckCircleIcon className="w-5 h-5 text-accent" />
-                    </div>
-                    <div className="timeline-end timeline-box">iPhone</div>
-                    <hr className="bg-accent" />
-                </li>
-                <li>
-                    <hr className="bg-accent" />
-                    <div className="timeline-start timeline-box">Apple Watch</div>
-                    <div className="timeline-middle">
-                        <CheckCircleIcon className="w-5 h-5 text-accent" />
-                    </div>
-                </li>
-            </ul>
+            <div className="card bg-base-300 shadow-xl">
+                <div className="card-body flex-row">
+                    <Timeline>
+                        {events.map((event, i) => (
+                            <TimelineEvent
+                                side={i % 2 === 0 ? 'left' : 'right'}
+                                event={event}
+                                previousEvent={i != 0 ? events[i - 1] : undefined}
+                                end={i === events.length}
+                            />
+                        ))}
+                    </Timeline>
+                </div>
+            </div>
         </DefaultPageLayout>
     )
 }

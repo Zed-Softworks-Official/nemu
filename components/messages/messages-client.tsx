@@ -25,7 +25,7 @@ export default function MessagesClient({ hide_channel_list, channel_url }: { hid
             <div className="flex join w-full h-full">
                 <SendbirdProvider
                     appId="AE781B27-397F-4722-9EC3-13E39266C944"
-                    userId={session.user.user_id!}
+                    userId={session.user.id}
                     theme="dark"
                     uikitOptions={{
                         groupChannel: {

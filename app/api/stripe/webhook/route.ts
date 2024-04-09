@@ -4,11 +4,6 @@ import { StripeGetWebhookEvent as StripeStripeWebhookEvent } from '@/core/paymen
 import { NemuResponse, StatusCode } from '@/core/responses'
 import { prisma } from '@/lib/prisma'
 import { PaymentStatus, PurchaseType, StripePaymentMetadata } from '@/core/structures'
-import { UpdateCommissionAvailability } from '@/core/helpers'
-import {
-    CheckCreateSendbirdUser,
-    CreateSendbirdMessageChannel
-} from '@/core/server-helpers'
 import { novu } from '@/lib/novu'
 
 export async function POST(req: Request) {
@@ -34,6 +29,31 @@ export async function POST(req: Request) {
     }
 
     switch (event.type) {
+        case 'checkout.session.completed':
+            {
+                const session = event.data.object
+
+                if (
+                    (Number(session.metadata?.purchase_type) as PurchaseType) !==
+                    PurchaseType.Supporter
+                ) {
+                    break
+                }
+
+                if (session.status !== 'complete') {
+                    break
+                }
+
+                await prisma.artist.update({
+                    where: {
+                        id: session.metadata?.artist_id
+                    },
+                    data: {
+                        supporter: true
+                    }
+                })
+            }
+            break
         case 'charge.succeeded':
             {
                 const charge = event.data.object

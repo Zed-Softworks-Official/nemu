@@ -36,20 +36,6 @@ export default function DashboardUserSection() {
             </li>
             <li className="my-2">
                 <Link
-                    href={'/dashboard/invoices'}
-                    className={ClassNames(
-                        pathname.includes('invoices')
-                            ? 'bg-primary text-white'
-                            : 'hover:bg-primary/60',
-                        'p-4 px-10 rounded-xl'
-                    )}
-                >
-                    <BanknotesIcon className="sidenav-icon" />
-                    <h3 className="inline text-lg font-bold">Invoices</h3>
-                </Link>
-            </li>
-            <li className="my-2">
-                <Link
                     href={'/dashboard/favourites'}
                     className={ClassNames(
                         pathname.includes('favourites')

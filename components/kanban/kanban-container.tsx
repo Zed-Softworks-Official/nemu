@@ -1,10 +1,6 @@
 'use client'
 
-import {
-    CommissionRequestData,
-    KanbanContainerData,
-    KanbanTask
-} from '@/core/structures'
+import { CommissionRequestData, KanbanContainerData, KanbanTask } from '@/core/structures'
 import { UniqueIdentifier } from '@dnd-kit/core'
 import { SortableContext, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -19,10 +15,7 @@ export default function KanbanContainerComponent({
     UpdateContainer,
     CreateTask,
     DeleteTask,
-    UpdateTask,
-    disable_container_editing,
-    disable_item_editing,
-    requests
+    UpdateTask
 }: {
     container_data: KanbanContainerData
     tasks: KanbanTask[]
@@ -31,9 +24,6 @@ export default function KanbanContainerComponent({
     CreateTask: (id: UniqueIdentifier) => void
     DeleteTask: (id: UniqueIdentifier) => void
     UpdateTask: (id: UniqueIdentifier, content: string) => void
-    disable_container_editing?: boolean
-    disable_item_editing?: boolean
-    requests?: CommissionRequestData[]
 }) {
     const [editMode, setEditMode] = useState(false)
     const { setNodeRef, attributes, listeners, transform, transition, isDragging } =
@@ -75,22 +65,19 @@ export default function KanbanContainerComponent({
                             {container_data.title}
                         </h2>
                     </div>
-                    {!disable_container_editing && (
-                        <div className="flex gap-5">
-                            <button type="button" className="btn btn-primary">
-                                <PlusCircleIcon className="w-6 h-6" />
-                            </button>
-                            <button type="button" className="btn btn-outline">
-                                <TrashIcon className="w-6 h-6" />
-                            </button>
-                        </div>
-                    )}
+                    <div className="flex gap-5">
+                        <button type="button" className="btn btn-primary">
+                            <PlusCircleIcon className="w-6 h-6" />
+                        </button>
+                        <button type="button" className="btn btn-outline">
+                            <TrashIcon className="w-6 h-6" />
+                        </button>
+                    </div>
                 </div>
                 <div className="card-body">
                     <div className="flex flex-col flex-grow gap-5">
                         {tasks.map((task) => (
                             <KanbanItemComponent
-                                disable_item_editing={disable_item_editing}
                                 key={task.id}
                                 item_data={task}
                                 DeleteTask={DeleteTask}
@@ -118,8 +105,6 @@ export default function KanbanContainerComponent({
                         <h2
                             className="card-title cursor-pointer"
                             onClick={() => {
-                                if (disable_container_editing) return
-
                                 setEditMode(true)
                             }}
                         >
@@ -145,26 +130,24 @@ export default function KanbanContainerComponent({
                     )}
                 </div>
 
-                {!disable_container_editing && (
-                    <div className="flex gap-5">
-                        <button
-                            type="button"
-                            className="btn btn-primary"
-                            onClick={() => {
-                                CreateTask(container_data.id)
-                            }}
-                        >
-                            <PlusCircleIcon className="w-6 h-6" />
-                        </button>
-                        <button
-                            type="button"
-                            className="btn btn-outline"
-                            onClick={() => DeleteContainer(container_data.id)}
-                        >
-                            <TrashIcon className="w-6 h-6" />
-                        </button>
-                    </div>
-                )}
+                <div className="flex gap-5">
+                    <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={() => {
+                            CreateTask(container_data.id)
+                        }}
+                    >
+                        <PlusCircleIcon className="w-6 h-6" />
+                    </button>
+                    <button
+                        type="button"
+                        className="btn btn-outline"
+                        onClick={() => DeleteContainer(container_data.id)}
+                    >
+                        <TrashIcon className="w-6 h-6" />
+                    </button>
+                </div>
             </div>
             <div className="card-body">
                 <div className="flex flex-col flex-grow gap-5">
@@ -175,13 +158,6 @@ export default function KanbanContainerComponent({
                                 item_data={task}
                                 DeleteTask={DeleteTask}
                                 UpdateTask={UpdateTask}
-                                disable_item_editing={disable_item_editing}
-                                submission_data={
-                                    requests &&
-                                    requests.find(
-                                        (request) => request.id === task.id
-                                    )
-                                }
                             />
                         ))}
                     </SortableContext>

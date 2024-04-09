@@ -1,17 +1,19 @@
 import { z } from 'zod'
 import {
     artistProcedure,
-    createCallerFactory,
     createTRPCRouter,
-    protectedProcedure
+    protectedProcedure,
+    publicProcedure
 } from '../trpc'
 import { prisma } from '@/lib/prisma'
 import {
-    StripeCreateAccount,
     StripeCreateAccountLink,
     StripeCreateCustomer,
+    StripeCreateCustomerZed,
     StripeCreateLoginLink,
     StripeCreateProductPaymentIntent,
+    StripeCreateSupporterBilling,
+    StripeCreateSupporterCheckout,
     StripeGetAccount
 } from '@/core/payments'
 import { TRPCError } from '@trpc/server'
@@ -201,14 +203,26 @@ export const stripeRouter = createTRPCRouter({
             return { client_secret: payment_intent.client_secret }
         }),
 
-    /**
-     * Create checkout page for supporter
-     */
-    create_supporter_dashboard: artistProcedure.mutation(async (opts) => {
+    get_checkout_portal: artistProcedure.query(async (opts) => {
         const { ctx } = opts
 
-        throw new TRPCError({
-            code: 'NOT_IMPLEMENTED'
+        const artist = await prisma.artist.findFirst({
+            where: {
+                userId: ctx.session.user.id
+            }
         })
+
+        if (!artist) {
+            throw new TRPCError({
+                code: 'INTERNAL_SERVER_ERROR',
+                message: 'Failed to find artist'
+            })
+        }
+
+        if (!artist.zedCustomerId) {
+            return undefined
+        }
+
+        return (await StripeCreateSupporterBilling(artist.zedCustomerId)).url
     })
 })

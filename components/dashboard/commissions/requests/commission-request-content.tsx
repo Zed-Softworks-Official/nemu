@@ -10,7 +10,7 @@ export default function CommissionRequestContent({
     return (
         <>
             {content && (
-                <>
+                <div className='flex flex-col gap-2'>
                     {Object.keys(JSON.parse(content)).map((key, i) => (
                         <div
                             key={i}
@@ -24,7 +24,7 @@ export default function CommissionRequestContent({
                             </div>
                         </div>
                     ))}
-                </>
+                </div>
             )}
         </>
     )

@@ -25,7 +25,7 @@ export default function NotificationPopover({
 
     return (
         <NovuProvider
-            subscriberId={session.user.user_id}
+            subscriberId={session.user.id}
             applicationIdentifier="E99zFNlbi0Fe"
             styles={styles}
         >
