@@ -33,5 +33,7 @@ export const awsRouter = createTRPCRouter({
         }
 
         await redis.del(AsRedisKey('users', ctx.session.user.id))
+
+        return { success: true }
     })
 })

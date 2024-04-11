@@ -1,4 +1,4 @@
-import { NemuResponse } from '../responses'
+import { NemuResponse, StatusCode } from '../responses'
 
 /**
  * Locations for AWS Storage
@@ -95,6 +95,15 @@ export interface AWSData {
 export type FileUploadData = {
     key: string
     aws_data: AWSData
+    id?: string
+    featured?: boolean
 }
 
-export interface UploadResponse extends NemuResponse {}
+export interface UploadResponse {
+    signed_url?: string
+}
+
+export interface UploadError {
+    code: StatusCode,
+    message?: string
+}

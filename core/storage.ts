@@ -85,19 +85,15 @@ export async function S3Upload(file: File, metadata: FileUploadData) {
 /**
  * Gets a file from AWS S3 and returns a presigned URL to the client for the client to view/get the object
  *
- * @param {string} artist_id - The handle of the artist
- * @param {AWSEndpoint} location - The desired location to find the object
+ * @param {string} id - The id of the user/artist
+ * @param {AWSEndpoint} endpoint - The desired location to find the object
  * @param {string} key - The filename of the object
  * @returns {Promise<string>} A promise containing a string which is a signed url to the object the user requested
  */
-export async function S3GetSignedURL(
-    artist_id: string,
-    location: AWSEndpoint,
-    key: string
-) {
+export async function S3GetSignedURL(id: string, endpoint: AWSEndpoint, key: string) {
     const downloadParams = {
         Bucket: 'nemuart',
-        Key: AsKey(artist_id, location, key)
+        Key: AsKey(id, endpoint, key)
     }
 
     var command = new GetObjectCommand(downloadParams)

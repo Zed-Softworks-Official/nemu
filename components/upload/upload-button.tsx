@@ -5,7 +5,8 @@ import {
     AWSEndpoint,
     UploadResponse,
     FileUploadData,
-    AWSAction
+    AWSAction,
+    UploadError
 } from '@/core/structures'
 import { useUploadContext } from './upload-context'
 import { useRef, useState } from 'react'
@@ -19,7 +20,8 @@ export default function UploadButton({
     endpoint,
     multiple,
     action = AWSAction.Upload,
-    onSuccess
+    onSuccess,
+    onError
 }: {
     accept: AWSMimeType[]
     endpoint: AWSEndpoint
@@ -27,8 +29,8 @@ export default function UploadButton({
     multiple?: boolean
     action?: AWSAction
     onSuccess?: (res: UploadResponse) => void
+    onError?: (res: UploadError) => void
 }) {
-    // const { files, setFiles } = useUploadContext()!
     const [uploading, setUploading] = useState(false)
 
     const inputRef = useRef<HTMLInputElement>(null)
@@ -71,24 +73,19 @@ export default function UploadButton({
                         // Append data
                         awsData.append('files', file, file_metadata.key)
                         awsData.append(file_metadata.key, JSON.stringify(file_metadata))
-                        // setFiles([
-                        //     ...files,
-                        //     {
-                        //         name: file.name,
-                        //         type: file.type,
-                        //         size: file.size,
-                        //         buffer: await file.arrayBuffer(),
-                        //         aws_data: {
-                        //             uploaded_by,
-                        //             endpoint,
-                        //             action
-                        //         },
-                        //         key: crypto.randomUUID()
-                        //     }
-                        // ])
                     }
 
                     const res = await axios.post('/api/aws', awsData)
+
+                    // Handle Success Event
+                    if (onSuccess && res.status == 200) {
+                        onSuccess(res.data)
+                    }
+
+                    // Handle Error Event
+                    if (onError && res.status != 200) {
+                        onError(res.data)
+                    }
 
                     setUploading(false)
                 }}
