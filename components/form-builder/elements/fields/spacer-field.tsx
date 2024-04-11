@@ -1,6 +1,5 @@
 'use client'
 
-import { LuSeparatorHorizontal } from 'react-icons/lu'
 import { ElementsType, FormElement, FormElementInstance } from '../form-elements'
 
 import { useForm } from 'react-hook-form'
@@ -10,6 +9,7 @@ import * as z from 'zod'
 import { useEffect } from 'react'
 import { DesignerContextType, useDesigner } from '../../designer/designer-context'
 import { DesignerRangeField } from '../input-field'
+import { UnfoldHorizontalIcon } from 'lucide-react'
 
 const type: ElementsType = 'SpacerField'
 
@@ -31,7 +31,7 @@ export const SpacerFieldFormElement: FormElement = {
     }),
 
     designer_btn_element: {
-        icon: LuSeparatorHorizontal,
+        icon: UnfoldHorizontalIcon,
         label: 'Spacer'
     },
 
@@ -62,7 +62,7 @@ function DesignerComponent({
                 <label className="text-sm text-base-content/80">
                     Spacer field: {height}px
                 </label>
-                <LuSeparatorHorizontal className='w-8 h-8' />
+                <UnfoldHorizontalIcon className='w-8 h-8' />
             </div>
         </div>
     )

@@ -3,8 +3,8 @@
 import ChannelSettingsUI from '@sendbird/uikit-react/ChannelSettings/components/ChannelSettingsUI'
 import { ChannelSettingsProvider, useChannelSettingsContext } from '@sendbird/uikit-react/ChannelSettings/context'
 import NemuImage from '../nemu-image'
-import { FolderIcon, UserCircleIcon, UsersIcon } from '@heroicons/react/20/solid'
 import { useSession } from 'next-auth/react'
+import { UsersIcon } from 'lucide-react'
 
 function CustomSettings() {
     const { data: session } = useSession()
@@ -42,27 +42,13 @@ function CustomSettings() {
                                             />
                                             <p>
                                                 {member.nickname}{' '}
-                                                {session?.user.user_id === member.userId && (
+                                                {session?.user.id === member.userId && (
                                                     <span className="text-xs text-base-content/60">(You)</span>
                                                 )}
                                             </p>
                                         </div>
                                     </li>
                                 ))}
-                            </ul>
-                        </div>
-                    </div>
-                    <div className="collapse collapse-arrow bg-base-200">
-                        <input type="radio" name="moderation-panel-accordion" />
-                        <div className="collapse-title text-xl font-medium">
-                            <div className="flex gap-2 items-center">
-                                <FolderIcon className="w-6 h-6" />
-                                Files
-                            </div>
-                        </div>
-                        <div className="collapse-content">
-                            <ul className="menu">
-                                <li>Something</li>
                             </ul>
                         </div>
                     </div>

@@ -9,10 +9,10 @@ import Modal from '../modal'
 
 import { ConvertAvailabilityToBadge } from '@/core/react-helpers'
 import Markdown from 'react-markdown'
-import { ArrowLeftCircleIcon } from '@heroicons/react/20/solid'
 import CommissionPaymentInfo from '../payments/commission-payment-info'
 import FavoriteButton from './favorite-button'
 import CommissionRequestSubmitView from '../form-builder/requests/commission-request-submit-form'
+import { ArrowLeftCircleIcon } from 'lucide-react'
 
 export default function CommissionCard({
     commission,

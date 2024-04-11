@@ -2,11 +2,6 @@
 
 import * as z from 'zod'
 
-import {
-    CheckCircleIcon,
-    ChevronLeftIcon,
-    ChevronRightIcon
-} from '@heroicons/react/20/solid'
 import { useState } from 'react'
 
 import TextField from '../form/text-input'
@@ -24,6 +19,7 @@ import { api } from '@/core/trpc/react'
 import { toast } from 'react-toastify'
 import { motion } from 'framer-motion'
 import { VerificationMethod } from '@/core/structures'
+import { CheckCircleIcon, ChevronLeftIcon, ChevronRightIcon } from 'lucide-react'
 
 const steps = [
     {
@@ -120,13 +116,7 @@ export default function ArtistApplyForm() {
         setError
     } = useForm<VerificationSchemaType>({
         resolver: zodResolver(verificationSchema),
-        mode: 'onSubmit',
-        defaultValues: {
-            twitter_url:
-                session?.user.provider == 'twitter'
-                    ? `https://x.com/${session.user.name}`
-                    : ''
-        }
+        mode: 'onSubmit'
     })
 
     type FieldName = keyof VerificationSchemaType
@@ -143,7 +133,7 @@ export default function ArtistApplyForm() {
                 : VerificationMethod.Twitter,
             twitter: data.twitter_url,
             website: data.website_url,
-            username: session?.user.user_id!
+            username: session?.user.id!
         })
     }
 
@@ -461,7 +451,7 @@ export default function ArtistApplyForm() {
                     onClick={async () => await Next()}
                 >
                     {currentStep === 2 ? (
-                        submitting && <span className='loading loading-spinner'></span>
+                        submitting && <span className="loading loading-spinner"></span>
                     ) : (
                         <ChevronRightIcon className="w-6 h-6" />
                     )}

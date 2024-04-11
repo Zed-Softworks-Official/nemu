@@ -1,6 +1,5 @@
 'use client'
 
-import { LuHeading1 } from 'react-icons/lu'
 import { ElementsType, FormElement, FormElementInstance } from '../form-elements'
 
 import { useForm } from 'react-hook-form'
@@ -10,6 +9,7 @@ import * as z from 'zod'
 import { useEffect, useState } from 'react'
 import { DesignerContextType, useDesigner } from '../../designer/designer-context'
 import { DesignerInputField } from '../input-field'
+import { Heading1Icon } from 'lucide-react'
 
 const type: ElementsType = 'TitleField'
 
@@ -31,7 +31,7 @@ export const TitleFieldFormElement: FormElement = {
     }),
 
     designer_btn_element: {
-        icon: LuHeading1,
+        icon: Heading1Icon,
         label: 'Title'
     },
 

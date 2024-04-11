@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils'
-import { CheckCircleIcon } from '@heroicons/react/20/solid'
+import { CheckCircleIcon } from 'lucide-react'
 
 export type TimelineEventType = {
     title: string
@@ -14,11 +14,13 @@ export function TimelineEvent({
     event,
     side,
     previousEvent,
+    nextEvent,
     end
 }: {
     event: TimelineEventType
     side: 'left' | 'right'
-    previousEvent?: TimelineEventType
+    previousEvent?: TimelineEventType,
+    nextEvent?: TimelineEventType
     end: boolean
 }) {
     return (
@@ -49,7 +51,7 @@ export function TimelineEvent({
                 />
             </div>
 
-            <hr className={cn(event.occured ? 'bg-primary' : 'bg-accent')} />
+            {!end && <hr className={cn(nextEvent?.occured ? 'bg-primary' : 'bg-accent')} />}
         </li>
     )
 }

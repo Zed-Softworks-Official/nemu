@@ -6,20 +6,26 @@ import { usePathname } from 'next/navigation'
 
 export default function SidebarLink({
     title,
-    path,
     href,
-    icon
+    icon,
+    path
 }: {
     title: string
-    path: string
     href: string
     icon: React.ReactNode
+    path?: string
 }) {
     const pathname = usePathname()
 
     return (
         <li>
-            <Link href={href} className={cn('hover:bg-primary flex items-center', pathname.includes(path))}>
+            <Link
+                href={href}
+                className={cn(
+                    'hover:bg-primary flex items-center',
+                    (path && pathname.includes(path)) && 'bg-primary' 
+                )}
+            >
                 {icon}
                 <h3 className="inline text-lg font-bold">{title}</h3>
             </Link>

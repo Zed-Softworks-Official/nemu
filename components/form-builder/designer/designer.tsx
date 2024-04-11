@@ -12,7 +12,7 @@ import {
 
 import { v4 as uuidv4 } from 'uuid'
 import { useState } from 'react'
-import { TrashIcon } from '@heroicons/react/20/solid'
+import { Trash2Icon } from 'lucide-react'
 
 export default function Designer() {
     const { elements, addElement, selectedElement, setSelectedElement, removeElement } =
@@ -229,7 +229,7 @@ function DesignerElementWrapper({ element }: { element: FormElementInstance }) {
                                 removeElement(element.id)
                             }}
                         >
-                            <TrashIcon className="h-8 w-8" />
+                            <Trash2Icon className="h-8 w-8" />
                         </button>
                     </div>
                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-pulse z-20">

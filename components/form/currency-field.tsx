@@ -1,7 +1,6 @@
 import { ClassNames } from '@/core/helpers'
-import { CurrencyDollarIcon } from '@heroicons/react/20/solid'
+import { DollarSignIcon, PercentIcon } from 'lucide-react'
 import { InputHTMLAttributes, forwardRef } from 'react'
-import { LuPercent } from 'react-icons/lu'
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
     label: string
@@ -18,7 +17,7 @@ const CurrencyField = forwardRef<HTMLInputElement, InputProps>(({ label, error, 
                 {!labelDisabled && <label className="label">{label}:</label>}
                 <div className="join">
                     <div className="join-item flex jutify-center items-center px-5 bg-base-200">
-                        {percentage ? <LuPercent className="w-6 h-6" /> : <CurrencyDollarIcon className="w-6 h-6" />}
+                        {percentage ? <PercentIcon className="w-6 h-6" /> : <DollarSignIcon className="w-6 h-6" />}
                     </div>
                     <input
                         ref={ref}

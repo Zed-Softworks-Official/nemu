@@ -8,22 +8,7 @@ import Link from 'next/link'
 import ThemeSwitcher from '@/components/theme/theme-switcher'
 import { cn } from '@/lib/utils'
 
-import {
-    ArrowDownTrayIcon,
-    ArrowRightEndOnRectangleIcon,
-    ArrowRightStartOnRectangleIcon,
-    BanknotesIcon,
-    ChartBarIcon,
-    CheckCircleIcon,
-    CodeBracketIcon,
-    Cog6ToothIcon,
-    EnvelopeIcon,
-    FingerPrintIcon,
-    PaintBrushIcon,
-    StarIcon,
-    TruckIcon,
-    UserIcon
-} from '@heroicons/react/20/solid'
+import { BadgeCheckIcon, BarChart2Icon, BrushIcon, DownloadIcon, LogInIcon, LogOutIcon, MailIcon, Settings2Icon, ShieldCheckIcon, StarIcon, TruckIcon, UserIcon } from 'lucide-react'
 import { RouterOutput } from '@/core/responses'
 
 export default function UserDropdown({
@@ -50,17 +35,17 @@ export default function UserDropdown({
             {
                 title: 'Downloads',
                 url: '/downloads',
-                icon: <ArrowDownTrayIcon className="w-6 h-6" />
+                icon: <DownloadIcon className="w-6 h-6" />
             },
             {
                 title: 'Messages',
                 url: '/messages',
-                icon: <EnvelopeIcon className="w-6 h-6" />
+                icon: <MailIcon className="w-6 h-6" />
             },
             {
                 title: 'Account Settings',
                 url: '/account',
-                icon: <Cog6ToothIcon className="w-6 h-6" />
+                icon: <Settings2Icon className="w-6 h-6" />
             }
         ]
 
@@ -71,12 +56,12 @@ export default function UserDropdown({
                         {
                             title: 'My Page',
                             url: 'value',
-                            icon: <PaintBrushIcon className="w-6 h-6" />
+                            icon: <BrushIcon className="w-6 h-6" />
                         },
                         {
                             title: 'Artist Dashboard',
                             url: '/dashboard',
-                            icon: <ChartBarIcon className="w-6 h-6" />
+                            icon: <BarChart2Icon className="w-6 h-6" />
                         },
                         ...result
                     ]
@@ -88,12 +73,12 @@ export default function UserDropdown({
                         {
                             title: 'Verify Artists',
                             url: '/artists/verify',
-                            icon: <CheckCircleIcon className="w-6 h-6" />
+                            icon: <BadgeCheckIcon className="w-6 h-6" />
                         },
                         {
                             title: 'Generate Artist Code',
                             url: '/artists/gen-code',
-                            icon: <FingerPrintIcon className="w-6 h-6" />
+                            icon: <ShieldCheckIcon className="w-6 h-6" />
                         },
                         ...result
                     ]
@@ -169,7 +154,7 @@ export default function UserDropdown({
                                                 active ? 'bg-base-100' : 'bg-base-300'
                                             )}
                                         >
-                                            <ArrowRightStartOnRectangleIcon className="w-6 h-6" />
+                                            <LogOutIcon className="w-6 h-6" />
                                             Sign out
                                         </Link>
                                     )}
@@ -184,7 +169,7 @@ export default function UserDropdown({
                                                 active ? 'bg-base-100' : 'bg-base-300'
                                             )}
                                         >
-                                            <ArrowRightEndOnRectangleIcon className="w-6 h-6" />
+                                            <LogInIcon className="w-6 h-6" />
                                             Sign in
                                         </Link>
                                     )}

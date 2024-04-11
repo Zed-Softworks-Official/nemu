@@ -1,12 +1,12 @@
 'use client'
 
-import { MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/20/solid'
 import algoliasearch from 'algoliasearch'
 import { Hits, Index, SearchBox, InstantSearch } from 'react-instantsearch'
 // import { InstantSearchNext } from 'react-instantsearch-nextjs'
 import { ArtistSearchResult, CommissionSearchResult } from './search-result-combobox-item'
 import { useState } from 'react'
 import { Transition } from '@headlessui/react'
+import { SearchIcon } from 'lucide-react'
 
 const algolia = algoliasearch('ATSQ2LY0T4', 'eae26c6706f2918a50a3c8b804023718')
 
@@ -31,7 +31,7 @@ export default function Search() {
                     placeholder="Search"
                     resetIconComponent={() => <></>}
                     submitIconComponent={() => (
-                        <MagnifyingGlassIcon className="w-6 h-6" />
+                        <SearchIcon className="w-6 h-6" />
                     )}
                 />
 

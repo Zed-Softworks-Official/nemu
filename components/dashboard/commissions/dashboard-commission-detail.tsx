@@ -5,7 +5,6 @@ import { useDashboardContext } from '@/components/navigation/dashboard/dashboard
 import DashboardContainer from '../dashboard-container'
 import Loading from '@/components/loading'
 import CommissionPublishButton from './requests/commission-publish-button'
-import { ClipboardDocumentListIcon, PencilIcon } from '@heroicons/react/20/solid'
 import Link from 'next/link'
 import { api } from '@/core/trpc/react'
 
@@ -15,6 +14,7 @@ import { Tabs } from '@/components/ui/tabs'
 import { usePathname } from 'next/navigation'
 import RequestCard from './request-card'
 import { CommissionStatus } from '@/core/structures'
+import { ClipboardListIcon, PencilIcon } from 'lucide-react'
 
 ChartJS.register(ArcElement, Tooltip, Legend)
 
@@ -29,7 +29,7 @@ export default function DashboardCommissionDetail({ slug }: { slug: string }) {
 
     if (isLoading) {
         return (
-            <DashboardContainer title="Nemu is searching..." ignoreTitle>
+            <DashboardContainer title="Nemu is searching...">
                 <Loading />
             </DashboardContainer>
         )
@@ -67,7 +67,7 @@ export default function DashboardCommissionDetail({ slug }: { slug: string }) {
                         href={`/dashboard/forms/${data?.formId}`}
                         className="btn btn-base-100"
                     >
-                        <ClipboardDocumentListIcon className="w-6 h-6" />
+                        <ClipboardListIcon className="w-6 h-6" />
                         Edit Commission Form
                     </Link>
                 </div>

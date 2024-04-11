@@ -1,6 +1,6 @@
 'use client'
 
-import { RiSeparator } from 'react-icons/ri'
+import { SeparatorHorizontalIcon } from 'lucide-react'
 import { ElementsType, FormElement, FormElementInstance } from '../form-elements'
 
 const type: ElementsType = 'DividerField'
@@ -14,7 +14,7 @@ export const DividerFieldFormElement: FormElement = {
     }),
 
     designer_btn_element: {
-        icon: RiSeparator,
+        icon: SeparatorHorizontalIcon,
         label: 'Divider'
     },
 

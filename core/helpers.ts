@@ -71,6 +71,7 @@ export function AsRedisKey(
         | 'users'
         | 'portfolio_items'
         | 'stripe_accounts'
+        | 'stripe'
         | 'products'
         | 'products_metadata'
         | 'forms'

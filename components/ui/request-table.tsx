@@ -25,6 +25,7 @@ export default function RequestTable({
                                 alt="Commission Image"
                                 width={200}
                                 height={200}
+                                className='w-full h-full'
                             />
                         </figure>
                         <div className="card-body flex-row justify-between gap-5">

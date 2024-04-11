@@ -1,6 +1,5 @@
 'use client'
 
-import { MagnifyingGlassIcon } from '@heroicons/react/20/solid'
 import { useSearchContext } from './search-context'
 import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'

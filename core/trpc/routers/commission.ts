@@ -39,12 +39,18 @@ export const commissionsRouter = createTRPCRouter({
     get_commissions: publicProcedure
         .input(
             z.object({
-                artist_id: z.string()
+                artist_id: z.string().optional()
             })
         )
         .query(async (opts) => {
             // Get Artist Data
             const { input } = opts
+
+            if (!input.artist_id) {
+                throw new TRPCError({
+                    code: 'BAD_REQUEST'
+                })
+            }
 
             const cachedCommissions = await redis.get(
                 AsRedisKey('commissions', input.artist_id)
@@ -750,23 +756,4 @@ export const commissionsRouter = createTRPCRouter({
 
         return reviews
     }),
-
-    /**
-     * Creates a new review for the given user on the given commission
-     */
-    set_review: protectedProcedure
-        .input(
-            z.object({
-                commission_id: z.string(),
-                request_id: z.string(),
-
-                rating: z.number(),
-                description: z.string()
-            })
-        )
-        .mutation(async (opts) => {
-            const { input, ctx } = opts
-
-            console.log(input)
-        })
 })

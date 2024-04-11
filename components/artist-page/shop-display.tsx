@@ -2,8 +2,6 @@ import Markdown from 'react-markdown'
 
 import { useState } from 'react'
 
-import { ShareIcon, ShoppingCartIcon } from '@heroicons/react/20/solid'
-
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { toast } from 'react-toastify'
@@ -13,6 +11,7 @@ import { ShopItem } from '@/core/structures'
 import { Transition } from '@headlessui/react'
 import { FormatNumberToCurrency } from '@/core/helpers'
 import ImageViewer from './image-veiwer'
+import { Share2Icon, ShoppingCartIcon } from 'lucide-react'
 
 const CreatePaymentForm = dynamic(() => import('../payments/create-payment-form'))
 
@@ -57,7 +56,7 @@ export default function ShopDisplay({
                                 })
                             }}
                         >
-                            <ShareIcon className="w-6 h-6" />
+                            <Share2Icon className="w-6 h-6" />
                             Share
                         </button>
                     </div>

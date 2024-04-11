@@ -1,5 +1,5 @@
+import { XCircleIcon } from 'lucide-react'
 import Link from 'next/link'
-import { XCircleIcon } from '@heroicons/react/20/solid'
 
 export default function FormSubmitButtons({
     cancel_url,

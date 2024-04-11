@@ -9,7 +9,6 @@ import { useFormContext } from '@/components/form/form-context'
 import { NemuResponse, PortfolioResponse, StatusCode } from '@/core/responses'
 
 import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
-import { CheckCircleIcon, TrashIcon } from '@heroicons/react/20/solid'
 
 import * as z from 'zod'
 import { useForm } from 'react-hook-form'
@@ -19,6 +18,7 @@ import TextField from '@/components/form/text-input'
 import NemuImage from '@/components/nemu-image'
 import Loading from '@/components/loading'
 import { api } from '@/core/trpc/react'
+import { CheckCircleIcon, Trash2Icon } from 'lucide-react'
 
 const portfolioSchema = z.object({
     name: z.string().min(2).max(50).optional(),
@@ -211,7 +211,7 @@ export default function PortfolioEditForm() {
                         onClick={handleDeletion}
                         className="btn btn-error"
                     >
-                        <TrashIcon className="w-6 h-6" />
+                        <Trash2Icon className="w-6 h-6" />
                         Delete Item
                     </button>
                 </div>

@@ -1,6 +1,5 @@
 'use client'
 
-import { PlusCircleIcon } from '@heroicons/react/20/solid'
 import React, { useMemo, useState } from 'react'
 import Masonry, { ResponsiveMasonry } from 'react-responsive-masonry'
 import KanbanContainerComponent from './kanban-container'
@@ -20,8 +19,8 @@ import { SortableContext, arrayMove } from '@dnd-kit/sortable'
 import KanbanItemComponent from './kanban-item'
 
 import { toast } from 'react-toastify'
-import { BsFloppy2Fill } from 'react-icons/bs'
 import { api } from '@/core/trpc/react'
+import { PlusCircleIcon, SaveIcon } from 'lucide-react'
 
 export default function Kanban({
     title,
@@ -256,7 +255,7 @@ export default function Kanban({
                                     </>
                                 ) : (
                                     <>
-                                        <BsFloppy2Fill className="w-6 h-6" />
+                                        <SaveIcon className="w-6 h-6" />
                                         <p>Save</p>
                                     </>
                                 )}

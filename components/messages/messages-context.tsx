@@ -1,11 +1,11 @@
 'use client'
 
 import { BaseMessage } from '@sendbird/chat/message'
-import { EveryMessage } from '@sendbird/uikit-react'
 import {
     Dispatch,
     SetStateAction,
     createContext,
+    useCallback,
     useContext,
     useEffect,
     useState
@@ -33,8 +33,8 @@ type MessagesContextType = {
     replyMessage?: BaseMessage
     setReplyMessage: Dispatch<SetStateAction<BaseMessage | undefined>>
 
-    message: EveryMessage | null
-    setMessage: Dispatch<SetStateAction<EveryMessage | null>>
+    message: BaseMessage | null
+    setMessage: Dispatch<SetStateAction<BaseMessage | null>>
 
     placeholder: string
     setPlaceholder: Dispatch<SetStateAction<string>>
@@ -61,22 +61,20 @@ export function MessagesProvider({
     >(undefined)
     const [replyMessage, setReplyMessage] = useState<BaseMessage | undefined>(undefined)
 
-    const [message, setMessage] = useState<EveryMessage | null>(null)
+    const [message, setMessage] = useState<BaseMessage | null>(null)
     const [placeholder, setPlaceholder] = useState('Send Message')
 
     const [hasSubmissions, setHasSubmissions] = useState(true)
 
-    const { isLoading, refetch } = api.form.get_request.useQuery({ channel_url })
+    const { data: request, isLoading } = api.form.get_request.useQuery({ channel_url })
 
-    useEffect(() => {
-        refetch().then(({ data }) => {
-            if (data?.submission) {
-                setArtistUserId(data.submission.form.artist.userId)
-                setKanbanId(data.kanban?.id!)
-            } else {
-                setHasSubmissions(false)
-            }
-        })
+    useCallback(() => {
+        if (request?.data) {
+            setArtistUserId(request.data.commission.artist.userId)
+            setKanbanId(request.kanban?.id!)
+        } else {
+            setHasSubmissions(false)
+        }
     }, [channel_url])
 
     if (isLoading) {

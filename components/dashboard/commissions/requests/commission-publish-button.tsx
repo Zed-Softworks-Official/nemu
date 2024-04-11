@@ -3,7 +3,7 @@
 import { ClassNames } from '@/core/helpers'
 import { NemuResponse, StatusCode } from '@/core/responses'
 import { api } from '@/core/trpc/react'
-import { EyeIcon, EyeSlashIcon } from '@heroicons/react/20/solid'
+import { EyeIcon, EyeOffIcon } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'react-toastify'
 
@@ -65,7 +65,7 @@ export default function CommissionPublishButton({
                 <span className="loading loading-spinner"></span>
             ) : currentlyPublished ? (
                 <>
-                    <EyeSlashIcon className="w-6 h-6" />
+                    <EyeOffIcon className="w-6 h-6" />
                     Unpublish
                 </>
             ) : (

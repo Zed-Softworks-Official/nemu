@@ -4,9 +4,9 @@ import { CommissionRequestData, KanbanContainerData, KanbanTask } from '@/core/s
 import { UniqueIdentifier } from '@dnd-kit/core'
 import { SortableContext, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { PlusCircleIcon, TrashIcon } from '@heroicons/react/20/solid'
 import { useMemo, useState } from 'react'
 import KanbanItemComponent from './kanban-item'
+import { PlusCircleIcon, Trash2Icon } from 'lucide-react'
 
 export default function KanbanContainerComponent({
     container_data,
@@ -70,7 +70,7 @@ export default function KanbanContainerComponent({
                             <PlusCircleIcon className="w-6 h-6" />
                         </button>
                         <button type="button" className="btn btn-outline">
-                            <TrashIcon className="w-6 h-6" />
+                            <Trash2Icon className="w-6 h-6" />
                         </button>
                     </div>
                 </div>
@@ -145,7 +145,7 @@ export default function KanbanContainerComponent({
                         className="btn btn-outline"
                         onClick={() => DeleteContainer(container_data.id)}
                     >
-                        <TrashIcon className="w-6 h-6" />
+                        <Trash2Icon className="w-6 h-6" />
                     </button>
                 </div>
             </div>

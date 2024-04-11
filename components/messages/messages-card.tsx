@@ -14,7 +14,7 @@ export default function MessagesCard({
     selected?: boolean
     onClick?: MouseEventHandler<HTMLDivElement> | undefined
 }) {
-    const { data, isLoading } = api.form.get_request.useQuery({
+    const { data: request, isLoading } = api.form.get_request.useQuery({
         channel_url: message_preview.channel_url
     })
 
@@ -76,7 +76,7 @@ export default function MessagesCard({
                                     : 'badge-primary'
                             )}
                         >
-                            {data?.submission.form.commission?.title}
+                            {request?.data.commission.title}
                         </span>
                     </div>
                     {message_preview.late_message_timestamp && (

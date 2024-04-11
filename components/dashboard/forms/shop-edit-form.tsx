@@ -17,14 +17,9 @@ import { MDXEditorMethods } from '@mdxeditor/editor'
 import { GetItemId } from '@/core/helpers'
 import { CreateToastPromise } from '@/core/promise'
 import { ShopResponse } from '@/core/responses'
-import {
-    ArrowDownOnSquareIcon,
-    CheckCircleIcon,
-    TrashIcon,
-    XCircleIcon
-} from '@heroicons/react/20/solid'
 import { useFormContext } from '@/components/form/form-context'
 import Link from 'next/link'
+import { CheckCircleIcon, DownloadIcon, Trash2Icon, XCircleIcon } from 'lucide-react'
 
 export default function ShopEditForm() {
     const item_id = GetItemId(usePathname())
@@ -156,7 +151,7 @@ export default function ShopEditForm() {
                     href={data?.product?.downloadable_asset ? data?.product?.downloadable_asset : ''}
                     className="btn btn-primary btn-lg w-full"
                 >
-                    <ArrowDownOnSquareIcon className="w-6 h-6 mr-3 inline-block align-bottom" />
+                    <DownloadIcon className="w-6 h-6 mr-3 inline-block align-bottom" />
                     Download Current Asset
                 </Link>
             </div>
@@ -174,7 +169,7 @@ export default function ShopEditForm() {
                     onClick={handleDelete}
                     className="btn btn-error btn-lg"
                 >
-                    <TrashIcon className="w-6 h-6" />
+                    <Trash2Icon className="w-6 h-6" />
                     Delete
                 </button>
                 <button type="submit" className="btn btn-primary btn-lg">

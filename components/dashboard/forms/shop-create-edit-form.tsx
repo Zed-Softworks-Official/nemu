@@ -24,11 +24,11 @@ import FormSubmitButtons from './submit-buttons'
 import FileField from '@/components/form/file-input'
 import { NemuResponse, StatusCode } from '@/core/responses'
 import { useState } from 'react'
-import { CheckCircleIcon } from '@heroicons/react/20/solid'
 import NemuImage from '@/components/nemu-image'
 import Link from 'next/link'
 import ProductPublishButton from '../shop/product-publish-button'
 import { api } from '@/core/trpc/react'
+import { CheckCircleIcon } from 'lucide-react'
 
 const productSchema = z.object({
     title: z.string(),

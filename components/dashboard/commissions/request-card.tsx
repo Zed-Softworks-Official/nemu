@@ -6,8 +6,8 @@ import { api } from '@/core/trpc/react'
 import { RefetchOptions } from '@tanstack/react-query'
 import { useState } from 'react'
 import CommissionRequestContent from './requests/commission-request-content'
-import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/20/solid'
 import { toast } from 'react-toastify'
+import { CheckCircleIcon, XCircleIcon } from 'lucide-react'
 
 export default function RequestCard({
     data,

@@ -1,5 +1,5 @@
 import { ClassNames } from '@/core/helpers'
-import { PlusCircleIcon } from '@heroicons/react/20/solid'
+import { PlusCircleIcon } from 'lucide-react'
 import { SelectHTMLAttributes, forwardRef } from 'react'
 
 export interface SelectFieldOptions {

@@ -1,6 +1,6 @@
 import { FormatNumberToCurrency } from '@/core/helpers'
 import { cn } from '@/lib/utils'
-import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/20/solid'
+import { CheckCircle, CheckCircle2Icon, CheckCircleIcon, XCircleIcon } from 'lucide-react'
 import Link from 'next/link'
 
 export default function PricingCard({
@@ -41,7 +41,7 @@ export default function PricingCard({
                         >
                             <div className="flex gap-5 items-center">
                                 {feature.include ? (
-                                    <CheckCircleIcon className="w-6 h-6 text-primary" />
+                                    <CheckCircle className="w-6 h-6 text-primary" />
                                 ) : (
                                     <XCircleIcon className="w-6 h-6 text-error" />
                                 )}

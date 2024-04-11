@@ -4,12 +4,12 @@ import { useChannelListContext, ChannelListProvider } from '@sendbird/uikit-reac
 import { UserMessage, BaseMessage } from '@sendbird/chat/message'
 
 import MessagesCard from './messages-card'
-import { ExclamationTriangleIcon } from '@heroicons/react/20/solid'
 import Loading from '../loading'
 import { useMemo } from 'react'
 import { useSession } from 'next-auth/react'
 import { GroupChannel } from '@sendbird/chat/groupChannel'
 import ChannelListUI from '@sendbird/uikit-react/ChannelList/components/ChannelListUI'
+import { TriangleAlertIcon } from 'lucide-react'
 
 interface ChannelListProps {
     selected_channel: string
@@ -46,7 +46,7 @@ function CustomChannelList({ selected_channel, set_channel_url }: ChannelListPro
     if (!initialized) {
         return (
             <div className="bg-base-200 join-item p-5 flex flex-col gap-5 h-full justify-center items-center w-96">
-                <ExclamationTriangleIcon className="w-10 h-10" />
+                <TriangleAlertIcon className="w-10 h-10" />
                 <h2 className="card-title">Something went wrong!</h2>
             </div>
         )

@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import React, { useState } from 'react'
 
 import FormDropzone from '@/components/form/form-dropzone'
-import { CheckCircleIcon } from '@heroicons/react/20/solid'
 import { useFormContext } from '@/components/form/form-context'
 import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
 
@@ -16,6 +15,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import TextField from '@/components/form/text-input'
 import { NemuResponse, StatusCode } from '@/core/responses'
 import { api } from '@/core/trpc/react'
+import { CheckCircleIcon } from 'lucide-react'
 
 const portfolioSchema = z.object({
     name: z.string().min(2).max(50),

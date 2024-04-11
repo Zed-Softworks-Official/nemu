@@ -2,8 +2,8 @@
 
 import { ChangeEvent } from 'react'
 import { useThemeContext } from './theme-context'
-import { MoonIcon, SunIcon } from '@heroicons/react/20/solid'
 import { cn } from '@/lib/utils'
+import { MoonIcon, SunIcon } from 'lucide-react'
 
 export default function ThemeSwitcher({ active }: { active?: boolean }) {
     const { theme, setTheme } = useThemeContext()

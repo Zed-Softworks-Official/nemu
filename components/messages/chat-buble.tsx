@@ -9,7 +9,7 @@ import { useClickAway } from '@uidotdev/usehooks'
 import { useGroupChannelContext } from '@sendbird/uikit-react/GroupChannel/context'
 import { toast } from 'react-toastify'
 import { BaseMessage, FileMessage, UserMessage } from '@sendbird/chat/message'
-import { BsReplyFill } from 'react-icons/bs'
+import { ReplyIcon } from 'lucide-react'
 
 export default function ChatBubble({
     message,
@@ -132,7 +132,7 @@ export default function ChatBubble({
             {parent_message && (
                 <div className={ClassNames('chat opacity-60', current_user ? 'chat-end' : 'chat-start')}>
                     <div className="chat-header">
-                        <BsReplyFill className='w-4 h-4' /> Reply to
+                        <ReplyIcon className='w-4 h-4' /> Reply to
                     </div>
                     <div
                         className={ClassNames(

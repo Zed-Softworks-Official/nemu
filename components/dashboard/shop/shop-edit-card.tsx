@@ -1,9 +1,9 @@
 'use client'
 
-import { TrashIcon } from '@heroicons/react/20/solid'
 import { useParams, useRouter } from 'next/navigation'
 import { CreateToastPromise } from '@/core/promise'
 import NemuImage from '@/components/nemu-image'
+import { Trash2Icon } from 'lucide-react'
 
 export default function ShopEditCard({
     image_src,
@@ -40,7 +40,7 @@ export default function ShopEditCard({
                     type="button"
                     className="btn btn-error rounded-full p-2 m-2"
                 >
-                    <TrashIcon className="w-6 h-6 inline-block" />
+                    <Trash2Icon className="w-6 h-6 inline-block" />
                     <p className="hidden">Delete</p>
                 </button>
             </div>

@@ -2,7 +2,7 @@
 
 import NemuImage from '@/components/nemu-image'
 import { FormatNumberToCurrency } from '@/core/helpers'
-import { ChevronRightIcon } from '@heroicons/react/20/solid'
+import { ChevronRightIcon } from 'lucide-react'
 import Link from 'next/link'
 
 export function ArtistSearchResult({

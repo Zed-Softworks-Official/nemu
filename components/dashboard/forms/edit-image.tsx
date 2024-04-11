@@ -2,7 +2,7 @@
 
 import NemuImage from '@/components/nemu-image'
 import { AWSFileModification } from '@/core/data-structures/form-structures'
-import { TrashIcon } from '@heroicons/react/20/solid'
+import { Trash2Icon } from 'lucide-react'
 
 export default function EditImage({
     image,
@@ -37,7 +37,7 @@ export default function EditImage({
                                         DeleteImage()
                                     }}
                                 >
-                                    <TrashIcon className="2-6 h-6" />
+                                    <Trash2Icon className="2-6 h-6" />
                                     Delete
                                 </button>
                             </div>

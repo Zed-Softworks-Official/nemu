@@ -1,10 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { ArrowDownOnSquareStackIcon } from '@heroicons/react/20/solid'
 import { DesignerContextType, useDesigner } from '../designer/designer-context'
 import { api } from '@/core/trpc/react'
 import { toast } from 'react-toastify'
+import { SaveIcon } from 'lucide-react'
 
 export default function SaveButton({ form_id }: { form_id: string }) {
     const { elements } = useDesigner() as DesignerContextType
@@ -40,7 +40,7 @@ export default function SaveButton({ form_id }: { form_id: string }) {
             {isSaving ? (
                 <span className="loading loading-spinner"></span>
             ) : (
-                <ArrowDownOnSquareStackIcon className="w-6 h-6" />
+                <SaveIcon className="w-6 h-6" />
             )}
             Save
         </button>

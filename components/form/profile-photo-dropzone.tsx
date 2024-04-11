@@ -3,14 +3,13 @@
 import { forwardRef, InputHTMLAttributes, useEffect, useState } from 'react'
 import { useDropzone } from 'react-dropzone'
 import NemuImage from '../nemu-image'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faCloudArrowUp } from '@fortawesome/free-solid-svg-icons'
 import { AWSLocationEnumToString, AWSLocations } from '@/core/structures'
 import { Id, toast } from 'react-toastify'
 import { useMutation } from '@tanstack/react-query'
 import axios from 'axios'
 import { api } from '@/core/trpc/react'
 import { FileResponse } from '@/core/responses'
+import { CloudUploadIcon } from 'lucide-react'
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
     initialPhoto: string
@@ -96,7 +95,7 @@ const ProfilePhotoDropzone = forwardRef<HTMLInputElement, InputProps>(
                                 {...props}
                                 {...getInputProps()}
                             />
-                            <FontAwesomeIcon icon={faCloudArrowUp} className="w-6 h-6" />
+                            <CloudUploadIcon className=" items-center justify-center flex w-full" />
                             <p>Drag a file to upload!</p>
                         </div>
                     </div>

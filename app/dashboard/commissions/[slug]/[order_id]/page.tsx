@@ -5,8 +5,10 @@ import DownloadDropzone from '@/components/form/download-dropzone'
 import Kanban from '@/components/kanban/kanban'
 import MessagesClient from '@/components/messages/messages-client'
 import NemuImage from '@/components/nemu-image'
+
 import { BentoGrid, BentoGridItem } from '@/components/ui/bento-grid'
 import { Tabs } from '@/components/ui/tabs'
+import { RouterOutput } from '@/core/responses'
 import { KanbanContainerData, KanbanTask, PaymentStatus } from '@/core/structures'
 import { api } from '@/core/trpc/server'
 import { Invoice, InvoiceItem } from '@prisma/client'
@@ -77,22 +79,9 @@ export default async function CommissionOrderDetail({
                                         </h2>
                                     </div>
                                 )}
-                                {!request.download &&
-                                    request.invoice?.paymentStatus ==
-                                        PaymentStatus.InvoiceCreated && (
-                                        <div className="h-full">
-                                            <DownloadDropzone
-                                                form_submission_id={request.data.id}
-                                                commission_id={
-                                                    request.data.form.commissionId!
-                                                }
-                                                user_id={request.data.user.id}
-                                                receipt_url={
-                                                    request.invoice.hostedUrl || ''
-                                                }
-                                            />
-                                        </div>
-                                    )}
+                                <div className="h-full">
+                                    <DeliverySection request={request} />
+                                </div>
                             </div>
                         )
                     }
@@ -138,5 +127,31 @@ export default async function CommissionOrderDetail({
                 />
             </BentoGrid>
         </DashboardContainer>
+    )
+}
+
+function DeliverySection({ request }: { request: RouterOutput['form']['get_request'] }) {
+    if (!request || !request.invoice) return null
+
+    if (request.invoice.paymentStatus === PaymentStatus.InvoiceCreated) {
+        return <>Send an invoice to start the delivery process</>   
+    }
+
+    if (request.invoice.paymentStatus === PaymentStatus.InvoiceNeedsPayment) {
+        return <>Needs Payment</>
+    }
+
+    if (request.data.deliveredAt) {
+        return <>This commission has been marked as delivered</>
+    }
+
+    return (
+        <DownloadDropzone
+            uploaded={request.download ? true : false}
+            request_id={request.data.id}
+            commission_id={request.data.form.commissionId!}
+            user_id={request.data.user.id}
+            receipt_url={request.invoice.hostedUrl || ''}
+        />
     )
 }

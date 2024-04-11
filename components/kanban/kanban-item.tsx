@@ -5,11 +5,11 @@ import { KanbanTask } from '@/core/structures'
 import { UniqueIdentifier } from '@dnd-kit/core'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { TrashIcon } from '@heroicons/react/20/solid'
 import { useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { api } from '@/core/trpc/react'
 import { toast } from 'react-toastify'
+import { Trash2Icon } from 'lucide-react'
 
 export default function KanbanItemComponent({
     item_data,
@@ -139,7 +139,7 @@ export default function KanbanItemComponent({
                                     DeleteTask(item_data.id)
                                 }}
                             >
-                                <TrashIcon className="w-6 h-6" />
+                                <Trash2Icon className="w-6 h-6" />
                             </button>
                         )}
                     </div>

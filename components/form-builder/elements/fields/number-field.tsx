@@ -1,6 +1,5 @@
 'use client'
 
-import { Bs123 } from 'react-icons/bs'
 import { ElementsType, FormElement, FormElementInstance, SubmitFunction } from '../form-elements'
 
 import { useForm } from 'react-hook-form'
@@ -12,6 +11,7 @@ import { DesignerContextType, useDesigner } from '../../designer/designer-contex
 import { DesignerCheckboxField, DesignerInputField, DesignerRangeField } from '../input-field'
 import TextInput from '@/components/form/text-input'
 import { ClassNames } from '@/core/helpers'
+import { HashIcon } from 'lucide-react'
 
 const type: ElementsType = 'NumberField'
 
@@ -39,7 +39,7 @@ export const NumberFieldFormElement: FormElement = {
     }),
 
     designer_btn_element: {
-        icon: Bs123,
+        icon: HashIcon,
         label: 'Number Field'
     },
 

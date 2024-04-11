@@ -5,9 +5,9 @@ import { InputHTMLAttributes, forwardRef, useEffect, useState } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { useFormContext } from '../form-context'
 import NemuImage from '../../nemu-image'
-import { TrashIcon } from '@heroicons/react/20/solid'
 import { ClassNames } from '@/core/helpers'
 import { DndContext, DragEndEvent, useDraggable, useDroppable } from '@dnd-kit/core'
+import { Trash2Icon } from 'lucide-react'
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
     label: string
@@ -111,7 +111,7 @@ const ImageEditor = forwardRef<HTMLInputElement, InputProps>(({ label, images, l
                                 <div className="absolute top-0 w-full h-full bg-base-300/80 transition-opacity duration-200 opacity-0 hover:opacity-100">
                                     <div className="flex w-full h-full justify-center items-center text-center">
                                         <button type="button" className="btn btn-error btn-circle" onClick={() => RemoveImage(i)}>
-                                            <TrashIcon className="w-6 h-6" />
+                                            <Trash2Icon className="w-6 h-6" />
                                         </button>
                                     </div>
                                 </div>

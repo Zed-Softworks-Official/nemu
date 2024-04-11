@@ -4,17 +4,11 @@ import * as z from 'zod'
 
 import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import {
-    ArrowDownOnSquareStackIcon,
-    CurrencyDollarIcon,
-    HashtagIcon,
-    PlusCircleIcon,
-    XCircleIcon
-} from '@heroicons/react/20/solid'
 import { FormatNumberToCurrency } from '@/core/helpers'
 import { InvoiceItem } from '@prisma/client'
 import { toast } from 'react-toastify'
 import { api } from '@/core/trpc/react'
+import { DollarSignIcon, HashIcon, PlusCircleIcon, SaveIcon, XCircleIcon } from 'lucide-react'
 
 const invoiceSchema = z.object({
     items: z
@@ -231,7 +225,7 @@ export default function CreateInvoiceForm({
                                                             </label>
                                                             <div className="join">
                                                                 <div className="join-item flex jutify-center items-center px-5 bg-base-200">
-                                                                    <CurrencyDollarIcon className="w-6 h-6" />
+                                                                    <DollarSignIcon className="w-6 h-6" />
                                                                 </div>
                                                                 <input
                                                                     className="input w-full"
@@ -279,7 +273,7 @@ export default function CreateInvoiceForm({
                                                             </label>
                                                             <div className="join">
                                                                 <div className="join-item flex jutify-center items-center px-5 bg-base-200">
-                                                                    <HashtagIcon className="w-6 h-6" />
+                                                                    <HashIcon className="w-6 h-6" />
                                                                 </div>
                                                                 <input
                                                                     className="input w-full join-item"
@@ -339,7 +333,7 @@ export default function CreateInvoiceForm({
                             </p>
                         </div>
                         <button type="submit" className="btn btn-outline btn-accent w-full">
-                            <ArrowDownOnSquareStackIcon className="w-6 h-6" />
+                            <SaveIcon className="w-6 h-6" />
                             Save Invoice
                         </button>
                     </form>

@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { S3Upload } from '@/core/storage'
 import { StringToAWSLocationsEnum } from '@/core/structures'
 import { FileResponse, NemuResponse, StatusCode } from '@/core/responses'
+import { getServerAuthSession } from '@/core/auth'
 
 /**
  * POST Method for API for a SINGLE item
@@ -13,6 +14,12 @@ export async function POST(
     req: Request,
     { params }: { params: { artist_id: string; location: string; item_key: string } }
 ) {
+    const session = await getServerAuthSession()
+
+    if (!session) {
+        return NextResponse.error()
+    }
+
     // Get Form Data
     const data = await req.formData()
     const file: File | null = data.get('file') as unknown as File

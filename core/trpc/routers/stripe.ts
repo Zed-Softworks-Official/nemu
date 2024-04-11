@@ -1,10 +1,5 @@
 import { z } from 'zod'
-import {
-    artistProcedure,
-    createTRPCRouter,
-    protectedProcedure,
-    publicProcedure
-} from '../trpc'
+import { artistProcedure, createTRPCRouter, protectedProcedure } from '../trpc'
 import { prisma } from '@/lib/prisma'
 import {
     StripeCreateAccountLink,
@@ -15,8 +10,6 @@ import {
     StripeGetAccount
 } from '@/core/payments'
 import { TRPCError } from '@trpc/server'
-import { StripeProductCheckoutData } from '@/core/structures'
-import { createCaller } from '../root'
 
 export const stripeRouter = createTRPCRouter({
     /**
@@ -87,39 +80,52 @@ export const stripeRouter = createTRPCRouter({
      * Gets the onboarding or dashboard url for stripe depending on the what
      * the account needs
      */
-    get_managment_url: protectedProcedure.input(z.string()).query(async (opts) => {
-        const { input } = opts
+    get_managment_url: artistProcedure.query(
+        async (opts): Promise<{ type: 'dashboard' | 'onboarding'; url: string }> => {
+            const { ctx } = opts
 
-        const artist = await prisma.artist.findFirst({
-            where: {
-                id: input
-            }
-        })
+            // const cachedManagmentUrl = await redis.get(
+            //     AsRedisKey('stripe', ctx.session.user.artist_id!, 'managment')
+            // )
 
-        if (!artist) {
-            throw new TRPCError({
-                code: 'INTERNAL_SERVER_ERROR',
-                message: 'Artist does not exist'
+            // if (cachedManagmentUrl) {
+            //     return JSON.parse(cachedManagmentUrl) as {
+            //         type: 'dashboard' | 'onboarding'
+            //         url: string
+            //     }
+            // }
+
+            const artist = await prisma.artist.findFirst({
+                where: {
+                    id: ctx.session.user.artist_id
+                }
             })
-        }
 
-        // Get the stripe account if they have one
-        const stripe_account = await StripeGetAccount(artist?.stripeAccount)
+            if (!artist) {
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Artist does not exist'
+                })
+            }
 
-        // If the user has not completed the onboarding, return an onboarding url
-        if (!stripe_account.charges_enabled) {
+            // Get the stripe account if they have one
+            const stripe_account = await StripeGetAccount(artist?.stripeAccount)
+
+            // If the user has not completed the onboarding, return an onboarding url
+            if (!stripe_account.charges_enabled) {
+                return {
+                    type: 'onboarding',
+                    url: (await StripeCreateAccountLink(stripe_account.id)).url
+                }
+            }
+
+            // Return the dashboard url if the artist has completed onboarding and has an account
             return {
-                type: 'onboarding',
-                url: (await StripeCreateAccountLink(stripe_account.id)).url
+                type: 'dashboard',
+                url: (await StripeCreateLoginLink(stripe_account.id)).url
             }
         }
-
-        // Return the dashboard url if the artist has completed onboarding and has an account
-        return {
-            type: 'dashboard',
-            url: (await StripeCreateLoginLink(stripe_account.id)).url
-        }
-    }),
+    ),
 
     /**
      * Gets stripe checkout data
@@ -201,6 +207,9 @@ export const stripeRouter = createTRPCRouter({
             return { client_secret: payment_intent.client_secret }
         }),
 
+    /**
+     * Gets the billing portal url so the user can edit their subscription
+     */
     get_checkout_portal: artistProcedure.query(async (opts) => {
         const { ctx } = opts
 

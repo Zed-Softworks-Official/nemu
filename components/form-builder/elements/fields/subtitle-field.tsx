@@ -1,6 +1,5 @@
 'use client'
 
-import { LuHeading2 } from 'react-icons/lu'
 import {
     ElementsType,
     FormElement,
@@ -14,6 +13,7 @@ import * as z from 'zod'
 import { useEffect, useState } from 'react'
 import { DesignerContextType, useDesigner } from '../../designer/designer-context'
 import { DesignerInputField } from '../input-field'
+import { Heading2Icon } from 'lucide-react'
 
 const type: ElementsType = 'SubTitleField'
 
@@ -35,7 +35,7 @@ export const SubTitleFieldFormElement: FormElement = {
     }),
 
     designer_btn_element: {
-        icon: LuHeading2,
+        icon: Heading2Icon,
         label: 'Subtitle'
     },
 

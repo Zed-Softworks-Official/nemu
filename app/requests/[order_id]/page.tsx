@@ -8,7 +8,7 @@ import { CommissionStatus, PaymentStatus } from '@/core/structures'
 import { api } from '@/core/trpc/server'
 import { faJar } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { BanknotesIcon } from '@heroicons/react/20/solid'
+import { ReceiptTextIcon } from 'lucide-react'
 import { Metadata, ResolvingMetadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
@@ -133,7 +133,7 @@ export default async function OrderPage({ params }: Props) {
                         <div className="card shadow-xl bg-base-300">
                             <div className="card-body">
                                 <div className="flex gap-5 items-center">
-                                    <BanknotesIcon className="w-6 h-6" />
+                                    <ReceiptTextIcon className="w-6 h-6" />
                                     <h2 className="card-title">
                                         Invoice{' '}
                                         {request.invoice.paymentStatus ==
@@ -152,17 +152,22 @@ export default async function OrderPage({ params }: Props) {
                                     </h2>
                                 </div>
                                 <div className="divider"></div>
-                                <Link
-                                    href={request.invoice.hostedUrl || '#'}
-                                    target="_blank"
-                                    className="btn btn-primary"
-                                >
-                                    {request.invoice.paymentStatus ==
-                                    PaymentStatus.InvoiceNeedsPayment
-                                        ? 'Pay Invoice'
-                                        : request.invoice.paymentStatus ==
-                                              PaymentStatus.Captured && 'View Invoice'}
-                                </Link>
+                                {request.invoice.hostedUrl ? (
+                                    <Link
+                                        href={request.invoice.hostedUrl}
+                                        target="_blank"
+                                        className="btn btn-primary"
+                                    >
+                                        {request.invoice.paymentStatus ==
+                                        PaymentStatus.InvoiceNeedsPayment
+                                            ? 'Pay Invoice'
+                                            : request.invoice.paymentStatus ==
+                                                  PaymentStatus.Captured &&
+                                              'View Invoice'}
+                                    </Link>
+                                ) : (
+                                    <span>We're still waiting on that for you!</span>
+                                )}
                             </div>
                         </div>
                     )}

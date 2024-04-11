@@ -79,6 +79,13 @@ export const artistProcedure = t.procedure.use(({ ctx, next }) => {
         throw new TRPCError({ code: 'UNAUTHORIZED' })
     }
 
+    if (
+        ctx.session.user.artist_id === undefined ||
+        ctx.session.user.handle === undefined
+    ) {
+        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' })
+    }
+
     return next({
         ctx: {
             session: { ...ctx.session, user: ctx.session.user }

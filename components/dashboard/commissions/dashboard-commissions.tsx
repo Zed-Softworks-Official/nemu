@@ -3,11 +3,11 @@
 import Loading from '@/components/loading'
 import NemuImage from '@/components/nemu-image'
 import { ConvertAvailabilityToBadge, ConvertPublishedToBadge } from '@/core/react-helpers'
-import { EyeIcon, PencilIcon } from '@heroicons/react/20/solid'
 import Link from 'next/link'
 import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
 import Masonry, { ResponsiveMasonry } from 'react-responsive-masonry'
 import { api } from '@/core/trpc/react'
+import { EyeIcon, PencilIcon } from 'lucide-react'
 
 export default function DashboardCommissions() {
     const { artist } = useDashboardContext()!

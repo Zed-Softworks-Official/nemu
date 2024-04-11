@@ -1,11 +1,11 @@
 'use client'
 
-import { EyeIcon } from '@heroicons/react/20/solid'
 import { DesignerContextType, useDesigner } from '../designer/designer-context'
 import { useState } from 'react'
 import Modal from '@/components/modal'
 import { FormElements } from '../elements/form-elements'
 import NemuImage from '@/components/nemu-image'
+import { EyeIcon } from 'lucide-react'
 
 export default function PreviewButton() {
     const { elements } = useDesigner() as DesignerContextType

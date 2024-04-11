@@ -1,6 +1,5 @@
 'use client'
 
-import { BsFillCalendarDateFill } from 'react-icons/bs'
 import {
     ElementsType,
     FormElement,
@@ -16,9 +15,9 @@ import { Fragment, useEffect, useState } from 'react'
 import { DesignerContextType, useDesigner } from '../../designer/designer-context'
 import { DesignerCheckboxField, DesignerInputField } from '../input-field'
 import { ClassNames } from '@/core/helpers'
-import { CalendarIcon } from '@heroicons/react/20/solid'
 import { Popover, Transition } from '@headlessui/react'
 import { format } from 'date-fns'
+import { CalendarIcon } from 'lucide-react'
 
 const type: ElementsType = 'DateField'
 
@@ -44,7 +43,7 @@ export const DateFieldFormElement: FormElement = {
     }),
 
     designer_btn_element: {
-        icon: BsFillCalendarDateFill,
+        icon: CalendarIcon,
         label: 'Date Field'
     },
 

@@ -193,27 +193,30 @@ export const userRouter = createTRPCRouter({
                 artist_id: z.string(),
                 product_id: z.string().optional(),
                 commission_id: z.string().optional(),
-                form_submission_id: z.string().optional()
+                request_id: z.string().optional()
             })
         )
         .mutation(async (opts) => {
-            const { input } = opts
+            const { input, ctx } = opts
 
             const new_download = await prisma.downloads.create({
                 data: {
-                    userId: input.user_id!,
-                    fileKey: input.file_key!,
+                    userId: input.user_id,
+                    fileKey: input.file_key,
                     receiptURL: input.receipt_url,
 
-                    artistId: input.artist_id!,
+                    artistId: ctx.session.user.artist_id!,
                     productId: input.product_id,
                     commissionId: input.commission_id,
-                    requestId: input.form_submission_id
+                    requestId: input.request_id
                 }
             })
 
             if (!new_download) {
-                return { success: false }
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Could not create new download for user!'
+                })
             }
 
             // Notify User

@@ -8,7 +8,6 @@ import { useFormContext } from '@/components/form/form-context'
 import TextField from '@/components/form/text-input'
 
 import { zodResolver } from '@hookform/resolvers/zod'
-import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/20/solid'
 import SelectField, { SelectFieldOptions } from '@/components/form/select-input'
 import Loading from '@/components/loading'
 import CheckboxField from '@/components/form/checkbox-input'
@@ -28,6 +27,7 @@ import NemuImage from '@/components/nemu-image'
 import FormSubmitButtons from './submit-buttons'
 import { useRouter } from 'next/navigation'
 import { api } from '@/core/trpc/react'
+import { CheckCircleIcon } from 'lucide-react'
 
 const commissionSchema = z.object({
     title: z.string().min(2).max(50),

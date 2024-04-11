@@ -1,6 +1,5 @@
 'use client'
 
-import { XCircleIcon } from '@heroicons/react/20/solid'
 import {
     ExpressCheckoutElement,
     LinkAuthenticationElement,
@@ -11,6 +10,7 @@ import {
 import { FormEvent, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import Loading from '../loading'
+import { XCircleIcon } from 'lucide-react'
 
 export default function CommissionCheckoutForm() {
     const { data: session, status } = useSession()

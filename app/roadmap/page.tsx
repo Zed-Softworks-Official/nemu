@@ -1,25 +1,21 @@
 import DefaultPageLayout from '../(default)/layout'
-import { Timeline, TimelineEvent } from '@/components/ui/timeline'
+import { Timeline, TimelineEvent, TimelineEventType } from '@/components/ui/timeline'
 
-const events = [
+const events: TimelineEventType[] = [
     {
         title: 'Initial Launch',
         occured: true
-    },
-    {
-        title: 'Something Else',
-        occured: true
-    },
-    {
-        title: 'Donations',
-        occured: false
     },
     {
         title: 'Embedded Tipping',
         occured: false
     },
     {
-        title: 'Something',
+        title: 'Donations',
+        occured: false
+    },
+    {
+        title: 'Add commissions to portfolio',
         occured: false
     },
     {
@@ -40,10 +36,13 @@ export default function Roadmap() {
                     <Timeline>
                         {events.map((event, i) => (
                             <TimelineEvent
-                                side={i % 2 === 0 ? 'left' : 'right'}
+                                side={'right'}
                                 event={event}
                                 previousEvent={i != 0 ? events[i - 1] : undefined}
-                                end={i === events.length}
+                                nextEvent={
+                                    i != events.length - 1 ? events[i + 1] : undefined
+                                }
+                                end={i === events.length - 1}
                             />
                         ))}
                     </Timeline>

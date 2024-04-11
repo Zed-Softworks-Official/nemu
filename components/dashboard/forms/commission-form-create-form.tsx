@@ -5,9 +5,8 @@ import TextInput from '@/components/form/text-input'
 import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
 import { api } from '@/core/trpc/react'
 
-import { CheckCircleIcon } from '@heroicons/react/20/solid'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useRouter } from 'next/navigation'
+import { CheckCircleIcon } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'react-toastify'
 

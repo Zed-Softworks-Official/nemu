@@ -1,6 +1,5 @@
 'use client'
 
-import { MdTextFields } from 'react-icons/md'
 import {
     ElementsType,
     FormElement,
@@ -17,6 +16,7 @@ import { useEffect, useState } from 'react'
 import { DesignerContextType, useDesigner } from '../../designer/designer-context'
 import { DesignerCheckboxField, DesignerInputField } from '../input-field'
 import { ClassNames } from '@/core/helpers'
+import { RectangleEllipsisIcon } from 'lucide-react'
 
 const type: ElementsType = 'TextField'
 
@@ -44,7 +44,7 @@ export const TextFieldFormElement: FormElement = {
     }),
 
     designer_btn_element: {
-        icon: MdTextFields,
+        icon: RectangleEllipsisIcon,
         label: 'Text Field'
     },
 

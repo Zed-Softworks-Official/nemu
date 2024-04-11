@@ -1,11 +1,9 @@
 'use client'
 
-import { PencilIcon, TrashIcon } from '@heroicons/react/20/solid'
 import { useClickAway } from '@uidotdev/usehooks'
 import { useSession } from 'next-auth/react'
-import { BsReplyFill } from 'react-icons/bs'
-import { MdPushPin } from 'react-icons/md'
 import { useMessagesContext } from './messages-context'
+import { PencilIcon, PinIcon, ReplyIcon, TrashIcon } from 'lucide-react';
 
 export default function MessagesContextMenu({ x, y, close_context_menu }: { x: number; y: number; close_context_menu: () => void }) {
     const { data: session } = useSession()
@@ -25,7 +23,7 @@ export default function MessagesContextMenu({ x, y, close_context_menu }: { x: n
                 style={{ top: `${y}px`, left: `${x}px` }}
             >
                 <ul className="menu">
-                    {session?.user.user_id === artistUserId && (
+                    {session?.user.id === artistUserId && (
                         <li>
                             <button
                                 type="button"
@@ -36,7 +34,7 @@ export default function MessagesContextMenu({ x, y, close_context_menu }: { x: n
                                     }
                                 }}
                             >
-                                <MdPushPin className="w-6 h-6" /> Add to Kanban
+                                <PinIcon className="w-6 h-6" /> Add to Kanban
                             </button>
                         </li>
                     )}
@@ -51,10 +49,10 @@ export default function MessagesContextMenu({ x, y, close_context_menu }: { x: n
                                 }
                             }}
                         >
-                            <BsReplyFill className="w-6 h-6" /> Reply
+                            <ReplyIcon className="w-6 h-6" /> Reply
                         </button>
                     </li>
-                    {session?.user.user_id === message?.sender.userId && (
+                    {session?.user.id === message?.sender.userId && (
                         <>
                             {message?.isUserMessage() && (
                                 <li>

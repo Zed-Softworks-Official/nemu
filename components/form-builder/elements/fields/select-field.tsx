@@ -1,6 +1,5 @@
 'use client'
 
-import { RxDropdownMenu } from 'react-icons/rx'
 import {
     ElementsType,
     FormElement,
@@ -17,7 +16,7 @@ import { DesignerContextType, useDesigner } from '../../designer/designer-contex
 import { DesignerCheckboxField, DesignerInputField } from '../input-field'
 import { ClassNames } from '@/core/helpers'
 import SelectField from '@/components/form/select-input'
-import { PlusCircleIcon, XMarkIcon } from '@heroicons/react/20/solid'
+import { ListIcon, PlusCircleIcon, XCircleIcon } from 'lucide-react'
 
 const type: ElementsType = 'SelectField'
 
@@ -47,7 +46,7 @@ export const SelectFieldFormElement: FormElement = {
     }),
 
     designer_btn_element: {
-        icon: RxDropdownMenu,
+        icon: ListIcon,
         label: 'Select Field'
     },
 
@@ -274,7 +273,7 @@ function PropertiesComponent({
                                                     field.onChange(newOptions)
                                                 }}
                                             >
-                                                <XMarkIcon className="w-6 h-6" />
+                                                <XCircleIcon className="w-6 h-6" />
                                             </button>
                                         </div>
                                     </div>

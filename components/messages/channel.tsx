@@ -1,10 +1,5 @@
 'use client'
-import {
-    Bars3Icon,
-    ChatBubbleOvalLeftEllipsisIcon,
-    PaperAirplaneIcon,
-    PaperClipIcon
-} from '@heroicons/react/20/solid'
+
 import ChatBubble from './chat-buble'
 import {
     ChatMessageType,
@@ -37,8 +32,8 @@ import MessagesContextMenu from './messages-context-menu'
 import { useMessagesContext } from './messages-context'
 import MessagesModal from '../messages-modal'
 import { toast } from 'react-toastify'
-import { BsReplyFill } from 'react-icons/bs'
 import { api } from '@/core/trpc/react'
+import { MenuIcon, MessageCircleMoreIcon, PaperclipIcon, ReplyIcon, SendIcon } from 'lucide-react'
 
 const initialContextMenu = {
     show: false,
@@ -206,7 +201,7 @@ function CustomChannel() {
                 )}
                 renderPlaceholderEmpty={() => (
                     <div className="flex flex-col w-full h-full bg-base-100 justify-center items-center gap-5 text-base-content/80">
-                        <ChatBubbleOvalLeftEllipsisIcon className="w-20 h-20" />
+                        <MessageCircleMoreIcon className="w-20 h-20" />
                         <h2 className="card-title">No Messages</h2>
                     </div>
                 )}
@@ -225,7 +220,7 @@ function CustomChannel() {
                                 setShowDetail(true)
                             }}
                         >
-                            <Bars3Icon className="w-6 h-6" />
+                            <MenuIcon className="w-6 h-6" />
                         </button>
                     </div>
                 )}
@@ -242,7 +237,7 @@ function CustomChannel() {
                         >
                             <div className="bg-base-200 p-5 rounded-t-xl flex flex-col">
                                 <div className="flex flex-row items-center">
-                                    <BsReplyFill className="w-5 h-5" />
+                                    <ReplyIcon className="w-5 h-5" />
                                     <p className="text-sm">Replying to</p>
                                 </div>
                                 <p className="text-sm">
@@ -296,13 +291,13 @@ function CustomChannel() {
                                     onClick={HandleButtonStates}
                                 >
                                     <div className="swap swap-rotate">
-                                        <PaperAirplaneIcon
+                                        <SendIcon
                                             className={ClassNames(
                                                 'w-6 h-6',
                                                 messageContent ? 'swap-off' : 'swap-on'
                                             )}
                                         />
-                                        <PaperClipIcon
+                                        <PaperclipIcon
                                             className={ClassNames(
                                                 'w-6 h-6',
                                                 messageContent ? 'swap-on' : 'swap-off'

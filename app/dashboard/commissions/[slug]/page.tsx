@@ -1,5 +1,10 @@
-import DashboardCommissionDetail from '@/components/dashboard/commissions/dashboard-commission-detail'
+import { getServerAuthSession } from "@/core/auth";
+import { api } from "@/core/trpc/server";
 
-export default function CommissionsOverviewPage({params}: {params: {slug: string}}) {
-    return <DashboardCommissionDetail slug={params.slug} /> 
+export default async function CommissionsOverviewPage({params}: {params: {slug: string}}) {
+    const session = await getServerAuthSession()
+    // const commissions = await api.commissions.get_commission_data()
+
+    // return <DashboardCommissionDetail slug={params.slug} /> 
+    return null
 }

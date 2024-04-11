@@ -1,6 +1,5 @@
 'use client'
 
-import { IoMdCheckbox } from 'react-icons/io'
 import {
     ElementsType,
     FormElement,
@@ -16,6 +15,7 @@ import { useEffect, useState } from 'react'
 import { DesignerContextType, useDesigner } from '../../designer/designer-context'
 import { DesignerCheckboxField, DesignerInputField } from '../input-field'
 import { ClassNames } from '@/core/helpers'
+import { SquareCheckIcon } from 'lucide-react'
 
 const type: ElementsType = 'CheckboxField'
 
@@ -41,7 +41,7 @@ export const CheckboxFieldFormElement: FormElement = {
     }),
 
     designer_btn_element: {
-        icon: IoMdCheckbox,
+        icon: SquareCheckIcon,
         label: 'Checkbox Field'
     },
 

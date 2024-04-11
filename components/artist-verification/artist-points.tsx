@@ -4,19 +4,16 @@ import React from 'react'
 
 import { AnimatePresence, motion } from 'framer-motion'
 import { CanvasRevealEffect } from '@/components/ui/canvas-reveal-effect'
-import {
-    ClockIcon,
-    CurrencyDollarIcon,
-    RectangleStackIcon
-} from '@heroicons/react/20/solid'
+import { HandCoinsIcon, LayersIcon, MailIcon } from 'lucide-react'
+
 
 export default function ArtistPoints() {
     return (
         <>
             <div className="py-20 flex flex-col lg:flex-row items-center justify-center bg-base-300 w-full gap-4 mx-auto px-8">
                 <Card
-                    title="95/5 Revenue Split"
-                    icon={<CurrencyDollarIcon className="w-20 h-20" />}
+                    title="0-5% platform fee"
+                    icon={<HandCoinsIcon className="w-20 h-20" />}
                 >
                     <CanvasRevealEffect
                         animationSpeed={5.1}
@@ -25,7 +22,7 @@ export default function ArtistPoints() {
                 </Card>
                 <Card
                     title="Streamlined Workflow"
-                    icon={<RectangleStackIcon className="w-20 h-20" />}
+                    icon={<LayersIcon className="w-20 h-20" />}
                 >
                     <CanvasRevealEffect
                         animationSpeed={3}
@@ -40,8 +37,8 @@ export default function ArtistPoints() {
                     <div className="absolute inset-0 [mask-image:radial-gradient(400px_at_center,white,transparent)]" />
                 </Card>
                 <Card
-                    title="Commission Queues"
-                    icon={<ClockIcon className="w-20 h-20" />}
+                    title="In Built Messages"
+                    icon={<MailIcon className="w-20 h-20" />}
                 >
                     <CanvasRevealEffect
                         animationSpeed={3}

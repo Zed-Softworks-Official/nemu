@@ -1,6 +1,5 @@
 'use client'
 
-import { BsTextParagraph } from 'react-icons/bs'
 import { ElementsType, FormElement, FormElementInstance } from '../form-elements'
 
 import { useForm } from 'react-hook-form'
@@ -10,6 +9,7 @@ import * as z from 'zod'
 import { useEffect } from 'react'
 import { DesignerContextType, useDesigner } from '../../designer/designer-context'
 import { DesignerTextAreaField } from '../input-field'
+import { PilcrowIcon } from 'lucide-react'
 
 const type: ElementsType = 'ParagraphField'
 
@@ -31,7 +31,7 @@ export const ParagraphFieldFormElement: FormElement = {
     }),
 
     designer_btn_element: {
-        icon: BsTextParagraph,
+        icon: PilcrowIcon,
         label: 'Paragraph'
     },
 

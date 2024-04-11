@@ -1,6 +1,5 @@
 'use client'
 
-import { BsTextareaResize } from 'react-icons/bs'
 import {
     ElementsType,
     FormElement,
@@ -23,6 +22,7 @@ import {
 } from '../input-field'
 import { ClassNames } from '@/core/helpers'
 import TextAreaInput from '@/components/form/text-area'
+import { ScalingIcon } from 'lucide-react'
 
 const type: ElementsType = 'TextAreaField'
 
@@ -52,7 +52,7 @@ export const TextAreaFieldFormElement: FormElement = {
     }),
 
     designer_btn_element: {
-        icon: BsTextareaResize,
+        icon: ScalingIcon,
         label: 'Text Area Field'
     },
 

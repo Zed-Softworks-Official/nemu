@@ -6,8 +6,8 @@ import CommissionCreateForm from '@/components/dashboard/forms/commission-form-c
 import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
 import Loading from '@/components/loading'
 import Link from 'next/link'
-import { PencilSquareIcon } from '@heroicons/react/20/solid'
 import { api } from '@/core/trpc/react'
+import { PencilIcon } from 'lucide-react'
 
 export default function DashboardForms() {
     const { artist } = useDashboardContext()!
@@ -36,7 +36,7 @@ export default function DashboardForms() {
                                         className="btn btn-primary"
                                         href={`/dashboard/forms/${form.id}`}
                                     >
-                                        <PencilSquareIcon className="w-6 h-6" />
+                                        <PencilIcon className="w-6 h-6" />
                                         Edit
                                     </Link>
                                 </div>

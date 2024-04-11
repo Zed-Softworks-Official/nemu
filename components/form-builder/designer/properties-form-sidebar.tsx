@@ -1,6 +1,6 @@
 'use client'
 
-import { XCircleIcon } from '@heroicons/react/20/solid'
+import { XCircleIcon } from 'lucide-react'
 import { FormElements } from '../elements/form-elements'
 import { DesignerContextType, useDesigner } from './designer-context'
 
