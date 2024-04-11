@@ -19,7 +19,7 @@ import { SortableContext, arrayMove } from '@dnd-kit/sortable'
 import KanbanItemComponent from './kanban-item'
 
 import { toast } from 'react-toastify'
-import { api } from '@/core/trpc/react'
+import { api } from '@/core/api/react'
 import { PlusCircleIcon, SaveIcon } from 'lucide-react'
 
 export default function Kanban({

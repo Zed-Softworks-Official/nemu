@@ -1,6 +1,6 @@
 import DashboardContainer from '@/components/dashboard/dashboard-container'
 import { getServerAuthSession } from '@/core/auth'
-import { api } from '@/core/trpc/server'
+import { api } from '@/core/api/server'
 import Masonry, { ResponsiveMasonry } from 'react-responsive-masonry'
 
 import NemuImage from '@/components/nemu-image'

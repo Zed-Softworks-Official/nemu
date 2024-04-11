@@ -6,7 +6,11 @@ import {
     S3Client
 } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
-import { AWSLocations, AWSLocationEnumToString } from './data-structures/aws-structures'
+import {
+    AWSEndpoint,
+    AWSLocationEnumToString,
+    FileUploadData
+} from './data-structures/aws-structures'
 
 const client = new S3Client({ region: 'us-west-1' })
 
@@ -44,33 +48,32 @@ export function RandomNameWithExtension(file: File, accepted?: string[]) {
  * Takes in the handle, location, and file_key of a file and converts it into a single string to be used with the AWS SDK
  *
  * @param {string} handle - The handle of the artist
- * @param {AWSLocations} location - The desired location for the content
+ * @param {AWSEndpoint} location - The desired location for the content
  * @param {string} file_key - The name of the file
  * @returns {string} A string with all three paramaters combined into an AWS Key
  */
-export function AsKey(artist_id: string, location: AWSLocations, file_key: string) {
+export function AsKey(artist_id: string, location: AWSEndpoint, file_key: string) {
     return artist_id + '/' + AWSLocationEnumToString(location) + '/' + file_key
 }
 
 /**
  * Uploads a file to AWS S3
  *
- * @param {string} artist_id - The id of the artist
- * @param {AWSLocations} location - The desired location to place it
+ * @param {string} id - The id of the user/artist
+ * @param {AWSEndpoint} endpoint - The desired location to place it
  * @param {File} file - The file requested to upload
  * @param {string} filename - The filename to be used with AWS S3
  * @returns {Promise<PutObjectCommandOutput>} A promise determining wether the upload failed or succedded
  */
-export async function S3Upload(
-    artist_id: string,
-    location: AWSLocations,
-    file: File,
-    filename: string
-) {
+export async function S3Upload(file: File, metadata: FileUploadData) {
     const uploadParams: PutObjectCommandInput = {
         Bucket: 'nemuart',
         Body: Buffer.from(await file.arrayBuffer()),
-        Key: AsKey(artist_id, location, filename),
+        Key: AsKey(
+            metadata.aws_data.uploaded_by,
+            metadata.aws_data.endpoint,
+            metadata.key
+        ),
         ContentLength: file.size
     }
 
@@ -83,14 +86,14 @@ export async function S3Upload(
  * Gets a file from AWS S3 and returns a presigned URL to the client for the client to view/get the object
  *
  * @param {string} artist_id - The handle of the artist
- * @param {AWSLocations} location - The desired location to find the object
+ * @param {AWSEndpoint} location - The desired location to find the object
  * @param {string} key - The filename of the object
  * @returns {Promise<string>} A promise containing a string which is a signed url to the object the user requested
  */
 export async function S3GetSignedURL(
     artist_id: string,
-    location: AWSLocations,
-    key: string,
+    location: AWSEndpoint,
+    key: string
 ) {
     const downloadParams = {
         Bucket: 'nemuart',
@@ -106,11 +109,11 @@ export async function S3GetSignedURL(
  * Deletes a file from AWS S3
  *
  * @param {string} artist_id - The handle of the artist
- * @param {AWSLocations} location - The desired location to find the object
+ * @param {AWSEndpoint} location - The desired location to find the object
  * @param {string} key - The filename within AWS S3
  * @returns {Promise<DeleteObjectCommandOutput>} A promise contains whether the object was successfully deleted or not
  */
-export async function S3Delete(artist_id: string, location: AWSLocations, key: string) {
+export async function S3Delete(artist_id: string, location: AWSEndpoint, key: string) {
     const deleteParams = {
         Bucket: 'nemuart',
         Key: AsKey(artist_id, location, key)

@@ -2,7 +2,7 @@ import type { Metadata, ResolvingMetadata } from 'next'
 
 import DefaultPageLayout from '../(default)/layout'
 import { TabsProvider } from '@/components/artist-page/tabs-context'
-import { api } from '@/core/trpc/server'
+import { api } from '@/core/api/server'
 import ArtistHeader from '@/components/artist-page/header'
 import ArtistBody from '@/components/artist-page/body'
 

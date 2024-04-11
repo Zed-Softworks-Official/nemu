@@ -1,6 +1,6 @@
 import { NemuResponse, StatusCode } from '@/core/responses'
 import { S3Delete, S3Upload } from '@/core/storage'
-import { AWSLocations, StringToAWSLocationsEnum } from '@/core/structures'
+import { AWSEndpoint, StringToAWSLocationsEnum } from '@/core/structures'
 import { NextResponse } from 'next/server'
 
 export async function POST(

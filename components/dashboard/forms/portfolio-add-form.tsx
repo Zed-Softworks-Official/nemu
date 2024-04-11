@@ -14,7 +14,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 
 import TextField from '@/components/form/text-input'
 import { NemuResponse, StatusCode } from '@/core/responses'
-import { api } from '@/core/trpc/react'
+import { api } from '@/core/api/react'
 import { CheckCircleIcon } from 'lucide-react'
 
 const portfolioSchema = z.object({

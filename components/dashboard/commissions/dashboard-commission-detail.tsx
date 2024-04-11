@@ -6,7 +6,7 @@ import DashboardContainer from '../dashboard-container'
 import Loading from '@/components/loading'
 import CommissionPublishButton from './requests/commission-publish-button'
 import Link from 'next/link'
-import { api } from '@/core/trpc/react'
+import { api } from '@/core/api/react'
 
 import { Pie } from 'react-chartjs-2'
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, ChartData } from 'chart.js'

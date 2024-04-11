@@ -1,7 +1,7 @@
 'use client'
 
 import { StripeGetClientSecretInput } from '@/core/structures'
-import { api } from '@/core/trpc/react'
+import { api } from '@/core/api/react'
 import Loading from '../loading'
 import PaymentForm from './payment-form'
 

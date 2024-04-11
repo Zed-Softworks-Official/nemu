@@ -2,7 +2,7 @@
 
 import Modal from '@/components/modal'
 import { CommissionRequestData } from '@/core/structures'
-import { api } from '@/core/trpc/react'
+import { api } from '@/core/api/react'
 import { RefetchOptions } from '@tanstack/react-query'
 import { useState } from 'react'
 import CommissionRequestContent from './requests/commission-request-content'

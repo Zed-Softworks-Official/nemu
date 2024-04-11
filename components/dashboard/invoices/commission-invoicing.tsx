@@ -5,7 +5,7 @@ import CreateInvoiceForm from './create-invoice-form'
 import { useState } from 'react'
 import { toast } from 'react-toastify'
 import { Invoice, InvoiceItem } from '@prisma/client'
-import { api } from '@/core/trpc/react'
+import { api } from '@/core/api/react'
 
 export default function CommissionInvoicing({
     invoice,

@@ -6,7 +6,6 @@ import { GetItemId } from '@/core/helpers'
 import { usePathname, useRouter } from 'next/navigation'
 import FormDropzone from '@/components/form/form-dropzone'
 import { useFormContext } from '@/components/form/form-context'
-import { NemuResponse, PortfolioResponse, StatusCode } from '@/core/responses'
 
 import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
 
@@ -17,7 +16,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import TextField from '@/components/form/text-input'
 import NemuImage from '@/components/nemu-image'
 import Loading from '@/components/loading'
-import { api } from '@/core/trpc/react'
+import { api } from '@/core/api/react'
 import { CheckCircleIcon, Trash2Icon } from 'lucide-react'
 
 const portfolioSchema = z.object({

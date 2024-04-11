@@ -1,5 +1,5 @@
 import { inferRouterInputs, inferRouterOutputs } from "@trpc/server"
-import { AppRouter } from "../trpc/root"
+import { AppRouter } from "../api/root"
 
 /**
  * StatusCode
@@ -28,9 +28,12 @@ export interface NemuResponse {
     message?: string
 }
 
-export interface FileResponse extends NemuResponse {
-    file_key: string
-}
-
+/**
+ * TRPC Base Router Output Response Object
+ */
 export type RouterOutput = inferRouterOutputs<AppRouter>
+
+/**
+ * TRPC Base Router Input Response Object
+ */
 export type RouterInput = inferRouterInputs<AppRouter>

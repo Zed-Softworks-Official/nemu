@@ -1,6 +1,6 @@
 'use client'
 
-import { api } from '@/core/trpc/react'
+import { api } from '@/core/api/react'
 import { useState } from 'react'
 import { toast } from 'react-toastify'
 

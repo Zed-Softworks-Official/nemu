@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { artistProcedure, createTRPCRouter, publicProcedure } from '../trpc'
 import { redis } from '@/lib/redis'
 import { prisma } from '@/lib/prisma'
-import { AWSLocations, PortfolioItem, Role } from '@/core/structures'
+import { AWSEndpoint, PortfolioItem, Role } from '@/core/structures'
 import { S3GetSignedURL } from '@/core/storage'
 import { AsRedisKey } from '@/core/helpers'
 
@@ -37,7 +37,7 @@ export const portfolioRouter = createTRPCRouter({
             for (let i = 0; i < portfolio.length; i++) {
                 const signed_url = await S3GetSignedURL(
                     input.artist_id,
-                    AWSLocations.Portfolio,
+                    AWSEndpoint.Portfolio,
                     portfolio[i].image
                 )
 
@@ -95,7 +95,7 @@ export const portfolioRouter = createTRPCRouter({
 
             const signed_url = await S3GetSignedURL(
                 input.artist_id,
-                AWSLocations.Portfolio,
+                AWSEndpoint.Portfolio,
                 portfolio_item.image
             )
 

@@ -1,8 +1,8 @@
 import { headers } from 'next/headers'
 import { cache } from 'react'
 
-import { createCaller } from '@/core/trpc/root'
-import { createTRPCContext } from '@/core/trpc/trpc'
+import { createCaller } from '@/core/api/root'
+import { createTRPCContext } from '@/core/api/trpc'
 
 /**
  * This wraps the 'createTRPC' helper and provides the required context for the tRPC API when

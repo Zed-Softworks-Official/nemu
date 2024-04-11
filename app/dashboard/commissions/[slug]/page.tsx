@@ -1,5 +1,5 @@
 import { getServerAuthSession } from "@/core/auth";
-import { api } from "@/core/trpc/server";
+import { api } from "@/core/api/server";
 
 export default async function CommissionsOverviewPage({params}: {params: {slug: string}}) {
     const session = await getServerAuthSession()

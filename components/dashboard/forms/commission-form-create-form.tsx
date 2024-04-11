@@ -3,7 +3,7 @@
 import TextArea from '@/components/form/text-area'
 import TextInput from '@/components/form/text-input'
 import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
-import { api } from '@/core/trpc/react'
+import { api } from '@/core/api/react'
 
 import { zodResolver } from '@hookform/resolvers/zod'
 import { CheckCircleIcon } from 'lucide-react'

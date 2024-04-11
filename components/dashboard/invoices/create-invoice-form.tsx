@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { FormatNumberToCurrency } from '@/core/helpers'
 import { InvoiceItem } from '@prisma/client'
 import { toast } from 'react-toastify'
-import { api } from '@/core/trpc/react'
+import { api } from '@/core/api/react'
 import { DollarSignIcon, HashIcon, PlusCircleIcon, SaveIcon, XCircleIcon } from 'lucide-react'
 
 const invoiceSchema = z.object({

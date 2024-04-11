@@ -1,6 +1,6 @@
 import { NemuResponse, StatusCode } from '@/core/responses'
 import { S3Upload } from '@/core/storage'
-import { AWSFileModification, AWSLocations, StringToAWSLocationsEnum } from '@/core/structures'
+import { AWSFileModification, AWSEndpoint, StringToAWSLocationsEnum } from '@/core/structures'
 import { NextResponse } from 'next/server'
 
 export async function POST(req: Request, { params }: { params: { artist_id: string; location: string } }) {
@@ -34,7 +34,7 @@ export async function POST(req: Request, { params }: { params: { artist_id: stri
     }
 
     // Upload the asset if present
-    await S3Upload(params.artist_id, AWSLocations.Downloads, downloadable_asset, aws_data.get('downloadable_asset_key') as string)
+    await S3Upload(params.artist_id, AWSEndpoint.Downloads, downloadable_asset, aws_data.get('downloadable_asset_key') as string)
 
     return NextResponse.json<NemuResponse>({
         status: StatusCode.Success

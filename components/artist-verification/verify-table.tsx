@@ -2,17 +2,16 @@
 
 import useSwr from 'swr'
 
-import { Fetcher } from '@/core/helpers'
+// import { Fetcher } from '@/core/helpers'
 import { toast } from 'react-toastify'
 import Loading from '@/components/loading'
 
-import { ArtistVerificationResponse } from '@/core/responses'
 
 export function VerifyTable() {
-    const { data, isLoading } = useSwr<ArtistVerificationResponse>(
-        '/api/artist/verify',
-        Fetcher
-    )
+    // const { data, isLoading } = useSwr<ArtistVerificationResponse>(
+    //     '/api/artist/verify',
+    //     Fetcher
+    // )
 
     enum Action {
         Approve = 'approve',

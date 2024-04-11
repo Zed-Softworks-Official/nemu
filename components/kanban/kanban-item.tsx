@@ -7,7 +7,7 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
-import { api } from '@/core/trpc/react'
+import { api } from '@/core/api/react'
 import { toast } from 'react-toastify'
 import { Trash2Icon } from 'lucide-react'
 

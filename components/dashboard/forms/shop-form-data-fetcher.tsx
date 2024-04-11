@@ -4,7 +4,7 @@ import ShopCreateEditForm from './shop-create-edit-form'
 
 import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
 import Loading from '@/components/loading'
-import { api } from '@/core/trpc/react'
+import { api } from '@/core/api/react'
 
 export default function ShopFormDataFetcher({ product_id }: { product_id?: string }) {
     const { artist } = useDashboardContext()!

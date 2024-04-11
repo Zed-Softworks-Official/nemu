@@ -1,7 +1,7 @@
 import DefaultPageLayout from '@/app/(default)/layout'
 import PricingCard from '@/components/ui/pricing-card'
 import { getServerAuthSession } from '@/core/auth'
-import { api } from '@/core/trpc/server'
+import { api } from '@/core/api/server'
 import Link from 'next/link'
 
 const free_tier = [

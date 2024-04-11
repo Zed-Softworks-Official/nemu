@@ -17,7 +17,7 @@ import FormDropzone from '@/components/form/form-dropzone'
 import CurrencyField from '@/components/form/currency-field'
 import {
     AWSFileModification,
-    AWSLocations,
+    AWSEndpoint,
     CommissionAvailability
 } from '@/core/structures'
 import { toast } from 'react-toastify'
@@ -26,7 +26,7 @@ import ImageEditor from '@/components/form/image-editor/image-editor'
 import NemuImage from '@/components/nemu-image'
 import FormSubmitButtons from './submit-buttons'
 import { useRouter } from 'next/navigation'
-import { api } from '@/core/trpc/react'
+import { api } from '@/core/api/react'
 import { CheckCircleIcon } from 'lucide-react'
 
 const commissionSchema = z.object({
@@ -385,7 +385,7 @@ export default function CommissionCreateEditForm({
                 )}
                 <ImageEditor
                     label="Additional Images"
-                    location={AWSLocations.Commission}
+                    location={AWSEndpoint.Commission}
                     {...form.register('additional_images')}
                     images={data && (data.images as AWSFileModification[])}
                     edit_mode={data ? true : false}

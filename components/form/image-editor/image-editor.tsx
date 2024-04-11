@@ -1,6 +1,6 @@
 'use client'
 
-import { AWSFileModification, AWSLocations, AWSModification } from '@/core/structures'
+import { AWSFileModification, AWSEndpoint, AWSModification } from '@/core/structures'
 import { InputHTMLAttributes, forwardRef, useEffect, useState } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { useFormContext } from '../form-context'
@@ -11,7 +11,7 @@ import { Trash2Icon } from 'lucide-react'
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
     label: string
-    location: AWSLocations
+    location: AWSEndpoint
     images?: AWSFileModification[]
     edit_mode?: boolean
 }

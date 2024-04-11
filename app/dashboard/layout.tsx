@@ -5,7 +5,7 @@ import Navbar from '@/components/navigation/dashboard/Navbar'
 import Footer from '@/components/footer'
 
 import { DashboardProvider } from '@/components/navigation/dashboard/dashboard-context'
-import { api } from '@/core/trpc/server'
+import { api } from '@/core/api/server'
 import { getServerAuthSession } from '@/core/auth'
 import { redirect } from 'next/navigation'
 

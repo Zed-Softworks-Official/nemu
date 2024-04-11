@@ -5,7 +5,7 @@ import { ShopItem } from '@/core/structures'
 import ShopCard from '@/components/dashboard/shop/shop-card'
 import Loading from '@/components/loading'
 import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
-import { api } from '@/core/trpc/react'
+import { api } from '@/core/api/react'
 
 export default function ShopItems() {
     const { artist } = useDashboardContext()!

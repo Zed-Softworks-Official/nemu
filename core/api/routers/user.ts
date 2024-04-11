@@ -8,7 +8,7 @@ import {
 import { redis } from '@/lib/redis'
 import { Artist, Commission, Product, StripeCustomerIds, User } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
-import { AWSLocations, DownloadData, Role } from '@/core/structures'
+import { AWSEndpoint, DownloadData, Role } from '@/core/structures'
 import { S3GetSignedURL } from '@/core/storage'
 import { AsRedisKey } from '@/core/helpers'
 import { novu } from '@/lib/novu'
@@ -107,7 +107,7 @@ export const userRouter = createTRPCRouter({
             result.push({
                 download_url: await S3GetSignedURL(
                     artist.id,
-                    AWSLocations.Downloads,
+                    AWSEndpoint.Downloads,
                     download.fileKey
                 ),
                 receipt_url: download.receiptURL || undefined,
@@ -272,7 +272,7 @@ export const userRouter = createTRPCRouter({
         for (const request of requests) {
             request.commission.featuredImage = await S3GetSignedURL(
                 request.commission.artistId,
-                AWSLocations.Commission,
+                AWSEndpoint.Commission,
                 request.commission.featuredImage
             )
         }
@@ -313,7 +313,7 @@ export const userRouter = createTRPCRouter({
             if (!user.image.includes('https')) {
                 profile_photo = await S3GetSignedURL(
                     ctx.session.user.id,
-                    AWSLocations.Profile,
+                    AWSEndpoint.Profile,
                     user.image
                 )
             } else {

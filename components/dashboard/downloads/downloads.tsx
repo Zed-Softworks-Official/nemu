@@ -2,7 +2,7 @@
 
 import Loading from '@/components/loading'
 import NemuImage from '@/components/nemu-image'
-import { api } from '@/core/trpc/react'
+import { api } from '@/core/api/react'
 import Link from 'next/link'
 
 export default function DownloadsList() {

@@ -6,7 +6,6 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { CanvasRevealEffect } from '@/components/ui/canvas-reveal-effect'
 import { HandCoinsIcon, LayersIcon, MailIcon } from 'lucide-react'
 
-
 export default function ArtistPoints() {
     return (
         <>

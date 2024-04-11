@@ -1,14 +1,14 @@
 'use client'
 
 import { NemuResponse, StatusCode } from '@/core/responses'
-import { AWSFileModification, AWSLocations, AWSModification } from '@/core/structures'
+import { AWSFileModification, AWSEndpoint, AWSModification } from '@/core/structures'
 
 import { Transition } from '@headlessui/react'
 import { InputHTMLAttributes, forwardRef, useState } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { Id, toast } from 'react-toastify'
 import { useDashboardContext } from '../navigation/dashboard/dashboard-context'
-import { api } from '@/core/trpc/react'
+import { api } from '@/core/api/react'
 import axios from 'axios'
 import { CircleHelpIcon, FileArchiveIcon, ImageIcon } from 'lucide-react'
 
@@ -43,7 +43,7 @@ const DownloadDropzone = forwardRef<HTMLInputElement, Props>(
                 const file_key = crypto.randomUUID() + file_extension
 
                 setFile({
-                    aws_location: AWSLocations.Downloads,
+                    aws_location: AWSEndpoint.Downloads,
                     file_key: file_key,
                     updated_file: acceptedFiles[0],
                     modification: AWSModification.Added

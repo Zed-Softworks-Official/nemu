@@ -32,7 +32,7 @@ import MessagesContextMenu from './messages-context-menu'
 import { useMessagesContext } from './messages-context'
 import MessagesModal from '../messages-modal'
 import { toast } from 'react-toastify'
-import { api } from '@/core/trpc/react'
+import { api } from '@/core/api/react'
 import { MenuIcon, MessageCircleMoreIcon, PaperclipIcon, ReplyIcon, SendIcon } from 'lucide-react'
 
 const initialContextMenu = {

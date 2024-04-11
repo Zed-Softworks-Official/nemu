@@ -1,4 +1,4 @@
-import { api } from '@/core/trpc/server'
+import { api } from '@/core/api/server'
 import DefaultPageLayout from '../(default)/layout'
 
 export default async function DownloadsPage() {

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { DesignerContextType, useDesigner } from '../designer/designer-context'
-import { api } from '@/core/trpc/react'
+import { api } from '@/core/api/react'
 import { toast } from 'react-toastify'
 import { SaveIcon } from 'lucide-react'
 

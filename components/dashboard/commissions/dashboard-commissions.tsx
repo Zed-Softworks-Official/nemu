@@ -6,7 +6,7 @@ import { ConvertAvailabilityToBadge, ConvertPublishedToBadge } from '@/core/reac
 import Link from 'next/link'
 import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
 import Masonry, { ResponsiveMasonry } from 'react-responsive-masonry'
-import { api } from '@/core/trpc/react'
+import { api } from '@/core/api/react'
 import { EyeIcon, PencilIcon } from 'lucide-react'
 
 export default function DashboardCommissions() {

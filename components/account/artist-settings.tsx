@@ -9,7 +9,7 @@ import TextField from '../form/text-input'
 import MarkdownEditor from '../form/markdown-text-area'
 import CheckboxField from '../form/checkbox-input'
 import { CountryDropdown } from 'react-country-region-selector'
-import { api } from '@/core/trpc/react'
+import { api } from '@/core/api/react'
 import { useState } from 'react'
 import { Id, toast } from 'react-toastify'
 

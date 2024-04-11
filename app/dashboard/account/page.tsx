@@ -2,7 +2,7 @@ import AccountSettings from '@/components/account/account-settings'
 import ArtistSettings from '@/components/account/artist-settings'
 import DashboardContainer from '@/components/dashboard/dashboard-container'
 
-import { api } from '@/core/trpc/server'
+import { api } from '@/core/api/server'
 import { notFound } from 'next/navigation'
 
 export default async function Settings() {

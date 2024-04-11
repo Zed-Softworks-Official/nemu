@@ -1,4 +1,4 @@
-import { api } from '@/core/trpc/server'
+import { api } from '@/core/api/server'
 import { Tabs } from '@/components/ui/tabs'
 
 import DefaultPageLayout from '../(default)/layout'

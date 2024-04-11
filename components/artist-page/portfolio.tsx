@@ -1,7 +1,7 @@
 import NemuImage from '../nemu-image'
 import Masonary, { ResponsiveMasonry } from 'react-responsive-masonry'
 import Loading from '../loading'
-import { api } from '@/core/trpc/react'
+import { api } from '@/core/api/react'
 
 export default function Portfolio({ artist_id }: { artist_id: string }) {
     const { data, isLoading } = api.portfolio.get_portfolio_items.useQuery({ artist_id })

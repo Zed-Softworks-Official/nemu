@@ -3,7 +3,7 @@
 import { ShopItem } from '@/core/structures'
 import Loading from '../loading'
 import ShopDisplay from './shop-display'
-import { api } from '@/core/trpc/react'
+import { api } from '@/core/api/react'
 
 export default function ShopPageClient({
     handle,

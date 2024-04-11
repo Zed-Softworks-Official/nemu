@@ -1,6 +1,6 @@
 import DefaultPageLayout from '@/app/(default)/layout'
 import ShopPageClient from '@/components/artist-page/shop-page-client'
-import { createCaller } from '@/core/trpc/root'
+import { createCaller } from '@/core/api/root'
 import { Metadata, ResolvingMetadata } from 'next'
 
 type Props = {

@@ -1,6 +1,6 @@
 import AccountSettings from '@/components/account/account-settings'
 import DefaultPageLayout from '../(default)/layout'
-import { api } from '@/core/trpc/server'
+import { api } from '@/core/api/server'
 import ArtistSettings from '@/components/account/artist-settings'
 import { notFound } from 'next/navigation'
 

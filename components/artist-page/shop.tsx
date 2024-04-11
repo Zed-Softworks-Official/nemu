@@ -4,7 +4,7 @@ import Masonry, { ResponsiveMasonry } from 'react-responsive-masonry'
 import ShopCard from '../dashboard/shop/shop-card'
 import { ShopItem } from '@/core/structures'
 import Loading from '../loading'
-import { api } from '@/core/trpc/react'
+import { api } from '@/core/api/react'
 
 export default function Shop({
     handle,

@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import ArtistsSkeleton from '../skeleton/homepage/artists-skeleton'
 import NemuImage from '../nemu-image'
-import { api } from '@/core/trpc/react'
+import { api } from '@/core/api/react'
 
 export default function RandomArtists() {
     const { data, isLoading } = api.artist.get_random.useQuery()

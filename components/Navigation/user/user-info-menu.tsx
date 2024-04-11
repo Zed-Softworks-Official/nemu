@@ -1,6 +1,6 @@
 import { getServerAuthSession } from '@/core/auth'
 import UserDropdown from './user-dropdown'
-import { api } from '@/core/trpc/server'
+import { api } from '@/core/api/server'
 import { RouterOutput } from '@/core/responses'
 
 export default async function UserInfoMenu() {

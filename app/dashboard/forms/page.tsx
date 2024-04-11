@@ -6,7 +6,7 @@ import CommissionCreateForm from '@/components/dashboard/forms/commission-form-c
 import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
 import Loading from '@/components/loading'
 import Link from 'next/link'
-import { api } from '@/core/trpc/react'
+import { api } from '@/core/api/react'
 import { PencilIcon } from 'lucide-react'
 
 export default function DashboardForms() {

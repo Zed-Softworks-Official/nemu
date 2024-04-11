@@ -1,5 +1,5 @@
 import { Request, Invoice, InvoiceItem, User } from '@prisma/client'
-import { AWSLocations } from './aws-structures'
+import { AWSEndpoint } from './aws-structures'
 import { RouterOutput } from '../responses'
 
 export interface CreateFormSubmissionStructure {
@@ -22,7 +22,7 @@ export enum AWSModification {
 
 export interface AWSFileModification {
     file_key: string
-    aws_location: AWSLocations
+    aws_location: AWSEndpoint
     signed_url?: string
     file_name?: string
     featured?: boolean

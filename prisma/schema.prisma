@@ -219,8 +219,7 @@ model Product {
   title             String
   description       String
   price             Float
-  featuredImage     String
-  additionalImages  String[]
+  images            String[]
   downloadableAsset String
   slug              String
 
@@ -242,12 +241,11 @@ model Commission {
 
   formId String
 
-  title            String
-  description      String
-  featuredImage    String
-  additionalImages String[]
-  availability     Int
-  slug             String
+  title        String
+  description  String
+  images       String[]
+  availability Int
+  slug         String
 
   published Boolean  @default(false)
   createdAt DateTime @default(now())
@@ -357,5 +355,5 @@ model Kanban {
   tasks      String @default("[]")
 
   requestId String
-  Request   Request?
+  request   Request?
 }

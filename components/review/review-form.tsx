@@ -5,7 +5,7 @@ import * as z from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Controller, useForm } from 'react-hook-form'
 import TextAreaInput from '../form/text-area'
-import { api } from '@/core/trpc/react'
+import { api } from '@/core/api/react'
 
 const reviewSchema = z.object({
     rating: z.number().min(1).max(5),

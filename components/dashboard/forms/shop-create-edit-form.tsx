@@ -16,7 +16,7 @@ import CurrencyField from '@/components/form/currency-field'
 import ImageEditor from '@/components/form/image-editor/image-editor'
 import {
     AWSFileModification,
-    AWSLocations,
+    AWSEndpoint,
     ShopItemEditableResponse,
     StoreProductInputType
 } from '@/core/structures'
@@ -27,7 +27,7 @@ import { useState } from 'react'
 import NemuImage from '@/components/nemu-image'
 import Link from 'next/link'
 import ProductPublishButton from '../shop/product-publish-button'
-import { api } from '@/core/trpc/react'
+import { api } from '@/core/api/react'
 import { CheckCircleIcon } from 'lucide-react'
 
 const productSchema = z.object({
@@ -298,7 +298,7 @@ export default function ShopCreateEditForm({
                 )}
                 <ImageEditor
                     label="Additional Images"
-                    location={AWSLocations.Store}
+                    location={AWSEndpoint.Store}
                     {...form.register('additional_images')}
                     edit_mode={data ? true : false}
                     images={data && (data.edit_images as AWSFileModification[])}

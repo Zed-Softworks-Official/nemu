@@ -3,11 +3,11 @@
 import { forwardRef, InputHTMLAttributes, useEffect, useState } from 'react'
 import { useDropzone } from 'react-dropzone'
 import NemuImage from '../nemu-image'
-import { AWSLocationEnumToString, AWSLocations } from '@/core/structures'
+import { AWSLocationEnumToString, AWSEndpoint } from '@/core/structures'
 import { Id, toast } from 'react-toastify'
 import { useMutation } from '@tanstack/react-query'
 import axios from 'axios'
-import { api } from '@/core/trpc/react'
+import { api } from '@/core/api/react'
 import { FileResponse } from '@/core/responses'
 import { CloudUploadIcon } from 'lucide-react'
 
@@ -38,7 +38,7 @@ const ProfilePhotoDropzone = forwardRef<HTMLInputElement, InputProps>(
         const fileMutation = useMutation({
             mutationFn: (awsData: FormData) => {
                 return axios.post(
-                    `/api/aws/${id}/${AWSLocationEnumToString(AWSLocations.Profile)}/${crypto.randomUUID()}`,
+                    `/api/aws/${id}/${AWSLocationEnumToString(AWSEndpoint.Profile)}/${crypto.randomUUID()}`,
                     awsData
                 )
             },

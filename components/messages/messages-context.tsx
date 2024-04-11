@@ -12,7 +12,7 @@ import {
 } from 'react'
 import NemuImage from '../nemu-image'
 import Loading from '../loading'
-import { api } from '@/core/trpc/react'
+import { api } from '@/core/api/react'
 
 type MessagesContextType = {
     artistUserId: string

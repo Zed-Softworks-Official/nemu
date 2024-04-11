@@ -8,9 +8,12 @@ import { User } from '@prisma/client'
 
 import TextField from '../form/text-input'
 import ProfilePhotoDropzone from '../form/profile-photo-dropzone'
-import { api } from '@/core/trpc/react'
+import { api } from '@/core/api/react'
 import { Id, toast } from 'react-toastify'
 import { useState } from 'react'
+import UploadButton from '../upload/upload-button'
+import { AWSMimeType, AWSEndpoint } from '@/core/structures'
+import UploadProvider from '../upload/upload-context'
 
 const accountSchema = z.object({
     username: z.string().optional(),
@@ -29,7 +32,7 @@ export default function AccountSettings({
     const [toastId, setToastId] = useState<Id | undefined>(undefined)
     const form = useForm<AccountSchemaType>({
         resolver: zodResolver(accountSchema),
-        mode: 'onBlur',
+        mode: 'onSubmit',
         defaultValues: {
             username: user.name || undefined,
             email: user.email || undefined
@@ -68,11 +71,16 @@ export default function AccountSettings({
     }
 
     return (
-        <form className="flex flex-col gap-5" onBlur={form.handleSubmit(ProcessForm)}>
-            <ProfilePhotoDropzone
+        <form className="flex flex-col gap-5" onSubmit={form.handleSubmit(ProcessForm)}>
+            <UploadButton
+                accept={[AWSMimeType.Image]}
+                endpoint={AWSEndpoint.Profile}
+                uploaded_by={user.id}
+            />
+            {/* <ProfilePhotoDropzone
                 initialPhoto={user.image || '/profile.png'}
                 id={user.id}
-            />
+            /> */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <TextField
                     label="Username"

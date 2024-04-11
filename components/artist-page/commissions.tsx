@@ -4,7 +4,7 @@ import CommissionCard from './commission-card'
 import { CommissionItem } from '@/core/structures'
 import { notFound } from 'next/navigation'
 import CommissionsSkeleton from '../skeleton/artist-page/commissions-skeleton'
-import { api } from '@/core/trpc/react'
+import { api } from '@/core/api/react'
 
 export default function Commissions({
     artist_id,

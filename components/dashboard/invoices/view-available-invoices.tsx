@@ -3,7 +3,7 @@
 import Loading from '@/components/loading'
 import { FormatNumberToCurrency } from '@/core/helpers'
 import { PaymentStatus } from '@/core/structures'
-import { api } from '@/core/trpc/react'
+import { api } from '@/core/api/react'
 import Link from 'next/link'
 
 export default function ViewAvailableInvoices() {

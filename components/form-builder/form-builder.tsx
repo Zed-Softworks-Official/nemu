@@ -16,7 +16,7 @@ import { DesignerContextType, useDesigner } from './designer/designer-context'
 import { useEffect } from 'react'
 import Loading from '../loading'
 import { useDashboardContext } from '../navigation/dashboard/dashboard-context'
-import { api } from '@/core/trpc/react'
+import { api } from '@/core/api/react'
 
 export default function FormBuilder({ form_id }: { form_id: string }) {
     const { artist } = useDashboardContext()!

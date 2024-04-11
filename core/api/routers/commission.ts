@@ -9,7 +9,7 @@ import { redis } from '@/lib/redis'
 import { prisma } from '@/lib/prisma'
 import {
     AWSFileModification,
-    AWSLocations,
+    AWSEndpoint,
     CommissionItem,
     CommissionStatus,
     ImageData,
@@ -83,7 +83,7 @@ export const commissionsRouter = createTRPCRouter({
                 // Get Featured Image from S3
                 const featured_signed_url = await S3GetSignedURL(
                     input.artist_id,
-                    AWSLocations.Commission,
+                    AWSEndpoint.Commission,
                     commissions[i].featuredImage
                 )
 
@@ -92,7 +92,7 @@ export const commissionsRouter = createTRPCRouter({
                 for (let j = 0; j < commissions[i].additionalImages.length; j++) {
                     const signed_url = await S3GetSignedURL(
                         input.artist_id,
-                        AWSLocations.Commission,
+                        AWSEndpoint.Commission,
                         commissions[i].additionalImages[j]
                     )
 
@@ -270,14 +270,14 @@ export const commissionsRouter = createTRPCRouter({
             // Get Featured Image
             const featured_image = await S3GetSignedURL(
                 input.artist_id,
-                AWSLocations.Commission,
+                AWSEndpoint.Commission,
                 commission.featuredImage
             )
 
             images.push({
                 file_key: commission.featuredImage,
                 signed_url: featured_image,
-                aws_location: AWSLocations.Commission,
+                aws_location: AWSEndpoint.Commission,
                 file_name: 'Featured Image',
                 featured: true
             })
@@ -286,14 +286,14 @@ export const commissionsRouter = createTRPCRouter({
             for (let i = 0; i < commission.additionalImages.length; i++) {
                 const signed_url = await S3GetSignedURL(
                     input.artist_id,
-                    AWSLocations.Commission,
+                    AWSEndpoint.Commission,
                     commission.additionalImages[i]
                 )
 
                 images.push({
                     file_key: commission.additionalImages[i],
                     signed_url: signed_url,
-                    aws_location: AWSLocations.Commission,
+                    aws_location: AWSEndpoint.Commission,
                     file_name: `Image ${i + 1}`,
                     featured: false
                 })

@@ -3,7 +3,7 @@
 import Loading from '@/components/loading'
 import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
 import CommissionCreateEditForm from './commission-create-edit-form'
-import { api } from '@/core/trpc/react'
+import { api } from '@/core/api/react'
 
 export default function CommissionFormDataFetcher({ slug }: { slug?: string }) {
     const { artist } = useDashboardContext()!

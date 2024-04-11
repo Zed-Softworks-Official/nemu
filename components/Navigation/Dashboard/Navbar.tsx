@@ -1,7 +1,7 @@
 import Logo from '../standard/logo'
 
 import SidebarLink from '@/components/ui/sidebar-link'
-import { api } from '@/core/trpc/server'
+import { api } from '@/core/api/server'
 import { getServerAuthSession } from '@/core/auth'
 import { BadgeDollarSignIcon, BrushIcon, ClipboardList, HandCoinsIcon, ImageIcon, LayersIcon, MailIcon, MenuIcon, Settings2Icon, StoreIcon } from 'lucide-react'
 

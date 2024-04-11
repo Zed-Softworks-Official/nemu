@@ -1,6 +1,6 @@
 import { Artist, Prisma, Product, User } from '@prisma/client'
 import {
-    AWSLocations,
+    AWSEndpoint,
     CommissionAvailability,
     ConvertShopItemFromProductOptions,
     ShopItem
@@ -110,7 +110,7 @@ export async function CreateShopItemFromProducts(
 ) {
     const featured_image_signed_url = await S3GetSignedURL(
         artist.id,
-        AWSLocations.Store,
+        AWSEndpoint.Store,
         product.featuredImage
     )
 
@@ -136,7 +136,7 @@ export async function CreateShopItemFromProducts(
     if (options?.get_download_asset) {
         item.downloadable_asset = await S3GetSignedURL(
             artist.id,
-            AWSLocations.Downloads,
+            AWSEndpoint.Downloads,
             product.downloadableAsset
         )
     }
@@ -147,19 +147,19 @@ export async function CreateShopItemFromProducts(
 
     if (options?.editable) {
         for (const image of product.additionalImages) {
-            const signed_url = await S3GetSignedURL(artist.id, AWSLocations.Store, image)
+            const signed_url = await S3GetSignedURL(artist.id, AWSEndpoint.Store, image)
 
             item.edit_images?.push({
                 file_key: image,
                 signed_url: signed_url,
-                aws_location: AWSLocations.Store,
+                aws_location: AWSEndpoint.Store,
                 file_name: `Image ${image}`,
                 featured: false
             })
         }
     } else {
         for (const image of product.additionalImages) {
-            const signed_url = await S3GetSignedURL(artist.id, AWSLocations.Store, image)
+            const signed_url = await S3GetSignedURL(artist.id, AWSEndpoint.Store, image)
 
             item.images?.push({
                 signed_url: signed_url,
@@ -266,7 +266,7 @@ export async function GetProfilePhoto(user: User) {
         return null
     }
 
-    return await S3GetSignedURL(user.id, AWSLocations.Profile, user.image)
+    return await S3GetSignedURL(user.id, AWSEndpoint.Profile, user.image)
 }
 
 /**

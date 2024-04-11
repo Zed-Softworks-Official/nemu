@@ -8,7 +8,7 @@ import 'react-toastify/ReactToastify.min.css'
 import ThemeProvider from '@/components/theme/theme-context'
 import NextTopLoader from 'nextjs-toploader'
 import CookieConsentBanner from '@/components/cookie-consent-banner'
-import TRPCProvider from '@/core/trpc/react'
+import TRPCProvider from '@/core/api/react'
 import AuthProvider from '@/components/auth/auth-provider'
 import { env } from '@/env'
 

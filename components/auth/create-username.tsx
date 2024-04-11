@@ -1,7 +1,7 @@
 'use client'
 
 import TextField from '@/components/form/text-input'
-import { api } from '@/core/trpc/react'
+import { api } from '@/core/api/react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'

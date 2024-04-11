@@ -10,7 +10,7 @@ import { BentoGrid, BentoGridItem } from '@/components/ui/bento-grid'
 import { Tabs } from '@/components/ui/tabs'
 import { RouterOutput } from '@/core/responses'
 import { KanbanContainerData, KanbanTask, PaymentStatus } from '@/core/structures'
-import { api } from '@/core/trpc/server'
+import { api } from '@/core/api/server'
 import { Invoice, InvoiceItem } from '@prisma/client'
 import { notFound } from 'next/navigation'
 

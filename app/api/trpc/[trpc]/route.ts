@@ -1,5 +1,5 @@
-import { appRouter } from '@/core/trpc/root'
-import { createTRPCContext } from '@/core/trpc/trpc'
+import { appRouter } from '@/core/api/root'
+import { createTRPCContext } from '@/core/api/trpc'
 import { env } from '@/env'
 import { fetchRequestHandler } from '@trpc/server/adapters/fetch'
 

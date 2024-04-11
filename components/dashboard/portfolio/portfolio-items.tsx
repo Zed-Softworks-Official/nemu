@@ -8,7 +8,7 @@ import { useDashboardContext } from '@/components/navigation/dashboard/dashboard
 import Loading from '@/components/loading'
 
 import Masonary, { ResponsiveMasonry } from 'react-responsive-masonry'
-import { api } from '@/core/trpc/react'
+import { api } from '@/core/api/react'
 
 export default function PortfolioItems() {
     const { artist } = useDashboardContext()!

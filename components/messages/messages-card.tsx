@@ -3,7 +3,7 @@
 import { MessagePreview } from '@/core/structures'
 import { ClassNames, ConvertDateToLocaleString } from '@/core/helpers'
 import { MouseEventHandler, useState } from 'react'
-import { api } from '@/core/trpc/react'
+import { api } from '@/core/api/react'
 
 export default function MessagesCard({
     message_preview,
