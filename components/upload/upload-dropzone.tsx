@@ -48,9 +48,7 @@ function convertAWSMimeTypeToDropzoneMimeType(mimetypes: AWSMimeType[]) {
 }
 
 export default function UploadDropzone(props: UploadProps) {
-   
-
-    const { filePreviews, setFilePreviews, setFiles, files, uploadMutation } = useUploadContext()!
+    const { filePreviews, setFilePreviews, setFiles, files, uploadMutation, upload } = useUploadContext()!
 
     const { getRootProps, getInputProps, inputRef } = useDropzone({
         maxFiles: props.max_files,
@@ -86,13 +84,14 @@ export default function UploadDropzone(props: UploadProps) {
             setFilePreviews(previewStrings)
 
             if (props.auto_upload) {
-                uploadMutation.mutate(
-                    GenerateAWSData(acceptedFiles, {
-                        uploaded_by: props.uploaded_by,
-                        endpoint: props.endpoint,
-                        action: props.action ? props.action : AWSAction.Upload
-                    })
-                )
+                upload()
+                // uploadMutation.mutate(
+                //     GenerateAWSData(acceptedFiles, {
+                //         uploaded_by: props.uploaded_by,
+                //         endpoint: props.endpoint,
+                //         action: props.action ? props.action : AWSAction.Upload
+                //     })
+                // )
             }
         }
     })

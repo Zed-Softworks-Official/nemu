@@ -95,9 +95,9 @@ export interface AWSData {
 export type FileUploadData = {
     key: string
     aws_data: AWSData
+    file?: File
     id?: string
     featured?: boolean,
-    file?: File
 }
 
 export type UploadProps = {

@@ -37,21 +37,23 @@ type UploadContextType = {
 const UploadContext = createContext<UploadContextType | undefined>(undefined)
 const queryClient = new QueryClient()
 
-export function GenerateAWSData(files: File[], aws_data: AWSData) {
+export function GenerateAWSData(files: FileUploadData[]) {
     const awsData = new FormData()
-    for (const file of files) {
+    for (const upload_data of files) {
         // Generate Metadata
         const file_metadata: FileUploadData = {
             key: crypto.randomUUID(),
             aws_data: {
-                uploaded_by: aws_data.uploaded_by,
-                endpoint: aws_data.endpoint,
-                action: aws_data.action ? aws_data.action : AWSAction.Upload
+                uploaded_by: upload_data.aws_data.uploaded_by,
+                endpoint: upload_data.aws_data.endpoint,
+                action: upload_data.aws_data.action
+                    ? upload_data.aws_data.action
+                    : AWSAction.Upload
             }
         }
 
         // Append data
-        awsData.append('files', file, file_metadata.key)
+        awsData.append('files', upload_data.file!, file_metadata.key)
         awsData.append(file_metadata.key, JSON.stringify(file_metadata))
     }
 
@@ -88,7 +90,7 @@ function UploadProvider_INTERNAL({ children }: { children: React.ReactNode }) {
     })
 
     const upload = () => {
-
+        if (!files) return
     }
 
     return (
