@@ -3,6 +3,7 @@ import DefaultPageLayout from '../(default)/layout'
 import { api } from '@/core/api/server'
 import ArtistSettings from '@/components/account/artist-settings'
 import { notFound } from 'next/navigation'
+import UploadProvider from '@/components/upload/upload-context'
 
 export default async function AccountPage() {
     const data = await api.user.get_user()
@@ -18,7 +19,12 @@ export default async function AccountPage() {
                     <div className="card-body">
                         <h2 className="card-title">Account Settings</h2>
                         <div className="divider"></div>
-                        <AccountSettings user={data.user} artist_id={data.artist?.id} />
+                        <UploadProvider>
+                            <AccountSettings
+                                user={data.user}
+                                artist_id={data.artist?.id}
+                            />
+                        </UploadProvider>
                     </div>
                 </div>
                 {data.artist && (

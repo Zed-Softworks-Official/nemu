@@ -96,7 +96,22 @@ export type FileUploadData = {
     key: string
     aws_data: AWSData
     id?: string
-    featured?: boolean
+    featured?: boolean,
+    file?: File
+}
+
+export type UploadProps = {
+    accept: AWSMimeType[]
+    endpoint: AWSEndpoint
+    uploaded_by: string
+    auto_upload?: boolean
+    max_files?: number
+    action?: AWSAction
+    on_success?: (res: UploadResponse) => void
+    on_error?: (e: Error) => void,
+    on_mutate?: (variables: FormData) => void,
+    
+    containerClassnames?: string
 }
 
 export interface UploadResponse {

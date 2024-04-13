@@ -1,15 +1,23 @@
 import React from 'react'
 
-import { FormProvider } from '@/components/form/form-context'
-import PortfolioAddForm from '@/components/dashboard/forms/portfolio-add-form'
 import DashboardContainer from '@/components/dashboard/dashboard-container'
+import PortfolioCreateEditForm from '@/components/dashboard/forms/portfolio-create-edit-form'
+import UploadProvider from '@/components/upload/upload-context'
+import { getServerAuthSession } from '@/core/auth'
+import { redirect } from 'next/navigation'
 
-export default function AddPortfolioItem() {
+export default async function AddPortfolioItem() {
+    const session = await getServerAuthSession()
+
+    if (!session) {
+        return redirect('/dashboard')
+    }
+
     return (
         <DashboardContainer title="Add Portfolio Item">
-            <FormProvider>
-                <PortfolioAddForm />
-            </FormProvider>
+            <UploadProvider>
+                <PortfolioCreateEditForm user={session?.user} />
+            </UploadProvider>
         </DashboardContainer>
     )
 }

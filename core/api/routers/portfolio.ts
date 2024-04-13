@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { AWSEndpoint, PortfolioItem, Role } from '@/core/structures'
 import { S3GetSignedURL } from '@/core/storage'
 import { AsRedisKey } from '@/core/helpers'
+import { GetBlurData } from '@/core/server-helpers'
 
 export const portfolioRouter = createTRPCRouter({
     /**
@@ -46,8 +47,11 @@ export const portfolioRouter = createTRPCRouter({
                 }
 
                 result.push({
-                    signed_url: signed_url,
-                    image_key: portfolio[i].image,
+                    data: {
+                        signed_url: signed_url,
+                        blur_data: (await GetBlurData(signed_url)).base64,
+                        image_key: portfolio[i].image
+                    },
                     name: portfolio[i].name
                 })
             }
@@ -100,8 +104,11 @@ export const portfolioRouter = createTRPCRouter({
             )
 
             const result: PortfolioItem = {
-                signed_url: signed_url,
-                image_key: portfolio_item.image,
+                data: {
+                    signed_url: signed_url,
+                    blur_data: (await GetBlurData(signed_url)).base64,
+                    image_key: portfolio_item.image
+                },
                 name: portfolio_item.name
             }
 

@@ -13,8 +13,7 @@ import { RouterOutput } from '../responses'
  * @prop {string} key - Portfolio Image Name inside of the Database
  */
 export interface PortfolioItem {
-    signed_url: string
-    image_key: string
+    data: ImageData
     name: string
 }
 

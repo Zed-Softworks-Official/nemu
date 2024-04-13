@@ -6,7 +6,8 @@ import {
     UploadResponse,
     FileUploadData,
     AWSAction,
-    UploadError
+    UploadError,
+    UploadProps
 } from '@/core/structures'
 import { useUploadContext } from './upload-context'
 import { useRef, useState } from 'react'
@@ -14,23 +15,7 @@ import axios from 'axios'
 
 import { toast } from 'react-toastify'
 
-export default function UploadButton({
-    accept,
-    uploaded_by,
-    endpoint,
-    multiple,
-    action = AWSAction.Upload,
-    onSuccess,
-    onError
-}: {
-    accept: AWSMimeType[]
-    endpoint: AWSEndpoint
-    uploaded_by: string
-    multiple?: boolean
-    action?: AWSAction
-    onSuccess?: (res: UploadResponse) => void
-    onError?: (res: UploadError) => void
-}) {
+export default function UploadButton(props: UploadProps) {
     const [uploading, setUploading] = useState(false)
 
     const inputRef = useRef<HTMLInputElement>(null)
@@ -42,8 +27,10 @@ export default function UploadButton({
                 type="file"
                 name="files"
                 className="hidden"
-                accept={accept.join(',')}
-                multiple={multiple}
+                accept={props.accept.join(',')}
+                multiple={
+                    props.max_files !== undefined || props.max_files! > 1 ? true : false
+                }
                 onChange={async (e) => {
                     if (!e.currentTarget.files) return
 
@@ -64,9 +51,9 @@ export default function UploadButton({
                         const file_metadata: FileUploadData = {
                             key: crypto.randomUUID(),
                             aws_data: {
-                                uploaded_by,
-                                endpoint,
-                                action
+                                uploaded_by: props.uploaded_by,
+                                endpoint: props.endpoint,
+                                action: props.action ? props.action : AWSAction.Upload
                             }
                         }
 
@@ -78,13 +65,13 @@ export default function UploadButton({
                     const res = await axios.post('/api/aws', awsData)
 
                     // Handle Success Event
-                    if (onSuccess && res.status == 200) {
-                        onSuccess(res.data)
+                    if (props.on_success && res.status == 200) {
+                        props.on_success(res.data)
                     }
 
                     // Handle Error Event
-                    if (onError && res.status != 200) {
-                        onError(res.data)
+                    if (props.on_error && res.status != 200) {
+                        props.on_error(res.data)
                     }
 
                     setUploading(false)

@@ -1,29 +1,42 @@
 'use client'
 
 import Link from 'next/link'
-import Image from 'next/image'
-
-import { PortfolioItem } from '@/core/structures'
-import { useDashboardContext } from '@/components/navigation/dashboard/dashboard-context'
-import Loading from '@/components/loading'
 
 import Masonary, { ResponsiveMasonry } from 'react-responsive-masonry'
-import { api } from '@/core/api/react'
+import { RouterOutput } from '@/core/responses'
+import NemuImage from '@/components/nemu-image'
+import Card from '@/components/ui/card'
 
-export default function PortfolioItems() {
-    const { artist } = useDashboardContext()!
-    const { data, isLoading } = api.portfolio.get_portfolio_items.useQuery({
-        artist_id: artist?.id!
-    })
-
-    if (isLoading) {
-        return <Loading />
-    }
-
+export default function PortfolioItems({
+    data
+}: {
+    data: RouterOutput['portfolio']['get_portfolio_items']
+}) {
     return (
         <ResponsiveMasonry columnsCountBreakPoints={{ 350: 1, 900: 2, 1024: 3, 1280: 4 }}>
             <Masonary gutter="3rem">
-                {data?.map((item: PortfolioItem) => {
+                {data.map((item) => (
+                    <Link
+                        key={item.data.image_key}
+                        href={`/dashboard/portfolio/item/${item.data.image_key}`}
+                        className="transition-all duration-150 animate-pop-in"
+                    >
+                        <Card
+                            figure={
+                                <NemuImage
+                                    src={item.data.signed_url}
+                                    placeholder="blur"
+                                    blurDataURL={item.data.blur_data}
+                                    alt={item.name}
+                                    width={200}
+                                    height={200}
+                                />
+                            }
+                            body={<h2 className="card-title">{item.name}</h2>}
+                        />
+                    </Link>
+                ))}
+                {/* {data.map((item: PortfolioItem) => {
                     return (
                         <Link
                             href={`/dashboard/portfolio/item/${item.image_key}`}
@@ -31,7 +44,7 @@ export default function PortfolioItems() {
                             className="card bg-base-100 shadow-xl rounded-3xl transition-all duration-200 animate-pop-in"
                         >
                             <div>
-                                <Image
+                                <NemuImage
                                     src={item.signed_url}
                                     alt={item.name}
                                     width={400}
@@ -46,7 +59,7 @@ export default function PortfolioItems() {
                             </div>
                         </Link>
                     )
-                })}
+                })} */}
             </Masonary>
         </ResponsiveMasonry>
     )

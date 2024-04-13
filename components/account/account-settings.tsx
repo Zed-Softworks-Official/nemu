@@ -7,15 +7,13 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { User } from '@prisma/client'
 
 import TextField from '../form/text-input'
-import ProfilePhotoDropzone from '../form/profile-photo-dropzone'
 import { api } from '@/core/api/react'
 import { Id, toast } from 'react-toastify'
 import { useState } from 'react'
-import UploadButton from '../upload/upload-button'
 import { AWSMimeType, AWSEndpoint } from '@/core/structures'
-import UploadProvider from '../upload/upload-context'
-import { CloudUpload } from 'lucide-react'
+import { useUploadContext } from '../upload/upload-context'
 import NemuImage from '../nemu-image'
+import UploadDropzone from '../upload/upload-dropzone'
 
 const accountSchema = z.object({
     username: z.string().optional(),
@@ -31,8 +29,10 @@ export default function AccountSettings({
     user: User
     artist_id?: string
 }) {
+    const { filePreviews } = useUploadContext()!
+
     const [toastId, setToastId] = useState<Id | undefined>(undefined)
-    const [profilePhoto, setProfilePhoto] = useState(user.image)
+    const [profilePhoto, setProfilePhoto] = useState(user.image!)
     const form = useForm<AccountSchemaType>({
         resolver: zodResolver(accountSchema),
         mode: 'onSubmit',
@@ -42,7 +42,7 @@ export default function AccountSettings({
         }
     })
 
-    const mutation = api.user.update_user.useMutation({
+    const userMutation = api.user.update_user.useMutation({
         onSuccess: () => {
             if (!toastId) return
 
@@ -65,13 +65,22 @@ export default function AccountSettings({
         }
     })
 
+    const profileMutation = api.user.set_profile_photo.useMutation({
+        onSuccess: () => {
+
+        },
+        onError: () => {
+            
+        }
+    })
+
     async function ProcessForm(values: AccountSchemaType) {
-        if (mutation.isPending) return
+        if (userMutation.isPending) return
 
         const toast_id = toast.loading('Updating Account', { theme: 'dark' })
         setToastId(toast_id)
-        
-        mutation.mutate(values)
+
+        userMutation.mutate(values)
     }
 
     return (
@@ -82,7 +91,7 @@ export default function AccountSettings({
                     <div className="form-control">
                         <div className="flex gap-5 w-full">
                             <NemuImage
-                                src={profilePhoto!}
+                                src={profilePhoto}
                                 alt="Profile Image"
                                 width={200}
                                 height={200}
@@ -90,49 +99,37 @@ export default function AccountSettings({
                             />
                         </div>
                     </div>
-                    <UploadButton
+                    <UploadDropzone
                         accept={[AWSMimeType.Image]}
                         endpoint={AWSEndpoint.Profile}
                         uploaded_by={user.id}
-                        onSuccess={(res) => {
+                        max_files={1}
+                        auto_upload
+                        on_success={(res) => {
                             toast('Profile Photo Updated!', {
                                 theme: 'dark',
                                 type: 'success'
                             })
+
+                            if (filePreviews) {
+                                setProfilePhoto(filePreviews[0])
+                            }
                         }}
-                        onError={(res) => {
+                        on_error={(res) => {
                             toast(res.message, { theme: 'dark', type: 'error' })
                         }}
+                        containerClassnames="w-full"
                     />
-                    {/* <div className="flex flex-col gap-5 w-full">
-                        <div
-                            className="mx-auto p-10 border-dashed border-base-content border-opacity-50 border-2 rounded-xl focus:border-primary bg-base-100 text-center border-spacing-28 w-full hover:border-primary hover:cursor-pointer"
-                            {...getRootProps()}
-                        >
-                            <input
-                                ref={ref}
-                                type="file"
-                                {...props}
-                                {...getInputProps()}
-                            />
-                            <CloudUpload className="w-full h-6 items-center justify-center flex" />
-                            <p>Drag a file to upload!</p>
-                        </div>
-                    </div> */}
                 </div>
             </div>
 
-            {/* <ProfilePhotoDropzone
-                initialPhoto={user.image || '/profile.png'}
-                id={user.id}
-            /> */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <TextField
                     label="Username"
                     {...form.register('username')}
                     containerClassnames="w-full"
                     placeholder="Username"
-                    disabled={mutation.isPending}
+                    disabled={userMutation.isPending}
                 />
                 <TextField
                     label="Email"
@@ -141,7 +138,7 @@ export default function AccountSettings({
                     error={form.formState.errors.email ? true : false}
                     errorMessage={form.formState.errors.email?.message}
                     placeholder="Email Address"
-                    disabled={mutation.isPending}
+                    disabled={userMutation.isPending}
                 />
             </div>
         </form>

@@ -1,15 +1,8 @@
-import { api } from '@/core/api/server'
 import { S3Upload } from '@/core/storage'
-import { StatusCode } from '@/core/responses'
 import { getServerAuthSession } from '@/core/auth'
 
 import { NextRequest, NextResponse } from 'next/server'
-import {
-    AWSEndpoint,
-    FileUploadData,
-    UploadError,
-    UploadResponse
-} from '@/core/structures'
+import { FileUploadData, UploadResponse } from '@/core/structures'
 
 /**
  * Uploads files to AWS S3
@@ -40,19 +33,6 @@ export async function POST(req: NextRequest) {
 
         // Upload to S3
         await S3Upload(file, metadata)
-
-        // Update db
-        switch (metadata.aws_data.endpoint) {
-            case AWSEndpoint.Profile:
-                {
-                    const res = await api.aws.set_profile_image(metadata.key)
-
-                    if (!res.success) {
-                        return NextResponse.error()
-                    }
-                }
-                break
-        }
     }
 
     return NextResponse.json<UploadResponse>({})
