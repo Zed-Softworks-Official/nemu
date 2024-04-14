@@ -124,7 +124,11 @@ function UploadProvider_INTERNAL({ children }: { children: React.ReactNode }) {
     const upload = () => {
         if (!files) return
 
+<<<<<<< Updated upstream
         uploadMutation.mutate(GenerateAWSData(files))
+=======
+        
+>>>>>>> Stashed changes
     }
 
     return (
