@@ -1,30 +1,64 @@
 import type { Config } from 'tailwindcss'
-const {
-    default: flattenColorPalette
-} = require('tailwindcss/lib/util/flattenColorPalette')
 
-const config: Config = {
+const config = {
+    darkMode: ['class'],
     content: [
-        './pages/**/*.{js,ts,jsx,tsx,mdx}',
-        './components/**/*.{js,ts,jsx,tsx,mdx}',
-        './app/**/*.{js,ts,jsx,tsx,mdx}'
+        './pages/**/*.{ts,tsx}',
+        './components/**/*.{ts,tsx}',
+        './app/**/*.{ts,tsx}',
+        './src/**/*.{ts,tsx}'
     ],
+    prefix: '',
     theme: {
+        container: {
+            center: true,
+            padding: '2rem',
+            screens: {
+                '2xl': '1400px'
+            }
+        },
         extend: {
-            fontFamily: {
-                nunito: ['var(--font-nunito)']
-            },
-            animation: {
-                'pop-in': 'button-pop 0.25s ease-out',
-                'favorite-button': 'favorite-transition .3s steps(4) 1',
-                'accordion-down': 'accordion-down 0.2s ease-out',
-                'accordion-up': 'accordion-up 0.2s ease-out'
-            },
+            // colors: {
+            //     border: 'hsl(var(--border))',
+            //     input: 'hsl(var(--input))',
+            //     ring: 'hsl(var(--ring))',
+            //     background: 'hsl(var(--background))',
+            //     foreground: 'hsl(var(--foreground))',
+            //     primary: {
+            //         DEFAULT: 'hsl(var(--primary))',
+            //         foreground: 'hsl(var(--primary-foreground))'
+            //     },
+            //     secondary: {
+            //         DEFAULT: 'hsl(var(--secondary))',
+            //         foreground: 'hsl(var(--secondary-foreground))'
+            //     },
+            //     destructive: {
+            //         DEFAULT: 'hsl(var(--destructive))',
+            //         foreground: 'hsl(var(--destructive-foreground))'
+            //     },
+            //     muted: {
+            //         DEFAULT: 'hsl(var(--muted))',
+            //         foreground: 'hsl(var(--muted-foreground))'
+            //     },
+            //     accent: {
+            //         DEFAULT: 'hsl(var(--accent))',
+            //         foreground: 'hsl(var(--accent-foreground))'
+            //     },
+            //     popover: {
+            //         DEFAULT: 'hsl(var(--popover))',
+            //         foreground: 'hsl(var(--popover-foreground))'
+            //     },
+            //     card: {
+            //         DEFAULT: 'hsl(var(--card))',
+            //         foreground: 'hsl(var(--card-foreground))'
+            //     }
+            // },
+            // borderRadius: {
+            //     lg: 'var(--radius)',
+            //     md: 'calc(var(--radius) - 2px)',
+            //     sm: 'calc(var(--radius) - 4px)'
+            // },
             keyframes: {
-                'favorite-transition': {
-                    '0%': { 'background-position': 'left' },
-                    '100%': { 'background-position': 'right' }
-                },
                 'accordion-down': {
                     from: { height: '0' },
                     to: { height: 'var(--radix-accordion-content-height)' }
@@ -34,18 +68,16 @@ const config: Config = {
                     to: { height: '0' }
                 }
             },
-            colors: {
-                white: '#f3f3f3',
-                charcoal: '#333333',
-                primarylight: '#0e90f9',
-                azure: '#1B72BA'
+            animation: {
+                'accordion-down': 'accordion-down 0.2s ease-out',
+                'accordion-up': 'accordion-up 0.2s ease-out'
             }
         }
     },
     daisyui: {
         themes: [
             {
-                'nemu-dark': {
+                dark: {
                     primary: '#2185d5',
                     secondary: '#0e90f9',
                     accent: '#ffffff',
@@ -56,7 +88,7 @@ const config: Config = {
                     warning: '#e2ef2b',
                     error: '#d82750'
                 },
-                'nemu-light': {
+                light: {
                     primary: '#2185d5',
                     secondary: '#0e90f9',
                     accent: '#ffffff',
@@ -69,7 +101,7 @@ const config: Config = {
                 }
             }
         ],
-        darkTheme: 'nemu-dark', // name of one of the included themes for dark mode
+        darkTheme: 'dark', // name of one of the included themes for dark mode
         base: true, // applies background color and foreground color for root element by default
         styled: true, // include daisyUI colors and design decisions for all components
         utils: true, // adds responsive and modifier utility classes
@@ -77,24 +109,7 @@ const config: Config = {
         logs: false, // Shows info about daisyUI version and used config in the console when building your CSS
         themeRoot: ':root' // The element that receives theme color CSS variables
     },
-    darkMode: 'class',
-    plugins: [
-        require('@tailwindcss/typography'),
-        require('daisyui'),
-        require('tailwind-scrollbar'),
-        addVariablesForColors
-    ]
-}
+    plugins: [require('tailwindcss-animate'), require('daisyui')]
+} satisfies Config
 
 export default config
-
-function addVariablesForColors({ addBase, theme }: any) {
-    let allColors = flattenColorPalette(theme('colors'))
-    let newVars = Object.fromEntries(
-        Object.entries(allColors).map(([key, val]) => [`--${key}`, val])
-    )
-
-    addBase({
-        ':root': newVars
-    })
-}
