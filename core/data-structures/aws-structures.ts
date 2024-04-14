@@ -115,6 +115,7 @@ export type UploadProps = {
 }
 
 export interface UploadResponse {
+    keys: string[]
     signed_url?: string
 }
 

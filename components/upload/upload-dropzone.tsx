@@ -1,20 +1,12 @@
 'use client'
 
 import { UploadCloudIcon } from 'lucide-react'
-import { useEffect } from 'react'
+import { useCallback, useEffect } from 'react'
 import { Accept, useDropzone } from 'react-dropzone'
 
-import {
-    AWSAction,
-    AWSMimeType,
-    FileUploadData,
-    UploadProps,
-    UploadResponse
-} from '@/core/structures'
-import { GenerateAWSData, useUploadContext } from '@/components/upload/upload-context'
+import { AWSAction, AWSMimeType, FileUploadData, UploadProps } from '@/core/structures'
+import { useUploadContext } from '@/components/upload/upload-context'
 import { cn } from '@/lib/utils'
-import { useMutation } from '@tanstack/react-query'
-import axios from 'axios'
 
 function convertAWSMimeTypeToDropzoneMimeType(mimetypes: AWSMimeType[]) {
     let result: Accept = {}
@@ -48,7 +40,17 @@ function convertAWSMimeTypeToDropzoneMimeType(mimetypes: AWSMimeType[]) {
 }
 
 export default function UploadDropzone(props: UploadProps) {
-    const { filePreviews, setFilePreviews, setFiles, files, uploadMutation, upload } = useUploadContext()!
+    const {
+        filePreviews,
+        setFilePreviews,
+        setFiles,
+        files,
+        uploadMutation,
+        upload,
+        setOnSuccess,
+        setOnError,
+        setOnMutate
+    } = useUploadContext()!
 
     const { getRootProps, getInputProps, inputRef } = useDropzone({
         maxFiles: props.max_files,
@@ -85,16 +87,19 @@ export default function UploadDropzone(props: UploadProps) {
 
             if (props.auto_upload) {
                 upload()
-                // uploadMutation.mutate(
-                //     GenerateAWSData(acceptedFiles, {
-                //         uploaded_by: props.uploaded_by,
-                //         endpoint: props.endpoint,
-                //         action: props.action ? props.action : AWSAction.Upload
-                //     })
-                // )
             }
         }
     })
+
+    useCallback(() => {
+        if (!(props.on_error && props.on_mutate && props.on_success)) {
+            return
+        }
+
+        setOnError(props.on_error)
+        setOnSuccess(props.on_success)
+        setOnMutate(props.on_mutate)
+    }, [props.on_success, props.on_error, props.on_mutate])
 
     useEffect(() => {
         return () => {

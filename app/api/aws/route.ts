@@ -27,13 +27,17 @@ export async function POST(req: NextRequest) {
         console.log('something goes here')
     }
 
+    let keys: string[] = []
     // Upload files
     for (const file of files) {
         const metadata = JSON.parse(data.get(file.name) as string) as FileUploadData
+        keys.push(metadata.key)
 
         // Upload to S3
         await S3Upload(file, metadata)
     }
 
-    return NextResponse.json<UploadResponse>({})
+    return NextResponse.json<UploadResponse>({
+        keys
+    })
 }

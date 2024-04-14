@@ -10,10 +10,24 @@ import {
 import axios, { AxiosResponse } from 'axios'
 import { createContext, Dispatch, SetStateAction, useContext, useState } from 'react'
 
+/**
+ *
+ */
 type OnSuccessFn = (res: UploadResponse) => void
+
+/**
+ *
+ */
 type OnErrorFn = (e: Error) => void
+
+/**
+ *
+ */
 type OnMutateFn = (awsData: FormData) => void
 
+/**
+ *
+ */
 type UploadContextType = {
     uploadMutation: UseMutationResult<AxiosResponse<any, any>, Error, FormData, void>
     upload: () => void
@@ -34,9 +48,21 @@ type UploadContextType = {
     setOnMutate: Dispatch<SetStateAction<OnMutateFn | null>>
 }
 
+/**
+ *
+ */
 const UploadContext = createContext<UploadContextType | undefined>(undefined)
+
+/**
+ *
+ */
 const queryClient = new QueryClient()
 
+/**
+ *
+ * @param
+ * @returns
+ */
 export function GenerateAWSData(files: FileUploadData[]) {
     const awsData = new FormData()
     for (const upload_data of files) {
@@ -60,6 +86,9 @@ export function GenerateAWSData(files: FileUploadData[]) {
     return awsData
 }
 
+/**
+ *
+ */
 function UploadProvider_INTERNAL({ children }: { children: React.ReactNode }) {
     const [files, setFiles] = useState<FileUploadData[] | null>(null)
     const [filePreviews, setFilePreviews] = useState<string[] | null>(null)
@@ -72,9 +101,9 @@ function UploadProvider_INTERNAL({ children }: { children: React.ReactNode }) {
         mutationFn: (awsData: FormData) => {
             return axios.post('/api/aws', awsData)
         },
-        onSuccess: (data) => {
+        onSuccess: (res) => {
             if (onSuccess) {
-                onSuccess(data as UploadResponse)
+                onSuccess(res.data as UploadResponse)
             }
         },
         onError: (e) => {
@@ -89,8 +118,13 @@ function UploadProvider_INTERNAL({ children }: { children: React.ReactNode }) {
         }
     })
 
+    /**
+     *
+     */
     const upload = () => {
         if (!files) return
+
+        uploadMutation.mutate(GenerateAWSData(files))
     }
 
     return (
@@ -115,6 +149,9 @@ function UploadProvider_INTERNAL({ children }: { children: React.ReactNode }) {
     )
 }
 
+/**
+ *
+ */
 export default function UploadProvider({ children }: { children: React.ReactNode }) {
     return (
         <QueryClientProvider client={queryClient}>
@@ -123,4 +160,7 @@ export default function UploadProvider({ children }: { children: React.ReactNode
     )
 }
 
+/**
+ *
+ */
 export const useUploadContext = () => useContext(UploadContext)
