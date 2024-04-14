@@ -2,7 +2,7 @@
 
 import TextField from '@/components/form/text-input'
 import NemuImage from '@/components/nemu-image'
-import { GenerateAWSData, useUploadContext } from '@/components/upload/upload-context'
+import { useUploadContext } from '@/components/upload/upload-context'
 import UploadDropzone from '@/components/upload/upload-dropzone'
 import { api } from '@/core/api/react'
 import { AWSEndpoint, AWSMimeType } from '@/core/structures'
@@ -68,9 +68,7 @@ export default function PortfolioCreateEditForm({ user }: { user: User }) {
                         endpoint={AWSEndpoint.Portfolio}
                         accept={[AWSMimeType.Image]}
                         on_success={(res) => {
-                            console.log(res)
-
-                            // Udata db
+                            // Update db
                             mutation.mutate({
                                 artist_id: user.artist_id!,
                                 iamge_key: res.keys[0],

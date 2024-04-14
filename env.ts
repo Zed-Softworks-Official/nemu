@@ -30,6 +30,9 @@ export const env = createEnv({
         ALGOLIA_APP_ID: z.string(),
         ALGOLIA_API_KEY: z.string(),
 
+        UPLOADTHING_SECRET: z.string(),
+        UPLOADTHING_APP_ID: z.string(),
+
         NOVU_API_KEY: z.string(),
 
         SENDBIRD_APP_ID: z.string(),
@@ -74,6 +77,9 @@ export const env = createEnv({
         ALGOLIA_API_KEY: process.env.ALGOLIA_API_KEY,
 
         NOVU_API_KEY: process.env.NOVU_API_KEY,
+
+        UPLOADTHING_SECRET: process.env.UPLOADTHING_SECRET,
+        UPLOADTHING_APP_ID: process.env.UPLOADTHING_APP_ID,
 
         SENDBIRD_APP_ID: process.env.SENDBIRD_APP_ID,
         SENDBIRD_API_TOKEN: process.env.SENDBIRD_API_TOKEN,

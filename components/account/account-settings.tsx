@@ -11,9 +11,8 @@ import { api } from '@/core/api/react'
 import { Id, toast } from 'react-toastify'
 import { useState } from 'react'
 import { AWSMimeType, AWSEndpoint } from '@/core/structures'
-import { useUploadContext } from '../upload/upload-context'
 import NemuImage from '../nemu-image'
-import UploadDropzone from '../upload/upload-dropzone'
+import { UploadDropzone } from '../uploadthing'
 
 const accountSchema = z.object({
     username: z.string().optional(),
@@ -29,8 +28,6 @@ export default function AccountSettings({
     user: User
     artist_id?: string
 }) {
-    const { filePreviews } = useUploadContext()!
-
     const [toastId, setToastId] = useState<Id | undefined>(undefined)
     const [profilePhoto, setProfilePhoto] = useState(user.image!)
     const form = useForm<AccountSchemaType>({
@@ -66,12 +63,8 @@ export default function AccountSettings({
     })
 
     const profileMutation = api.user.set_profile_photo.useMutation({
-        onSuccess: () => {
-
-        },
-        onError: () => {
-            
-        }
+        onSuccess: () => {},
+        onError: () => {}
     })
 
     async function ProcessForm(values: AccountSchemaType) {
@@ -100,25 +93,11 @@ export default function AccountSettings({
                         </div>
                     </div>
                     <UploadDropzone
-                        accept={[AWSMimeType.Image]}
-                        endpoint={AWSEndpoint.Profile}
-                        uploaded_by={user.id}
-                        max_files={1}
-                        auto_upload
-                        on_success={(res) => {
-                            toast('Profile Photo Updated!', {
-                                theme: 'dark',
-                                type: 'success'
-                            })
-
-                            if (filePreviews) {
-                                setProfilePhoto(filePreviews[0])
-                            }
+                        endpoint="profileRouter"
+                        className="w-full border-2 border-dashed bg-base-100 border-base-content/60 hover:border-primary transition-all duration-200 ease-in-out"
+                        onClientUploadComplete={(res) => {
+                            // profileMutation.mutate(res[0].key)
                         }}
-                        on_error={(res) => {
-                            toast(res.message, { theme: 'dark', type: 'error' })
-                        }}
-                        containerClassnames="w-full"
                     />
                 </div>
             </div>

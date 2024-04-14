@@ -11,6 +11,9 @@ import CookieConsentBanner from '@/components/cookie-consent-banner'
 import TRPCProvider from '@/core/api/react'
 import AuthProvider from '@/components/auth/auth-provider'
 import { env } from '@/env'
+import { NextSSRPlugin } from '@uploadthing/react/next-ssr-plugin'
+import { extractRouterConfig } from 'uploadthing/server'
+import { nemuFileRouter } from './api/uploadthing/core'
 
 // import { HighlightInit } from '@highlight-run/next/client'
 
@@ -29,7 +32,6 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
     return (
         <>
-            
             <html lang="en" data-theme="nemu">
                 <head>
                     <link
@@ -43,6 +45,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                             <body
                                 className={`bg-base-100 text-base-content ${nunito.className} scrollbar-thin scrollbar-track-transparent scrollbar-thumb-base-300`}
                             >
+                                <NextSSRPlugin
+                                    routerConfig={extractRouterConfig(nemuFileRouter)}
+                                />
                                 <NextTopLoader
                                     color="#2185d5"
                                     showSpinner={false}

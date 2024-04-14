@@ -20,6 +20,8 @@ export default function Logo() {
                         width={140}
                         height={180}
                         draggable={false}
+                        className="w-full h-full"
+                        priority
                     />
                 ) : (
                     <NemuImage
@@ -28,6 +30,8 @@ export default function Logo() {
                         width={140}
                         height={180}
                         draggable={false}
+                        className="w-full h-full"
+                        priority
                     />
                 )}
             </Link>
