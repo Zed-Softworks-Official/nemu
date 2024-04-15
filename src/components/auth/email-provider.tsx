@@ -1,28 +1,26 @@
 'use client'
 
+import { MailIcon } from 'lucide-react'
 import { signIn } from 'next-auth/react'
 import { useState } from 'react'
+
+import { Input } from '~/components/ui/input'
+import { Button } from '~/components/ui/button'
 
 export default function EmailProvider() {
     const [email, setEmail] = useState('')
 
     return (
-        <div>
-            <input
-                name="email"
-                id="email"
+        <div className="flex flex-col gap-5">
+            <Input
                 type="email"
                 placeholder="Email"
-                className="input w-full"
                 onChange={(e) => setEmail(e.currentTarget.value)}
             />
-            <button
-                className="btn btn-primary w-full"
-                onClick={() => signIn('email', { email })}
-            >
-                {/* <FontAwesomeIcon icon={faEnvelope} className="w-5 h-5" /> */}
+            <Button onClick={() => signIn('email', { email })}>
+                <MailIcon className="w-6 h-6" />
                 Sign In
-            </button>
+            </Button>
         </div>
     )
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import { ClientSafeProvider, signIn } from 'next-auth/react'
-import { Button } from '../ui/button'
+import { Button } from '~/components/ui/button'
 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {

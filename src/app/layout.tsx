@@ -1,10 +1,14 @@
 import '~/styles/globals.css'
 
+import NextTopLoader from 'nextjs-toploader'
 import { Nunito } from 'next/font/google'
+
+import { NextSSRPlugin } from '@uploadthing/react/next-ssr-plugin'
+import { extractRouterConfig } from 'uploadthing/server'
 
 import { TRPCReactProvider } from '~/trpc/react'
 import { ThemeProvider } from '~/components/theme-provider'
-import StandardNavbar from '~/components/navbar/standard-navbar'
+import { nemuFileRouter } from '~/app/api/uploadthing/core'
 
 const nunito = Nunito({
     subsets: ['latin'],
@@ -21,6 +25,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     return (
         <html lang="en">
             <body className={`font-sans ${nunito.variable}`}>
+                <NextTopLoader
+                    color="#2185d5"
+                    showSpinner={false}
+                    shadow="0 0 10px #3fa7fc, 0 0 5px #3fa7fc"
+                />
+                <NextSSRPlugin
+                    /**
+                     * The `extractRouterConfig` will extract **only** the route configs
+                     * from the router to prevent additional information from being
+                     * leaked to the client. The data passed to the client is the same
+                     * as if you were to fetch `/api/uploadthing` directly.
+                     */
+                    routerConfig={extractRouterConfig(nemuFileRouter)}
+                />
                 <ThemeProvider
                     attribute="class"
                     defaultTheme="system"

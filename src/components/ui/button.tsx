@@ -9,13 +9,14 @@ const buttonVariants = cva(
     {
         variants: {
             variant: {
-                default: 'btn-primary',
+                default: 'btn-primary text-base-content',
                 destructive:
                     'btn-error',
                 outline:
                     'btn-outline',
                 secondary: 'btn-secondary',
                 ghost: 'btn-ghost',
+                link: 'link link-hover',
                 dark: ''
             },
             size: {
