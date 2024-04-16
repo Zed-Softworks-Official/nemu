@@ -14,6 +14,7 @@ import { ZodError } from 'zod'
 import { getServerAuthSession } from '~/server/auth'
 import { db } from '~/server/db'
 import { cache } from '~/server/cache'
+import { UserRole } from '~/core/structures'
 
 /**
  * 1. CONTEXT
@@ -100,9 +101,28 @@ export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
     if (!ctx.session || !ctx.session.user) {
         throw new TRPCError({ code: 'UNAUTHORIZED' })
     }
+
     return next({
         ctx: {
             // infers the `session` as non-nullable
+            session: { ...ctx.session, user: ctx.session.user }
+        }
+    })
+})
+
+/**
+ * Artist (private) procedure
+ * 
+ * This is for artist only routes, such as Creating, Updating, or Deleting any Commission, Portfolio,
+ * Product, Ect.
+ */
+export const artistProcedure = protectedProcedure.use(({ ctx, next }) => {
+    if (ctx.session.user.role !== UserRole.Artist) {
+        throw new TRPCError({ code: 'UNAUTHORIZED' })
+    }
+
+    return next({
+        ctx: {
             session: { ...ctx.session, user: ctx.session.user }
         }
     })

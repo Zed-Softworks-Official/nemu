@@ -12,6 +12,7 @@ import { Button } from '~/components/ui/button'
 import { UploadDropzone } from '~/components/uploadthing'
 import { Avatar, AvatarImage, AvatarFallback } from '~/components/ui/avatar'
 import { useState } from 'react'
+import { User } from '@prisma/client'
 
 const accountSchema = z.object({
     username: z
@@ -27,7 +28,13 @@ const accountSchema = z.object({
 
 type AccountSchemaType = z.infer<typeof accountSchema>
 
-export default function AccountSettings() {
+export default function AccountSettings({
+    user,
+    artist_id
+}: {
+    user: User
+    artist_id?: string
+}) {
     const [profilePhoto, setProfilePhoto] = useState('/profile.png')
 
     const form = useForm<AccountSchemaType>({

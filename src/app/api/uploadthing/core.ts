@@ -3,11 +3,13 @@ import { UploadThingError } from 'uploadthing/server'
 
 import { getServerAuthSession } from '~/server/auth'
 import { db } from '~/server/db'
-import { api } from '~/trpc/server'
 
 const f = createUploadthing()
 
 export const nemuFileRouter = {
+    /**
+     * Handles uploading profile photos
+     */
     profilePhotoUploader: f({
         image: { maxFileCount: 1, maxFileSize: '4MB' }
     })
@@ -21,7 +23,7 @@ export const nemuFileRouter = {
             return { userId: session.user.id }
         })
         .onUploadComplete(async ({ metadata, file }) => {
-            // await api.user.set_profile_photo(file.url)
+            // Update user image in db
             await db.user.update({
                 where: {
                     id: metadata.userId
