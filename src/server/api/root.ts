@@ -2,6 +2,7 @@ import { createCallerFactory, createTRPCRouter } from '~/server/api/trpc'
 
 import { userRouter } from '~/server/api/routers/user'
 import { artistRouter } from '~/server/api/routers/artist'
+import { commissionRouter } from '~/server/api/routers/commission'
 
 /**
  * This is the primary router for your server.
@@ -10,6 +11,7 @@ import { artistRouter } from '~/server/api/routers/artist'
  */
 export const appRouter = createTRPCRouter({
     artist: artistRouter,
+    commission: commissionRouter,
     user: userRouter
 })
 

@@ -24,7 +24,7 @@ import { Button } from '~/components/ui/button'
 import { SaveIcon } from 'lucide-react'
 
 const artistSchema = z.object({
-    about: z.string(),
+    about: z.string().max(256),
     location: z.string(),
     terms: z.string(),
 

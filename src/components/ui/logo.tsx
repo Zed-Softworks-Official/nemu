@@ -3,7 +3,7 @@
 import { useTheme } from 'next-themes'
 import Link from 'next/link'
 import NemuImage from '~/components/nemu-image'
-import { Badge } from './badge'
+import { Badge } from '~/components/ui/badge'
 
 export default function Logo() {
     const { resolvedTheme } = useTheme()
