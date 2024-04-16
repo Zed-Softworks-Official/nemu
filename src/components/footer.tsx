@@ -3,7 +3,7 @@ import NemuImage from '~/components/nemu-image'
 
 export default function Footer() {
     return (
-        <div className="sticky top-[100%] w-full">
+        <div className="sticky top-[100%] w-full mt-10">
             <div className="bg-base-200">
                 <footer className="footer p-10 container mx-auto text-base-content">
                     <aside className="h-full flex flex-col justify-between">

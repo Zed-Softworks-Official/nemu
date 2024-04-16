@@ -1,6 +1,7 @@
 import '~/styles/globals.css'
 
 import NextTopLoader from 'nextjs-toploader'
+
 import { Nunito } from 'next/font/google'
 
 import { NextSSRPlugin } from '@uploadthing/react/next-ssr-plugin'
@@ -12,6 +13,7 @@ import { nemuFileRouter } from '~/app/api/uploadthing/core'
 
 const nunito = Nunito({
     subsets: ['latin'],
+    display: 'swap',
     variable: '--font-nunito'
 })
 
@@ -24,7 +26,7 @@ export const metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
     return (
         <html lang="en">
-            <body className={`font-sans ${nunito.variable}`}>
+            <body className={`${nunito.className}`}>
                 <NextTopLoader
                     color="#2185d5"
                     showSpinner={false}

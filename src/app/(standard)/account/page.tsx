@@ -6,6 +6,10 @@ import Container from '~/components/ui/container'
 
 import { api } from '~/trpc/server'
 
+export const metadata = {
+    title: 'Nemu | Account'
+}
+
 export default async function AccountPage() {
     const data = await api.user.get_user()
 

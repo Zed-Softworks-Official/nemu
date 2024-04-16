@@ -14,19 +14,21 @@ const containerVariants = cva('card shadow-xl', {
     }
 })
 
-
+export interface ContainerProps
+    extends React.HTMLAttributes<HTMLDivElement>,
+        VariantProps<typeof containerVariants> {
+    figure?: React.ReactNode
+    children: React.ReactNode
+}
 
 export default function Container({
     variant,
     figure,
-    children
-}: {
-    variant: VariantProps<typeof containerVariants>
-    figure?: React.ReactNode
-    children: React.ReactNode
-}) {
+    children,
+    ...props
+}: ContainerProps) {
     return (
-        <div className={cn(containerVariants(variant))}>
+        <div className={cn(containerVariants({ variant }))}>
             <figure>{figure}</figure>
             <div className="card-body">{children}</div>
         </div>

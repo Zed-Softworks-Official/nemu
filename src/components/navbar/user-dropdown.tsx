@@ -26,7 +26,7 @@ export default function UserDropdown({ user }: { user: User | undefined }) {
                     <UserIcon className="w-6 h-6" />
                 )}
             </DropdownMenuTrigger>
-            <DropdownMenuContent>
+            <DropdownMenuContent className='min-w-52'>
                 {user ? (
                     <UserDropdownContent user={user} />
                 ) : (
@@ -52,8 +52,10 @@ function UserDropdownContent({ user }: { user: User }) {
                 </Link>
             </DropdownMenuItem>
             <DropdownMenuItem>
-                <LogOutIcon className="w-6 h-6" />
-                Sign Out
+                <Link href={'/api/auth/signout'} className="flex gap-3 w-full">
+                    <LogOutIcon className="w-6 h-6" />
+                    Sign Out
+                </Link>
             </DropdownMenuItem>
         </>
     )

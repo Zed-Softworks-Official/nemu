@@ -35,7 +35,9 @@ export const userRouter = createTRPCRouter({
         }
 
         // Get Signed Url for profile photo
-        user.image = '/profile.png'
+        if (!user.image) {
+            user.image = '/profile.png'
+        }
 
         if (ctx.session.user.role !== UserRole.Artist) {
             await ctx.cache.set(
@@ -75,30 +77,37 @@ export const userRouter = createTRPCRouter({
     }),
 
     /**
-     * Updates a users profile image
+     * Updates a users information
      */
-    set_profile_photo: protectedProcedure.input(z.string()).mutation(async (opts) => {
-        const { input, ctx } = opts
-
-        // Update Database
-        const updated_user = await ctx.db.user.update({
-            where: {
-                id: ctx.session.user.id
-            },
-            data: {
-                image: input
-            }
-        })
-
-        if (!updated_user) {
-            throw new TRPCError({
-                code: 'INTERNAL_SERVER_ERROR',
-                message: 'Could not update user'
+    update_user: protectedProcedure
+        .input(
+            z.object({
+                username: z.string().optional(),
+                email: z.string().email().optional()
             })
-        }
+        )
+        .mutation(async (opts) => {
+            const { input, ctx } = opts
 
-        await ctx.cache.del(AsRedisKey('users', ctx.session.user.id))
+            const updated_user = await ctx.db.user.update({
+                where: {
+                    id: ctx.session.user.id
+                },
+                data: {
+                    name: input.username,
+                    email: input.email
+                }
+            })
 
-        return { success: true }
-    })
+            if (!updated_user) {
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Unable to update user account!'
+                })
+            }
+
+            await ctx.cache.del(AsRedisKey('users', ctx.session.user.id!))
+
+            return { success: true }
+        })
 })

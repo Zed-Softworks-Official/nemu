@@ -11,6 +11,7 @@ import { env } from '~/env'
 import { db } from '~/server/db'
 
 import { UserRole } from '~/core/structures'
+import { AsRedisKey, cache } from '~/server/cache'
 
 /**
  * Module augmentation for `next-auth` types. Allows us to add custom properties to the `session`
@@ -23,12 +24,18 @@ declare module 'next-auth' {
         user: {
             id: string
             role: UserRole
+
+            handle?: string
+            artist_id?: string
         } & DefaultSession['user']
     }
 
     interface User {
         // ...other properties
         role: UserRole
+
+        handle?: string
+        artist_id?: string
     }
 }
 
@@ -45,14 +52,30 @@ export const authOptions: NextAuthOptions = {
         newUser: '/u/new-user'
     },
     callbacks: {
-        session: ({ session, user }) => ({
-            ...session,
-            user: {
-                ...session.user,
-                id: user.id,
-                role: user.role
+        session: async ({ session, user }) => {
+            const cachedUser = await cache.get(AsRedisKey('users', user.id))
+
+            if (cachedUser) {
+                const user_data = JSON.parse(cachedUser)
+
+                if (user.image) {
+                    user.image = user_data.user.image
+                }
             }
-        })
+
+            if (user.role === UserRole.Artist) {
+                const artist = await db.artist.findFirst({
+                    where: {
+                        userId: user.id
+                    }
+                })
+
+                user.artist_id = artist!.id
+                user.handle = artist!.handle
+            }
+
+            return { ...session, user }
+        }
     },
     adapter: PrismaAdapter(db) as Adapter,
     providers: [
