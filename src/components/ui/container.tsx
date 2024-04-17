@@ -18,17 +18,19 @@ export interface ContainerProps
     extends React.HTMLAttributes<HTMLDivElement>,
         VariantProps<typeof containerVariants> {
     figure?: React.ReactNode
+    className?: string
     children: React.ReactNode
 }
 
 export default function Container({
     variant,
     figure,
+    className,
     children,
     ...props
 }: ContainerProps) {
     return (
-        <div className={cn(containerVariants({ variant }))}>
+        <div className={cn(containerVariants({ variant }), className)}>
             <figure>{figure}</figure>
             <div className="card-body">{children}</div>
         </div>
