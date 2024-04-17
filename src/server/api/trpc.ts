@@ -112,13 +112,17 @@ export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
 
 /**
  * Artist (private) procedure
- * 
+ *
  * This is for artist only routes, such as Creating, Updating, or Deleting any Commission, Portfolio,
  * Product, Ect.
  */
 export const artistProcedure = protectedProcedure.use(({ ctx, next }) => {
     if (ctx.session.user.role !== UserRole.Artist) {
         throw new TRPCError({ code: 'UNAUTHORIZED' })
+    }
+
+    if (!ctx.session.user.artist_id) {
+        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' })
     }
 
     return next({

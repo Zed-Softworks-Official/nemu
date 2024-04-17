@@ -10,6 +10,7 @@ import { extractRouterConfig } from 'uploadthing/server'
 import { TRPCReactProvider } from '~/trpc/react'
 import { ThemeProvider } from '~/components/theme-provider'
 import { nemuFileRouter } from '~/app/api/uploadthing/core'
+import { Toaster } from '~/components/ui/sonner'
 
 const nunito = Nunito({
     subsets: ['latin'],
@@ -42,12 +43,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     routerConfig={extractRouterConfig(nemuFileRouter)}
                 />
                 <ThemeProvider
-                    attribute="class"
+                    attribute="data-theme"
                     defaultTheme="system"
                     enableSystem
                     disableTransitionOnChange
                 >
                     <TRPCReactProvider>{children}</TRPCReactProvider>
+                    <Toaster />
                 </ThemeProvider>
             </body>
         </html>

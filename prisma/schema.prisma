@@ -2,16 +2,16 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-    provider = "prisma-client-js"
+  provider = "prisma-client-js"
 }
 
 datasource db {
-    provider = "postgresql"
-    // NOTE: When using mysql or sqlserver, uncomment the @db.Text annotations in model Account below
-    // Further reading:
-    // https://next-auth.js.org/adapters/prisma#create-the-prisma-schema
-    // https://www.prisma.io/docs/reference/api-reference/prisma-schema-reference#string
-    url      = env("DATABASE_URL")
+  provider = "postgresql"
+  // NOTE: When using mysql or sqlserver, uncomment the @db.Text annotations in model Account below
+  // Further reading:
+  // https://next-auth.js.org/adapters/prisma#create-the-prisma-schema
+  // https://www.prisma.io/docs/reference/api-reference/prisma-schema-reference#string
+  url      = env("DATABASE_URL")
 }
 
 //////////////////////////////////////////////////////////
@@ -207,12 +207,15 @@ model Favorite {
 model Portfolio {
   id       String @id @default(cuid())
   artistId String
-  image    String
-  name     String
+
+  image String
+  name  String
 
   createdAt DateTime @default(now())
+  requestId String?  @unique
 
-  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  artist  Artist   @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  request Request? @relation(fields: [requestId], references: [id], onDelete: Cascade)
 }
 
 //////////////////////////////////////////////////////////
@@ -353,7 +356,9 @@ model Request {
   commission Commission @relation(fields: [commissionId], references: [id])
   invoice    Invoice?   @relation(fields: [invoiceId], references: [id])
   kanban     Kanban?    @relation(fields: [kanbanId], references: [id])
-  review     Review?
+
+  review    Review?
+  portfolio Portfolio?
 }
 
 model Kanban {

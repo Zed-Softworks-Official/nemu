@@ -18,7 +18,7 @@ export default async function AccountPage() {
     }
 
     return (
-        <div className="flex flex-col w-full gap-5">
+        <div className="flex flex-col w-full gap-5 max-w-6xl mx-auto">
             <Container>
                 <h2 className="card-title">Account Settings</h2>
                 <div className="divider"></div>

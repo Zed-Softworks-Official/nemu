@@ -1,4 +1,11 @@
-import { BrushIcon, LogInIcon, LogOutIcon, Settings2Icon, UserIcon } from 'lucide-react'
+import {
+    BarChartIcon,
+    BrushIcon,
+    LogInIcon,
+    LogOutIcon,
+    Settings2Icon,
+    UserIcon
+} from 'lucide-react'
 import { User } from 'next-auth'
 import { Avatar, AvatarImage, AvatarFallback } from '~/components/ui/avatar'
 import {
@@ -48,12 +55,23 @@ async function UserDropdownContent({ user }: { user: User }) {
     return (
         <>
             {data?.artist && (
-                <DropdownMenuItem>
-                    <Link href={`/@${data.artist.handle}`} className="user-dropdown-item">
-                        <BrushIcon className="w-6 h-6" />
-                        My Page
-                    </Link>
-                </DropdownMenuItem>
+                <>
+                    <DropdownMenuItem>
+                        <Link
+                            href={`/@${data.artist.handle}`}
+                            className="user-dropdown-item"
+                        >
+                            <BrushIcon className="w-6 h-6" />
+                            My Page
+                        </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                        <Link href={`/dashboard`} className="user-dropdown-item">
+                            <BarChartIcon className="w-6 h-6" />
+                            Artist's Dashboard
+                        </Link>
+                    </DropdownMenuItem>
+                </>
             )}
             <DropdownMenuItem>
                 <Link href={'/account'} className="user-dropdown-item">
