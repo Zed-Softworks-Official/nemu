@@ -21,7 +21,7 @@ export default function ThemeToggle() {
                 <Button variant="outline" size="icon">
                     <Sun
                         className={cn(
-                            'h-[1.2rem] w-[1.2rem] transition-all duration-200',
+                            'h-[1.2rem] w-[1.2rem] transition-all duration-200 text-base-content',
                             resolvedTheme === 'light'
                                 ? 'rotate-0 scale-100'
                                 : 'rotate-90 scale-0'
@@ -29,7 +29,7 @@ export default function ThemeToggle() {
                     />
                     <Moon
                         className={cn(
-                            'absolute h-[1.2rem] w-[1.2rem] transition-all duration-200',
+                            'absolute h-[1.2rem] w-[1.2rem] transition-all duration-200 text-base-content',
                             resolvedTheme === 'dark'
                                 ? 'rotate-0 scale-100'
                                 : 'rotate-90 scale-0'

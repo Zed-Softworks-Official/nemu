@@ -29,7 +29,8 @@ export const nemuFileRouter = {
                     id: metadata.userId
                 },
                 data: {
-                    image: file.url
+                    image: file.url,
+                    utKey: file.key
                 }
             })
 

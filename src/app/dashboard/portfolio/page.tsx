@@ -1,9 +1,12 @@
 import { redirect } from 'next/navigation'
+
 import NemuImage from '~/components/nemu-image'
 import Container from '~/components/ui/container'
 import DashboardContainer from '~/components/ui/dashboard-container'
-import { getServerAuthSession } from '~/server/auth'
+
 import { api } from '~/trpc/server'
+import { getServerAuthSession } from '~/server/auth'
+import Link from 'next/link'
 
 export default async function CreatePortfolioPage() {
     const session = await getServerAuthSession()
@@ -20,21 +23,27 @@ export default async function CreatePortfolioPage() {
         <DashboardContainer title="Portfolio" addButtonUrl="/dashboard/portfolio/create">
             <div className="grid grid-cols-3 gap-5">
                 {portfolio_items.map((item) => (
-                    <Container
-                    className='h-fit'
-                    variant={'muted'}
-                        figure={
-                            <NemuImage
-                                src={item.image.url}
-                                alt="image"
-                                width={200}
-                                height={200}
-                                className='w-full h-full'
-                            />
-                        }
+                    <Link
+                        href={`/dashboard/portfolio/${item.id}`}
+                        key={item.id}
+                        className="transition-all duration-200 ease-in-out active:scale-95 animate-pop-in"
                     >
-                        <h2 className="card-title">{item.name}</h2>
-                    </Container>
+                        <Container
+                            className="h-fit"
+                            variant={'muted'}
+                            figure={
+                                <NemuImage
+                                    src={item.image.url}
+                                    alt="image"
+                                    width={200}
+                                    height={200}
+                                    className="w-full h-full"
+                                />
+                            }
+                        >
+                            <h2 className="card-title">{item.name}</h2>
+                        </Container>
+                    </Link>
                 ))}
             </div>
         </DashboardContainer>

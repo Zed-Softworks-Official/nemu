@@ -3,7 +3,11 @@
 import { useUploadThingContext } from '~/components/files/uploadthing-context'
 
 export default function NemuUploadProgress() {
-    const { uploadProgress } = useUploadThingContext()
+    const { uploadProgress, isUploading } = useUploadThingContext()
+
+    if (!isUploading) {
+        return null
+    }
 
     return (
         <progress

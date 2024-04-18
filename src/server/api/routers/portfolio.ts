@@ -13,6 +13,7 @@ export const portfolioRouter = createTRPCRouter({
         .input(
             z.object({
                 image: z.string(),
+                utKey: z.string(),
                 name: z.string()
             })
         )
@@ -23,7 +24,8 @@ export const portfolioRouter = createTRPCRouter({
                 data: {
                     artistId: ctx.session.user.artist_id!,
                     name: input.name,
-                    image: input.image
+                    image: input.image,
+                    utKey: input.utKey
                 }
             })
 
@@ -78,5 +80,74 @@ export const portfolioRouter = createTRPCRouter({
             )
 
             return result
+        }),
+
+    /**
+     * Gets a SINGLE portfolio item
+     */
+    get_portfolio_item: publicProcedure
+        .input(
+            z.object({
+                artist_id: z.string(),
+                item_id: z.string()
+            })
+        )
+        .query(async (opts) => {
+            const { input, ctx } = opts
+
+            const cachedPorfolioItem = await ctx.cache.get(
+                AsRedisKey('portfolio_items', input.artist_id, input.item_id)
+            )
+
+            if (cachedPorfolioItem) {
+                return JSON.parse(cachedPorfolioItem) as ClientPortfolioItem
+            }
+
+            const portfolio_item = await ctx.db.portfolio.findFirst({
+                where: {
+                    artistId: input.artist_id,
+                    id: input.item_id
+                }
+            })
+
+            if (!portfolio_item) {
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Unable to find portfolio item'
+                })
+            }
+
+            const result: ClientPortfolioItem = {
+                ...portfolio_item,
+                image: {
+                    url: portfolio_item.image,
+                    blur_data: (await get_blur_data(portfolio_item.image)).base64
+                }
+            }
+
+            await ctx.cache.set(
+                AsRedisKey('portfolio_items', input.artist_id, input.item_id),
+                JSON.stringify(result),
+                'EX',
+                3600
+            )
+
+            return result
+        }),
+
+    /**
+     * Deletes a specified portfolio item
+     */
+    del_portfolio_item: artistProcedure.input(z.string()).mutation(async (opts) => {
+        const { input, ctx } = opts
+
+        // Delete from uploadthing
+
+        // Delete from db
+        await ctx.db.portfolio.delete({
+            where: {
+                id: input
+            }
         })
+    })
 })

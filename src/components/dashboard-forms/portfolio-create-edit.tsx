@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 
-import { CheckCircle2Icon, CheckCircleIcon, XCircleIcon } from 'lucide-react'
+import { CheckCircle2Icon, CheckCircleIcon, Trash2Icon, XCircleIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { api } from '~/trpc/react'
@@ -23,6 +23,8 @@ import NemuUploadDropzone from '~/components/files/nemu-dropzone'
 import NemuUploadPreview from '~/components/files/nemu-upload-preview'
 
 import NemuUploadProgress from '~/components/files/nemu-upload-progress'
+import { RouterOutput } from '~/core/structures'
+import NemuImage from '~/components/nemu-image'
 
 const portfolioSchema = z.object({
     name: z.string().min(2).max(50)
@@ -30,7 +32,11 @@ const portfolioSchema = z.object({
 
 type PortfolioSchemaType = z.infer<typeof portfolioSchema>
 
-export default function PortfolioCreateEditForm() {
+export default function PortfolioCreateEditForm({
+    data
+}: {
+    data?: RouterOutput['portfolio']['get_portfolio_item']
+}) {
     const [disabled, setDisabled] = useState(false)
 
     const { upload } = useUploadThingContext()
@@ -53,7 +59,10 @@ export default function PortfolioCreateEditForm() {
 
     const form = useForm<PortfolioSchemaType>({
         resolver: zodResolver(portfolioSchema),
-        mode: 'onSubmit'
+        mode: 'onSubmit',
+        defaultValues: {
+            name: data ? data.name : ''
+        }
     })
 
     async function ProcessForm(values: PortfolioSchemaType) {
@@ -65,7 +74,11 @@ export default function PortfolioCreateEditForm() {
             throw new Error('Response should exist!')
         }
 
-        mutation.mutate({ name: values.name, image: res[0]?.url! })
+        mutation.mutate({
+            name: values.name,
+            image: res[0]?.url!,
+            utKey: res[0]?.key!
+        })
     }
 
     return (
@@ -85,21 +98,52 @@ export default function PortfolioCreateEditForm() {
                         </FormItem>
                     )}
                 />
-                <NemuUploadDropzone />
-                <NemuUploadPreview />
-                <div className="flex justify-between">
-                    <Link
-                        href={'/dashboard/portfolio'}
-                        className="btn btn-outline btn-error"
-                    >
-                        <XCircleIcon className="w-6 h-6" />
-                        Cancel
-                    </Link>
-                    <Button type="submit" disabled={disabled}>
-                        <CheckCircle2Icon className="w-6 h-6" />
-                        Create Portfolio Item
-                    </Button>
-                </div>
+                {data ? (
+                    <div className="card shadow-xl">
+                        <figure>
+                            <NemuImage
+                                src={data.image.url}
+                                placeholder="blur"
+                                blurDataURL={data.image.blur_data}
+                                alt="Portfolio Image"
+                                width={200}
+                                height={200}
+                                className="w-full h-full rounded-xl"
+                            />
+                        </figure>
+                    </div>
+                ) : (
+                    <>
+                        <NemuUploadDropzone />
+                        <NemuUploadPreview />
+                    </>
+                )}
+                {data ? (
+                    <div className="flex justify-between">
+                        <Link href={'/dashboard/portfolio'} className="btn btn-outline">
+                            <XCircleIcon className="w-6 h-6" />
+                            Cancel
+                        </Link>
+                        <Button variant={'destructive'} type="button" onClick={() => {}}>
+                            <Trash2Icon className="w-6 h-6" />
+                            Delete
+                        </Button>
+                    </div>
+                ) : (
+                    <div className="flex justify-between">
+                        <Link
+                            href={'/dashboard/portfolio'}
+                            className="btn btn-outline btn-error"
+                        >
+                            <XCircleIcon className="w-6 h-6" />
+                            Cancel
+                        </Link>
+                        <Button type="submit" disabled={disabled}>
+                            <CheckCircle2Icon className="w-6 h-6" />
+                            Create Portfolio Item
+                        </Button>
+                    </div>
+                )}
             </form>
         </Form>
     )

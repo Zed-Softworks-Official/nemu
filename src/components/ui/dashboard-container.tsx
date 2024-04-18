@@ -11,7 +11,7 @@ export default function DashboardContainer({
     children: React.ReactNode
 }) {
     return (
-        <main className="py-14 justify-around w-[90%] transition-all duration-200 ease-in-out relative shadow-xl bg-base-300 rounded-xl p-10 min-h-[70%]">
+        <main className="py-14 justify-around w-[90%] transition-all duration-200 ease-in-out relative shadow-xl bg-base-300 rounded-xl p-10 min-h-[70%] mt-10">
             <div className="flex justify-between items-center">
                 <h1 className="font-bold text-2xl">{title}</h1>
                 {addButtonUrl && (

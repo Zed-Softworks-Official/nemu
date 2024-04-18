@@ -126,6 +126,7 @@ model User {
   email         String?   @unique
   emailVerified DateTime?
   image         String?
+  utKey         String?
   role          Int       @default(0)
 
   hasSendbirdAccount Boolean @default(false)
@@ -209,6 +210,7 @@ model Portfolio {
   artistId String
 
   image String
+  utKey String
   name  String
 
   createdAt DateTime @default(now())
@@ -230,6 +232,7 @@ model Product {
   description       String
   price             Float
   images            String[]
+  utKeys            String[]
   downloadableAsset String
   slug              String
 
@@ -254,6 +257,7 @@ model Commission {
   title        String
   description  String
   images       String[]
+  utKeys       String[]
   availability Int
   slug         String
 

@@ -28,7 +28,8 @@ export default function NemuUploadDropzone() {
             <input {...getInputProps()} className="hidden" />
 
             <UploadCloudIcon className="w-10 h-10" />
-            <p>Choose file or Drag and Drop</p>
+            <span className="text-md">Choose file or Drag and Drop</span>
+            <span className="text-sm text-base-content/60 italic -mt-3">{fileTypes}</span>
 
             <button type="button" className="btn btn-primary text-base-content mt-5">
                 Choose File

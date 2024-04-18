@@ -31,6 +31,8 @@ type UploadThingContextType = {
     uploadProgress: number
     setUploadProgress: Dispatch<SetStateAction<number>>
 
+    isUploading: boolean
+
     endpoint: EndpointHelper<NemuFileRouterType>
     fileTypes: string[]
 }
@@ -46,9 +48,10 @@ export default function UploadThingProvider({
 }) {
     const [files, setFiles] = useState<File[]>([])
     const [filePreviews, setFilePreviews] = useState<string[]>([])
+
     const [uploadProgress, setUploadProgress] = useState(0)
 
-    const { startUpload, permittedFileInfo } = useUploadThing(endpoint, {
+    const { startUpload, permittedFileInfo, isUploading } = useUploadThing(endpoint, {
         onUploadProgress: (p) => {
             setUploadProgress(p)
         }
@@ -85,7 +88,8 @@ export default function UploadThingProvider({
                 endpoint,
                 fileTypes,
                 uploadProgress,
-                setUploadProgress
+                setUploadProgress,
+                isUploading
             }}
         >
             {children}

@@ -131,3 +131,20 @@ export const artistProcedure = protectedProcedure.use(({ ctx, next }) => {
         }
     })
 })
+
+/**
+ * Admin (super private) procedure
+ *
+ * This is for admin only routes, such as creating artists, making new artist codes ect.
+ */
+export const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
+    if (ctx.session.user.role !== UserRole.Admin) {
+        throw new TRPCError({ code: 'UNAUTHORIZED' })
+    }
+
+    return next({
+        ctx: {
+            session: { ...ctx.session, user: ctx.session.user }
+        }
+    })
+})

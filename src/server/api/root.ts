@@ -5,6 +5,7 @@ import { artistRouter } from '~/server/api/routers/artist'
 import { commissionRouter } from '~/server/api/routers/commission'
 import { stripeRouter } from '~/server/api/routers/stripe'
 import { portfolioRouter } from '~/server/api/routers/portfolio'
+import { verificationRouter } from '~/server/api/routers/verification'
 
 /**
  * This is the primary router for your server.
@@ -13,6 +14,7 @@ import { portfolioRouter } from '~/server/api/routers/portfolio'
  */
 export const appRouter = createTRPCRouter({
     artist: artistRouter,
+    verification: verificationRouter,
     commission: commissionRouter,
     portfolio: portfolioRouter,
     stripe: stripeRouter,
