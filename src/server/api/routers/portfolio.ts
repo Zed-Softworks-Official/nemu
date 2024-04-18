@@ -158,5 +158,30 @@ export const portfolioRouter = createTRPCRouter({
                     id: input.id
                 }
             })
+        }),
+
+    /**
+     * Updates a specified portfolio item
+     */
+    update_portfolio_item: artistProcedure
+        .input(
+            z.object({
+                id: z.string(),
+                name: z.string()
+            })
+        )
+        .mutation(async (opts) => {
+            const { input, ctx } = opts
+
+            await ctx.db.portfolio.update({
+                where: {
+                    id: input.id
+                },
+                data: {
+                    name: input.name
+                }
+            })
+
+            // Cache Update
         })
 })

@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 
-import { CheckCircle2Icon, CheckCircleIcon, Trash2Icon, XCircleIcon } from 'lucide-react'
+import { CheckCircle2Icon, SaveIcon, Trash2Icon, XCircleIcon } from 'lucide-react'
 
 import { api } from '~/trpc/react'
 
@@ -42,18 +42,9 @@ export default function PortfolioCreateEditForm({
     const { upload } = useUploadThingContext()
     const { replace } = useRouter()
 
-    const delete_mutation = api.portfolio.del_portfolio_item.useMutation({
-        onSuccess: () => {
-            toast('Portfolio Item Deleted!', {
-                theme: 'dark',
-                type: 'success',
-                icon: <CheckCircle2Icon className="w-6 h-6 text-success" />
-            })
-
-            replace('/dashboard/portfolio')
-        }
-    })
-
+    /**
+     * Create Mutation
+     */
     const create_mutation = api.portfolio.set_portfolio_item.useMutation({
         onSuccess: () => {
             toast('Portfolio Item Created', {
@@ -73,6 +64,36 @@ export default function PortfolioCreateEditForm({
         }
     })
 
+    /**
+     * Update Mutation
+     */
+    const update_mutation = api.portfolio.update_portfolio_item.useMutation({
+        onSuccess: () => {
+            toast('Portfolio Item Updated!', {
+                theme: 'dark',
+                type: 'success',
+                icon: <CheckCircle2Icon className="w-6 h-6 text-success" />
+            })
+
+            replace('/dashboard/portfolio')
+        }
+    })
+
+    /**
+     * Delete Mutation
+     */
+    const delete_mutation = api.portfolio.del_portfolio_item.useMutation({
+        onSuccess: () => {
+            toast('Portfolio Item Deleted!', {
+                theme: 'dark',
+                type: 'success',
+                icon: <CheckCircle2Icon className="w-6 h-6 text-success" />
+            })
+
+            replace('/dashboard/portfolio')
+        }
+    })
+
     const form = useForm<PortfolioSchemaType>({
         resolver: zodResolver(portfolioSchema),
         mode: 'onSubmit',
@@ -83,6 +104,15 @@ export default function PortfolioCreateEditForm({
 
     async function ProcessForm(values: PortfolioSchemaType) {
         setDisabled(true)
+
+        if (data) {
+            update_mutation.mutate({
+                id: data.id,
+                name: values.name
+            })
+
+            return
+        }
 
         const res = await upload()
 
@@ -140,19 +170,25 @@ export default function PortfolioCreateEditForm({
                             <XCircleIcon className="w-6 h-6" />
                             Cancel
                         </Link>
-                        <Button
-                            variant={'destructive'}
-                            type="button"
-                            onClick={() => {
-                                delete_mutation.mutate({
-                                    id: data.id,
-                                    utKey: data.utKey
-                                })
-                            }}
-                        >
-                            <Trash2Icon className="w-6 h-6" />
-                            Delete
-                        </Button>
+                        <div className="flex gap-2">
+                            <Button
+                                variant={'destructive'}
+                                type="button"
+                                onClick={() => {
+                                    delete_mutation.mutate({
+                                        id: data.id,
+                                        utKey: data.utKey
+                                    })
+                                }}
+                            >
+                                <Trash2Icon className="w-6 h-6" />
+                                Delete
+                            </Button>
+                            <Button type="submit" disabled={disabled}>
+                                <SaveIcon className="w-6 h-6" />
+                                Save
+                            </Button>
+                        </div>
                     </div>
                 ) : (
                     <div className="flex justify-between">
