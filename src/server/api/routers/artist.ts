@@ -48,10 +48,7 @@ export const artistRouter = createTRPCRouter({
 
             // If the artist wasn't found just return undefined
             if (!artist) {
-                throw new TRPCError({
-                    code: 'INTERNAL_SERVER_ERROR',
-                    message: 'Could not find artist!'
-                })
+                return null
             }
 
             await ctx.cache.set(

@@ -2,26 +2,13 @@
 
 import * as z from 'zod'
 
-import { useState } from 'react'
-
-import { cn } from '~/lib/utils'
-import { useSession } from 'next-auth/react'
-import { Controller, useForm } from 'react-hook-form'
+import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faXTwitter } from '@fortawesome/free-brands-svg-icons'
-import NemuImage from '~/components/nemu-image'
-import { motion } from 'framer-motion'
-import { VerificationMethod } from '~/core/structures'
 
-import {
-    CheckCircleIcon,
-    ChevronLeftIcon,
-    ChevronRightIcon,
-    CodeIcon,
-    MailIcon
-} from 'lucide-react'
+import { Session } from 'next-auth'
+import { Form, FormField } from '~/components/ui/form'
 import { api } from '~/trpc/react'
+import { useState } from 'react'
 
 const steps = [
     {
@@ -87,8 +74,104 @@ const verificationSchema = z.object({
 
 type VerificationSchemaType = z.infer<typeof verificationSchema>
 
-export default function ArtistApplyForm() {
-    return <></>
+export default function ArtistApplyForm({ session }: { session: Session }) {
+    const [submitting, setSubmitting] = useState(false)
+    const [previousStep, setPreviousStep] = useState(0)
+    const [currentStep, setCurrentStep] = useState(0)
+    const delta = currentStep - previousStep
+
+    const codeCheckMutation = api.verification.get_artist_code.useMutation()
+    const handleExistsMutation = api.verification.handle_exists.useMutation()
+    const verificationMutation = api.verification.set_verification.useMutation({
+        onSuccess: () => {}
+    })
+
+    const form = useForm<VerificationSchemaType>({
+        resolver: zodResolver(verificationSchema),
+        mode: 'onSubmit'
+    })
+
+    function ProcessForm(values: VerificationSchemaType) {}
+
+    type FieldName = keyof VerificationSchemaType
+
+    async function Next() {
+        const fields = steps[currentStep].fields
+        const output = await form.trigger(fields as FieldName[], { shouldFocus: true })
+
+        if (!output) return
+
+        if (currentStep === 0) {
+            const res = await handleExistsMutation.mutateAsync(
+                form.getValues('requested_handle')
+            )
+            if (res.exists) {
+                form.setError(
+                    'requested_handle',
+                    { message: 'Oh Nyo! The handle you requested is already taken!' },
+                    { shouldFocus: true }
+                )
+
+                return
+            }
+        }
+
+        if (currentStep === 2 && form.getValues('artist_code_used')) {
+            // const toast_id = toast.loading('Checking artist code', { theme: 'dark' })
+            const res = await codeCheckMutation.mutateAsync(form.getValues('artist_code')!)
+
+            if (!res.success) {
+                // toast.update(toast_id, {
+                //     isLoading: false,
+                //     type: 'error',
+                //     render: 'Artist code invalid!',
+                //     autoClose: 5000
+                //})
+
+                form.setError(
+                    'artist_code',
+                    { message: 'Must have a valid artist code' },
+                    { shouldFocus: true }
+                )
+
+                return
+            }
+
+            // toast.update(toast_id, {
+            //     isLoading: false,
+            //     type: 'success',
+            //     render: 'Artist code valid!',
+            //     autoClose: 5000
+            // })
+        }
+
+        if (currentStep === 2) {
+            await form.handleSubmit(ProcessForm)()
+
+            return
+        }
+
+        if (currentStep < steps.length - 1) {
+            setPreviousStep(currentStep)
+            setCurrentStep((step) => step + 1)
+        }
+    }
+
+    function Prev() {
+        if (currentStep > 0) {
+            setPreviousStep(currentStep)
+            setCurrentStep((step) => step - 1)
+        }
+    }
+
+    return (
+        <Form {...form}>
+            <form
+                className="flex flex-col gap-5 w-full"
+                onSubmit={form.handleSubmit(ProcessForm)}
+            ></form>
+        </Form>
+    )
 }
 
 // export default function ArtistApplyForm() {
