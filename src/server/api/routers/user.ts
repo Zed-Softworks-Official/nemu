@@ -109,5 +109,31 @@ export const userRouter = createTRPCRouter({
             await ctx.cache.del(AsRedisKey('users', ctx.session.user.id!))
 
             return { success: true }
+        }),
+
+    /**
+     * Update the users username
+     */
+    set_username: protectedProcedure.input(z.string()).mutation(async (opts) => {
+        const { input, ctx } = opts
+
+        // Update the username
+        const username_set = await ctx.db.user.update({
+            where: {
+                id: ctx.session.user.id
+            },
+            data: {
+                name: input
+            }
         })
+
+        if (!username_set) {
+            throw new TRPCError({
+                code: 'INTERNAL_SERVER_ERROR',
+                message: 'Could not set username!'
+            })
+        }
+
+        return { success: true }
+    })
 })

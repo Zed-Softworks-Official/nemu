@@ -10,7 +10,6 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 
 import { CheckCircle2Icon, CheckCircleIcon, Trash2Icon, XCircleIcon } from 'lucide-react'
-import { toast } from 'sonner'
 
 import { api } from '~/trpc/react'
 
@@ -25,6 +24,7 @@ import NemuUploadPreview from '~/components/files/nemu-upload-preview'
 import NemuUploadProgress from '~/components/files/nemu-upload-progress'
 import { RouterOutput } from '~/core/structures'
 import NemuImage from '~/components/nemu-image'
+import { toast } from 'react-toastify'
 
 const portfolioSchema = z.object({
     name: z.string().min(2).max(50)
@@ -42,16 +42,32 @@ export default function PortfolioCreateEditForm({
     const { upload } = useUploadThingContext()
     const { replace } = useRouter()
 
-    const mutation = api.portfolio.set_portfolio_item.useMutation({
+    const delete_mutation = api.portfolio.del_portfolio_item.useMutation({
         onSuccess: () => {
-            toast('Portfolio Item Created!', {
-                icon: <CheckCircleIcon className="w-6 h-6 text-success" />
+            toast('Portfolio Item Deleted!', {
+                theme: 'dark',
+                type: 'success',
+                icon: <CheckCircle2Icon className="w-6 h-6 text-success" />
+            })
+
+            replace('/dashboard/portfolio')
+        }
+    })
+
+    const create_mutation = api.portfolio.set_portfolio_item.useMutation({
+        onSuccess: () => {
+            toast('Portfolio Item Created', {
+                theme: 'dark',
+                type: 'success',
+                icon: <CheckCircle2Icon className="w-6 h-6 text-success" />
             })
 
             replace('/dashboard/portfolio')
         },
         onError: (e) => {
             toast('Error Creating Portfolio Item', {
+                theme: 'dark',
+                type: 'success',
                 icon: <XCircleIcon className="w-6 h-6 text-error" />
             })
         }
@@ -74,7 +90,7 @@ export default function PortfolioCreateEditForm({
             throw new Error('Response should exist!')
         }
 
-        mutation.mutate({
+        create_mutation.mutate({
             name: values.name,
             image: res[0]?.url!,
             utKey: res[0]?.key!
@@ -124,7 +140,16 @@ export default function PortfolioCreateEditForm({
                             <XCircleIcon className="w-6 h-6" />
                             Cancel
                         </Link>
-                        <Button variant={'destructive'} type="button" onClick={() => {}}>
+                        <Button
+                            variant={'destructive'}
+                            type="button"
+                            onClick={() => {
+                                delete_mutation.mutate({
+                                    id: data.id,
+                                    utKey: data.utKey
+                                })
+                            }}
+                        >
                             <Trash2Icon className="w-6 h-6" />
                             Delete
                         </Button>

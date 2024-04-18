@@ -1,6 +1,7 @@
 import {
     BarChartIcon,
     BrushIcon,
+    CodeIcon,
     LogInIcon,
     LogOutIcon,
     Settings2Icon,
@@ -17,6 +18,7 @@ import {
 
 import Link from 'next/link'
 import { api } from '~/trpc/server'
+import { UserRole } from '~/core/structures'
 
 export default function UserDropdown({ user }: { user: User | undefined }) {
     return (
@@ -69,6 +71,16 @@ async function UserDropdownContent({ user }: { user: User }) {
                         <Link href={`/dashboard`} className="user-dropdown-item">
                             <BarChartIcon className="w-6 h-6" />
                             Artist's Dashboard
+                        </Link>
+                    </DropdownMenuItem>
+                </>
+            )}
+            {data?.user.role === UserRole.Admin && (
+                <>
+                    <DropdownMenuItem>
+                        <Link href={'/artists/gen-code'} className="user-dropdown-item">
+                            <CodeIcon className="w-6 h-6" />
+                            Generate Artist Code
                         </Link>
                     </DropdownMenuItem>
                 </>

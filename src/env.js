@@ -38,7 +38,8 @@ export const env = createEnv({
         SENDBIRD_APP_ID: z.string(),
         SENDBIRD_API_TOKEN: z.string(),
         UPLOADTHING_SECRET: z.string(),
-        UPLOADTHING_APP_ID: z.string()
+        UPLOADTHING_APP_ID: z.string(),
+        SENTRY_AUTH_TOKEN: z.string()
     },
 
     /**
@@ -79,7 +80,8 @@ export const env = createEnv({
         SENDBIRD_APP_ID: process.env.SENDBIRD_APP_ID,
         SENDBIRD_API_TOKEN: process.env.SENDBIRD_API_TOKEN,
         UPLOADTHING_APP_ID: process.env.UPLOADTHING_APP_ID,
-        UPLOADTHING_SECRET: process.env.UPLOADTHING_SECRET
+        UPLOADTHING_SECRET: process.env.UPLOADTHING_SECRET,
+        SENTRY_AUTH_TOKEN: process.env.SENTRY_AUTH_TOKEN
     },
     /**
      * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

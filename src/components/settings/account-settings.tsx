@@ -19,12 +19,12 @@ const accountSchema = z.object({
     username: z
         .string()
         .optional()
-        .refine((value) => value === '', 'Username must not be blank'),
+        .refine((value) => value !== '', 'Username must not be blank'),
     email: z
         .string()
         .email()
         .optional()
-        .refine((value) => value === '', 'Email must not be blank')
+        .refine((value) => value !== '', 'Email must not be blank')
 })
 
 type AccountSchemaType = z.infer<typeof accountSchema>
@@ -45,7 +45,11 @@ export default function AccountSettings({
 
     const form = useForm<AccountSchemaType>({
         resolver: zodResolver(accountSchema),
-        mode: 'onSubmit'
+        mode: 'onSubmit',
+        defaultValues: {
+            username: user.name ? user.name : null,
+            email: user.email ? user.email : null
+        }
     })
 
     function ProcessForm(values: AccountSchemaType) {

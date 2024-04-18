@@ -4,6 +4,7 @@ import { ClientPortfolioItem, NemuImageData } from '~/core/structures'
 import { get_blur_data } from '~/lib/server-utils'
 import { artistProcedure, createTRPCRouter, publicProcedure } from '~/server/api/trpc'
 import { AsRedisKey } from '~/server/cache'
+import { utapi } from '~/server/uploadthing'
 
 export const portfolioRouter = createTRPCRouter({
     /**
@@ -138,16 +139,24 @@ export const portfolioRouter = createTRPCRouter({
     /**
      * Deletes a specified portfolio item
      */
-    del_portfolio_item: artistProcedure.input(z.string()).mutation(async (opts) => {
-        const { input, ctx } = opts
+    del_portfolio_item: artistProcedure
+        .input(
+            z.object({
+                id: z.string(),
+                utKey: z.string()
+            })
+        )
+        .mutation(async (opts) => {
+            const { input, ctx } = opts
 
-        // Delete from uploadthing
+            // Delete from uploadthing
+            await utapi.deleteFiles(input.utKey)
 
-        // Delete from db
-        await ctx.db.portfolio.delete({
-            where: {
-                id: input
-            }
+            // Delete from db
+            await ctx.db.portfolio.delete({
+                where: {
+                    id: input.id
+                }
+            })
         })
-    })
 })

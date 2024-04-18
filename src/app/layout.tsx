@@ -1,4 +1,5 @@
 import '~/styles/globals.css'
+import 'react-toastify/dist/ReactToastify.css'
 
 import NextTopLoader from 'nextjs-toploader'
 
@@ -7,10 +8,11 @@ import { Nunito } from 'next/font/google'
 import { NextSSRPlugin } from '@uploadthing/react/next-ssr-plugin'
 import { extractRouterConfig } from 'uploadthing/server'
 
+import { ToastContainer } from 'react-toastify'
+
 import { TRPCReactProvider } from '~/trpc/react'
 import { ThemeProvider } from '~/components/theme-provider'
 import { nemuFileRouter } from '~/app/api/uploadthing/core'
-import { Toaster } from '~/components/ui/sonner'
 
 const nunito = Nunito({
     subsets: ['latin'],
@@ -49,7 +51,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     disableTransitionOnChange
                 >
                     <TRPCReactProvider>{children}</TRPCReactProvider>
-                    <Toaster />
+                    <ToastContainer />
                 </ThemeProvider>
             </body>
         </html>
