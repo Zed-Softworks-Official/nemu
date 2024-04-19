@@ -18,9 +18,7 @@ export const portfolioRouter = createTRPCRouter({
                 name: z.string()
             })
         )
-        .mutation(async (opts) => {
-            const { input, ctx } = opts
-
+        .mutation(async ({ input, ctx }) => {
             await ctx.db.portfolio.create({
                 data: {
                     artistId: ctx.session.user.artist_id!,
@@ -38,15 +36,13 @@ export const portfolioRouter = createTRPCRouter({
     /**
      * Gets ALL portfolio items of a given artist
      */
-    get_portfolio_items: publicProcedure
+    get_portfolio_list: publicProcedure
         .input(
             z.object({
                 artist_id: z.string()
             })
         )
-        .query(async (opts) => {
-            const { input, ctx } = opts
-
+        .query(async ({ input, ctx }) => {
             const cachedPorfolioItems = await ctx.cache.get(
                 AsRedisKey('portfolio_items', input.artist_id)
             )
@@ -86,16 +82,14 @@ export const portfolioRouter = createTRPCRouter({
     /**
      * Gets a SINGLE portfolio item
      */
-    get_portfolio_item: publicProcedure
+    get_portfolio: publicProcedure
         .input(
             z.object({
                 artist_id: z.string(),
                 item_id: z.string()
             })
         )
-        .query(async (opts) => {
-            const { input, ctx } = opts
-
+        .query(async ({ input, ctx }) => {
             const cachedPorfolioItem = await ctx.cache.get(
                 AsRedisKey('portfolio_items', input.artist_id, input.item_id)
             )
@@ -146,9 +140,7 @@ export const portfolioRouter = createTRPCRouter({
                 utKey: z.string()
             })
         )
-        .mutation(async (opts) => {
-            const { input, ctx } = opts
-
+        .mutation(async ({ input, ctx }) => {
             // Delete from uploadthing
             await utapi.deleteFiles(input.utKey)
 
@@ -170,9 +162,7 @@ export const portfolioRouter = createTRPCRouter({
                 name: z.string()
             })
         )
-        .mutation(async (opts) => {
-            const { input, ctx } = opts
-
+        .mutation(async ({ input, ctx }) => {
             await ctx.db.portfolio.update({
                 where: {
                     id: input.id

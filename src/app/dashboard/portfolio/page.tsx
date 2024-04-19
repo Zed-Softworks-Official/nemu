@@ -8,14 +8,14 @@ import { api } from '~/trpc/server'
 import { getServerAuthSession } from '~/server/auth'
 import Link from 'next/link'
 
-export default async function CreatePortfolioPage() {
+export default async function PortfolioDashboardPage() {
     const session = await getServerAuthSession()
 
     if (!session || !session.user.artist_id) {
         return redirect('/u/login')
     }
 
-    const portfolio_items = await api.portfolio.get_portfolio_items({
+    const portfolio_items = await api.portfolio.get_portfolio_list({
         artist_id: session?.user.artist_id
     })
 

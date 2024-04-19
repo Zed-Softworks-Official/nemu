@@ -43,7 +43,10 @@ export default async function ArtistPage({ params }: Props) {
         <Tabs>
             {/* Artist Header */}
             <div className="flex flex-wrap flex-1 flex-col">
-                <div className="mx-auto w-full h-96 bg-[url('/curved0.jpg')] rounded-xl bg-no-repeat bg-center bg-cover"></div>
+                <div
+                    className="mx-auto w-full h-96 rounded-xl bg-no-repeat bg-center bg-cover"
+                    style={{ backgroundImage: `url(${artist_data.headerPhoto})` }}
+                ></div>
                 <div className="mx-auto sm:max-w-[85%] w-full -my-28 py-14 backdrop-blur-xl bg-base-300/60 shadow-lg rounded-xl px-10">
                     <div className="flex flex-col sm:flex-row justify-between items-center">
                         <div className="flex items-center justify-start">
@@ -79,7 +82,9 @@ export default async function ArtistPage({ params }: Props) {
                         </div>
                         <div className="flex items-center">
                             <TabsList>
-                                <TabsTrigger value="commissions" defaultChecked>Commissions</TabsTrigger>
+                                <TabsTrigger value="commissions" defaultChecked>
+                                    Commissions
+                                </TabsTrigger>
                                 <TabsTrigger value="artist-corner">
                                     Artist's Corner
                                 </TabsTrigger>
@@ -145,6 +150,6 @@ function get_social_icon(agent: string) {
         case 'PIXIV':
             return <FontAwesomeIcon icon={faPixiv} className="w-6 h-6" />
         default:
-            return <GlobeIcon className='w-6 h-6' />
+            return <GlobeIcon className="w-6 h-6" />
     }
 }

@@ -18,6 +18,7 @@ import { redirect } from 'next/navigation'
 import { getServerAuthSession } from '~/server/auth'
 import { api } from '~/trpc/server'
 import Footer from '~/components/footer'
+import DashboardProvider from '~/components/dashboard/dashboard-context'
 
 export default async function Layout({ children }: { children: React.ReactNode }) {
     const session = await getServerAuthSession()
@@ -40,7 +41,11 @@ export default async function Layout({ children }: { children: React.ReactNode }
                     <MenuIcon className="w-6 h-6 inline-block" />
                     Menu
                 </label>
-                {children}
+
+                <DashboardProvider artist_id={session.user.artist_id}>
+                    {children}
+                </DashboardProvider>
+                
                 <Footer />
             </div>
             <div className="drawer-side">
@@ -50,7 +55,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
                     className="drawer-overlay"
                 />
                 <ul className="menu p-4 w-80 min-h-full backdrop-blur-xl bg-base-300/60 text-base-content">
-                    <div className='flex justify-center items-center'>
+                    <div className="flex justify-center items-center">
                         <Logo />
                     </div>
                     <div className="divider"></div>
@@ -61,10 +66,10 @@ export default async function Layout({ children }: { children: React.ReactNode }
                         path="commissions"
                     />
                     <SidebarLink
-                        title="Artist's Corner"
+                        title="Artist Corner"
                         icon={<StoreIcon className="w-6 h-6" />}
-                        href="/dashboard/shop"
-                        path="shop"
+                        href="/dashboard/artist-corner"
+                        path="artist-corner"
                     />
                     <SidebarLink
                         title="Portfolio"
@@ -89,7 +94,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
                         icon={<BadgeDollarSign className="w-6 h-6" />}
                         href={portal_url ? portal_url : '#'}
                     />
-                    <div className='divider'></div>
+                    <div className="divider"></div>
                     <SidebarLink
                         title="My Page"
                         icon={<BrushIcon className="w-6 h-6" />}

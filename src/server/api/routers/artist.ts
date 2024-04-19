@@ -17,9 +17,7 @@ export const artistRouter = createTRPCRouter({
                 })
                 .optional()
         )
-        .query(async (opts) => {
-            const { input, ctx } = opts
-
+        .query(async ({ input, ctx }) => {
             // Get the cached artist if they are cached
             const cachedArtist = await ctx.cache.get(
                 AsRedisKey(

@@ -6,8 +6,9 @@ import { generateClientDropzoneAccept } from 'uploadthing/client'
 
 import { useUploadThingContext } from '~/components/files/uploadthing-context'
 import { UploadCloudIcon } from 'lucide-react'
+import { cn } from '~/lib/utils'
 
-export default function NemuUploadDropzone() {
+export default function NemuUploadDropzone({ className }: { className?: string }) {
     const { setFiles, setFilePreviews, fileTypes } = useUploadThingContext()
 
     const onDrop = useCallback((acceptedFiles: File[]) => {
@@ -23,7 +24,10 @@ export default function NemuUploadDropzone() {
     return (
         <div
             {...getRootProps()}
-            className="mx-auto p-10 border-dashed border-base-content border-opacity-50 border-2 rounded-xl focus:border-primary bg-base-100 border-spacing-28 w-full flex flex-col justify-center items-center gap-3 transition-all duration-200 ease-in-out hover:border-primary cursor-pointer"
+            className={cn(
+                'mx-auto p-10 border-dashed border-base-content border-opacity-50 border-2 rounded-xl focus:border-primary bg-base-100 border-spacing-28 w-full flex flex-col justify-center items-center gap-3 transition-all duration-200 ease-in-out hover:border-primary cursor-pointer',
+                className
+            )}
         >
             <input {...getInputProps()} className="hidden" />
 

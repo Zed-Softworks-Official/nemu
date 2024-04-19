@@ -10,9 +10,7 @@ export const userRouter = createTRPCRouter({
     /**
      * Gets the currently logged in user
      */
-    get_user: protectedProcedure.query(async (opts) => {
-        const { ctx } = opts
-
+    get_user: protectedProcedure.query(async ({ ctx }) => {
         const cachedUser = await ctx.cache.get(AsRedisKey('users', ctx.session.user.id))
 
         if (cachedUser) {
@@ -86,9 +84,7 @@ export const userRouter = createTRPCRouter({
                 email: z.string().email().optional()
             })
         )
-        .mutation(async (opts) => {
-            const { input, ctx } = opts
-
+        .mutation(async ({ input, ctx }) => {
             const updated_user = await ctx.db.user.update({
                 where: {
                     id: ctx.session.user.id
@@ -114,26 +110,26 @@ export const userRouter = createTRPCRouter({
     /**
      * Update the users username
      */
-    set_username: protectedProcedure.input(z.string()).mutation(async (opts) => {
-        const { input, ctx } = opts
-
-        // Update the username
-        const username_set = await ctx.db.user.update({
-            where: {
-                id: ctx.session.user.id
-            },
-            data: {
-                name: input
-            }
-        })
-
-        if (!username_set) {
-            throw new TRPCError({
-                code: 'INTERNAL_SERVER_ERROR',
-                message: 'Could not set username!'
+    set_username: protectedProcedure
+        .input(z.string())
+        .mutation(async ({ input, ctx }) => {
+            // Update the username
+            const username_set = await ctx.db.user.update({
+                where: {
+                    id: ctx.session.user.id
+                },
+                data: {
+                    name: input
+                }
             })
-        }
 
-        return { success: true }
-    })
+            if (!username_set) {
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Could not set username!'
+                })
+            }
+
+            return { success: true }
+        })
 })

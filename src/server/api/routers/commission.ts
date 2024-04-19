@@ -10,16 +10,14 @@ export const commissionRouter = createTRPCRouter({
     /**
      * Gets ALL commissions from a given artist
      */
-    get_commissions: publicProcedure
+    get_commission_list: publicProcedure
         .input(
             z.object({
                 artist_id: z.string().optional()
             })
         )
-        .query(async (opts) => {
+        .query(async ({ input, ctx }) => {
             // Get Artist Data
-            const { input, ctx } = opts
-
             if (!input.artist_id) {
                 throw new TRPCError({
                     code: 'BAD_REQUEST'

@@ -318,7 +318,7 @@ model Form {
   commissionId String?
 
   name        String
-  description String
+  description String?
   createdAt   DateTime @default(now())
   content     String   @default("[]")
 

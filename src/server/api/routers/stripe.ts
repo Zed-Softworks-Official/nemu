@@ -14,75 +14,73 @@ export const stripeRouter = createTRPCRouter({
     /**
      * Creates a new customer id for an artist and a user if it doesn't exist
      */
-    set_customer_id: protectedProcedure.input(z.string()).mutation(async (opts) => {
-        const { input, ctx } = opts
+    set_customer_id: protectedProcedure
+        .input(z.string())
+        .mutation(async ({ input, ctx }) => {
+            const customer_id = await ctx.db.stripeCustomerIds.findFirst({
+                where: {
+                    userId: ctx.session.user.id!,
+                    artistId: input
+                }
+            })
 
-        const customer_id = await ctx.db.stripeCustomerIds.findFirst({
-            where: {
-                userId: ctx.session.user.id!,
-                artistId: input
+            // If it exists then return that we have one
+            if (customer_id) {
+                return {
+                    stripe_account: customer_id.stripeAccount,
+                    customer_id: customer_id.customerId
+                }
             }
-        })
 
-        // If it exists then return that we have one
-        if (customer_id) {
+            const user = await ctx.db.user.findFirst({
+                where: {
+                    id: ctx.session.user.id!
+                }
+            })
+
+            if (!user) {
+                throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' })
+            }
+
+            const artist = await ctx.db.artist.findFirst({
+                where: {
+                    id: input
+                }
+            })
+
+            if (!artist) {
+                throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' })
+            }
+
+            // Otherwise we need to create a customer id for the user
+            const stripe_customer = await StripeCreateCustomer(
+                artist.stripeAccount!,
+                user.name!,
+                user.email!
+            )
+
+            // Create a customer id object in the data for this user
+            const customer = await ctx.db.stripeCustomerIds.create({
+                data: {
+                    userId: user.id,
+                    artistId: artist.id,
+                    stripeAccount: artist.stripeAccount,
+                    customerId: stripe_customer.id
+                }
+            })
+
             return {
-                stripe_account: customer_id.stripeAccount,
-                customer_id: customer_id.customerId
+                customer_id: customer.customerId,
+                stripe_account: customer.stripeAccount
             }
-        }
-
-        const user = await ctx.db.user.findFirst({
-            where: {
-                id: ctx.session.user.id!
-            }
-        })
-
-        if (!user) {
-            throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' })
-        }
-
-        const artist = await ctx.db.artist.findFirst({
-            where: {
-                id: input
-            }
-        })
-
-        if (!artist) {
-            throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' })
-        }
-
-        // Otherwise we need to create a customer id for the user
-        const stripe_customer = await StripeCreateCustomer(
-            artist.stripeAccount!,
-            user.name!,
-            user.email!
-        )
-
-        // Create a customer id object in the data for this user
-        const customer = await ctx.db.stripeCustomerIds.create({
-            data: {
-                userId: user.id,
-                artistId: artist.id,
-                stripeAccount: artist.stripeAccount,
-                customerId: stripe_customer.id
-            }
-        })
-
-        return {
-            customer_id: customer.customerId,
-            stripe_account: customer.stripeAccount
-        }
-    }),
+        }),
 
     /**
      * Gets the onboarding or dashboard url for stripe depending on the what
      * the account needs
      */
     get_managment_url: artistProcedure.query(
-        async (opts): Promise<{ type: 'dashboard' | 'onboarding'; url: string }> => {
-            const { ctx } = opts
-
+        async ({ ctx }): Promise<{ type: 'dashboard' | 'onboarding'; url: string }> => {
             // const cachedManagmentUrl = await redis.get(
             //     AsRedisKey('stripe', ctx.session.user.artist_id!, 'managment')
             // )
@@ -137,9 +135,7 @@ export const stripeRouter = createTRPCRouter({
                 return_url: z.string()
             })
         )
-        .query(async (opts) => {
-            const { input, ctx } = opts
-
+        .query(async ({ input, ctx }) => {
             // Get Product from db
             const product = await ctx.db.product.findFirst({
                 where: {
@@ -201,9 +197,7 @@ export const stripeRouter = createTRPCRouter({
     /**
      * Gets the billing portal url so the user can edit their subscription
      */
-    get_checkout_portal: artistProcedure.query(async (opts) => {
-        const { ctx } = opts
-
+    get_checkout_portal: artistProcedure.query(async ({ ctx }) => {
         const artist = await ctx.db.artist.findFirst({
             where: {
                 userId: ctx.session.user.id

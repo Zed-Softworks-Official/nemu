@@ -3,7 +3,7 @@
 import { api } from '~/trpc/react'
 
 export default function CommissionsDisplay({ artist_id }: { artist_id: string }) {
-    const { data, isLoading } = api.commission.get_commissions.useQuery({ artist_id })
+    const { data, isLoading } = api.commission.get_commission_list.useQuery({ artist_id })
 
     if (isLoading) {
         return <></>

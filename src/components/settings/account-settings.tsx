@@ -47,8 +47,8 @@ export default function AccountSettings({
         resolver: zodResolver(accountSchema),
         mode: 'onSubmit',
         defaultValues: {
-            username: user.name ? user.name : null,
-            email: user.email ? user.email : null
+            username: user.name ? user.name : undefined,
+            email: user.email ? user.email : undefined
         }
     })
 

@@ -7,9 +7,9 @@ import { getServerAuthSession } from '~/server/auth'
 import { api } from '~/trpc/server'
 import NemuImage from '~/components/nemu-image'
 
-export default async function CommissionsPage() {
+export default async function CommissionsDashboardPage() {
     const session = await getServerAuthSession()
-    const commissions = await api.commission.get_commissions({
+    const commissions = await api.commission.get_commission_list({
         artist_id: session?.user.artist_id
     })
 

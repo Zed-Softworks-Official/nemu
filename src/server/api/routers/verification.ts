@@ -131,9 +131,7 @@ export const verificationRouter = createTRPCRouter({
      */
     set_verification: protectedProcedure
         .input(verification_data)
-        .mutation(async (opts) => {
-            const { input, ctx } = opts
-
+        .mutation(async ({ input, ctx }) => {
             // Check if they're already an artist
             if (ctx.session.user.role == UserRole.Artist) {
                 return { success: false }
@@ -254,9 +252,7 @@ export const verificationRouter = createTRPCRouter({
                 verification_id: z.string()
             })
         )
-        .mutation(async (opts) => {
-            const { input, ctx } = opts
-
+        .mutation(async ({ input, ctx }) => {
             // Get Verification Object
             const artist_verification = await ctx.db.artistVerification.findFirst({
                 where: {
@@ -320,52 +316,52 @@ export const verificationRouter = createTRPCRouter({
      * Checks the requested handle to make sure nobody else has requested it,
      * since we can only have one of each
      */
-    handle_exists: protectedProcedure.input(z.string()).mutation(async (opts) => {
-        const { input, ctx } = opts
+    handle_exists: protectedProcedure
+        .input(z.string())
+        .mutation(async ({ input, ctx }) => {
+            // check handle inside artists
+            const artist_handle_exists = await ctx.db.artist.findFirst({
+                where: {
+                    handle: input
+                }
+            })
 
-        // check handle inside artists
-        const artist_handle_exists = await ctx.db.artist.findFirst({
-            where: {
-                handle: input
+            if (artist_handle_exists) {
+                return { exists: true }
             }
-        })
 
-        if (artist_handle_exists) {
-            return { exists: true }
-        }
+            // check handle inside of verification table
+            const verification_handle_exists = await ctx.db.artistVerification.findFirst({
+                where: {
+                    requestedHandle: input
+                }
+            })
 
-        // check handle inside of verification table
-        const verification_handle_exists = await ctx.db.artistVerification.findFirst({
-            where: {
-                requestedHandle: input
+            if (verification_handle_exists) {
+                return { exists: true }
             }
-        })
 
-        if (verification_handle_exists) {
-            return { exists: true }
-        }
-
-        return { exists: false }
-    }),
+            return { exists: false }
+        }),
 
     /**
      * Gets an artist code form the database
      */
-    get_artist_code: publicProcedure.input(z.string()).mutation(async (opts) => {
-        const { input, ctx } = opts
+    get_artist_code: publicProcedure
+        .input(z.string())
+        .mutation(async ({ input, ctx }) => {
+            const result = await ctx.db.aritstCode.findFirst({
+                where: {
+                    code: input
+                }
+            })
 
-        const result = await ctx.db.aritstCode.findFirst({
-            where: {
-                code: input
+            if (!result) {
+                throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' })
             }
-        })
 
-        if (!result) {
-            throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' })
-        }
-
-        return { success: true }
-    }),
+            return { success: true }
+        }),
 
     /**
      * Creates an artist code to add to the database

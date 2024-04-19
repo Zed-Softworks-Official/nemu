@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import PortfolioCreateEditForm from '~/components/dashboard-forms/portfolio-create-edit'
+import PortfolioCreateEditForm from '~/components/dashboard/forms/portfolio-create-edit'
 import UploadThingProvider from '~/components/files/uploadthing-context'
 import DashboardContainer from '~/components/ui/dashboard-container'
 import { getServerAuthSession } from '~/server/auth'
@@ -16,7 +16,7 @@ export default async function PortfolioItemEditPage({
         return redirect('/u/login')
     }
 
-    const portfolio_item = await api.portfolio.get_portfolio_item({
+    const portfolio_item = await api.portfolio.get_portfolio({
         artist_id: session.user.artist_id,
         item_id: params.id
     })
