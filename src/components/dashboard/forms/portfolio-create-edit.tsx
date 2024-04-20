@@ -47,9 +47,12 @@ export default function PortfolioCreateEditForm({
     /**
      * Create Mutation
      */
-    const create_mutation = api.portfolio.set_portfolio_item.useMutation({
+    const set_mutation = api.portfolio.set_portfolio_item.useMutation({
         onSuccess: () => {
-            nemu_toast('Portfolio Item Created', { theme: resolvedTheme, type: 'success' })
+            nemu_toast('Portfolio Item Created', {
+                theme: resolvedTheme,
+                type: 'success'
+            })
 
             replace('/dashboard/portfolio')
         },
@@ -62,22 +65,14 @@ export default function PortfolioCreateEditForm({
     })
 
     /**
-     * Update Mutation
-     */
-    const update_mutation = api.portfolio.update_portfolio_item.useMutation({
-        onSuccess: () => {
-            nemu_toast('Portfolio Item Updated!', { theme: resolvedTheme, type: 'success' })
-
-            replace('/dashboard/portfolio')
-        }
-    })
-
-    /**
      * Delete Mutation
      */
     const delete_mutation = api.portfolio.del_portfolio_item.useMutation({
         onSuccess: () => {
-            nemu_toast('Portfolio Item Deleted!', { theme: resolvedTheme, type: 'success' })
+            nemu_toast('Portfolio Item Deleted!', {
+                theme: resolvedTheme,
+                type: 'success'
+            })
 
             replace('/dashboard/portfolio')
         }
@@ -95,9 +90,10 @@ export default function PortfolioCreateEditForm({
         setDisabled(true)
 
         if (data) {
-            update_mutation.mutate({
+            set_mutation.mutate({
+                type: 'update',
                 id: data.id,
-                name: values.name
+                data: values
             })
 
             return
@@ -109,10 +105,13 @@ export default function PortfolioCreateEditForm({
             throw new Error('Response should exist!')
         }
 
-        create_mutation.mutate({
-            name: values.name,
-            image: res[0]?.url!,
-            utKey: res[0]?.key!
+        set_mutation.mutate({
+            type: 'create',
+            data: {
+                name: values.name,
+                image: res[0]?.url!,
+                utKey: res[0]?.key!
+            }
         })
     }
 

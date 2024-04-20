@@ -8,29 +8,66 @@ import { utapi } from '~/server/uploadthing'
 
 export const portfolioRouter = createTRPCRouter({
     /**
-     * Creates a new portfolio item for the given artist
+     * Creates or Updates a portfolio item for the given user
      */
     set_portfolio_item: artistProcedure
         .input(
-            z.object({
-                image: z.string(),
-                utKey: z.string(),
-                name: z.string()
-            })
+            z
+                .object({
+                    type: z.literal('create'),
+                    data: z.object({
+                        name: z.string(),
+                        image: z.string(),
+                        utKey: z.string()
+                    })
+                })
+                .or(
+                    z.object({
+                        type: z.literal('update'),
+                        id: z.string(),
+                        data: z.object({
+                            name: z.string()
+                        })
+                    })
+                )
         )
         .mutation(async ({ input, ctx }) => {
+            // Check if we actually have the artist id
+            if (!ctx.session.user.artist_id) {
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR'
+                })
+            }
+
+            // If it's an update
+            if (input.type === 'update') {
+                await ctx.db.portfolio.update({
+                    where: {
+                        id: input.id
+                    },
+                    data: {
+                        name: input.data.name
+                    }
+                })
+
+                return
+            }
+
+            // Create the item
             await ctx.db.portfolio.create({
                 data: {
-                    artistId: ctx.session.user.artist_id!,
-                    name: input.name,
-                    image: input.image,
-                    utKey: input.utKey
+                    artistId: ctx.session.user.artist_id,
+                    name: input.data.name,
+                    image: input.data.image,
+                    utKey: input.data.utKey
                 }
             })
 
-            await ctx.cache.del(
-                AsRedisKey('portfolio_items', ctx.session.user.artist_id!)
-            )
+            // Update Cache
+
+            // await ctx.cache.del(
+            //     AsRedisKey('portfolio_items', ctx.session.user.artist_id!)
+            // )
         }),
 
     /**
@@ -150,28 +187,5 @@ export const portfolioRouter = createTRPCRouter({
                     id: input.id
                 }
             })
-        }),
-
-    /**
-     * Updates a specified portfolio item
-     */
-    update_portfolio_item: artistProcedure
-        .input(
-            z.object({
-                id: z.string(),
-                name: z.string()
-            })
-        )
-        .mutation(async ({ input, ctx }) => {
-            await ctx.db.portfolio.update({
-                where: {
-                    id: input.id
-                },
-                data: {
-                    name: input.name
-                }
-            })
-
-            // Cache Update
         })
 })
