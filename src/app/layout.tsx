@@ -51,7 +51,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     disableTransitionOnChange
                 >
                     <TRPCReactProvider>{children}</TRPCReactProvider>
-                    <ToastContainer />
+                    <ToastContainer stacked />
                 </ThemeProvider>
             </body>
         </html>

@@ -17,7 +17,7 @@ import { Switch } from '~/components/ui/switch'
 import Container from '~/components/ui/container'
 import { Button } from '~/components/ui/button'
 import SelectCountries from '~/components/ui/select-countries'
-import { UploadDropzone } from '../files/uploadthing'
+import { UploadDropzone } from '~/components/files/uploadthing'
 import { nemu_toast } from '~/lib/utils'
 import { useTheme } from 'next-themes'
 

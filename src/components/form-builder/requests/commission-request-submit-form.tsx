@@ -2,7 +2,7 @@
 
 import NemuImage from '@/components/nemu-image'
 
-import { FormElementInstance, FormElements } from '../elements/form-elements'
+import { FormElementInstance, FormElements } from '~/components/form-builder/elements/form-elements'
 import Loading from '@/components/loading'
 import { useCallback, useRef, useState, useTransition } from 'react'
 import { api } from '@/core/api/react'

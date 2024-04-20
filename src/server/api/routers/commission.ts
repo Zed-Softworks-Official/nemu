@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
 
 import { ClientCommissionItem, NemuImageData } from '~/core/structures'
-import { createTRPCRouter, publicProcedure } from '~/server/api/trpc'
+import { artistProcedure, createTRPCRouter, publicProcedure } from '~/server/api/trpc'
 import { AsRedisKey } from '~/server/cache'
 import { get_blur_data } from '~/lib/server-utils'
 
@@ -69,5 +69,129 @@ export const commissionRouter = createTRPCRouter({
             )
 
             return result
+        }),
+
+    /**
+     * Handles Creating and Updating Commissions
+     */
+    set_commission: artistProcedure
+        .input(
+            z
+                .object({
+                    type: z.literal('create'),
+                    data: z.object({
+                        title: z.string(),
+                        description: z.string(),
+                        price: z.number(),
+                        availability: z.number(),
+                        images: z.array(z.string()),
+                        utKeys: z.array(z.string()),
+                        // rush_orders_allowed: z.boolean(),
+                        // rush_charge: z.number(),
+                        // rush_percentage: z.boolean(),
+                        form_id: z.string(),
+                        max_commissions_until_closed: z.number().optional(),
+                        max_commissions_until_waitlist: z.number().optional(),
+                        published: z.boolean().default(false)
+                    })
+                })
+                .or(
+                    z.object({
+                        type: z.literal('update'),
+                        commission_id: z.string(),
+                        data: z.object({
+                            title: z.string().optional(),
+                            description: z.string().optional(),
+                            availability: z.number().optional(),
+                            images: z.array(z.string()),
+                            utKeys: z.array(z.string()),
+                            // rush_orders_allowed: z.boolean().optional(),
+                            // rush_charge: z.number().optional(),
+                            // rush_percentage: z.boolean().optional(),
+                            form_id: z.string().optional(),
+                            price: z.number().optional(),
+                            max_commissions_until_closed: z.number().optional(),
+                            max_commissions_until_waitlist: z.number().optional(),
+                            published: z.boolean().optional()
+                        })
+                    })
+                )
+        )
+        .mutation(async ({ input, ctx }) => {
+            // Make sure we have the artist id
+            if (!ctx.session.user.artist_id) {
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Artist does not exist!'
+                })
+            }
+
+            ////////////////////////////
+            // TODO: Update Commission
+            ////////////////////////////
+            if (input.type === 'update') {
+                // Update Cache
+
+                return { success: true }
+            }
+
+            ////////////////////////////
+            // Create New Commission
+            ////////////////////////////
+            // Create Slug
+            const slug = input.data
+                .title!.toLowerCase()
+                .replace(/[^a-zA-Z ]/g, '')
+                .replaceAll(' ', '-')
+
+            // Check if it already exists for the artist
+            const slugExists = await ctx.db.commission.findFirst({
+                where: {
+                    slug: slug,
+                    artistId: ctx.session.user.artist_id
+                }
+            })
+
+            if (slugExists) {
+                return { success: false, reason: 'Slug already exists!' }
+            }
+
+            // Create database object
+            await ctx.db.commission.create({
+                data: {
+                    artistId: ctx.session.user.artist_id!,
+                    title: input.data.title,
+                    description: input.data.description,
+                    price: input.data.price,
+                    images: input.data.images,
+                    utKeys: input.data.utKeys,
+                    availability: input.data.availability,
+                    slug: slug,
+                    maxCommissionsUntilWaitlist:
+                        input.data.max_commissions_until_waitlist,
+                    maxCommissionsUntilClosed: input.data.max_commissions_until_closed,
+                    published: input.data.published,
+                    formId: input.data.form_id,
+                    rushCharge: 0,
+                    rushOrdersAllowed: false,
+                    rushPercentage: false
+                }
+            })
+
+            // Update Cache
+            const commissions = await ctx.db.commission.findMany({
+                where: {
+                    artistId: ctx.session.user.artist_id
+                }
+            })
+
+            await ctx.cache.set(
+                AsRedisKey('commissions', ctx.session.user.artist_id),
+                JSON.stringify(commissions),
+                'EX',
+                3600
+            )
+
+            return { success: true }
         })
 })

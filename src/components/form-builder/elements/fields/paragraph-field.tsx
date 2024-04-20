@@ -12,7 +12,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { useEffect } from 'react'
 import { useDesigner } from '~/components/form-builder/designer/designer-context'
-import { DesignerTextAreaField } from '../input-field'
+import { DesignerTextAreaField } from '~/components/form-builder/elements/input-field'
 import { PilcrowIcon } from 'lucide-react'
 
 const type: ElementsType = 'ParagraphField'

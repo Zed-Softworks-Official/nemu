@@ -5,15 +5,18 @@ import {
     FormElement,
     FormElementInstance,
     SubmitFunction
-} from '../form-elements'
+} from '~/components/form-builder/elements/form-elements'
 
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 
 import * as z from 'zod'
 import { useEffect, useState } from 'react'
-import {  useDesigner } from '~/components/form-builder/designer/designer-context'
-import { DesignerCheckboxField, DesignerInputField } from '~/components/form-builder/elements/input-field'
+import { useDesigner } from '~/components/form-builder/designer/designer-context'
+import {
+    DesignerCheckboxField,
+    DesignerInputField
+} from '~/components/form-builder/elements/input-field'
 import { SquareCheckIcon } from 'lucide-react'
 
 const type: ElementsType = 'CheckboxField'

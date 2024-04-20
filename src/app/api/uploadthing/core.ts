@@ -146,7 +146,7 @@ export const nemuFileRouter = {
     /**
      * Handles uploading commission images
      */
-    commissionImageUploader: f({ image: { maxFileCount: 5, maxFileSize: '4MB' } })
+    commissionImageUploader: f({ image: { maxFileCount: 5, maxFileSize: '16MB' } })
         .middleware(async ({ req }) => {
             const session = await getServerAuthSession()
 

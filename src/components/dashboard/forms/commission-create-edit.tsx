@@ -1,38 +1,267 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
+import { CheckCircle2Icon, CircleDollarSignIcon, XCircleIcon } from 'lucide-react'
+import { useTheme } from 'next-themes'
+import Link from 'next/link'
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
-import * as z from 'zod'
+
+import { z } from 'zod'
+import NemuUploadThing from '~/components/files/nemu-uploadthing'
+import { Button } from '~/components/ui/button'
+import { Form, FormField, FormItem, FormLabel } from '~/components/ui/form'
+import { Input } from '~/components/ui/input'
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue
+} from '~/components/ui/select'
+import { Textarea } from '~/components/ui/textarea'
+import { CommissionAvailability, RouterOutput } from '~/core/structures'
+import { nemu_toast } from '~/lib/utils'
+import { api } from '~/trpc/react'
 
 const commissionSchema = z.object({
     title: z.string().min(2).max(50),
     description: z.string().min(10).max(500),
-    form: z.string().min(1),
+    form_id: z.string(),
 
-    price: z.number().min(0).default(0).optional(),
+    price: z.preprocess(
+        (value) => parseInt(z.string().parse(value), 10),
+        z.number().min(0).default(0)
+    ),
 
-    featured_image: z
-        .any(z.instanceof(File).refine((file: File) => file.size != 0))
-        .optional(),
-    additional_images: z.any().optional(),
+    // rush: z.boolean().default(false),
+    // rush_charge: z.number().default(0).optional(),
+    // rush_percentage: z.boolean().default(false),
 
-    rush: z.boolean().default(false),
-    rush_charge: z.number().default(0).optional(),
-    rush_percentage: z.boolean().default(false),
+    max_commissions_until_waitlist: z.preprocess(
+        (value) => parseInt(z.string().parse(value), 10),
+        z.number().min(0).default(0).optional()
+    ),
+    max_commissions_until_closed: z.preprocess(
+        (value) => parseInt(z.string().parse(value), 10),
+        z.number().min(0).default(0).optional()
+    ),
 
-    max_commissions_until_waitlist: z.number().default(0).optional(),
-    max_commissions_until_closed: z.number().default(0).optional(),
-
-    commission_availability: z.number()
+    commission_availability: z.preprocess(
+        (value) => parseInt(z.string().parse(value), 10),
+        z.number()
+    )
 })
 
 type CommissionSchemaType = z.infer<typeof commissionSchema>
 
-export default function CommissionCreateEditForm() {
+export default function CommissionCreateEditForm({
+    forms
+}: {
+    forms: RouterOutput['form']['get_form_list']
+}) {
+    const [images, setImages] = useState<string[]>([])
+    const [utKeys, setUtKeys] = useState<string[]>([])
+
+    const { resolvedTheme } = useTheme()
+
+    const mutation = api.commission.set_commission.useMutation({
+        onSuccess: () => {},
+        onError: (e) => {}
+    })
+
     const form = useForm<CommissionSchemaType>({
         resolver: zodResolver(commissionSchema),
         mode: 'onSubmit'
     })
 
-    return <></>
+    function ProcessForm(values: CommissionSchemaType) {
+        // Check if the images and utKeys arrays are blank
+        if (images.length === 0 || utKeys.length === 0) {
+            nemu_toast('Images are required!', { theme: resolvedTheme, type: 'error' })
+            
+            return
+        }
+
+        // Create the new commission item
+        mutation.mutate({
+            type: 'create',
+            data: {
+                title: values.title,
+                description: values.description,
+                price: values.price,
+                availability: values.commission_availability,
+                images: images,
+                utKeys: utKeys,
+                form_id: values.form_id,
+                max_commissions_until_waitlist: values.max_commissions_until_waitlist,
+                max_commissions_until_closed: values.max_commissions_until_closed
+            }
+        })
+    }
+
+    return (
+        <Form {...form}>
+            <form
+                className="flex flex-col gap-5 max-w-xl mx-auto"
+                onSubmit={form.handleSubmit(ProcessForm)}
+            >
+                <FormField
+                    control={form.control}
+                    name="title"
+                    render={({ field }) => (
+                        <FormItem className="form-control">
+                            <FormLabel className="label">Title:</FormLabel>
+                            <Input placeholder="My Commission" {...field} />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="description"
+                    render={({ field }) => (
+                        <FormItem className="form-control">
+                            <FormLabel className="label">Description:</FormLabel>
+                            <Textarea
+                                placeholder="Description"
+                                {...field}
+                                className="resize-none"
+                                rows={8}
+                            />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="price"
+                    render={({ field }) => (
+                        <FormItem className="form-control">
+                            <FormLabel className="label">Price:</FormLabel>
+                            <div className="join w-full">
+                                <div className="flex items-center justify-center px-5 bg-base-200 join-item">
+                                    <CircleDollarSignIcon className="w-6 h-6" />
+                                </div>
+                                <Input
+                                    placeholder="Starting Price"
+                                    type="number"
+                                    inputMode="numeric"
+                                    className="w-full join-item"
+                                    {...field}
+                                />
+                            </div>
+                        </FormItem>
+                    )}
+                />
+                <div className="divider"></div>
+                {forms && (
+                    <FormField
+                        control={form.control}
+                        name="form_id"
+                        render={({ field }) => (
+                            <FormItem className="form-control">
+                                <FormLabel className="label">User Form:</FormLabel>
+                                <Select onValueChange={field.onChange}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select User Form" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {forms.map((form) => (
+                                            <SelectItem key={form.id} value={form.id}>
+                                                {form.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </FormItem>
+                        )}
+                    />
+                )}
+                <FormField
+                    control={form.control}
+                    name="commission_availability"
+                    render={({ field }) => (
+                        <FormItem className="form-control">
+                            <FormLabel className="label">Availability:</FormLabel>
+                            <Select onValueChange={field.onChange}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select Availability" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value={`${CommissionAvailability.Open}`}>
+                                        Open
+                                    </SelectItem>
+                                    <SelectItem
+                                        value={`${CommissionAvailability.Waitlist}`}
+                                    >
+                                        Waitlist
+                                    </SelectItem>
+                                    <SelectItem
+                                        value={`${CommissionAvailability.Closed}`}
+                                    >
+                                        Closed
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="max_commissions_until_waitlist"
+                    render={({ field }) => (
+                        <FormItem className="form-control">
+                            <FormLabel className="label">
+                                Commissions Until Auto Waitlist:
+                            </FormLabel>
+                            <Input
+                                placeholder="0"
+                                type="number"
+                                inputMode="numeric"
+                                {...field}
+                            />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="max_commissions_until_closed"
+                    render={({ field }) => (
+                        <FormItem className="form-control">
+                            <FormLabel className="label">
+                                Commissions Until Auto Close:
+                            </FormLabel>
+                            <Input
+                                placeholder="0"
+                                type="number"
+                                inputMode="numeric"
+                                {...field}
+                            />
+                        </FormItem>
+                    )}
+                />
+                <div className="divider"></div>
+                <NemuUploadThing />
+                <div className="divider"></div>
+                <p className="text-base-content/80">
+                    <i>
+                        Note: Commissions will need to be published. Make sure you have
+                        created the commission form for users to fill out upon a request.
+                    </i>
+                </p>
+                <div className="flex justify-between items-center">
+                    <Link
+                        className="btn btn-outline btn-error"
+                        href={'/dashboard/commissions'}
+                    >
+                        <XCircleIcon className="w-6 h-6" />
+                        Cancel
+                    </Link>
+                    <Button type="submit">
+                        <CheckCircle2Icon className="w-6 h-6" />
+                        Create
+                    </Button>
+                </div>
+            </form>
+        </Form>
+    )
 }

@@ -316,7 +316,7 @@ model InvoiceItem {
 model Form {
   id           String  @id @default(cuid())
   artistId     String
-  commissionId String?
+  commissionId String[]
 
   name        String
   description String?

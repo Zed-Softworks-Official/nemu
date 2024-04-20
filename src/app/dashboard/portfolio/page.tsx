@@ -35,8 +35,8 @@ export default async function PortfolioDashboardPage() {
                                 <NemuImage
                                     src={item.image.url}
                                     alt="image"
-                                    width={200}
-                                    height={200}
+                                    width={500}
+                                    height={500}
                                     className="w-full h-full"
                                 />
                             }

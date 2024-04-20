@@ -1,6 +1,6 @@
-import { KanbanContainerData } from "~/core/data-structures/kanban-structures"
-import { NemuImageData, OverwriteType } from "../structures"
-import { Commission } from "@prisma/client"
+import { KanbanContainerData } from '~/core/data-structures/kanban-structures'
+import { NemuImageData, OverwriteType } from '~/core/structures'
+import { Commission } from '@prisma/client'
 
 /**
  * The different states a commission can be in
@@ -15,11 +15,11 @@ export enum CommissionAvailability {
 
 /**
  * Order Details
- * 
+ *
  * @prop {string} user_id - The user id of the customer
  * @prop {string} customer_id - The stripe customer id of the user
  * @prop {boolean} rush - Is this a rush order?
- * 
+ *
  * @prop {KanbanContainerData[] | undefined} - The kanban data for the user
  * @prop {string | undefined} - The order id
  */
@@ -36,4 +36,4 @@ export interface CommissionOrders {
  * Client Side Commission Item, It basically contains all of same stuff as the prisma item
  * However, the images also includes blur data instead of just the url for the image
  */
-export type ClientCommissionItem = OverwriteType<Commission, {images: NemuImageData[]}>
+export type ClientCommissionItem = OverwriteType<Commission, { images: NemuImageData[] }>
