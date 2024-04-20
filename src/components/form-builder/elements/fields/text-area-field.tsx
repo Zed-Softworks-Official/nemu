@@ -90,7 +90,12 @@ function DesignerComponent({
                     {label}
                     {required && '*'}
                 </h2>
-                <Textarea placeholder={placeholder} rows={rows} className="resize-none" />
+                <Textarea
+                    placeholder={placeholder}
+                    rows={rows}
+                    className="resize-none bg-base-300"
+                    disabled
+                />
                 {helperText && <p className="text-base-content/80">{helperText}</p>}
             </div>
         </div>
@@ -126,6 +131,7 @@ function FormComponent({
                     {required && '*'}
                 </h2>
                 <Textarea
+                    className="bg-base-300 resize-none"
                     rows={rows}
                     placeholder={placeholder}
                     onChange={(e) => setValue(e.currentTarget.validationMessage)}

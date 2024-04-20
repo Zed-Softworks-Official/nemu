@@ -10,7 +10,8 @@ import { Textarea } from '~/components/ui/textarea'
 import { Button } from '~/components/ui/button'
 import { CheckCircle2Icon } from 'lucide-react'
 import { api } from '~/trpc/react'
-import { toast } from 'react-toastify'
+import { useTheme } from 'next-themes'
+import { nemu_toast } from '~/lib/utils'
 
 const commissionCreateFormSchema = z.object({
     name: z.string().min(2).max(50),
@@ -20,13 +21,11 @@ const commissionCreateFormSchema = z.object({
 type CommissionCreateFormSchemaType = z.infer<typeof commissionCreateFormSchema>
 
 export default function FormCreateForm() {
+    const { resolvedTheme } = useTheme()
+
     const mutation = api.form.set_form.useMutation({
         onSuccess: () => {
-            toast('Form Created!', {
-                theme: 'dark',
-                type: 'success',
-                icon: <CheckCircle2Icon className="w-6 h-6 text-success" />
-            })
+            nemu_toast('Form Created!', { theme: resolvedTheme, type: 'success' })
         }
     })
 

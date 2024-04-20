@@ -24,7 +24,8 @@ import NemuUploadPreview from '~/components/files/nemu-upload-preview'
 import NemuUploadProgress from '~/components/files/nemu-upload-progress'
 import { RouterOutput } from '~/core/structures'
 import NemuImage from '~/components/nemu-image'
-import { toast } from 'react-toastify'
+import { useTheme } from 'next-themes'
+import { nemu_toast } from '~/lib/utils'
 
 const portfolioSchema = z.object({
     name: z.string().min(2).max(50)
@@ -35,31 +36,27 @@ type PortfolioSchemaType = z.infer<typeof portfolioSchema>
 export default function PortfolioCreateEditForm({
     data
 }: {
-    data?: RouterOutput['portfolio']['get_portfolio_item']
+    data?: RouterOutput['portfolio']['get_portfolio']
 }) {
     const [disabled, setDisabled] = useState(false)
 
     const { upload } = useUploadThingContext()
     const { replace } = useRouter()
+    const { resolvedTheme } = useTheme()
 
     /**
      * Create Mutation
      */
     const create_mutation = api.portfolio.set_portfolio_item.useMutation({
         onSuccess: () => {
-            toast('Portfolio Item Created', {
-                theme: 'dark',
-                type: 'success',
-                icon: <CheckCircle2Icon className="w-6 h-6 text-success" />
-            })
+            nemu_toast('Portfolio Item Created', { theme: resolvedTheme, type: 'success' })
 
             replace('/dashboard/portfolio')
         },
         onError: (e) => {
-            toast('Error Creating Portfolio Item', {
-                theme: 'dark',
-                type: 'success',
-                icon: <XCircleIcon className="w-6 h-6 text-error" />
+            nemu_toast('Error Creating Portfolio Item', {
+                theme: resolvedTheme,
+                type: 'error'
             })
         }
     })
@@ -69,11 +66,7 @@ export default function PortfolioCreateEditForm({
      */
     const update_mutation = api.portfolio.update_portfolio_item.useMutation({
         onSuccess: () => {
-            toast('Portfolio Item Updated!', {
-                theme: 'dark',
-                type: 'success',
-                icon: <CheckCircle2Icon className="w-6 h-6 text-success" />
-            })
+            nemu_toast('Portfolio Item Updated!', { theme: resolvedTheme, type: 'success' })
 
             replace('/dashboard/portfolio')
         }
@@ -84,11 +77,7 @@ export default function PortfolioCreateEditForm({
      */
     const delete_mutation = api.portfolio.del_portfolio_item.useMutation({
         onSuccess: () => {
-            toast('Portfolio Item Deleted!', {
-                theme: 'dark',
-                type: 'success',
-                icon: <CheckCircle2Icon className="w-6 h-6 text-success" />
-            })
+            nemu_toast('Portfolio Item Deleted!', { theme: resolvedTheme, type: 'success' })
 
             replace('/dashboard/portfolio')
         }

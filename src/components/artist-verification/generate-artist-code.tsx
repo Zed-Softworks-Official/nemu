@@ -1,13 +1,15 @@
 'use client'
 
 import { ClipboardIcon } from 'lucide-react'
+import { useTheme } from 'next-themes'
 import { useState } from 'react'
-import { toast } from 'react-toastify'
+import { nemu_toast } from '~/lib/utils'
 import { api } from '~/trpc/react'
 
 export default function GenerateAristCode() {
     const [generatedCode, setGeneratedCode] = useState(crypto.randomUUID())
     const [generating, setGenerating] = useState(false)
+    const { resolvedTheme } = useTheme()
 
     const mutation = api.verification.set_artist_code.useMutation({
         onSuccess(res) {
@@ -16,7 +18,7 @@ export default function GenerateAristCode() {
         },
         onError(e) {
             setGenerating(false)
-            toast(e.message, { theme: 'dark', type: 'error' })
+            nemu_toast(e.message, { theme: resolvedTheme, type: 'error' })
         }
     })
 
@@ -37,13 +39,13 @@ export default function GenerateAristCode() {
                         className="btn"
                         onClick={async () => {
                             await navigator.clipboard.writeText(generatedCode)
-                            toast('Copied to clipboard', {
-                                type: 'info',
-                                theme: 'dark'
+                            nemu_toast('Copied to clipboard', {
+                                theme: resolvedTheme,
+                                type: 'info'
                             })
                         }}
                     >
-                        <ClipboardIcon className='w-6 h-6' />
+                        <ClipboardIcon className="w-6 h-6" />
                         Copy
                     </button>
                 </div>

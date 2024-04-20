@@ -31,6 +31,7 @@ model Artist {
   terms       String  @default("Pls Feed Nemu")
   tipJarUrl   String?
   headerPhoto String  @default("/curved0.jpg")
+  utKey       String?
 
   supporter     Boolean @default(false)
   zedCustomerId String?

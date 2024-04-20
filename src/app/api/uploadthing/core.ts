@@ -3,6 +3,7 @@ import { UploadThingError } from 'uploadthing/server'
 
 import { getServerAuthSession } from '~/server/auth'
 import { db } from '~/server/db'
+import { utapi } from '~/server/uploadthing'
 
 const f = createUploadthing()
 
@@ -23,6 +24,21 @@ export const nemuFileRouter = {
             return { userId: session.user.id }
         })
         .onUploadComplete(async ({ metadata, file }) => {
+            const user = await db.user.findFirst({
+                where: {
+                    id: metadata.userId
+                }
+            })
+
+            if (!user) {
+                throw new UploadThingError('Unauthorized')
+            }
+
+            // Delete previous header
+            if (user.utKey) {
+                await utapi.deleteFiles(user.utKey)
+            }
+
             // Update user image in db
             await db.user.update({
                 where: {
@@ -51,12 +67,29 @@ export const nemuFileRouter = {
             return { user: session.user }
         })
         .onUploadComplete(async ({ metadata, file }) => {
+            const artist = await db.artist.findFirst({
+                where: {
+                    id: metadata.user.artist_id
+                }
+            })
+
+            if (!artist) {
+                throw new UploadThingError('Unauthorized')
+            }
+
+            // Delete old header photo
+            if (artist.utKey) {
+                await utapi.deleteFiles(artist.utKey)
+            }
+
+            // Update new headerphoto
             await db.artist.update({
                 where: {
                     id: metadata.user.artist_id!
                 },
                 data: {
-                    headerPhoto: file.url
+                    headerPhoto: file.url,
+                    utKey: file.key
                 }
             })
         }),

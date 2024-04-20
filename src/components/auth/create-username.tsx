@@ -4,13 +4,14 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { toast } from 'react-toastify'
 
 import * as z from 'zod'
 import { Form, FormField, FormItem, FormLabel } from '~/components/ui/form'
 import { Input } from '../ui/input'
 import { Button } from '../ui/button'
 import { api } from '~/trpc/react'
+import { useTheme } from 'next-themes'
+import { nemu_toast } from '~/lib/utils'
 
 const usernameSchema = z.object({
     username: z.string().min(2).max(50)
@@ -21,10 +22,11 @@ type UsernameSchemaType = z.infer<typeof usernameSchema>
 export default function CreateUsername() {
     const [error, setError] = useState(false)
     const [errorMessage, setErrorMessage] = useState('Something')
+    const { resolvedTheme } = useTheme()
 
     const mutation = api.user.set_username.useMutation({
         onSuccess() {
-            toast('Username Set', { theme: 'dark', type: 'success' })
+            nemu_toast('Username Set', { theme: resolvedTheme, type: 'success' })
             replace('/')
         },
         onError() {

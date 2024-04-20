@@ -18,7 +18,8 @@ import Container from '~/components/ui/container'
 import { Button } from '~/components/ui/button'
 import SelectCountries from '~/components/ui/select-countries'
 import { UploadDropzone } from '../files/uploadthing'
-import { toast } from 'react-toastify'
+import { nemu_toast } from '~/lib/utils'
+import { useTheme } from 'next-themes'
 
 const artistSchema = z.object({
     about: z.string().max(256),
@@ -33,6 +34,8 @@ const artistSchema = z.object({
 type ArtistSchemaType = z.infer<typeof artistSchema>
 
 export default function ArtistSettings({ artist }: { artist: Artist }) {
+    const { resolvedTheme } = useTheme()
+
     const form = useForm<ArtistSchemaType>({
         resolver: zodResolver(artistSchema),
         mode: 'onSubmit',
@@ -146,10 +149,9 @@ export default function ArtistSettings({ artist }: { artist: Artist }) {
                         className="ut-ready:border-2 ut-ready:border-base-content/60 ut-ready:bg-base-100 ut-ready:hover:border-primary ut-label:text-base-content ut-allowed-content:text-base-content/80 ut-allowed-content:italic ut-button:bg-primary ut-button:active:scale-95 w-full ut-button:transition-all ut-button:duration-200 ut-button:ease-in-out ut-ready:transition-all ut-ready:duration-200 ut-ready:ease-in-out"
                         endpoint="headerPhotoUploader"
                         onClientUploadComplete={() => {
-                            toast('Header photo updated!', {
-                                theme: 'dark',
-                                type: 'success',
-                                icon: <CheckCircle2 className="w-6 h-6 text-sucess" />
+                            nemu_toast('Header photo updated!', {
+                                theme: resolvedTheme,
+                                type: 'success'
                             })
                         }}
                     />

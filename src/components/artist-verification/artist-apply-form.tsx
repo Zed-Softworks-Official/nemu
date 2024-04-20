@@ -10,18 +10,17 @@ import { Session } from 'next-auth'
 import { motion } from 'framer-motion'
 
 import { api } from '~/trpc/react'
-import { cn } from '~/lib/utils'
+import { cn, nemu_toast } from '~/lib/utils'
 
 import { Input } from '~/components/ui/input'
 import { Form, FormField, FormItem, FormLabel } from '~/components/ui/form'
 import { RadioGroup, RadioGroupItem } from '~/components/ui/radio-group'
 import { Label } from '~/components/ui/label'
-import NemuImage from '../nemu-image'
+import NemuImage from '~/components/nemu-image'
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react'
-import { Button } from '../ui/button'
-import { toast } from 'react-toastify'
+import { Button } from '~/components/ui/button'
 import { VerificationMethod } from '~/core/structures'
-import SelectCountries from '../ui/select-countries'
+import SelectCountries from '~/components/ui/select-countries'
 
 const steps = [
     {
@@ -144,13 +143,13 @@ export default function ArtistApplyForm({ session }: { session: Session }) {
         }
 
         if (currentStep === 2 && form.getValues('verification_method') === 'artist_code') {
-            const toast_id = toast.loading('Checking artist code', { theme: 'dark' })
+            const toast_id = nemu_toast.loading('Checking artist code')
             const res = await codeCheckMutation.mutateAsync(
                 form.getValues('artist_code')!
             )
 
             if (!res.success) {
-                toast.update(toast_id, {
+                nemu_toast.update(toast_id, {
                     isLoading: false,
                     type: 'error',
                     render: 'Artist code invalid!',
@@ -166,7 +165,7 @@ export default function ArtistApplyForm({ session }: { session: Session }) {
                 return
             }
 
-            toast.update(toast_id, {
+            nemu_toast.update(toast_id, {
                 isLoading: false,
                 type: 'success',
                 render: 'Artist code valid!',

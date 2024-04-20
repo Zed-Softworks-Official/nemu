@@ -96,7 +96,7 @@ function DesignerComponent({
                     {required && '*'}
                 </h2>
                 <Select disabled>
-                    <SelectTrigger>
+                    <SelectTrigger className="bg-base-300">
                         <SelectValue placeholder={placeholder} />
                     </SelectTrigger>
                 </Select>
@@ -136,6 +136,7 @@ function FormComponent({
                 </h2>
                 <Select onValueChange={(value) => setValue(value)} defaultValue={value}>
                     <SelectTrigger
+                        className="bg-base-300"
                         onBlur={(e) => {
                             if (!submitValue) return
 
