@@ -1,13 +1,16 @@
 import Link from 'next/link'
 import { PlusCircleIcon } from 'lucide-react'
+import { cn } from '~/lib/utils'
 
 export default function DashboardContainer({
     title,
     addButtonUrl,
+    contentClassName,
     children
 }: {
     title: string
     addButtonUrl?: string
+    contentClassName?: string
     children: React.ReactNode
 }) {
     return (
@@ -24,7 +27,7 @@ export default function DashboardContainer({
                 )}
             </div>
             <div className="divider"></div>
-            {children}
+            <div className={cn(contentClassName)}>{children}</div>
         </main>
     )
 }

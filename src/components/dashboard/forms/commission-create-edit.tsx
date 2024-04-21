@@ -6,9 +6,11 @@ import { useTheme } from 'next-themes'
 import Link from 'next/link'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { Id } from 'react-toastify'
 
 import { z } from 'zod'
 import NemuUploadThing from '~/components/files/nemu-uploadthing'
+import { useUploadThingContext } from '~/components/files/uploadthing-context'
 import { Button } from '~/components/ui/button'
 import { Form, FormField, FormItem, FormLabel } from '~/components/ui/form'
 import { Input } from '~/components/ui/input'
@@ -24,6 +26,9 @@ import { CommissionAvailability, RouterOutput } from '~/core/structures'
 import { nemu_toast } from '~/lib/utils'
 import { api } from '~/trpc/react'
 
+/**
+ * Commission schema for zod
+ */
 const commissionSchema = z.object({
     title: z.string().min(2).max(50),
     description: z.string().min(10).max(500),
@@ -53,21 +58,45 @@ const commissionSchema = z.object({
     )
 })
 
+/**
+ * Create a type from the zod schema
+ */
 type CommissionSchemaType = z.infer<typeof commissionSchema>
 
+/**
+ * The actual create/edit form
+ */
 export default function CommissionCreateEditForm({
     forms
 }: {
     forms: RouterOutput['form']['get_form_list']
 }) {
-    const [images, setImages] = useState<string[]>([])
-    const [utKeys, setUtKeys] = useState<string[]>([])
+    const [toastId, setToastId] = useState<Id | undefined>()
 
     const { resolvedTheme } = useTheme()
+    const { files, uploadImages, isUploading } = useUploadThingContext()
 
     const mutation = api.commission.set_commission.useMutation({
-        onSuccess: () => {},
-        onError: (e) => {}
+        onSuccess: () => {
+            if (!toastId) return
+
+            nemu_toast.update(toastId, {
+                render: 'Commission created!',
+                isLoading: false,
+                autoClose: 5000,
+                type: 'success'
+            })
+        },
+        onError: (e) => {
+            if (!toastId) return
+
+            nemu_toast.update(toastId, {
+                render: e.message,
+                isLoading: false,
+                autoClose: 5000,
+                type: 'error'
+            })
+        }
     })
 
     const form = useForm<CommissionSchemaType>({
@@ -75,13 +104,52 @@ export default function CommissionCreateEditForm({
         mode: 'onSubmit'
     })
 
-    function ProcessForm(values: CommissionSchemaType) {
-        // Check if the images and utKeys arrays are blank
-        if (images.length === 0 || utKeys.length === 0) {
-            nemu_toast('Images are required!', { theme: resolvedTheme, type: 'error' })
-            
+    async function ProcessForm(values: CommissionSchemaType) {
+        setToastId(nemu_toast.loading('Uploading Files', { theme: resolvedTheme }))
+
+        if (!toastId) {
             return
         }
+
+        // Check if we have images to upload
+        if (files.length === 0) {
+            nemu_toast.update(toastId, {
+                render: 'Images are required!',
+                isLoading: false,
+                autoClose: 5000,
+                type: 'error'
+            })
+
+            return
+        }
+
+        // Upload Images
+        const res = await uploadImages()
+
+        if (!res) {
+            nemu_toast.update(toastId, {
+                render: 'Uploading Images Failed!',
+                isLoading: false,
+                autoClose: 5000,
+                type: 'error'
+            })
+
+            return
+        }
+
+        // Grab image urls and utKeys from response
+        const images: string[] = []
+        const utKeys: string[] = []
+
+        for (const item of res) {
+            images.push(item.url)
+            utKeys.push(item.key)
+        }
+
+        // Update Toast
+        nemu_toast.update(toastId, {
+            render: 'Creating Commission'
+        })
 
         // Create the new commission item
         mutation.mutate({
@@ -256,7 +324,7 @@ export default function CommissionCreateEditForm({
                         <XCircleIcon className="w-6 h-6" />
                         Cancel
                     </Link>
-                    <Button type="submit">
+                    <Button type="submit" disabled={isUploading || mutation.isPending}>
                         <CheckCircle2Icon className="w-6 h-6" />
                         Create
                     </Button>

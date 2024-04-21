@@ -25,8 +25,6 @@ export function AsRedisKey(
         | 'requests'
         | 'artists'
         | 'commissions'
-        | 'commissions_editable'
-        | 'commissions_data'
         | 'kanbans'
         | 'invoices'
         | 'downloads'

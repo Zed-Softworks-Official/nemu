@@ -5,6 +5,7 @@ import { ClientCommissionItem, NemuImageData } from '~/core/structures'
 import { artistProcedure, createTRPCRouter, publicProcedure } from '~/server/api/trpc'
 import { AsRedisKey } from '~/server/cache'
 import { get_blur_data } from '~/lib/server-utils'
+import { Artist, Commission, Form, Review } from '@prisma/client'
 
 export const commissionRouter = createTRPCRouter({
     /**
@@ -72,6 +73,164 @@ export const commissionRouter = createTRPCRouter({
         }),
 
     /**
+     * Gets a single commission given a commission slug
+     */
+    get_commission_dashboard: publicProcedure
+        .input(
+            z.object({
+                id: z.string(),
+                req_data: z
+                    .object({
+                        artist: z.boolean().optional(),
+                        requests: z.boolean().optional(),
+                        form: z.boolean().optional(),
+                        reviews: z.boolean().optional()
+                    })
+                    .optional()
+            })
+        )
+        .query(async ({ input, ctx }) => {
+            // Check if we have the commission already cached
+            const cachedCommission = await ctx.cache.get(
+                AsRedisKey('commissions', input.id)
+            )
+
+            // If we do return that
+            if (cachedCommission) {
+                return JSON.parse(cachedCommission) as ClientCommissionItem & {
+                    artist: Artist | undefined
+                    requests: Request | undefined
+                    form: Form | undefined
+                    reviews: Review | undefined
+                }
+            }
+
+            // Get commission from db
+            const commission = await ctx.db.commission.findFirst({
+                where: {
+                    id: input.id
+                },
+                include: {
+                    artist: input.req_data?.artist,
+                    requests: input.req_data?.requests,
+                    form: input.req_data?.form,
+                    reviews: input.req_data?.reviews
+                }
+            })
+
+            if (!commission) {
+                return undefined
+            }
+
+            // Format for client
+            const images: NemuImageData[] = []
+
+            for (const image of commission?.images) {
+                images.push({
+                    url: image,
+                    blur_data: (await get_blur_data(image)).base64
+                })
+            }
+
+            const result: ClientCommissionItem = { ...commission, images }
+
+            await ctx.cache.set(
+                AsRedisKey('commissions', input.id),
+                JSON.stringify(result),
+                'EX',
+                3600
+            )
+
+            return commission
+        }),
+
+    /**
+     * Gets a single commission given a commission slug
+     */
+    get_commission: publicProcedure
+        .input(
+            z.object({
+                slug: z.string(),
+                handle: z.string(),
+                req_data: z
+                    .object({
+                        artist: z.boolean().optional(),
+                        requests: z.boolean().optional(),
+                        form: z.boolean().optional(),
+                        reviews: z.boolean().optional()
+                    })
+                    .optional()
+            })
+        )
+        .query(async ({ input, ctx }) => {
+            // Check if we have the commission already cached
+            const cachedCommission = await ctx.cache.get(
+                AsRedisKey('commissions', input.handle, input.slug)
+            )
+
+            // If we do return that
+            if (cachedCommission) {
+                return JSON.parse(cachedCommission) as ClientCommissionItem & {
+                    artist: Artist | undefined
+                    requests: Request | undefined
+                    form: Form | undefined
+                    reviews: Review | undefined
+                }
+            }
+
+            const artist = await ctx.db.artist.findFirst({
+                where: {
+                    handle: input.handle
+                }
+            })
+
+            if (!artist) {
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR'
+                })
+            }
+
+            // Get commission from db
+            const commission = await ctx.db.commission.findFirst({
+                where: {
+                    slug: input.slug,
+                    artistId: artist.id
+                },
+                include: {
+                    artist: input.req_data?.artist,
+                    requests: input.req_data?.requests,
+                    form: input.req_data?.form,
+                    reviews: input.req_data?.reviews
+                }
+            })
+
+            if (!commission) {
+                return undefined
+            }
+
+            // Format for client
+            const images: NemuImageData[] = []
+
+            for (const image of commission?.images) {
+                images.push({
+                    url: image,
+                    blur_data: (await get_blur_data(image)).base64
+                })
+            }
+
+            const result: ClientCommissionItem = { ...commission, images }
+
+            await ctx.cache.set(
+                AsRedisKey('commissions', input.handle, input.slug),
+                JSON.stringify(result),
+                'EX',
+                3600
+            )
+
+            return commission
+        }),
+
+    /**
      * Handles Creating and Updating Commissions
      */
     set_commission: artistProcedure
@@ -103,8 +262,8 @@ export const commissionRouter = createTRPCRouter({
                             title: z.string().optional(),
                             description: z.string().optional(),
                             availability: z.number().optional(),
-                            images: z.array(z.string()),
-                            utKeys: z.array(z.string()),
+                            images: z.array(z.string()).optional(),
+                            utKeys: z.array(z.string()).optional(),
                             // rush_orders_allowed: z.boolean().optional(),
                             // rush_charge: z.number().optional(),
                             // rush_percentage: z.boolean().optional(),

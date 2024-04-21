@@ -5,8 +5,10 @@ import { Metadata, ResolvingMetadata } from 'next'
 import Link from 'next/link'
 
 import { notFound } from 'next/navigation'
-import CommissionsDisplay from '~/components/displays/commissions-display'
+import { Suspense } from 'react'
+import CommissionsCard from '~/components/cards/commissions-card'
 import NemuImage from '~/components/nemu-image'
+import Loading from '~/components/ui/loading'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 import { api } from '~/trpc/server'
 
@@ -40,7 +42,7 @@ export default async function ArtistPage({ params }: Props) {
     }
 
     return (
-        <Tabs>
+        <Tabs defaultValue="commissions">
             {/* Artist Header */}
             <div className="flex flex-wrap flex-1 flex-col">
                 <div
@@ -126,7 +128,12 @@ export default async function ArtistPage({ params }: Props) {
                         <TabsContent value="commissions">
                             <h2 className="card-title">Commissions</h2>
                             <div className="divider"></div>
-                            <CommissionsDisplay artist_id={artist_data.id} />
+                            <Suspense fallback={<Loading />}>
+                                <CommissionsCard
+                                    artist_id={artist_data.id}
+                                    handle={handle}
+                                />
+                            </Suspense>
                         </TabsContent>
                         <TabsContent value="artist-corner">
                             <h2 className="card-title">Artist's Corner</h2>

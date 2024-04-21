@@ -40,7 +40,7 @@ export default function PortfolioCreateEditForm({
 }) {
     const [disabled, setDisabled] = useState(false)
 
-    const { upload } = useUploadThingContext()
+    const { uploadImages } = useUploadThingContext()
     const { replace } = useRouter()
     const { resolvedTheme } = useTheme()
 
@@ -99,7 +99,7 @@ export default function PortfolioCreateEditForm({
             return
         }
 
-        const res = await upload()
+        const res = await uploadImages()
 
         if (!res) {
             throw new Error('Response should exist!')

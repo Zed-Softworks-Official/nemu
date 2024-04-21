@@ -20,7 +20,7 @@ type UploadThingContextType = {
     filePreviews: string[]
     setFilePreviews: Dispatch<SetStateAction<string[]>>
 
-    upload: () => Promise<
+    uploadImages: () => Promise<
         | ClientUploadedFileData<void | {
               uploadedBy: string
               url: string
@@ -69,7 +69,7 @@ export default function UploadThingProvider({
         }
     }, [filePreviews])
 
-    async function upload() {
+    async function uploadImages() {
         if (files.length === 0) {
             return
         }
@@ -84,7 +84,7 @@ export default function UploadThingProvider({
                 setFiles,
                 filePreviews,
                 setFilePreviews,
-                upload,
+                uploadImages,
                 endpoint,
                 fileTypes,
                 uploadProgress,

@@ -7,6 +7,8 @@ import DashboardContainer from '~/components/ui/dashboard-container'
 import { api } from '~/trpc/server'
 import { getServerAuthSession } from '~/server/auth'
 import Link from 'next/link'
+import EmptyState from '~/components/ui/empty-state'
+import { ImagePlusIcon } from 'lucide-react'
 
 export default async function PortfolioDashboardPage() {
     const session = await getServerAuthSession()
@@ -18,6 +20,20 @@ export default async function PortfolioDashboardPage() {
     const portfolio_items = await api.portfolio.get_portfolio_list({
         artist_id: session?.user.artist_id
     })
+
+    if (portfolio_items.length === 0) {
+        return (
+            <DashboardContainer title="Portfolio">
+                <EmptyState
+                    create_url="/dashboard/portfolio/create"
+                    icon={<ImagePlusIcon className="w-10 h-10" />}
+                    heading="No Portfolio Items"
+                    description="Get started by creating a protfolio item"
+                    button_text="Create Portfolio Item"
+                />
+            </DashboardContainer>
+        )
+    }
 
     return (
         <DashboardContainer title="Portfolio" addButtonUrl="/dashboard/portfolio/create">
