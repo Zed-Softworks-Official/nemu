@@ -13,7 +13,7 @@ export default async function StandardNavbar() {
                     <Logo />
                     <div className="flex gap-5 items-center">
                         <UserDropdown user={session?.user} />
-                        <ThemeToggle />
+                        {/* <ThemeToggle /> */}
                     </div>
                 </div>
             </div>

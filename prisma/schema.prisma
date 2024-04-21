@@ -251,7 +251,8 @@ model Product {
 model Commission {
   id       String @id @default(cuid())
   artistId String
-  price    Int?
+  price    Int
+  rating   Float  @default(5.0)
 
   formId String
 
@@ -314,7 +315,7 @@ model InvoiceItem {
 }
 
 model Form {
-  id           String  @id @default(cuid())
+  id           String   @id @default(cuid())
   artistId     String
   commissionId String[]
 

@@ -1,5 +1,5 @@
 import CommissionDisplay from '~/components/displays/commission-display'
-import { Dialog, DialogContent } from '~/components/ui/dialog'
+import ParallelModal from '~/components/ui/parallel-modal'
 
 import { api } from '~/trpc/server'
 
@@ -18,10 +18,8 @@ export default async function CommissionsPage({
     })
 
     return (
-        <Dialog open>
-            <DialogContent className="!max-w-6xl">
-                <CommissionDisplay commission={commission} />
-            </DialogContent>
-        </Dialog>
+        <ParallelModal>
+            <CommissionDisplay commission={commission} />
+        </ParallelModal>
     )
 }

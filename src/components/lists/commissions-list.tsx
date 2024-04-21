@@ -6,7 +6,7 @@ import { format_to_currency } from '~/lib/utils'
 
 import NemuImage from '~/components/nemu-image'
 
-export default async function CommissionsCard({
+export default async function CommissionsList({
     artist_id,
     handle
 }: {
@@ -44,12 +44,13 @@ export default async function CommissionsCard({
                                     From
                                 </span>
                                 <span className="text-2xl font-bold">
-                                    {format_to_currency(commission.price!)}
+                                    {format_to_currency(commission.price)}
                                 </span>
                             </div>
                             <Link
                                 className="btn btn-primary text-white"
                                 href={`/@${handle}/commission/${commission.slug}`}
+                                scroll={false}
                             >
                                 <EyeIcon className="w-6 h-6" />
                                 View

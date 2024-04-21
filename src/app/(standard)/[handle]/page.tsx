@@ -6,7 +6,7 @@ import Link from 'next/link'
 
 import { notFound } from 'next/navigation'
 import { Suspense } from 'react'
-import CommissionsCard from '~/components/cards/commissions-card'
+import CommissionsList from '~/components/lists/commissions-list'
 import NemuImage from '~/components/nemu-image'
 import Loading from '~/components/ui/loading'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
@@ -129,7 +129,7 @@ export default async function ArtistPage({ params }: Props) {
                             <h2 className="card-title">Commissions</h2>
                             <div className="divider"></div>
                             <Suspense fallback={<Loading />}>
-                                <CommissionsCard
+                                <CommissionsList
                                     artist_id={artist_data.id}
                                     handle={handle}
                                 />
