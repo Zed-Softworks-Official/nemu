@@ -64,10 +64,31 @@ export const portfolioRouter = createTRPCRouter({
             })
 
             // Update Cache
+            const portfolioItems = await ctx.db.portfolio.findMany({
+                where: {
+                    artistId: ctx.session.user.artist_id
+                }
+            })
 
-            // await ctx.cache.del(
-            //     AsRedisKey('portfolio_items', ctx.session.user.artist_id!)
-            // )
+            // Format for client
+            const result: ClientPortfolioItem[] = []
+            for (const portfolio of portfolioItems) {
+                result.push({
+                    id: portfolio.id,
+                    name: portfolio.name,
+                    image: {
+                        url: portfolio.image,
+                        blur_data: (await get_blur_data(portfolio.image)).base64
+                    }
+                })
+            }
+
+            await ctx.cache.set(
+                AsRedisKey('portfolio_items', ctx.session.user.artist_id),
+                JSON.stringify(portfolioItems),
+                'EX',
+                3600
+            )
         }),
 
     /**
@@ -98,7 +119,8 @@ export const portfolioRouter = createTRPCRouter({
             const result: ClientPortfolioItem[] = []
             for (const portfolio of portfolioItems) {
                 result.push({
-                    ...portfolio,
+                    id: portfolio.id,
+                    name: portfolio.name,
                     image: {
                         url: portfolio.image,
                         blur_data: (await get_blur_data(portfolio.image)).base64
@@ -150,7 +172,8 @@ export const portfolioRouter = createTRPCRouter({
             }
 
             const result: ClientPortfolioItem = {
-                ...portfolio_item,
+                id: portfolio_item.id,
+                name: portfolio_item.name,
                 image: {
                     url: portfolio_item.image,
                     blur_data: (await get_blur_data(portfolio_item.image)).base64

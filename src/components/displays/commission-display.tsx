@@ -60,7 +60,7 @@ export default function CommissionDisplay({
                             <div>
                                 <h2 className="text-2xl font-bold flex items-center gap-2">
                                     {commission?.title}
-                                    <Badge variant={variant}>{text}</Badge>
+                                    <Badge variant={variant} className='badge-lg'>{text}</Badge>
                                 </h2>
                                 <p className="text-base-content/60 mb-4">
                                     By{' '}

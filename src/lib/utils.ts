@@ -71,10 +71,10 @@ export function format_to_currency(number: number) {
  */
 export function get_availability_badge_data(
     availability: CommissionAvailability
-): [variant: 'default' | 'warning' | 'destructive', text: string] {
+): [variant: 'success' | 'warning' | 'destructive', text: string] {
     switch (availability) {
         case CommissionAvailability.Open:
-            return ['default', 'Open']
+            return ['success', 'Open']
         case CommissionAvailability.Waitlist:
             return ['warning', 'Waitlist']
         case CommissionAvailability.Closed:

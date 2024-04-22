@@ -6,9 +6,10 @@ import { cn } from '~/lib/utils'
 const badgeVariants = cva('badge', {
     variants: {
         variant: {
-            default: 'badge-primary text-base-content',
+            default: 'badge-primary text-white',
+            success: 'badge-success',
             secondary: 'badge-secondary text-base-content',
-            warning: 'badge-error text-base-content',
+            warning: 'badge-warning',
             destructive: 'badge-error text-base-content',
             outline: 'text-base-content'
         }

@@ -23,7 +23,7 @@ export default async function PortfolioDashboardPage() {
 
     if (portfolio_items.length === 0) {
         return (
-            <DashboardContainer title="Portfolio">
+            <DashboardContainer title="Portfolio" contentClassName='h-full'>
                 <EmptyState
                     create_url="/dashboard/portfolio/create"
                     icon={<ImagePlusIcon className="w-10 h-10" />}
@@ -38,7 +38,7 @@ export default async function PortfolioDashboardPage() {
     return (
         <DashboardContainer title="Portfolio" addButtonUrl="/dashboard/portfolio/create">
             <div className="grid grid-cols-3 gap-5">
-                {portfolio_items.map((item) => (
+                {portfolio_items.map((item, i) => (
                     <Link
                         href={`/dashboard/portfolio/${item.id}`}
                         key={item.id}

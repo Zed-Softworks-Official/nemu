@@ -17,11 +17,6 @@ export interface NemuImageData {
 }
 
 /**
- * Overwrites a type inside of an interface
- */
-export type OverwriteType<T, U> = Pick<T, Exclude<keyof T, keyof U>> & U
-
-/**
  * TRPC Base Router Output Response Object
  */
 export type RouterOutput = inferRouterOutputs<AppRouter>

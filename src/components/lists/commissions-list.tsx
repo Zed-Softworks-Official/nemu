@@ -44,10 +44,10 @@ export default async function CommissionsList({
                                 className="w-full h-full"
                             />
                         </figure>
-                        <div className="card-body h-full">
+                        <div className="card-body">
                             <h2 className="text-3xl font-bold flex items-center gap-2">
                                 {commission.title}
-                                <Badge variant={variant}>{text}</Badge>
+                                <Badge variant={variant} className='badge-lg'>{text}</Badge>
                             </h2>
                             <div className="divider"></div>
                             <p>{commission.description}</p>
