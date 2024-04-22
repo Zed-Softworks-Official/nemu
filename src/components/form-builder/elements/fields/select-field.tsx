@@ -136,7 +136,7 @@ function FormComponent({
                 </h2>
                 <Select onValueChange={(value) => setValue(value)} defaultValue={value}>
                     <SelectTrigger
-                        className="bg-base-300"
+                        className="bg-base-100"
                         onBlur={(e) => {
                             if (!submitValue) return
 

@@ -85,7 +85,7 @@ export const portfolioRouter = createTRPCRouter({
 
             await ctx.cache.set(
                 AsRedisKey('portfolio_items', ctx.session.user.artist_id),
-                JSON.stringify(portfolioItems),
+                JSON.stringify(result),
                 'EX',
                 3600
             )

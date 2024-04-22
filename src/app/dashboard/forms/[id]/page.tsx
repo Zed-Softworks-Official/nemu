@@ -12,10 +12,7 @@ export default async function FormBuilderPage({ params }: { params: { id: string
         return redirect('/u/login')
     }
 
-    const form = await api.form.get_form({
-        artist_id: session.user.artist_id,
-        form_id: params.id
-    })
+    const form = await api.form.get_form(params.id)
 
     if (!form) {
         return notFound()

@@ -116,8 +116,8 @@ function FormComponent({
     }, [isInvalid])
 
     return (
-        <div className="card bg-base-300 w-full">
-            <div className="flex flex-col w-full gap-3 px-10 mb-5">
+        <div className="card bg-base-300 shadow-xl w-full">
+            <div className="card-body">
                 <h2 className={cn(error && 'text-error', 'card-title')}>
                     {label}
                     {required && '*'}

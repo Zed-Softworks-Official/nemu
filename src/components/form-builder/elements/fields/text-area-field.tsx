@@ -125,13 +125,13 @@ function FormComponent({
 
     return (
         <div className="card bg-base-300 w-full">
-            <div className="flex flex-col gap-3 px-10">
+            <div className="card-body">
                 <h2 className={cn(error && 'text-error', 'card-title')}>
                     {label}
                     {required && '*'}
                 </h2>
                 <Textarea
-                    className="bg-base-300 resize-none"
+                    className="resize-none"
                     rows={rows}
                     placeholder={placeholder}
                     onChange={(e) => setValue(e.currentTarget.validationMessage)}

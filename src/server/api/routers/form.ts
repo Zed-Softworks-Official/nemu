@@ -1,4 +1,5 @@
 import { Form } from '@prisma/client'
+import { TRPCError } from '@trpc/server'
 import { z } from 'zod'
 
 import { artistProcedure, createTRPCRouter, protectedProcedure } from '~/server/api/trpc'
@@ -125,6 +126,7 @@ export const formRouter = createTRPCRouter({
             })
         )
         .mutation(async ({ input, ctx }) => {
+            // Get for data
             const commission = await ctx.db.commission.findFirst({
                 where: {
                     id: input.commission_id
@@ -132,10 +134,14 @@ export const formRouter = createTRPCRouter({
             })
 
             if (!commission) {
-                throw new Error('Commission not found')
+                throw new TRPCError({
+                    code: 'NOT_FOUND',
+                    message: 'Commission not found'
+                })
             }
 
-            await ctx.db.request.create({
+            // Create the request
+            const request = await ctx.db.request.create({
                 data: {
                     formId: input.form_id,
                     commissionId: input.commission_id,
@@ -144,5 +150,8 @@ export const formRouter = createTRPCRouter({
                     userId: ctx.session.user.id
                 }
             })
+
+            // Update commission status
+            
         })
 })
