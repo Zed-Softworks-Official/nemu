@@ -15,9 +15,14 @@ export async function get_blur_data(src: string) {
     return data
 }
 
+/**
+ * 
+ * @param {string} form_id 
+ * @param {string} commission_id 
+ */
 export async function update_commission_availability(
     form_id: string,
     commission_id: string
 ) {
-    
+
 }
