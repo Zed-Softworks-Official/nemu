@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { Suspense } from 'react'
 import CommissionsList from '~/components/lists/commissions-list'
+import PortfolioList from '~/components/lists/portfolio-list'
 import NemuImage from '~/components/nemu-image'
 import Loading from '~/components/ui/loading'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
@@ -142,6 +143,9 @@ export default async function ArtistPage({ params }: Props) {
                         <TabsContent value="portfolio">
                             <h2 className="card-title">Portfolio</h2>
                             <div className="divider"></div>
+                            <Suspense fallback={<Loading />}>
+                                <PortfolioList artist_id={artist_data.id} />
+                            </Suspense>
                         </TabsContent>
                     </div>
                 </div>

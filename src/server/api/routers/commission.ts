@@ -6,6 +6,7 @@ import { artistProcedure, createTRPCRouter, publicProcedure } from '~/server/api
 import { AsRedisKey } from '~/server/cache'
 import { get_blur_data } from '~/lib/server-utils'
 import { Artist, Commission, Form, Review } from '@prisma/client'
+import { format_to_currency } from '~/lib/utils'
 
 export const commissionRouter = createTRPCRouter({
     /**
@@ -49,16 +50,24 @@ export const commissionRouter = createTRPCRouter({
             // Format for client
             const result: ClientCommissionItem[] = []
             for (const commission of commissions) {
-                const images: NemuImageData[] = []
-                for (const image of commission.images) {
-                    images.push({
-                        url: image,
-                        blur_data: (await get_blur_data(image)).base64
-                    })
-                }
                 result.push({
-                    ...commission,
-                    images
+                    title: commission.title,
+                    description: commission.description,
+                    price: format_to_currency(commission.price),
+                    availability: commission.availability,
+                    rating: commission.rating,
+                    images: [
+                        {
+                            url: commission.images[0]!,
+                            blur_data: (await get_blur_data(commission.images[0]!)).base64
+                        }
+                    ],
+                    slug: commission.slug,
+
+                    artist: {
+                        handle: commission.artist.handle,
+                        supporter: commission.artist.supporter,
+                    }
                 })
             }
 
@@ -132,7 +141,21 @@ export const commissionRouter = createTRPCRouter({
                 })
             }
 
-            const result: ClientCommissionItem = { ...commission, images }
+            const result: ClientCommissionItem = {
+                title: commission.title,
+                description: commission.description,
+                price: format_to_currency(commission.price),
+                availability: commission.availability,
+                rating: commission.rating,
+                images: images,
+                slug: commission.slug,
+
+                artist: {
+                    handle: commission.artist.handle,
+                    supporter: commission.artist.supporter,
+                    terms: commission.artist.terms
+                }
+            }
 
             await ctx.cache.set(
                 AsRedisKey('commissions', input.id),
@@ -141,7 +164,7 @@ export const commissionRouter = createTRPCRouter({
                 3600
             )
 
-            return commission
+            return result
         }),
 
     /**
@@ -170,12 +193,7 @@ export const commissionRouter = createTRPCRouter({
 
             // If we do return that
             if (cachedCommission) {
-                return JSON.parse(cachedCommission) as ClientCommissionItem & {
-                    artist: Artist | undefined
-                    requests: Request | undefined
-                    form: Form | undefined
-                    reviews: Review | undefined
-                }
+                return JSON.parse(cachedCommission) as ClientCommissionItem
             }
 
             const artist = await ctx.db.artist.findFirst({
@@ -218,7 +236,24 @@ export const commissionRouter = createTRPCRouter({
                 })
             }
 
-            const result: ClientCommissionItem = { ...commission, images }
+            const result: ClientCommissionItem = {
+                title: commission.title,
+                description: commission.description,
+                price: format_to_currency(commission.price),
+                availability: commission.availability,
+                rating: commission.rating,
+                images: images,
+                slug: commission.slug,
+
+                id: commission.id,
+                formId: commission.formId,
+
+                artist: {
+                    handle: commission.artist.handle,
+                    supporter: commission.artist.supporter,
+                    terms: commission.artist.terms
+                }
+            }
 
             await ctx.cache.set(
                 AsRedisKey('commissions', input.handle, input.slug),
@@ -227,7 +262,7 @@ export const commissionRouter = createTRPCRouter({
                 3600
             )
 
-            return commission
+            return result
         }),
 
     /**

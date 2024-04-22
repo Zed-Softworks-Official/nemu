@@ -1,4 +1,5 @@
 import CommissionDisplay from '~/components/displays/commission-display'
+import { getServerAuthSession } from '~/server/auth'
 import { api } from '~/trpc/server'
 
 export default async function CommissionsPage({
@@ -6,6 +7,8 @@ export default async function CommissionsPage({
 }: {
     params: { handle: string; slug: string }
 }) {
+    const session = await getServerAuthSession()
+
     const handle = params.handle.substring(3, params.handle.length + 1)
     const commission = await api.commission.get_commission({
         handle: handle,
@@ -18,7 +21,7 @@ export default async function CommissionsPage({
     return (
         <div className="card bg-base-300 shadow-xl">
             <div className="card-body">
-                <CommissionDisplay commission={commission} />
+                <CommissionDisplay commission={commission} session={session} />
             </div>
         </div>
     )

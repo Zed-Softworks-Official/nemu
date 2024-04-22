@@ -60,41 +60,27 @@ export const formRouter = createTRPCRouter({
     /**
      * Gets a SINGLE from from an artist given the artist id and the form id
      */
-    get_form: protectedProcedure
-        .input(
-            z.object({
-                artist_id: z.string(),
-                form_id: z.string()
-            })
-        )
-        .query(async ({ input, ctx }) => {
-            const cachedForm = await ctx.cache.get(
-                AsRedisKey('forms', input.artist_id, input.form_id)
-            )
+    get_form: protectedProcedure.input(z.string()).query(async ({ input, ctx }) => {
+        const cachedForm = await ctx.cache.get(AsRedisKey('forms', input))
 
-            if (cachedForm) {
-                return JSON.parse(cachedForm) as Form
+        if (cachedForm) {
+            return JSON.parse(cachedForm) as Form
+        }
+
+        const form = await ctx.db.form.findFirst({
+            where: {
+                id: input
             }
+        })
 
-            const form = await ctx.db.form.findFirst({
-                where: {
-                    id: input.form_id
-                }
-            })
+        if (!form) {
+            return undefined
+        }
 
-            if (!form) {
-                return undefined
-            }
+        await ctx.cache.set(AsRedisKey('forms', input), JSON.stringify(form), 'EX', 3600)
 
-            await ctx.cache.set(
-                AsRedisKey('forms', input.artist_id, input.form_id),
-                JSON.stringify(form),
-                'EX',
-                3600
-            )
-
-            return form
-        }),
+        return form
+    }),
 
     /**
      * Sets the form content
@@ -125,5 +111,38 @@ export const formRouter = createTRPCRouter({
             )
 
             return { success: true }
+        }),
+
+    /**
+     * Submit a request to the given commission
+     */
+    set_request: protectedProcedure
+        .input(
+            z.object({
+                form_id: z.string(),
+                commission_id: z.string(),
+                content: z.string()
+            })
+        )
+        .mutation(async ({ input, ctx }) => {
+            const commission = await ctx.db.commission.findFirst({
+                where: {
+                    id: input.commission_id
+                }
+            })
+
+            if (!commission) {
+                throw new Error('Commission not found')
+            }
+
+            await ctx.db.request.create({
+                data: {
+                    formId: input.form_id,
+                    commissionId: input.commission_id,
+                    content: input.content,
+                    orderId: crypto.randomUUID(),
+                    userId: ctx.session.user.id
+                }
+            })
         })
 })

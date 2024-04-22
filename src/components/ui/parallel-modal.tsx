@@ -8,9 +8,19 @@ export default function ParallelModal({ children }: { children: React.ReactNode 
     const dialogRef = useRef<ElementRef<'dialog'>>(null)
 
     useEffect(() => {
+        // If the modal isn't open, then open it
         if (!dialogRef.current?.open) {
             dialogRef.current?.showModal()
         }
+
+        // Close modal if escape is pressed
+        const closeOnEscapePressed = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                onDismiss()
+            }
+        }
+        window.addEventListener('keydown', closeOnEscapePressed)
+        return () => window.removeEventListener('keydown', closeOnEscapePressed)
     }, [])
 
     function onDismiss() {
@@ -18,7 +28,7 @@ export default function ParallelModal({ children }: { children: React.ReactNode 
     }
 
     return (
-        <dialog ref={dialogRef} className="modal" open onClose={onDismiss}>
+        <dialog ref={dialogRef} className="modal" onClose={onDismiss} open>
             <div className="modal-box bg-base-300 max-w-6xl w-full animate-pop-in transition-all duration-200 ease-in-out">
                 {children}
             </div>

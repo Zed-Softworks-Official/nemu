@@ -3,25 +3,20 @@ import { cva, type VariantProps } from 'class-variance-authority'
 
 import { cn } from '~/lib/utils'
 
-const badgeVariants = cva(
-    'badge',
-    {
-        variants: {
-            variant: {
-                default:
-                    'badge-primary text-base-content',
-                secondary:
-                    'badge-secondary text-base-content',
-                destructive:
-                    'badge-error text-base-content',
-                outline: 'text-base-content'
-            }
-        },
-        defaultVariants: {
-            variant: 'default'
+const badgeVariants = cva('badge', {
+    variants: {
+        variant: {
+            default: 'badge-primary text-base-content',
+            secondary: 'badge-secondary text-base-content',
+            warning: 'badge-error text-base-content',
+            destructive: 'badge-error text-base-content',
+            outline: 'text-base-content'
         }
+    },
+    defaultVariants: {
+        variant: 'default'
     }
-)
+})
 
 export interface BadgeProps
     extends React.HTMLAttributes<HTMLDivElement>,

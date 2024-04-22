@@ -1,6 +1,6 @@
 import { KanbanContainerData } from '~/core/data-structures/kanban-structures'
 import { NemuImageData, OverwriteType } from '~/core/structures'
-import { Commission } from '@prisma/client'
+import { Artist, Commission, Form, Review } from '@prisma/client'
 
 /**
  * The different states a commission can be in
@@ -36,4 +36,41 @@ export interface CommissionOrders {
  * Client Side Commission Item, It basically contains all of same stuff as the prisma item
  * However, the images also includes blur data instead of just the url for the image
  */
-export type ClientCommissionItem = OverwriteType<Commission, { images: NemuImageData[] }>
+// export type ClientCommissionItem = OverwriteType<Commission, { images: NemuImageData[] }> & {
+//     artist: Artist | undefined
+//     requests: Request[] | undefined
+//     form: Form | undefined
+//     reviews: Review[] | undefined
+// }
+export interface ClientCommissionItem {
+    // Commission Data
+    title: string
+    description: string
+    price: string
+    images: NemuImageData[]
+    rating: number
+    availability: CommissionAvailability
+    slug: string
+
+    id?: string
+    formId?: string
+
+    // Artist Data
+    artist?: {
+        handle: string
+        supporter: boolean
+        terms?: string
+    }
+
+    // Form Data
+    form?: {
+        content: string
+    }
+
+    // Review Data
+    reviews?: {
+        username: string
+        content: string
+        rating: number
+    }[]
+}

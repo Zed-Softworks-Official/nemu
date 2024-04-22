@@ -3,6 +3,7 @@ import { twMerge } from 'tailwind-merge'
 
 import { Id, ToastContent, ToastOptions, UpdateOptions, toast } from 'react-toastify'
 import { useTheme } from 'next-themes'
+import { CommissionAvailability } from '~/core/structures'
 
 /**
  * Merges classnames
@@ -50,7 +51,7 @@ export namespace nemu_toast {
 
 /**
  * Formats a number to be in "Price Format", currently only for US
- * 
+ *
  * @param {number} number - The number you wish to convert
  * @returns {string} - A string with the correct format for pricing
  */
@@ -61,4 +62,22 @@ export function format_to_currency(number: number) {
     })
 
     return formatter.format(number)
+}
+
+/**
+ * Gets tuple data for displaying the availability
+ * 
+ * @param {CommissionAvailability} availability - The availabilty you want the data for
+ */
+export function get_availability_badge_data(
+    availability: CommissionAvailability
+): [variant: 'default' | 'warning' | 'destructive', text: string] {
+    switch (availability) {
+        case CommissionAvailability.Open:
+            return ['default', 'Open']
+        case CommissionAvailability.Waitlist:
+            return ['warning', 'Waitlist']
+        case CommissionAvailability.Closed:
+            return ['destructive', 'Closed']
+    }
 }
