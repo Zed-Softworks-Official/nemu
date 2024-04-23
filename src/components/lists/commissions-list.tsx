@@ -33,7 +33,7 @@ export default async function CommissionsList({
                         key={commission.slug}
                         className="card lg:card-side bg-base-100 shadow-xl transition-all duration-200 ease-in-out animate-pop-in"
                     >
-                        <figure>
+                        <figure className='w-64'>
                             <NemuImage
                                 src={commission.images[0]!.url}
                                 placeholder="blur"

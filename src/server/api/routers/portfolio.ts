@@ -53,7 +53,7 @@ export const portfolioRouter = createTRPCRouter({
                 return
             }
 
-            // Create the item
+            // Create the portfolio item
             await ctx.db.portfolio.create({
                 data: {
                     artistId: ctx.session.user.artist_id,

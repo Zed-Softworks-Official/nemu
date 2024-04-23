@@ -1,9 +1,12 @@
 import { Form } from '@prisma/client'
 import { TRPCError } from '@trpc/server'
+import { env } from 'process'
 import { z } from 'zod'
 
+import { update_commission_check_waitlist } from '~/lib/server-utils'
 import { artistProcedure, createTRPCRouter, protectedProcedure } from '~/server/api/trpc'
 import { AsRedisKey } from '~/server/cache'
+import { novu } from '~/server/novu'
 
 export const formRouter = createTRPCRouter({
     /**
@@ -115,7 +118,7 @@ export const formRouter = createTRPCRouter({
         }),
 
     /**
-     * Submit a request to the given commission
+     * Submits a request to the given commission
      */
     set_request: protectedProcedure
         .input(
@@ -126,10 +129,13 @@ export const formRouter = createTRPCRouter({
             })
         )
         .mutation(async ({ input, ctx }) => {
-            // Get for data
+            // Get commission data
             const commission = await ctx.db.commission.findFirst({
                 where: {
                     id: input.commission_id
+                },
+                include: {
+                    artist: true
                 }
             })
 
@@ -140,6 +146,9 @@ export const formRouter = createTRPCRouter({
                 })
             }
 
+            // Retrieve and Update the commission availability
+            const waitlisted = await update_commission_check_waitlist(commission)
+
             // Create the request
             const request = await ctx.db.request.create({
                 data: {
@@ -147,11 +156,26 @@ export const formRouter = createTRPCRouter({
                     commissionId: input.commission_id,
                     content: input.content,
                     orderId: crypto.randomUUID(),
-                    userId: ctx.session.user.id
+                    userId: ctx.session.user.id,
+                    waitlist: waitlisted
                 }
             })
 
-            // Update commission status
-            
+            // Notify the artist of a new request
+            novu.trigger('commission-request', {
+                to: {
+                    subscriberId: commission.artist.userId
+                },
+                payload: {
+                    username: ctx.session.user.name!,
+                    commission_name: commission.title,
+                    slug: env.NEXTAUTH_URL + '/dashboard/commissions/' + commission.slug
+                }
+            })
+
+            // Delete Cache
+            await ctx.cache.del(
+                AsRedisKey('commissions', commission.artistId, commission.slug)
+            )
         })
 })

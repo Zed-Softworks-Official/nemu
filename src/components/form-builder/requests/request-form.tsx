@@ -37,6 +37,8 @@ export default function RequestSubmitForm({
                 theme: resolvedTheme,
                 type: 'success'
             })
+
+            setSubmitted(true)
         },
         onError: () => {
             nemu_toast('Commission request could not be submitted!', {

@@ -134,21 +134,11 @@ function FormComponent({
                     {label}
                     {required && '*'}
                 </h2>
-                <Select onValueChange={(value) => setValue(value)} defaultValue={value}>
+                {/* TODO: Figure Out Why Select Component isn't working */}
+                {/* <Select onValueChange={(value) => setValue(value)} defaultValue={value}>
                     <SelectTrigger
                         className="bg-base-100"
-                        onBlur={(e) => {
-                            if (!submitValue) return
-
-                            const valid = SelectFieldFormElement.validate(
-                                element,
-                                e.currentTarget.value
-                            )
-                            setError(!valid)
-                            if (!valid) return
-
-                            submitValue(element.id, e.currentTarget.value)
-                        }}
+                        
                     >
                         <SelectValue placeholder={placeholder} />
                     </SelectTrigger>
@@ -159,7 +149,33 @@ function FormComponent({
                             </SelectItem>
                         ))}
                     </SelectContent>
-                </Select>
+                </Select> */}
+                <select
+                    className="select"
+                    defaultValue={value}
+                    onChange={(e) => setValue(e.currentTarget.value)}
+                    onBlur={(e) => {
+                        if (!submitValue) return
+
+                        const valid = SelectFieldFormElement.validate(
+                            element,
+                            e.currentTarget.value
+                        )
+                        setError(!valid)
+                        if (!valid) return
+
+                        submitValue(element.id, e.currentTarget.value)
+                    }}
+                >
+                    <option value="" disabled selected>
+                        {placeholder}
+                    </option>
+                    {options.map((option) => (
+                        <option key={option} value={option}>
+                            {option}
+                        </option>
+                    ))}
+                </select>
                 {helperText && (
                     <p className={cn(error ? 'text-error/80' : 'text-base-content/80')}>
                         {helperText}
@@ -272,7 +288,7 @@ function PropertiesComponent({
                                             />
                                             <button
                                                 type="button"
-                                                className="btn btn-ghost join-item bg-base-100"
+                                                className="btn btn-ghost join-item bg-base-200"
                                                 onClick={(e) => {
                                                     e.preventDefault()
 

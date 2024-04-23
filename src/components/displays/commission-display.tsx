@@ -23,7 +23,8 @@ import { Checkbox } from '~/components/ui/checkbox'
 import { useState } from 'react'
 import { Session } from 'next-auth'
 import { notFound, useRouter } from 'next/navigation'
-import RequestSubmitForm from '../form-builder/requests/request-form'
+
+import RequestSubmitForm from '~/components/form-builder/requests/request-form'
 
 export default function CommissionDisplay({
     commission,

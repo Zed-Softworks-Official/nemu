@@ -18,6 +18,7 @@ import {
     DesignerInputField
 } from '~/components/form-builder/elements/input-field'
 import { SquareCheckIcon } from 'lucide-react'
+import { Switch } from '~/components/ui/switch'
 
 const type: ElementsType = 'CheckboxField'
 
@@ -126,7 +127,7 @@ function FormComponent({
     const id = `checkbox-${element.id}`
 
     return (
-        <div className="card bg-base-100 shadow-xl w-full">
+        <div className="card bg-base-300 shadow-xl w-full">
             <div className="card-body">
                 <div className="form-control">
                     <label htmlFor={id} className="label text-xl cursor-pointer">
@@ -134,9 +135,7 @@ function FormComponent({
                             {label}
                             {required && '*'}:
                         </span>
-                        <input
-                            type="checkbox"
-                            className="toggle toggle-primary"
+                        <Switch
                             onChange={(e) => {
                                 let value = false
                                 if (e.currentTarget.value === 'true') value = true

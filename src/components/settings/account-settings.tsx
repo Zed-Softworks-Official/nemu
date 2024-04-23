@@ -14,6 +14,9 @@ import { Avatar, AvatarImage, AvatarFallback } from '~/components/ui/avatar'
 import { useState } from 'react'
 import { User } from '@prisma/client'
 import { api } from '~/trpc/react'
+import { useTheme } from 'next-themes'
+import { nemu_toast } from '~/lib/utils'
+import { Id } from 'react-toastify'
 
 const accountSchema = z.object({
     username: z
@@ -29,18 +32,36 @@ const accountSchema = z.object({
 
 type AccountSchemaType = z.infer<typeof accountSchema>
 
-export default function AccountSettings({
-    user,
-    artist_id
-}: {
-    user: User
-    artist_id?: string
-}) {
+export default function AccountSettings({ user }: { user: User }) {
     const [profilePhoto, setProfilePhoto] = useState(user.image || '/profile.png')
-    const mutation = api.user.update_user.useMutation({
-        onSuccess: () => {},
+    const [toastId, setToastId] = useState<Id | null>(null)
 
-        onError: () => {}
+    const { resolvedTheme } = useTheme()
+
+    const mutation = api.user.update_user.useMutation({
+        onMutate: () => {
+            setToastId(nemu_toast.loading('Updating profile', { theme: resolvedTheme }))
+        },
+        onSuccess: () => {
+            if (!toastId) return
+
+            nemu_toast.update(toastId, {
+                render: 'Profile updated',
+                type: 'success',
+                autoClose: 5000,
+                isLoading: false
+            })
+        },
+        onError: (e) => {
+            if (!toastId) return
+
+            nemu_toast.update(toastId, {
+                render: e.message,
+                type: 'error',
+                autoClose: 5000,
+                isLoading: false
+            })
+        }
     })
 
     const form = useForm<AccountSchemaType>({
@@ -58,7 +79,10 @@ export default function AccountSettings({
 
     return (
         <Form {...form}>
-            <form className="flex flex-col gap-5">
+            <form
+                className="flex flex-col gap-5"
+                onSubmit={form.handleSubmit(ProcessForm)}
+            >
                 <FormLabel className="label">Profile Photo:</FormLabel>
                 <div className="flex gap-5">
                     <Avatar>
