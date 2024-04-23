@@ -13,6 +13,7 @@ import { nemu_toast } from '~/lib/utils'
 import { useTheme } from 'next-themes'
 import { Button } from '~/components/ui/button'
 import { ArrowLeftCircleIcon } from 'lucide-react'
+import { useSession } from 'next-auth/react'
 
 export default function RequestSubmitForm({
     commission_id,
@@ -25,12 +26,22 @@ export default function RequestSubmitForm({
 }) {
     const { resolvedTheme } = useTheme()
 
+    // Fetch the form data
     const { data, isLoading } = api.form.get_form.useQuery(form_id, {
         refetchOnMount: false,
         refetchOnReconnect: false,
         refetchOnWindowFocus: false
     })
 
+    // Fetch the requested users
+    const { data: userRequested, isLoading: requestedLoading } =
+        api.form.get_user_requsted.useQuery(form_id, {
+            refetchOnMount: false,
+            refetchOnReconnect: false,
+            refetchOnWindowFocus: false
+        })
+
+    // Mutation to submit the form
     const mutation = api.form.set_request.useMutation({
         onSuccess: () => {
             nemu_toast('Commission Request Submitted!', {
@@ -48,9 +59,11 @@ export default function RequestSubmitForm({
         }
     })
 
+    // Form values and errors
     const formValues = useRef<{ [key: string]: string }>({})
     const formErrors = useRef<{ [key: string]: boolean }>({})
 
+    // Key to re-render the form and submitted state and user form data
     const [renderKey, setRenderKey] = useState(new Date().getTime())
     const [submitted, setSubmitted] = useState(false)
     const [formData, setFormData] = useState<{
@@ -59,11 +72,13 @@ export default function RequestSubmitForm({
 
     const [pending, startTransition] = useTransition()
 
+    // Submit a value to the form
     const submitValue = useCallback((key: string, value: string) => {
         formErrors.current = {}
         formValues.current[key] = value
     }, [])
 
+    // Handles the form submission to the server
     async function submitForm() {
         const validForm = validateForm()
         if (!validForm) {
@@ -95,6 +110,7 @@ export default function RequestSubmitForm({
         setFormData(newFormData)
     }
 
+    // Validate the form
     const validateForm: () => boolean = useCallback(() => {
         for (const field of JSON.parse(data?.content!) as FormElementInstance[]) {
             const actualValue = formValues.current[field.id] || ''
@@ -112,22 +128,30 @@ export default function RequestSubmitForm({
         return true
     }, [data?.content])
 
-    if (isLoading) {
-        return <Loading />
+    // Loading state for client side
+    if (isLoading || requestedLoading) {
+        return (
+            <div className="flex justify-center items-center h-full">
+                <Loading />
+            </div>
+        )
     }
 
+    // If the form has been submitted then show the success message
     if (submitted) {
         return (
-            <div>
-                <div className="flex flex-col justify-center items-center gap-3">
+            <div className="max-w-xl mx-auto h-full">
+                <div className="flex flex-col gap-5 items-center justify-center p-5 h-full w-full text-center">
                     <NemuImage
                         src={'/nemu/sparkles.png'}
                         alt="Nemu Excited"
                         width={200}
                         height={200}
+                        priority
                     />
-                    <h2 className="card-title">Things are happening!</h2>
-                    <p className="text-base-content/80">
+
+                    <h2 className="text-2xl font-bold">Things are happening!</h2>
+                    <p className="text-base-content/80 italic">
                         You'll recieve an email from the artist about wether your
                         commission has been accepted or rejected. Until then hold on
                         tight!
@@ -137,12 +161,14 @@ export default function RequestSubmitForm({
         )
     }
 
+    // If the form has not been submitted then show the form
     return (
-        <div
-            key={renderKey}
-            className="flex flex-col w-full p-5 gap-4 rounded-xl h-full"
-        >
-            <Button variant={'outline'} className='absolute' onClick={() => setShowForm(false)}>
+        <div key={renderKey} className="flex flex-col w-full p-5 gap-4 rounded-xl h-full">
+            <Button
+                variant={'outline'}
+                className="absolute"
+                onClick={() => setShowForm(false)}
+            >
                 <ArrowLeftCircleIcon className="w-6 h-6" />
                 Back
             </Button>
@@ -174,7 +200,10 @@ export default function RequestSubmitForm({
                 )
             })}
             <div className="divider"></div>
-            <Button onClick={() => startTransition(submitForm)} disabled={pending}>
+            <Button
+                onClick={() => startTransition(submitForm)}
+                disabled={pending || userRequested}
+            >
                 {pending ? 'Submitting' : 'Submit'}
             </Button>
         </div>

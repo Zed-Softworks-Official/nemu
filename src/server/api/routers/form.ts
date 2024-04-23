@@ -2,6 +2,7 @@ import { Form } from '@prisma/client'
 import { TRPCError } from '@trpc/server'
 import { env } from 'process'
 import { z } from 'zod'
+import { RequestStatus } from '~/core/structures'
 
 import { update_commission_check_waitlist } from '~/lib/server-utils'
 import { artistProcedure, createTRPCRouter, protectedProcedure } from '~/server/api/trpc'
@@ -177,5 +178,25 @@ export const formRouter = createTRPCRouter({
             await ctx.cache.del(
                 AsRedisKey('commissions', commission.artistId, commission.slug)
             )
+        }),
+
+    /**
+     * Checks if a user has already requested a commission
+     */
+    get_user_requsted: protectedProcedure
+        .input(z.string())
+        .query(async ({ input, ctx }) => {
+            const request = await ctx.db.request.findFirst({
+                where: {
+                    formId: input,
+                    userId: ctx.session.user.id
+                }
+            })
+
+            if (!request) {
+                return false
+            }
+
+            return true
         })
 })

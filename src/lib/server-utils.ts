@@ -50,11 +50,19 @@ export async function update_commission_check_waitlist(commission: Commission) {
     }
 
     // Update the commission availability in the database
+    // Also increments the submissions and newSubmissions
+    // to keep track of the number of submissions
     await db.commission.update({
         where: {
             id: commission.id
         },
         data: {
+            submissions: {
+                increment: 1
+            },
+            newSubmissions: {
+                increment: 1
+            },
             availability
         }
     })

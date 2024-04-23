@@ -15,7 +15,7 @@ export default async function PortfolioList({ artist_id }: { artist_id: string }
                     placeholder="blur"
                     blurDataURL={item.image.blur_data}
                     alt={item.name}
-                    className="rounded-xl"
+                    className="rounded-xl transition-all duration-200 ease-in-out animate-pop-in"
                     width={400}
                     height={400}
                 />

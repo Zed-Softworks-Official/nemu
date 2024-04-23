@@ -1,6 +1,5 @@
 import { KanbanContainerData } from '~/core/data-structures/kanban-structures'
-import { NemuImageData, OverwriteType } from '~/core/structures'
-import { Artist, Commission, Form, Review } from '@prisma/client'
+import { NemuImageData } from '~/core/structures'
 
 /**
  * The different states a commission can be in
@@ -36,12 +35,6 @@ export interface CommissionOrders {
  * Client Side Commission Item, It basically contains all of same stuff as the prisma item
  * However, the images also includes blur data instead of just the url for the image
  */
-// export type ClientCommissionItem = OverwriteType<Commission, { images: NemuImageData[] }> & {
-//     artist: Artist | undefined
-//     requests: Request[] | undefined
-//     form: Form | undefined
-//     reviews: Review[] | undefined
-// }
 export interface ClientCommissionItem {
     // Commission Data
     title: string
@@ -73,4 +66,14 @@ export interface ClientCommissionItem {
         content: string
         rating: number
     }[]
+}
+
+/**
+ * The different states a request can be in
+ */
+export enum RequestStatus {
+    Pending,
+    Accepted,
+    Rejected,
+    Delivered
 }
