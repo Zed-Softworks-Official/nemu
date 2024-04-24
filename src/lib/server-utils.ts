@@ -35,7 +35,7 @@ export async function update_commission_check_waitlist(commission: Commission) {
 
     // Check if the commission is full and if it is then waitlist the request
     if (
-        commission.newSubmissions + 1 >= commission.maxCommissionsUntilWaitlist &&
+        commission.newRequests + 1 >= commission.maxCommissionsUntilWaitlist &&
         commission.maxCommissionsUntilWaitlist !== 0
     ) {
         availability = CommissionAvailability.Waitlist
@@ -43,24 +43,24 @@ export async function update_commission_check_waitlist(commission: Commission) {
 
     // Check if the commission waitlist is full and if it is then close the commission
     if (
-        commission.newSubmissions + 1 >= commission.maxCommissionsUntilClosed &&
+        commission.newRequests + 1 >= commission.maxCommissionsUntilClosed &&
         commission.maxCommissionsUntilClosed !== 0
     ) {
         availability = CommissionAvailability.Closed
     }
 
     // Update the commission availability in the database
-    // Also increments the submissions and newSubmissions
+    // Also increments the totalRequests and newRequests
     // to keep track of the number of submissions
     await db.commission.update({
         where: {
             id: commission.id
         },
         data: {
-            submissions: {
+            totalRequests: {
                 increment: 1
             },
-            newSubmissions: {
+            newRequests: {
                 increment: 1
             },
             availability

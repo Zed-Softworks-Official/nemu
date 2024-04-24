@@ -70,8 +70,8 @@ export const authOptions: NextAuthOptions = {
                     }
                 })
 
-                user.artist_id = artist!.id
-                user.handle = artist!.handle
+                user.artist_id = artist?.id
+                user.handle = artist?.handle
             }
 
             return { ...session, user }

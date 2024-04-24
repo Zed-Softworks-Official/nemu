@@ -8,6 +8,7 @@ import { useUploadThingContext } from '~/components/files/uploadthing-context'
 import NemuUploadDropzone from '~/components/files/nemu-dropzone'
 import NemuUploadPreview from '~/components/files/nemu-upload-preview'
 import NemuUploadProgress from '~/components/files/nemu-upload-progress'
+import { NemuImageData } from '~/core/structures'
 
 export default function NemuUploadThing() {
     const { filePreviews } = useUploadThingContext()

@@ -12,6 +12,7 @@ import {
 import { EndpointHelper, useUploadThing } from '~/components/files/uploadthing'
 import { NemuFileRouterType } from '~/app/api/uploadthing/core'
 import { ClientUploadedFileData } from 'uploadthing/types'
+import { NemuImageData } from '~/core/structures'
 
 type UploadThingContextType = {
     files: File[]
@@ -41,13 +42,17 @@ const UploadThingContext = createContext<UploadThingContextType | null>(null)
 
 export default function UploadThingProvider({
     endpoint,
+    edit_previews,
     children
 }: {
     endpoint: EndpointHelper<NemuFileRouterType>
+    edit_previews?: NemuImageData[]
     children: React.ReactNode
 }) {
     const [files, setFiles] = useState<File[]>([])
-    const [filePreviews, setFilePreviews] = useState<string[]>([])
+    const [filePreviews, setFilePreviews] = useState<string[]>(
+        edit_previews?.map((p) => p.url) ?? []
+    )
 
     const [uploadProgress, setUploadProgress] = useState(0)
 

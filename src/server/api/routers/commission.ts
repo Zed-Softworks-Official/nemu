@@ -5,8 +5,13 @@ import { ClientCommissionItem, NemuImageData } from '~/core/structures'
 import { artistProcedure, createTRPCRouter, publicProcedure } from '~/server/api/trpc'
 import { AsRedisKey } from '~/server/cache'
 import { get_blur_data } from '~/lib/server-utils'
-import { Artist, Commission, Form, Review } from '@prisma/client'
 import { format_to_currency } from '~/lib/utils'
+
+const request_data = z.object({
+    artist: z.boolean().optional(),
+    form: z.boolean().optional(),
+    reviews: z.boolean().optional()
+})
 
 export const commissionRouter = createTRPCRouter({
     /**
@@ -15,19 +20,18 @@ export const commissionRouter = createTRPCRouter({
     get_commission_list: publicProcedure
         .input(
             z.object({
-                artist_id: z.string().optional()
+                artist_id: z.string(),
+                include_stats: z.boolean().optional(),
+                show_unpublished: z.boolean().optional()
             })
         )
         .query(async ({ input, ctx }) => {
-            // Get Artist Data
-            if (!input.artist_id) {
-                throw new TRPCError({
-                    code: 'BAD_REQUEST'
-                })
-            }
-
             const cachedCommissions = await ctx.cache.get(
-                AsRedisKey('commissions', input.artist_id)
+                AsRedisKey(
+                    'commissions',
+                    input.artist_id,
+                    input.show_unpublished ? 'dashboard' : 'standard'
+                )
             )
 
             if (cachedCommissions) {
@@ -50,12 +54,17 @@ export const commissionRouter = createTRPCRouter({
             // Format for client
             const result: ClientCommissionItem[] = []
             for (const commission of commissions) {
+                if (!input.show_unpublished && !commission.published) {
+                    continue
+                }
+
                 result.push({
                     title: commission.title,
                     description: commission.description,
                     price: format_to_currency(commission.price),
                     availability: commission.availability,
                     rating: commission.rating,
+                    published: commission.published,
                     images: [
                         {
                             url: commission.images[0]!,
@@ -63,16 +72,26 @@ export const commissionRouter = createTRPCRouter({
                         }
                     ],
                     slug: commission.slug,
+                    total_requests: input.include_stats
+                        ? commission.totalRequests
+                        : undefined,
+                    new_requests: input.include_stats
+                        ? commission.newRequests
+                        : undefined,
 
                     artist: {
                         handle: commission.artist.handle,
-                        supporter: commission.artist.supporter,
+                        supporter: commission.artist.supporter
                     }
                 })
             }
 
             await ctx.cache.set(
-                AsRedisKey('commissions', input.artist_id),
+                AsRedisKey(
+                    'commissions',
+                    input.artist_id,
+                    input.show_unpublished ? 'dashboard' : 'standard'
+                ),
                 JSON.stringify(result),
                 'EX',
                 3600
@@ -88,14 +107,7 @@ export const commissionRouter = createTRPCRouter({
         .input(
             z.object({
                 id: z.string(),
-                req_data: z
-                    .object({
-                        artist: z.boolean().optional(),
-                        requests: z.boolean().optional(),
-                        form: z.boolean().optional(),
-                        reviews: z.boolean().optional()
-                    })
-                    .optional()
+                req_data: request_data.optional()
             })
         )
         .query(async ({ input, ctx }) => {
@@ -106,12 +118,7 @@ export const commissionRouter = createTRPCRouter({
 
             // If we do return that
             if (cachedCommission) {
-                return JSON.parse(cachedCommission) as ClientCommissionItem & {
-                    artist: Artist | undefined
-                    requests: Request | undefined
-                    form: Form | undefined
-                    reviews: Review | undefined
-                }
+                return JSON.parse(cachedCommission) as ClientCommissionItem
             }
 
             // Get commission from db
@@ -121,7 +128,6 @@ export const commissionRouter = createTRPCRouter({
                 },
                 include: {
                     artist: input.req_data?.artist,
-                    requests: input.req_data?.requests,
                     form: input.req_data?.form,
                     reviews: input.req_data?.reviews
                 }
@@ -149,6 +155,9 @@ export const commissionRouter = createTRPCRouter({
                 rating: commission.rating,
                 images: images,
                 slug: commission.slug,
+                published: commission.published,
+                total_requests: commission.totalRequests,
+                new_requests: commission.newRequests,
 
                 artist: {
                     handle: commission.artist.handle,
@@ -178,9 +187,9 @@ export const commissionRouter = createTRPCRouter({
                 req_data: z
                     .object({
                         artist: z.boolean().optional(),
-                        requests: z.boolean().optional(),
                         form: z.boolean().optional(),
-                        reviews: z.boolean().optional()
+                        reviews: z.boolean().optional(),
+                        edit_data: z.boolean().optional()
                     })
                     .optional()
             })
@@ -216,9 +225,14 @@ export const commissionRouter = createTRPCRouter({
                 },
                 include: {
                     artist: input.req_data?.artist,
-                    requests: input.req_data?.requests,
                     form: input.req_data?.form,
                     reviews: input.req_data?.reviews
+                        ? {
+                              include: {
+                                  user: true
+                              }
+                          }
+                        : undefined
                 }
             })
 
@@ -244,15 +258,26 @@ export const commissionRouter = createTRPCRouter({
                 rating: commission.rating,
                 images: images,
                 slug: commission.slug,
+                published: commission.published,
+
+                max_commissions_until_waitlist: input.req_data?.edit_data
+                    ? commission.maxCommissionsUntilWaitlist
+                    : undefined,
+                max_commissions_until_closed: input.req_data?.edit_data
+                    ? commission.maxCommissionsUntilClosed
+                    : undefined,
+                raw_price: input.req_data?.edit_data ? commission.price : undefined,
 
                 id: commission.id,
-                formId: commission.formId,
+                form_id: commission.formId,
 
-                artist: {
-                    handle: commission.artist.handle,
-                    supporter: commission.artist.supporter,
-                    terms: commission.artist.terms
-                }
+                artist: input.req_data?.artist
+                    ? {
+                          handle: commission.artist.handle,
+                          supporter: commission.artist.supporter,
+                          terms: commission.artist.terms
+                      }
+                    : undefined
             }
 
             await ctx.cache.set(
@@ -321,10 +346,36 @@ export const commissionRouter = createTRPCRouter({
             }
 
             ////////////////////////////
-            // TODO: Update Commission
+            // Update Commission
             ////////////////////////////
             if (input.type === 'update') {
-                // Update Cache
+                await ctx.db.commission.update({
+                    where: {
+                        id: input.commission_id
+                    },
+                    data: {
+                        title: input.data.title,
+                        description: input.data.description,
+                        price: input.data.price,
+                        images: input.data.images,
+                        utKeys: input.data.utKeys,
+                        availability: input.data.availability,
+                        maxCommissionsUntilWaitlist:
+                            input.data.max_commissions_until_waitlist,
+                        maxCommissionsUntilClosed:
+                            input.data.max_commissions_until_closed,
+                        published: input.data.published,
+                        formId: input.data.form_id
+                    }
+                })
+
+                // Delete Cache
+                await ctx.cache.del(
+                    AsRedisKey('commissions', ctx.session.user.artist_id, 'standard')
+                )
+                await ctx.cache.del(
+                    AsRedisKey('commissions', ctx.session.user.artist_id, 'dashboard')
+                )
 
                 return { success: true }
             }

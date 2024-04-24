@@ -45,7 +45,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
                 <DashboardProvider artist_id={session.user.artist_id}>
                     {children}
                 </DashboardProvider>
-                
+
                 <Footer />
             </div>
             <div className="drawer-side">
@@ -85,7 +85,11 @@ export default async function Layout({ children }: { children: React.ReactNode }
                     />
                     <div className="divider"></div>
                     <SidebarLink
-                        title="Merchant's Home"
+                        title={
+                            managment_url.type === 'onboarding'
+                                ? 'Complete Onboarding'
+                                : 'Payout'
+                        }
                         icon={<HandCoinsIcon className="w-6 h-6" />}
                         href={managment_url.url}
                     />

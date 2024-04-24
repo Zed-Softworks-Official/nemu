@@ -1,3 +1,4 @@
+import { Request, User } from '@prisma/client'
 import { KanbanContainerData } from '~/core/data-structures/kanban-structures'
 import { NemuImageData } from '~/core/structures'
 
@@ -31,6 +32,8 @@ export interface CommissionOrders {
     order_id?: string
 }
 
+export type ClientRequestData = Request & { user: User }
+
 /**
  * Client Side Commission Item, It basically contains all of same stuff as the prisma item
  * However, the images also includes blur data instead of just the url for the image
@@ -39,14 +42,25 @@ export interface ClientCommissionItem {
     // Commission Data
     title: string
     description: string
+
     price: string
+    raw_price?: number
+
     images: NemuImageData[]
     rating: number
+
     availability: CommissionAvailability
     slug: string
+    published: boolean
+
+    total_requests?: number
+    new_requests?: number
+
+    max_commissions_until_waitlist?: number
+    max_commissions_until_closed?: number
 
     id?: string
-    formId?: string
+    form_id?: string
 
     // Artist Data
     artist?: {

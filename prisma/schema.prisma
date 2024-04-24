@@ -269,10 +269,10 @@ model Commission {
   maxCommissionsUntilWaitlist Int @default(0)
   maxCommissionsUntilClosed   Int @default(0)
 
-  submissions         Int @default(0)
-  newSubmissions      Int @default(0)
-  acceptedSubmissions Int @default(0)
-  rejectedSubmissions Int @default(0)
+  totalRequests    Int @default(0)
+  newRequests      Int @default(0)
+  acceptedRequests Int @default(0)
+  rejectedRequests Int @default(0)
 
   rushOrdersAllowed Boolean @default(false)
   rushCharge        Float

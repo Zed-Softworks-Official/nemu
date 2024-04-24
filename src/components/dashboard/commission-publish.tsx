@@ -24,6 +24,7 @@ export default function CommissionPublishButton({
         onMutate: (opts) => {
             if (opts.type === 'update') {
                 setCurrentlyPublished(opts.data.published!)
+
                 setToastId(
                     nemu_toast.loading('Updating commission', { theme: resolvedTheme })
                 )

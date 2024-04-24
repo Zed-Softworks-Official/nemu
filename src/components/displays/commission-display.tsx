@@ -53,7 +53,7 @@ export default function CommissionDisplay({
                     <RequestSubmitForm
                         setShowForm={setShowForm}
                         commission_id={commission.id!}
-                        form_id={commission.formId!}
+                        form_id={commission.form_id!}
                     />
                 ) : (
                     <div className="card-body">

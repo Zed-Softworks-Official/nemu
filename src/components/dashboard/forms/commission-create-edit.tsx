@@ -67,9 +67,11 @@ type CommissionSchemaType = z.infer<typeof commissionSchema>
  * The actual create/edit form
  */
 export default function CommissionCreateEditForm({
-    forms
+    forms,
+    edit_data
 }: {
     forms: RouterOutput['form']['get_form_list']
+    edit_data?: RouterOutput['commission']['get_commission']
 }) {
     const [toastId, setToastId] = useState<Id | undefined>()
 
@@ -101,16 +103,73 @@ export default function CommissionCreateEditForm({
 
     const form = useForm<CommissionSchemaType>({
         resolver: zodResolver(commissionSchema),
-        mode: 'onSubmit'
+        mode: 'onSubmit',
+        defaultValues: {
+            title: edit_data?.title ?? '',
+            description: edit_data?.description ?? '',
+            price: edit_data?.raw_price ?? 0,
+            form_id: edit_data?.form_id ?? '',
+            commission_availability:
+                edit_data?.availability ?? CommissionAvailability.Open,
+            max_commissions_until_waitlist:
+                edit_data?.max_commissions_until_waitlist ?? 0,
+            max_commissions_until_closed: edit_data?.max_commissions_until_closed ?? 0
+        }
     })
 
     async function ProcessForm(values: CommissionSchemaType) {
+        // Create Toast
         setToastId(nemu_toast.loading('Uploading Files', { theme: resolvedTheme }))
 
         if (!toastId) {
             return
         }
 
+        //////////////////////////////////////////
+        // Update Commission
+        //////////////////////////////////////////
+        // If edit_data is present then that means we are editing a commission
+        if (edit_data) {
+            // Check if we have images to upload
+            if (files.length === 0) {
+                const res = await uploadImages()
+
+                if (!res) {
+                    nemu_toast.update(toastId, {
+                        render: 'Uploading Images Failed!',
+                        isLoading: false,
+                        autoClose: 5000,
+                        type: 'error'
+                    })
+
+                    return
+                }
+            }
+
+
+            // Update the commission item
+            mutation.mutate({
+                type: 'update',
+                commission_id: edit_data.id!,
+                data: {
+                    title: values.title,
+                    description: values.description,
+                    price: values.price,
+                    availability: values.commission_availability,
+                    form_id: values.form_id,
+                    max_commissions_until_waitlist: values.max_commissions_until_waitlist,
+                    max_commissions_until_closed: values.max_commissions_until_closed,
+                    // images
+                    // utKeys
+                }
+            })
+
+            return
+        }
+
+        //////////////////////////////////////////
+        // Create Commission
+        //////////////////////////////////////////
         // Check if we have images to upload
         if (files.length === 0) {
             nemu_toast.update(toastId, {
@@ -326,7 +385,7 @@ export default function CommissionCreateEditForm({
                     </Link>
                     <Button type="submit" disabled={isUploading || mutation.isPending}>
                         <CheckCircle2Icon className="w-6 h-6" />
-                        Create
+                        {edit_data ? 'Update' : 'Create'}
                     </Button>
                 </div>
             </form>
