@@ -11,7 +11,7 @@ import { stripe } from '~/server/stripe'
  */
 export async function StripeCreateCustomer(
     stripe_account: string,
-    name: string,
+    name?: string,
     email?: string
 ) {
     return await stripe.customers.create(
@@ -25,10 +25,10 @@ export async function StripeCreateCustomer(
 
 /**
  * Creates a new customer in Stripe for Zed Softworks
- * 
- * @param name 
- * @param email 
- * @returns 
+ *
+ * @param name
+ * @param email
+ * @returns
  */
 export async function StripeCreateCustomerZed(name: string, email?: string) {
     return await stripe.customers.create({

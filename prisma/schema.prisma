@@ -285,13 +285,12 @@ model Commission {
 }
 
 model Invoice {
-  id            String  @id @default(cuid())
-  sent          Boolean @default(false)
-  hostedUrl     String?
-  paymentStatus Int
-  paymentIntent String?
+  id        String  @id @default(cuid())
+  sent      Boolean @default(false)
+  hostedUrl String?
+  status    Int
 
-  stripeId  String?
+  stripeId  String
   createdAt DateTime @default(now())
 
   customerId    String
@@ -299,7 +298,7 @@ model Invoice {
 
   userId       String
   artistId     String
-  submissionId String
+  requestId String
 
   items   InvoiceItem[]
   reqeust Request?

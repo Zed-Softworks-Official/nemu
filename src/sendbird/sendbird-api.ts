@@ -54,4 +54,11 @@ export class SendbirdAPI {
      *
      */
     async CreateMessage() {}
+
+    /**
+     * 
+     */
+    async UpdateUser() {
+
+    }
 }

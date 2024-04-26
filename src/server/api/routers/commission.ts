@@ -235,6 +235,7 @@ export const commissionRouter = createTRPCRouter({
                         : undefined
                 }
             })
+            console.log('Commission Data: ' + JSON.stringify(commission))
 
             if (!commission) {
                 return undefined

@@ -1,4 +1,4 @@
-import { redirect } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 
 import CommissionCreateEditForm from '~/components/dashboard/forms/commission-create-edit'
 import UploadThingProvider from '~/components/files/uploadthing-context'
@@ -26,8 +26,12 @@ export default async function UpdateCommissionPage({
         }
     })
 
+    if (!edit_data) {
+        return notFound()
+    }
+
     return (
-        <DashboardContainer title="Create A New Commission">
+        <DashboardContainer title={`Update ${edit_data?.title}`}>
             <UploadThingProvider
                 endpoint="commissionImageUploader"
                 edit_previews={edit_data?.images}

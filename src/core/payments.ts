@@ -2,6 +2,7 @@ export * from '~/core/stripe/accounts'
 export * from '~/core/stripe/supporter'
 export * from '~/core/stripe/customer'
 export * from '~/core/stripe/artist-corner'
+export * from '~/core/stripe/commission'
 
 /**
  * Calculates the application fee amount

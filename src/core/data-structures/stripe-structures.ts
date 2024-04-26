@@ -6,13 +6,11 @@ export enum PurchaseType {
     Supporter
 }
 
-export enum PaymentStatus {
-    RequiresCapture,
-    Cancelled,
-    Captured,
-    RequiresInvoice,
-    InvoiceCreated,
-    InvoiceNeedsPayment
+export enum InvoiceStatus {
+    Creating = 0,
+    Pending = 0,
+    Paid,
+    Cancelled
 }
 
 export interface StripePaymentMetadata {
@@ -21,11 +19,8 @@ export interface StripePaymentMetadata {
     commission_id?: string
     invoice_id?: string
     order_id?: string
-    file_key?: string
     artist_id?: string
     product_id?: string
-    form_content?: string
-    form_id?: string
 }
 
 export interface CheckoutData {

@@ -107,17 +107,10 @@ export default async function CommissionsDashboardPage() {
                                 <div className="flex justify-end gap-5 h-full mt-10 items-end">
                                     <Link
                                         href={`/dashboard/commissions/${commission.slug}`}
-                                        className="btn btn-outline btn-accent"
+                                        className="btn btn-primary text-white btn-wide"
                                     >
                                         <EyeIcon className="w-6 h-6" />
-                                        View
-                                    </Link>
-                                    <Link
-                                        href={`/dashboard/commissions/${commission.slug}/update`}
-                                        className="btn btn-primary text-white"
-                                    >
-                                        <PencilIcon className="w-6 h-6" />
-                                        Edit
+                                        View Commission
                                     </Link>
                                 </div>
                             </div>

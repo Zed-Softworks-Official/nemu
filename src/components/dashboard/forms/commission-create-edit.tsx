@@ -109,8 +109,6 @@ export default function CommissionCreateEditForm({
             description: edit_data?.description ?? '',
             price: edit_data?.raw_price ?? 0,
             form_id: edit_data?.form_id ?? '',
-            commission_availability:
-                edit_data?.availability ?? CommissionAvailability.Open,
             max_commissions_until_waitlist:
                 edit_data?.max_commissions_until_waitlist ?? 0,
             max_commissions_until_closed: edit_data?.max_commissions_until_closed ?? 0
@@ -146,7 +144,6 @@ export default function CommissionCreateEditForm({
                 }
             }
 
-
             // Update the commission item
             mutation.mutate({
                 type: 'update',
@@ -158,7 +155,7 @@ export default function CommissionCreateEditForm({
                     availability: values.commission_availability,
                     form_id: values.form_id,
                     max_commissions_until_waitlist: values.max_commissions_until_waitlist,
-                    max_commissions_until_closed: values.max_commissions_until_closed,
+                    max_commissions_until_closed: values.max_commissions_until_closed
                     // images
                     // utKeys
                 }
@@ -287,7 +284,7 @@ export default function CommissionCreateEditForm({
                         render={({ field }) => (
                             <FormItem className="form-control">
                                 <FormLabel className="label">User Form:</FormLabel>
-                                <Select onValueChange={field.onChange}>
+                                <Select onValueChange={field.onChange} defaultValue={edit_data?.form_id}>
                                     <SelectTrigger>
                                         <SelectValue placeholder="Select User Form" />
                                     </SelectTrigger>
@@ -309,7 +306,10 @@ export default function CommissionCreateEditForm({
                     render={({ field }) => (
                         <FormItem className="form-control">
                             <FormLabel className="label">Availability:</FormLabel>
-                            <Select onValueChange={field.onChange}>
+                            <Select
+                                onValueChange={field.onChange}
+                                defaultValue={`${edit_data?.availability}`}
+                            >
                                 <SelectTrigger>
                                     <SelectValue placeholder="Select Availability" />
                                 </SelectTrigger>
