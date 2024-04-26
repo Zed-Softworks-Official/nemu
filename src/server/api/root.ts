@@ -8,6 +8,7 @@ import { portfolioRouter } from '~/server/api/routers/portfolio'
 import { verificationRouter } from '~/server/api/routers/verification'
 import { formRouter } from '~/server/api/routers/form'
 import { requestRouter } from '~/server/api/routers/requests'
+import { kanbanRouter } from '~/server/api/routers/kanban'
 
 /**
  * This is the primary router for your server.
@@ -22,6 +23,7 @@ export const appRouter = createTRPCRouter({
     form: formRouter,
     portfolio: portfolioRouter,
     stripe: stripeRouter,
+    kanban: kanbanRouter,
     user: userRouter
 })
 

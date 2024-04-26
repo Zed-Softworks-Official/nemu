@@ -129,6 +129,8 @@ export default function CommissionCreateEditForm({
         //////////////////////////////////////////
         // If edit_data is present then that means we are editing a commission
         if (edit_data) {
+            // Handle deleing images
+
             // Check if we have images to upload
             if (files.length === 0) {
                 const res = await uploadImages()
