@@ -10,7 +10,8 @@
     "dev": "next dev",
     "postinstall": "prisma generate",
     "lint": "next lint",
-    "start": "next start"
+    "start": "next start",
+    "preinstall": "npx only-allow pnpm"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^1.4.0",
@@ -57,12 +58,14 @@
     "nextjs-toploader": "^1.6.11",
     "nodemailer": "^6.9.13",
     "npm": "^10.5.2",
+    "optional": "^0.1.4",
     "plaiceholder": "^3.0.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-hook-form": "^7.51.3",
     "react-toastify": "^10.0.5",
     "server-only": "^0.0.1",
+    "sharp": "^0.33.3",
     "stripe": "^15.2.0",
     "superjson": "^2.2.1",
     "swiper": "^11.1.1",
@@ -92,5 +95,5 @@
   "ct3aMetadata": {
     "initVersion": "7.30.1"
   },
-  "packageManager": "npm@10.5.0"
+  "packageManager": "pnpm@9.0.5"
 }
