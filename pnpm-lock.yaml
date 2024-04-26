@@ -77,6 +77,12 @@ importers:
       '@radix-ui/react-tabs':
         specifier: ^1.0.4
         version: 1.0.4(@types/react-dom@18.2.25)(@types/react@18.2.78)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
+      '@sendbird/chat':
+        specifier: ^4.12.3
+        version: 4.12.3
+      '@sendbird/uikit-react':
+        specifier: ^3.14.3
+        version: 3.14.3(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
       '@sentry/nextjs':
         specifier: ^7.110.1
         version: 7.110.1(next@14.2.2(react-dom@18.2.0(react@18.2.0))(react@18.2.0))(react@18.2.0)
@@ -1070,6 +1076,38 @@ packages:
   '@rushstack/eslint-patch@1.10.2':
     resolution: {integrity: sha512-hw437iINopmQuxWPSUEvqE56NCPsiU8N4AYtfHmJFckclktzK9YQJieD3XkDCDH4OjL+C7zgPUh73R/nrcHrqw==}
 
+  '@sendbird/chat@4.12.3':
+    resolution: {integrity: sha512-i2oUJnOzmoWK55IZxuyoYrxzQwkyqHkW4WzKoIrYveTPliMWsbLuCGOx4SI1smuLV9Pdz26rCwCCw8Gfoti8zg==}
+    peerDependencies:
+      '@react-native-async-storage/async-storage': ^1.17.6
+    peerDependenciesMeta:
+      '@react-native-async-storage/async-storage':
+        optional: true
+
+  '@sendbird/react-uikit-message-template-view@0.0.1-alpha.72':
+    resolution: {integrity: sha512-gCbOXnp4qGkF+l9Gs51k9QQrTCA/fqdxs2LGzi1/X+9b/eEOwAMsiE92/v+Snb/4Zhxb7GZ3IBH9HlCYsBc8bA==}
+    peerDependencies:
+      '@sendbird/chat': '>=4.3.0 <5'
+      react: '>=16.8.6'
+      react-dom: '>=16.8.6'
+
+  '@sendbird/uikit-message-template@0.0.1-alpha.73':
+    resolution: {integrity: sha512-E5lkmVfZagRaijqOonmu9t3/e+yPPm++UbzwAuYB1k+gY3WT8khbfDfRAQTsF5u+fo7kUQBZSuHY4lISLbJ+DA==}
+    peerDependencies:
+      react: '>=16.8.6'
+
+  '@sendbird/uikit-react@3.14.3':
+    resolution: {integrity: sha512-mP7lC6ux/RRfI/oCcDouh1GUlPuiRcVB3w7/UpNA7AHZpFlL3zRgFxtAiqiKrMAgFASLQkr+1iY5d8l0gCoGuQ==}
+    peerDependencies:
+      react: ^16.8.6 || ^17.0.0 || ^18.0.0
+      react-dom: ^16.8.6 || ^17.0.0 || ^18.0.0
+
+  '@sendbird/uikit-tools@0.0.1-alpha.72':
+    resolution: {integrity: sha512-DmNYODAm/FW65yCjjrQK62/RYke0uoWfo3w/f4HnJGZ6fTrFHUOMv5aVRaRlPyQg8p/XHzHpp+2vNgQy4yTWyw==}
+    peerDependencies:
+      '@sendbird/chat': '>=4.10.5 <5'
+      react: '>=16.8.6'
+
   '@sentry-internal/feedback@7.110.1':
     resolution: {integrity: sha512-0aR3wuEW+SZKOVNamuy0pTQyPmqDjWPPLrB2GAXGT3ZjrVxjEzzVPqk6DVBYxSV2MuJaD507SZnvfoSPNgoBmw==}
     engines: {node: '>=12'}
@@ -1611,6 +1649,9 @@ packages:
   css-selector-tokenizer@0.8.0:
     resolution: {integrity: sha512-Jd6Ig3/pe62/qe5SBPTN8h8LeUg/pT4lLgtavPf7updwwHpvFzxvOQBHYj2LZDMjUnBzgvIUSjRcf6oT5HzHFg==}
 
+  css-vars-ponyfill@2.4.9:
+    resolution: {integrity: sha512-aZyLue5bdiGVNCiCclNjo123D8I7kyoYNUaAvz+H1JalX1ye4Ilz7jNRRH5YbM+dYD6ucejiydGwk7lol/GCXQ==}
+
   cssesc@3.0.0:
     resolution: {integrity: sha512-/Tb/JcjK111nNScGob5MNtsntNM1aCNUDipB/TkwZFhyDrrE47SOx/18wF2bbjgc3ZzCSKW1T5nt5EbFoAz/Vg==}
     engines: {node: '>=4'}
@@ -1641,6 +1682,10 @@ packages:
   data-view-byte-offset@1.0.0:
     resolution: {integrity: sha512-t/Ygsytq+R995EJ5PZlD4Cu56sWa8InXySaViRzw9apusqsOO2bQP+SbYzAhR0pFKoB+43lYy8rWban9JSuXnA==}
     engines: {node: '>= 0.4'}
+
+  date-fns@2.30.0:
+    resolution: {integrity: sha512-fnULvOpxnC5/Vg3NCiWelDsLiUc9bRwAPs/+LfTLNvetFCtCTN+yQz15C/fs4AwX1R9K5GLtLfn8QW+dWisaAw==}
+    engines: {node: '>=0.11'}
 
   debug@3.2.7:
     resolution: {integrity: sha512-CFjzYYAi4ThfiQvizrFQevTTXHtnCqWfe7x1AhgEscTz6ZbLbfoLRLPugTQyBth6f8ZERVUSyWHFD/7Wu4t1XQ==}
@@ -1706,6 +1751,9 @@ packages:
   doctrine@3.0.0:
     resolution: {integrity: sha512-yS+Q5i3hBf7GBkd4KG8a7eBNNWNGLTaEwwYWUijIYM7zrlYDM0BFXHjjPWlWZ1Rg7UaddZeIDmi9jF3HmqiQ2w==}
     engines: {node: '>=6.0.0'}
+
+  dompurify@3.1.0:
+    resolution: {integrity: sha512-yoU4rhgPKCo+p5UrWWWNKiIq+ToGqmVVhk0PmMYBK4kRsR3/qhemNFL8f6CFmBd4gMwm3F4T7HBoydP5uY07fA==}
 
   eastasianwidth@0.2.0:
     resolution: {integrity: sha512-I88TYZWc9XiYHRQ4/3c5rjjfgkjhLyW2luGIheGERbNQ6OY7yTybanSpDXZa8y7VUP9YmDcYa+eyq4ca7iLqWA==}
@@ -1965,6 +2013,9 @@ packages:
 
   functions-have-names@1.2.3:
     resolution: {integrity: sha512-xckBUXyTIqT97tq2x2AMb+g163b5JFysYk0x4qxNFwbfQkmNZoiRHb6sPzI9/QV33WeuvVYBUIiD4NzNIyqaRQ==}
+
+  get-css-data@2.1.1:
+    resolution: {integrity: sha512-JpMa/f5P4mDXKg6l5/2cHL5xNY77Jap7tHyduMa6BF0E2a7bQ6Tvaz2BIMjeVYZYLcmOZ5w2Ro0yVJEI41tMbw==}
 
   get-intrinsic@1.2.4:
     resolution: {integrity: sha512-5uYhsJH8VJBTv7oslg4BznJYhDoRI6waYCxMmCdnTrcCrHA/fCFKoTFz2JKKE0HdDFUF7/oQuhzumXJK7paBRQ==}
@@ -4126,6 +4177,37 @@ snapshots:
 
   '@rushstack/eslint-patch@1.10.2': {}
 
+  '@sendbird/chat@4.12.3': {}
+
+  '@sendbird/react-uikit-message-template-view@0.0.1-alpha.72(@sendbird/chat@4.12.3)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)':
+    dependencies:
+      '@sendbird/chat': 4.12.3
+      '@sendbird/uikit-message-template': 0.0.1-alpha.73(react@18.2.0)
+      react: 18.2.0
+      react-dom: 18.2.0(react@18.2.0)
+
+  '@sendbird/uikit-message-template@0.0.1-alpha.73(react@18.2.0)':
+    dependencies:
+      react: 18.2.0
+
+  '@sendbird/uikit-react@3.14.3(react-dom@18.2.0(react@18.2.0))(react@18.2.0)':
+    dependencies:
+      '@sendbird/chat': 4.12.3
+      '@sendbird/react-uikit-message-template-view': 0.0.1-alpha.72(@sendbird/chat@4.12.3)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
+      '@sendbird/uikit-tools': 0.0.1-alpha.72(@sendbird/chat@4.12.3)(react@18.2.0)
+      css-vars-ponyfill: 2.4.9
+      date-fns: 2.30.0
+      dompurify: 3.1.0
+      react: 18.2.0
+      react-dom: 18.2.0(react@18.2.0)
+    transitivePeerDependencies:
+      - '@react-native-async-storage/async-storage'
+
+  '@sendbird/uikit-tools@0.0.1-alpha.72(@sendbird/chat@4.12.3)(react@18.2.0)':
+    dependencies:
+      '@sendbird/chat': 4.12.3
+      react: 18.2.0
+
   '@sentry-internal/feedback@7.110.1':
     dependencies:
       '@sentry/core': 7.110.1
@@ -4764,6 +4846,11 @@ snapshots:
       cssesc: 3.0.0
       fastparse: 1.1.2
 
+  css-vars-ponyfill@2.4.9:
+    dependencies:
+      balanced-match: 1.0.2
+      get-css-data: 2.1.1
+
   cssesc@3.0.0: {}
 
   csstype@3.1.3: {}
@@ -4798,6 +4885,10 @@ snapshots:
       call-bind: 1.0.7
       es-errors: 1.3.0
       is-data-view: 1.0.1
+
+  date-fns@2.30.0:
+    dependencies:
+      '@babel/runtime': 7.24.4
 
   debug@3.2.7:
     dependencies:
@@ -4846,6 +4937,8 @@ snapshots:
   doctrine@3.0.0:
     dependencies:
       esutils: 2.0.3
+
+  dompurify@3.1.0: {}
 
   eastasianwidth@0.2.0: {}
 
@@ -5255,6 +5348,8 @@ snapshots:
       functions-have-names: 1.2.3
 
   functions-have-names@1.2.3: {}
+
+  get-css-data@2.1.1: {}
 
   get-intrinsic@1.2.4:
     dependencies:
