@@ -1,17 +1,33 @@
 'use client'
 
+import { use, useRef, useState } from 'react'
+
 import {
     GroupChannelProvider,
     useGroupChannelContext
 } from '@sendbird/uikit-react/GroupChannel/context'
-import { useMessagesContext } from './messages-context'
-import { MessageCircleMoreIcon, PaperclipIcon, SendIcon } from 'lucide-react'
-import NemuImage from '../nemu-image'
-import { useRef, useState } from 'react'
-import { Button } from '../ui/button'
+import { FileMessage, UserMessage } from '@sendbird/chat/message'
+import {
+    MessageCircleMoreIcon,
+    PaperclipIcon,
+    PinIcon,
+    ReplyIcon,
+    SendIcon
+} from 'lucide-react'
+
 import { cn } from '~/lib/utils'
-import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar'
-import { BaseMessage, FileMessage, UserMessage } from '@sendbird/chat/message'
+
+import NemuImage from '~/components/nemu-image'
+import { useMessagesContext } from '~/components/messages/messages-context'
+
+import { Button } from '~/components/ui/button'
+import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
+import {
+    ContextMenu,
+    ContextMenuContent,
+    ContextMenuItem,
+    ContextMenuTrigger
+} from '~/components/ui/context-menu'
 
 /**
  * Shows the current channel messages and allows the user to send messages
@@ -20,7 +36,7 @@ function CustomChannel() {
     const { currentChannel } = useGroupChannelContext()
 
     return (
-        <div className="join-item relative w-full overflow-scroll bg-base-200">
+        <div className="join-item relative w-full overflow-hidden bg-base-200">
             <div className="absolute z-10 flex w-full flex-row items-center justify-between bg-base-200/60 p-5 backdrop-blur-xl">
                 <div className="flex flex-col">
                     <h2 className="text-xl font-bold">{currentChannel?.name}</h2>
@@ -111,6 +127,7 @@ function ChannelTextInput() {
  */
 function ChannelMessages() {
     const { messages } = useGroupChannelContext()
+    const { session, start_reply } = useMessagesContext()
 
     if (messages.length === 0) {
         return (
@@ -124,7 +141,7 @@ function ChannelMessages() {
     return (
         <div>
             {messages.map((message) => {
-                let current_message
+                let current_message: UserMessage | FileMessage | null = null
 
                 if (message.isUserMessage()) {
                     current_message = message as UserMessage
@@ -134,7 +151,29 @@ function ChannelMessages() {
 
                 if (!current_message) return null
 
-                return <ChatMessage message={current_message} />
+                return (
+                    <ContextMenu>
+                        <ContextMenuTrigger>
+                            <ChatMessage message={current_message} />
+                        </ContextMenuTrigger>
+                        <ContextMenuContent>
+                            {session.user.artist_id && (
+                                <ContextMenuItem>
+                                    <PinIcon className="h-6 w-6" />
+                                    Add to kanban
+                                </ContextMenuItem>
+                            )}
+                            <ContextMenuItem
+                                onClick={() => {
+                                    start_reply(current_message)
+                                }}
+                            >
+                                <ReplyIcon className="h-6 w-6" />
+                                Reply
+                            </ContextMenuItem>
+                        </ContextMenuContent>
+                    </ContextMenu>
+                )
             })}
         </div>
     )

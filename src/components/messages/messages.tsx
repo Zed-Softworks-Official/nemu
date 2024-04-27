@@ -20,7 +20,7 @@ export default function MessagesClient({
     channel_url?: string
 }) {
     return (
-        <div className="min-w-xl flex min-h-[70%] w-full max-w-6xl flex-row overflow-hidden rounded-xl bg-base-300 shadow-xl relative">
+        <div className="min-w-xl flex min-h-[70%] w-full max-w-[90%] flex-row overflow-hidden rounded-xl bg-base-300 shadow-xl relative">
             <SendbirdProvider
                 appId="AE781B27-397F-4722-9EC3-13E39266C944"
                 userId={session.user.id}

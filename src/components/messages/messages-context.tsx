@@ -3,7 +3,7 @@
 import { Session } from 'next-auth'
 import { createContext, Dispatch, SetStateAction, useContext, useState } from 'react'
 
-import { BaseMessage } from '@sendbird/chat/message'
+import { BaseMessage, FileMessage, UserMessage } from '@sendbird/chat/message'
 
 type MessagesContextType = {
     currentChannel?: string
@@ -12,7 +12,8 @@ type MessagesContextType = {
     session: Session
 
     replyMode: boolean
-    setReplyMode: Dispatch<SetStateAction<boolean>>
+    replyMessage?: BaseMessage | FileMessage
+    start_reply: (message: UserMessage | FileMessage) => void
 
     inputPlaceholder: string
     setInputPlaceholder: Dispatch<SetStateAction<string>>
@@ -31,9 +32,18 @@ export function MessagesProvider({
 }) {
     const [currentChannel, setCurrentChannel] = useState<string | undefined>(channel_url)
     const [replyMode, setReplyMode] = useState<boolean>(false)
+    const [replyMessage, setReplyMessage] = useState<
+        BaseMessage | FileMessage | undefined
+    >()
     const [inputPlaceholder, setInputPlaceholder] = useState<string>(
         `Message ${session.user.name}`
     )
+
+    function start_reply(message: UserMessage | FileMessage) {
+        setReplyMode(true)
+        setReplyMessage(message)
+        setInputPlaceholder(`Replying to ${message.sender.nickname}`)
+    }
 
     return (
         <MessagesContext.Provider
@@ -42,9 +52,10 @@ export function MessagesProvider({
                 setCurrentChannel,
                 session,
                 replyMode,
-                setReplyMode,
+                start_reply,
                 inputPlaceholder,
-                setInputPlaceholder
+                setInputPlaceholder,
+                replyMessage
             }}
         >
             {children}
