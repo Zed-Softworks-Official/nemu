@@ -13,6 +13,12 @@ const coreConfig = {
                 hostname: 'utfs.io',
                 port: '',
                 pathname: '/**'
+            },
+            {
+                protocol: 'https',
+                hostname: 'file-us-1.sendbird.com',
+                port: '',
+                pathname: '/**'
             }
         ]
     }

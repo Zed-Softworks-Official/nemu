@@ -23,7 +23,7 @@ export enum CommissionAvailability {
  * @prop {KanbanContainerData[] | undefined} - The kanban data for the user
  * @prop {string | undefined} - The order id
  */
-export interface CommissionOrders {
+export type CommissionOrders = {
     user_id: string
     customer_id: string
     rush: boolean
@@ -41,7 +41,7 @@ export type ClientRequestData = Request & { user: User }
  * Client Side Commission Item, It basically contains all of same stuff as the prisma item
  * However, the images also includes blur data instead of just the url for the image
  */
-export interface ClientCommissionItem {
+export type ClientCommissionItem = {
     // Commission Data
     title: string
     description: string

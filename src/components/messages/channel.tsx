@@ -6,7 +6,7 @@ import {
     GroupChannelProvider,
     useGroupChannelContext
 } from '@sendbird/uikit-react/GroupChannel/context'
-import { FileMessage, UserMessage } from '@sendbird/chat/message'
+import { FileMessage, SendingStatus, UserMessage } from '@sendbird/chat/message'
 import {
     MessageCircleMoreIcon,
     PaperclipIcon,
@@ -28,25 +28,37 @@ import {
     ContextMenuItem,
     ContextMenuTrigger
 } from '~/components/ui/context-menu'
+import { SendbirdMetadata } from '~/sendbird/sendbird-structures'
 
 /**
  * Shows the current channel messages and allows the user to send messages
  */
 function CustomChannel() {
     const { currentChannel } = useGroupChannelContext()
+    const { otherUser } = useMessagesContext()
+
+    if (!currentChannel) {
+        return null
+    }
+
+    const metadata = JSON.parse(
+        currentChannel.data.replace(/'/g, '"')
+    ) as SendbirdMetadata
 
     return (
-        <div className="join-item relative w-full overflow-hidden bg-base-200">
-            <div className="absolute z-10 flex w-full flex-row items-center justify-between bg-base-200/60 p-5 backdrop-blur-xl">
+        <div className="join-item h-full w-full bg-base-200">
+            <div className="z-10 flex w-full flex-row items-center justify-between bg-base-200 p-5">
                 <div className="flex flex-col">
-                    <h2 className="text-xl font-bold">{currentChannel?.name}</h2>
-                    <span className="text-md text-base-content/60">Test Commission</span>
+                    <h2 className="text-xl font-bold">{otherUser?.nickname}</h2>
+                    <span className="text-md text-base-content/60">
+                        {metadata.commission_title}
+                    </span>
                 </div>
             </div>
-            <div className="flex h-full flex-col gap-5 p-5">
+            <div className="flex h-[27rem] flex-col overflow-auto p-5">
                 <ChannelMessages />
             </div>
-            <div className="absolute bottom-0 w-full bg-base-300 p-5">
+            <div className="flex w-full bg-base-200 p-5">
                 <ChannelTextInput />
             </div>
         </div>
@@ -63,13 +75,14 @@ function ChannelTextInput() {
     const { replyMode, inputPlaceholder } = useMessagesContext()
 
     const ref = useRef<HTMLDivElement>(null)
+    const inputRef = useRef<HTMLInputElement>(null)
 
     return (
-        <div className="join flex w-full items-center justify-center rounded-xl bg-base-100 p-3">
+        <div className="join flex w-full cursor-text items-center justify-center rounded-xl bg-base-100 p-3">
             <div
                 ref={ref}
                 contentEditable
-                className="join-item w-full cursor-text text-base-content empty:before:content-[attr(data-placeholder)] focus:outline-none"
+                className="join-item w-full text-base-content empty:before:content-[attr(data-placeholder)] focus:outline-none"
                 role="textarea"
                 data-placeholder={inputPlaceholder}
                 onInput={() => {
@@ -101,7 +114,15 @@ function ChannelTextInput() {
                 }}
             ></div>
             <div className="join-item">
-                <Button variant={'ghost'}>
+                <Button
+                    variant={'ghost'}
+                    onClick={() => {
+                        if (messageContent === '') {
+                            inputRef.current?.click()
+                            return
+                        }
+                    }}
+                >
                     <div className="swap swap-rotate">
                         <SendIcon
                             className={cn(
@@ -117,6 +138,20 @@ function ChannelTextInput() {
                         />
                     </div>
                 </Button>
+                <input
+                    className="hidden"
+                    ref={inputRef}
+                    type="file"
+                    accept="image/png,image/jpg,image/gif,video/mp4,video/mov"
+                    max={1}
+                    onChange={() => {
+                        if (inputRef.current?.files?.length === 0) return
+
+                        sendFileMessage({
+                            file: inputRef.current?.files![0] as File
+                        })
+                    }}
+                />
             </div>
         </div>
     )
@@ -126,8 +161,8 @@ function ChannelTextInput() {
  * Shows all of the messages in the current channel
  */
 function ChannelMessages() {
-    const { messages } = useGroupChannelContext()
-    const { session, start_reply } = useMessagesContext()
+    const { messages, currentChannel } = useGroupChannelContext()
+    const { session, start_reply, metadata } = useMessagesContext()
 
     if (messages.length === 0) {
         return (
@@ -139,7 +174,7 @@ function ChannelMessages() {
     }
 
     return (
-        <div>
+        <>
             {messages.map((message) => {
                 let current_message: UserMessage | FileMessage | null = null
 
@@ -157,8 +192,12 @@ function ChannelMessages() {
                             <ChatMessage message={current_message} />
                         </ContextMenuTrigger>
                         <ContextMenuContent>
-                            {session.user.artist_id && (
-                                <ContextMenuItem>
+                            {session.user.artist_id === metadata?.artist_id && (
+                                <ContextMenuItem
+                                    onClick={() => {
+                                        console.log('Add to kanban')
+                                    }}
+                                >
                                     <PinIcon className="h-6 w-6" />
                                     Add to kanban
                                 </ContextMenuItem>
@@ -175,7 +214,7 @@ function ChannelMessages() {
                     </ContextMenu>
                 )
             })}
-        </div>
+        </>
     )
 }
 
@@ -190,7 +229,9 @@ function ChatMessage({ message }: { message: UserMessage | FileMessage }) {
             <div className={cn('chat', chat_style)}>
                 <Avatar className="chat-image">
                     <AvatarImage src={message.sender.profileUrl} />
-                    <AvatarFallback>User</AvatarFallback>
+                    <AvatarFallback>
+                        <div className="avatar skeleton h-10 w-10 rounded-full"></div>
+                    </AvatarFallback>
                 </Avatar>
                 <div className="chat-footer">
                     <time className="text-xs opacity-50">
@@ -199,9 +240,13 @@ function ChatMessage({ message }: { message: UserMessage | FileMessage }) {
                         })}
                     </time>
                 </div>
-                <div className="chat-bubble">
-                    <NemuImage src={message.url} alt="image" width={200} height={200} />
-                </div>
+                <NemuImage
+                    src={message.url}
+                    alt="image"
+                    width={200}
+                    height={200}
+                    className="rounded-xl"
+                />
             </div>
         )
     }

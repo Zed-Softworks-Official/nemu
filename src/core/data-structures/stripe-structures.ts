@@ -1,4 +1,4 @@
-import { RouterInput } from "~/core/structures"
+import { RouterInput } from '~/core/structures'
 
 export enum PurchaseType {
     ArtistCorner = 0,
@@ -13,7 +13,7 @@ export enum InvoiceStatus {
     Cancelled
 }
 
-export interface StripePaymentMetadata {
+export type StripePaymentMetadata = {
     purchase_type: PurchaseType
     user_id: string
     commission_id?: string
@@ -23,7 +23,7 @@ export interface StripePaymentMetadata {
     product_id?: string
 }
 
-export interface CheckoutData {
+export type CheckoutData = {
     customer_id: string
     price: number
     stripe_account: string
@@ -31,7 +31,7 @@ export interface CheckoutData {
     user_id: string
 }
 
-export interface StripeProductCheckoutData extends CheckoutData {
+export type StripeProductCheckoutData = CheckoutData & {
     product_id: string
     artist_id: string
     supporter: boolean

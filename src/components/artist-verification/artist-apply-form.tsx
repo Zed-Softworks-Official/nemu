@@ -37,7 +37,7 @@ enum Method {
     ArtistCode
 }
 
-interface VerificationMethodInterface {
+type VerificationMethodInterface = {
     id: string
     name: string
     method: Method

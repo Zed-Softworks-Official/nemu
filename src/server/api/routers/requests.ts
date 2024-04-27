@@ -72,7 +72,7 @@ export const requestRouter = createTRPCRouter({
     /**
      * Submits a request to the given commission
      */
-    set_request: artistProcedure
+    set_request: protectedProcedure
         .input(
             z.object({
                 form_id: z.string(),
@@ -308,7 +308,11 @@ export const requestRouter = createTRPCRouter({
                 channel_url: request.orderId,
                 operator_ids: [request.commission.artist.userId],
                 block_sdk_user_channel_join: true,
-                is_distinct: false
+                is_distinct: false,
+                data: {
+                    artist_id: request.commission.artistId,
+                    commission_title: request.commission.title
+                }
             })
 
             // Create default containers for kanban

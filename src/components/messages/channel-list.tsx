@@ -20,15 +20,17 @@ import { cn } from '~/lib/utils'
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
 import { Badge } from '~/components/ui/badge'
 import { useMessagesContext } from '~/components/messages/messages-context'
+import { SendbirdMetadata } from '~/sendbird/sendbird-structures'
 
 function CustomChannelList() {
     const { allChannels, loading, initialized } = useChannelListContext()
-    const { currentChannel, setCurrentChannel } = useMessagesContext()
+    const { currentChannel, setCurrentChannel, session, setOtherUser, setMetadata } =
+        useMessagesContext()
 
     if (!initialized) {
         return (
-            <div className="bg-base-200 p-5 flex flex-col gap-5 h-full justify-center items-center w-full max-w-96">
-                <TriangleAlertIcon className="w-10 h-10" />
+            <div className="flex h-full w-full max-w-96 flex-col items-center justify-center gap-5 bg-base-200 p-5">
+                <TriangleAlertIcon className="h-10 w-10" />
                 <h2 className="card-title">Something went wrong!</h2>
             </div>
         )
@@ -36,7 +38,7 @@ function CustomChannelList() {
 
     if (loading) {
         return (
-            <div className="bg-base-200 p-5 flex flex-col gap-5 h-full justify-center items-center w-full max-w-96">
+            <div className="flex h-full w-full max-w-96 flex-col items-center justify-center gap-5 bg-base-200 p-5">
                 <Loading />
             </div>
         )
@@ -55,40 +57,59 @@ function CustomChannelList() {
     }
 
     return (
-        <div className="flex flex-col gap-5 p-5 join-item bg-base-300 h-full w-full">
+        <div className="join-item flex h-full w-full flex-col gap-5 bg-base-300 p-5">
             <div className="flex flex-col">
                 <h2 className="card-title">Channels</h2>
                 <div className="divider"></div>
             </div>
-            {allChannels.map((channel) => (
-                <Card
-                    className={cn(
-                        'bg-base-200 transition-all duration-200 ease-in-out cursor-pointer w-full hover:bg-primary active:scale-95',
-                        currentChannel === channel.url && 'bg-primary'
-                    )}
-                    onClick={() => setCurrentChannel(channel.url)}
-                >
-                    <CardHeader>
-                        <div className="flex flex-row gap-5 items-center">
-                            <Avatar>
-                                <AvatarImage src={channel.coverUrl} alt="Channel Image" />
-                                <AvatarFallback></AvatarFallback>
-                            </Avatar>
-                            <div className="flex flex-col gap-3">
-                                <CardTitle>{channel.name}</CardTitle>
-                                <CardDescription>
-                                    <Badge className='badge-sm'>Test Commission</Badge>
-                                </CardDescription>
+            {allChannels.map((channel) => {
+                const metadata = JSON.parse(
+                    channel.data.replace(/'/g, '"')
+                ) as SendbirdMetadata
+
+                const other_user = channel.members.filter(
+                    (member) => member.userId !== session.user.id
+                )[0]
+
+                return (
+                    <Card
+                        className={cn(
+                            'w-full cursor-pointer bg-base-200 transition-all duration-200 ease-in-out hover:bg-primary active:scale-95',
+                            currentChannel === channel.url && 'bg-primary'
+                        )}
+                        onClick={() => {
+                            setCurrentChannel(channel.url)
+                            setOtherUser(other_user)
+                            setMetadata(metadata)
+                        }}
+                    >
+                        <CardHeader>
+                            <div className="flex flex-row items-center gap-5">
+                                <Avatar>
+                                    <AvatarImage
+                                        src={other_user?.profileUrl}
+                                        alt="Channel Image"
+                                    />
+                                    <AvatarFallback></AvatarFallback>
+                                </Avatar>
+                                <div className="flex flex-col gap-3">
+                                    <CardTitle>{other_user?.nickname}</CardTitle>
+                                    <CardDescription>
+                                        <Badge className="badge-sm">
+                                            {metadata.commission_title}
+                                        </Badge>
+                                    </CardDescription>
+                                </div>
                             </div>
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        {channel.lastMessage
-                            ? GetLastMessage(channel.lastMessage)
-                            : 'No messages'}
-                    </CardContent>
-                </Card>
-            ))}
+                        </CardHeader>
+                        <CardContent>
+                            {channel.lastMessage
+                                ? GetLastMessage(channel.lastMessage)
+                                : 'No messages'}
+                        </CardContent>
+                    </Card>
+                )
+            })}
         </div>
     )
 }

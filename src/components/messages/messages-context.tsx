@@ -4,6 +4,8 @@ import { Session } from 'next-auth'
 import { createContext, Dispatch, SetStateAction, useContext, useState } from 'react'
 
 import { BaseMessage, FileMessage, UserMessage } from '@sendbird/chat/message'
+import { Member } from '@sendbird/chat/groupChannel'
+import { SendbirdMetadata } from '~/sendbird/sendbird-structures'
 
 type MessagesContextType = {
     currentChannel?: string
@@ -17,6 +19,12 @@ type MessagesContextType = {
 
     inputPlaceholder: string
     setInputPlaceholder: Dispatch<SetStateAction<string>>
+
+    otherUser: Member | undefined
+    setOtherUser: Dispatch<SetStateAction<Member | undefined>>
+
+    metadata: SendbirdMetadata | undefined
+    setMetadata: Dispatch<SetStateAction<SendbirdMetadata | undefined>>
 }
 
 const MessagesContext = createContext<MessagesContextType | null>(null)
@@ -35,9 +43,11 @@ export function MessagesProvider({
     const [replyMessage, setReplyMessage] = useState<
         BaseMessage | FileMessage | undefined
     >()
+    const [otherUser, setOtherUser] = useState<Member | undefined>(undefined)
     const [inputPlaceholder, setInputPlaceholder] = useState<string>(
         `Message ${session.user.name}`
     )
+    const [metadata, setMetadata] = useState<SendbirdMetadata | undefined>(undefined)
 
     function start_reply(message: UserMessage | FileMessage) {
         setReplyMode(true)
@@ -55,7 +65,11 @@ export function MessagesProvider({
                 start_reply,
                 inputPlaceholder,
                 setInputPlaceholder,
-                replyMessage
+                replyMessage,
+                otherUser,
+                setOtherUser,
+                metadata,
+                setMetadata
             }}
         >
             {children}

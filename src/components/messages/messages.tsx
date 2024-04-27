@@ -10,29 +10,21 @@ import { Session } from 'next-auth'
 
 import '@sendbird/uikit-react/dist/index.css'
 
-export default function MessagesClient({
-    hide_channel_list,
-    channel_url,
-    session
-}: {
+export default function MessagesClient(props: {
     session: Session
     hide_channel_list?: boolean
     channel_url?: string
 }) {
     return (
-        <div className="min-w-xl flex min-h-[70%] w-full max-w-[90%] flex-row overflow-hidden rounded-xl bg-base-300 shadow-xl relative">
+        <div className="flex h-full max-h-[40rem] w-full max-w-[90%] flex-row overflow-hidden rounded-xl bg-base-300 shadow-xl">
             <SendbirdProvider
                 appId="AE781B27-397F-4722-9EC3-13E39266C944"
-                userId={session.user.id}
+                userId={props.session.user.id}
                 theme="dark"
-                uikitOptions={{
-                    groupChannel: {
-                        enableTypingIndicator: true
-                    }
-                }}
+                isVoiceMessageEnabled={false}
             >
-                <MessagesProvider channel_url={channel_url} session={session}>
-                    <ChannelList hide_channel_list={hide_channel_list} />
+                <MessagesProvider channel_url={props.channel_url} session={props.session}>
+                    <ChannelList hide_channel_list={props.hide_channel_list} />
                     <Channel />
                 </MessagesProvider>
             </SendbirdProvider>

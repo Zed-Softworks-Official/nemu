@@ -41,7 +41,7 @@ export default function RequestCard({
 
     const mutation = api.requests.determine_request.useMutation({
         onMutate: (data) => {
-            setToastId(nemu_toast('Updating Request', { theme: resolvedTheme }))
+            setToastId(nemu_toast.loading('Updating Request', { theme: resolvedTheme }))
         },
         onSuccess: (res) => {
             if (!toastId) return
@@ -128,7 +128,6 @@ export default function RequestCard({
                         </DropdownMenuTrigger>
                         <DropdownMenuContent>
                             <DropdownMenuItem
-                                className="cursor-pointer"
                                 onClick={() => {
                                     mutation.mutate({
                                         request_id: request.id,
@@ -140,7 +139,7 @@ export default function RequestCard({
                                 Accept
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                                className="cursor-pointer"
+                                className="hover:!bg-error"
                                 onClick={() => {
                                     mutation.mutate({
                                         request_id: request.id,

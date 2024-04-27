@@ -11,7 +11,7 @@ export * from '~/core/data-structures/artist-structures'
 /**
  * Contains the url for the image as well as the blur data for the placeholder
  */
-export interface NemuImageData {
+export type NemuImageData = {
     url: string
     blur_data: string
 }
