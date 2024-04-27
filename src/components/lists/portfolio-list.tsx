@@ -7,7 +7,7 @@ export default async function PortfolioList({ artist_id }: { artist_id: string }
     const portfolio = await api.portfolio.get_portfolio_list({ artist_id })
 
     return (
-        <Masonry>
+        <Masonry columns={'4'}>
             {portfolio.map((item) => (
                 <NemuImage
                     key={item.id}

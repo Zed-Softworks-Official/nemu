@@ -27,7 +27,7 @@ export default function DashboardContainer({
                 )}
             </div>
             <div className="divider"></div>
-            <div className={cn(contentClassName)}>{children}</div>
+            <div className={cn('h-full', contentClassName)}>{children}</div>
         </div>
     )
 }

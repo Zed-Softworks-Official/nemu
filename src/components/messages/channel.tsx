@@ -10,28 +10,36 @@ import NemuImage from '../nemu-image'
 import { useRef, useState } from 'react'
 import { Button } from '../ui/button'
 import { cn } from '~/lib/utils'
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar'
+import { BaseMessage, FileMessage, UserMessage } from '@sendbird/chat/message'
 
+/**
+ * Shows the current channel messages and allows the user to send messages
+ */
 function CustomChannel() {
     const { currentChannel } = useGroupChannelContext()
 
     return (
-        <div className="bg-base-200 join-item w-full relative">
-            <div className="bg-base-200/60 backdrop-blur-xl flex flex-row justify-between items-center absolute p-5 w-full">
+        <div className="join-item relative w-full overflow-scroll bg-base-200">
+            <div className="absolute z-10 flex w-full flex-row items-center justify-between bg-base-200/60 p-5 backdrop-blur-xl">
                 <div className="flex flex-col">
-                    <h2 className="font-bold text-xl">{currentChannel?.name}</h2>
-                    <span className="text-base-content/60 text-md">Test Commission</span>
+                    <h2 className="text-xl font-bold">{currentChannel?.name}</h2>
+                    <span className="text-md text-base-content/60">Test Commission</span>
                 </div>
             </div>
-            <div className="flex flex-col gap-5 p-5 h-full">
+            <div className="flex h-full flex-col gap-5 p-5">
                 <ChannelMessages />
             </div>
-            <div className="absolute bg-base-300 w-full bottom-0 p-5">
+            <div className="absolute bottom-0 w-full bg-base-300 p-5">
                 <ChannelTextInput />
             </div>
         </div>
     )
 }
 
+/**
+ * The input field for the user to send messages
+ */
 function ChannelTextInput() {
     const [messageContent, setMessageContent] = useState<string>('')
 
@@ -41,15 +49,39 @@ function ChannelTextInput() {
     const ref = useRef<HTMLDivElement>(null)
 
     return (
-        <div className="join bg-base-100 p-3 rounded-xl w-full flex items-center justify-center">
+        <div className="join flex w-full items-center justify-center rounded-xl bg-base-100 p-3">
             <div
                 ref={ref}
                 contentEditable
-                className="text-base-content cursor-text focus:outline-none empty:before:content-[attr(data-placeholder)] join-item w-full"
+                className="join-item w-full cursor-text text-base-content empty:before:content-[attr(data-placeholder)] focus:outline-none"
                 role="textarea"
                 data-placeholder={inputPlaceholder}
                 onInput={() => {
                     setMessageContent(ref.current?.innerText || '')
+                }}
+                onKeyDown={(e) => {
+                    // If we press shift + enter, we don't want to send the message
+                    if (e.shiftKey && e.key === 'Enter') return
+
+                    // Exit reply mode
+                    if (e.key === 'Escape') {
+                    }
+
+                    // Send the message
+                    if (e.key === 'Enter') {
+                        e.preventDefault()
+
+                        if (messageContent.length === 0) return
+
+                        if (replyMode) {
+                            // Send the message as a reply
+                        } else {
+                            sendUserMessage({ message: messageContent })
+                        }
+
+                        setMessageContent('')
+                        ref.current!.innerText = ''
+                    }
                 }}
             ></div>
             <div className="join-item">
@@ -57,13 +89,13 @@ function ChannelTextInput() {
                     <div className="swap swap-rotate">
                         <SendIcon
                             className={cn(
-                                'w-6 h-6',
+                                'h-6 w-6',
                                 messageContent ? 'swap-off' : 'swap-on'
                             )}
                         />
                         <PaperclipIcon
                             className={cn(
-                                'w-6 h-6',
+                                'h-6 w-6',
                                 messageContent ? 'swap-on' : 'swap-off'
                             )}
                         />
@@ -74,27 +106,96 @@ function ChannelTextInput() {
     )
 }
 
+/**
+ * Shows all of the messages in the current channel
+ */
 function ChannelMessages() {
     const { messages } = useGroupChannelContext()
 
     if (messages.length === 0) {
         return (
-            <div className="flex flex-col gap-5 bg-base-200 join-item w-full h-full items-center justify-center">
-                <MessageCircleMoreIcon className="w-10 h-10" />
+            <div className="join-item flex h-full w-full flex-col items-center justify-center gap-5 bg-base-200">
+                <MessageCircleMoreIcon className="h-10 w-10" />
                 <h2 className="card-title">Nothing here yet!</h2>
             </div>
         )
     }
 
-    return <>Contents</>
+    return (
+        <div>
+            {messages.map((message) => {
+                let current_message
+
+                if (message.isUserMessage()) {
+                    current_message = message as UserMessage
+                } else if (message.isFileMessage()) {
+                    current_message = message as FileMessage
+                }
+
+                if (!current_message) return null
+
+                return <ChatMessage message={current_message} />
+            })}
+        </div>
+    )
 }
 
+function ChatMessage({ message }: { message: UserMessage | FileMessage }) {
+    const { session } = useMessagesContext()
+
+    const chat_style =
+        message.sender.userId === session.user.id ? 'chat-end' : 'chat-start'
+
+    if (message.isFileMessage()) {
+        return (
+            <div className={cn('chat', chat_style)}>
+                <Avatar className="chat-image">
+                    <AvatarImage src={message.sender.profileUrl} />
+                    <AvatarFallback>User</AvatarFallback>
+                </Avatar>
+                <div className="chat-footer">
+                    <time className="text-xs opacity-50">
+                        {new Date(message.createdAt).toLocaleTimeString('en-US', {
+                            timeStyle: 'short'
+                        })}
+                    </time>
+                </div>
+                <div className="chat-bubble">
+                    <NemuImage src={message.url} alt="image" width={200} height={200} />
+                </div>
+            </div>
+        )
+    }
+
+    return (
+        <div className={cn('chat', chat_style)}>
+            <Avatar className="chat-image">
+                <AvatarImage src={message.sender.profileUrl} />
+                <AvatarFallback>User</AvatarFallback>
+            </Avatar>
+            <div className="chat-footer">
+                <time className="text-xs opacity-50">
+                    {new Date(message.createdAt).toLocaleTimeString('en-US', {
+                        timeStyle: 'short'
+                    })}
+                </time>
+            </div>
+            <div className="chat-bubble chat-bubble-primary text-white">
+                {message.message}
+            </div>
+        </div>
+    )
+}
+
+/**
+ * The main component that links all of the channel components together to form the channel view
+ */
 export default function Channel() {
     const { currentChannel } = useMessagesContext()
 
     if (!currentChannel) {
         return (
-            <div className="flex flex-col gap-5 bg-base-200 join-item w-full h-full items-center justify-center">
+            <div className="join-item flex h-full w-full flex-col items-center justify-center gap-5 bg-base-200">
                 <NemuImage
                     src={'/nemu/this-is-fine.png'}
                     alt="Nemu Sparkles"

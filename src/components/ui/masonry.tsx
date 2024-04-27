@@ -1,6 +1,19 @@
-export default function Masonry({ children }: { children: React.ReactNode }) {
+import { cn } from '~/lib/utils'
+
+export default function Masonry({
+    columns,
+    children
+}: {
+    columns: '3' | '4'
+    children: React.ReactNode
+}) {
     return (
-        <div className="columns-1 gap-5 lg:gap-8 sm:columns-2 lg:columns-3 xl:columns-4 [&>img:not(:first-child)]:mt-5 lg:[&>img:not(:first-child)]:mt-8">
+        <div
+            className={cn(
+                'columns-1 gap-5 space-y-5 sm:columns-2',
+                columns === '3' ? 'lg:columns-3' : 'lg:columns-4'
+            )}
+        >
             {children}
         </div>
     )

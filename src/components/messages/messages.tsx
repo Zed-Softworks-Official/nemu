@@ -20,24 +20,22 @@ export default function MessagesClient({
     channel_url?: string
 }) {
     return (
-        <div className="flex bg-base-300 rounded-xl shadow-xl overflow-hidden min-w-xl min-h-[70%] w-full max-w-6xl">
-            <div className="flex join w-full h-full">
-                <SendbirdProvider
-                    appId="AE781B27-397F-4722-9EC3-13E39266C944"
-                    userId={session.user.id}
-                    theme="dark"
-                    uikitOptions={{
-                        groupChannel: {
-                            enableTypingIndicator: true
-                        }
-                    }}
-                >
-                    <MessagesProvider channel_url={channel_url} session={session}>
-                        <ChannelList hide_channel_list={hide_channel_list} />
-                        <Channel />
-                    </MessagesProvider>
-                </SendbirdProvider>
-            </div>
+        <div className="min-w-xl flex min-h-[70%] w-full max-w-6xl flex-row overflow-hidden rounded-xl bg-base-300 shadow-xl relative">
+            <SendbirdProvider
+                appId="AE781B27-397F-4722-9EC3-13E39266C944"
+                userId={session.user.id}
+                theme="dark"
+                uikitOptions={{
+                    groupChannel: {
+                        enableTypingIndicator: true
+                    }
+                }}
+            >
+                <MessagesProvider channel_url={channel_url} session={session}>
+                    <ChannelList hide_channel_list={hide_channel_list} />
+                    <Channel />
+                </MessagesProvider>
+            </SendbirdProvider>
         </div>
     )
 }
