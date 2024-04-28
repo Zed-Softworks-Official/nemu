@@ -55,8 +55,9 @@ export const formRouter = createTRPCRouter({
             await ctx.cache.set(
                 AsRedisKey('forms', input.artist_id),
                 JSON.stringify(forms),
-                'EX',
-                3600
+                {
+                    EX: 3600
+                }
             )
 
             return forms
@@ -82,7 +83,9 @@ export const formRouter = createTRPCRouter({
             return undefined
         }
 
-        await ctx.cache.set(AsRedisKey('forms', input), JSON.stringify(form), 'EX', 3600)
+        await ctx.cache.set(AsRedisKey('forms', input), JSON.stringify(form), {
+            EX: 3600
+        })
 
         return form
     }),
@@ -111,8 +114,7 @@ export const formRouter = createTRPCRouter({
             await ctx.cache.set(
                 AsRedisKey('forms', updated.artistId, updated.id),
                 JSON.stringify(updated),
-                'EX',
-                3600
+                { EX: 3600 }
             )
 
             return { success: true }

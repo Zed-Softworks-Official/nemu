@@ -38,12 +38,9 @@ export const requestRouter = createTRPCRouter({
             return undefined
         }
 
-        await ctx.cache.set(
-            AsRedisKey('requests', input),
-            JSON.stringify(requests),
-            'EX',
-            3600
-        )
+        await ctx.cache.set(AsRedisKey('requests', input), JSON.stringify(requests), {
+            EX: 3600
+        })
 
         return requests
     }),

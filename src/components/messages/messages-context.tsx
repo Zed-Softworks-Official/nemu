@@ -15,7 +15,9 @@ type MessagesContextType = {
 
     replyMode: boolean
     replyMessage?: BaseMessage | FileMessage
+
     start_reply: (message: UserMessage | FileMessage) => void
+    cancel_reply: () => void
 
     inputPlaceholder: string
     setInputPlaceholder: Dispatch<SetStateAction<string>>
@@ -55,6 +57,12 @@ export function MessagesProvider({
         setInputPlaceholder(`Replying to ${message.sender.nickname}`)
     }
 
+    function cancel_reply() {
+        setReplyMode(false)
+        setReplyMessage(undefined)
+        setInputPlaceholder(`Message ${otherUser?.nickname}`)
+    }
+
     return (
         <MessagesContext.Provider
             value={{
@@ -63,6 +71,7 @@ export function MessagesProvider({
                 session,
                 replyMode,
                 start_reply,
+                cancel_reply,
                 inputPlaceholder,
                 setInputPlaceholder,
                 replyMessage,

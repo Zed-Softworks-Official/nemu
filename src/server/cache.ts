@@ -1,15 +1,26 @@
 import { env } from '~/env'
-import { Redis } from 'ioredis'
+import { createClient } from 'redis'
 
-const globalForRedis = global as unknown as { cache: Redis }
+const createRedisClient = () =>
+    createClient({
+        password: env.REDIS_PASSWORD,
+        socket: {
+            host: env.REDIS_HOST,
+            port: env.REDIS_PORT
+        }
+    })
 
-export const cache = globalForRedis.cache || new Redis(env.REDIS_URL)
+const globalForRedis = globalThis as unknown as {
+    redis: ReturnType<typeof createRedisClient> | undefined
+}
 
-if (env.NODE_ENV !== 'production') globalForRedis.cache = cache
+export const cache = globalForRedis.redis ?? createRedisClient()
+
+if (env.NODE_ENV !== 'production') globalForRedis.redis = cache
 
 /**
- * Creates a redis key from a 
- * 
+ * Creates a redis key from a
+ *
  * @param object - The object that's being cached
  * @param unique_identifiers - The unique identifiers for the object
  */

@@ -41,8 +41,9 @@ export const userRouter = createTRPCRouter({
             await ctx.cache.set(
                 AsRedisKey('users', ctx.session.user.id!),
                 JSON.stringify({ user: user }),
-                'EX',
-                3600
+                {
+                    EX: 3600
+                }
             )
 
             return {
@@ -67,8 +68,9 @@ export const userRouter = createTRPCRouter({
         await ctx.cache.set(
             AsRedisKey('users', ctx.session.user.id),
             JSON.stringify({ user, artist }),
-            'EX',
-            3600
+            {
+                EX: 3600
+            }
         )
 
         return { user, artist }

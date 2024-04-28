@@ -52,8 +52,9 @@ export const artistRouter = createTRPCRouter({
             await ctx.cache.set(
                 AsRedisKey('artists', input ? input.handle : ctx.session?.user.handle!),
                 JSON.stringify(artist),
-                'EX',
-                3600
+                {
+                    EX: 3600
+                }
             )
 
             return artist

@@ -93,8 +93,9 @@ export const commissionRouter = createTRPCRouter({
                     input.show_unpublished ? 'dashboard' : 'standard'
                 ),
                 JSON.stringify(result),
-                'EX',
-                3600
+                {
+                    EX: 3600
+                }
             )
 
             return result
@@ -169,8 +170,9 @@ export const commissionRouter = createTRPCRouter({
             await ctx.cache.set(
                 AsRedisKey('commissions', input.id),
                 JSON.stringify(result),
-                'EX',
-                3600
+                {
+                    EX: 3600
+                }
             )
 
             return result
@@ -284,8 +286,9 @@ export const commissionRouter = createTRPCRouter({
             await ctx.cache.set(
                 AsRedisKey('commissions', input.handle, input.slug),
                 JSON.stringify(result),
-                'EX',
-                3600
+                {
+                    EX: 3600
+                }
             )
 
             return result
@@ -434,8 +437,9 @@ export const commissionRouter = createTRPCRouter({
             await ctx.cache.set(
                 AsRedisKey('commissions', ctx.session.user.artist_id),
                 JSON.stringify(commissions),
-                'EX',
-                3600
+                {
+                    EX: 3600
+                }
             )
 
             return { success: true }

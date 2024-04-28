@@ -1,18 +1,22 @@
 'use client'
 
-import { use, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { motion } from 'framer-motion'
 
 import {
     GroupChannelProvider,
     useGroupChannelContext
 } from '@sendbird/uikit-react/GroupChannel/context'
-import { FileMessage, SendingStatus, UserMessage } from '@sendbird/chat/message'
+
+import { FileMessage, UserMessage } from '@sendbird/chat/message'
+
 import {
     MessageCircleMoreIcon,
     PaperclipIcon,
     PinIcon,
     ReplyIcon,
-    SendIcon
+    SendIcon,
+    XCircleIcon
 } from 'lucide-react'
 
 import { cn } from '~/lib/utils'
@@ -22,12 +26,14 @@ import { useMessagesContext } from '~/components/messages/messages-context'
 
 import { Button } from '~/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
+
 import {
     ContextMenu,
     ContextMenuContent,
     ContextMenuItem,
     ContextMenuTrigger
 } from '~/components/ui/context-menu'
+
 import { SendbirdMetadata } from '~/sendbird/sendbird-structures'
 
 /**
@@ -72,86 +78,135 @@ function ChannelTextInput() {
     const [messageContent, setMessageContent] = useState<string>('')
 
     const { sendUserMessage, sendFileMessage } = useGroupChannelContext()
-    const { replyMode, inputPlaceholder } = useMessagesContext()
+    const { replyMode, inputPlaceholder, replyMessage, cancel_reply } =
+        useMessagesContext()
 
     const ref = useRef<HTMLDivElement>(null)
     const inputRef = useRef<HTMLInputElement>(null)
 
+    useEffect(() => {
+        // Close modal if escape is pressed
+        const closeOnEscapePressed = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                if (replyMode) {
+                    cancel_reply()
+                    ref.current!.innerText = ''
+                }
+            }
+        }
+
+        window.addEventListener('keydown', closeOnEscapePressed)
+        return () => window.removeEventListener('keydown', closeOnEscapePressed)
+    }, [])
+
     return (
-        <div className="join flex w-full cursor-text items-center justify-center rounded-xl bg-base-100 p-3">
-            <div
-                ref={ref}
-                contentEditable
-                className="join-item w-full text-base-content empty:before:content-[attr(data-placeholder)] focus:outline-none"
-                role="textarea"
-                data-placeholder={inputPlaceholder}
-                onInput={() => {
-                    setMessageContent(ref.current?.innerText || '')
-                }}
-                onKeyDown={(e) => {
-                    // If we press shift + enter, we don't want to send the message
-                    if (e.shiftKey && e.key === 'Enter') return
-
-                    // Exit reply mode
-                    if (e.key === 'Escape') {
-                    }
-
-                    // Send the message
-                    if (e.key === 'Enter') {
-                        e.preventDefault()
-
-                        if (messageContent.length === 0) return
-
-                        if (replyMode) {
-                            // Send the message as a reply
-                        } else {
-                            sendUserMessage({ message: messageContent })
-                        }
-
-                        setMessageContent('')
-                        ref.current!.innerText = ''
-                    }
-                }}
-            ></div>
-            <div className="join-item">
-                <Button
-                    variant={'ghost'}
-                    onClick={() => {
-                        if (messageContent === '') {
-                            inputRef.current?.click()
-                            return
-                        }
-                    }}
+        <div className="relative flex w-full flex-col">
+            {replyMode && (
+                <motion.div
+                    className="absolute -top-12 flex w-full flex-row items-center rounded-t-xl bg-base-300 px-5 py-2"
+                    animate={{ y: -10 }}
+                    transition={{ type: 'spring', duration: 0.2, bounce: 0.6 }}
                 >
-                    <div className="swap swap-rotate">
-                        <SendIcon
-                            className={cn(
-                                'h-6 w-6',
-                                messageContent ? 'swap-off' : 'swap-on'
-                            )}
-                        />
-                        <PaperclipIcon
-                            className={cn(
-                                'h-6 w-6',
-                                messageContent ? 'swap-on' : 'swap-off'
-                            )}
-                        />
+                    <div className="flex flex-col">
+                        <span className="text-sm italic text-base-content/60">
+                            Replying to
+                        </span>
+                        <p>{(replyMessage as UserMessage).message || ''}</p>
                     </div>
-                </Button>
-                <input
-                    className="hidden"
-                    ref={inputRef}
-                    type="file"
-                    accept="image/png,image/jpg,image/gif,video/mp4,video/mov"
-                    max={1}
-                    onChange={() => {
-                        if (inputRef.current?.files?.length === 0) return
-
-                        sendFileMessage({
-                            file: inputRef.current?.files![0] as File
-                        })
+                    <Button variant={'ghost'} onClick={() => cancel_reply()}>
+                        <XCircleIcon className="h-6 w-6" />
+                    </Button>
+                </motion.div>
+            )}
+            <div
+                className={cn(
+                    'flex w-full cursor-text flex-row items-center justify-center rounded-xl bg-base-100 p-3',
+                    replyMode && 'rounded-t-none'
+                )}
+            >
+                <div
+                    ref={ref}
+                    contentEditable
+                    className="join-item w-full text-base-content empty:before:content-[attr(data-placeholder)] focus:outline-none"
+                    role="textarea"
+                    data-placeholder={inputPlaceholder}
+                    onInput={() => {
+                        setMessageContent(ref.current?.innerText || '')
                     }}
-                />
+                    onKeyDown={(e) => {
+                        // If we press shift + enter, we don't want to send the message
+                        if (e.shiftKey && e.key === 'Enter') return
+
+                        // Exit reply mode
+                        if (e.key === 'Escape') {
+                            if (replyMode) {
+                                cancel_reply()
+                                ref.current!.innerText = ''
+                            }
+                        }
+
+                        // Send the message
+                        if (e.key === 'Enter') {
+                            e.preventDefault()
+
+                            if (messageContent.length === 0) return
+
+                            if (replyMode) {
+                                // Send the message as a reply
+                                sendUserMessage({
+                                    message: messageContent,
+                                    isReplyToChannel: true,
+                                    parentMessageId: replyMessage?.messageId
+                                })
+                            } else {
+                                sendUserMessage({ message: messageContent })
+                            }
+
+                            setMessageContent('')
+                            ref.current!.innerText = ''
+                        }
+                    }}
+                ></div>
+                <div className="join-item">
+                    <Button
+                        variant={'ghost'}
+                        onClick={() => {
+                            if (messageContent === '') {
+                                inputRef.current?.click()
+                                return
+                            }
+                        }}
+                    >
+                        <div className="swap swap-rotate">
+                            <SendIcon
+                                className={cn(
+                                    'h-6 w-6',
+                                    messageContent ? 'swap-off' : 'swap-on'
+                                )}
+                            />
+                            <PaperclipIcon
+                                className={cn(
+                                    'h-6 w-6',
+                                    messageContent ? 'swap-on' : 'swap-off'
+                                )}
+                            />
+                        </div>
+                    </Button>
+                    <input
+                        className="hidden"
+                        ref={inputRef}
+                        type="file"
+                        accept="image/png,image/jpg,image/gif,video/mp4,video/mov"
+                        max={1}
+                        onChange={() => {
+                            if (inputRef.current?.files?.length === 0) return
+
+                            sendFileMessage({
+                                file: inputRef.current?.files![0] as File
+                            })
+                        }}
+                    />
+                </div>
             </div>
         </div>
     )
@@ -161,7 +216,7 @@ function ChannelTextInput() {
  * Shows all of the messages in the current channel
  */
 function ChannelMessages() {
-    const { messages, currentChannel } = useGroupChannelContext()
+    const { messages } = useGroupChannelContext()
     const { session, start_reply, metadata } = useMessagesContext()
 
     if (messages.length === 0) {
@@ -218,7 +273,13 @@ function ChannelMessages() {
     )
 }
 
-function ChatMessage({ message }: { message: UserMessage | FileMessage }) {
+function ChatMessage({
+    message,
+    className
+}: {
+    message: UserMessage | FileMessage
+    className?: string
+}) {
     const { session } = useMessagesContext()
 
     const chat_style =
@@ -226,7 +287,7 @@ function ChatMessage({ message }: { message: UserMessage | FileMessage }) {
 
     if (message.isFileMessage()) {
         return (
-            <div className={cn('chat', chat_style)}>
+            <div className={cn('chat', chat_style, className)}>
                 <Avatar className="chat-image">
                     <AvatarImage src={message.sender.profileUrl} />
                     <AvatarFallback>
@@ -252,11 +313,16 @@ function ChatMessage({ message }: { message: UserMessage | FileMessage }) {
     }
 
     return (
-        <div className={cn('chat', chat_style)}>
+        <div className={cn('chat', chat_style, className)}>
             <Avatar className="chat-image">
                 <AvatarImage src={message.sender.profileUrl} />
                 <AvatarFallback>User</AvatarFallback>
             </Avatar>
+            {message.parentMessage && message.parentMessage.isUserMessage() && (
+                <div className="chat-header">
+                    <ChatMessage message={message.parentMessage} className="opacity-50" />
+                </div>
+            )}
             <div className="chat-footer">
                 <time className="text-xs opacity-50">
                     {new Date(message.createdAt).toLocaleTimeString('en-US', {
@@ -264,7 +330,14 @@ function ChatMessage({ message }: { message: UserMessage | FileMessage }) {
                     })}
                 </time>
             </div>
-            <div className="chat-bubble chat-bubble-primary text-white">
+            <div
+                className={cn(
+                    'chat-bubble',
+                    message.sender.userId === session.user.id
+                        ? 'chat-bubble-primary text-white'
+                        : 'chat-bubble-accent'
+                )}
+            >
                 {message.message}
             </div>
         </div>

@@ -8,7 +8,9 @@ export const env = createEnv({
      */
     server: {
         DATABASE_URL: z.string().url(),
-        REDIS_URL: z.string().url(),
+        REDIS_HOST: z.string(),
+        REDIS_PORT: z.number(),
+        REDIS_PASSWORD: z.string(),
         NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
         NEXTAUTH_SECRET:
             process.env.NODE_ENV === 'production' ? z.string() : z.string().optional(),
@@ -57,7 +59,9 @@ export const env = createEnv({
      */
     runtimeEnv: {
         DATABASE_URL: process.env.DATABASE_URL,
-        REDIS_URL: process.env.REDIS_URL,
+        REDIS_HOST: process.env.REDIS_HOST,
+        REDIS_PORT: Number(process.env.REDIS_PORT),
+        REDIS_PASSWORD: process.env.REDIS_PASSWORD,
         NODE_ENV: process.env.NODE_ENV,
         NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
         NEXTAUTH_URL: process.env.NEXTAUTH_URL,
