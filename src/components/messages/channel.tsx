@@ -19,7 +19,7 @@ import {
     XCircleIcon
 } from 'lucide-react'
 
-import { cn } from '~/lib/utils'
+import { cn, nemu_toast } from '~/lib/utils'
 
 import NemuImage from '~/components/nemu-image'
 import { useMessagesContext } from '~/components/messages/messages-context'
@@ -35,6 +35,9 @@ import {
 } from '~/components/ui/context-menu'
 
 import { SendbirdMetadata } from '~/sendbird/sendbird-structures'
+import { api } from '~/trpc/react'
+import { Id } from 'react-toastify'
+import { useTheme } from 'next-themes'
 
 /**
  * Shows the current channel messages and allows the user to send messages
@@ -216,8 +219,11 @@ function ChannelTextInput() {
  * Shows all of the messages in the current channel
  */
 function ChannelMessages() {
+    const [toastId, setToastId] = useState<Id | undefined>(undefined)
+
+    const { resolvedTheme } = useTheme()
     const { messages } = useGroupChannelContext()
-    const { session, start_reply, metadata } = useMessagesContext()
+    const { session, start_reply, metadata, kanbanData } = useMessagesContext()
 
     if (messages.length === 0) {
         return (
@@ -242,7 +248,7 @@ function ChannelMessages() {
                 if (!current_message) return null
 
                 return (
-                    <ContextMenu>
+                    <ContextMenu key={message.messageId}>
                         <ContextMenuTrigger>
                             <ChatMessage message={current_message} />
                         </ContextMenuTrigger>
@@ -250,7 +256,11 @@ function ChannelMessages() {
                             {session.user.artist_id === metadata?.artist_id && (
                                 <ContextMenuItem
                                     onClick={() => {
-                                        console.log('Add to kanban')
+                                        setToastId(
+                                            nemu_toast.loading('Adding', {
+                                                theme: resolvedTheme
+                                            })
+                                        )
                                     }}
                                 >
                                     <PinIcon className="h-6 w-6" />

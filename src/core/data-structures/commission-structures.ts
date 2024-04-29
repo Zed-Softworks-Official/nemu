@@ -1,6 +1,5 @@
 import { Request, User } from '@prisma/client'
-import { KanbanContainerData } from '~/core/data-structures/kanban-structures'
-import { NemuImageData } from '~/core/structures'
+import { NemuImageData, KanbanContainerData, KanbanTask } from '~/core/structures'
 
 /**
  * The different states a commission can be in
@@ -93,4 +92,12 @@ export enum RequestStatus {
     Accepted,
     Rejected,
     Delivered
+}
+
+/**
+ * Kanban Message Data for commissions
+ */
+export type KanbanSendbirdData = {
+    containers: KanbanContainerData[]
+    tasks: KanbanTask[]
 }

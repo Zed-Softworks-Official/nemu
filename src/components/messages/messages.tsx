@@ -8,8 +8,6 @@ import SendbirdProvider from '@sendbird/uikit-react/SendbirdProvider'
 import { MessagesProvider } from '~/components/messages/messages-context'
 import { Session } from 'next-auth'
 
-import '@sendbird/uikit-react/dist/index.css'
-
 export default function MessagesClient(props: {
     session: Session
     hide_channel_list?: boolean

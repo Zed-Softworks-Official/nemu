@@ -73,6 +73,7 @@ function CustomChannelList() {
 
                 return (
                     <Card
+                        key={channel.url}
                         className={cn(
                             'w-full cursor-pointer bg-base-200 transition-all duration-200 ease-in-out hover:bg-primary active:scale-95',
                             currentChannel === channel.url && 'bg-primary'
@@ -94,11 +95,9 @@ function CustomChannelList() {
                                 </Avatar>
                                 <div className="flex flex-col gap-3">
                                     <CardTitle>{other_user?.nickname}</CardTitle>
-                                    <CardDescription>
-                                        <Badge className="badge-sm">
-                                            {metadata.commission_title}
-                                        </Badge>
-                                    </CardDescription>
+                                    <Badge className="badge-sm">
+                                        {metadata.commission_title}
+                                    </Badge>
                                 </div>
                             </div>
                         </CardHeader>

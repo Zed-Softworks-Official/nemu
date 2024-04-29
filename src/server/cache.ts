@@ -1,8 +1,8 @@
 import { env } from '~/env'
 import { createClient } from 'redis'
 
-const createRedisClient = () =>
-    createClient({
+const createRedisClient = async () => {
+    const client = createClient({
         password: env.REDIS_PASSWORD,
         socket: {
             host: env.REDIS_HOST,
@@ -10,11 +10,18 @@ const createRedisClient = () =>
         }
     })
 
-const globalForRedis = globalThis as unknown as {
-    redis: ReturnType<typeof createRedisClient> | undefined
+    if (!client.isOpen) {
+        await client.connect()
+    }
+
+    return client
 }
 
-export const cache = globalForRedis.redis ?? createRedisClient()
+const globalForRedis = globalThis as unknown as {
+    redis: Awaited<ReturnType<typeof createRedisClient>> | undefined
+}
+
+export const cache = globalForRedis.redis ?? (await createRedisClient())
 
 if (env.NODE_ENV !== 'production') globalForRedis.redis = cache
 
