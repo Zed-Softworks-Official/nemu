@@ -7,7 +7,7 @@ import {
     Settings2Icon,
     UserIcon
 } from 'lucide-react'
-import { User } from 'next-auth'
+
 import { Avatar, AvatarImage, AvatarFallback } from '~/components/ui/avatar'
 import {
     DropdownMenu,
@@ -17,83 +17,97 @@ import {
 } from '~/components/ui/dropdown-menu'
 
 import Link from 'next/link'
-import { api } from '~/trpc/server'
+import { SignedIn, SignedOut } from '@clerk/nextjs'
+import { currentUser, User } from '@clerk/nextjs/server'
 import { UserRole } from '~/core/structures'
 
-export default function UserDropdown({ user }: { user: User | undefined }) {
+export default async function UserDropdown() {
+    const user = await currentUser()
+
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                {user ? (
-                    <Avatar className="cursor-pointer">
-                        <AvatarImage src={user.image || '/profile.png'} alt="Avatar" />
-                        <AvatarFallback>
-                            <UserIcon className="w-6 h-6" />
-                        </AvatarFallback>
-                    </Avatar>
-                ) : (
-                    <UserIcon className="w-6 h-6" />
-                )}
+                <div className="cursor-pointer">
+                    <SignedIn>
+                        <Avatar>
+                            <AvatarImage src={user?.imageUrl} alt="Avatar" />
+                            <AvatarFallback>
+                                <UserIcon className="h-6 w-6" />
+                            </AvatarFallback>
+                        </Avatar>
+                    </SignedIn>
+                    <SignedOut>
+                        <UserIcon className="h-6 w-6" />
+                    </SignedOut>
+                </div>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="min-w-52">
-                {user ? (
-                    <UserDropdownContent user={user} />
-                ) : (
+                <SignedIn>
+                    <UserDropdownContent user={user!} />
+                </SignedIn>
+                <SignedOut>
                     <DropdownMenuItem>
-                        <Link href="/u/login" className="user-dropdown-item">
-                            <LogInIcon className="w-6 h-6" />
+                        <Link href="/u/login" className="flex w-full items-center gap-3">
+                            <LogInIcon className="h-6 w-6" />
                             Log in
                         </Link>
                     </DropdownMenuItem>
-                )}
+                </SignedOut>
             </DropdownMenuContent>
         </DropdownMenu>
     )
 }
 
 async function UserDropdownContent({ user }: { user: User }) {
-    const data = await api.user.get_user()
-
     return (
         <>
-            {data?.artist && (
+            {user.publicMetadata.role === UserRole.Artist && (
                 <>
                     <DropdownMenuItem>
                         <Link
-                            href={`/@${data.artist.handle}`}
-                            className="user-dropdown-item"
+                            href={`/@${user.privateMetadata.artist_id}`}
+                            className="flex w-full items-center gap-3"
                         >
-                            <BrushIcon className="w-6 h-6" />
+                            <BrushIcon className="h-6 w-6" />
                             My Page
                         </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem>
-                        <Link href={`/dashboard`} className="user-dropdown-item">
-                            <BarChartIcon className="w-6 h-6" />
+                        <Link
+                            href={`/dashboard`}
+                            className="flex w-full items-center gap-3"
+                        >
+                            <BarChartIcon className="h-6 w-6" />
                             Artist's Dashboard
                         </Link>
                     </DropdownMenuItem>
                 </>
             )}
-            {data?.user.role === UserRole.Admin && (
+            {user.publicMetadata.role === UserRole.Admin && (
                 <>
                     <DropdownMenuItem>
-                        <Link href={'/artists/gen-code'} className="user-dropdown-item">
-                            <CodeIcon className="w-6 h-6" />
+                        <Link
+                            href={'/artists/gen-code'}
+                            className="flex w-full items-center gap-3"
+                        >
+                            <CodeIcon className="h-6 w-6" />
                             Generate Artist Code
                         </Link>
                     </DropdownMenuItem>
                 </>
             )}
             <DropdownMenuItem>
-                <Link href={'/account'} className="user-dropdown-item">
-                    <Settings2Icon className="w-6 h-6" />
+                <Link href={'/u/account'} className="flex w-full items-center gap-3">
+                    <Settings2Icon className="h-6 w-6" />
                     Account
                 </Link>
             </DropdownMenuItem>
             <DropdownMenuItem>
-                <Link href={'/api/auth/signout'} className="user-dropdown-item">
-                    <LogOutIcon className="w-6 h-6" />
+                <Link
+                    href={'/api/auth/signout'}
+                    className="flex w-full items-center gap-3"
+                >
+                    <LogOutIcon className="h-6 w-6" />
                     Sign Out
                 </Link>
             </DropdownMenuItem>

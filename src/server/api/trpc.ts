@@ -8,13 +8,14 @@
  */
 
 import { initTRPC, TRPCError } from '@trpc/server'
+import * as trpcNext from '@trpc/server/adapters/next'
 import superjson from 'superjson'
 import { ZodError } from 'zod'
 
-import { getServerAuthSession } from '~/server/auth'
 import { db } from '~/server/db'
 import { cache } from '~/server/cache'
 import { UserRole } from '~/core/structures'
+import { currentUser, getAuth } from '@clerk/nextjs/server'
 
 /**
  * 1. CONTEXT
@@ -28,13 +29,13 @@ import { UserRole } from '~/core/structures'
  *
  * @see https://trpc.io/docs/server/context
  */
-export const createTRPCContext = async (opts: { headers: Headers }) => {
-    const session = await getServerAuthSession()
+export const createTRPCContext = async (opts: trpcNext.CreateNextContextOptions & { headers: Headers }) => {
+    const auth = getAuth(opts.req)
 
     return {
         db,
         cache,
-        session,
+        auth,
         ...opts
     }
 }
@@ -98,14 +99,15 @@ export const publicProcedure = t.procedure
  * @see https://trpc.io/docs/procedures
  */
 export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
-    if (!ctx.session || !ctx.session.user) {
+    if (!ctx || !ctx.auth.userId) {
         throw new TRPCError({ code: 'UNAUTHORIZED' })
     }
 
+    // infers the `user` as non-nullable
     return next({
         ctx: {
-            // infers the `session` as non-nullable
-            session: { ...ctx.session, user: ctx.session.user }
+            ...ctx,
+            auth: ctx.auth
         }
     })
 })
@@ -117,17 +119,14 @@ export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
  * Product, Ect.
  */
 export const artistProcedure = protectedProcedure.use(({ ctx, next }) => {
-    if (ctx.session.user.role !== UserRole.Artist) {
-        throw new TRPCError({ code: 'UNAUTHORIZED' })
-    }
-
-    if (!ctx.session.user.artist_id) {
-        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' })
-    }
+    // if (ctx.auth !== UserRole.Artist) {
+    //     throw new TRPCError({ code: 'UNAUTHORIZED' })
+    // }
 
     return next({
         ctx: {
-            session: { ...ctx.session, user: ctx.session.user }
+            ...ctx,
+            auth: ctx.auth
         }
     })
 })
@@ -138,13 +137,14 @@ export const artistProcedure = protectedProcedure.use(({ ctx, next }) => {
  * This is for admin only routes, such as creating artists, making new artist codes ect.
  */
 export const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
-    if (ctx.session.user.role !== UserRole.Admin) {
-        throw new TRPCError({ code: 'UNAUTHORIZED' })
-    }
+    // if (ctx.session.user.role !== UserRole.Admin) {
+    //     throw new TRPCError({ code: 'UNAUTHORIZED' })
+    // }
 
     return next({
         ctx: {
-            session: { ...ctx.session, user: ctx.session.user }
+            ...ctx,
+            auth: ctx.auth
         }
     })
 })

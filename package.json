@@ -72,6 +72,7 @@
     "sharp": "^0.33.3",
     "stripe": "^15.2.0",
     "superjson": "^2.2.1",
+    "svix": "^1.21.0",
     "swiper": "^11.1.1",
     "tailwind-merge": "^2.2.2",
     "tailwindcss-animate": "^1.0.7",

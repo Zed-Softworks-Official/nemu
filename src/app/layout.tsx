@@ -3,10 +3,12 @@ import 'react-toastify/dist/ReactToastify.css'
 
 import NextTopLoader from 'nextjs-toploader'
 
+import { Metadata } from 'next'
 import { Nunito } from 'next/font/google'
 
 import { NextSSRPlugin } from '@uploadthing/react/next-ssr-plugin'
 import { extractRouterConfig } from 'uploadthing/server'
+import { ClerkProvider } from '@clerk/nextjs'
 
 import { ToastContainer } from 'react-toastify'
 
@@ -24,7 +26,7 @@ export const metadata = {
     title: 'Nemu',
     description: 'An Artists Best Friend',
     icons: [{ rel: 'icon', url: '/favicon.ico' }]
-}
+} satisfies Metadata
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
     return (
@@ -44,15 +46,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                      */
                     routerConfig={extractRouterConfig(nemuFileRouter)}
                 />
-                <ThemeProvider
-                    attribute="data-theme"
-                    defaultTheme="system"
-                    enableSystem
-                    disableTransitionOnChange
-                >
-                    <TRPCReactProvider>{children}</TRPCReactProvider>
-                    <ToastContainer stacked />
-                </ThemeProvider>
+                <ClerkProvider>
+                    <ThemeProvider
+                        attribute="data-theme"
+                        defaultTheme="system"
+                        enableSystem
+                        disableTransitionOnChange
+                    >
+                        <TRPCReactProvider>{children}</TRPCReactProvider>
+                        <ToastContainer stacked />
+                    </ThemeProvider>
+                </ClerkProvider>
             </body>
         </html>
     )
