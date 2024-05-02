@@ -39,7 +39,7 @@ model Artist {
   automatedCommissionMessage String?
   automatedMessageEnabled    Boolean @default(false)
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [clerkId], onDelete: Cascade)
 
   commissions     Commission[]
   products        Product[]
@@ -93,47 +93,10 @@ model Social {
 // Users
 //////////////////////////////////////////////////////////
 
-model Account {
-  id                String  @id @default(cuid()) @map("_id")
-  userId            String
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String?
-  access_token      String?
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String?
-  session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([provider, providerAccountId])
-}
-
-model Session {
-  id           String   @id @default(cuid())
-  sessionToken String   @unique
-  userId       String
-  expires      DateTime
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime?
-  image         String?
-  utKey         String?
-  role          Int       @default(0)
+  clerkId String @id
+  role    Int    @default(0)
 
-  hasSendbirdAccount Boolean @default(false)
-
-  accounts    Account[]
-  sessions    Session[]
   artist      Artist?
   request     Request[]
   customerIds StripeCustomerIds[]
@@ -151,7 +114,7 @@ model StripeCustomerIds {
   userId   String
 
   artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [clerkId], onDelete: Cascade)
 }
 
 model Downloads {
@@ -167,7 +130,7 @@ model Downloads {
   commissionId String?
   requestId    String?
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [clerkId], onDelete: Cascade)
 }
 
 model Review {
@@ -183,7 +146,7 @@ model Review {
   productId    String?
   submissionId String? @unique
 
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [clerkId], onDelete: Cascade)
   commissions Commission? @relation(fields: [commissionId], references: [id], onDelete: Cascade)
   products    Product?    @relation(fields: [productId], references: [id], onDelete: Cascade)
   request     Request?    @relation(fields: [submissionId], references: [id], onDelete: Cascade)
@@ -199,7 +162,7 @@ model Favorite {
 
   createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [clerkId], onDelete: Cascade)
 }
 
 //////////////////////////////////////////////////////////
@@ -296,8 +259,8 @@ model Invoice {
   customerId    String
   stripeAccount String
 
-  userId       String
-  artistId     String
+  userId    String
+  artistId  String
   requestId String
 
   items   InvoiceItem[]
@@ -357,7 +320,7 @@ model Request {
   content String
 
   form       Form       @relation(fields: [formId], references: [id])
-  user       User       @relation(fields: [userId], references: [id])
+  user       User       @relation(fields: [userId], references: [clerkId])
   commission Commission @relation(fields: [commissionId], references: [id])
   invoice    Invoice?   @relation(fields: [invoiceId], references: [id])
   kanban     Kanban?    @relation(fields: [kanbanId], references: [id])

@@ -1,7 +1,11 @@
 import 'server-only'
 
-import { headers } from 'next/headers'
 import { cache } from 'react'
+
+import { headers } from 'next/headers'
+import { NextRequest } from 'next/server'
+
+import { getAuth } from '@clerk/nextjs/server'
 
 import { createCaller } from '~/server/api/root'
 import { createTRPCContext } from '~/server/api/trpc'
@@ -15,7 +19,8 @@ const createContext = cache(() => {
     heads.set('x-trpc-source', 'rsc')
 
     return createTRPCContext({
-        headers: heads
+        headers: heads,
+        auth: getAuth(new NextRequest('http://localhost:3000', { headers: headers() }))
     })
 })
 

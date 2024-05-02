@@ -17,13 +17,11 @@ import {
 } from '~/components/ui/dropdown-menu'
 
 import Link from 'next/link'
-import { SignedIn, SignedOut } from '@clerk/nextjs'
-import { currentUser, User } from '@clerk/nextjs/server'
+import { SignedIn, SignedOut, SignOutButton } from '@clerk/nextjs'
+import { User } from '@clerk/nextjs/server'
 import { UserRole } from '~/core/structures'
 
-export default async function UserDropdown() {
-    const user = await currentUser()
-
+export default async function UserDropdown({ user }: { user: User | null }) {
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -103,13 +101,12 @@ async function UserDropdownContent({ user }: { user: User }) {
                 </Link>
             </DropdownMenuItem>
             <DropdownMenuItem>
-                <Link
-                    href={'/api/auth/signout'}
-                    className="flex w-full items-center gap-3"
-                >
-                    <LogOutIcon className="h-6 w-6" />
-                    Sign Out
-                </Link>
+                <SignOutButton>
+                    <div className='flex w-full items-center gap-3'>
+                        <LogOutIcon className="h-6 w-6" />
+                        Sign out
+                    </div>
+                </SignOutButton>
             </DropdownMenuItem>
         </>
     )

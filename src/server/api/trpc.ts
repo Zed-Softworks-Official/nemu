@@ -8,14 +8,15 @@
  */
 
 import { initTRPC, TRPCError } from '@trpc/server'
-import * as trpcNext from '@trpc/server/adapters/next'
 import superjson from 'superjson'
 import { ZodError } from 'zod'
 
 import { db } from '~/server/db'
 import { cache } from '~/server/cache'
+import { clerkClient, getAuth } from '@clerk/nextjs/server'
 import { UserRole } from '~/core/structures'
-import { currentUser, getAuth } from '@clerk/nextjs/server'
+
+type AuthObject = ReturnType<typeof getAuth>
 
 /**
  * 1. CONTEXT
@@ -29,13 +30,15 @@ import { currentUser, getAuth } from '@clerk/nextjs/server'
  *
  * @see https://trpc.io/docs/server/context
  */
-export const createTRPCContext = async (opts: trpcNext.CreateNextContextOptions & { headers: Headers }) => {
-    const auth = getAuth(opts.req)
+export const createTRPCContext = async (opts: { headers: Headers; auth: AuthObject }) => {
+    const user = opts.auth.userId
+        ? await clerkClient.users.getUser(opts.auth.userId)
+        : undefined
 
     return {
         db,
         cache,
-        auth,
+        user,
         ...opts
     }
 }
@@ -98,8 +101,8 @@ export const publicProcedure = t.procedure
  *
  * @see https://trpc.io/docs/procedures
  */
-export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
-    if (!ctx || !ctx.auth.userId) {
+export const protectedProcedure = t.procedure.use(({ ctx, next }) => {    
+    if (!ctx || !ctx.auth.userId || !ctx.user) {
         throw new TRPCError({ code: 'UNAUTHORIZED' })
     }
 
@@ -107,7 +110,8 @@ export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
     return next({
         ctx: {
             ...ctx,
-            auth: ctx.auth
+            auth: ctx.auth,
+            user: ctx.user
         }
     })
 })
@@ -119,14 +123,15 @@ export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
  * Product, Ect.
  */
 export const artistProcedure = protectedProcedure.use(({ ctx, next }) => {
-    // if (ctx.auth !== UserRole.Artist) {
-    //     throw new TRPCError({ code: 'UNAUTHORIZED' })
-    // }
+    if (ctx.user?.publicMetadata.role !== UserRole.Artist || !ctx.user) {
+        throw new TRPCError({ code: 'UNAUTHORIZED' })
+    }
 
     return next({
         ctx: {
             ...ctx,
-            auth: ctx.auth
+            auth: ctx.auth,
+            user: ctx.user
         }
     })
 })

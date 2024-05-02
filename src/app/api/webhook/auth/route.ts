@@ -1,9 +1,15 @@
 import { Webhook } from 'svix'
 import { headers } from 'next/headers'
-import { WebhookEvent } from '@clerk/nextjs/server'
+
+import { clerkClient, WebhookEvent } from '@clerk/nextjs/server'
+
 import { env } from '~/env'
 import { PublicUserMetadata, UserRole } from '~/core/structures'
+import { db } from '~/server/db'
 
+/**
+ * Handles Clerk Webhook Events
+ */
 export async function POST(req: Request) {
     // Get the headers
     const headersPayload = headers()
@@ -48,6 +54,17 @@ export async function POST(req: Request) {
                     role: UserRole.Standard,
                     has_sendbird_account: false
                 }
+
+                clerkClient.users.updateUserMetadata(event.data.id, {
+                    publicMetadata
+                })
+
+                // Create a new user in the database
+                await db.user.create({
+                    data: {
+                        clerkId: event.data.id
+                    }
+                })
 
                 return new Response('User Created', { status: 200 })
             }

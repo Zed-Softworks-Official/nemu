@@ -8,7 +8,9 @@ import { Nunito } from 'next/font/google'
 
 import { NextSSRPlugin } from '@uploadthing/react/next-ssr-plugin'
 import { extractRouterConfig } from 'uploadthing/server'
+
 import { ClerkProvider } from '@clerk/nextjs'
+import { dark } from '@clerk/themes'
 
 import { ToastContainer } from 'react-toastify'
 
@@ -46,7 +48,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                      */
                     routerConfig={extractRouterConfig(nemuFileRouter)}
                 />
-                <ClerkProvider>
+                <ClerkProvider appearance={{ baseTheme: dark }}>
                     <ThemeProvider
                         attribute="data-theme"
                         defaultTheme="system"

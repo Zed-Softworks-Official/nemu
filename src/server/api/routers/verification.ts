@@ -17,6 +17,7 @@ import { Prisma } from '@prisma/client'
 import { SendbirdUserData } from '~/sendbird/sendbird-structures'
 import { sendbird } from '~/server/sendbird'
 import { novu } from '~/server/novu'
+import { clerkClient, User } from '@clerk/nextjs/server'
 
 /**
  * Data required for verification
@@ -37,7 +38,7 @@ type VerificationDataType = z.infer<typeof verification_data>
 /**
  * Helper function that creates an artist
  */
-export async function CreateArtist(input: VerificationDataType, user_id: string) {
+export async function CreateArtist(input: VerificationDataType, user: User) {
     const socials: Prisma.SocialCreateWithoutArtistInput[] = []
 
     if (input.twitter) {
@@ -67,7 +68,7 @@ export async function CreateArtist(input: VerificationDataType, user_id: string)
     const artist = await db.artist.create({
         data: {
             stripeAccount: stripe_account.id,
-            userId: user_id,
+            userId: user.id,
             handle: input.requested_handle!,
             socials: {
                 createMany: {
@@ -88,24 +89,19 @@ export async function CreateArtist(input: VerificationDataType, user_id: string)
     }
 
     // Check if the user already has a sendbird account
-    if (!artist.user?.hasSendbirdAccount) {
+    if (!user.publicMetadata.hasSendbirdAccount) {
         // Create Sendbird user
         const user_data: SendbirdUserData = {
-            user_id: user_id,
+            user_id: user.id,
             nickname: artist.handle,
-            profile_url: artist.user.image
-                ? artist.user.image
-                : `${env.NEXTAUTH_URL}/profile.png`
+            profile_url: user.imageUrl
         }
 
         sendbird.CreateUser(user_data)
 
-        // Update database
-        await db.user.update({
-            where: {
-                id: user_id
-            },
-            data: {
+        // Update User Metadata
+        await clerkClient.users.updateUserMetadata(user.id, {
+            publicMetadata: {
                 hasSendbirdAccount: true
             }
         })
@@ -133,7 +129,7 @@ export const verificationRouter = createTRPCRouter({
         .input(verification_data)
         .mutation(async ({ input, ctx }) => {
             // Check if they're already an artist
-            if (ctx.session.user.role == UserRole.Artist) {
+            if (ctx.user.publicMetadata.role == UserRole.Artist) {
                 return { success: false }
             }
 
@@ -156,87 +152,99 @@ export const verificationRouter = createTRPCRouter({
                 ////////////////////////////
                 // Verification by Code
                 ////////////////////////////
-                case VerificationMethod.Code: {
-                    const artist_code = await ctx.db.aritstCode.findFirst({
-                        where: {
-                            code: input.artist_code!
-                        }
-                    })
+                case VerificationMethod.Code:
+                    {
+                        const artist_code = await ctx.db.aritstCode.findFirst({
+                            where: {
+                                code: input.artist_code!
+                            }
+                        })
 
-                    if (!artist_code) {
-                        throw new TRPCError({
-                            message: 'Artist code does not exist',
-                            code: 'INTERNAL_SERVER_ERROR'
+                        if (!artist_code) {
+                            throw new TRPCError({
+                                message: 'Artist code does not exist',
+                                code: 'INTERNAL_SERVER_ERROR'
+                            })
+                        }
+
+                        // Create Artist
+                        const artist = await CreateArtist(input, ctx.user)
+
+                        // Update User Role
+                        await ctx.db.user.update({
+                            where: {
+                                clerkId: ctx.user.id
+                            },
+                            data: {
+                                role: UserRole.Artist
+                            }
+                        })
+
+                        await clerkClient.users.updateUserMetadata(ctx.user.id, {
+                            publicMetadata: {
+                                role: UserRole.Artist
+                            }
+                        })
+
+                        // Delete Code
+                        await ctx.db.aritstCode.delete({
+                            where: {
+                                id: artist_code.id
+                            }
+                        })
+
+                        // Delete User Cache
+                        await ctx.cache.del(AsRedisKey('users', ctx.user.id))
+
+                        // Notify user of status
+                        novu.trigger('artist-verification', {
+                            to: {
+                                subscriberId: ctx.user.id
+                            },
+                            payload: {
+                                result: true,
+                                intro_message: `Congratulations ${artist.handle}!`,
+                                status: 'accepted'
+                            }
                         })
                     }
-
-                    // Create Artist
-                    const artist = await CreateArtist(input, ctx.session.user.id!)
-
-                    // Update User Role
-                    await ctx.db.user.update({
-                        where: {
-                            id: ctx.session.user.id!
-                        },
-                        data: {
-                            role: UserRole.Artist
-                        }
-                    })
-
-                    // Delete Code
-                    await ctx.db.aritstCode.delete({
-                        where: {
-                            id: artist_code.id
-                        }
-                    })
-
-                    // Delete User Cache
-                    await ctx.cache.del(AsRedisKey('users', ctx.session.user.id!))
-
-                    // Notify user of status
-                    novu.trigger('artist-verification', {
-                        to: {
-                            subscriberId: ctx.session.user.id!
-                        },
-                        payload: {
-                            result: true,
-                            intro_message: `Congratulations ${artist.handle}!`,
-                            status: 'accepted'
-                        }
-                    })
-                }
+                    break
                 ////////////////////////////
                 // Verification by Twitter
                 ////////////////////////////
-                case VerificationMethod.Twitter: {
-                    const artistVerification = await ctx.db.artistVerification.create({
-                        data: {
-                            userId: ctx.session.user.id!,
-                            username: ctx.session.user.name!,
-                            location: input.location,
-                            requestedHandle: input.requested_handle,
-                            twitter: input.twitter,
-                            pixiv: input.pixiv,
-                            website: input.website
-                        }
-                    })
+                case VerificationMethod.Twitter:
+                    {
+                        const artistVerification = await ctx.db.artistVerification.create(
+                            {
+                                data: {
+                                    userId: ctx.user.id!,
+                                    username: ctx.user.username!,
+                                    location: input.location,
+                                    requestedHandle: input.requested_handle,
+                                    twitter: input.twitter,
+                                    pixiv: input.pixiv,
+                                    website: input.website
+                                }
+                            }
+                        )
 
-                    if (!artistVerification) {
-                        throw new TRPCError({
-                            message: 'Verification object could not be created',
-                            code: 'INTERNAL_SERVER_ERROR'
+                        if (!artistVerification) {
+                            throw new TRPCError({
+                                message: 'Verification object could not be created',
+                                code: 'INTERNAL_SERVER_ERROR'
+                            })
+                        }
+
+                        novu.trigger('artist-verification-submit', {
+                            to: {
+                                subscriberId: ctx.user.id
+                            },
+                            payload: {
+                                method: 'Twitter'
+                            }
                         })
                     }
-
-                    novu.trigger('artist-verification-submit', {
-                        to: {
-                            subscriberId: ctx.session.user.id!
-                        },
-                        payload: {
-                            method: 'Twitter'
-                        }
-                    })
-                }
+                    break
             }
 
             return { success: true }
@@ -267,6 +275,9 @@ export const verificationRouter = createTRPCRouter({
                 })
             }
 
+            // Get User Object
+            const user = await clerkClient.users.getUser(artist_verification.userId)
+
             // Create Artist Object
             const artist = await CreateArtist(
                 {
@@ -278,7 +289,7 @@ export const verificationRouter = createTRPCRouter({
                     website: artist_verification?.website || undefined,
                     username: artist_verification?.username!
                 },
-                artist_verification?.userId!
+                user
             )
 
             if (!artist) {

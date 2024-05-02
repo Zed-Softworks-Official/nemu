@@ -6,7 +6,6 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 
 import { useState } from 'react'
-import { Session } from 'next-auth'
 import { motion } from 'framer-motion'
 
 import { api } from '~/trpc/react'
@@ -21,6 +20,9 @@ import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react'
 import { Button } from '~/components/ui/button'
 import { VerificationMethod } from '~/core/structures'
 import SelectCountries from '~/components/ui/select-countries'
+import { User } from '@clerk/nextjs/server'
+import { useUser } from '@clerk/nextjs'
+import { useTheme } from 'next-themes'
 
 const steps = [
     {
@@ -86,11 +88,13 @@ const verificationSchema = z.object({
 
 type VerificationSchemaType = z.infer<typeof verificationSchema>
 
-export default function ArtistApplyForm({ session }: { session: Session }) {
-    const [submitting, setSubmitting] = useState(false)
+export default function ArtistApplyForm() {
     const [previousStep, setPreviousStep] = useState(0)
     const [currentStep, setCurrentStep] = useState(0)
     const delta = currentStep - previousStep
+
+    const { user } = useUser()
+    const { resolvedTheme } = useTheme()
 
     const codeCheckMutation = api.verification.get_artist_code.useMutation()
     const handleExistsMutation = api.verification.handle_exists.useMutation()
@@ -104,8 +108,6 @@ export default function ArtistApplyForm({ session }: { session: Session }) {
     })
 
     function ProcessForm(data: VerificationSchemaType) {
-        setSubmitting(true)
-
         verificationMutation.mutate({
             location: data.location,
             requested_handle: data.requested_handle,
@@ -115,7 +117,7 @@ export default function ArtistApplyForm({ session }: { session: Session }) {
                 : VerificationMethod.Twitter,
             twitter: data.twitter_url,
             website: data.website_url,
-            username: session?.user.id!
+            username: user?.username || undefined
         })
     }
 
@@ -142,8 +144,13 @@ export default function ArtistApplyForm({ session }: { session: Session }) {
             }
         }
 
-        if (currentStep === 2 && form.getValues('verification_method') === 'artist_code') {
-            const toast_id = nemu_toast.loading('Checking artist code')
+        if (
+            currentStep === 2 &&
+            form.getValues('verification_method') === 'artist_code'
+        ) {
+            const toast_id = nemu_toast.loading('Checking artist code', {
+                theme: resolvedTheme
+            })
             const res = await codeCheckMutation.mutateAsync(
                 form.getValues('artist_code')!
             )
@@ -193,7 +200,7 @@ export default function ArtistApplyForm({ session }: { session: Session }) {
     }
 
     return (
-        <div className="flex flex-col gap-5 w-full transition-all duration-200 ease-in-out">
+        <div className="flex w-full flex-col gap-5 transition-all duration-200 ease-in-out">
             <ul className="steps">
                 {steps.map((step, i) => (
                     <li
@@ -211,7 +218,7 @@ export default function ArtistApplyForm({ session }: { session: Session }) {
             <div className="divider"></div>
             <Form {...form}>
                 <form
-                    className="flex flex-col gap-5 w-full"
+                    className="flex w-full flex-col gap-5"
                     onSubmit={form.handleSubmit(ProcessForm)}
                 >
                     {currentStep == 0 && (
@@ -324,8 +331,8 @@ export default function ArtistApplyForm({ session }: { session: Session }) {
                             <div className="flex flex-col">
                                 {form.getValues('verification_method') ===
                                     'artist_code' && (
-                                    <div className="flex flex-col w-full gap-5">
-                                        <div className="flex flex-col justify-center items-center gap-5">
+                                    <div className="flex w-full flex-col gap-5">
+                                        <div className="flex flex-col items-center justify-center gap-5">
                                             <NemuImage
                                                 src={'/nemu/sparkles.png'}
                                                 alt="Nemu with a form"
@@ -362,7 +369,7 @@ export default function ArtistApplyForm({ session }: { session: Session }) {
                                     </div>
                                 )}
                                 {form.getValues('verification_method') === 'twitter' && (
-                                    <div className="flex flex-col justify-center items-center gap-5">
+                                    <div className="flex flex-col items-center justify-center gap-5">
                                         <NemuImage
                                             src={'/nemu/sparkles.png'}
                                             alt="Nemu Excited"
@@ -387,24 +394,24 @@ export default function ArtistApplyForm({ session }: { session: Session }) {
                         </motion.div>
                     )}
                     <div className="divider"></div>
-                    <div className="flex justify-between w-full">
+                    <div className="flex w-full justify-between">
                         <Button
-                            className="disabled:btn-outline disabled:opacity-60 disabled:cursor-not-allowed"
+                            className="disabled:btn-outline disabled:cursor-not-allowed disabled:opacity-60"
                             disabled={currentStep === 0}
                             onClick={() => Prev()}
                         >
-                            <ChevronLeftIcon className="w-6 h-6" />
+                            <ChevronLeftIcon className="h-6 w-6" />
                         </Button>
 
                         <Button onClick={async () => await Next()}>
                             {currentStep === 2 ? (
-                                submitting ? (
+                                verificationMutation.isPending ? (
                                     <span className="loading loading-spinner"></span>
                                 ) : (
                                     'Submit'
                                 )
                             ) : (
-                                <ChevronRightIcon className="w-6 h-6" />
+                                <ChevronRightIcon className="h-6 w-6" />
                             )}
                         </Button>
                     </div>
