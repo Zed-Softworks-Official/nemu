@@ -2,8 +2,8 @@ import { createTRPCRouter, publicProcedure } from '~/server/api/trpc'
 
 import { z } from 'zod'
 import { AsRedisKey } from '~/server/cache'
-import { Artist, Social, User } from '@prisma/client'
-import { TRPCError } from '@trpc/server'
+import { Artist, Social } from '@prisma/client'
+import { clerkClient, User } from '@clerk/nextjs/server'
 
 export const artistRouter = createTRPCRouter({
     /**
@@ -22,7 +22,9 @@ export const artistRouter = createTRPCRouter({
             const cachedArtist = await ctx.cache.get(
                 AsRedisKey(
                     'artists',
-                    input !== undefined ? input.handle : ctx.session?.user.handle!
+                    input !== undefined
+                        ? input.handle
+                        : (ctx.user?.publicMetadata.handle as string)
                 )
             )
 
@@ -36,10 +38,9 @@ export const artistRouter = createTRPCRouter({
             // Fetch from database if they're not in the cache
             const artist = await ctx.db.artist.findFirst({
                 where: {
-                    handle: input ? input.handle : ctx.session?.user.handle!
+                    handle: input ? input.handle : ctx.user?.publicMetadata.handle!
                 },
                 include: {
-                    user: true,
                     socials: true
                 }
             })
@@ -50,13 +51,19 @@ export const artistRouter = createTRPCRouter({
             }
 
             await ctx.cache.set(
-                AsRedisKey('artists', input ? input.handle : ctx.session?.user.handle!),
+                AsRedisKey(
+                    'artists',
+                    input ? input.handle : (ctx.user?.publicMetadata.handle as string)
+                ),
                 JSON.stringify(artist),
                 {
                     EX: 3600
                 }
             )
 
-            return artist
+            return {
+                ...artist,
+                user: await clerkClient.users.getUser(artist.userId)
+            }
         })
 })

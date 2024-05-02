@@ -9,6 +9,7 @@ import { getAuth } from '@clerk/nextjs/server'
 
 import { createCaller } from '~/server/api/root'
 import { createTRPCContext } from '~/server/api/trpc'
+import { env } from '~/env'
 
 /**
  * This wraps the `createTRPCContext` helper and provides the required context for the tRPC API when
@@ -20,7 +21,7 @@ const createContext = cache(() => {
 
     return createTRPCContext({
         headers: heads,
-        auth: getAuth(new NextRequest('http://localhost:3000', { headers: headers() }))
+        auth: getAuth(new NextRequest(env.BASE_URL, { headers: headers() }))
     })
 })
 

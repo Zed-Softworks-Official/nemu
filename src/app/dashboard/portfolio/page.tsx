@@ -4,21 +4,17 @@ import NemuImage from '~/components/nemu-image'
 import DashboardContainer from '~/components/ui/dashboard-container'
 
 import { api } from '~/trpc/server'
-import { getServerAuthSession } from '~/server/auth'
 import Link from 'next/link'
 import EmptyState from '~/components/ui/empty-state'
 import { ImagePlusIcon } from 'lucide-react'
 import Masonry from '~/components/ui/masonry'
+import { currentUser } from '@clerk/nextjs/server'
 
 export default async function PortfolioDashboardPage() {
-    const session = await getServerAuthSession()
-
-    if (!session || !session.user.artist_id) {
-        return redirect('/u/login')
-    }
+    const user = await currentUser()
 
     const portfolio_items = await api.portfolio.get_portfolio_list({
-        artist_id: session?.user.artist_id
+        artist_id: user?.privateMetadata.artist_id as string
     })
 
     if (portfolio_items.length === 0) {

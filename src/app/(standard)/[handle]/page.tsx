@@ -45,13 +45,13 @@ export default async function ArtistPage({ params }: Props) {
     return (
         <Tabs defaultValue="commissions">
             {/* Artist Header */}
-            <div className="flex flex-wrap flex-1 flex-col">
+            <div className="flex flex-1 flex-col flex-wrap">
                 <div
-                    className="mx-auto w-full h-96 rounded-xl bg-no-repeat bg-center bg-cover"
+                    className="mx-auto h-96 w-full rounded-xl bg-cover bg-center bg-no-repeat"
                     style={{ backgroundImage: `url(${artist_data.headerPhoto})` }}
                 ></div>
-                <div className="mx-auto sm:max-w-[85%] w-full -my-28 py-14 backdrop-blur-xl bg-base-300/60 shadow-lg rounded-xl px-10">
-                    <div className="flex flex-col sm:flex-row justify-between items-center">
+                <div className="-my-28 mx-auto w-full rounded-xl bg-base-300/60 px-10 py-14 shadow-lg backdrop-blur-xl sm:max-w-[85%]">
+                    <div className="flex flex-col items-center justify-between sm:flex-row">
                         <div className="flex items-center justify-start">
                             <div className="avatar relative">
                                 {artist_data.supporter && (
@@ -60,27 +60,23 @@ export default async function ArtistPage({ params }: Props) {
                                         alt="Supporter Image"
                                         width={100}
                                         height={100}
-                                        className="absolute !w-10 !h-10 top-0 -right-4"
+                                        className="absolute -right-4 top-0 !h-10 !w-10"
                                     />
                                 )}
                                 <div className="w-24 rounded-full">
                                     <NemuImage
-                                        src={
-                                            artist_data.user.image
-                                                ? artist_data.user.image
-                                                : '/profile.png'
-                                        }
+                                        src={artist_data.user.imageUrl}
                                         alt="Profile Photo"
                                         width={200}
                                         height={200}
                                     />
                                 </div>
                             </div>
-                            <div className="text-left mt-3 px-10">
-                                <h2 className="pb-2 font-bold text-2xl">
+                            <div className="mt-3 px-10 text-left">
+                                <h2 className="pb-2 text-2xl font-bold">
                                     @{artist_data.handle}
                                 </h2>
-                                <h3 className="text-lg">{artist_data.user.name}</h3>
+                                <h3 className="text-lg">{artist_data.user.username}</h3>
                             </div>
                         </div>
                         <div className="flex items-center">
@@ -99,8 +95,8 @@ export default async function ArtistPage({ params }: Props) {
             </div>
 
             {/* Content Body */}
-            <div className="flex gap-10 mt-36">
-                <div className="bg-base-300 p-10 rounded-xl text-center h-fit w-1/3">
+            <div className="mt-36 flex gap-10">
+                <div className="h-fit w-1/3 rounded-xl bg-base-300 p-10 text-center">
                     <div className="flex flex-col justify-center gap-5">
                         <div className="flex flex-col">
                             <div className="divider card-title">About</div>
@@ -109,7 +105,7 @@ export default async function ArtistPage({ params }: Props) {
                         </div>
                         <div>
                             <div className="divider card-title">Socials</div>
-                            <div className="flex gap-5 justify-center items-center">
+                            <div className="flex items-center justify-center gap-5">
                                 {artist_data.socials.map((social) => (
                                     <Link
                                         key={social.agent}
@@ -124,8 +120,8 @@ export default async function ArtistPage({ params }: Props) {
                         </div>
                     </div>
                 </div>
-                <div className="flex flex-row gap-10 w-full mx-auto">
-                    <div className="bg-base-300 p-10 rounded-xl w-full h-full flex flex-col">
+                <div className="mx-auto flex w-full flex-row gap-10">
+                    <div className="flex h-full w-full flex-col rounded-xl bg-base-300 p-10">
                         <TabsContent value="commissions">
                             <h2 className="card-title">Commissions</h2>
                             <div className="divider"></div>
@@ -157,10 +153,10 @@ export default async function ArtistPage({ params }: Props) {
 function get_social_icon(agent: string) {
     switch (agent) {
         case 'TWITTER':
-            return <FontAwesomeIcon icon={faXTwitter} className="w-6 h-6" />
+            return <FontAwesomeIcon icon={faXTwitter} className="h-6 w-6" />
         case 'PIXIV':
-            return <FontAwesomeIcon icon={faPixiv} className="w-6 h-6" />
+            return <FontAwesomeIcon icon={faPixiv} className="h-6 w-6" />
         default:
-            return <GlobeIcon className="w-6 h-6" />
+            return <GlobeIcon className="h-6 w-6" />
     }
 }

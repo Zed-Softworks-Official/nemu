@@ -7,6 +7,8 @@ export enum UserRole {
 export type PublicUserMetadata = {
     role: UserRole
     has_sendbird_account: boolean
+    
+    handle?: string
 }
 
 export type PrivateUserMetadata = {

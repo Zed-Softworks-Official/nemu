@@ -97,14 +97,17 @@ export async function CreateArtist(input: VerificationDataType, user: User) {
         }
 
         sendbird.CreateUser(user_data)
-
-        // Update User Metadata
-        await clerkClient.users.updateUserMetadata(user.id, {
-            publicMetadata: {
-                has_sendbird_account: true
-            }
-        })
     }
+
+    // Update User Metadata
+    await clerkClient.users.updateUserMetadata(user.id, {
+        publicMetadata: {
+            has_sendbird_account: true
+        },
+        privateMetadata: {
+            artist_id: artist.id
+        }
+    })
 
     return artist
 }

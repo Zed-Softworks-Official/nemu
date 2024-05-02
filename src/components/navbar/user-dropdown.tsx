@@ -63,7 +63,7 @@ async function UserDropdownContent({ user }: { user: User }) {
                 <>
                     <DropdownMenuItem>
                         <Link
-                            href={`/@${user.privateMetadata.artist_id}`}
+                            href={`/@${user.publicMetadata.handle}`}
                             className="flex w-full items-center gap-3"
                         >
                             <BrushIcon className="h-6 w-6" />

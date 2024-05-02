@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { artistProcedure, createTRPCRouter, protectedProcedure } from '~/server/api/trpc'
+
 import {
     StripeCreateAccountLink,
     StripeCreateCustomer,
@@ -8,7 +9,9 @@ import {
     StripeCreateSupporterBilling,
     StripeGetAccount
 } from '~/core/payments'
+
 import { TRPCError } from '@trpc/server'
+import { clerkClient } from '@clerk/nextjs/server'
 
 export const stripeRouter = createTRPCRouter({
     /**
@@ -19,7 +22,7 @@ export const stripeRouter = createTRPCRouter({
         .mutation(async ({ input, ctx }) => {
             const customer_id = await ctx.db.stripeCustomerIds.findFirst({
                 where: {
-                    userId: ctx.session.user.id!,
+                    userId: ctx.user.id,
                     artistId: input
                 }
             })
@@ -32,11 +35,7 @@ export const stripeRouter = createTRPCRouter({
                 }
             }
 
-            const user = await ctx.db.user.findFirst({
-                where: {
-                    id: ctx.session.user.id!
-                }
-            })
+            const user = await clerkClient.users.getUser(ctx.user.id)
 
             if (!user) {
                 throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' })
@@ -55,8 +54,8 @@ export const stripeRouter = createTRPCRouter({
             // Otherwise we need to create a customer id for the user
             const stripe_customer = await StripeCreateCustomer(
                 artist.stripeAccount!,
-                user.name!,
-                user.email!
+                user.username!,
+                user.emailAddresses[0]?.emailAddress
             )
 
             // Create a customer id object in the data for this user
@@ -94,7 +93,7 @@ export const stripeRouter = createTRPCRouter({
 
             const artist = await ctx.db.artist.findFirst({
                 where: {
-                    id: ctx.session.user.artist_id
+                    id: ctx.user.privateMetadata.artist_id as string
                 }
             })
 
@@ -157,7 +156,7 @@ export const stripeRouter = createTRPCRouter({
             // If not then just create one
             let db_customer_link = await ctx.db.stripeCustomerIds.findFirst({
                 where: {
-                    userId: ctx.session.user.id,
+                    userId: ctx.user.id,
                     artistId: product.artistId
                 }
             })
@@ -165,8 +164,8 @@ export const stripeRouter = createTRPCRouter({
             if (!db_customer_link) {
                 const new_stripe_customer = await StripeCreateCustomer(
                     input.stripe_account,
-                    ctx.session.user.name!,
-                    ctx.session.user.email || undefined
+                    ctx.user.username || undefined,
+                    ctx.user.emailAddresses[0]?.emailAddress || undefined
                 )
 
                 db_customer_link = await ctx.db.stripeCustomerIds.create({
@@ -174,7 +173,7 @@ export const stripeRouter = createTRPCRouter({
                         stripeAccount: input.stripe_account,
                         customerId: new_stripe_customer.id,
                         artistId: product.artistId,
-                        userId: ctx.session.user.id
+                        userId: ctx.user.id
                     }
                 })
             }
@@ -186,7 +185,7 @@ export const stripeRouter = createTRPCRouter({
                 stripe_account: input.stripe_account,
                 return_url: input.return_url,
                 product_id: input.product_id,
-                user_id: ctx.session.user.id!,
+                user_id: ctx.user.id,
                 artist_id: product.artistId,
                 supporter: product.artist.supporter
             })
@@ -200,7 +199,7 @@ export const stripeRouter = createTRPCRouter({
     get_checkout_portal: artistProcedure.query(async ({ ctx }) => {
         const artist = await ctx.db.artist.findFirst({
             where: {
-                userId: ctx.session.user.id
+                userId: ctx.user.id
             }
         })
 

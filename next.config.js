@@ -19,6 +19,12 @@ const coreConfig = {
                 hostname: 'file-us-1.sendbird.com',
                 port: '',
                 pathname: '/**'
+            },
+            {
+                protocol: 'https',
+                hostname: 'img.clerk.com',
+                port: '',
+                pathname: '/**'
             }
         ]
     }

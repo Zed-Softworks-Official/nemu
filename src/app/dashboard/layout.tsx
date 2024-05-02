@@ -15,15 +15,16 @@ import Logo from '~/components/ui/logo'
 import SidebarLink from '~/components/ui/sidebar-link'
 
 import { redirect } from 'next/navigation'
-import { getServerAuthSession } from '~/server/auth'
 import { api } from '~/trpc/server'
 import Footer from '~/components/footer'
 import DashboardProvider from '~/components/dashboard/dashboard-context'
+import { currentUser } from '@clerk/nextjs/server'
+import { UserRole } from '~/core/structures'
 
 export default async function Layout({ children }: { children: React.ReactNode }) {
-    const session = await getServerAuthSession()
+    const user = await currentUser()
 
-    if (!session?.user.artist_id) {
+    if (user?.publicMetadata.role !== UserRole.Artist) {
         return redirect('/u/login')
     }
 
@@ -33,16 +34,16 @@ export default async function Layout({ children }: { children: React.ReactNode }
     return (
         <aside className="drawer lg:drawer-open">
             <input id="nemu-drawer" type="checkbox" className="drawer-toggle" />
-            <div className="drawer-content flex flex-col items-center justify-center scrollbar-thin scrollbar-track-transparent scrollbar-thumb-base-300">
+            <div className="scrollbar-thin scrollbar-track-transparent scrollbar-thumb-base-300 drawer-content flex flex-col items-center justify-center">
                 <label
                     htmlFor="nemu-drawer"
-                    className="btn btn-primary drawer-button lg:hidden mt-5 text-base-content"
+                    className="btn btn-primary drawer-button mt-5 text-base-content lg:hidden"
                 >
-                    <MenuIcon className="w-6 h-6 inline-block" />
+                    <MenuIcon className="inline-block h-6 w-6" />
                     Menu
                 </label>
 
-                <DashboardProvider artist_id={session.user.artist_id}>
+                <DashboardProvider artist_id={user.publicMetadata.artist_id as string}>
                     {children}
                 </DashboardProvider>
 
@@ -54,32 +55,32 @@ export default async function Layout({ children }: { children: React.ReactNode }
                     aria-label="close sidebar"
                     className="drawer-overlay"
                 />
-                <ul className="menu p-4 w-80 min-h-full backdrop-blur-xl bg-base-300/60 text-base-content">
-                    <div className="flex justify-center items-center">
+                <ul className="menu min-h-full w-80 bg-base-300/60 p-4 text-base-content backdrop-blur-xl">
+                    <div className="flex items-center justify-center">
                         <Logo />
                     </div>
                     <div className="divider"></div>
                     <SidebarLink
                         title="Commissions"
-                        icon={<LayersIcon className="w-6 h-6" />}
+                        icon={<LayersIcon className="h-6 w-6" />}
                         href="/dashboard/commissions"
                         path="commissions"
                     />
                     <SidebarLink
                         title="Artist Corner"
-                        icon={<StoreIcon className="w-6 h-6" />}
+                        icon={<StoreIcon className="h-6 w-6" />}
                         href="/dashboard/artist-corner"
                         path="artist-corner"
                     />
                     <SidebarLink
                         title="Portfolio"
-                        icon={<ImageIcon className="w-6 h-6" />}
+                        icon={<ImageIcon className="h-6 w-6" />}
                         href="/dashboard/portfolio"
                         path="portfolio"
                     />
                     <SidebarLink
                         title="Forms"
-                        icon={<ClipboardListIcon className="w-6 h-6" />}
+                        icon={<ClipboardListIcon className="h-6 w-6" />}
                         href="/dashboard/forms"
                         path="forms"
                     />
@@ -90,29 +91,29 @@ export default async function Layout({ children }: { children: React.ReactNode }
                                 ? 'Complete Onboarding'
                                 : 'Payout'
                         }
-                        icon={<HandCoinsIcon className="w-6 h-6" />}
+                        icon={<HandCoinsIcon className="h-6 w-6" />}
                         href={managment_url.url}
                     />
                     <SidebarLink
                         title="Billing"
-                        icon={<BadgeDollarSign className="w-6 h-6" />}
+                        icon={<BadgeDollarSign className="h-6 w-6" />}
                         href={portal_url ? portal_url : '#'}
                     />
                     <div className="divider"></div>
                     <SidebarLink
                         title="My Page"
-                        icon={<BrushIcon className="w-6 h-6" />}
-                        href={`/@${session?.user.handle}`}
+                        icon={<BrushIcon className="h-6 w-6" />}
+                        href={`/@${user.publicMetadata.handle as string}`}
                     />
                     <SidebarLink
                         title="Messages"
-                        icon={<MailIcon className="w-6 h-6" />}
+                        icon={<MailIcon className="h-6 w-6" />}
                         href="/dashboard/messages"
                         path="messages"
                     />
                     <SidebarLink
                         title="Account"
-                        icon={<Settings2Icon className="w-6 h-6" />}
+                        icon={<Settings2Icon className="h-6 w-6" />}
                         href={'/account'}
                         path="account"
                     />
