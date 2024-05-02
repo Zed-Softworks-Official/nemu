@@ -10,7 +10,7 @@ export const userRouter = createTRPCRouter({
      */
     update_user: protectedProcedure.mutation(async ({ ctx }) => {
         const publicMetadata: PublicUserMetadata = {
-            role: UserRole.Artist,
+            role: UserRole.Standard,
             has_sendbird_account: false
         }
 

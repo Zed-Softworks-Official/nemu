@@ -20,7 +20,7 @@ import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react'
 import { Button } from '~/components/ui/button'
 import { VerificationMethod } from '~/core/structures'
 import SelectCountries from '~/components/ui/select-countries'
-import { User } from '@clerk/nextjs/server'
+
 import { useUser } from '@clerk/nextjs'
 import { useTheme } from 'next-themes'
 
@@ -81,7 +81,7 @@ const verificationSchema = z.object({
             (value) => value === 'United States',
             'Nemu is only available in the U.S. currently!'
         ),
-    verification_method: z.string().min(1, 'Must select a verificatio method'),
+    verification_method: z.string(),
 
     artist_code: z.string().optional()
 })
@@ -146,7 +146,7 @@ export default function ArtistApplyForm() {
 
         if (
             currentStep === 2 &&
-            form.getValues('verification_method') === 'artist_code'
+            form.getValues('verification_method') === VerificationMethod.Code
         ) {
             const toast_id = nemu_toast.loading('Checking artist code', {
                 theme: resolvedTheme
@@ -302,19 +302,21 @@ export default function ArtistApplyForm() {
                                     >
                                         <div className="flex items-center gap-2">
                                             <RadioGroupItem
-                                                value="artist_code"
-                                                id="artist_code"
+                                                value={VerificationMethod.Code}
+                                                id={VerificationMethod.Code}
                                             />
-                                            <Label htmlFor="artist_code">
+                                            <Label htmlFor={VerificationMethod.Code}>
                                                 Artist Code
                                             </Label>
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <RadioGroupItem
-                                                value="twitter"
-                                                id="twitter"
+                                                value={VerificationMethod.Twitter}
+                                                id={VerificationMethod.Twitter}
                                             />
-                                            <Label htmlFor="twitter">Twitter</Label>
+                                            <Label htmlFor={VerificationMethod.Twitter}>
+                                                Twitter
+                                            </Label>
                                         </div>
                                     </RadioGroup>
                                 )}

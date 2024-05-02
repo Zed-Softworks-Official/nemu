@@ -11,7 +11,6 @@ import {
 } from '~/server/api/trpc'
 import { AsRedisKey } from '~/server/cache'
 import { db } from '~/server/db'
-import { env } from '~/env'
 import { StripeCreateAccount } from '~/core/payments'
 import { Prisma } from '@prisma/client'
 import { SendbirdUserData } from '~/sendbird/sendbird-structures'
@@ -23,7 +22,7 @@ import { clerkClient, User } from '@clerk/nextjs/server'
  * Data required for verification
  */
 const verification_data = z.object({
-    method: z.number(),
+    method: z.string(),
     requested_handle: z.string(),
     twitter: z.string().optional(),
     pixiv: z.string().optional(),
@@ -89,7 +88,7 @@ export async function CreateArtist(input: VerificationDataType, user: User) {
     }
 
     // Check if the user already has a sendbird account
-    if (!user.publicMetadata.hasSendbirdAccount) {
+    if (!user.publicMetadata.has_sendbird_account) {
         // Create Sendbird user
         const user_data: SendbirdUserData = {
             user_id: user.id,
@@ -102,7 +101,7 @@ export async function CreateArtist(input: VerificationDataType, user: User) {
         // Update User Metadata
         await clerkClient.users.updateUserMetadata(user.id, {
             publicMetadata: {
-                hasSendbirdAccount: true
+                has_sendbird_account: true
             }
         })
     }
