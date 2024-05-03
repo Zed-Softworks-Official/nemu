@@ -4,6 +4,7 @@ import {
     CodeIcon,
     LogInIcon,
     LogOutIcon,
+    MailIcon,
     Settings2Icon,
     UserIcon
 } from 'lucide-react'
@@ -57,6 +58,10 @@ export default async function UserDropdown({ user }: { user: User | null }) {
 }
 
 async function UserDropdownContent({ user }: { user: User }) {
+    const messages_url = user.privateMetadata.artist_id
+        ? '/dashboard/messsages'
+        : '/messages'
+
     return (
         <>
             {user.publicMetadata.role === UserRole.Artist && (
@@ -95,6 +100,12 @@ async function UserDropdownContent({ user }: { user: User }) {
                 </>
             )}
             <DropdownMenuItem>
+                <Link href={messages_url} className="flex w-full items-center gap-3">
+                    <MailIcon className="h-6 w-6" />
+                    Messages
+                </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem>
                 <Link href={'/u/account'} className="flex w-full items-center gap-3">
                     <Settings2Icon className="h-6 w-6" />
                     Account
@@ -102,7 +113,7 @@ async function UserDropdownContent({ user }: { user: User }) {
             </DropdownMenuItem>
             <DropdownMenuItem>
                 <SignOutButton>
-                    <div className='flex w-full items-center gap-3'>
+                    <div className="flex w-full items-center gap-3">
                         <LogOutIcon className="h-6 w-6" />
                         Sign out
                     </div>
