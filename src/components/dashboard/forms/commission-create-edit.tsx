@@ -6,7 +6,7 @@ import { useTheme } from 'next-themes'
 import Link from 'next/link'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { Id } from 'react-toastify'
+import { Id, toast } from 'react-toastify'
 
 import { z } from 'zod'
 
@@ -118,11 +118,12 @@ export default function CommissionCreateEditForm({
 
     async function ProcessForm(values: CommissionSchemaType) {
         // Create Toast
-        setToastId(nemu_toast.loading('Uploading Files', { theme: resolvedTheme }))
+        const toast_id = nemu_toast.loading('Uploading Files', { theme: resolvedTheme })
+        setToastId(toast_id)
 
-        if (!toastId) {
+        if (!toast_id) {
             return
-        }
+        } 
 
         //////////////////////////////////////////
         // Update Commission
@@ -130,13 +131,14 @@ export default function CommissionCreateEditForm({
         // If edit_data is present then that means we are editing a commission
         if (edit_data) {
             // Handle deleing images
+            console.log('Edit Data Present')
 
             // Check if we have images to upload
             if (files.length === 0) {
                 const res = await uploadImages()
 
                 if (!res) {
-                    nemu_toast.update(toastId, {
+                    nemu_toast.update(toast_id, {
                         render: 'Uploading Images Failed!',
                         isLoading: false,
                         autoClose: 5000,
@@ -159,10 +161,9 @@ export default function CommissionCreateEditForm({
                     form_id: values.form_id,
                     max_commissions_until_waitlist: values.max_commissions_until_waitlist,
                     max_commissions_until_closed: values.max_commissions_until_closed
-                    // images
-                    // utKeys
                 }
             })
+
 
             return
         }
@@ -172,7 +173,7 @@ export default function CommissionCreateEditForm({
         //////////////////////////////////////////
         // Check if we have images to upload
         if (files.length === 0) {
-            nemu_toast.update(toastId, {
+            nemu_toast.update(toast_id, {
                 render: 'Images are required!',
                 isLoading: false,
                 autoClose: 5000,
@@ -186,12 +187,13 @@ export default function CommissionCreateEditForm({
         const res = await uploadImages()
 
         if (!res) {
-            nemu_toast.update(toastId, {
+            nemu_toast.update(toast_id, {
                 render: 'Uploading Images Failed!',
                 isLoading: false,
                 autoClose: 5000,
                 type: 'error'
             })
+            console.log('No Response')
 
             return
         }
@@ -206,7 +208,7 @@ export default function CommissionCreateEditForm({
         }
 
         // Update Toast
-        nemu_toast.update(toastId, {
+        nemu_toast.update(toast_id, {
             render: 'Creating Commission'
         })
 
@@ -230,7 +232,7 @@ export default function CommissionCreateEditForm({
     return (
         <Form {...form}>
             <form
-                className="flex flex-col gap-5 max-w-xl mx-auto"
+                className="mx-auto flex max-w-xl flex-col gap-5"
                 onSubmit={form.handleSubmit(ProcessForm)}
             >
                 <FormField
@@ -265,14 +267,14 @@ export default function CommissionCreateEditForm({
                         <FormItem className="form-control">
                             <FormLabel className="label">Price:</FormLabel>
                             <div className="join w-full">
-                                <div className="flex items-center justify-center px-5 bg-base-200 join-item">
-                                    <CircleDollarSignIcon className="w-6 h-6" />
+                                <div className="join-item flex items-center justify-center bg-base-200 px-5">
+                                    <CircleDollarSignIcon className="h-6 w-6" />
                                 </div>
                                 <Input
                                     placeholder="Starting Price"
                                     type="number"
                                     inputMode="numeric"
-                                    className="w-full join-item"
+                                    className="join-item w-full"
                                     {...field}
                                 />
                             </div>
@@ -287,7 +289,10 @@ export default function CommissionCreateEditForm({
                         render={({ field }) => (
                             <FormItem className="form-control">
                                 <FormLabel className="label">User Form:</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={edit_data?.form_id}>
+                                <Select
+                                    onValueChange={field.onChange}
+                                    defaultValue={edit_data?.form_id}
+                                >
                                     <SelectTrigger>
                                         <SelectValue placeholder="Select User Form" />
                                     </SelectTrigger>
@@ -311,7 +316,9 @@ export default function CommissionCreateEditForm({
                             <FormLabel className="label">Availability:</FormLabel>
                             <Select
                                 onValueChange={field.onChange}
-                                defaultValue={`${edit_data?.availability}`}
+                                defaultValue={
+                                    edit_data ? `${edit_data?.availability}` : undefined
+                                }
                             >
                                 <SelectTrigger>
                                     <SelectValue placeholder="Select Availability" />
@@ -378,16 +385,16 @@ export default function CommissionCreateEditForm({
                         created the commission form for users to fill out upon a request.
                     </i>
                 </p>
-                <div className="flex justify-between items-center">
+                <div className="flex items-center justify-between">
                     <Link
                         className="btn btn-outline btn-error"
                         href={'/dashboard/commissions'}
                     >
-                        <XCircleIcon className="w-6 h-6" />
+                        <XCircleIcon className="h-6 w-6" />
                         Cancel
                     </Link>
                     <Button type="submit" disabled={isUploading || mutation.isPending}>
-                        <CheckCircle2Icon className="w-6 h-6" />
+                        <CheckCircle2Icon className="h-6 w-6" />
                         {edit_data ? 'Update' : 'Create'}
                     </Button>
                 </div>

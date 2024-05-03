@@ -1,13 +1,8 @@
 import { Form } from '@prisma/client'
-import { TRPCError } from '@trpc/server'
-import { env } from 'process'
 import { z } from 'zod'
-import { RequestStatus } from '~/core/structures'
 
-import { update_commission_check_waitlist } from '~/lib/server-utils'
 import { artistProcedure, createTRPCRouter, protectedProcedure } from '~/server/api/trpc'
 import { AsRedisKey } from '~/server/cache'
-import { novu } from '~/server/novu'
 
 export const formRouter = createTRPCRouter({
     /**
@@ -25,9 +20,13 @@ export const formRouter = createTRPCRouter({
                 data: {
                     name: input.name,
                     description: input.description,
-                    artistId: ctx.session.user.artist_id!
+                    artistId: ctx.user.privateMetadata.artist_id as string
                 }
             })
+
+            await ctx.cache.del(
+                AsRedisKey('forms', ctx.user.privateMetadata.artist_id as string)
+            )
         }),
 
     /**

@@ -342,7 +342,7 @@ export const commissionRouter = createTRPCRouter({
         )
         .mutation(async ({ input, ctx }) => {
             // Make sure we have the artist id
-            if (!ctx.session.user.artist_id) {
+            if (!ctx.user.privateMetadata.artist_id) {
                 throw new TRPCError({
                     code: 'INTERNAL_SERVER_ERROR',
                     message: 'Artist does not exist!'
@@ -375,10 +375,18 @@ export const commissionRouter = createTRPCRouter({
 
                 // Delete Cache
                 await ctx.cache.del(
-                    AsRedisKey('commissions', ctx.session.user.artist_id, 'standard')
+                    AsRedisKey(
+                        'commissions',
+                        ctx.user.privateMetadata.artist_id as string,
+                        'standard'
+                    )
                 )
                 await ctx.cache.del(
-                    AsRedisKey('commissions', ctx.session.user.artist_id, 'dashboard')
+                    AsRedisKey(
+                        'commissions',
+                        ctx.user.privateMetadata.artist_id as string,
+                        'dashboard'
+                    )
                 )
 
                 return { success: true }
@@ -397,7 +405,7 @@ export const commissionRouter = createTRPCRouter({
             const slugExists = await ctx.db.commission.findFirst({
                 where: {
                     slug: slug,
-                    artistId: ctx.session.user.artist_id
+                    artistId: ctx.user.privateMetadata.artist_id
                 }
             })
 
@@ -408,7 +416,7 @@ export const commissionRouter = createTRPCRouter({
             // Create database object
             await ctx.db.commission.create({
                 data: {
-                    artistId: ctx.session.user.artist_id!,
+                    artistId: ctx.user.privateMetadata.artist_id as string,
                     title: input.data.title,
                     description: input.data.description,
                     price: input.data.price,
@@ -430,12 +438,12 @@ export const commissionRouter = createTRPCRouter({
             // Update Cache
             const commissions = await ctx.db.commission.findMany({
                 where: {
-                    artistId: ctx.session.user.artist_id
+                    artistId: ctx.user.privateMetadata.artist_id
                 }
             })
 
             await ctx.cache.set(
-                AsRedisKey('commissions', ctx.session.user.artist_id),
+                AsRedisKey('commissions', ctx.user.privateMetadata.artist_id as string),
                 JSON.stringify(commissions),
                 {
                     EX: 3600

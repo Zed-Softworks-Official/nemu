@@ -1,14 +1,14 @@
+import { currentUser } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
 
 import MessagesClient from '~/components/messages/messages'
-import { getServerAuthSession } from '~/server/auth'
 
 export default async function DashboardMessagesPage() {
-    const session = await getServerAuthSession()
+    const user = await currentUser()
 
-    if (!session) {
+    if (!user) {
         return redirect('/u/login')
     }
 
-    return <MessagesClient session={session} />
+    return <MessagesClient />
 }

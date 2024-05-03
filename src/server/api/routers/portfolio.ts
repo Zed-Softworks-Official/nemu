@@ -1,9 +1,12 @@
 import { TRPCError } from '@trpc/server'
 import { z } from 'zod'
+
 import { ClientPortfolioItem, NemuImageData } from '~/core/structures'
 import { get_blur_data } from '~/lib/server-utils'
+
 import { artistProcedure, createTRPCRouter, publicProcedure } from '~/server/api/trpc'
 import { AsRedisKey } from '~/server/cache'
+
 import { utapi } from '~/server/uploadthing'
 
 export const portfolioRouter = createTRPCRouter({
@@ -33,7 +36,7 @@ export const portfolioRouter = createTRPCRouter({
         )
         .mutation(async ({ input, ctx }) => {
             // Check if we actually have the artist id
-            if (!ctx.session.user.artist_id) {
+            if (!ctx.user.privateMetadata.artist_id) {
                 throw new TRPCError({
                     code: 'INTERNAL_SERVER_ERROR'
                 })
@@ -56,7 +59,7 @@ export const portfolioRouter = createTRPCRouter({
             // Create the portfolio item
             await ctx.db.portfolio.create({
                 data: {
-                    artistId: ctx.session.user.artist_id,
+                    artistId: ctx.user.privateMetadata.artist_id as string,
                     name: input.data.name,
                     image: input.data.image,
                     utKey: input.data.utKey
@@ -66,7 +69,7 @@ export const portfolioRouter = createTRPCRouter({
             // Update Cache
             const portfolioItems = await ctx.db.portfolio.findMany({
                 where: {
-                    artistId: ctx.session.user.artist_id
+                    artistId: ctx.user.privateMetadata.artist_id as string
                 }
             })
 
@@ -84,7 +87,7 @@ export const portfolioRouter = createTRPCRouter({
             }
 
             await ctx.cache.set(
-                AsRedisKey('portfolio_items', ctx.session.user.artist_id),
+                AsRedisKey('portfolio_items', ctx.user.privateMetadata.artist_id as string),
                 JSON.stringify(result),
                 {
                     EX: 3600

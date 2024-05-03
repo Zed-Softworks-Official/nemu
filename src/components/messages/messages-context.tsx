@@ -1,6 +1,5 @@
 'use client'
 
-import { Session } from 'next-auth'
 import {
     createContext,
     Dispatch,
@@ -15,12 +14,13 @@ import { Member } from '@sendbird/chat/groupChannel'
 import { SendbirdMetadata } from '~/sendbird/sendbird-structures'
 import { Kanban } from '@prisma/client'
 import { api } from '~/trpc/react'
+import { useUser } from '@clerk/nextjs'
 
 type MessagesContextType = {
     currentChannel?: string
     setCurrentChannel: Dispatch<SetStateAction<string | undefined>>
 
-    session: Session
+    session: ReturnType<typeof useUser>
     kanbanData: Kanban | undefined
     setKanbanData: Dispatch<SetStateAction<Kanban | undefined>>
 
@@ -48,7 +48,7 @@ export function MessagesProvider({
     children
 }: {
     channel_url?: string
-    session: Session
+    session: ReturnType<typeof useUser>
     children: React.ReactNode
 }) {
     const [currentChannel, setCurrentChannel] = useState<string | undefined>(channel_url)
@@ -59,7 +59,7 @@ export function MessagesProvider({
     const [kanbanData, setKanbanData] = useState<Kanban | undefined>(undefined)
     const [otherUser, setOtherUser] = useState<Member | undefined>(undefined)
     const [inputPlaceholder, setInputPlaceholder] = useState<string>(
-        `Message ${session.user.name}`
+        `Message`
     )
     const [metadata, setMetadata] = useState<SendbirdMetadata | undefined>(undefined)
 
@@ -72,7 +72,6 @@ export function MessagesProvider({
     })
 
     useEffect(() => {
-        if (!session.user.artist_id) return
         if (!currentChannel) return
 
         kanban.mutate(currentChannel)

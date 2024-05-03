@@ -165,7 +165,7 @@ export default function PortfolioCreateEditForm({
                                 onClick={() => {
                                     delete_mutation.mutate({
                                         id: data.id,
-                                        utKey: data.utKey
+                                        utKey: data.utKey!
                                     })
                                 }}
                             >
