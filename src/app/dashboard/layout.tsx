@@ -95,9 +95,9 @@ export default async function Layout({ children }: { children: React.ReactNode }
                         href={managment_url.url}
                     />
                     <SidebarLink
-                        title="Billing"
+                        title="Supporter"
                         icon={<BadgeDollarSign className="h-6 w-6" />}
-                        href={portal_url ? portal_url : '#'}
+                        href={portal_url ? portal_url : '/artists/supporter'}
                     />
                     <div className="divider"></div>
                     <SidebarLink
