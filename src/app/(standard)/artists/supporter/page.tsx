@@ -69,7 +69,7 @@ export default async function GetSupporterPage() {
                                                 </span>
                                             </p>
                                             <Link
-                                                href={'/api/supporter'}
+                                                href={'/api/supporter/monthly'}
                                                 className="btn btn-primary btn-wide mt-10 text-white"
                                             >
                                                 Become a supporter
@@ -89,7 +89,7 @@ export default async function GetSupporterPage() {
                                                 </span>
                                             </p>
                                             <Link
-                                                href={'/api/supporter'}
+                                                href={'/api/supporter/annual'}
                                                 className="btn btn-primary btn-wide mt-10 text-white"
                                             >
                                                 Become a supporter

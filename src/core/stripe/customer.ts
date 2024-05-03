@@ -26,9 +26,9 @@ export async function StripeCreateCustomer(
 /**
  * Creates a new customer in Stripe for Zed Softworks
  *
- * @param name
- * @param email
- * @returns
+ * @param {string} name - The name of the new customer
+ * @param {email} email - The email of the customer if available
+ * @returns A Stripe customer object
  */
 export async function StripeCreateCustomerZed(name: string, email?: string) {
     return await stripe.customers.create({

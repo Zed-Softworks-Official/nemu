@@ -10,7 +10,7 @@ import { env } from '~/env'
  */
 export async function StripeCreateSupporterCheckout(
     artist_id: string,
-    term: 'monthly' | 'yearly',
+    term: 'monthly' | 'annual',
     customer: string
 ) {
     return await stripe.checkout.sessions.create({
@@ -27,8 +27,8 @@ export async function StripeCreateSupporterCheckout(
         customer,
 
         ui_mode: 'hosted',
-        success_url: env.NEXTAUTH_URL,
-        cancel_url: env.NEXTAUTH_URL,
+        success_url: env.BASE_URL + '/artists/supporter/success',
+        cancel_url: env.BASE_URL + '/artists/supporter',
         metadata: {
             artist_id,
             purchase_type: PurchaseType.Supporter
