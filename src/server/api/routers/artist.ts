@@ -50,20 +50,22 @@ export const artistRouter = createTRPCRouter({
                 return null
             }
 
+            const result = {
+                ...artist,
+                user: await clerkClient.users.getUser(artist.userId)
+            }
+
             await ctx.cache.set(
                 AsRedisKey(
                     'artists',
                     input ? input.handle : (ctx.user?.publicMetadata.handle as string)
                 ),
-                JSON.stringify(artist),
+                JSON.stringify(result),
                 {
                     EX: 3600
                 }
             )
 
-            return {
-                ...artist,
-                user: await clerkClient.users.getUser(artist.userId)
-            }
+            return result
         })
 })
