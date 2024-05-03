@@ -27,7 +27,7 @@ export async function POST(req: Request) {
     const body = JSON.stringify(payload)
 
     // Create a new svix instance with your secret
-    const wh = new Webhook(env.WEBHOOK_SECRET)
+    const wh = new Webhook(env.CLERK_WEBHOOK_SECRET)
 
     let event: WebhookEvent
 
@@ -55,9 +55,24 @@ export async function POST(req: Request) {
                     has_sendbird_account: false
                 }
 
-                clerkClient.users.updateUserMetadata(event.data.id, {
+                await clerkClient.users.updateUserMetadata(event.data.id, {
                     publicMetadata
                 })
+
+                // Add a username to the user if it doesn't exist
+                if (!event.data.username && event.data.first_name) {
+                    await clerkClient.users.updateUser(event.data.id, {
+                        username: event.data.first_name
+                    })
+                }
+
+                if (!event.data.username && event.data.email_addresses.length > 0) {
+                    const email = event.data.email_addresses[0]?.email_address
+
+                    await clerkClient.users.updateUser(event.data.id, {
+                        username: email?.substring(0, email.indexOf('@'))
+                    })
+                }
 
                 // Create a new user in the database
                 await db.user.create({

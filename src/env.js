@@ -1,4 +1,5 @@
 import { createEnv } from '@t3-oss/env-nextjs'
+import { CL } from 'country-region-data'
 import { z } from 'zod'
 
 export const env = createEnv({
@@ -12,8 +13,9 @@ export const env = createEnv({
         REDIS_HOST: z.string(),
         REDIS_PORT: z.number(),
         REDIS_PASSWORD: z.string(),
+        CLERK_WEBHOOK_SECRET: z.string(),
+        CLERK_SECRET_KEY: z.string(),
         NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-        WEBHOOK_SECRET: z.string(),
         NOVU_API_KEY: z.string(),
         STRIPE_API_KEY: z.string(),
         STRIPE_WEHBOOK_SECRET: z.string(),
@@ -33,6 +35,7 @@ export const env = createEnv({
      */
     client: {
         // NEXT_PUBLIC_CLIENTVAR: z.string(),
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: z.string(),
     },
 
     /**
@@ -45,8 +48,9 @@ export const env = createEnv({
         REDIS_HOST: process.env.REDIS_HOST,
         REDIS_PORT: Number(process.env.REDIS_PORT),
         REDIS_PASSWORD: process.env.REDIS_PASSWORD,
+        CLERK_WEBHOOK_SECRET: process.env.CLERK_WEBHOOK_SECRET,
+        CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY,
         NODE_ENV: process.env.NODE_ENV,
-        WEBHOOK_SECRET: process.env.WEBHOOK_SECRET,
         NOVU_API_KEY: process.env.NOVU_API_KEY,
         STRIPE_API_KEY: process.env.STRIPE_API_KEY,
         STRIPE_WEHBOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
@@ -56,7 +60,9 @@ export const env = createEnv({
         SENDBIRD_API_TOKEN: process.env.SENDBIRD_API_TOKEN,
         UPLOADTHING_APP_ID: process.env.UPLOADTHING_APP_ID,
         UPLOADTHING_SECRET: process.env.UPLOADTHING_SECRET,
-        SENTRY_AUTH_TOKEN: process.env.SENTRY_AUTH_TOKEN
+        SENTRY_AUTH_TOKEN: process.env.SENTRY_AUTH_TOKEN,
+        
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
     },
     /**
      * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

@@ -25,5 +25,16 @@ export const userRouter = createTRPCRouter({
         })
 
         return { success: true }
+    }),
+
+    /**
+     * Add username to user
+     */
+    add_username: protectedProcedure.mutation(async ({ ctx }) => {
+        await clerkClient.users.updateUser(ctx.auth.userId, {
+            username: ctx.user.firstName!
+        })
+
+        return { success: true }
     })
 })
