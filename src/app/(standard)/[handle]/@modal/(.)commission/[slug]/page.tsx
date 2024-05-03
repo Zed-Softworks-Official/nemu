@@ -1,6 +1,6 @@
+import { currentUser } from '@clerk/nextjs/server'
 import CommissionDisplay from '~/components/displays/commission-display'
 import ParallelModal from '~/components/ui/parallel-modal'
-import { getServerAuthSession } from '~/server/auth'
 
 import { api } from '~/trpc/server'
 
@@ -9,8 +9,6 @@ export default async function CommissionsPage({
 }: {
     params: { handle: string; slug: string }
 }) {
-    const session = await getServerAuthSession()
-
     const handle = params.handle.substring(3, params.handle.length + 1)
     const commission = await api.commission.get_commission({
         handle: handle,
@@ -22,7 +20,7 @@ export default async function CommissionsPage({
 
     return (
         <ParallelModal>
-            <CommissionDisplay commission={commission} session={session} />
+            <CommissionDisplay commission={commission} />
         </ParallelModal>
     )
 }

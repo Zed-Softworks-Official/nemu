@@ -21,22 +21,21 @@ import { ClipboardListIcon, ShoppingCartIcon } from 'lucide-react'
 import Price from '~/components/ui/price'
 import { Checkbox } from '~/components/ui/checkbox'
 import { useState } from 'react'
-import { Session } from 'next-auth'
 import { notFound, useRouter } from 'next/navigation'
 
 import RequestSubmitForm from '~/components/form-builder/requests/request-form'
+import { useUser } from '@clerk/nextjs'
 
 export default function CommissionDisplay({
-    commission,
-    session
+    commission
 }: {
     commission: RouterOutput['commission']['get_commission']
-    session: Session | null
 }) {
     const [showForm, setShowForm] = useState(false)
     const [acceptedTerms, setAcceptedTerms] = useState(false)
 
     const { push } = useRouter()
+    const { user, isLoaded } = useUser()
 
     // If we can't find the form then wtf
     if (!commission) {
@@ -45,10 +44,14 @@ export default function CommissionDisplay({
 
     const [variant, text] = get_availability_badge_data(commission?.availability!)
 
+    if (!isLoaded) {
+        return null
+    }
+
     return (
-        <div className="grid md:grid-cols-3 grid-cols-1 gap-5 scrollbar-none">
+        <div className="scrollbar-none grid grid-cols-1 gap-5 md:grid-cols-3">
             <ImageViewer images={commission?.images as NemuImageData[]} />
-            <div className="card bg-base-100 shadow-xl col-span-2">
+            <div className="card col-span-2 bg-base-100 shadow-xl">
                 {showForm ? (
                     <RequestSubmitForm
                         setShowForm={setShowForm}
@@ -59,22 +62,24 @@ export default function CommissionDisplay({
                     <div className="card-body">
                         <div className="flex flex-row justify-between">
                             <div>
-                                <h2 className="text-2xl font-bold flex items-center gap-2">
+                                <h2 className="flex items-center gap-2 text-2xl font-bold">
                                     {commission?.title}
-                                    <Badge variant={variant} className='badge-lg'>{text}</Badge>
+                                    <Badge variant={variant} className="badge-lg">
+                                        {text}
+                                    </Badge>
                                 </h2>
-                                <p className="text-base-content/60 mb-4">
+                                <p className="mb-4 text-base-content/60">
                                     By{' '}
                                     <Link
                                         href={`/@${commission?.artist?.handle}`}
-                                        className="link link-hover"
+                                        className="link-hover link"
                                     >
                                         @{commission?.artist?.handle}
                                     </Link>
                                 </p>
                                 <div className="flex items-center gap-2">
                                     <RatingView rating={commission?.rating!} />
-                                    <span className="text-base-content/60 text-sm">
+                                    <span className="text-sm text-base-content/60">
                                         ({commission.rating.toPrecision(2)})
                                     </span>
                                 </div>
@@ -107,13 +112,13 @@ export default function CommissionDisplay({
                             </label>
                         </div>
                         <div className="divider"></div>
-                        <div className="flex flex-col items-end gap-5 w-full">
-                            <div className="flex justify-between w-full">
+                        <div className="flex w-full flex-col items-end gap-5">
+                            <div className="flex w-full justify-between">
                                 <Price value={commission.price} />
                                 <Button
                                     className="btn-wide"
                                     onClick={() => {
-                                        if (!session) {
+                                        if (!user || !isLoaded) {
                                             return push('/u/login')
                                         }
 
@@ -121,7 +126,7 @@ export default function CommissionDisplay({
                                     }}
                                     disabled={!acceptedTerms}
                                 >
-                                    <ClipboardListIcon className="w-6 h-6" />
+                                    <ClipboardListIcon className="h-6 w-6" />
                                     Commission
                                 </Button>
                             </div>
