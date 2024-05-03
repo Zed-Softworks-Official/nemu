@@ -7,9 +7,18 @@ import { Trash2Icon } from 'lucide-react'
 import NemuImage from '~/components/nemu-image'
 import { Button } from '~/components/ui/button'
 
-export default function NemuPreviewItem({ preview, i }: { preview: string; i: number }) {
+export default function NemuPreviewItem({
+    preview,
+    i
+}: {
+    preview: string | null
+    i: number
+}) {
     const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
-        id: `nemu-upload-preview-${i}`
+        id: `nemu-upload-preview-${i}`,
+        data: {
+            preview
+        }
     })
 
     const style = {
@@ -17,9 +26,13 @@ export default function NemuPreviewItem({ preview, i }: { preview: string; i: nu
         transform: CSS.Transform.toString(transform)
     }
 
+    if (!preview) {
+        return null
+    }
+
     return (
         <div
-            className="w-32 cursor-grab hover:scale-110 transition-all duration-200 ease-in-out relative"
+            className="relative w-32 cursor-grab transition-all duration-200 ease-in-out hover:scale-110"
             ref={setNodeRef}
             style={style}
             {...listeners}
@@ -28,19 +41,19 @@ export default function NemuPreviewItem({ preview, i }: { preview: string; i: nu
             <NemuImage
                 src={preview}
                 alt="Image Preview"
-                className="w-full h-fit rounded-xl"
+                className="h-fit w-full rounded-xl"
                 width={200}
                 height={200}
             />
-            <div className="absolute bg-black/80 w-full h-full hidden hover:block">
-                <div className="flex flex-col justify-center items-center w-full h-full">
+            <div className="absolute hidden h-full w-full bg-black/80 hover:block">
+                <div className="flex h-full w-full flex-col items-center justify-center">
                     <Button
                         variant={'destructive'}
                         onClick={() => {
                             console.log('Delete image')
                         }}
                     >
-                        <Trash2Icon className="w-6 h-6" />
+                        <Trash2Icon className="h-6 w-6" />
                     </Button>
                 </div>
             </div>
