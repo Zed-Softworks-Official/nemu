@@ -4,7 +4,7 @@ import { TRPCError } from '@trpc/server'
 import { ClientCommissionItem, NemuImageData } from '~/core/structures'
 import { artistProcedure, createTRPCRouter, publicProcedure } from '~/server/api/trpc'
 import { AsRedisKey } from '~/server/cache'
-import { get_blur_data } from '~/lib/server-utils'
+import { convert_images_to_nemu_images, get_blur_data } from '~/lib/server-utils'
 import { format_to_currency } from '~/lib/utils'
 
 const request_data = z.object({
@@ -179,6 +179,59 @@ export const commissionRouter = createTRPCRouter({
         }),
 
     /**
+     * Gets a single commission given a commission id to be used for editing the commission in the dashboard
+     */
+    get_commission_edit: artistProcedure
+        .input(z.object({ slug: z.string() }))
+        .query(async ({ input, ctx }) => {
+            // Get the artist from the db
+            const artist = await ctx.db.artist.findFirst({
+                where: {
+                    userId: ctx.user.privateMetadata.artist_id as string
+                }
+            })
+
+            // Get the commission from the db
+            const commission = await ctx.db.commission.findFirst({
+                where: {
+                    slug: input.slug
+                },
+                include: {
+                    artist: true
+                }
+            })
+
+            if (!commission) {
+                return undefined
+            }
+
+            // Format for client
+            return {
+                title: commission.title,
+                description: commission.description,
+                price: format_to_currency(commission.price),
+                availability: commission.availability,
+                rating: commission.rating,
+                images: await convert_images_to_nemu_images(commission?.images),
+                slug: commission.slug,
+                published: commission.published,
+
+                max_commissions_until_waitlist: commission.maxCommissionsUntilWaitlist,
+                max_commissions_until_closed: commission.maxCommissionsUntilClosed,
+                raw_price: commission.price,
+
+                id: commission.id,
+                form_id: commission.formId,
+
+                artist: {
+                    handle: commission.artist.handle,
+                    supporter: commission.artist.supporter,
+                    terms: commission.artist.terms
+                }
+            } satisfies ClientCommissionItem
+        }),
+
+    /**
      * Gets a single commission given a commission slug
      */
     get_commission: publicProcedure
@@ -190,8 +243,7 @@ export const commissionRouter = createTRPCRouter({
                     .object({
                         artist: z.boolean().optional(),
                         form: z.boolean().optional(),
-                        reviews: z.boolean().optional(),
-                        edit_data: z.boolean().optional()
+                        reviews: z.boolean().optional()
                     })
                     .optional()
             })
@@ -243,14 +295,7 @@ export const commissionRouter = createTRPCRouter({
             }
 
             // Format for client
-            const images: NemuImageData[] = []
-
-            for (const image of commission?.images) {
-                images.push({
-                    url: image,
-                    blur_data: (await get_blur_data(image)).base64
-                })
-            }
+            const images = await convert_images_to_nemu_images(commission?.images)
 
             const result: ClientCommissionItem = {
                 title: commission.title,
@@ -261,14 +306,6 @@ export const commissionRouter = createTRPCRouter({
                 images: images,
                 slug: commission.slug,
                 published: commission.published,
-
-                max_commissions_until_waitlist: input.req_data?.edit_data
-                    ? commission.maxCommissionsUntilWaitlist
-                    : undefined,
-                max_commissions_until_closed: input.req_data?.edit_data
-                    ? commission.maxCommissionsUntilClosed
-                    : undefined,
-                raw_price: input.req_data?.edit_data ? commission.price : undefined,
 
                 id: commission.id,
                 form_id: commission.formId,

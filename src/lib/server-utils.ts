@@ -1,6 +1,6 @@
 import { Commission } from '@prisma/client'
 import { getPlaiceholder } from 'plaiceholder'
-import { CommissionAvailability } from '~/core/structures'
+import { CommissionAvailability, NemuImageData } from '~/core/structures'
 import { db } from '~/server/db'
 
 /**
@@ -69,4 +69,24 @@ export async function update_commission_check_waitlist(commission: Commission) {
 
     // Return whether or not the request has been waitlisted
     return availability === CommissionAvailability.Waitlist
+}
+
+/**
+ * Converts a list of images to a list of NemuImageData
+ * 
+ * @param {string[]} images - The images to convert
+ * @returns {NemuImageData[]} - The converted images
+ */
+export async function convert_images_to_nemu_images(images: string[]) {
+    // Format for client
+    const result: NemuImageData[] = []
+
+    for (const image of images) {
+        result.push({
+            url: image,
+            blur_data: (await get_blur_data(image)).base64
+        })
+    }
+
+    return result
 }

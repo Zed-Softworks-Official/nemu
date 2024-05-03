@@ -1,5 +1,4 @@
 import { createEnv } from '@t3-oss/env-nextjs'
-import { CL } from 'country-region-data'
 import { z } from 'zod'
 
 export const env = createEnv({

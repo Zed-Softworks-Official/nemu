@@ -130,39 +130,38 @@ export default function CommissionCreateEditForm({
         //////////////////////////////////////////
         // If edit_data is present then that means we are editing a commission
         if (edit_data) {
-            // Handle deleing images
-            console.log('Edit Data Present')
-
+            
+            
             // Check if we have images to upload
-            if (files.length === 0) {
-                const res = await uploadImages()
+            // if (files.length === 0) {
+            //     const res = await uploadImages()
 
-                if (!res) {
-                    nemu_toast.update(toast_id, {
-                        render: 'Uploading Images Failed!',
-                        isLoading: false,
-                        autoClose: 5000,
-                        type: 'error'
-                    })
+            //     if (!res) {
+            //         nemu_toast.update(toast_id, {
+            //             render: 'Uploading Images Failed!',
+            //             isLoading: false,
+            //             autoClose: 5000,
+            //             type: 'error'
+            //         })
 
-                    return
-                }
-            }
+            //         return
+            //     }
+            // }
 
-            // Update the commission item
-            mutation.mutate({
-                type: 'update',
-                commission_id: edit_data.id!,
-                data: {
-                    title: values.title,
-                    description: values.description,
-                    price: values.price,
-                    availability: values.commission_availability,
-                    form_id: values.form_id,
-                    max_commissions_until_waitlist: values.max_commissions_until_waitlist,
-                    max_commissions_until_closed: values.max_commissions_until_closed
-                }
-            })
+            // // Update the commission item
+            // mutation.mutate({
+            //     type: 'update',
+            //     commission_id: edit_data.id!,
+            //     data: {
+            //         title: values.title,
+            //         description: values.description,
+            //         price: values.price,
+            //         availability: values.commission_availability,
+            //         form_id: values.form_id,
+            //         max_commissions_until_waitlist: values.max_commissions_until_waitlist,
+            //         max_commissions_until_closed: values.max_commissions_until_closed
+            //     }
+            // })
 
 
             return

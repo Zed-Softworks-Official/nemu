@@ -21,13 +21,7 @@ type UploadThingContextType = {
     filePreviews: string[]
     setFilePreviews: Dispatch<SetStateAction<string[]>>
 
-    uploadImages: () => Promise<
-        | ClientUploadedFileData<void | {
-              uploadedBy: string
-              url: string
-          }>[]
-        | undefined
-    >
+    uploadImages: () => Promise<ClientUploadedFileData<null>[] | undefined>
 
     uploadProgress: number
     setUploadProgress: Dispatch<SetStateAction<number>>
