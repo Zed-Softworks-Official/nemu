@@ -11,7 +11,8 @@ import {
     pgEnum,
     json,
     customType,
-    integer
+    integer,
+    text
 } from 'drizzle-orm/pg-core'
 
 import {
@@ -33,7 +34,7 @@ export const cuidType = customType<{ data: string; default: true; notNull: true 
     toDriver: (value) => value
 })
 
-export const cuid = (name: string) => cuidType(name).default(createId())
+export const cuid = (name: string) => cuidType(name)
 
 /**
  * Custom Social Type for the social accounts
@@ -212,7 +213,7 @@ export const artists = createTable('artist', {
     automated_message_enabled: boolean('automated_message_enabled').default(false),
     automated_message: varchar('automated_message'),
 
-    socials: SocialAccountType('socials').array()
+    socials: SocialAccountType('socials').array().default([]).notNull()
 })
 
 /**
@@ -323,13 +324,13 @@ export const products = createTable('product', {
 export const commissions = createTable('commission', {
     id: cuid('id').primaryKey(),
     artist_id: varchar('artist_id').notNull(),
-    price: decimal('price', { precision: 2, scale: 2 }).notNull(),
+    price: decimal('price', { precision: 4, scale: 2 }).notNull(),
     rating: decimal('rating', { precision: 2, scale: 1 }).notNull(),
 
-    form_id: varchar('form_id'),
+    form_id: varchar('form_id').notNull(),
 
     title: varchar('title').notNull(),
-    description: varchar('description').notNull(),
+    description: text('description').notNull(),
     images: varchar('images').array().notNull(),
     ut_keys: varchar('ut_keys').array().notNull(),
     availability: CommissionAvailabilityEnum('availability').notNull(),
@@ -340,8 +341,12 @@ export const commissions = createTable('commission', {
         .default(sql`CURRENT_TIMESTAMP`)
         .notNull(),
 
-    max_commissions_until_waitlist: integer('max_commissions_until_waitlist'),
-    max_commissions_until_closed: integer('max_commissions_until_closed'),
+    max_commissions_until_waitlist: integer('max_commissions_until_waitlist')
+        .default(0)
+        .notNull(),
+    max_commissions_until_closed: integer('max_commissions_until_closed')
+        .default(0)
+        .notNull(),
 
     total_requests: integer('total_requests').default(0).notNull(),
     new_requests: integer('new_requests').default(0).notNull(),
@@ -349,7 +354,7 @@ export const commissions = createTable('commission', {
     rejected_requests: integer('rejected_requests').default(0).notNull(),
 
     rush_orders_allowed: boolean('rush_orders_allowed').default(false),
-    rush_charge: decimal('rush_charge', { precision: 2, scale: 2 }).default('0.00'),
+    rush_charge: decimal('rush_charge', { precision: 3, scale: 2 }).default('0.00'),
     rush_percentage: boolean('rush_percentage').default(false)
 })
 
@@ -410,7 +415,7 @@ export const forms = createTable('form', {
     created_at: timestamp('created_at')
         .default(sql`CURRENT_TIMESTAMP`)
         .notNull(),
-    content: json('content')
+    content: json('content').default('[]')
 })
 
 /**

@@ -30,6 +30,7 @@ export type SocialAccount = {
  * Client Artist Data
  */
 export type ClientArtist = {
+    id: string
     handle: string
     header_photo: string
     about: string

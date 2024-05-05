@@ -1,13 +1,19 @@
 import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
 
-import { ClientCommissionItem, NemuImageData } from '~/core/structures'
+import {
+    ClientCommissionItem,
+    CommissionAvailability,
+    NemuImageData
+} from '~/core/structures'
 import { artistProcedure, createTRPCRouter, publicProcedure } from '~/server/api/trpc'
 import { AsRedisKey } from '~/server/cache'
 import { convert_images_to_nemu_images, get_blur_data } from '~/lib/server-utils'
 import { format_to_currency } from '~/lib/utils'
-import { commissions } from '~/server/db/schema'
-import { eq } from 'drizzle-orm'
+import { artists, commissions } from '~/server/db/schema'
+
+import { and, eq } from 'drizzle-orm'
+import { createId } from '@paralleldrive/cuid2'
 
 const request_data = z.object({
     artist: z.boolean().optional(),
@@ -102,7 +108,7 @@ export const commissionRouter = createTRPCRouter({
         }),
 
     /**
-     * Gets a single commission given a commission slug
+     * Gets a single commission given a commission id
      */
     get_commission_dashboard: publicProcedure
         .input(
@@ -123,14 +129,12 @@ export const commissionRouter = createTRPCRouter({
             }
 
             // Get commission from db
-            const commission = await ctx.db.commission.findFirst({
-                where: {
-                    id: input.id
-                },
-                include: {
-                    artist: input.req_data?.artist,
-                    form: input.req_data?.form,
-                    reviews: input.req_data?.reviews
+            const commission = await ctx.db.query.commissions.findFirst({
+                where: eq(commissions.id, input.id),
+                with: {
+                    artist: input.req_data?.artist || undefined,
+                    form: input.req_data?.form || undefined,
+                    reviews: input.req_data?.reviews || undefined
                 }
             })
 
@@ -151,14 +155,14 @@ export const commissionRouter = createTRPCRouter({
             const result: ClientCommissionItem = {
                 title: commission.title,
                 description: commission.description,
-                price: format_to_currency(commission.price),
+                price: format_to_currency(Number(commission.price)),
                 availability: commission.availability,
-                rating: commission.rating,
+                rating: Number(commission.rating),
                 images: images,
                 slug: commission.slug,
                 published: commission.published,
-                total_requests: commission.totalRequests,
-                new_requests: commission.newRequests,
+                total_requests: commission.total_requests,
+                new_requests: commission.new_requests,
 
                 artist: {
                     handle: commission.artist.handle,
@@ -185,18 +189,14 @@ export const commissionRouter = createTRPCRouter({
         .input(z.object({ slug: z.string() }))
         .query(async ({ input, ctx }) => {
             // Get the artist from the db
-            const artist = await ctx.db.artist.findFirst({
-                where: {
-                    userId: ctx.user.privateMetadata.artist_id as string
-                }
+            const artist = await ctx.db.query.artists.findFirst({
+                where: eq(artists.user_id, ctx.user.privateMetadata.artist_id as string)
             })
 
             // Get the commission from the db
-            const commission = await ctx.db.commission.findFirst({
-                where: {
-                    slug: input.slug
-                },
-                include: {
+            const commission = await ctx.db.query.commissions.findFirst({
+                where: eq(commissions.slug, input.slug),
+                with: {
                     artist: true
                 }
             })
@@ -209,19 +209,19 @@ export const commissionRouter = createTRPCRouter({
             return {
                 title: commission.title,
                 description: commission.description,
-                price: format_to_currency(commission.price),
+                price: format_to_currency(Number(commission.price)),
                 availability: commission.availability,
-                rating: commission.rating,
+                rating: Number(commission.rating),
                 images: await convert_images_to_nemu_images(commission?.images),
                 slug: commission.slug,
                 published: commission.published,
 
-                max_commissions_until_waitlist: commission.maxCommissionsUntilWaitlist,
-                max_commissions_until_closed: commission.maxCommissionsUntilClosed,
-                raw_price: commission.price,
+                max_commissions_until_waitlist: commission.max_commissions_until_waitlist,
+                max_commissions_until_closed: commission.max_commissions_until_closed,
+                raw_price: Number(commission.price),
 
                 id: commission.id,
-                form_id: commission.formId,
+                form_id: commission.form_id,
 
                 artist: {
                     handle: commission.artist.handle,
@@ -259,10 +259,8 @@ export const commissionRouter = createTRPCRouter({
                 return JSON.parse(cachedCommission) as ClientCommissionItem
             }
 
-            const artist = await ctx.db.artist.findFirst({
-                where: {
-                    handle: input.handle
-                }
+            const artist = await ctx.db.query.artists.findFirst({
+                where: eq(artists.handle, input.handle)
             })
 
             if (!artist) {
@@ -272,17 +270,17 @@ export const commissionRouter = createTRPCRouter({
             }
 
             // Get commission from db
-            const commission = await ctx.db.commission.findFirst({
-                where: {
-                    slug: input.slug,
-                    artistId: artist.id
-                },
-                include: {
-                    artist: input.req_data?.artist,
-                    form: input.req_data?.form,
+            const commission = await ctx.db.query.commissions.findFirst({
+                where: and(
+                    eq(commissions.slug, input.slug),
+                    eq(commissions.artist_id, artist.id)
+                ),
+                with: {
+                    artist: input.req_data?.artist || undefined,
+                    form: input.req_data?.form || undefined,
                     reviews: input.req_data?.reviews
                         ? {
-                              include: {
+                              with: {
                                   user: true
                               }
                           }
@@ -300,15 +298,15 @@ export const commissionRouter = createTRPCRouter({
             const result: ClientCommissionItem = {
                 title: commission.title,
                 description: commission.description,
-                price: format_to_currency(commission.price),
+                price: format_to_currency(Number(commission.price)),
                 availability: commission.availability,
-                rating: commission.rating,
+                rating: Number(commission.rating),
                 images: images,
                 slug: commission.slug,
                 published: commission.published,
 
                 id: commission.id,
-                form_id: commission.formId,
+                form_id: commission.form_id,
 
                 artist: input.req_data?.artist
                     ? {
@@ -342,7 +340,7 @@ export const commissionRouter = createTRPCRouter({
                         title: z.string(),
                         description: z.string(),
                         price: z.number(),
-                        availability: z.number(),
+                        availability: z.string(),
                         images: z.array(z.string()),
                         utKeys: z.array(z.string()),
                         // rush_orders_allowed: z.boolean(),
@@ -361,7 +359,7 @@ export const commissionRouter = createTRPCRouter({
                         data: z.object({
                             title: z.string().optional(),
                             description: z.string().optional(),
-                            availability: z.number().optional(),
+                            availability: z.string().optional(),
                             images: z.array(z.string()).optional(),
                             utKeys: z.array(z.string()).optional(),
                             // rush_orders_allowed: z.boolean().optional(),
@@ -389,25 +387,23 @@ export const commissionRouter = createTRPCRouter({
             // Update Commission
             ////////////////////////////
             if (input.type === 'update') {
-                await ctx.db.commission.update({
-                    where: {
-                        id: input.commission_id
-                    },
-                    data: {
+                await ctx.db
+                    .update(commissions)
+                    .set({
                         title: input.data.title,
                         description: input.data.description,
-                        price: input.data.price,
+                        price: input.data.price?.toString(2),
                         images: input.data.images,
-                        utKeys: input.data.utKeys,
-                        availability: input.data.availability,
-                        maxCommissionsUntilWaitlist:
+                        ut_keys: input.data.utKeys,
+                        availability: input.data.availability as CommissionAvailability,
+                        max_commissions_until_waitlist:
                             input.data.max_commissions_until_waitlist,
-                        maxCommissionsUntilClosed:
+                        max_commissions_until_closed:
                             input.data.max_commissions_until_closed,
                         published: input.data.published,
-                        formId: input.data.form_id
-                    }
-                })
+                        form_id: input.data.form_id
+                    })
+                    .where(eq(commissions.id, input.commission_id))
 
                 // Delete Cache
                 await ctx.cache.del(
@@ -438,11 +434,14 @@ export const commissionRouter = createTRPCRouter({
                 .replaceAll(' ', '-')
 
             // Check if it already exists for the artist
-            const slugExists = await ctx.db.commission.findFirst({
-                where: {
-                    slug: slug,
-                    artistId: ctx.user.privateMetadata.artist_id
-                }
+            const slugExists = await ctx.db.query.commissions.findFirst({
+                where: and(
+                    eq(
+                        commissions.artist_id,
+                        ctx.user.privateMetadata.artist_id as string
+                    ),
+                    eq(commissions.slug, slug)
+                )
             })
 
             if (slugExists) {
@@ -450,37 +449,37 @@ export const commissionRouter = createTRPCRouter({
             }
 
             // Create database object
-            await ctx.db.commission.create({
-                data: {
-                    artistId: ctx.user.privateMetadata.artist_id as string,
-                    title: input.data.title,
-                    description: input.data.description,
-                    price: input.data.price,
-                    images: input.data.images,
-                    utKeys: input.data.utKeys,
-                    availability: input.data.availability,
-                    slug: slug,
-                    maxCommissionsUntilWaitlist:
-                        input.data.max_commissions_until_waitlist,
-                    maxCommissionsUntilClosed: input.data.max_commissions_until_closed,
-                    published: input.data.published,
-                    formId: input.data.form_id,
-                    rushCharge: 0,
-                    rushOrdersAllowed: false,
-                    rushPercentage: false
-                }
+            await ctx.db.insert(commissions).values({
+                id: createId(),
+                artist_id: ctx.user.privateMetadata.artist_id as string,
+                title: input.data.title,
+                description: input.data.description,
+                price: input.data.price?.toPrecision(4),
+                images: input.data.images,
+                ut_keys: input.data.utKeys,
+                availability: input.data.availability as CommissionAvailability,
+                slug: slug,
+                max_commissions_until_waitlist: input.data.max_commissions_until_waitlist,
+                max_commissions_until_closed: input.data.max_commissions_until_closed,
+                published: input.data.published,
+                form_id: input.data.form_id,
+                rating: '5.00'
+                // rush_charge: 0,
+                // rush_orders_allowed: false,
+                // rush_percentage: false
             })
 
             // Update Cache
-            const commissions = await ctx.db.commission.findMany({
-                where: {
-                    artistId: ctx.user.privateMetadata.artist_id
-                }
+            const db_commissions = await ctx.db.query.commissions.findMany({
+                where: eq(
+                    commissions.artist_id,
+                    ctx.user.privateMetadata.artist_id as string
+                )
             })
 
             await ctx.cache.set(
                 AsRedisKey('commissions', ctx.user.privateMetadata.artist_id as string),
-                JSON.stringify(commissions),
+                JSON.stringify(db_commissions),
                 {
                     EX: 3600
                 }

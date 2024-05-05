@@ -7,6 +7,7 @@ export * from '~/core/data-structures/kanban-structures'
 export * from '~/core/data-structures/stripe-structures'
 export * from '~/core/data-structures/portfolio-structures'
 export * from '~/core/data-structures/artist-structures'
+export * from '~/core/data-structures/form-structures'
 
 /**
  * Contains the url for the image as well as the blur data for the placeholder

@@ -12,6 +12,9 @@ import { CheckCircle2Icon } from 'lucide-react'
 import { api } from '~/trpc/react'
 import { useTheme } from 'next-themes'
 import { nemu_toast } from '~/lib/utils'
+import { Id } from 'react-toastify'
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 
 const commissionCreateFormSchema = z.object({
     name: z.string().min(2).max(50),
@@ -21,11 +24,36 @@ const commissionCreateFormSchema = z.object({
 type CommissionCreateFormSchemaType = z.infer<typeof commissionCreateFormSchema>
 
 export default function FormCreateForm() {
+    const [toastId, setToastId] = useState<Id | undefined>(undefined)
+
     const { resolvedTheme } = useTheme()
+    const {replace} = useRouter()
 
     const mutation = api.form.set_form.useMutation({
+        onMutate: () => {
+            setToastId(nemu_toast.loading('Creating Form', { theme: resolvedTheme }))
+        },
         onSuccess: () => {
-            nemu_toast('Form Created!', { theme: resolvedTheme, type: 'success' })
+            if (!toastId) return
+
+            nemu_toast.update(toastId, {
+                render: 'Form Created!',
+                isLoading: false,
+                autoClose: 5000,
+                type: 'success'
+            })
+
+            replace('/dashboard/forms')
+        },
+        onError: (e) => {
+            if (!toastId) return
+
+            nemu_toast.update(toastId, {
+                render: e.message,
+                isLoading: false,
+                autoClose: 5000,
+                type: 'error'
+            })
         }
     })
 
@@ -41,7 +69,7 @@ export default function FormCreateForm() {
     return (
         <Form {...form}>
             <form
-                className="flex flex-col gap-5 max-w-xl mx-auto"
+                className="mx-auto flex max-w-xl flex-col gap-5"
                 onSubmit={form.handleSubmit(ProcessForm)}
             >
                 <FormField
@@ -70,8 +98,8 @@ export default function FormCreateForm() {
                     )}
                 />
                 <div className="flex justify-end">
-                    <Button type="submit">
-                        <CheckCircle2Icon className="w-6 h-6" />
+                    <Button type="submit" disabled={mutation.isPending}>
+                        <CheckCircle2Icon className="h-6 w-6" />
                         Create Form
                     </Button>
                 </div>

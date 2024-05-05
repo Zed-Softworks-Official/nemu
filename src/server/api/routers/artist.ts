@@ -49,6 +49,7 @@ export const artistRouter = createTRPCRouter({
             }
 
             const result: ClientArtist = {
+                id: artist.id,
                 handle: artist.handle,
                 supporter: artist.supporter,
                 terms: artist.terms,

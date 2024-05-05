@@ -21,6 +21,8 @@ import DashboardProvider from '~/components/dashboard/dashboard-context'
 import { currentUser } from '@clerk/nextjs/server'
 import { UserRole } from '~/core/structures'
 
+import { unstable_cache } from 'next/cache'
+
 export default async function Layout({ children }: { children: React.ReactNode }) {
     const user = await currentUser()
 
@@ -28,8 +30,14 @@ export default async function Layout({ children }: { children: React.ReactNode }
         return redirect('/u/login')
     }
 
-    const managment_url = await api.stripe.get_managment_url()
-    const portal_url = await api.stripe.get_checkout_portal()
+    const managment_url = await unstable_cache(
+        async () => await api.stripe.get_managment_url(),
+        [user.id]
+    )()
+    const portal_url = await unstable_cache(
+        async () => await api.stripe.get_checkout_portal(),
+        [user.id]
+    )()
 
     return (
         <aside className="drawer lg:drawer-open">
@@ -66,12 +74,12 @@ export default async function Layout({ children }: { children: React.ReactNode }
                         href="/dashboard/commissions"
                         path="commissions"
                     />
-                    <SidebarLink
+                    {/* <SidebarLink
                         title="Artist Corner"
                         icon={<StoreIcon className="h-6 w-6" />}
                         href="/dashboard/artist-corner"
                         path="artist-corner"
-                    />
+                    /> */}
                     <SidebarLink
                         title="Portfolio"
                         icon={<ImageIcon className="h-6 w-6" />}

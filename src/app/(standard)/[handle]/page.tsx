@@ -11,6 +11,7 @@ import PortfolioList from '~/components/lists/portfolio-list'
 import NemuImage from '~/components/nemu-image'
 import Loading from '~/components/ui/loading'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
+import { SocialAgent } from '~/core/structures'
 import { api } from '~/trpc/server'
 
 type Props = {
@@ -48,7 +49,7 @@ export default async function ArtistPage({ params }: Props) {
             <div className="flex flex-1 flex-col flex-wrap">
                 <div
                     className="mx-auto h-96 w-full rounded-xl bg-cover bg-center bg-no-repeat"
-                    style={{ backgroundImage: `url(${artist_data.headerPhoto})` }}
+                    style={{ backgroundImage: `url(${artist_data.header_photo})` }}
                 ></div>
                 <div className="-my-28 mx-auto w-full rounded-xl bg-base-300/60 px-10 py-14 shadow-lg backdrop-blur-xl sm:max-w-[85%]">
                     <div className="flex flex-col items-center justify-between sm:flex-row">
@@ -106,7 +107,7 @@ export default async function ArtistPage({ params }: Props) {
                         <div>
                             <div className="divider card-title">Socials</div>
                             <div className="flex items-center justify-center gap-5">
-                                {artist_data.socials.map((social) => (
+                                {artist_data.socials?.map((social) => (
                                     <Link
                                         key={social.agent}
                                         href={social.url}
@@ -152,9 +153,9 @@ export default async function ArtistPage({ params }: Props) {
 
 function get_social_icon(agent: string) {
     switch (agent) {
-        case 'TWITTER':
+        case SocialAgent.Twitter:
             return <FontAwesomeIcon icon={faXTwitter} className="h-6 w-6" />
-        case 'PIXIV':
+        case SocialAgent.Pixiv:
             return <FontAwesomeIcon icon={faPixiv} className="h-6 w-6" />
         default:
             return <GlobeIcon className="h-6 w-6" />

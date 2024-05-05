@@ -53,10 +53,7 @@ const commissionSchema = z.object({
         z.number().min(0).default(0).optional()
     ),
 
-    commission_availability: z.preprocess(
-        (value) => parseInt(z.string().parse(value), 10),
-        z.number()
-    )
+    commission_availability: z.string()
 })
 
 /**
@@ -75,6 +72,7 @@ export default function CommissionCreateEditForm({
     edit_data?: RouterOutput['commission']['get_commission']
 }) {
     const [toastId, setToastId] = useState<Id | undefined>()
+    const [fileKyes, setFileKeys] = useState<string[]>([])
 
     const { resolvedTheme } = useTheme()
     const { files, uploadImages, isUploading } = useUploadThingContext()
@@ -99,6 +97,8 @@ export default function CommissionCreateEditForm({
                 autoClose: 5000,
                 type: 'error'
             })
+
+            // TODO: Delete the files from uploadthing
         }
     })
 
@@ -123,15 +123,13 @@ export default function CommissionCreateEditForm({
 
         if (!toast_id) {
             return
-        } 
+        }
 
         //////////////////////////////////////////
         // Update Commission
         //////////////////////////////////////////
         // If edit_data is present then that means we are editing a commission
         if (edit_data) {
-            
-            
             // Check if we have images to upload
             // if (files.length === 0) {
             //     const res = await uploadImages()
@@ -163,7 +161,6 @@ export default function CommissionCreateEditForm({
             //     }
             // })
 
-
             return
         }
 
@@ -185,6 +182,7 @@ export default function CommissionCreateEditForm({
         // Upload Images
         const res = await uploadImages()
 
+        
         if (!res) {
             nemu_toast.update(toast_id, {
                 render: 'Uploading Images Failed!',
@@ -193,9 +191,12 @@ export default function CommissionCreateEditForm({
                 type: 'error'
             })
             console.log('No Response')
-
+            
             return
         }
+        
+        // Store files from uploadthing
+        setFileKeys(res.map((file) => file.key))
 
         // Grab image urls and utKeys from response
         const images: string[] = []
@@ -323,17 +324,13 @@ export default function CommissionCreateEditForm({
                                     <SelectValue placeholder="Select Availability" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value={`${CommissionAvailability.Open}`}>
+                                    <SelectItem value={CommissionAvailability.Open}>
                                         Open
                                     </SelectItem>
-                                    <SelectItem
-                                        value={`${CommissionAvailability.Waitlist}`}
-                                    >
+                                    <SelectItem value={CommissionAvailability.Waitlist}>
                                         Waitlist
                                     </SelectItem>
-                                    <SelectItem
-                                        value={`${CommissionAvailability.Closed}`}
-                                    >
+                                    <SelectItem value={CommissionAvailability.Closed}>
                                         Closed
                                     </SelectItem>
                                 </SelectContent>

@@ -1,6 +1,6 @@
-import { currentUser } from '@clerk/nextjs/server'
-import { notFound, redirect } from 'next/navigation'
+import { notFound } from 'next/navigation'
 import { DesignerProvider } from '~/components/form-builder/designer/designer-context'
+import { FormElementInstance } from '~/components/form-builder/elements/form-elements'
 import FormBuilder from '~/components/form-builder/form-builder'
 import DashboardContainer from '~/components/ui/dashboard-container'
 import { api } from '~/trpc/server'
@@ -14,7 +14,7 @@ export default async function FormBuilderPage({ params }: { params: { id: string
 
     return (
         <DashboardContainer title="Edit Form">
-            <DesignerProvider initial_elements={JSON.parse(form.content)}>
+            <DesignerProvider initial_elements={form.content as FormElementInstance[]}>
                 <FormBuilder form={form} />
             </DesignerProvider>
         </DashboardContainer>

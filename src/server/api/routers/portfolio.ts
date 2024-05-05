@@ -1,3 +1,4 @@
+import { createId } from '@paralleldrive/cuid2'
 import { TRPCError } from '@trpc/server'
 import { and, eq } from 'drizzle-orm'
 import { z } from 'zod'
@@ -58,6 +59,7 @@ export const portfolioRouter = createTRPCRouter({
 
             // Create the portfolio item
             await ctx.db.insert(portfolios).values({
+                id: createId(),
                 artist_id: ctx.user.privateMetadata.artist_id as string,
                 title: input.data.title,
                 image_url: input.data.image,
