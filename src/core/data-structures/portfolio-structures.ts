@@ -6,7 +6,7 @@ import { NemuImageData } from '~/core/structures'
  */
 export type ClientPortfolioItem = {
     id: string
-    name: string
+    title: string
     image: NemuImageData
     utKey?: string
 }

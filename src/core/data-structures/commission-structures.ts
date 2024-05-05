@@ -1,4 +1,3 @@
-import { Request, User } from '@prisma/client'
 import { NemuImageData, KanbanContainerData, KanbanTask } from '~/core/structures'
 
 /**
@@ -7,9 +6,9 @@ import { NemuImageData, KanbanContainerData, KanbanTask } from '~/core/structure
  * Closed, Waitlist, Open
  */
 export enum CommissionAvailability {
-    Closed,
-    Waitlist,
-    Open
+    Closed = 'closed',
+    Waitlist = 'waitlist',
+    Open = 'open'
 }
 
 /**
@@ -88,10 +87,10 @@ export type ClientCommissionItem = {
  * The different states a request can be in
  */
 export enum RequestStatus {
-    Pending,
-    Accepted,
-    Rejected,
-    Delivered
+    Pending = 'pending',
+    Accepted = 'accepted',
+    Rejected = 'rejected',
+    Delivered = 'delivered'
 }
 
 /**

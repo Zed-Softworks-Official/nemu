@@ -28,7 +28,7 @@ import { useTheme } from 'next-themes'
 import { nemu_toast } from '~/lib/utils'
 
 const portfolioSchema = z.object({
-    name: z.string().min(2).max(50)
+    title: z.string().min(2).max(50)
 })
 
 type PortfolioSchemaType = z.infer<typeof portfolioSchema>
@@ -82,7 +82,7 @@ export default function PortfolioCreateEditForm({
         resolver: zodResolver(portfolioSchema),
         mode: 'onSubmit',
         defaultValues: {
-            name: data ? data.name : ''
+            title: data ? data.title : ''
         }
     })
 
@@ -108,7 +108,7 @@ export default function PortfolioCreateEditForm({
         set_mutation.mutate({
             type: 'create',
             data: {
-                name: values.name,
+                title: values.title,
                 image: res[0]?.url!,
                 utKey: res[0]?.key!
             }
@@ -119,11 +119,11 @@ export default function PortfolioCreateEditForm({
         <Form {...form}>
             <NemuUploadProgress />
             <form
-                className="flex flex-col gap-5 max-w-xl mx-auto"
+                className="mx-auto flex max-w-xl flex-col gap-5"
                 onSubmit={form.handleSubmit(ProcessForm)}
             >
                 <FormField
-                    name="name"
+                    name="title"
                     control={form.control}
                     render={({ field }) => (
                         <FormItem className="form-control">
@@ -142,7 +142,7 @@ export default function PortfolioCreateEditForm({
                                 alt="Portfolio Image"
                                 width={200}
                                 height={200}
-                                className="w-full h-full rounded-xl"
+                                className="h-full w-full rounded-xl"
                             />
                         </figure>
                     </div>
@@ -155,7 +155,7 @@ export default function PortfolioCreateEditForm({
                 {data ? (
                     <div className="flex justify-between">
                         <Link href={'/dashboard/portfolio'} className="btn btn-outline">
-                            <XCircleIcon className="w-6 h-6" />
+                            <XCircleIcon className="h-6 w-6" />
                             Cancel
                         </Link>
                         <div className="flex gap-2">
@@ -169,11 +169,11 @@ export default function PortfolioCreateEditForm({
                                     })
                                 }}
                             >
-                                <Trash2Icon className="w-6 h-6" />
+                                <Trash2Icon className="h-6 w-6" />
                                 Delete
                             </Button>
                             <Button type="submit" disabled={disabled}>
-                                <SaveIcon className="w-6 h-6" />
+                                <SaveIcon className="h-6 w-6" />
                                 Save
                             </Button>
                         </div>
@@ -184,11 +184,11 @@ export default function PortfolioCreateEditForm({
                             href={'/dashboard/portfolio'}
                             className="btn btn-outline btn-error"
                         >
-                            <XCircleIcon className="w-6 h-6" />
+                            <XCircleIcon className="h-6 w-6" />
                             Cancel
                         </Link>
                         <Button type="submit" disabled={disabled}>
-                            <CheckCircle2Icon className="w-6 h-6" />
+                            <CheckCircle2Icon className="h-6 w-6" />
                             Create Portfolio Item
                         </Button>
                     </div>

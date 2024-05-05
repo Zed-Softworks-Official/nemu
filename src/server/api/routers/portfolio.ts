@@ -1,4 +1,5 @@
 import { TRPCError } from '@trpc/server'
+import { and, eq } from 'drizzle-orm'
 import { z } from 'zod'
 
 import { ClientPortfolioItem, NemuImageData } from '~/core/structures'
@@ -6,6 +7,7 @@ import { get_blur_data } from '~/lib/server-utils'
 
 import { artistProcedure, createTRPCRouter, publicProcedure } from '~/server/api/trpc'
 import { AsRedisKey } from '~/server/cache'
+import { portfolios } from '~/server/db/schema'
 
 import { utapi } from '~/server/uploadthing'
 
@@ -19,7 +21,7 @@ export const portfolioRouter = createTRPCRouter({
                 .object({
                     type: z.literal('create'),
                     data: z.object({
-                        name: z.string(),
+                        title: z.string(),
                         image: z.string(),
                         utKey: z.string()
                     })
@@ -29,7 +31,7 @@ export const portfolioRouter = createTRPCRouter({
                         type: z.literal('update'),
                         id: z.string(),
                         data: z.object({
-                            name: z.string()
+                            title: z.string()
                         })
                     })
                 )
@@ -44,33 +46,30 @@ export const portfolioRouter = createTRPCRouter({
 
             // If it's an update
             if (input.type === 'update') {
-                await ctx.db.portfolio.update({
-                    where: {
-                        id: input.id
-                    },
-                    data: {
-                        name: input.data.name
-                    }
-                })
+                await ctx.db
+                    .update(portfolios)
+                    .set({
+                        title: input.data.title
+                    })
+                    .where(eq(portfolios.id, input.id))
 
                 return
             }
 
             // Create the portfolio item
-            await ctx.db.portfolio.create({
-                data: {
-                    artistId: ctx.user.privateMetadata.artist_id as string,
-                    name: input.data.name,
-                    image: input.data.image,
-                    utKey: input.data.utKey
-                }
+            await ctx.db.insert(portfolios).values({
+                artist_id: ctx.user.privateMetadata.artist_id as string,
+                title: input.data.title,
+                image_url: input.data.image,
+                ut_key: input.data.utKey
             })
 
             // Update Cache
-            const portfolioItems = await ctx.db.portfolio.findMany({
-                where: {
-                    artistId: ctx.user.privateMetadata.artist_id as string
-                }
+            const portfolioItems = await ctx.db.query.portfolios.findMany({
+                where: eq(
+                    portfolios.artist_id,
+                    ctx.user.privateMetadata.artist_id as string
+                )
             })
 
             // Format for client
@@ -78,16 +77,19 @@ export const portfolioRouter = createTRPCRouter({
             for (const portfolio of portfolioItems) {
                 result.push({
                     id: portfolio.id,
-                    name: portfolio.name,
+                    title: portfolio.title,
                     image: {
-                        url: portfolio.image,
-                        blur_data: (await get_blur_data(portfolio.image)).base64
+                        url: portfolio.image_url,
+                        blur_data: (await get_blur_data(portfolio.image_url)).base64
                     }
                 })
             }
 
             await ctx.cache.set(
-                AsRedisKey('portfolio_items', ctx.user.privateMetadata.artist_id as string),
+                AsRedisKey(
+                    'portfolio_items',
+                    ctx.user.privateMetadata.artist_id as string
+                ),
                 JSON.stringify(result),
                 {
                     EX: 3600
@@ -113,10 +115,8 @@ export const portfolioRouter = createTRPCRouter({
                 return JSON.parse(cachedPorfolioItems) as ClientPortfolioItem[]
             }
 
-            const portfolioItems = await ctx.db.portfolio.findMany({
-                where: {
-                    artistId: input.artist_id
-                }
+            const portfolioItems = await ctx.db.query.portfolios.findMany({
+                where: eq(portfolios.artist_id, input.artist_id)
             })
 
             // Format for client
@@ -124,10 +124,10 @@ export const portfolioRouter = createTRPCRouter({
             for (const portfolio of portfolioItems) {
                 result.push({
                     id: portfolio.id,
-                    name: portfolio.name,
+                    title: portfolio.title,
                     image: {
-                        url: portfolio.image,
-                        blur_data: (await get_blur_data(portfolio.image)).base64
+                        url: portfolio.image_url,
+                        blur_data: (await get_blur_data(portfolio.image_url)).base64
                     }
                 })
             }
@@ -160,11 +160,11 @@ export const portfolioRouter = createTRPCRouter({
                 return JSON.parse(cachedPorfolioItem) as ClientPortfolioItem
             }
 
-            const portfolio_item = await ctx.db.portfolio.findFirst({
-                where: {
-                    artistId: input.artist_id,
-                    id: input.item_id
-                }
+            const portfolio_item = await ctx.db.query.portfolios.findFirst({
+                where: and(
+                    eq(portfolios.artist_id, input.artist_id),
+                    eq(portfolios.id, input.item_id)
+                )
             })
 
             if (!portfolio_item) {
@@ -176,10 +176,10 @@ export const portfolioRouter = createTRPCRouter({
 
             const result: ClientPortfolioItem = {
                 id: portfolio_item.id,
-                name: portfolio_item.name,
+                title: portfolio_item.title,
                 image: {
-                    url: portfolio_item.image,
-                    blur_data: (await get_blur_data(portfolio_item.image)).base64
+                    url: portfolio_item.image_url,
+                    blur_data: (await get_blur_data(portfolio_item.image_url)).base64
                 }
             }
 
@@ -207,10 +207,6 @@ export const portfolioRouter = createTRPCRouter({
             await utapi.deleteFiles(input.utKey)
 
             // Delete from db
-            await ctx.db.portfolio.delete({
-                where: {
-                    id: input.id
-                }
-            })
+            await ctx.db.delete(portfolios).where(eq(portfolios.id, input.id))
         })
 })

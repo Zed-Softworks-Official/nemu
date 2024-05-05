@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { number, z } from 'zod'
 import { artistProcedure, createTRPCRouter, protectedProcedure } from '~/server/api/trpc'
 
 import {
@@ -12,6 +12,13 @@ import {
 
 import { TRPCError } from '@trpc/server'
 import { clerkClient } from '@clerk/nextjs/server'
+import { and, eq } from 'drizzle-orm'
+import {
+    artists,
+    customerIdRelations,
+    products,
+    stripe_customer_ids
+} from '~/server/db/schema'
 
 export const stripeRouter = createTRPCRouter({
     /**
@@ -20,18 +27,18 @@ export const stripeRouter = createTRPCRouter({
     set_customer_id: protectedProcedure
         .input(z.string())
         .mutation(async ({ input, ctx }) => {
-            const customer_id = await ctx.db.stripeCustomerIds.findFirst({
-                where: {
-                    userId: ctx.user.id,
-                    artistId: input
-                }
+            const customer_id = await ctx.db.query.stripe_customer_ids.findFirst({
+                where: and(
+                    eq(stripe_customer_ids.user_id, ctx.user.id),
+                    eq(stripe_customer_ids.artist_id, input)
+                )
             })
 
             // If it exists then return that we have one
             if (customer_id) {
                 return {
-                    stripe_account: customer_id.stripeAccount,
-                    customer_id: customer_id.customerId
+                    stripe_account: customer_id.stripe_account,
+                    customer_id: customer_id.customer_id
                 }
             }
 
@@ -41,10 +48,8 @@ export const stripeRouter = createTRPCRouter({
                 throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' })
             }
 
-            const artist = await ctx.db.artist.findFirst({
-                where: {
-                    id: input
-                }
+            const artist = await ctx.db.query.artists.findFirst({
+                where: eq(artists.id, input)
             })
 
             if (!artist) {
@@ -53,24 +58,28 @@ export const stripeRouter = createTRPCRouter({
 
             // Otherwise we need to create a customer id for the user
             const stripe_customer = await StripeCreateCustomer(
-                artist.stripeAccount!,
+                artist.stripe_account,
                 user.username!,
                 user.emailAddresses[0]?.emailAddress
             )
 
             // Create a customer id object in the data for this user
-            const customer = await ctx.db.stripeCustomerIds.create({
-                data: {
-                    userId: user.id,
-                    artistId: artist.id,
-                    stripeAccount: artist.stripeAccount,
-                    customerId: stripe_customer.id
-                }
-            })
+            const customer = await ctx.db
+                .insert(stripe_customer_ids)
+                .values({
+                    user_id: user.id,
+                    artist_id: artist.id,
+                    stripe_account: artist.stripe_account,
+                    customer_id: stripe_customer.id
+                })
+                .returning({
+                    customer_id: stripe_customer_ids.customer_id,
+                    stripe_account: stripe_customer_ids.stripe_account
+                })
 
             return {
-                customer_id: customer.customerId,
-                stripe_account: customer.stripeAccount
+                customer_id: customer[0]?.customer_id,
+                stripe_account: customer[0]?.stripe_account
             }
         }),
 
@@ -91,10 +100,14 @@ export const stripeRouter = createTRPCRouter({
             //     }
             // }
 
-            const artist = await ctx.db.artist.findFirst({
-                where: {
-                    id: ctx.user.privateMetadata.artist_id as string
-                }
+            // const artist = await ctx.db.artist.findFirst({
+            //     where: {
+            //         id: ctx.user.privateMetadata.artist_id as string
+            //     }
+            // })
+
+            const artist = await ctx.db.query.artists.findFirst({
+                where: eq(artists.id, ctx.user.privateMetadata.artist_id as string)
             })
 
             if (!artist) {
@@ -105,7 +118,7 @@ export const stripeRouter = createTRPCRouter({
             }
 
             // Get the stripe account if they have one
-            const stripe_account = await StripeGetAccount(artist?.stripeAccount)
+            const stripe_account = await StripeGetAccount(artist.stripe_account)
 
             // If the user has not completed the onboarding, return an onboarding url
             if (!stripe_account.charges_enabled) {
@@ -136,11 +149,17 @@ export const stripeRouter = createTRPCRouter({
         )
         .query(async ({ input, ctx }) => {
             // Get Product from db
-            const product = await ctx.db.product.findFirst({
-                where: {
-                    id: input.product_id
-                },
-                include: {
+            // const product = await ctx.db.product.findFirst({
+            //     where: {
+            //         id: input.product_id
+            //     },
+            //     include: {
+            //         artist: true
+            //     }
+            // })
+            const product = await ctx.db.query.products.findFirst({
+                where: eq(products.id, input.product_id),
+                with: {
                     artist: true
                 }
             })
@@ -154,11 +173,11 @@ export const stripeRouter = createTRPCRouter({
 
             // Find customer id if we have one,
             // If not then just create one
-            let db_customer_link = await ctx.db.stripeCustomerIds.findFirst({
-                where: {
-                    userId: ctx.user.id,
-                    artistId: product.artistId
-                }
+            let db_customer_link = await ctx.db.query.stripe_customer_ids.findFirst({
+                where: and(
+                    eq(stripe_customer_ids.user_id, ctx.user.id),
+                    eq(stripe_customer_ids.artist_id, product.artist_id)
+                )
             })
 
             if (!db_customer_link) {
@@ -168,25 +187,28 @@ export const stripeRouter = createTRPCRouter({
                     ctx.user.emailAddresses[0]?.emailAddress || undefined
                 )
 
-                db_customer_link = await ctx.db.stripeCustomerIds.create({
-                    data: {
-                        stripeAccount: input.stripe_account,
-                        customerId: new_stripe_customer.id,
-                        artistId: product.artistId,
-                        userId: ctx.user.id
-                    }
-                })
+                db_customer_link = (
+                    await ctx.db
+                        .insert(stripe_customer_ids)
+                        .values({
+                            stripe_account: input.stripe_account,
+                            customer_id: new_stripe_customer.id,
+                            artist_id: product.artist_id,
+                            user_id: ctx.user.id
+                        })
+                        .returning()
+                )[0]!
             }
 
             // Create the payment intent
             const payment_intent = await StripeCreateProductPaymentIntent({
-                customer_id: db_customer_link.customerId,
-                price: product.price,
+                customer_id: db_customer_link.customer_id,
+                price: Number(product.price),
                 stripe_account: input.stripe_account,
                 return_url: input.return_url,
                 product_id: input.product_id,
                 user_id: ctx.user.id,
-                artist_id: product.artistId,
+                artist_id: product.artist_id,
                 supporter: product.artist.supporter
             })
 
@@ -197,10 +219,8 @@ export const stripeRouter = createTRPCRouter({
      * Gets the billing portal url so the user can edit their subscription
      */
     get_checkout_portal: artistProcedure.query(async ({ ctx }) => {
-        const artist = await ctx.db.artist.findFirst({
-            where: {
-                userId: ctx.user.id
-            }
+        const artist = await ctx.db.query.artists.findFirst({
+            where: eq(artists.id, ctx.user.privateMetadata.artist_id as string)
         })
 
         if (!artist) {
@@ -210,10 +230,10 @@ export const stripeRouter = createTRPCRouter({
             })
         }
 
-        if (!artist.zedCustomerId) {
+        if (!artist.zed_customer_id) {
             return undefined
         }
 
-        return (await StripeCreateSupporterBilling(artist.zedCustomerId)).url
+        return (await StripeCreateSupporterBilling(artist.zed_customer_id)).url
     })
 })

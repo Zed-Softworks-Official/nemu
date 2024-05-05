@@ -8,7 +8,7 @@ export const env = createEnv({
      */
     server: {
         BASE_URL: z.string().url(),
-        DATABASE_URL: z.string().url(),
+        POSTGRES_URL: z.string().url(),
         REDIS_HOST: z.string(),
         REDIS_PORT: z.number(),
         REDIS_PASSWORD: z.string(),
@@ -43,7 +43,7 @@ export const env = createEnv({
      */
     runtimeEnv: {
         BASE_URL: process.env.BASE_URL,
-        DATABASE_URL: process.env.DATABASE_URL,
+        POSTGRES_URL: process.env.POSTGRES_URL,
         REDIS_HOST: process.env.REDIS_HOST,
         REDIS_PORT: Number(process.env.REDIS_PORT),
         REDIS_PASSWORD: process.env.REDIS_PASSWORD,

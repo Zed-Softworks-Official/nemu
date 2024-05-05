@@ -6,6 +6,8 @@ import { artistProcedure, createTRPCRouter, publicProcedure } from '~/server/api
 import { AsRedisKey } from '~/server/cache'
 import { convert_images_to_nemu_images, get_blur_data } from '~/lib/server-utils'
 import { format_to_currency } from '~/lib/utils'
+import { commissions } from '~/server/db/schema'
+import { eq } from 'drizzle-orm'
 
 const request_data = z.object({
     artist: z.boolean().optional(),
@@ -38,22 +40,20 @@ export const commissionRouter = createTRPCRouter({
                 return JSON.parse(cachedCommissions) as ClientCommissionItem[]
             }
 
-            const commissions = await ctx.db.commission.findMany({
-                where: {
-                    artistId: input.artist_id
-                },
-                include: {
+            const db_commissions = await ctx.db.query.commissions.findMany({
+                where: eq(commissions.artist_id, input.artist_id),
+                with: {
                     artist: true
                 }
             })
 
-            if (!commissions) {
+            if (!db_commissions) {
                 return undefined
             }
 
             // Format for client
             const result: ClientCommissionItem[] = []
-            for (const commission of commissions) {
+            for (const commission of db_commissions) {
                 if (!input.show_unpublished && !commission.published) {
                     continue
                 }
@@ -61,9 +61,9 @@ export const commissionRouter = createTRPCRouter({
                 result.push({
                     title: commission.title,
                     description: commission.description,
-                    price: format_to_currency(commission.price),
+                    price: format_to_currency(Number(commission.price)),
                     availability: commission.availability,
-                    rating: commission.rating,
+                    rating: Number(commission.rating),
                     published: commission.published,
                     images: [
                         {
@@ -73,10 +73,10 @@ export const commissionRouter = createTRPCRouter({
                     ],
                     slug: commission.slug,
                     total_requests: input.include_stats
-                        ? commission.totalRequests
+                        ? commission.total_requests
                         : undefined,
                     new_requests: input.include_stats
-                        ? commission.newRequests
+                        ? commission.new_requests
                         : undefined,
 
                     artist: {

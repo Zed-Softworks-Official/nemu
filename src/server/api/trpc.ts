@@ -11,10 +11,10 @@ import { initTRPC, TRPCError } from '@trpc/server'
 import superjson from 'superjson'
 import { ZodError } from 'zod'
 
-import { db } from '~/server/db'
 import { cache } from '~/server/cache'
 import { clerkClient, getAuth } from '@clerk/nextjs/server'
 import { UserRole } from '~/core/structures'
+import { db } from '~/server/db'
 
 type AuthObject = ReturnType<typeof getAuth>
 

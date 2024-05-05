@@ -1,8 +1,8 @@
 import { createTRPCRouter, protectedProcedure } from '~/server/api/trpc'
 import { PublicUserMetadata, UserRole } from '~/core/structures'
 
-import z from 'zod'
 import { clerkClient } from '@clerk/nextjs/server'
+import { users } from '~/server/db/schema'
 
 export const userRouter = createTRPCRouter({
     /**
@@ -18,10 +18,9 @@ export const userRouter = createTRPCRouter({
             publicMetadata
         })
 
-        await ctx.db.user.create({
-            data: {
-                clerkId: user.id
-            }
+        await ctx.db.insert(users).values({
+            clerk_id: user.id,
+            role: UserRole.Standard
         })
 
         return { success: true }

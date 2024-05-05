@@ -1,7 +1,7 @@
 export enum UserRole {
-    Standard,
-    Artist,
-    Admin
+    Standard = 'standard',
+    Artist = 'artist',
+    Admin = 'admin'
 }
 
 export type PublicUserMetadata = {

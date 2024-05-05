@@ -7,10 +7,10 @@ export enum PurchaseType {
 }
 
 export enum InvoiceStatus {
-    Creating = 0,
-    Pending = 0,
-    Paid,
-    Cancelled
+    Creating = 'creating',
+    Pending = 'pending',
+    Paid = 'paid',
+    Cancelled = 'cancelled'
 }
 
 export type StripePaymentMetadata = {

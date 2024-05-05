@@ -2,8 +2,11 @@ import { createTRPCRouter, publicProcedure } from '~/server/api/trpc'
 
 import { z } from 'zod'
 import { AsRedisKey } from '~/server/cache'
-import { Artist, Social } from '@prisma/client'
-import { clerkClient, User } from '@clerk/nextjs/server'
+import { clerkClient } from '@clerk/nextjs/server'
+import { ClientArtist } from '~/core/structures'
+
+import { eq } from 'drizzle-orm'
+import { artists } from '~/server/db/schema'
 
 export const artistRouter = createTRPCRouter({
     /**
@@ -29,20 +32,15 @@ export const artistRouter = createTRPCRouter({
             )
 
             if (cachedArtist) {
-                return JSON.parse(cachedArtist) as Artist & {
-                    user: User
-                    socials: Social[]
-                }
+                return JSON.parse(cachedArtist) as ClientArtist
             }
 
             // Fetch from database if they're not in the cache
-            const artist = await ctx.db.artist.findFirst({
-                where: {
-                    handle: input ? input.handle : ctx.user?.publicMetadata.handle!
-                },
-                include: {
-                    socials: true
-                }
+            const artist = await ctx.db.query.artists.findFirst({
+                where: eq(
+                    artists.handle,
+                    input ? input.handle : (ctx.user?.publicMetadata.handle as string)
+                )
             })
 
             // If the artist wasn't found just return undefined
@@ -50,9 +48,15 @@ export const artistRouter = createTRPCRouter({
                 return null
             }
 
-            const result = {
-                ...artist,
-                user: await clerkClient.users.getUser(artist.userId)
+            const result: ClientArtist = {
+                handle: artist.handle,
+                supporter: artist.supporter,
+                terms: artist.terms,
+                header_photo: artist.header_photo,
+                about: artist.about,
+                location: artist.location,
+                socials: artist.socials,
+                user: await clerkClient.users.getUser(artist.user_id)
             }
 
             await ctx.cache.set(
