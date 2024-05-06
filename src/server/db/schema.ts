@@ -41,7 +41,7 @@ export const cuid = (name: string) => cuidType(name)
  * Custom Social Type for the social accounts
  */
 export const SocialAccountType = customType<{ data: SocialAccount }>({
-    dataType: () => 'jsonb',
+    dataType: () => 'json',
     toDriver: (value) => JSON.stringify(value)
 })
 
@@ -68,11 +68,10 @@ export const RequestStatusEnum = pgEnum('RequestStatus', enum_to_pg_enum(Request
 /**
  * An Enumeration for the Commission Availability
  */
-export const CommissionAvailabilityEnum = pgEnum('CommissionAvailability', [
-    CommissionAvailability.Closed,
-    CommissionAvailability.Waitlist,
-    CommissionAvailability.Open
-])
+export const CommissionAvailabilityEnum = pgEnum(
+    'CommissionAvailability',
+    enum_to_pg_enum(CommissionAvailability)
+)
 
 //////////////////////////////////////////////////////////
 // Tables
@@ -196,7 +195,7 @@ export const artists = createTable('artist', {
     automated_message_enabled: boolean('automated_message_enabled').default(false),
     automated_message: varchar('automated_message'),
 
-    socials: SocialAccountType('socials').array().default([]).notNull()
+    socials: SocialAccountType('socials').array().notNull()
 })
 
 /**
@@ -335,7 +334,7 @@ export const commissions = createTable('commission', {
  */
 export const invoices = createTable('invoice', {
     id: cuid('id').primaryKey(),
-    sent: boolean('sent').default(false),
+    sent: boolean('sent').default(false).notNull(),
     hosted_url: varchar('hosted_url'),
     status: InvoiceStatusEnum('status').notNull(),
 
@@ -347,7 +346,7 @@ export const invoices = createTable('invoice', {
     customer_id: varchar('customer_id').notNull(),
     stripe_account: varchar('stripe_account').notNull(),
 
-    userId: varchar('user_id').notNull(),
+    user_id: varchar('user_id').notNull(),
     artist_id: varchar('artist_id').notNull(),
     request_id: varchar('request_id').notNull()
 })
@@ -362,7 +361,7 @@ export const invoice_items = createTable('invoice_item', {
     invoice_id: varchar('invoice_id').notNull(),
 
     name: varchar('name').notNull(),
-    price: decimal('price', { precision: 2, scale: 2 }).notNull(),
+    price: decimal('price', { precision: 4, scale: 2 }).notNull(),
     quantity: integer('quantity').notNull(),
 
     created_at: timestamp('created_at')
@@ -385,7 +384,7 @@ export const forms = createTable('form', {
     created_at: timestamp('created_at')
         .default(sql`CURRENT_TIMESTAMP`)
         .notNull(),
-    content: json('content').default('[]')
+    content: json('content').default([])
 })
 
 /**
@@ -574,6 +573,10 @@ export const invoiceRelations = relations(invoices, ({ one, many }) => ({
     request: one(requests, {
         fields: [invoices.request_id],
         references: [requests.id]
+    }),
+    user: one(users, {
+        fields: [invoices.user_id],
+        references: [users.clerk_id]
     }),
     invoice_items: many(invoice_items)
 }))

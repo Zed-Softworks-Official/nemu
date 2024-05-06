@@ -1,7 +1,8 @@
-import { Commission } from '@prisma/client'
+import { InferSelectModel } from 'drizzle-orm'
 import { getPlaiceholder } from 'plaiceholder'
-import { CommissionAvailability, NemuImageData } from '~/core/structures'
+import { ClientCommissionItem, CommissionAvailability, NemuImageData } from '~/core/structures'
 import { db } from '~/server/db'
+import { commissions } from '~/server/db/schema'
 
 /**
  * Creates a blur_data placeholder for the given image
@@ -24,7 +25,7 @@ export async function get_blur_data(src: string) {
  * @param {string} commission - The commission data
  * @return {boolean} - whether or not the request has been waitlisted
  */
-export async function update_commission_check_waitlist(commission: Commission) {
+export async function update_commission_check_waitlist(commission: InferSelectModel<typeof commissions>) {
     // Check if the commission is full
     if (commission.availability === CommissionAvailability.Closed) {
         return true
@@ -35,8 +36,8 @@ export async function update_commission_check_waitlist(commission: Commission) {
 
     // Check if the commission is full and if it is then waitlist the request
     if (
-        commission.newRequests + 1 >= commission.maxCommissionsUntilWaitlist &&
-        commission.maxCommissionsUntilWaitlist !== 0
+        commission.new_requests! + 1 >= commission.max_commissions_until_waitlist! &&
+        commission.max_commissions_until_waitlist !== 0
     ) {
         availability = CommissionAvailability.Waitlist
     }

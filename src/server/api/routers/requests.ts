@@ -1,6 +1,7 @@
+import { clerkClient } from '@clerk/nextjs/server'
 import { createId } from '@paralleldrive/cuid2'
 import { TRPCError } from '@trpc/server'
-import { eq } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { StripeCreateCustomer, StripeCreateInvoice } from '~/core/payments'
 import {
@@ -13,7 +14,14 @@ import { env } from '~/env'
 import { update_commission_check_waitlist } from '~/lib/server-utils'
 import { artistProcedure, createTRPCRouter, protectedProcedure } from '~/server/api/trpc'
 import { AsRedisKey } from '~/server/cache'
-import { commissions, requests } from '~/server/db/schema'
+import {
+    commissions,
+    invoice_items,
+    invoices,
+    kanbans,
+    requests,
+    stripe_customer_ids
+} from '~/server/db/schema'
 import { novu } from '~/server/novu'
 import { sendbird } from '~/server/sendbird'
 
@@ -130,11 +138,8 @@ export const requestRouter = createTRPCRouter({
     get_user_requsted: protectedProcedure
         .input(z.string())
         .query(async ({ input, ctx }) => {
-            const request = await ctx.db.request.findFirst({
-                where: {
-                    formId: input,
-                    userId: ctx.session.user.id
-                }
+            const request = await ctx.db.query.requests.findFirst({
+                where: and(eq(requests.user_id, ctx.user.id), eq(requests.form_id, input))
             })
 
             if (!request) {
@@ -156,17 +161,14 @@ export const requestRouter = createTRPCRouter({
         )
         .mutation(async ({ input, ctx }) => {
             // Get the request
-            const request = await ctx.db.request.findFirst({
-                where: {
-                    id: input.request_id
-                },
-                include: {
+            const request = await ctx.db.query.requests.findFirst({
+                where: eq(requests.id, input.request_id),
+                with: {
                     commission: {
-                        include: {
+                        with: {
                             artist: true
                         }
-                    },
-                    user: true
+                    }
                 }
             })
 
@@ -178,20 +180,20 @@ export const requestRouter = createTRPCRouter({
             }
 
             // Get stripe customer id
-            let customer_id = await ctx.db.stripeCustomerIds.findFirst({
-                where: {
-                    userId: request.userId,
-                    artistId: request.commission.artistId
-                }
+            let customer_id = await ctx.db.query.stripe_customer_ids.findFirst({
+                where: and(
+                    eq(stripe_customer_ids.user_id, request.user_id),
+                    eq(stripe_customer_ids.artist_id, request.commission.artist_id)
+                )
             })
 
             // If the stripe account does not exist, create one
             if (!customer_id) {
                 // Create customer account in stripe
                 const customer = await StripeCreateCustomer(
-                    request.commission.artist.stripeAccount,
-                    request.user.name || undefined,
-                    request.user.email || undefined
+                    request.commission.artist.stripe_account,
+                    ctx.user.username || undefined,
+                    ctx.user.emailAddresses[0]?.emailAddress || undefined
                 )
 
                 if (!customer) {
@@ -202,38 +204,39 @@ export const requestRouter = createTRPCRouter({
                 }
 
                 // Save the customer id in the database
-                customer_id = await ctx.db.stripeCustomerIds.create({
-                    data: {
-                        userId: request.userId,
-                        artistId: request.commission.artistId,
-                        customerId: customer.id,
-                        stripeAccount: request.commission.artist.stripeAccount
-                    }
-                })
+                customer_id = (
+                    await ctx.db
+                        .insert(stripe_customer_ids)
+                        .values({
+                            user_id: request.user_id,
+                            artist_id: request.commission.artist_id,
+                            customer_id: customer.id,
+                            stripe_account: request.commission.artist.stripe_account
+                        })
+                        .returning()
+                )[0]!
             }
 
             // Update commission stats based on acceptance or rejection
-            await ctx.db.commission.update({
-                where: {
-                    id: request.commissionId
-                },
-                data: {
-                    newRequests: {
-                        decrement: 1
-                    },
-                    acceptedRequests: {
-                        increment: input.accepted ? 1 : 0
-                    },
-                    rejectedRequests: {
-                        increment: input.accepted ? 0 : 1
-                    }
-                }
-            })
+            await ctx.db
+                .update(commissions)
+                .set({
+                    new_requests: input.accepted
+                        ? sql`${commissions.new_requests} + 1`
+                        : sql`${commissions.new_requests} - 1`,
+                    accepted_requests: input.accepted
+                        ? sql`${commissions.accepted_requests} + 1`
+                        : sql`${commissions.accepted_requests} - 1`,
+                    rejected_requests: input.accepted
+                        ? sql`${commissions.rejected_requests} - 1`
+                        : sql`${commissions.rejected_requests} + 1`
+                })
+                .where(eq(commissions.id, request.commission_id))
 
             // Notify the user of the decision
             novu.trigger('commission-request-decision', {
                 to: {
-                    subscriberId: request.user.id
+                    subscriberId: request.user_id
                 },
                 payload: {
                     username: request.commission.artist.handle,
@@ -244,66 +247,69 @@ export const requestRouter = createTRPCRouter({
 
             // If rejected, Update the request to reflect the rejection and return
             if (!input.accepted) {
-                await ctx.db.request.update({
-                    where: {
-                        id: request.id
-                    },
-                    data: {
+                await ctx.db
+                    .update(requests)
+                    .set({
                         status: RequestStatus.Rejected
-                    }
-                })
+                    })
+                    .where(eq(requests.id, request.id))
 
                 return { success: true }
             }
 
             // If accepted, Create a stripe invoice draft
-            const stripe_draft = await StripeCreateInvoice(customer_id.stripeAccount, {
-                customer_id: customer_id.customerId,
-                user_id: request.userId,
-                commission_id: request.commissionId,
-                order_id: request.orderId
+            const stripe_draft = await StripeCreateInvoice(customer_id.stripe_account, {
+                customer_id: customer_id.customer_id,
+                user_id: request.user_id,
+                commission_id: request.commission_id,
+                order_id: request.order_id
             })
 
             // Create the invoice object in the database with the initial item
-            const invoice = await ctx.db.invoice.create({
-                data: {
-                    stripeId: stripe_draft.id,
-                    customerId: customer_id.customerId,
-                    stripeAccount: customer_id.stripeAccount,
-                    userId: customer_id.userId,
-                    artistId: customer_id.artistId,
-                    status: InvoiceStatus.Creating,
-                    requestId: request.id,
-                    items: {
-                        create: [
-                            {
-                                name: request.commission.title,
-                                quantity: 1,
-                                price: request.commission.price
-                            }
-                        ]
-                    }
-                }
+            const invoice = (
+                await ctx.db
+                    .insert(invoices)
+                    .values({
+                        id: createId(),
+                        stripe_id: stripe_draft.id,
+                        customer_id: customer_id.customer_id,
+                        stripe_account: customer_id.stripe_account,
+                        user_id: customer_id.user_id,
+                        artist_id: customer_id.artist_id,
+                        status: InvoiceStatus.Creating,
+                        request_id: request.id
+                    })
+                    .returning()
+            )[0]!
+
+            // Create invoice items
+            await ctx.db.insert(invoice_items).values({
+                id: createId(),
+                invoice_id: invoice.id,
+                name: request.commission.title,
+                price: request.commission.price,
+                quantity: 1
             })
 
             // Create a sendbird user if they don't exist
+            const user = await clerkClient.users.getUser(request.user_id)
             await sendbird.CreateUser({
-                user_id: request.user.id,
-                nickname: request.user.name || 'User',
-                profile_url: request.user.image || env.NEXTAUTH_URL + '/profile.png'
+                user_id: user.id,
+                nickname: user.username || 'User',
+                profile_url: user.imageUrl
             })
 
             // Create a sendbird channel
             await sendbird.CreateGroupChannel({
-                user_ids: [request.user.id, request.commission.artist.userId],
-                name: request.user.name!,
-                cover_url: request.user.image || env.NEXTAUTH_URL + '/profile.png',
-                channel_url: request.orderId,
-                operator_ids: [request.commission.artist.userId],
+                user_ids: [request.user_id, request.commission.artist.user_id],
+                name: `${request.commission.title} - ${user.username}`,
+                cover_url: request.commission.images[0] || env.BASE_URL + '/profile.png',
+                channel_url: request.order_id,
+                operator_ids: [request.commission.artist.user_id],
                 block_sdk_user_channel_join: true,
                 is_distinct: false,
                 data: {
-                    artist_id: request.commission.artistId,
+                    artist_id: request.commission.artist_id,
                     commission_title: request.commission.title
                 }
             })
@@ -324,29 +330,42 @@ export const requestRouter = createTRPCRouter({
                 }
             ]
 
-            const kanban = await ctx.db.kanban.create({
-                data: {
-                    requestId: request.id,
-                    containers: JSON.stringify(containers)
-                }
-            })
+            const kanban = (
+                await ctx.db
+                    .insert(kanbans)
+                    .values({
+                        id: createId(),
+                        request_id: request.id,
+                        containers: containers
+                    })
+                    .returning()
+            )[0]!
 
             // Update the request to reflect the acceptance
-            await ctx.db.request.update({
-                where: {
-                    id: request.id
-                },
-                data: {
+            // await ctx.db.request.update({
+            //     where: {
+            //         id: request.id
+            //     },
+            //     data: {
+            //         status: RequestStatus.Accepted,
+            //         invoiceId: invoice.id,
+            //         kanbanId: kanban.id,
+            //         sendbirdChannelURL: request.orderId
+            //     }
+            // })
+            await ctx.db
+                .update(requests)
+                .set({
                     status: RequestStatus.Accepted,
-                    invoiceId: invoice.id,
-                    kanbanId: kanban.id,
-                    sendbirdChannelURL: request.orderId
-                }
-            })
+                    invoice_id: invoice.id,
+                    kanban_id: kanban.id,
+                    sendbird_channel_url: request.order_id
+                })
+                .where(eq(requests.id, request.id))
 
             // Delete Dashboard Caches
-            await ctx.cache.del(AsRedisKey('commissions', request.commission.artistId))
-            await ctx.cache.del(AsRedisKey('requests', request.commissionId))
+            await ctx.cache.del(AsRedisKey('commissions', request.commission.artist_id))
+            await ctx.cache.del(AsRedisKey('requests', request.commission_id))
 
             return { success: true }
         })
