@@ -12,7 +12,6 @@ import {
 import { AsRedisKey } from '~/server/cache'
 import { db } from '~/server/db'
 import { StripeCreateAccount } from '~/core/payments'
-import { Prisma } from '@prisma/client'
 import { SendbirdUserData } from '~/sendbird/sendbird-structures'
 import { sendbird } from '~/server/sendbird'
 import { novu } from '~/server/novu'

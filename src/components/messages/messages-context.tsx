@@ -12,7 +12,6 @@ import {
 import { BaseMessage, FileMessage, UserMessage } from '@sendbird/chat/message'
 import { Member } from '@sendbird/chat/groupChannel'
 import { SendbirdMetadata } from '~/sendbird/sendbird-structures'
-import { Kanban } from '@prisma/client'
 import { api } from '~/trpc/react'
 import { useUser } from '@clerk/nextjs'
 

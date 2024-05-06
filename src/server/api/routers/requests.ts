@@ -1,4 +1,6 @@
+import { createId } from '@paralleldrive/cuid2'
 import { TRPCError } from '@trpc/server'
+import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { StripeCreateCustomer, StripeCreateInvoice } from '~/core/payments'
 import {
@@ -11,6 +13,7 @@ import { env } from '~/env'
 import { update_commission_check_waitlist } from '~/lib/server-utils'
 import { artistProcedure, createTRPCRouter, protectedProcedure } from '~/server/api/trpc'
 import { AsRedisKey } from '~/server/cache'
+import { commissions, requests } from '~/server/db/schema'
 import { novu } from '~/server/novu'
 import { sendbird } from '~/server/sendbird'
 
@@ -25,11 +28,9 @@ export const requestRouter = createTRPCRouter({
             return JSON.parse(cachedRequests) as ClientRequestData[]
         }
 
-        const requests = await ctx.db.request.findMany({
-            where: {
-                commissionId: input
-            },
-            include: {
+        const db_requests = await ctx.db.query.requests.findMany({
+            where: eq(requests.commission_id, input),
+            with: {
                 user: true
             }
         })
@@ -38,22 +39,20 @@ export const requestRouter = createTRPCRouter({
             return undefined
         }
 
-        await ctx.cache.set(AsRedisKey('requests', input), JSON.stringify(requests), {
+        await ctx.cache.set(AsRedisKey('requests', input), JSON.stringify(db_requests), {
             EX: 3600
         })
 
-        return requests
+        return db_requests
     }),
 
     /**
      * Gets a single request by order_id
      */
     get_request: artistProcedure.input(z.string()).query(async ({ input, ctx }) => {
-        const request = await ctx.db.request.findFirst({
-            where: {
-                orderId: input
-            },
-            include: {
+        const request = await ctx.db.query.requests.findFirst({
+            where: eq(requests.order_id, input),
+            with: {
                 user: true,
                 commission: true
             }
@@ -79,11 +78,9 @@ export const requestRouter = createTRPCRouter({
         )
         .mutation(async ({ input, ctx }) => {
             // Get commission data
-            const commission = await ctx.db.commission.findFirst({
-                where: {
-                    id: input.commission_id
-                },
-                include: {
+            const commission = await ctx.db.query.commissions.findFirst({
+                where: eq(commissions.id, input.commission_id),
+                with: {
                     artist: true
                 }
             })
@@ -99,32 +96,31 @@ export const requestRouter = createTRPCRouter({
             const waitlisted = await update_commission_check_waitlist(commission)
 
             // Create the request
-            const request = await ctx.db.request.create({
-                data: {
-                    formId: input.form_id,
-                    commissionId: input.commission_id,
-                    content: input.content,
-                    orderId: crypto.randomUUID(),
-                    userId: ctx.session.user.id,
-                    waitlist: waitlisted
-                }
+            await ctx.db.insert(requests).values({
+                id: createId(),
+                form_id: input.form_id,
+                user_id: ctx.user.id,
+                status: waitlisted ? RequestStatus.Waitlist : RequestStatus.Pending,
+                commission_id: input.commission_id,
+                order_id: crypto.randomUUID(),
+                content: JSON.parse(input.content)
             })
 
             // Notify the artist of a new request
             novu.trigger('commission-request', {
                 to: {
-                    subscriberId: commission.artist.userId
+                    subscriberId: commission.artist.user_id
                 },
                 payload: {
-                    username: ctx.session.user.name!,
+                    username: ctx.user.username!,
                     commission_name: commission.title,
-                    slug: env.NEXTAUTH_URL + '/dashboard/commissions/' + commission.slug
+                    slug: env.BASE_URL + '/dashboard/commissions/' + commission.slug
                 }
             })
 
             // Delete Cache
             await ctx.cache.del(
-                AsRedisKey('commissions', commission.artistId, commission.slug)
+                AsRedisKey('commissions', commission.artist_id, commission.slug)
             )
         }),
 

@@ -1,16 +1,16 @@
+import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { KanbanContainerData, KanbanTask } from '~/core/structures'
 import { artistProcedure, createTRPCRouter, protectedProcedure } from '~/server/api/trpc'
+import { kanbans, requests } from '~/server/db/schema'
 
 export const kanbanRouter = createTRPCRouter({
     /**
      * Get a kanban by its request ID
      */
     get_kanban: protectedProcedure.input(z.string()).query(async ({ input, ctx }) => {
-        const kanban = await ctx.db.kanban.findFirst({
-            where: {
-                requestId: input
-            }
+        const kanban = await ctx.db.query.kanbans.findFirst({
+            where: eq(kanbans.request_id, input)
         })
 
         if (!kanban) {
@@ -26,11 +26,9 @@ export const kanbanRouter = createTRPCRouter({
     get_kanban_messages: protectedProcedure
         .input(z.string())
         .mutation(async ({ input, ctx }) => {
-            const request = await ctx.db.request.findFirst({
-                where: {
-                    sendbirdChannelURL: input
-                },
-                include: {
+            const request = await ctx.db.query.requests.findFirst({
+                where: eq(requests.sendbird_channel_url, input),
+                with: {
                     kanban: true
                 }
             })
@@ -39,14 +37,9 @@ export const kanbanRouter = createTRPCRouter({
                 return undefined
             }
 
-            const containers = JSON.parse(
-                request.kanban.containers
-            ) as KanbanContainerData[]
-            const tasks = JSON.parse(request.kanban.tasks) as KanbanTask[]
-
             return {
-                containers,
-                tasks
+                containers: request.kanban.containers as KanbanContainerData[],
+                tasks: request.kanban.tasks as KanbanTask[]
             }
         }),
 
@@ -62,14 +55,12 @@ export const kanbanRouter = createTRPCRouter({
             })
         )
         .mutation(async ({ input, ctx }) => {
-            await ctx.db.kanban.update({
-                where: {
-                    id: input.kanban_id
-                },
-                data: {
-                    containers: input.containers,
-                    tasks: input.tasks
-                }
-            })
+            await ctx.db
+                .update(kanbans)
+                .set({
+                    containers: JSON.parse(input.containers),
+                    tasks: JSON.parse(input.tasks)
+                })
+                .where(eq(kanbans.id, input.kanban_id))
         })
 })

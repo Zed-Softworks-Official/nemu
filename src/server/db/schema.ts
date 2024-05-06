@@ -1,4 +1,3 @@
-import { createId } from '@paralleldrive/cuid2'
 import { sql, relations } from 'drizzle-orm'
 
 import {
@@ -25,6 +24,8 @@ import {
 } from '~/core/structures'
 
 export const createTable = pgTableCreator((name) => `nemu_${name}`)
+const enum_to_pg_enum = (m_Enum: any) =>
+    Object.values(m_Enum).map((value: any) => `${value}`) as [string, ...string[]]
 
 /**
  * Custom Id Type
@@ -47,40 +48,22 @@ export const SocialAccountType = customType<{ data: SocialAccount }>({
 /**
  * An Enumeration for the user roles
  */
-export const UserRoleEnum = pgEnum('UserRole', [
-    UserRole.Standard,
-    UserRole.Artist,
-    UserRole.Admin
-])
+export const UserRoleEnum = pgEnum('UserRole', enum_to_pg_enum(UserRole))
 
 /**
  * Enumeration for the different social agents
  */
-export const SocialAgentEnum = pgEnum('SocialAgent', [
-    SocialAgent.Twitter,
-    SocialAgent.Pixiv,
-    SocialAgent.Website
-])
+export const SocialAgentEnum = pgEnum('SocialAgent', enum_to_pg_enum(SocialAgent))
 
 /**
  * Enumeration for the different invoice statuses
  */
-export const InvoiceStatusEnum = pgEnum('InvoiceStatus', [
-    InvoiceStatus.Creating,
-    InvoiceStatus.Pending,
-    InvoiceStatus.Paid,
-    InvoiceStatus.Cancelled
-])
+export const InvoiceStatusEnum = pgEnum('InvoiceStatus', enum_to_pg_enum(InvoiceStatus))
 
 /**
  * An Enumeration for the Request Status
  */
-export const RequestStatusEnum = pgEnum('RequestStatus', [
-    RequestStatus.Pending,
-    RequestStatus.Accepted,
-    RequestStatus.Rejected,
-    RequestStatus.Delivered
-])
+export const RequestStatusEnum = pgEnum('RequestStatus', enum_to_pg_enum(RequestStatus))
 
 /**
  * An Enumeration for the Commission Availability
@@ -215,19 +198,6 @@ export const artists = createTable('artist', {
 
     socials: SocialAccountType('socials').array().default([]).notNull()
 })
-
-/**
- * Social Accounts
- */
-// export const social_accounts = createTable('social_accounts', {
-//     id: serial('id').primaryKey(),
-//     agent: SocialAgentEnum('agent').notNull(),
-//     url: varchar('url', { length: 256 }).notNull(),
-
-//     created_at: timestamp('created_at')
-//         .default(sql`CURRENT_TIMESTAMP`)
-//         .notNull()
-// })
 
 /**
  * Artist Code
@@ -439,9 +409,9 @@ export const requests = createTable('request', {
     kanban_id: varchar('kanban_id'),
     download_id: varchar('download_id'),
 
-    sendbird_channel_url: varchar('sendbird_channel_url').notNull(),
+    sendbird_channel_url: varchar('sendbird_channel_url'),
 
-    content: json('content')
+    content: json('content').notNull()
 })
 
 /**
@@ -452,6 +422,7 @@ export const requests = createTable('request', {
 export const kanbans = createTable('kanban', {
     id: cuid('id').primaryKey(),
     request_id: varchar('request_id').notNull(),
+
     containers: json('containers'),
     tasks: json('tasks'),
 

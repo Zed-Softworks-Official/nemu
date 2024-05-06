@@ -36,7 +36,7 @@ export type CommissionOrders = {
 export type ClientRequestData = Request & { user: User }
 
 /**
- * Client Side Commission Item, It basically contains all of same stuff as the prisma item
+ * Client Side Commission Item, It basically contains all of same stuff as the db item
  * However, the images also includes blur data instead of just the url for the image
  */
 export type ClientCommissionItem = {
@@ -90,7 +90,8 @@ export enum RequestStatus {
     Pending = 'pending',
     Accepted = 'accepted',
     Rejected = 'rejected',
-    Delivered = 'delivered'
+    Delivered = 'delivered',
+    Waitlist = 'waitlist'
 }
 
 /**

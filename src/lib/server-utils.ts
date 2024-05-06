@@ -52,20 +52,20 @@ export async function update_commission_check_waitlist(commission: Commission) {
     // Update the commission availability in the database
     // Also increments the totalRequests and newRequests
     // to keep track of the number of submissions
-    await db.commission.update({
-        where: {
-            id: commission.id
-        },
-        data: {
-            totalRequests: {
-                increment: 1
-            },
-            newRequests: {
-                increment: 1
-            },
-            availability
-        }
-    })
+    // await db.commission.update({
+    //     where: {
+    //         id: commission.id
+    //     },
+    //     data: {
+    //         totalRequests: {
+    //             increment: 1
+    //         },
+    //         newRequests: {
+    //             increment: 1
+    //         },
+    //         availability
+    //     }
+    // })
 
     // Return whether or not the request has been waitlisted
     return availability === CommissionAvailability.Waitlist
