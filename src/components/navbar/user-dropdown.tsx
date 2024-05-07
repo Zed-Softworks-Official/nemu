@@ -6,6 +6,7 @@ import {
     LogOutIcon,
     MailIcon,
     Settings2Icon,
+    TruckIcon,
     UserIcon
 } from 'lucide-react'
 
@@ -99,6 +100,12 @@ async function UserDropdownContent({ user }: { user: User }) {
                     </DropdownMenuItem>
                 </>
             )}
+            <DropdownMenuItem>
+                <Link href={'/requests'} className="flex w-full items-center gap-3">
+                    <TruckIcon className="h-6 w-6" />
+                    Requests
+                </Link>
+            </DropdownMenuItem>
             <DropdownMenuItem>
                 <Link href={messages_url} className="flex w-full items-center gap-3">
                     <MailIcon className="h-6 w-6" />

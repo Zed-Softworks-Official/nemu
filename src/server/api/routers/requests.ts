@@ -80,6 +80,36 @@ export const requestRouter = createTRPCRouter({
     }),
 
     /**
+     * Gets all requests from a user
+     */
+    get_user_request_list: protectedProcedure.query(async ({ ctx }) => {
+        const cachedRequests = await ctx.cache.get(AsRedisKey('requests', ctx.user.id))
+
+        if (cachedRequests) {
+            return JSON.parse(cachedRequests) as ClientRequestData[]
+        }
+
+        const db_requests = await ctx.db.query.requests.findMany({
+            where: eq(requests.user_id, ctx.user.id)
+        })
+
+        // Format for client
+        const result: ClientRequestData[] = []
+        for (const request of db_requests) {
+            result.push({
+                ...request,
+                user: await clerkClient.users.getUser(request.user_id)
+            })
+        }
+
+        await ctx.cache.set(AsRedisKey('requests', ctx.user.id), JSON.stringify(result), {
+            EX: 3600
+        })
+
+        return result
+    }),
+
+    /**
      * Submits a request to the given commission
      */
     set_request: protectedProcedure
