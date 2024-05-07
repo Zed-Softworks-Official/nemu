@@ -93,7 +93,7 @@ export default function RequestSubmitForm({
         }
 
         const newFormData: { [key: string]: { value: string; label: string } } = {}
-        const formElements = JSON.parse(data?.content!) as FormElementInstance[]
+        const formElements = data?.content as FormElementInstance[]
         for (let key in formValues.current) {
             newFormData[key] = {
                 value: formValues.current[key]!,
@@ -113,7 +113,7 @@ export default function RequestSubmitForm({
 
     // Validate the form
     const validateForm: () => boolean = useCallback(() => {
-        for (const field of JSON.parse(data?.content!) as FormElementInstance[]) {
+        for (const field of data?.content as FormElementInstance[]) {
             const actualValue = formValues.current[field.id] || ''
             const valid = FormElements[field.type].validate(field, actualValue)
 
@@ -187,7 +187,7 @@ export default function RequestSubmitForm({
                 </p>
                 <div className="divider"></div>
             </div>
-            {(JSON.parse(data?.content!) as FormElementInstance[]).map((element) => {
+            {(data?.content as FormElementInstance[]).map((element) => {
                 const FormComponent = FormElements[element.type].form_component
 
                 return (

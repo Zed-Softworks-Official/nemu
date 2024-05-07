@@ -4,3 +4,7 @@ export type ClientForm = {
     description: string
     content?: string
 }
+
+export type RequestContent = {
+    [key: string]: { value: string; label: string }
+}

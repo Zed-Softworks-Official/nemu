@@ -11,7 +11,7 @@ import { nemu_toast } from '~/lib/utils'
 
 import { Button } from '~/components/ui/button'
 import NemuImage from '~/components/nemu-image'
-import { ClientRequestData } from '~/core/structures'
+import { ClientRequestData, RequestContent } from '~/core/structures'
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
 import {
     Dialog,
@@ -67,7 +67,7 @@ export default function RequestCard({
         }
     })
 
-    const request_data = request.content as FormElementInstance[]
+    const request_data = request.content as RequestContent
 
     return (
         <Dialog>
@@ -160,19 +160,18 @@ export default function RequestCard({
                 </DialogHeader>
                 <div>
                     <div className="divider"></div>
-                    {/* <div className="flex flex-col gap-5">
+                    <div className="flex flex-col gap-5">
                         {Object.keys(request_data).map((key) => (
-                            <div key={key.id} className="flex flex-col gap-5">
+                            <div key={key} className="flex flex-col gap-5">
                                 <div className="rounded-xl bg-base-100 p-5">
                                     <h3 className="card-title">
-                                        {request_data[key].label}
+                                        {request_data[key]?.label}
                                     </h3>
-                                    <p>{request_data[key].value}</p>
+                                    <p>{request_data[key]?.value}</p>
                                 </div>
                             </div>
                         ))}
-                    </div>jhnjbh```
-                    ''''78 */}
+                    </div>
                 </div>
             </DialogContent>
         </Dialog>

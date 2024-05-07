@@ -14,14 +14,16 @@ import { Member } from '@sendbird/chat/groupChannel'
 import { SendbirdMetadata } from '~/sendbird/sendbird-structures'
 import { api } from '~/trpc/react'
 import { useUser } from '@clerk/nextjs'
+import { InferSelectModel } from 'drizzle-orm'
+import { kanbans } from '~/server/db/schema'
 
 type MessagesContextType = {
     currentChannel?: string
     setCurrentChannel: Dispatch<SetStateAction<string | undefined>>
 
     session: ReturnType<typeof useUser>
-    kanbanData: Kanban | undefined
-    setKanbanData: Dispatch<SetStateAction<Kanban | undefined>>
+    kanbanData: InferSelectModel<typeof kanbans> | undefined
+    setKanbanData: Dispatch<SetStateAction<InferSelectModel<typeof kanbans> | undefined>>
 
     replyMode: boolean
     replyMessage?: BaseMessage | FileMessage
@@ -55,11 +57,9 @@ export function MessagesProvider({
     const [replyMessage, setReplyMessage] = useState<
         BaseMessage | FileMessage | undefined
     >()
-    const [kanbanData, setKanbanData] = useState<Kanban | undefined>(undefined)
+    const [kanbanData, setKanbanData] = useState<InferSelectModel<typeof kanbans> | undefined>(undefined)
     const [otherUser, setOtherUser] = useState<Member | undefined>(undefined)
-    const [inputPlaceholder, setInputPlaceholder] = useState<string>(
-        `Message`
-    )
+    const [inputPlaceholder, setInputPlaceholder] = useState<string>(`Message`)
     const [metadata, setMetadata] = useState<SendbirdMetadata | undefined>(undefined)
 
     const kanban = api.kanban.get_kanban_messages.useMutation({
