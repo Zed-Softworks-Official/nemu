@@ -37,21 +37,27 @@ export const requestRouter = createTRPCRouter({
         }
 
         const db_requests = await ctx.db.query.requests.findMany({
-            where: eq(requests.commission_id, input),
-            with: {
-                user: true
-            }
+            where: eq(requests.commission_id, input)
         })
 
-        if (!requests) {
+        if (!db_requests) {
             return undefined
         }
 
-        await ctx.cache.set(AsRedisKey('requests', input), JSON.stringify(db_requests), {
+        // Format for client
+        const result: ClientRequestData[] = []
+        for (const request of db_requests) {
+            result.push({
+                ...request,
+                user: await clerkClient.users.getUser(request.user_id)
+            })
+        }
+
+        await ctx.cache.set(AsRedisKey('requests', input), JSON.stringify(result), {
             EX: 3600
         })
 
-        return db_requests
+        return result
     }),
 
     /**

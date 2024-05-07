@@ -85,9 +85,9 @@ export default async function ArtistPage({ params }: Props) {
                                 <TabsTrigger value="commissions" defaultChecked>
                                     Commissions
                                 </TabsTrigger>
-                                <TabsTrigger value="artist-corner">
+                                {/* <TabsTrigger value="artist-corner">
                                     Artist's Corner
-                                </TabsTrigger>
+                                </TabsTrigger> */}
                                 <TabsTrigger value="portfolio">Portfolio</TabsTrigger>
                             </TabsList>
                         </div>
@@ -133,10 +133,10 @@ export default async function ArtistPage({ params }: Props) {
                                 />
                             </Suspense>
                         </TabsContent>
-                        <TabsContent value="artist-corner">
+                        {/* <TabsContent value="artist-corner">
                             <h2 className="card-title">Artist's Corner</h2>
                             <div className="divider"></div>
-                        </TabsContent>
+                        </TabsContent> */}
                         <TabsContent value="portfolio">
                             <h2 className="card-title">Portfolio</h2>
                             <div className="divider"></div>

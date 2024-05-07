@@ -1,4 +1,5 @@
 'use client'
+
 import { useState } from 'react'
 import { Id } from 'react-toastify'
 import { useTheme } from 'next-themes'
@@ -27,6 +28,7 @@ import {
     DropdownMenuTrigger
 } from '~/components/ui/dropdown-menu'
 import Link from 'next/link'
+import { FormElementInstance } from '~/components/form-builder/elements/form-elements'
 
 export default function RequestCard({
     request,
@@ -65,14 +67,17 @@ export default function RequestCard({
         }
     })
 
-    const request_data = JSON.parse(request.content)
+    const request_data = request.content as FormElementInstance[]
 
     return (
         <Dialog>
-            <div className="flex flex-col p-5 bg-base-200 rounded-xl transition-all duration-200 ease-in-out animate-pop-in">
-                <div className="flex justify-center items-center flex-col gap-5">
+            <div className="flex animate-pop-in flex-col rounded-xl bg-base-200 p-5 transition-all duration-200 ease-in-out">
+                <div className="flex flex-col items-center justify-center gap-5">
                     <Avatar>
-                        <AvatarImage src={request.user.image!} alt="User Profile Photo" />
+                        <AvatarImage
+                            src={request.user.imageUrl}
+                            alt="User Profile Photo"
+                        />
                         <AvatarFallback>
                             <NemuImage
                                 src={'/profile.png'}
@@ -83,23 +88,23 @@ export default function RequestCard({
                             />
                         </AvatarFallback>
                     </Avatar>
-                    <h3 className="card-title">{request.user.name}</h3>
+                    <h3 className="card-title">{request.user.username}</h3>
                 </div>
                 <div className="divider-vertical"></div>
                 <div className="flex flex-col gap-5">
                     <div className="flex flex-row gap-5">
                         {accepted_data ? (
                             <Link
-                                href={`/dashboard/commissions/${accepted_data.slug}/${request.orderId}`}
-                                className="btn btn-primary text-white w-full"
+                                href={`/dashboard/commissions/${accepted_data.slug}/${request.order_id}`}
+                                className="btn btn-primary w-full text-white"
                             >
-                                <EyeIcon className="w-6 h-6" />
+                                <EyeIcon className="h-6 w-6" />
                                 View Request
                             </Link>
                         ) : (
                             <DialogTrigger asChild>
                                 <Button className="w-full">
-                                    <EyeIcon className="w-6 h-6" />
+                                    <EyeIcon className="h-6 w-6" />
                                     View Request
                                 </Button>
                             </DialogTrigger>
@@ -108,14 +113,14 @@ export default function RequestCard({
                 </div>
             </div>
             <DialogContent>
-                <DialogHeader className="flex flex-row justify-between items-center">
+                <DialogHeader className="flex flex-row items-center justify-between">
                     <div>
-                        <DialogTitle>Requst from {request.user.name}</DialogTitle>
+                        <DialogTitle>Requst from {request.user.username}</DialogTitle>
                         <DialogDescription>
-                            <span className="text-base-content/60 italic">
+                            <span className="italic text-base-content/60">
                                 Requested:{' '}
                                 <time>
-                                    {new Date(request.createdAt).toLocaleDateString()}
+                                    {new Date(request.created_at).toLocaleDateString()}
                                 </time>
                             </span>
                         </DialogDescription>
@@ -123,7 +128,7 @@ export default function RequestCard({
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button variant={'outline'}>
-                                <MenuIcon className="w-6 h-6" />
+                                <MenuIcon className="h-6 w-6" />
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent>
@@ -135,7 +140,7 @@ export default function RequestCard({
                                     })
                                 }}
                             >
-                                <CheckCircle2Icon className="w-6 h-6" />
+                                <CheckCircle2Icon className="h-6 w-6" />
                                 Accept
                             </DropdownMenuItem>
                             <DropdownMenuItem
@@ -147,7 +152,7 @@ export default function RequestCard({
                                     })
                                 }}
                             >
-                                <XCircleIcon className="w-6 h-6" />
+                                <XCircleIcon className="h-6 w-6" />
                                 Decline
                             </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -155,10 +160,10 @@ export default function RequestCard({
                 </DialogHeader>
                 <div>
                     <div className="divider"></div>
-                    <div className="flex flex-col gap-5">
-                        {Object.keys(request_data).map((key, i) => (
-                            <div key={i} className="flex flex-col gap-5">
-                                <div className="bg-base-100 p-5 rounded-xl">
+                    {/* <div className="flex flex-col gap-5">
+                        {Object.keys(request_data).map((key) => (
+                            <div key={key.id} className="flex flex-col gap-5">
+                                <div className="rounded-xl bg-base-100 p-5">
                                     <h3 className="card-title">
                                         {request_data[key].label}
                                     </h3>
@@ -166,35 +171,10 @@ export default function RequestCard({
                                 </div>
                             </div>
                         ))}
-                    </div>
+                    </div>jhnjbh```
+                    ''''78 */}
                 </div>
             </DialogContent>
         </Dialog>
     )
-}
-
-{
-    /* <Button
-                            onClick={() => {
-                                mutation.mutate({
-                                    request_id: request.id,
-                                    accepted: true
-                                })
-                            }}
-                        >
-                            <CheckCircle2Icon className="w-6 h-6" />
-                            Accept
-                        </Button>
-                        <Button
-                            variant={'outline'}
-                            onClick={() => {
-                                mutation.mutate({
-                                    request_id: request.id,
-                                    accepted: false
-                                })
-                            }}
-                        >
-                            <XCircleIcon className="w-6 h-6" />
-                            Decline
-                        </Button> */
 }
