@@ -8,7 +8,8 @@ import {
 } from '~/core/structures'
 import { artistProcedure, createTRPCRouter, publicProcedure } from '~/server/api/trpc'
 import { AsRedisKey } from '~/server/cache'
-import { convert_images_to_nemu_images, get_blur_data } from '~/lib/server-utils'
+import { convert_images_to_nemu_images } from '~/lib/server-utils' 
+import { get_blur_data } from '~/lib/blur_data'
 import { format_to_currency } from '~/lib/utils'
 import { artists, commissions } from '~/server/db/schema'
 
@@ -68,13 +69,13 @@ export const commissionRouter = createTRPCRouter({
                     title: commission.title,
                     description: commission.description,
                     price: format_to_currency(Number(commission.price)),
-                    availability: commission.availability,
+                    availability: commission.availability as CommissionAvailability,
                     rating: Number(commission.rating),
                     published: commission.published,
                     images: [
                         {
                             url: commission.images[0]!,
-                            blur_data: (await get_blur_data(commission.images[0]!)).base64
+                            blur_data: await get_blur_data(commission.images[0]!)
                         }
                     ],
                     slug: commission.slug,
@@ -148,7 +149,7 @@ export const commissionRouter = createTRPCRouter({
             for (const image of commission?.images) {
                 images.push({
                     url: image,
-                    blur_data: (await get_blur_data(image)).base64
+                    blur_data: await get_blur_data(image)
                 })
             }
 
@@ -156,7 +157,7 @@ export const commissionRouter = createTRPCRouter({
                 title: commission.title,
                 description: commission.description,
                 price: format_to_currency(Number(commission.price)),
-                availability: commission.availability,
+                availability: commission.availability as CommissionAvailability,
                 rating: Number(commission.rating),
                 images: images,
                 slug: commission.slug,
@@ -210,7 +211,7 @@ export const commissionRouter = createTRPCRouter({
                 title: commission.title,
                 description: commission.description,
                 price: format_to_currency(Number(commission.price)),
-                availability: commission.availability,
+                availability: commission.availability as CommissionAvailability,
                 rating: Number(commission.rating),
                 images: await convert_images_to_nemu_images(commission?.images),
                 slug: commission.slug,
@@ -299,7 +300,7 @@ export const commissionRouter = createTRPCRouter({
                 title: commission.title,
                 description: commission.description,
                 price: format_to_currency(Number(commission.price)),
-                availability: commission.availability,
+                availability: commission.availability as CommissionAvailability,
                 rating: Number(commission.rating),
                 images: images,
                 slug: commission.slug,

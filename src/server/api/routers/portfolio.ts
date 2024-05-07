@@ -4,7 +4,7 @@ import { and, eq } from 'drizzle-orm'
 import { z } from 'zod'
 
 import { ClientPortfolioItem, NemuImageData } from '~/core/structures'
-import { get_blur_data } from '~/lib/server-utils'
+import { get_blur_data } from '~/lib/blur_data'
 
 import { artistProcedure, createTRPCRouter, publicProcedure } from '~/server/api/trpc'
 import { AsRedisKey } from '~/server/cache'
@@ -82,7 +82,7 @@ export const portfolioRouter = createTRPCRouter({
                     title: portfolio.title,
                     image: {
                         url: portfolio.image_url,
-                        blur_data: (await get_blur_data(portfolio.image_url)).base64
+                        blur_data: await get_blur_data(portfolio.image_url)
                     }
                 })
             }
@@ -129,7 +129,7 @@ export const portfolioRouter = createTRPCRouter({
                     title: portfolio.title,
                     image: {
                         url: portfolio.image_url,
-                        blur_data: (await get_blur_data(portfolio.image_url)).base64
+                        blur_data: await get_blur_data(portfolio.image_url)
                     }
                 })
             }
@@ -181,7 +181,7 @@ export const portfolioRouter = createTRPCRouter({
                 title: portfolio_item.title,
                 image: {
                     url: portfolio_item.image_url,
-                    blur_data: (await get_blur_data(portfolio_item.image_url)).base64
+                    blur_data: await get_blur_data(portfolio_item.image_url)
                 }
             }
 
