@@ -74,7 +74,7 @@ export default function RequestCard({
                 <div className="flex flex-col items-center justify-center gap-5">
                     <Avatar>
                         <AvatarImage
-                            src={request.user.imageUrl}
+                            src={request.user.image_url}
                             alt="User Profile Photo"
                         />
                         <AvatarFallback>

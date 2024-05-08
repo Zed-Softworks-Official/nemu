@@ -10,6 +10,7 @@ import CommissionPublishButton from '~/components/dashboard/commission-publish'
 import { RequestStatus } from '~/core/structures'
 import RequestCard from '~/components/dashboard/request-card'
 import { currentUser } from '@clerk/nextjs/server'
+import { request } from 'http'
 
 export default async function CommissionDetailPage({
     params
@@ -80,10 +81,7 @@ export default async function CommissionDetailPage({
                                                 request.status === RequestStatus.Pending
                                         )
                                         .map((request) => (
-                                            <RequestCard
-                                                key={request.id}
-                                                request={request}
-                                            />
+                                            <RequestCard key={request.id} request={request} />
                                         ))}
                                 </div>
                             </div>
@@ -94,7 +92,7 @@ export default async function CommissionDetailPage({
                             <div className="card-body">
                                 <h2 className="card-title">Active Requests</h2>
                                 <div className="divider"></div>
-                                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                                {/* <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                                     {requests
                                         ?.filter(
                                             (request) =>
@@ -110,7 +108,7 @@ export default async function CommissionDetailPage({
                                                 }}
                                             />
                                         ))}
-                                </div>
+                                </div> */}
                             </div>
                         </div>
                     </TabsContent>
