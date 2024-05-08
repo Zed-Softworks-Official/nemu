@@ -1,3 +1,4 @@
+import { User } from '@clerk/nextjs/server'
 import { InferSelectModel } from 'drizzle-orm'
 import { NemuImageData, KanbanContainerData, KanbanTask, ClientUser } from '~/core/structures'
 import { requests } from '~/server/db/schema'
@@ -35,7 +36,7 @@ export type CommissionOrders = {
 /**
  * Client Side Commission Request Data, It basically contains all of same stuff as the prisma request
  */
-export type ClientRequestData = InferSelectModel<typeof requests> & { user: ClientUser }
+export type ClientRequestData = InferSelectModel<typeof requests> & { user: User }
 
 /**
  * Client Side Commission Item, It basically contains all of same stuff as the db item

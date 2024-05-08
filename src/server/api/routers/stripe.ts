@@ -19,6 +19,7 @@ import {
     products,
     stripe_customer_ids
 } from '~/server/db/schema'
+import { AsRedisKey } from '~/server/cache'
 
 export const stripeRouter = createTRPCRouter({
     /**
@@ -89,22 +90,11 @@ export const stripeRouter = createTRPCRouter({
      */
     get_managment_url: artistProcedure.query(
         async ({ ctx }): Promise<{ type: 'dashboard' | 'onboarding'; url: string }> => {
-            // const cachedManagmentUrl = await redis.get(
-            //     AsRedisKey('stripe', ctx.session.user.artist_id!, 'managment')
-            // )
+            const cachedManagmentUrl = await ctx.cache.get(AsRedisKey('stripe', ctx.user.id, 'managment'))
 
-            // if (cachedManagmentUrl) {
-            //     return JSON.parse(cachedManagmentUrl) as {
-            //         type: 'dashboard' | 'onboarding'
-            //         url: string
-            //     }
-            // }
-
-            // const artist = await ctx.db.artist.findFirst({
-            //     where: {
-            //         id: ctx.user.privateMetadata.artist_id as string
-            //     }
-            // })
+            if (cachedManagmentUrl) {
+                return JSON.parse(cachedManagmentUrl) as { type: 'dashboard' | 'onboarding'; url: string }
+            }
 
             const artist = await ctx.db.query.artists.findFirst({
                 where: eq(artists.id, ctx.user.privateMetadata.artist_id as string)
@@ -149,14 +139,6 @@ export const stripeRouter = createTRPCRouter({
         )
         .query(async ({ input, ctx }) => {
             // Get Product from db
-            // const product = await ctx.db.product.findFirst({
-            //     where: {
-            //         id: input.product_id
-            //     },
-            //     include: {
-            //         artist: true
-            //     }
-            // })
             const product = await ctx.db.query.products.findFirst({
                 where: eq(products.id, input.product_id),
                 with: {
@@ -219,6 +201,12 @@ export const stripeRouter = createTRPCRouter({
      * Gets the billing portal url so the user can edit their subscription
      */
     get_checkout_portal: artistProcedure.query(async ({ ctx }) => {
+        const cachedCheckoutPortal = await ctx.cache.get(AsRedisKey('stripe', ctx.user.id, 'checkout_portal'))
+
+        if (cachedCheckoutPortal) {
+            return JSON.parse(cachedCheckoutPortal) as string
+        }
+
         const artist = await ctx.db.query.artists.findFirst({
             where: eq(artists.id, ctx.user.privateMetadata.artist_id as string)
         })

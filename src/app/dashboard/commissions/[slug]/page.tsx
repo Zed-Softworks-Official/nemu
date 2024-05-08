@@ -5,12 +5,28 @@ import { api } from '~/trpc/server'
 import DashboardContainer from '~/components/ui/dashboard-container'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 import Link from 'next/link'
-import { PencilIcon } from 'lucide-react'
+import { EyeIcon, MenuIcon, PencilIcon } from 'lucide-react'
 import CommissionPublishButton from '~/components/dashboard/commission-publish'
-import { RequestStatus } from '~/core/structures'
-import RequestCard from '~/components/dashboard/request-card'
+import { ClientRequestData, RequestContent, RequestStatus } from '~/core/structures'
+// import RequestCard from '~/components/dashboard/request-card'
 import { currentUser } from '@clerk/nextjs/server'
-import { request } from 'http'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger
+} from '~/components/ui/dialog'
+import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
+import NemuImage from '~/components/nemu-image'
+import { Button } from '~/components/ui/button'
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuTrigger
+} from '~/components/ui/dropdown-menu'
+import RequestCardDropdown from '~/components/dashboard/request-card-dropdown'
 
 export default async function CommissionDetailPage({
     params
@@ -81,7 +97,10 @@ export default async function CommissionDetailPage({
                                                 request.status === RequestStatus.Pending
                                         )
                                         .map((request) => (
-                                            <RequestCard key={request.id} request={request} />
+                                            <RequestCard
+                                                key={request.id}
+                                                request={request}
+                                            />
                                         ))}
                                 </div>
                             </div>
@@ -92,7 +111,7 @@ export default async function CommissionDetailPage({
                             <div className="card-body">
                                 <h2 className="card-title">Active Requests</h2>
                                 <div className="divider"></div>
-                                {/* <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                                     {requests
                                         ?.filter(
                                             (request) =>
@@ -108,7 +127,7 @@ export default async function CommissionDetailPage({
                                                 }}
                                             />
                                         ))}
-                                </div> */}
+                                </div>
                             </div>
                         </div>
                     </TabsContent>
@@ -131,5 +150,104 @@ export default async function CommissionDetailPage({
                 </Tabs>
             </div>
         </DashboardContainer>
+    )
+}
+
+function RequestCard({
+    request,
+    accepted_data
+}: {
+    request: ClientRequestData
+    accepted_data?: { accepted: boolean; slug: string }
+}) {
+    const request_data = request.content as RequestContent
+
+    return (
+        <Dialog>
+            <div className="flex animate-pop-in flex-col rounded-xl bg-base-200 p-5 transition-all duration-200 ease-in-out">
+                <div className="flex flex-col items-center justify-center gap-5">
+                    <Avatar>
+                        <AvatarImage
+                            src={request.user.imageUrl}
+                            alt="User Profile Photo"
+                        />
+                        <AvatarFallback>
+                            <NemuImage
+                                src={'/profile.png'}
+                                alt="User Profile Photo"
+                                width={20}
+                                height={20}
+                                priority
+                            />
+                        </AvatarFallback>
+                    </Avatar>
+                    <h3 className="card-title">
+                        {request.user.username || request.user.firstName}
+                    </h3>
+                </div>
+                <div className="divider-vertical"></div>
+                <div className="flex flex-col gap-5">
+                    <div className="flex flex-row gap-5">
+                        <RequestCardViewButton
+                            request_id={request.id}
+                            accepted_data={accepted_data}
+                        />
+                    </div>
+                </div>
+            </div>
+            <DialogContent>
+                <DialogHeader className="flex flex-row items-center justify-between">
+                    <div>
+                        <DialogTitle>Requst from {request.user.username || request.user.firstName}</DialogTitle>
+                        <DialogDescription>
+                            <span className="italic text-base-content/60">
+                                Requested:{' '}
+                                <time>
+                                    {new Date(request.created_at).toLocaleDateString()}
+                                </time>
+                            </span>
+                        </DialogDescription>
+                    </div>
+                    <RequestCardDropdown request_id={request.id} />
+                </DialogHeader>
+                <div className="divider"></div>
+                <div className="flex flex-col gap-5">
+                    {Object.keys(request_data).map((key) => (
+                        <div key={key} className="flex flex-col gap-5">
+                            <div className="rounded-xl bg-base-100 p-5">
+                                <h3 className="card-title">{request_data[key]?.label}</h3>
+                                <p>{request_data[key]?.value}</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+function RequestCardViewButton(props: {
+    request_id: string
+    accepted_data?: { accepted: boolean; slug: string }
+}) {
+    if (props.accepted_data) {
+        return (
+            <Link
+                href={`/dashboard/commissions/${props.accepted_data.slug}/${props.request_id}`}
+                className="btn btn-primary w-full text-white"
+            >
+                <EyeIcon className="h-6 w-6" />
+                View Request
+            </Link>
+        )
+    }
+
+    return (
+        <DialogTrigger asChild>
+            <Button className="w-full">
+                <EyeIcon className="h-6 w-6" />
+                View Request
+            </Button>
+        </DialogTrigger>
     )
 }

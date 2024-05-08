@@ -51,12 +51,7 @@ export const requestRouter = createTRPCRouter({
 
             result.push({
                 ...request,
-                user: {
-                    id: user.id,
-                    username: user.username! || user.firstName!,
-                    email_address: user.emailAddresses[0]?.emailAddress!,
-                    image_url: user.imageUrl
-                }
+                user: await clerkClient.users.getUser(request.user_id)
             })
         }
 
@@ -232,11 +227,13 @@ export const requestRouter = createTRPCRouter({
 
             // If the stripe account does not exist, create one
             if (!customer_id) {
+                const request_user = await clerkClient.users.getUser(request.user_id)
+
                 // Create customer account in stripe
                 const customer = await StripeCreateCustomer(
                     request.commission.artist.stripe_account,
-                    ctx.user.username || undefined,
-                    ctx.user.emailAddresses[0]?.emailAddress || undefined
+                    request_user.username || request_user.firstName || undefined,
+                    request_user.emailAddresses[0]?.emailAddress || undefined
                 )
 
                 if (!customer) {
@@ -251,6 +248,7 @@ export const requestRouter = createTRPCRouter({
                     await ctx.db
                         .insert(stripe_customer_ids)
                         .values({
+                            id: createId(),
                             user_id: request.user_id,
                             artist_id: request.commission.artist_id,
                             customer_id: customer.id,
@@ -264,9 +262,7 @@ export const requestRouter = createTRPCRouter({
             await ctx.db
                 .update(commissions)
                 .set({
-                    new_requests: input.accepted
-                        ? sql`${commissions.new_requests} + 1`
-                        : sql`${commissions.new_requests} - 1`,
+                    new_requests: sql`${commissions.new_requests} - 1`,
                     accepted_requests: input.accepted
                         ? sql`${commissions.accepted_requests} + 1`
                         : sql`${commissions.accepted_requests} - 1`,
@@ -277,16 +273,16 @@ export const requestRouter = createTRPCRouter({
                 .where(eq(commissions.id, request.commission_id))
 
             // Notify the user of the decision
-            novu.trigger('commission-request-decision', {
-                to: {
-                    subscriberId: request.user_id
-                },
-                payload: {
-                    username: request.commission.artist.handle,
-                    commission_name: request.commission.title,
-                    accepted: input.accepted
-                }
-            })
+            // novu.trigger('commission-request-decision', {
+            //     to: {
+            //         subscriberId: request.user_id
+            //     },
+            //     payload: {
+            //         username: request.commission.artist.handle,
+            //         commission_name: request.commission.title,
+            //         accepted: input.accepted
+            //     }
+            // })
 
             // If rejected, Update the request to reflect the rejection and return
             if (!input.accepted) {
