@@ -189,7 +189,7 @@ function RequestCard({
                 <div className="flex flex-col gap-5">
                     <div className="flex flex-row gap-5">
                         <RequestCardViewButton
-                            request_id={request.id}
+                            order_id={request.order_id}
                             accepted_data={accepted_data}
                         />
                     </div>
@@ -227,13 +227,13 @@ function RequestCard({
 }
 
 function RequestCardViewButton(props: {
-    request_id: string
+    order_id: string
     accepted_data?: { accepted: boolean; slug: string }
 }) {
     if (props.accepted_data) {
         return (
             <Link
-                href={`/dashboard/commissions/${props.accepted_data.slug}/${props.request_id}`}
+                href={`/dashboard/commissions/${props.accepted_data.slug}/${props.order_id}`}
                 className="btn btn-primary w-full text-white"
             >
                 <EyeIcon className="h-6 w-6" />

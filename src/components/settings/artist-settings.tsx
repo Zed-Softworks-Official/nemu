@@ -2,8 +2,6 @@
 
 import * as z from 'zod'
 
-import { Artist } from '@prisma/client'
-
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 
@@ -20,6 +18,9 @@ import SelectCountries from '~/components/ui/select-countries'
 import { UploadDropzone } from '~/components/files/uploadthing'
 import { nemu_toast } from '~/lib/utils'
 import { useTheme } from 'next-themes'
+import { ClientArtist } from '~/core/structures'
+import { InferSelectModel } from 'drizzle-orm'
+import { artists } from '~/server/db/schema'
 
 const artistSchema = z.object({
     about: z.string().max(256),
@@ -33,7 +34,11 @@ const artistSchema = z.object({
 
 type ArtistSchemaType = z.infer<typeof artistSchema>
 
-export default function ArtistSettings({ artist }: { artist: Artist }) {
+export default function ArtistSettings({
+    artist
+}: {
+    artist: InferSelectModel<typeof artists>
+}) {
     const { resolvedTheme } = useTheme()
 
     const form = useForm<ArtistSchemaType>({
@@ -43,10 +48,10 @@ export default function ArtistSettings({ artist }: { artist: Artist }) {
             about: artist.about,
             location: artist.location,
             terms: artist.terms,
-            tipJarUrl: artist.tipJarUrl ? artist.tipJarUrl : undefined,
-            automatedMessageEnabled: artist.automatedMessageEnabled,
-            automatedMessage: artist.automatedCommissionMessage
-                ? artist.automatedCommissionMessage
+            tipJarUrl: artist.tip_jar_url ? artist.tip_jar_url : undefined,
+            automatedMessageEnabled: artist.automated_message_enabled || false,
+            automatedMessage: artist.automated_message
+                ? artist.automated_message
                 : undefined
         }
     })
@@ -112,7 +117,7 @@ export default function ArtistSettings({ artist }: { artist: Artist }) {
                         control={form.control}
                         name="automatedMessageEnabled"
                         render={({ field }) => (
-                            <FormItem className="flex justify-between items-center">
+                            <FormItem className="flex items-center justify-between">
                                 <FormLabel
                                     htmlFor={field.name}
                                     className="cursor-pointer"
@@ -146,7 +151,7 @@ export default function ArtistSettings({ artist }: { artist: Artist }) {
                 <div className="form-control">
                     <label className="label">Header Photo Upload</label>
                     <UploadDropzone
-                        className="ut-ready:border-2 ut-ready:border-base-content/60 ut-ready:bg-base-100 ut-ready:hover:border-primary ut-label:text-base-content ut-allowed-content:text-base-content/80 ut-allowed-content:italic ut-button:bg-primary ut-button:active:scale-95 w-full ut-button:transition-all ut-button:duration-200 ut-button:ease-in-out ut-ready:transition-all ut-ready:duration-200 ut-ready:ease-in-out"
+                        className="w-full ut-button:bg-primary ut-button:transition-all ut-button:duration-200 ut-button:ease-in-out ut-button:active:scale-95 ut-allowed-content:italic ut-allowed-content:text-base-content/80 ut-label:text-base-content ut-ready:border-2 ut-ready:border-base-content/60 ut-ready:bg-base-100 ut-ready:transition-all ut-ready:duration-200 ut-ready:ease-in-out ut-ready:hover:border-primary"
                         endpoint="headerPhotoUploader"
                         onClientUploadComplete={() => {
                             nemu_toast('Header photo updated!', {
@@ -158,7 +163,7 @@ export default function ArtistSettings({ artist }: { artist: Artist }) {
                 </div>
                 <div className="flex justify-end">
                     <Button type="submit" className="btn-wide">
-                        <SaveIcon className="w-6 h-6" />
+                        <SaveIcon className="h-6 w-6" />
                         Save
                     </Button>
                 </div>

@@ -170,6 +170,9 @@ importers:
       react-hook-form:
         specifier: ^7.51.3
         version: 7.51.3(react@18.2.0)
+      react-responsive-masonry:
+        specifier: ^2.2.0
+        version: 2.2.0
       react-toastify:
         specifier: ^10.0.5
         version: 10.0.5(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
@@ -225,6 +228,9 @@ importers:
       '@types/react-dom':
         specifier: ^18.2.19
         version: 18.2.25
+      '@types/react-responsive-masonry':
+        specifier: ^2.1.3
+        version: 2.1.3
       '@types/uuid':
         specifier: ^9.0.8
         version: 9.0.8
@@ -1627,6 +1633,9 @@ packages:
 
   '@types/react-dom@18.2.25':
     resolution: {integrity: sha512-o/V48vf4MQh7juIKZU2QGDfli6p1+OOi5oXx36Hffpc9adsHeXjVp8rHuPkjd8VT8sOJ2Zp05HR7CdpGTIUFUA==}
+
+  '@types/react-responsive-masonry@2.1.3':
+    resolution: {integrity: sha512-aOFUtv3QwNMmy0BgpQpvivQ/+vivMTB6ARrzf9eTSXsLzXpVnfEtjpHpSknYDnr8KaQmlgeauAj8E7wo/qMOTg==}
 
   '@types/react@18.2.78':
     resolution: {integrity: sha512-qOwdPnnitQY4xKlKayt42q5W5UQrSHjgoXNVEtxeqdITJ99k4VXJOP3vt8Rkm9HmgJpH50UNU+rlqfkfWOqp0A==}
@@ -3483,6 +3492,9 @@ packages:
       '@types/react':
         optional: true
 
+  react-responsive-masonry@2.2.0:
+    resolution: {integrity: sha512-IYbnfe2tWCZ3pvyTLyBWPj7uv5ZmNOULYMcAZi5a47ZLhSotOck1vkkISq6gP2qiyWdMvPfeMhjvYzUYGw9BOQ==}
+
   react-style-singleton@2.2.1:
     resolution: {integrity: sha512-ZWj0fHEMyWkHzKYUr2Bs/4zU6XLmq9HsgBURm7g5pAVfyn49DgUiNgY2d4lXRlYSiCif9YBGpQleewkcqddc7g==}
     engines: {node: '>=10'}
@@ -5293,6 +5305,10 @@ snapshots:
   '@types/prop-types@15.7.12': {}
 
   '@types/react-dom@18.2.25':
+    dependencies:
+      '@types/react': 18.2.78
+
+  '@types/react-responsive-masonry@2.1.3':
     dependencies:
       '@types/react': 18.2.78
 
@@ -7352,6 +7368,8 @@ snapshots:
       use-sidecar: 1.1.2(@types/react@18.2.78)(react@18.2.0)
     optionalDependencies:
       '@types/react': 18.2.78
+
+  react-responsive-masonry@2.2.0: {}
 
   react-style-singleton@2.2.1(@types/react@18.2.78)(react@18.2.0):
     dependencies:

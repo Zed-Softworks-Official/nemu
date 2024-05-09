@@ -20,6 +20,11 @@ import KanbanItemComponent from '~/components/kanban/kanban-task'
 import { PlusCircleIcon, SaveIcon } from 'lucide-react'
 import { api } from '~/trpc/react'
 import { Button } from '~/components/ui/button'
+import Masonry, { ResponsiveMasonry } from 'react-responsive-masonry'
+import { Id } from 'react-toastify'
+import { resolve } from 'path'
+import { useTheme } from 'next-themes'
+import { nemu_toast } from '~/lib/utils'
 
 export default function Kanban({
     title,
@@ -36,6 +41,7 @@ export default function Kanban({
     kanban_containers: KanbanContainerData[]
     kanban_tasks: KanbanTask[]
 }) {
+    const [toastId, setToastId] = useState<Id | undefined>()
     const [containers, setContainers] = useState<KanbanContainerData[]>(kanban_containers)
     const [tasks, setTasks] = useState<KanbanTask[]>(kanban_tasks)
 
@@ -44,8 +50,7 @@ export default function Kanban({
     )
     const [activeTask, setActiveTask] = useState<KanbanTask | null>(null)
 
-    const [saving, setSaving] = useState(false)
-    const [autosave, setAutosave] = useState(true)
+    const { resolvedTheme } = useTheme()
 
     const containerIds = useMemo(
         () => containers.map((container) => container.id),
@@ -53,9 +58,29 @@ export default function Kanban({
     )
 
     const mutation = api.kanban.set_kanban.useMutation({
-        onMutate: () => {},
-        onSuccess: () => {},
-        onError: (e) => {}
+        onMutate: () => {
+            setToastId(nemu_toast.loading('Saving Kanban', { theme: resolvedTheme }))
+        },
+        onSuccess: () => {
+            if (!toastId) return
+
+            nemu_toast.update(toastId, {
+                render: 'Kanban Saved!',
+                isLoading: false,
+                autoClose: 5000,
+                type: 'success'
+            })
+        },
+        onError: (e) => {
+            if (!toastId) return
+
+            nemu_toast.update(toastId, {
+                render: e.message,
+                isLoading: false,
+                autoClose: 5000,
+                type: 'error'
+            })
+        }
     })
 
     const sesnors = useSensors(
@@ -70,10 +95,6 @@ export default function Kanban({
         containers: KanbanContainerData[]
         tasks: KanbanTask[]
     }) {
-        if (saving || !autosave) return
-
-        setSaving(true)
-
         if (kanban_id) {
             mutation.mutate({
                 kanban_id,
@@ -224,7 +245,7 @@ export default function Kanban({
         >
             <div className="card bg-base-100">
                 <div className="card-body gap-5">
-                    <div className="flex justify-between items-center">
+                    <div className="flex items-center justify-between">
                         {header ? (
                             <>{header}</>
                         ) : (
@@ -247,13 +268,13 @@ export default function Kanban({
                                     </>
                                 ) : (
                                     <>
-                                        <SaveIcon className="w-6 h-6" />
+                                        <SaveIcon className="h-6 w-6" />
                                         <p>Save</p>
                                     </>
                                 )}
                             </Button>
                             <Button onClick={() => CreateNewContainer()}>
-                                <PlusCircleIcon className="w-6 h-6" />
+                                <PlusCircleIcon className="h-6 w-6" />
                                 Add Container
                             </Button>
                         </div>
@@ -261,22 +282,26 @@ export default function Kanban({
                     <div className="divider"></div>
 
                     <SortableContext items={containerIds}>
-                        <div className="columns-1 gap-5 lg:gap-8 sm:columns-2 lg:columns-3 [&>div:not(:first-child)]:mt-5 lg:[&>div:not(:first-child)]:mt-8">
-                            {containers.map((container) => (
-                                <KanbanContainerComponent
-                                    key={container.id}
-                                    container_data={container}
-                                    tasks={tasks.filter(
-                                        (task) => task.container_id === container.id
-                                    )}
-                                    DeleteContainer={DeleteContainer}
-                                    UpdateContainer={UpdateContainer}
-                                    CreateTask={CreateTask}
-                                    DeleteTask={DeleteTask}
-                                    UpdateTask={UpdateTask}
-                                />
-                            ))}
-                        </div>
+                        <ResponsiveMasonry
+                            columnsCountBreakPoints={{ 350: 1, 750: 2, 900: 3 }}
+                        >
+                            <Masonry gutter="1.25rem">
+                                {containers.map((container) => (
+                                    <KanbanContainerComponent
+                                        key={container.id}
+                                        container_data={container}
+                                        tasks={tasks.filter(
+                                            (task) => task.container_id === container.id
+                                        )}
+                                        DeleteContainer={DeleteContainer}
+                                        UpdateContainer={UpdateContainer}
+                                        CreateTask={CreateTask}
+                                        DeleteTask={DeleteTask}
+                                        UpdateTask={UpdateTask}
+                                    />
+                                ))}
+                            </Masonry>
+                        </ResponsiveMasonry>
                     </SortableContext>
                 </div>
             </div>
