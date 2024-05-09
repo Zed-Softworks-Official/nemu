@@ -92,7 +92,14 @@ export const requestRouter = createTRPCRouter({
         }
 
         const db_requests = await ctx.db.query.requests.findMany({
-            where: eq(requests.user_id, ctx.user.id)
+            where: eq(requests.user_id, ctx.user.id),
+            with: {
+                commission: {
+                    with: {
+                        artist: true
+                    }
+                }
+            }
         })
 
         // Format for client

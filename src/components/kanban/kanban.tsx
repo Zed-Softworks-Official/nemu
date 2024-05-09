@@ -22,20 +22,15 @@ import { api } from '~/trpc/react'
 import { Button } from '~/components/ui/button'
 import Masonry, { ResponsiveMasonry } from 'react-responsive-masonry'
 import { Id } from 'react-toastify'
-import { resolve } from 'path'
 import { useTheme } from 'next-themes'
 import { nemu_toast } from '~/lib/utils'
 
 export default function Kanban({
-    title,
-    client,
     header,
     kanban_id,
     kanban_containers,
     kanban_tasks
 }: {
-    title?: string
-    client?: string
     header?: React.ReactNode
     kanban_id?: string
     kanban_containers: KanbanContainerData[]
@@ -249,10 +244,7 @@ export default function Kanban({
                         {header ? (
                             <>{header}</>
                         ) : (
-                            <div>
-                                <h2 className="text-xl font-bold">Kanban for {client}</h2>
-                                <p>Commission Title: {title}</p>
-                            </div>
+                            <h2 className="text-xl font-bold">Kanban</h2>
                         )}
 
                         <div className="flex items-center gap-5">
