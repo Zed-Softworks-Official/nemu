@@ -1,6 +1,7 @@
 import { clerkClient } from '@clerk/nextjs/server'
 import { notFound } from 'next/navigation'
 import Kanban from '~/components/kanban/kanban'
+import MessagesClient from '~/components/messages/messages'
 import DashboardContainer from '~/components/ui/dashboard-container'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 import { KanbanContainerData, KanbanTask, RequestContent } from '~/core/structures'
@@ -50,8 +51,8 @@ export default async function CommissionOrderDetailPage({
                     ))}
                 </div>
             </div>
-            <Tabs defaultValue='kanban' >
-                <TabsList className='w-full justify-start'>
+            <Tabs defaultValue="kanban">
+                <TabsList className="w-full justify-start">
                     <TabsTrigger value="kanban">Kanban</TabsTrigger>
                     <TabsTrigger value="messages">Messages</TabsTrigger>
                 </TabsList>
@@ -60,6 +61,12 @@ export default async function CommissionOrderDetailPage({
                         kanban_containers={kanban.containers as KanbanContainerData[]}
                         kanban_tasks={(kanban.tasks as KanbanTask[]) || []}
                         kanban_id={kanban.id}
+                    />
+                </TabsContent>
+                <TabsContent value="messages">
+                    <MessagesClient
+                        hide_channel_list
+                        channel_url={request.sendbird_channel_url!}
                     />
                 </TabsContent>
             </Tabs>

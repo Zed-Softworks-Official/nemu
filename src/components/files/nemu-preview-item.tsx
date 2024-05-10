@@ -1,11 +1,18 @@
 'use client'
 
-import { useSortable } from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
+import Image from 'next/image'
 import { Trash2Icon } from 'lucide-react'
 
-import NemuImage from '~/components/nemu-image'
-import { Button } from '~/components/ui/button'
+import { CSS } from '@dnd-kit/utilities'
+import { useSortable } from '@dnd-kit/sortable'
+
+import {
+    ContextMenu,
+    ContextMenuTrigger,
+    ContextMenuContent,
+    ContextMenuItem
+} from '~/components/ui/context-menu'
+import { useUploadThingContext } from '~/components/files/uploadthing-context'
 
 export default function NemuPreviewItem({
     preview,
@@ -14,6 +21,7 @@ export default function NemuPreviewItem({
     preview: string | null
     i: number
 }) {
+    const { setFilePreviews, editPreviews, setEditPreviews } = useUploadThingContext()
     const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
         id: `nemu-upload-preview-${i}`,
         data: {
@@ -31,32 +39,39 @@ export default function NemuPreviewItem({
     }
 
     return (
-        <div
-            className="relative w-32 cursor-grab transition-all duration-200 ease-in-out hover:scale-110"
-            ref={setNodeRef}
-            style={style}
-            {...listeners}
-            {...attributes}
-        >
-            <NemuImage
-                src={preview}
-                alt="Image Preview"
-                className="h-fit w-full rounded-xl"
-                width={200}
-                height={200}
-            />
-            <div className="absolute hidden h-full w-full bg-black/80 hover:block">
-                <div className="flex h-full w-full flex-col items-center justify-center">
-                    <Button
-                        variant={'destructive'}
-                        onClick={() => {
-                            console.log('Delete image')
-                        }}
-                    >
-                        <Trash2Icon className="h-6 w-6" />
-                    </Button>
+        <ContextMenu>
+            <ContextMenuTrigger asChild>
+                <div
+                    className="relative w-32 cursor-grab transition-all duration-200 ease-in-out hover:scale-110"
+                    ref={setNodeRef}
+                    style={style}
+                    {...listeners}
+                    {...attributes}
+                >
+                    <Image
+                        src={preview}
+                        alt="Image Preview"
+                        className="h-fit w-full rounded-xl"
+                        width={200}
+                        height={200}
+                    />
                 </div>
-            </div>
-        </div>
+            </ContextMenuTrigger>
+            <ContextMenuContent>
+                <ContextMenuItem
+                    onClick={() => {
+                        if (editPreviews.length === 0) {
+                            setEditPreviews((prev) => {
+                                prev.splice(i, 1)
+                                return prev
+                            })
+                        }
+                    }}
+                >
+                    <Trash2Icon className="h-6 w-6" />
+                    Delete
+                </ContextMenuItem>
+            </ContextMenuContent>
+        </ContextMenu>
     )
 }

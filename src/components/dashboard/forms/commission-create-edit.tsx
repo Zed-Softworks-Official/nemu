@@ -72,7 +72,7 @@ export default function CommissionCreateEditForm({
     edit_data?: RouterOutput['commission']['get_commission']
 }) {
     const [toastId, setToastId] = useState<Id | undefined>()
-    const [fileKyes, setFileKeys] = useState<string[]>([])
+    const [fileKeys, setFileKeys] = useState<string[]>([])
 
     const { resolvedTheme } = useTheme()
     const { files, uploadImages, isUploading } = useUploadThingContext()

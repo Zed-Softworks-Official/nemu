@@ -21,6 +21,9 @@ type UploadThingContextType = {
     filePreviews: string[]
     setFilePreviews: Dispatch<SetStateAction<string[]>>
 
+    editPreviews: string[]
+    setEditPreviews: Dispatch<SetStateAction<string[]>>
+
     uploadImages: () => Promise<ClientUploadedFileData<null>[] | undefined>
 
     uploadProgress: number
@@ -44,7 +47,8 @@ export default function UploadThingProvider({
     children: React.ReactNode
 }) {
     const [files, setFiles] = useState<File[]>([])
-    const [filePreviews, setFilePreviews] = useState<string[]>(
+    const [filePreviews, setFilePreviews] = useState<string[]>([])
+    const [editPreviews, setEditPreviews] = useState<string[]>(
         edit_previews?.map((p) => p.url) ?? []
     )
 
@@ -88,7 +92,9 @@ export default function UploadThingProvider({
                 fileTypes,
                 uploadProgress,
                 setUploadProgress,
-                isUploading
+                isUploading,
+                editPreviews,
+                setEditPreviews
             }}
         >
             {children}
