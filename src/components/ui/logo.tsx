@@ -21,9 +21,9 @@ export default function Logo() {
     }, [resolvedTheme])
 
     return (
-        <Link href="/" className="relative cursor-pointer">
-            <Badge className="absolute -top-1 -right-10 badge-sm">Beta</Badge>
+        <Link href="/" className="flex cursor-pointer flex-row">
             <NemuImage src={src} alt="Nemu Logo" width={138} height={54} priority />
+            <Badge className="badge-sm">Beta</Badge>
         </Link>
     )
 }

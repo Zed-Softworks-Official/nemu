@@ -35,6 +35,8 @@ export const env = createEnv({
     client: {
         // NEXT_PUBLIC_CLIENTVAR: z.string(),
         NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: z.string(),
+        NEXT_PUBLIC_ALGOLIA_APP_ID: z.string(),
+        NEXT_PUBLIC_ALGOLIA_SEARCH_API_KEY: z.string()
     },
 
     /**
@@ -61,7 +63,9 @@ export const env = createEnv({
         UPLOADTHING_SECRET: process.env.UPLOADTHING_SECRET,
         SENTRY_AUTH_TOKEN: process.env.SENTRY_AUTH_TOKEN,
         
-        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
+        NEXT_PUBLIC_ALGOLIA_APP_ID: process.env.NEXT_PUBLIC_ALGOLIA_APP_ID,
+        NEXT_PUBLIC_ALGOLIA_SEARCH_API_KEY: process.env.NEXT_PUBLIC_ALGOLIA_SEARCH_API_KEY
     },
     /**
      * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

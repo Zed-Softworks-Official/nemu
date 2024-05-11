@@ -253,7 +253,7 @@ function ChannelMessages() {
                             <ChatMessage message={current_message} />
                         </ContextMenuTrigger>
                         <ContextMenuContent>
-                            {session.user.artist_id === metadata?.artist_id && (
+                            {session.user.meta === metadata?.artist_id && (
                                 <ContextMenuItem
                                     onClick={() => {
                                         setToastId(
