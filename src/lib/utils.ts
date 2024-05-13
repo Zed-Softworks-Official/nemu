@@ -65,7 +65,7 @@ export function format_to_currency(number: number) {
 
 /**
  * Gets tuple data for displaying the availability
- * 
+ *
  * @param {CommissionAvailability} availability - The availabilty you want the data for
  */
 export function get_availability_badge_data(
@@ -78,5 +78,19 @@ export function get_availability_badge_data(
             return ['warning', 'Waitlist']
         case CommissionAvailability.Closed:
             return ['destructive', 'Closed']
+    }
+}
+
+/**
+ * Debounces a function, so that it only runs once after a certain amount of time
+ * 
+ * @param {Function} fn - The function to debounce
+ * @param {number} ms - The amount of time to wait before running the function
+ */
+export function debounce(fn: Function, ms = 300) {
+    let timeoutId: ReturnType<typeof setTimeout>
+    return function (this: any, ...args: any[]) {
+        clearTimeout(timeoutId)
+        timeoutId = setTimeout(() => fn.apply(this, args), ms)
     }
 }

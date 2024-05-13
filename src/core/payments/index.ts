@@ -1,8 +1,8 @@
-export * from '~/core/stripe/accounts'
-export * from '~/core/stripe/supporter'
-export * from '~/core/stripe/customer'
-export * from '~/core/stripe/artist-corner'
-export * from '~/core/stripe/commission'
+export * from '~/core/payments/accounts'
+export * from '~/core/payments/supporter'
+export * from '~/core/payments/customer'
+export * from '~/core/payments/artist-corner'
+export * from '~/core/payments/commission'
 
 /**
  * Calculates the application fee amount

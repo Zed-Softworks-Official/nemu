@@ -1,13 +1,13 @@
 import { inferRouterOutputs, inferRouterInputs } from '@trpc/server'
 import { AppRouter } from '~/server/api/root'
 
-export * from '~/core/data-structures/user-structures'
-export * from '~/core/data-structures/commission-structures'
-export * from '~/core/data-structures/kanban-structures'
-export * from '~/core/data-structures/stripe-structures'
-export * from '~/core/data-structures/portfolio-structures'
-export * from '~/core/data-structures/artist-structures'
-export * from '~/core/data-structures/form-structures'
+export * from '~/core/structures/user-structures'
+export * from '~/core/structures/commission-structures'
+export * from '~/core/structures/kanban-structures'
+export * from '~/core/structures/stripe-structures'
+export * from '~/core/structures/portfolio-structures'
+export * from '~/core/structures/artist-structures'
+export * from '~/core/structures/form-structures'
 
 /**
  * Contains the url for the image as well as the blur data for the placeholder
