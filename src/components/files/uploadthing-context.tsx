@@ -12,17 +12,11 @@ import {
 import { EndpointHelper, useUploadThing } from '~/components/files/uploadthing'
 import { NemuFileRouterType } from '~/app/api/uploadthing/core'
 import { ClientUploadedFileData } from 'uploadthing/types'
-import { NemuImageData } from '~/core/structures'
+import { NemuEditImageData, NemuImageData } from '~/core/structures'
 
 type UploadThingContextType = {
-    files: File[]
-    setFiles: Dispatch<SetStateAction<File[]>>
-
-    filePreviews: string[]
-    setFilePreviews: Dispatch<SetStateAction<string[]>>
-
-    editPreviews: string[]
-    setEditPreviews: Dispatch<SetStateAction<string[]>>
+    images: NemuEditImageData[]
+    setImages: Dispatch<SetStateAction<NemuEditImageData[]>>
 
     uploadImages: () => Promise<ClientUploadedFileData<null>[] | undefined>
 
@@ -43,15 +37,10 @@ export default function UploadThingProvider({
     children
 }: {
     endpoint: EndpointHelper<NemuFileRouterType>
-    edit_previews?: NemuImageData[]
+    edit_previews?: NemuEditImageData[]
     children: React.ReactNode
 }) {
-    const [files, setFiles] = useState<File[]>([])
-    const [filePreviews, setFilePreviews] = useState<string[]>([])
-    const [editPreviews, setEditPreviews] = useState<string[]>(
-        edit_previews?.map((p) => p.url) ?? []
-    )
-
+    const [images, setImages] = useState<NemuEditImageData[]>([])
     const [uploadProgress, setUploadProgress] = useState(0)
 
     const { startUpload, permittedFileInfo, isUploading } = useUploadThing(endpoint, {
@@ -66,35 +55,33 @@ export default function UploadThingProvider({
 
     useEffect(() => {
         return () => {
-            for (const preview of filePreviews) {
-                URL.revokeObjectURL(preview)
+            for (const preview of images) {
+                if (preview.action === 'create') {
+                    URL.revokeObjectURL(preview.image_data.url)
+                }
             }
         }
-    }, [filePreviews])
+    }, [images])
 
     async function uploadImages() {
-        if (files.length === 0) {
+        if (images.length === 0) {
             return
         }
 
-        return await startUpload(files)
+        return await startUpload(images.map((image) => image.image_data.file_data!))
     }
 
     return (
         <UploadThingContext.Provider
             value={{
-                files,
-                setFiles,
-                filePreviews,
-                setFilePreviews,
+                images,
+                setImages,
                 uploadImages,
                 endpoint,
                 fileTypes,
                 uploadProgress,
                 setUploadProgress,
-                isUploading,
-                editPreviews,
-                setEditPreviews
+                isUploading
             }}
         >
             {children}

@@ -6,7 +6,7 @@ import { useTheme } from 'next-themes'
 import Link from 'next/link'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { Id, toast } from 'react-toastify'
+import { Id } from 'react-toastify'
 
 import { z } from 'zod'
 
@@ -23,7 +23,7 @@ import {
     SelectValue
 } from '~/components/ui/select'
 import { Textarea } from '~/components/ui/textarea'
-import { CommissionAvailability, RouterOutput } from '~/core/structures'
+import { CommissionAvailability, NemuImageData, RouterOutput } from '~/core/structures'
 import { nemu_toast } from '~/lib/utils'
 import { api } from '~/trpc/react'
 
@@ -75,7 +75,7 @@ export default function CommissionCreateEditForm({
     const [fileKeys, setFileKeys] = useState<string[]>([])
 
     const { resolvedTheme } = useTheme()
-    const { files, uploadImages, isUploading } = useUploadThingContext()
+    const { images, uploadImages, isUploading } = useUploadThingContext()
 
     const mutation = api.commission.set_commission.useMutation({
         onSuccess: () => {
@@ -168,7 +168,7 @@ export default function CommissionCreateEditForm({
         // Create Commission
         //////////////////////////////////////////
         // Check if we have images to upload
-        if (files.length === 0) {
+        if (images.length === 0) {
             nemu_toast.update(toast_id, {
                 render: 'Images are required!',
                 isLoading: false,
@@ -182,7 +182,6 @@ export default function CommissionCreateEditForm({
         // Upload Images
         const res = await uploadImages()
 
-        
         if (!res) {
             nemu_toast.update(toast_id, {
                 render: 'Uploading Images Failed!',
@@ -190,22 +189,15 @@ export default function CommissionCreateEditForm({
                 autoClose: 5000,
                 type: 'error'
             })
-            console.log('No Response')
-            
+
             return
         }
-        
-        // Store files from uploadthing
-        setFileKeys(res.map((file) => file.key))
 
-        // Grab image urls and utKeys from response
-        const images: string[] = []
-        const utKeys: string[] = []
-
-        for (const item of res) {
-            images.push(item.url)
-            utKeys.push(item.key)
-        }
+        // Format images response to be used in the mutation
+        const uploaded_images = res.map((file) => ({
+            url: file.url,
+            ut_key: file.key
+        }))
 
         // Update Toast
         nemu_toast.update(toast_id, {
@@ -220,8 +212,7 @@ export default function CommissionCreateEditForm({
                 description: values.description,
                 price: values.price,
                 availability: values.commission_availability,
-                images: images,
-                utKeys: utKeys,
+                images: uploaded_images,
                 form_id: values.form_id,
                 max_commissions_until_waitlist: values.max_commissions_until_waitlist,
                 max_commissions_until_closed: values.max_commissions_until_closed

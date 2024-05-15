@@ -7,71 +7,23 @@ import {
     timestamp,
     index,
     decimal,
-    pgEnum,
     json,
-    customType,
     integer,
     text
 } from 'drizzle-orm/pg-core'
 
 import {
-    UserRole,
-    RequestStatus,
-    SocialAgent,
-    SocialAccount,
-    InvoiceStatus,
-    CommissionAvailability
-} from '~/core/structures'
+    UserRoleEnum,
+    cuid,
+    customJson,
+    CommissionAvailabilityEnum,
+    RequestStatusEnum,
+    InvoiceStatusEnum
+} from '~/server/db/types'
+
+import { UserRole, NemuImageData, SocialAccount } from '~/core/structures'
 
 export const createTable = pgTableCreator((name) => `nemu_${name}`)
-const enum_to_pg_enum = (m_Enum: any) =>
-    Object.values(m_Enum).map((value: any) => `${value}`) as [string, ...string[]]
-
-/**
- * Custom Id Type
- */
-export const cuidType = customType<{ data: string; default: true; notNull: true }>({
-    dataType: () => 'text',
-    toDriver: (value) => value
-})
-
-export const cuid = (name: string) => cuidType(name)
-
-/**
- * Custom Social Type for the social accounts
- */
-export const SocialAccountType = customType<{ data: SocialAccount }>({
-    dataType: () => 'json',
-    toDriver: (value) => JSON.stringify(value)
-})
-
-/**
- * An Enumeration for the user roles
- */
-export const UserRoleEnum = pgEnum('UserRole', enum_to_pg_enum(UserRole))
-
-/**
- * Enumeration for the different social agents
- */
-export const SocialAgentEnum = pgEnum('SocialAgent', enum_to_pg_enum(SocialAgent))
-
-/**
- * Enumeration for the different invoice statuses
- */
-export const InvoiceStatusEnum = pgEnum('InvoiceStatus', enum_to_pg_enum(InvoiceStatus))
-
-/**
- * An Enumeration for the Request Status
- */
-export const RequestStatusEnum = pgEnum('RequestStatus', enum_to_pg_enum(RequestStatus))
-
-/**
- * An Enumeration for the Commission Availability
- */
-export const CommissionAvailabilityEnum = pgEnum(
-    'CommissionAvailability',
-    enum_to_pg_enum(CommissionAvailability)
-)
 
 //////////////////////////////////////////////////////////
 // Tables
@@ -195,7 +147,7 @@ export const artists = createTable('artist', {
     automated_message_enabled: boolean('automated_message_enabled').default(false),
     automated_message: varchar('automated_message'),
 
-    socials: SocialAccountType('socials').array().notNull()
+    socials: customJson<SocialAccount>('socials').array().notNull()
 })
 
 /**
@@ -300,8 +252,7 @@ export const commissions = createTable('commission', {
 
     title: varchar('title').notNull(),
     description: text('description').notNull(),
-    images: varchar('images').array().notNull(),
-    ut_keys: varchar('ut_keys').array().notNull(),
+    images: customJson<NemuImageData>('images').array().notNull(),
     availability: CommissionAvailabilityEnum('availability').notNull(),
     slug: varchar('slug').notNull(),
 

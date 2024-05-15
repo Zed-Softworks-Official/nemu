@@ -3,12 +3,16 @@ import { TRPCError } from '@trpc/server'
 
 import {
     ClientCommissionItem,
+    ClientCommissionItemEditable,
     CommissionAvailability,
     NemuImageData
 } from '~/core/structures'
 import { artistProcedure, createTRPCRouter, publicProcedure } from '~/server/api/trpc'
 import { AsRedisKey } from '~/server/cache'
-import { convert_images_to_nemu_images } from '~/lib/server-utils' 
+import {
+    convert_images_to_nemu_images,
+    convert_images_to_nemu_images_editable
+} from '~/lib/server-utils'
 import { get_blur_data } from '~/lib/blur_data'
 import { format_to_currency } from '~/lib/utils'
 import { artists, commissions } from '~/server/db/schema'
@@ -74,8 +78,8 @@ export const commissionRouter = createTRPCRouter({
                     published: commission.published,
                     images: [
                         {
-                            url: commission.images[0]!,
-                            blur_data: await get_blur_data(commission.images[0]!)
+                            url: commission.images[0]?.url!,
+                            blur_data: await get_blur_data(commission.images[0]?.url!)
                         }
                     ],
                     slug: commission.slug,
@@ -148,8 +152,8 @@ export const commissionRouter = createTRPCRouter({
 
             for (const image of commission?.images) {
                 images.push({
-                    url: image,
-                    blur_data: await get_blur_data(image)
+                    url: image.url,
+                    blur_data: await get_blur_data(image.url)
                 })
             }
 
@@ -208,28 +212,22 @@ export const commissionRouter = createTRPCRouter({
 
             // Format for client
             return {
+                id: commission.id,
                 title: commission.title,
                 description: commission.description,
-                price: format_to_currency(Number(commission.price)),
+                price: Number(commission.price),
+
+                form_id: commission.form_id,
+
                 availability: commission.availability as CommissionAvailability,
-                rating: Number(commission.rating),
-                images: await convert_images_to_nemu_images(commission?.images),
                 slug: commission.slug,
                 published: commission.published,
 
-                max_commissions_until_waitlist: commission.max_commissions_until_waitlist,
+                images: await convert_images_to_nemu_images_editable(commission?.images),
+
                 max_commissions_until_closed: commission.max_commissions_until_closed,
-                raw_price: Number(commission.price),
-
-                id: commission.id,
-                form_id: commission.form_id,
-
-                artist: {
-                    handle: commission.artist.handle,
-                    supporter: commission.artist.supporter,
-                    terms: commission.artist.terms
-                }
-            } satisfies ClientCommissionItem
+                max_commissions_until_waitlist: commission.max_commissions_until_waitlist
+            } satisfies ClientCommissionItemEditable
         }),
 
     /**
@@ -342,8 +340,12 @@ export const commissionRouter = createTRPCRouter({
                         description: z.string(),
                         price: z.number(),
                         availability: z.string(),
-                        images: z.array(z.string()),
-                        utKeys: z.array(z.string()),
+                        images: z.array(
+                            z.object({
+                                url: z.string(),
+                                ut_key: z.string()
+                            })
+                        ),
                         // rush_orders_allowed: z.boolean(),
                         // rush_charge: z.number(),
                         // rush_percentage: z.boolean(),
@@ -361,8 +363,14 @@ export const commissionRouter = createTRPCRouter({
                             title: z.string().optional(),
                             description: z.string().optional(),
                             availability: z.string().optional(),
-                            images: z.array(z.string()).optional(),
-                            utKeys: z.array(z.string()).optional(),
+                            images: z
+                                .array(
+                                    z.object({
+                                        url: z.string(),
+                                        ut_key: z.string()
+                                    })
+                                )
+                                .optional(),
                             // rush_orders_allowed: z.boolean().optional(),
                             // rush_charge: z.number().optional(),
                             // rush_percentage: z.boolean().optional(),
@@ -395,7 +403,6 @@ export const commissionRouter = createTRPCRouter({
                         description: input.data.description,
                         price: input.data.price?.toString(2),
                         images: input.data.images,
-                        ut_keys: input.data.utKeys,
                         availability: input.data.availability as CommissionAvailability,
                         max_commissions_until_waitlist:
                             input.data.max_commissions_until_waitlist,
@@ -457,7 +464,6 @@ export const commissionRouter = createTRPCRouter({
                 description: input.data.description,
                 price: input.data.price?.toPrecision(4),
                 images: input.data.images,
-                ut_keys: input.data.utKeys,
                 availability: input.data.availability as CommissionAvailability,
                 slug: slug,
                 max_commissions_until_waitlist: input.data.max_commissions_until_waitlist,

@@ -1,4 +1,6 @@
 import { inferRouterOutputs, inferRouterInputs } from '@trpc/server'
+import { z } from 'zod'
+
 import { AppRouter } from '~/server/api/root'
 
 export * from '~/core/structures/user-structures'
@@ -14,7 +16,17 @@ export * from '~/core/structures/form-structures'
  */
 export type NemuImageData = {
     url: string
-    blur_data: string
+    ut_key?: string
+    blur_data?: string
+}
+
+export type NemuEditImageData = {
+    action: 'create' | 'update' | 'delete'
+    image_data: {
+        url: string
+        ut_key?: string
+        file_data?: File
+    }
 }
 
 /**

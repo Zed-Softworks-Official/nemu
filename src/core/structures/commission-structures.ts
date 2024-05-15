@@ -4,7 +4,8 @@ import {
     NemuImageData,
     KanbanContainerData,
     KanbanTask,
-    ClientUser
+    ClientUser,
+    NemuEditImageData
 } from '~/core/structures'
 import { artists, commissions, requests } from '~/server/db/schema'
 
@@ -94,6 +95,25 @@ export type ClientCommissionItem = {
         content: string
         rating: number
     }[]
+}
+
+export type ClientCommissionItemEditable = {
+    id: string
+    title: string
+    description: string
+
+    availability: CommissionAvailability
+    slug: string
+    published: boolean
+    
+    price: number
+
+    max_commissions_until_waitlist: number
+    max_commissions_until_closed: number
+
+    form_id: string
+
+    images: NemuEditImageData[]
 }
 
 /**

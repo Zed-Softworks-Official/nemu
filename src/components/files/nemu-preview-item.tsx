@@ -21,7 +21,7 @@ export default function NemuPreviewItem({
     preview: string | null
     i: number
 }) {
-    const { setFilePreviews, editPreviews, setEditPreviews } = useUploadThingContext()
+    const { images, setImages } = useUploadThingContext()
     const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
         id: `nemu-upload-preview-${i}`,
         data: {
@@ -60,9 +60,9 @@ export default function NemuPreviewItem({
             <ContextMenuContent>
                 <ContextMenuItem
                     onClick={() => {
-                        if (editPreviews.length === 0) {
-                            setEditPreviews((prev) => {
-                                prev.splice(i, 1)
+                        if (images.length === 0) {
+                            setImages((prev) => {
+                                prev[i]!.action = 'delete'
                                 return prev
                             })
                         }

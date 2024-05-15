@@ -21,8 +21,7 @@ import NemuUploadProgress from '~/components/files/nemu-upload-progress'
 import NemuPreviewItem from './nemu-preview-item'
 
 export default function NemuUploadThing() {
-    const { filePreviews, setFilePreviews, editPreviews, setEditPreviews } =
-        useUploadThingContext()
+    const { images, setImages } = useUploadThingContext()
 
     const [activeFile, setActiveFile] = useState<string | null>(null)
 
@@ -34,49 +33,50 @@ export default function NemuUploadThing() {
         })
     )
 
-    function OnDragStart(event: DragStartEvent) {
-        setActiveFile(event.active.data.current?.preview)
-    }
+    // function OnDragStart(event: DragStartEvent) {
+    //     setActiveFile(event.active.data.current?.preview)
+    // }
 
-    function OnDragEnd(event: DragEndEvent) {
-        setActiveFile(null)
+    // function OnDragEnd(event: DragEndEvent) {
+    //     setActiveFile(null)
 
-        const { active, over } = event
+    //     const { active, over } = event
 
-        if (!over) return
+    //     if (!over) return
 
-        const activePreview = active.data.current?.preview
-        const overPreivew = over.data.current?.preview
+    //     const activePreview = active.data.current?.preview
+    //     const overPreivew = over.data.current?.preview
 
-        if (activePreview === overPreivew) return
+    //     if (activePreview === overPreivew) return
 
-        if (editPreviews.length !== 0) {
-            setEditPreviews((prev) => {
-                const activeIndex = prev.findIndex((preview) => preview === activePreview)
-                const overIndex = prev.findIndex((preview) => preview === overPreivew)
+    //     if (editPreviews.length !== 0) {
+    //         setEditPreviews((prev) => {
+    //             const activeIndex = prev.findIndex((preview) => preview === activePreview)
+    //             const overIndex = prev.findIndex((preview) => preview === overPreivew)
 
-                return arrayMove(prev, activeIndex, overIndex)
-            })
-            
-            return
-        }
+    //             return arrayMove(prev, activeIndex, overIndex)
+    //         })
 
-        setFilePreviews((prev) => {
-            const activeIndex = prev.findIndex((preview) => preview === activePreview)
-            const overIndex = prev.findIndex((preview) => preview === overPreivew)
+    //         return
+    //     }
 
-            return arrayMove(prev, activeIndex, overIndex)
-        })
-    }
+    //     setFilePreviews((prev) => {
+    //         const activeIndex = prev.findIndex((preview) => preview === activePreview)
+    //         const overIndex = prev.findIndex((preview) => preview === overPreivew)
+
+    //         return arrayMove(prev, activeIndex, overIndex)
+    //     })
+    // }
 
     return (
         <div className="flex flex-col gap-5">
             <NemuUploadProgress />
             <NemuUploadDropzone />
-            <DndContext onDragStart={OnDragStart} onDragEnd={OnDragEnd} sensors={sensors}>
-                <SortableContext items={filePreviews}>
+            {/* onDragStart={OnDragStart} onDragEnd={OnDragEnd} sensors={sensors} */}
+            <DndContext>
+                {/* <SortableContext items={images.map((image) => image.image_data.url)}> */}
                     <NemuUploadPreview />
-                </SortableContext>
+                {/* </SortableContext> */}
                 <DragOverlay>
                     {activeFile && <NemuPreviewItem preview={activeFile} i={0} />}
                 </DragOverlay>
