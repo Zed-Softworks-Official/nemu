@@ -6,6 +6,7 @@ import { clerkClient, WebhookEvent } from '@clerk/nextjs/server'
 import { env } from '~/env'
 import { PublicUserMetadata, UserRole } from '~/core/structures'
 import { db } from '~/server/db'
+import { users } from '~/server/db/schema'
 
 /**
  * Handles Clerk Webhook Events
@@ -75,10 +76,9 @@ export async function POST(req: Request) {
                 }
 
                 // Create a new user in the database
-                await db.user.create({
-                    data: {
-                        clerkId: event.data.id
-                    }
+                await db.insert(users).values({
+                    clerk_id: event.data.id,
+                    role: UserRole.Standard
                 })
 
                 return new Response('User Created', { status: 200 })

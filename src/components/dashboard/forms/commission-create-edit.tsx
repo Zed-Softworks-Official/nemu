@@ -69,7 +69,7 @@ export default function CommissionCreateEditForm({
     edit_data
 }: {
     forms: RouterOutput['form']['get_form_list']
-    edit_data?: RouterOutput['commission']['get_commission']
+    edit_data?: RouterOutput['commission']['get_commission_edit']
 }) {
     const [toastId, setToastId] = useState<Id | undefined>()
     const [fileKeys, setFileKeys] = useState<string[]>([])
@@ -108,7 +108,7 @@ export default function CommissionCreateEditForm({
         defaultValues: {
             title: edit_data?.title ?? '',
             description: edit_data?.description ?? '',
-            price: edit_data?.raw_price ?? 0,
+            price: edit_data?.price ?? 0,
             form_id: edit_data?.form_id ?? '',
             max_commissions_until_waitlist:
                 edit_data?.max_commissions_until_waitlist ?? 0,
@@ -131,6 +131,11 @@ export default function CommissionCreateEditForm({
         // If edit_data is present then that means we are editing a commission
         if (edit_data) {
             // Check if we have images to upload
+            for (const image of images) {
+                if (image.action === 'create') {
+                    
+                }
+            }
             // if (files.length === 0) {
             //     const res = await uploadImages()
 
