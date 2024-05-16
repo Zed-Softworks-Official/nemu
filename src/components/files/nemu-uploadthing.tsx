@@ -5,6 +5,7 @@ import { useState } from 'react'
 import {
     DndContext,
     DragEndEvent,
+    DragOverEvent,
     DragOverlay,
     DragStartEvent,
     PointerSensor,
@@ -19,11 +20,13 @@ import NemuUploadDropzone from '~/components/files/nemu-dropzone'
 import NemuUploadPreview from '~/components/files/nemu-upload-preview'
 import NemuUploadProgress from '~/components/files/nemu-upload-progress'
 import NemuPreviewItem from '~/components/files/nemu-preview-item'
+import { ImageEditorData, NemuEditImageData } from '~/core/structures'
 
 export default function NemuUploadThing() {
-    const [activeFile, setActiveFile] = useState<string | null>(null)
+    const { images } = useUploadThingContext()
 
-    const { images, setImages } = useUploadThingContext()
+    const [activeFile, setActiveFile] = useState<ImageEditorData | null>(null)
+    const [currentImages, setCurrentImages] = useState<ImageEditorData[]>(images)
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -32,6 +35,15 @@ export default function NemuUploadThing() {
             }
         })
     )
+
+    function OnDelete(index: number) {
+        if (images.length === 0) {
+            setCurrentImages((prev) => {
+                prev[index]!.data.action = 'delete'
+                return prev
+            })
+        }
+    }
 
     function OnDragStart(event: DragStartEvent) {
         setActiveFile(event.active.data.current?.preview)
@@ -44,18 +56,16 @@ export default function NemuUploadThing() {
 
         if (!over) return
 
-        const activePreview = active.data.current?.preview
-        const overPreivew = over.data.current?.preview
+        const activeId = active.id
+        const overId = over.id
 
-        if (activePreview === overPreivew) return
+        if (activeId === overId) return
 
-        setImages((prev) => {
-            const activeIndex = prev.findIndex(
-                (preview) => preview.image_data.url === activePreview
-            )
-            const overIndex = prev.findIndex(
-                (preview) => preview.image_data.url === overPreivew
-            )
+        setCurrentImages((prev) => {
+            const activeIndex = prev.findIndex((preview) => preview.id === activeId)
+            const overIndex = prev.findIndex((preview) => preview.id === overId)
+
+            console.log(activeIndex, overIndex)
 
             return arrayMove(prev, activeIndex, overIndex)
         })
@@ -67,11 +77,17 @@ export default function NemuUploadThing() {
             <NemuUploadDropzone />
 
             <DndContext onDragStart={OnDragStart} onDragEnd={OnDragEnd} sensors={sensors}>
-                <SortableContext items={images.map((image) => image.image_data.url)}>
-                    <NemuUploadPreview />
+                <SortableContext items={currentImages}>
+                    <NemuUploadPreview images={currentImages} onDelete={OnDelete} />
                 </SortableContext>
                 <DragOverlay>
-                    {activeFile && <NemuPreviewItem preview={activeFile} i={0} />}
+                    {activeFile && (
+                        <NemuPreviewItem
+                            onDelete={OnDelete}
+                            preview={activeFile}
+                            index={0}
+                        />
+                    )}
                 </DragOverlay>
             </DndContext>
         </div>

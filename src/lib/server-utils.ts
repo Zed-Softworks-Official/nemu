@@ -1,8 +1,12 @@
 import { eq, InferSelectModel, sql } from 'drizzle-orm'
-import { CommissionAvailability, NemuEditImageData, NemuImageData } from '~/core/structures'
+import {
+    CommissionAvailability,
+    ImageEditorData,
+    NemuImageData
+} from '~/core/structures'
 import { db } from '~/server/db'
 import { commissions } from '~/server/db/schema'
-import { get_blur_data } from './blur_data'
+import { get_blur_data } from '~/lib/blur_data'
 
 /**
  * Updates the availability of a commission in the database
@@ -73,14 +77,17 @@ export async function convert_images_to_nemu_images(images: NemuImageData[]) {
     return result
 }
 
-export async function convert_images_to_nemu_images_editable(images: NemuImageData[]) {
+export async function format_for_image_editor(images: NemuImageData[]) {
     // Format for client
-    const result: NemuEditImageData[] = []
+    const result: ImageEditorData[] = []
 
     for (const image of images) {
         result.push({
-            action: 'update',
-            image_data: image
+            id: crypto.randomUUID(),
+            data: {
+                action: 'update',
+                image_data: image
+            }
         })
     }
 

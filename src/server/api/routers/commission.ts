@@ -11,7 +11,7 @@ import { artistProcedure, createTRPCRouter, publicProcedure } from '~/server/api
 import { AsRedisKey } from '~/server/cache'
 import {
     convert_images_to_nemu_images,
-    convert_images_to_nemu_images_editable
+    format_for_image_editor,
 } from '~/lib/server-utils'
 import { get_blur_data } from '~/lib/blur_data'
 import { format_to_currency } from '~/lib/utils'
@@ -223,7 +223,7 @@ export const commissionRouter = createTRPCRouter({
                 slug: commission.slug,
                 published: commission.published,
 
-                images: await convert_images_to_nemu_images_editable(commission?.images),
+                images: await format_for_image_editor(commission?.images),
 
                 max_commissions_until_closed: commission.max_commissions_until_closed,
                 max_commissions_until_waitlist: commission.max_commissions_until_waitlist

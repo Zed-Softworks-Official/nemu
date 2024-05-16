@@ -12,11 +12,11 @@ import {
 import { EndpointHelper, useUploadThing } from '~/components/files/uploadthing'
 import { NemuFileRouterType } from '~/app/api/uploadthing/core'
 import { ClientUploadedFileData } from 'uploadthing/types'
-import { NemuEditImageData, NemuImageData } from '~/core/structures'
+import { ImageEditorData } from '~/core/structures'
 
 type UploadThingContextType = {
-    images: NemuEditImageData[]
-    setImages: Dispatch<SetStateAction<NemuEditImageData[]>>
+    images: ImageEditorData[]
+    setImages: Dispatch<SetStateAction<ImageEditorData[]>>
 
     uploadImages: () => Promise<ClientUploadedFileData<null>[] | undefined>
 
@@ -37,10 +37,10 @@ export default function UploadThingProvider({
     children
 }: {
     endpoint: EndpointHelper<NemuFileRouterType>
-    edit_previews?: NemuEditImageData[]
+    edit_previews?: ImageEditorData[]
     children: React.ReactNode
 }) {
-    const [images, setImages] = useState<NemuEditImageData[]>([])
+    const [images, setImages] = useState<ImageEditorData[]>(edit_previews || [])
     const [uploadProgress, setUploadProgress] = useState(0)
 
     const { startUpload, permittedFileInfo, isUploading } = useUploadThing(endpoint, {
@@ -56,8 +56,8 @@ export default function UploadThingProvider({
     useEffect(() => {
         return () => {
             for (const preview of images) {
-                if (preview.action === 'create') {
-                    URL.revokeObjectURL(preview.image_data.url)
+                if (preview.data.action  === 'create') {
+                    URL.revokeObjectURL(preview.data.image_data.url)
                 }
             }
         }
@@ -68,7 +68,7 @@ export default function UploadThingProvider({
             return
         }
 
-        return await startUpload(images.map((image) => image.image_data.file_data!))
+        return await startUpload(images.map((image) => image.data.image_data.file_data!))
     }
 
     return (

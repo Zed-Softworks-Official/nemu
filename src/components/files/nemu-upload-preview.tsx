@@ -3,12 +3,19 @@
 import { cn } from '~/lib/utils'
 
 import NemuImage from '~/components/nemu-image'
-import { useUploadThingContext } from '~/components/files/uploadthing-context'
 import { useDroppable } from '@dnd-kit/core'
 import NemuPreviewItem from '~/components/files/nemu-preview-item'
+import { ImageEditorData } from '~/core/structures'
 
-export default function NemuUploadPreview({ className }: { className?: string }) {
-    const { images } = useUploadThingContext()
+export default function NemuUploadPreview({
+    className,
+    onDelete,
+    images
+}: {
+    className?: string
+    onDelete: (index: number) => void
+    images: ImageEditorData[]
+}) {
     const { isOver, setNodeRef } = useDroppable({
         id: 'nemu-upload-preview'
     })
@@ -22,7 +29,7 @@ export default function NemuUploadPreview({ className }: { className?: string })
             <div className={cn('card shadow-xl', className)}>
                 <figure>
                     <NemuImage
-                        src={images[0]?.image_data.url!}
+                        src={images[0]?.data.image_data.url!}
                         alt="Image Preview"
                         className="h-full w-full"
                         width={200}
@@ -43,11 +50,12 @@ export default function NemuUploadPreview({ className }: { className?: string })
             <div className="flex flex-row gap-5" ref={setNodeRef}>
                 {images.map(
                     (preview, i) =>
-                        preview.action !== 'delete' && (
+                        preview.data.action !== 'delete' && (
                             <NemuPreviewItem
-                                key={preview.image_data.url}
-                                preview={preview.image_data.url}
-                                i={i}
+                                onDelete={onDelete}
+                                key={preview.data.image_data.url}
+                                preview={preview}
+                                index={i}
                             />
                         )
                 )}
@@ -58,7 +66,3 @@ export default function NemuUploadPreview({ className }: { className?: string })
         </div>
     )
 }
-
-// function EditPreview() {
-//     return null
-// }

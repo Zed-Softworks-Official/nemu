@@ -13,21 +13,26 @@ import {
     ContextMenuItem
 } from '~/components/ui/context-menu'
 import { useUploadThingContext } from '~/components/files/uploadthing-context'
+import { ImageEditorData, NemuEditImageData } from '~/core/structures'
+import { cn } from '~/lib/utils'
 
 export default function NemuPreviewItem({
     preview,
-    i
+    onDelete,
+    index
 }: {
-    preview: string | null
-    i: number
+    preview: ImageEditorData
+    onDelete: (index: number) => void
+    index: number
 }) {
     const { images, setImages } = useUploadThingContext()
-    const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
-        id: `nemu-upload-preview-${i}`,
-        data: {
-            preview
-        }
-    })
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+        useSortable({
+            id: preview.id,
+            data: {
+                preview
+            }
+        })
 
     const style = {
         transition,
@@ -42,14 +47,17 @@ export default function NemuPreviewItem({
         <ContextMenu>
             <ContextMenuTrigger asChild>
                 <div
-                    className="relative w-32 cursor-grab transition-all duration-200 ease-in-out hover:scale-110"
+                    className={cn(
+                        isDragging && 'opacity-50',
+                        'relative w-32 cursor-grab transition-all duration-200 ease-in-out hover:scale-110'
+                    )}
                     ref={setNodeRef}
                     style={style}
                     {...listeners}
                     {...attributes}
                 >
                     <Image
-                        src={preview}
+                        src={preview.data.image_data.url}
                         alt="Image Preview"
                         className="h-fit w-full rounded-xl"
                         width={200}
@@ -58,16 +66,7 @@ export default function NemuPreviewItem({
                 </div>
             </ContextMenuTrigger>
             <ContextMenuContent>
-                <ContextMenuItem
-                    onClick={() => {
-                        if (images.length === 0) {
-                            setImages((prev) => {
-                                prev[i]!.action = 'delete'
-                                return prev
-                            })
-                        }
-                    }}
-                >
+                <ContextMenuItem onClick={() => onDelete(index)}>
                     <Trash2Icon className="h-6 w-6" />
                     Delete
                 </ContextMenuItem>
