@@ -13,7 +13,7 @@ import { z } from 'zod'
 import NemuUploadThing from '~/components/files/nemu-uploadthing'
 import { useUploadThingContext } from '~/components/files/uploadthing-context'
 import { Button } from '~/components/ui/button'
-import { Form, FormField, FormItem, FormLabel } from '~/components/ui/form'
+import { Form, FormField, FormItem, FormLabel, FormMessage } from '~/components/ui/form'
 import { Input } from '~/components/ui/input'
 import {
     Select,
@@ -23,7 +23,7 @@ import {
     SelectValue
 } from '~/components/ui/select'
 import { Textarea } from '~/components/ui/textarea'
-import { CommissionAvailability, NemuImageData, RouterOutput } from '~/core/structures'
+import { CommissionAvailability, RouterOutput } from '~/core/structures'
 import { nemu_toast } from '~/lib/utils'
 import { api } from '~/trpc/react'
 
@@ -35,23 +35,14 @@ const commissionSchema = z.object({
     description: z.string().min(10).max(500),
     form_id: z.string(),
 
-    price: z.preprocess(
-        (value) => parseInt(z.string().parse(value), 10),
-        z.number().min(0).default(0)
-    ),
+    price: z.number().min(0),
 
     // rush: z.boolean().default(false),
     // rush_charge: z.number().default(0).optional(),
     // rush_percentage: z.boolean().default(false),
 
-    max_commissions_until_waitlist: z.preprocess(
-        (value) => parseInt(z.string().parse(value), 10),
-        z.number().min(0).default(0).optional()
-    ),
-    max_commissions_until_closed: z.preprocess(
-        (value) => parseInt(z.string().parse(value), 10),
-        z.number().min(0).default(0).optional()
-    ),
+    max_commissions_until_waitlist: z.number().min(0),
+    max_commissions_until_closed: z.number().min(0),
 
     commission_availability: z.string()
 })
@@ -72,10 +63,9 @@ export default function CommissionCreateEditForm({
     edit_data?: RouterOutput['commission']['get_commission_edit']
 }) {
     const [toastId, setToastId] = useState<Id | undefined>()
-    const [fileKeys, setFileKeys] = useState<string[]>([])
 
     const { resolvedTheme } = useTheme()
-    const { images, uploadImages, isUploading } = useUploadThingContext()
+    const { images, uploadImages, isUploading, editData: data, setEditData: setData } = useUploadThingContext()
 
     const mutation = api.commission.set_commission.useMutation({
         onSuccess: () => {
@@ -105,20 +95,26 @@ export default function CommissionCreateEditForm({
     const form = useForm<CommissionSchemaType>({
         resolver: zodResolver(commissionSchema),
         mode: 'onSubmit',
-        defaultValues: {
-            title: edit_data?.title ?? '',
-            description: edit_data?.description ?? '',
-            price: edit_data?.price ?? 0,
-            form_id: edit_data?.form_id ?? '',
-            max_commissions_until_waitlist:
-                edit_data?.max_commissions_until_waitlist ?? 0,
-            max_commissions_until_closed: edit_data?.max_commissions_until_closed ?? 0
-        }
+        defaultValues: edit_data
+            ? {
+                  title: edit_data.title,
+                  description: edit_data.description,
+                  form_id: edit_data.form_id,
+                  max_commissions_until_waitlist:
+                      edit_data.max_commissions_until_waitlist,
+                  max_commissions_until_closed: edit_data.max_commissions_until_closed,
+                  price: edit_data.price,
+                  commission_availability: edit_data.availability
+              }
+            : undefined
     })
 
     async function ProcessForm(values: CommissionSchemaType) {
         // Create Toast
-        const toast_id = nemu_toast.loading('Uploading Files', { theme: resolvedTheme })
+        const toast_id = nemu_toast.loading(
+            edit_data ? 'Updating Commission' : 'Uploading Files',
+            { theme: resolvedTheme }
+        )
         setToastId(toast_id)
 
         if (!toast_id) {
@@ -130,41 +126,80 @@ export default function CommissionCreateEditForm({
         //////////////////////////////////////////
         // If edit_data is present then that means we are editing a commission
         if (edit_data) {
-            // Check if we have images to upload
+            // Sort items into create, update, and delete
             for (const image of images) {
-                if (image.action === 'create') {
-                    
+                switch (image.data.action) {
+                    case 'create':
+                        data.create.push(image)
+                        break
+                    case 'update':
+                        data.update.push(image)
+                        break
+                    case 'delete':
+                        data.delete.push(image)
+                        break
                 }
             }
-            // if (files.length === 0) {
-            //     const res = await uploadImages()
 
-            //     if (!res) {
-            //         nemu_toast.update(toast_id, {
-            //             render: 'Uploading Images Failed!',
-            //             isLoading: false,
-            //             autoClose: 5000,
-            //             type: 'error'
-            //         })
+            let uploaded_images: {
+                action: 'create' | 'update' | 'delete'
+                url: string
+                ut_key: string
+            }[] = []
 
-            //         return
-            //     }
-            // }
+            if (data.create.length > 0) {
+                if (data.create.length + data.update.length - data.delete.length > 6) {
+                    const res = await uploadImages()
 
-            // // Update the commission item
-            // mutation.mutate({
-            //     type: 'update',
-            //     commission_id: edit_data.id!,
-            //     data: {
-            //         title: values.title,
-            //         description: values.description,
-            //         price: values.price,
-            //         availability: values.commission_availability,
-            //         form_id: values.form_id,
-            //         max_commissions_until_waitlist: values.max_commissions_until_waitlist,
-            //         max_commissions_until_closed: values.max_commissions_until_closed
-            //     }
-            // })
+                    if (!res) {
+                        nemu_toast.update(toast_id, {
+                            render: 'Uploading Images Failed!',
+                            isLoading: false,
+                            autoClose: 5000,
+                            type: 'error'
+                        })
+
+                        return
+                    }
+
+                    // Add newly uploaded images to the data
+                    uploaded_images = res.map((file) => ({
+                        action: 'create',
+                        url: file.url,
+                        ut_key: file.key
+                    }))
+                }
+            }
+
+            // Add the images that were already uploaded to the data
+            uploaded_images.concat(
+                data.update.map((image) => ({
+                    action: 'update',
+                    url: image.data.image_data.url,
+                    ut_key: image.data.image_data.ut_key!
+                }))
+            )
+
+            // Call the endpoint to update the database
+            mutation.mutate({
+                type: 'update',
+                commission_id: edit_data.id!,
+                data: {
+                    title: values.title,
+                    description: values.description,
+                    price: values.price,
+                    availability: values.commission_availability,
+                    form_id: values.form_id,
+                    max_commissions_until_waitlist: values.max_commissions_until_waitlist,
+                    max_commissions_until_closed: values.max_commissions_until_closed,
+                    images: uploaded_images,
+                    deleted_images: data.delete.map((image) => ({
+                        action: 'delete',
+                        url: image.data.image_data.url,
+                        ut_key: image.data.image_data.ut_key!
+                    }))
+                }
+            })
 
             return
         }
@@ -238,6 +273,7 @@ export default function CommissionCreateEditForm({
                         <FormItem className="form-control">
                             <FormLabel className="label">Title:</FormLabel>
                             <Input placeholder="My Commission" {...field} />
+                            <FormMessage />
                         </FormItem>
                     )}
                 />
@@ -253,6 +289,7 @@ export default function CommissionCreateEditForm({
                                 className="resize-none"
                                 rows={8}
                             />
+                            <FormMessage />
                         </FormItem>
                     )}
                 />
@@ -271,9 +308,14 @@ export default function CommissionCreateEditForm({
                                     type="number"
                                     inputMode="numeric"
                                     className="join-item w-full"
-                                    {...field}
+                                    ref={field.ref}
+                                    disabled={field.disabled}
+                                    onChange={(e) =>
+                                        field.onChange(e.currentTarget.valueAsNumber)
+                                    }
                                 />
                             </div>
+                            <FormMessage />
                         </FormItem>
                     )}
                 />
@@ -300,6 +342,7 @@ export default function CommissionCreateEditForm({
                                         ))}
                                     </SelectContent>
                                 </Select>
+                                <FormMessage />
                             </FormItem>
                         )}
                     />
@@ -313,7 +356,7 @@ export default function CommissionCreateEditForm({
                             <Select
                                 onValueChange={field.onChange}
                                 defaultValue={
-                                    edit_data ? `${edit_data?.availability}` : undefined
+                                    edit_data ? edit_data.availability : undefined
                                 }
                             >
                                 <SelectTrigger>
@@ -331,6 +374,7 @@ export default function CommissionCreateEditForm({
                                     </SelectItem>
                                 </SelectContent>
                             </Select>
+                            <FormMessage />
                         </FormItem>
                     )}
                 />
@@ -346,8 +390,13 @@ export default function CommissionCreateEditForm({
                                 placeholder="0"
                                 type="number"
                                 inputMode="numeric"
-                                {...field}
+                                ref={field.ref}
+                                disabled={field.disabled}
+                                onChange={(e) =>
+                                    field.onChange(e.currentTarget.valueAsNumber)
+                                }
                             />
+                            <FormMessage />
                         </FormItem>
                     )}
                 />
@@ -363,8 +412,13 @@ export default function CommissionCreateEditForm({
                                 placeholder="0"
                                 type="number"
                                 inputMode="numeric"
-                                {...field}
+                                ref={field.ref}
+                                disabled={field.disabled}
+                                onChange={(e) =>
+                                    field.onChange(e.currentTarget.valueAsNumber)
+                                }
                             />
+                            <FormMessage />
                         </FormItem>
                     )}
                 />

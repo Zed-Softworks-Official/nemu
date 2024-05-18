@@ -14,7 +14,16 @@ import { NemuFileRouterType } from '~/app/api/uploadthing/core'
 import { ClientUploadedFileData } from 'uploadthing/types'
 import { ImageEditorData } from '~/core/structures'
 
+type EditorState = {
+    create: ImageEditorData[]
+    update: ImageEditorData[]
+    delete: ImageEditorData[]
+}
+
 type UploadThingContextType = {
+    editData: EditorState
+    setEditData: Dispatch<SetStateAction<EditorState>>
+
     images: ImageEditorData[]
     setImages: Dispatch<SetStateAction<ImageEditorData[]>>
 
@@ -40,6 +49,12 @@ export default function UploadThingProvider({
     edit_previews?: ImageEditorData[]
     children: React.ReactNode
 }) {
+    const [editData, setEditData] = useState<EditorState>({
+        create: [],
+        update: [],
+        delete: []
+    })
+
     const [images, setImages] = useState<ImageEditorData[]>(edit_previews || [])
     const [uploadProgress, setUploadProgress] = useState(0)
 
@@ -56,7 +71,7 @@ export default function UploadThingProvider({
     useEffect(() => {
         return () => {
             for (const preview of images) {
-                if (preview.data.action  === 'create') {
+                if (preview.data.action === 'create') {
                     URL.revokeObjectURL(preview.data.image_data.url)
                 }
             }
@@ -74,6 +89,8 @@ export default function UploadThingProvider({
     return (
         <UploadThingContext.Provider
             value={{
+                editData,
+                setEditData,
                 images,
                 setImages,
                 uploadImages,

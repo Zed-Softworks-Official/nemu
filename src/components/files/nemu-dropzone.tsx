@@ -7,20 +7,31 @@ import { generateClientDropzoneAccept } from 'uploadthing/client'
 import { useUploadThingContext } from '~/components/files/uploadthing-context'
 import { UploadCloudIcon } from 'lucide-react'
 import { cn } from '~/lib/utils'
+import { ImageEditorData } from '~/core/structures'
 
-export default function NemuUploadDropzone({ className }: { className?: string }) {
+export default function NemuUploadDropzone({
+    className,
+    setCurrentImages
+}: {
+    className?: string
+    setCurrentImages: (currentImages: ImageEditorData[]) => void
+}) {
     const { setImages, fileTypes } = useUploadThingContext()
 
     const onDrop = useCallback((acceptedFiles: File[]) => {
-        setImages(
-            acceptedFiles.map((file) => ({
+        const formattedData: ImageEditorData[] = acceptedFiles.map((file) => ({
+            id: crypto.randomUUID(),
+            data: {
                 action: 'create',
                 image_data: {
                     url: URL.createObjectURL(file),
                     file_data: file
                 }
-            }))
-        )
+            }
+        }))
+
+        setImages(formattedData)
+        setCurrentImages(formattedData)
     }, [])
 
     const { getRootProps, getInputProps } = useDropzone({

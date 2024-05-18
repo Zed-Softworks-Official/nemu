@@ -37,7 +37,7 @@ export default function NemuUploadThing() {
     )
 
     function OnDelete(index: number) {
-        if (images.length === 0) {
+        if (currentImages.length !== 0) {
             setCurrentImages((prev) => {
                 prev[index]!.data.action = 'delete'
                 return prev
@@ -65,8 +65,6 @@ export default function NemuUploadThing() {
             const activeIndex = prev.findIndex((preview) => preview.id === activeId)
             const overIndex = prev.findIndex((preview) => preview.id === overId)
 
-            console.log(activeIndex, overIndex)
-
             return arrayMove(prev, activeIndex, overIndex)
         })
     }
@@ -74,7 +72,7 @@ export default function NemuUploadThing() {
     return (
         <div className="flex flex-col gap-5">
             <NemuUploadProgress />
-            <NemuUploadDropzone />
+            <NemuUploadDropzone setCurrentImages={setCurrentImages} />
 
             <DndContext onDragStart={OnDragStart} onDragEnd={OnDragEnd} sensors={sensors}>
                 <SortableContext items={currentImages}>

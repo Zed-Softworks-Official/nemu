@@ -11,7 +11,7 @@ import { artistProcedure, createTRPCRouter, publicProcedure } from '~/server/api
 import { AsRedisKey } from '~/server/cache'
 import {
     convert_images_to_nemu_images,
-    format_for_image_editor,
+    format_for_image_editor
 } from '~/lib/server-utils'
 import { get_blur_data } from '~/lib/blur_data'
 import { format_to_currency } from '~/lib/utils'
@@ -19,6 +19,7 @@ import { artists, commissions } from '~/server/db/schema'
 
 import { and, eq } from 'drizzle-orm'
 import { createId } from '@paralleldrive/cuid2'
+import { utapi } from '~/server/uploadthing'
 
 const request_data = z.object({
     artist: z.boolean().optional(),
@@ -366,6 +367,22 @@ export const commissionRouter = createTRPCRouter({
                             images: z
                                 .array(
                                     z.object({
+                                        action: z
+                                            .literal('create')
+                                            .or(z.literal('update'))
+                                            .or(z.literal('delete')),
+                                        url: z.string(),
+                                        ut_key: z.string()
+                                    })
+                                )
+                                .optional(),
+                            deleted_images: z
+                                .array(
+                                    z.object({
+                                        action: z
+                                            .literal('create')
+                                            .or(z.literal('update'))
+                                            .or(z.literal('delete')),
                                         url: z.string(),
                                         ut_key: z.string()
                                     })
@@ -396,13 +413,24 @@ export const commissionRouter = createTRPCRouter({
             // Update Commission
             ////////////////////////////
             if (input.type === 'update') {
+                // Delete the images from uploadthing
+                if (input.data.deleted_images) {
+                    await utapi.deleteFiles(
+                        input.data.deleted_images?.map((image) => image.ut_key)
+                    )
+                }
+
+                // Update the database with the relavent information that has been updated
                 await ctx.db
                     .update(commissions)
                     .set({
                         title: input.data.title,
                         description: input.data.description,
-                        price: input.data.price?.toString(2),
-                        images: input.data.images,
+                        price: input.data.price?.toPrecision(4),
+                        images: input.data.images?.map((image) => ({
+                            url: image.url,
+                            ut_key: image.ut_key
+                        })),
                         availability: input.data.availability as CommissionAvailability,
                         max_commissions_until_waitlist:
                             input.data.max_commissions_until_waitlist,
