@@ -6,8 +6,9 @@ import { generateClientDropzoneAccept } from 'uploadthing/client'
 
 import { useUploadThingContext } from '~/components/files/uploadthing-context'
 import { UploadCloudIcon } from 'lucide-react'
-import { cn } from '~/lib/utils'
+import { cn, nemu_toast } from '~/lib/utils'
 import { ImageEditorData } from '~/core/structures'
+import { useTheme } from 'next-themes'
 
 export default function NemuUploadDropzone({
     className,
@@ -16,9 +17,16 @@ export default function NemuUploadDropzone({
     className?: string
     setCurrentImages: (currentImages: ImageEditorData[]) => void
 }) {
-    const { setImages, fileTypes } = useUploadThingContext()
+    const { images, setImages, fileTypes } = useUploadThingContext()
+    const { resolvedTheme } = useTheme()
 
     const onDrop = useCallback((acceptedFiles: File[]) => {
+        // Check if we have too many images
+        if (images.length + acceptedFiles.length > 6) {
+            nemu_toast('Too many images!', { theme: resolvedTheme, type: 'error' })
+            return
+        }
+
         const formattedData: ImageEditorData[] = acceptedFiles.map((file) => ({
             id: crypto.randomUUID(),
             data: {

@@ -23,7 +23,7 @@ import {
     SelectValue
 } from '~/components/ui/select'
 import { Textarea } from '~/components/ui/textarea'
-import { CommissionAvailability, RouterOutput } from '~/core/structures'
+import { CommissionAvailability, ImageEditorData, RouterOutput } from '~/core/structures'
 import { nemu_toast } from '~/lib/utils'
 import { api } from '~/trpc/react'
 
@@ -65,14 +65,20 @@ export default function CommissionCreateEditForm({
     const [toastId, setToastId] = useState<Id | undefined>()
 
     const { resolvedTheme } = useTheme()
-    const { images, uploadImages, isUploading, editData: data, setEditData: setData } = useUploadThingContext()
+    const {
+        images,
+        uploadImages,
+        isUploading,
+        editData: data,
+        setEditData: setData
+    } = useUploadThingContext()
 
     const mutation = api.commission.set_commission.useMutation({
-        onSuccess: () => {
+        onSuccess: (res) => {
             if (!toastId) return
 
             nemu_toast.update(toastId, {
-                render: 'Commission created!',
+                render: `Commission ${res.updated ? 'updated' : 'created'}!`,
                 isLoading: false,
                 autoClose: 5000,
                 type: 'success'
@@ -127,19 +133,31 @@ export default function CommissionCreateEditForm({
         // If edit_data is present then that means we are editing a commission
         if (edit_data) {
             // Sort items into create, update, and delete
+            const editor_state: {
+                create: ImageEditorData[]
+                update: ImageEditorData[]
+                delete: ImageEditorData[]
+            } = {
+                create: [],
+                update: [],
+                delete: []
+            }
+
             for (const image of images) {
                 switch (image.data.action) {
                     case 'create':
-                        data.create.push(image)
+                        editor_state.create.push(image)
                         break
                     case 'update':
-                        data.update.push(image)
+                        editor_state.update.push(image)
                         break
                     case 'delete':
-                        data.delete.push(image)
+                        editor_state.delete.push(image)
                         break
                 }
             }
+
+            setData(editor_state)
 
             let uploaded_images: {
                 action: 'create' | 'update' | 'delete'
@@ -147,8 +165,13 @@ export default function CommissionCreateEditForm({
                 ut_key: string
             }[] = []
 
-            if (data.create.length > 0) {
-                if (data.create.length + data.update.length - data.delete.length > 6) {
+            if (editor_state.create.length > 0) {
+                if (
+                    editor_state.create.length +
+                        editor_state.update.length -
+                        editor_state.delete.length >
+                    6
+                ) {
                     const res = await uploadImages()
 
                     if (!res) {
@@ -171,15 +194,6 @@ export default function CommissionCreateEditForm({
                 }
             }
 
-            // Add the images that were already uploaded to the data
-            uploaded_images.concat(
-                data.update.map((image) => ({
-                    action: 'update',
-                    url: image.data.image_data.url,
-                    ut_key: image.data.image_data.ut_key!
-                }))
-            )
-
             // Call the endpoint to update the database
             mutation.mutate({
                 type: 'update',
@@ -192,7 +206,13 @@ export default function CommissionCreateEditForm({
                     form_id: values.form_id,
                     max_commissions_until_waitlist: values.max_commissions_until_waitlist,
                     max_commissions_until_closed: values.max_commissions_until_closed,
-                    images: uploaded_images,
+                    images: uploaded_images.concat(
+                        editor_state.update.map((image) => ({
+                            action: image.data.action,
+                            url: image.data.image_data.url,
+                            ut_key: image.data.image_data.ut_key!
+                        }))
+                    ),
                     deleted_images: data.delete.map((image) => ({
                         action: 'delete',
                         url: image.data.image_data.url,
@@ -310,6 +330,7 @@ export default function CommissionCreateEditForm({
                                     className="join-item w-full"
                                     ref={field.ref}
                                     disabled={field.disabled}
+                                    defaultValue={field.value}
                                     onChange={(e) =>
                                         field.onChange(e.currentTarget.valueAsNumber)
                                     }
@@ -391,6 +412,7 @@ export default function CommissionCreateEditForm({
                                 type="number"
                                 inputMode="numeric"
                                 ref={field.ref}
+                                defaultValue={field.value}
                                 disabled={field.disabled}
                                 onChange={(e) =>
                                     field.onChange(e.currentTarget.valueAsNumber)
@@ -414,6 +436,7 @@ export default function CommissionCreateEditForm({
                                 inputMode="numeric"
                                 ref={field.ref}
                                 disabled={field.disabled}
+                                defaultValue={field.value}
                                 onChange={(e) =>
                                     field.onChange(e.currentTarget.valueAsNumber)
                                 }

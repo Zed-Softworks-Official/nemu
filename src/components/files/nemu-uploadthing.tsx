@@ -5,7 +5,6 @@ import { useState } from 'react'
 import {
     DndContext,
     DragEndEvent,
-    DragOverEvent,
     DragOverlay,
     DragStartEvent,
     PointerSensor,
@@ -20,10 +19,10 @@ import NemuUploadDropzone from '~/components/files/nemu-dropzone'
 import NemuUploadPreview from '~/components/files/nemu-upload-preview'
 import NemuUploadProgress from '~/components/files/nemu-upload-progress'
 import NemuPreviewItem from '~/components/files/nemu-preview-item'
-import { ImageEditorData, NemuEditImageData } from '~/core/structures'
+import { ImageEditorData } from '~/core/structures'
 
 export default function NemuUploadThing() {
-    const { images } = useUploadThingContext()
+    const { images, setImages } = useUploadThingContext()
 
     const [activeFile, setActiveFile] = useState<ImageEditorData | null>(null)
     const [currentImages, setCurrentImages] = useState<ImageEditorData[]>(images)
@@ -61,12 +60,13 @@ export default function NemuUploadThing() {
 
         if (activeId === overId) return
 
-        setCurrentImages((prev) => {
-            const activeIndex = prev.findIndex((preview) => preview.id === activeId)
-            const overIndex = prev.findIndex((preview) => preview.id === overId)
+        const activeIndex = currentImages.findIndex((preview) => preview.id === activeId)
+        const overIndex = currentImages.findIndex((preview) => preview.id === overId)
 
-            return arrayMove(prev, activeIndex, overIndex)
-        })
+        const new_images = arrayMove(currentImages, activeIndex, overIndex)
+
+        setCurrentImages(new_images)
+        setImages(new_images)
     }
 
     return (
