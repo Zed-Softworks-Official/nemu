@@ -35,7 +35,7 @@ export default async function CommissionDetailPage({
 }) {
     const user = await currentUser()
 
-    const commission = await api.commission.get_commission({
+    const commission = await api.commission.get_commission_dashboard_details({
         handle: user?.publicMetadata.handle as string,
         slug: params.slug
     })
@@ -43,8 +43,6 @@ export default async function CommissionDetailPage({
     if (!commission) {
         return notFound()
     }
-
-    const requests = await api.requests.get_request_list(commission.id!)
 
     return (
         <DashboardContainer
@@ -91,7 +89,7 @@ export default async function CommissionDetailPage({
                                 <h2 className="card-title">New Requests</h2>
                                 <div className="divider"></div>
                                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                                    {requests
+                                    {commission.requests
                                         ?.filter(
                                             (request) =>
                                                 request.status === RequestStatus.Pending
@@ -112,7 +110,7 @@ export default async function CommissionDetailPage({
                                 <h2 className="card-title">Active Requests</h2>
                                 <div className="divider"></div>
                                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                                    {requests
+                                    {commission.requests
                                         ?.filter(
                                             (request) =>
                                                 request.status === RequestStatus.Accepted
@@ -198,7 +196,9 @@ function RequestCard({
             <DialogContent>
                 <DialogHeader className="flex flex-row items-center justify-between">
                     <div>
-                        <DialogTitle>Requst from {request.user.username || request.user.firstName}</DialogTitle>
+                        <DialogTitle>
+                            Requst from {request.user.username || request.user.firstName}
+                        </DialogTitle>
                         <DialogDescription>
                             <span className="italic text-base-content/60">
                                 Requested:{' '}

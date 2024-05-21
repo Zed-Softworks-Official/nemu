@@ -47,7 +47,7 @@ export const requestRouter = createTRPCRouter({
         // Format for client
         const result: ClientRequestData[] = []
         for (const request of db_requests) {
-            const user = await clerkClient.users.getUser(request.user_id)
+            // const user = await clerkClient.users.getUser(request.user_id)
 
             result.push({
                 ...request,

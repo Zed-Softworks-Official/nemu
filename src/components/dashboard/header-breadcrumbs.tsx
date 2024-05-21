@@ -12,28 +12,35 @@ import {
 } from '~/components/ui/breadcrumb'
 
 export default function DashboardBreadcrumbs() {
-    const pathname = usePathname()
-        .split('/')
-        .map(
-            (item) => item.substring(0, 1).toUpperCase() + item.substring(1, item.length)
-        )
+    const pathname = usePathname().split('/')
 
     return (
         <Breadcrumb className="hidden md:flex">
             <BreadcrumbList>
                 {pathname.map((item, index) => {
+                    const title =
+                        item.substring(0, 1).toUpperCase() +
+                        item.substring(1, item.length)
+
                     if (index === 0) {
                         return null
                     }
 
                     if (index === pathname.length - 1) {
-                        return <BreadcrumbPage key={item}>{item}</BreadcrumbPage>
+                        return <BreadcrumbPage key={item}>{title}</BreadcrumbPage>
                     }
 
                     return (
                         <>
                             <BreadcrumbItem key={item}>
-                                <BreadcrumbLink href="/dashboard">{item}</BreadcrumbLink>
+                                <BreadcrumbLink
+                                    href={
+                                        '/' +
+                                        pathname.slice(1, index + 1).forEach((value) => value)
+                                    }
+                                >
+                                    {title}
+                                </BreadcrumbLink>
                             </BreadcrumbItem>
                             {index !== pathname.length - 1 && (
                                 <BreadcrumbSeparator key={`separator-${item}`}>

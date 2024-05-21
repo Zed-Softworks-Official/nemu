@@ -94,6 +94,9 @@ export type ClientCommissionItem = {
         content: string
         rating: number
     }[]
+
+    // Request Data
+    requests?: ClientRequestData[] 
 }
 
 export type ClientCommissionItemEditable = {

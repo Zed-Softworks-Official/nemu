@@ -113,7 +113,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
                 </nav>
             </aside>
             <div className="flex flex-col sm:gap-4 sm:py-4 sm:pl-20">
-                <header className="sm:staic sticky top-0 z-30 flex h-14 items-center gap-4 px-4 sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
+                <header className="sm:static sticky top-0 z-30 flex h-14 items-center gap-4 px-4 sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
                     <Sheet>
                         <SheetTrigger asChild>
                             <Button variant={'outline'} className="sm:hidden">

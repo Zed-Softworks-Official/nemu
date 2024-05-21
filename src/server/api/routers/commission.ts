@@ -4,6 +4,7 @@ import { TRPCError } from '@trpc/server'
 import {
     ClientCommissionItem,
     ClientCommissionItemEditable,
+    ClientRequestData,
     CommissionAvailability,
     NemuImageData
 } from '~/core/structures'
@@ -20,6 +21,7 @@ import { artists, commissions } from '~/server/db/schema'
 import { and, eq } from 'drizzle-orm'
 import { createId } from '@paralleldrive/cuid2'
 import { utapi } from '~/server/uploadthing'
+import { clerkClient } from '@clerk/nextjs/server'
 
 const request_data = z.object({
     artist: z.boolean().optional(),
@@ -114,33 +116,23 @@ export const commissionRouter = createTRPCRouter({
         }),
 
     /**
-     * Gets a single commission given a commission id
+     * Gets a single commission item for the dashboard detail view for the artist
      */
-    get_commission_dashboard: publicProcedure
-        .input(
-            z.object({
-                id: z.string(),
-                req_data: request_data.optional()
-            })
-        )
+    get_commission_dashboard_details: artistProcedure
+        .input(z.object({ slug: z.string(), handle: z.string() }))
         .query(async ({ input, ctx }) => {
-            // Check if we have the commission already cached
             const cachedCommission = await ctx.cache.get(
-                AsRedisKey('commissions', input.id)
+                AsRedisKey('commissions', input.handle, input.slug, 'dashboard')
             )
 
-            // If we do return that
             if (cachedCommission) {
                 return JSON.parse(cachedCommission) as ClientCommissionItem
             }
 
-            // Get commission from db
             const commission = await ctx.db.query.commissions.findFirst({
-                where: eq(commissions.id, input.id),
+                where: eq(commissions.slug, input.slug),
                 with: {
-                    artist: input.req_data?.artist || undefined,
-                    form: input.req_data?.form || undefined,
-                    reviews: input.req_data?.reviews || undefined
+                    requests: true
                 }
             })
 
@@ -158,6 +150,15 @@ export const commissionRouter = createTRPCRouter({
                 })
             }
 
+            const requests: ClientRequestData[] = []
+
+            for (const request of commission.requests) {
+                requests.push({
+                    ...request,
+                    user: await clerkClient.users.getUser(request.user_id)
+                })
+            }
+
             const result: ClientCommissionItem = {
                 title: commission.title,
                 description: commission.description,
@@ -169,16 +170,11 @@ export const commissionRouter = createTRPCRouter({
                 published: commission.published,
                 total_requests: commission.total_requests,
                 new_requests: commission.new_requests,
-
-                artist: {
-                    handle: commission.artist.handle,
-                    supporter: commission.artist.supporter,
-                    terms: commission.artist.terms
-                }
+                requests: requests
             }
 
             await ctx.cache.set(
-                AsRedisKey('commissions', input.id),
+                AsRedisKey('commissions', input.handle, input.slug, 'dashboard'),
                 JSON.stringify(result),
                 {
                     EX: 3600
@@ -238,14 +234,7 @@ export const commissionRouter = createTRPCRouter({
         .input(
             z.object({
                 slug: z.string(),
-                handle: z.string(),
-                req_data: z
-                    .object({
-                        artist: z.boolean().optional(),
-                        form: z.boolean().optional(),
-                        reviews: z.boolean().optional()
-                    })
-                    .optional()
+                handle: z.string()
             })
         )
         .query(async ({ input, ctx }) => {
@@ -276,21 +265,16 @@ export const commissionRouter = createTRPCRouter({
                     eq(commissions.artist_id, artist.id)
                 ),
                 with: {
-                    artist: input.req_data?.artist || undefined,
-                    form: input.req_data?.form || undefined,
-                    reviews: input.req_data?.reviews
-                        ? {
-                              with: {
-                                  user: true
-                              }
-                          }
-                        : undefined
+                    artist: true,
+                    reviews: true
                 }
             })
 
             if (!commission) {
                 return undefined
             }
+
+            console.log(commission)
 
             // Format for client
             const images = await convert_images_to_nemu_images(commission?.images)
@@ -308,13 +292,11 @@ export const commissionRouter = createTRPCRouter({
                 id: commission.id,
                 form_id: commission.form_id,
 
-                artist: input.req_data?.artist
-                    ? {
-                          handle: commission.artist.handle,
-                          supporter: commission.artist.supporter,
-                          terms: commission.artist.terms
-                      }
-                    : undefined
+                artist: {
+                    handle: commission.artist.handle,
+                    supporter: commission.artist.supporter,
+                    terms: commission.artist.terms
+                }
             }
 
             await ctx.cache.set(
