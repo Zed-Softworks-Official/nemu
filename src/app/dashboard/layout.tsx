@@ -1,6 +1,5 @@
 import {
     BadgeDollarSign,
-    Brush,
     BrushIcon,
     ClipboardListIcon,
     HandCoinsIcon,
@@ -8,9 +7,7 @@ import {
     ImageIcon,
     LayersIcon,
     MailIcon,
-    MenuIcon,
     PanelLeftIcon,
-    Settings2Icon,
     StoreIcon,
     UserIcon
 } from 'lucide-react'
@@ -19,7 +16,6 @@ import { DashboardLogo } from '~/components/ui/logo'
 
 import { redirect } from 'next/navigation'
 import { api } from '~/trpc/server'
-import Footer from '~/components/footer'
 import DashboardProvider from '~/components/dashboard/dashboard-context'
 import { currentUser } from '@clerk/nextjs/server'
 import { UserRole } from '~/core/structures'

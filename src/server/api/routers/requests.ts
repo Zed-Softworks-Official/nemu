@@ -8,9 +8,11 @@ import {
     ClientRequestData,
     InvoiceStatus,
     KanbanContainerData,
+    NemuImageData,
     RequestStatus
 } from '~/core/structures'
 import { env } from '~/env'
+import { get_blur_data } from '~/lib/blur_data'
 import { update_commission_check_waitlist } from '~/lib/server-utils'
 import { artistProcedure, createTRPCRouter, protectedProcedure } from '~/server/api/trpc'
 import { AsRedisKey } from '~/server/cache'
@@ -26,41 +28,113 @@ import { novu } from '~/server/novu'
 import { sendbird } from '~/server/sendbird'
 
 export const requestRouter = createTRPCRouter({
-    /**
-     * Gets all requests for a commission
-     */
-    get_request_list: artistProcedure.input(z.string()).query(async ({ input, ctx }) => {
-        const cachedRequests = await ctx.cache.get(AsRedisKey('requests', input))
+    get_request_list_client: protectedProcedure.query(async ({ ctx }) => {
+        const cachedRequests = await ctx.cache.get(AsRedisKey('requests', ctx.user.id))
 
         if (cachedRequests) {
             return JSON.parse(cachedRequests) as ClientRequestData[]
         }
 
         const db_requests = await ctx.db.query.requests.findMany({
-            where: eq(requests.commission_id, input)
+            where: eq(requests.user_id, ctx.user.id),
+            with: {
+                commission: {
+                    with: {
+                        artist: true
+                    }
+                }
+            }
         })
 
         if (!db_requests) {
-            return undefined
+            return []
         }
 
         // Format for client
         const result: ClientRequestData[] = []
         for (const request of db_requests) {
-            // const user = await clerkClient.users.getUser(request.user_id)
-
             result.push({
                 ...request,
+                commission: {
+                    ...request.commission,
+                    images: [
+                        {
+                            url: request.commission.images[0]?.url!,
+                            blur_data: await get_blur_data(
+                                request.commission.images[0]?.url!
+                            )
+                        }
+                    ]
+                },
                 user: await clerkClient.users.getUser(request.user_id)
             })
         }
 
-        await ctx.cache.set(AsRedisKey('requests', input), JSON.stringify(result), {
+        await ctx.cache.set(AsRedisKey('requests', ctx.user.id), JSON.stringify(result), {
             EX: 3600
         })
 
         return result
     }),
+
+    get_request_client: protectedProcedure
+        .input(z.string())
+        .query(async ({ input, ctx }) => {
+            const cachedRequest = await ctx.cache.get(
+                AsRedisKey('requests', ctx.user.id, input)
+            )
+
+            if (cachedRequest) {
+                return JSON.parse(cachedRequest) as ClientRequestData
+            }
+
+            const request = await ctx.db.query.requests.findFirst({
+                where: and(
+                    eq(requests.order_id, input),
+                    eq(requests.user_id, ctx.user.id)
+                ),
+                with: {
+                    commission: {
+                        with: {
+                            artist: true
+                        }
+                    }
+                }
+            })
+
+            if (!request) {
+                return undefined
+            }
+
+            // Format for client
+            const images: NemuImageData[] = []
+
+            for (const image of request.commission.images) {
+                images.push({
+                    url: image.url,
+                    blur_data: await get_blur_data(image.url)
+                })
+            }
+
+            const result: ClientRequestData = {
+                ...request,
+                commission: {
+                    ...request.commission,
+                    images
+                },
+                user: await clerkClient.users.getUser(request.user_id)
+            }
+
+            await ctx.cache.set(
+                AsRedisKey('requests', ctx.user.id, input),
+                JSON.stringify(result),
+                {
+                    EX: 3600
+                }
+            )
+
+            return result
+        }),
 
     /**
      * Gets a single request by order_id
@@ -79,43 +153,6 @@ export const requestRouter = createTRPCRouter({
         }
 
         return request
-    }),
-
-    /**
-     * Gets all requests from a user
-     */
-    get_user_request_list: protectedProcedure.query(async ({ ctx }) => {
-        const cachedRequests = await ctx.cache.get(AsRedisKey('requests', ctx.user.id))
-
-        if (cachedRequests) {
-            return JSON.parse(cachedRequests) as ClientRequestData[]
-        }
-
-        const db_requests = await ctx.db.query.requests.findMany({
-            where: eq(requests.user_id, ctx.user.id),
-            with: {
-                commission: {
-                    with: {
-                        artist: true
-                    }
-                }
-            }
-        })
-
-        // Format for client
-        const result: ClientRequestData[] = []
-        for (const request of db_requests) {
-            result.push({
-                ...request,
-                user: await clerkClient.users.getUser(request.user_id)
-            })
-        }
-
-        await ctx.cache.set(AsRedisKey('requests', ctx.user.id), JSON.stringify(result), {
-            EX: 3600
-        })
-
-        return result
     }),
 
     /**
@@ -349,7 +386,8 @@ export const requestRouter = createTRPCRouter({
             await sendbird.CreateGroupChannel({
                 user_ids: [request.user_id, request.commission.artist.user_id],
                 name: `${request.commission.title} - ${user.username}`,
-                cover_url: request.commission.images[0] || env.BASE_URL + '/profile.png',
+                cover_url:
+                    request.commission.images[0]?.url || env.BASE_URL + '/profile.png',
                 channel_url: request.order_id,
                 operator_ids: [request.commission.artist.user_id],
                 block_sdk_user_channel_join: true,

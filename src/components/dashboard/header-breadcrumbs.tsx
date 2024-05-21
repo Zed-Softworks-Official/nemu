@@ -22,6 +22,16 @@ export default function DashboardBreadcrumbs() {
                         item.substring(0, 1).toUpperCase() +
                         item.substring(1, item.length)
 
+                    let href = '/'
+                    for (let i = 1; i < index + 1; i++) {
+                        if (i === index) {
+                            href += pathname[i]
+                            continue
+                        }
+
+                        href += pathname[i] + '/'
+                    }
+
                     if (index === 0) {
                         return null
                     }
@@ -33,14 +43,7 @@ export default function DashboardBreadcrumbs() {
                     return (
                         <>
                             <BreadcrumbItem key={item}>
-                                <BreadcrumbLink
-                                    href={
-                                        '/' +
-                                        pathname.slice(1, index + 1).forEach((value) => value)
-                                    }
-                                >
-                                    {title}
-                                </BreadcrumbLink>
+                                <BreadcrumbLink href={href}>{title}</BreadcrumbLink>
                             </BreadcrumbItem>
                             {index !== pathname.length - 1 && (
                                 <BreadcrumbSeparator key={`separator-${item}`}>
