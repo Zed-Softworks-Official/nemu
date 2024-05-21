@@ -21,9 +21,29 @@ export default function Logo() {
     }, [resolvedTheme])
 
     return (
-        <Link href="/" className="flex cursor-pointer flex-row">
+        <Link
+            href="/"
+            className="group flex shrink-0 cursor-pointer flex-row transition-all duration-200 ease-in-out hover:scale-110"
+        >
             <NemuImage src={src} alt="Nemu Logo" width={138} height={54} priority />
             <Badge className="badge-sm">Beta</Badge>
+        </Link>
+    )
+}
+
+export function DashboardLogo() {
+    return (
+        <Link
+            href="/"
+            className="flex h-10 w-10 cursor-pointer flex-row transition-all duration-200 ease-in-out hover:scale-110 items-center justify-center"
+        >
+            <NemuImage
+                src={'/logos/icon.png'}
+                alt="Nemu Logo"
+                width={80}
+                height={80}
+                priority
+            />
         </Link>
     )
 }

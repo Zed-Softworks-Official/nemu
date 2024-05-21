@@ -14,7 +14,7 @@ export default function DashboardContainer({
     children: React.ReactNode
 }) {
     return (
-        <div className="bg-base-300 w-[90%] p-10 rounded-xl shadow-xl flex flex-col min-h-[70%] mt-10">
+        <div className="bg-base-300 w-full p-10 rounded-xl shadow-xl flex flex-col ">
             <div className="flex justify-between items-center">
                 <h1 className="font-bold text-2xl">{title}</h1>
                 {addButtonUrl && (

@@ -17,6 +17,7 @@ import { ToastContainer } from 'react-toastify'
 import { TRPCReactProvider } from '~/trpc/react'
 import { ThemeProvider } from '~/components/theme-provider'
 import { nemuFileRouter } from '~/app/api/uploadthing/core'
+import { TooltipProvider } from '~/components/ui/tooltip'
 
 const nunito = Nunito({
     subsets: ['latin'],
@@ -55,8 +56,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                         enableSystem
                         disableTransitionOnChange
                     >
-                        <TRPCReactProvider>{children}</TRPCReactProvider>
-                        <ToastContainer stacked />
+                        <TooltipProvider>
+                            <TRPCReactProvider>{children}</TRPCReactProvider>
+                            <ToastContainer stacked />
+                        </TooltipProvider>
                     </ThemeProvider>
                 </ClerkProvider>
             </body>
