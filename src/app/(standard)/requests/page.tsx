@@ -118,7 +118,7 @@ function RequestCard({ request }: { request: ClientRequestData }) {
                     {request.status === RequestStatus.Accepted && (
                         <div className="flex justify-end">
                             <Link
-                                href={`/requests/${request.order_id}`}
+                                href={`/requests/${request.order_id}/details`}
                                 className="btn btn-primary text-white"
                             >
                                 <EyeIcon className="h-6 w-6" /> View Reqeuest
