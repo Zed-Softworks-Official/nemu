@@ -58,16 +58,16 @@ function ArtistSettings(props: { handle: string }) {
     const form = useForm<ArtistSchemaType>({
         resolver: zodResolver(artistSchema),
         mode: 'onSubmit',
-        defaultValues: {
-            about: artist?.about,
-            location: artist?.location,
-            terms: artist?.terms,
-            tipJarUrl: artist?.tipJarUrl ? artist?.tipJarUrl : undefined,
-            automatedMessageEnabled: artist?.automatedMessageEnabled,
-            automatedMessage: artist?.automatedCommissionMessage
-                ? artist.automatedCommissionMessage
-                : undefined
-        }
+        defaultValues: artist
+            ? {
+                  about: artist.about,
+                  location: artist.location,
+                  terms: artist.terms,
+                  tipJarUrl: artist.tip_jar_url,
+                  automatedMessageEnabled: artist.automated_message_enabled!,
+                  automatedMessage: artist.automated_message ?? undefined
+              }
+            : undefined
     })
 
     return (

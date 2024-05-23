@@ -19,12 +19,16 @@ export default function MessagesClient(props: {
     }
 
     return (
-        <div className="flex h-full max-h-[40rem] w-full max-w-[90%] flex-row overflow-hidden rounded-xl bg-base-300 shadow-xl">
+        <div className="flex h-full max-h-[40rem] w-full flex-row overflow-hidden rounded-xl bg-base-300 shadow-xl">
             <SendbirdProvider
                 appId="AE781B27-397F-4722-9EC3-13E39266C944"
                 userId={session.user.id}
                 theme="dark"
-                isVoiceMessageEnabled={false}
+                uikitOptions={{
+                    groupChannel: {
+                        enableVoiceMessage: false
+                    }
+                }}
             >
                 <MessagesProvider channel_url={props.channel_url} session={session}>
                     <ChannelList hide_channel_list={props.hide_channel_list} />

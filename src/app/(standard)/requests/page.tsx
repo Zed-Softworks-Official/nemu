@@ -11,72 +11,61 @@ export default async function RequestsPage() {
 
     if (requests.length === 0) {
         return (
-            <div className="card bg-base-300 shadow-xl">
-                <div className="card-body">
-                    <h2 className="card-title">Requests</h2>
-                    <div className="divider"></div>
-                    <div className="flex flex-col items-center justify-center gap-5">
-                        <NemuImage
-                            src={'/nemu/sad.png'}
-                            alt="Sad"
-                            width={200}
-                            height={200}
-                        />
-                        <h2 className="text-2xl font-bold">No Requests</h2>
-                        <p className="text-base-content/60">You have no requests yet!</p>
-                    </div>
+            <main className="flex h-full w-full flex-col p-6">
+                <div className="flex flex-col items-center justify-center gap-5">
+                    <NemuImage src={'/nemu/sad.png'} alt="Sad" width={200} height={200} />
+                    <h2 className="text-2xl font-bold">No Requests</h2>
+                    <p className="text-base-content/60">You have no requests yet!</p>
                 </div>
-            </div>
+            </main>
         )
     }
 
     return (
-        <div className="card bg-base-300 shadow-xl">
-            <div className="card-body">
-                <h2 className="card-title">Requests</h2>
-                <div className="divider"></div>
-                <Tabs defaultValue="pending">
-                    <TabsList className="w-full justify-start">
-                        <TabsTrigger value="pending">Pending</TabsTrigger>
-                        <TabsTrigger value="accepted">Accepted</TabsTrigger>
-                        <TabsTrigger value="rejected">Rejected</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="pending">
-                        <div className="flex flex-col gap-5">
-                            {requests
-                                .filter(
-                                    (request) => request.status === RequestStatus.Pending
-                                )
-                                .map((request) => (
-                                    <RequestCard key={request.id} request={request} />
-                                ))}
-                        </div>
-                    </TabsContent>
-                    <TabsContent value="accepted">
-                        <div className="flex flex-col gap-5">
-                            {requests
-                                .filter(
-                                    (request) => request.status === RequestStatus.Accepted
-                                )
-                                .map((request) => (
-                                    <RequestCard key={request.id} request={request} />
-                                ))}
-                        </div>
-                    </TabsContent>
-                    <TabsContent value="rejected">
-                        <div className="flex flex-col gap-5">
-                            {requests
-                                .filter(
-                                    (request) => request.status === RequestStatus.Rejected
-                                )
-                                .map((request) => (
-                                    <RequestCard key={request.id} request={request} />
-                                ))}
-                        </div>
-                    </TabsContent>
-                </Tabs>
-            </div>
-        </div>
+        <main className="flex h-full w-full flex-col p-6">
+            <Tabs defaultValue="pending">
+                <TabsList className="w-full justify-start bg-base-300">
+                    <TabsTrigger value="pending">Pending</TabsTrigger>
+                    <TabsTrigger value="accepted">Accepted</TabsTrigger>
+                    <TabsTrigger value="rejected">Rejected</TabsTrigger>
+                    <TabsTrigger value="waitlist">Waitlist</TabsTrigger>
+                </TabsList>
+                <TabsContent value="pending">
+                    <div className="flex flex-col gap-5">
+                        {requests
+                            .filter((request) => request.status === RequestStatus.Pending)
+                            .map((request) => (
+                                <RequestCard key={request.id} request={request} />
+                            ))}
+                    </div>
+                </TabsContent>
+                <TabsContent value="accepted">
+                    <div className="flex flex-col gap-5">
+                        {requests
+                            .filter(
+                                (request) => request.status === RequestStatus.Accepted
+                            )
+                            .map((request) => (
+                                <RequestCard key={request.id} request={request} />
+                            ))}
+                    </div>
+                </TabsContent>
+                <TabsContent value="rejected">
+                    <div className="flex flex-col gap-5">
+                        {requests
+                            .filter(
+                                (request) => request.status === RequestStatus.Rejected
+                            )
+                            .map((request) => (
+                                <RequestCard key={request.id} request={request} />
+                            ))}
+                    </div>
+                </TabsContent>
+                <TabsContent value="waitlist">
+                    <>Waitlisted</>
+                </TabsContent>
+            </Tabs>
+        </main>
     )
 }
 
@@ -86,7 +75,7 @@ function RequestCard({ request }: { request: ClientRequestData }) {
     }
 
     return (
-        <div className="card h-52 animate-pop-in bg-base-100 shadow-xl transition-all duration-200 ease-in-out lg:card-side">
+        <div className="card h-52 animate-pop-in bg-base-200 shadow-xl transition-all duration-200 ease-in-out lg:card-side">
             <figure>
                 <NemuImage
                     src={request.commission.images[0]?.url || '/nemu/not-like-this.png'}

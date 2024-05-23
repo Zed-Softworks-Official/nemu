@@ -71,10 +71,23 @@ export const nemuFileRouter = {
     /**
      * Handles uploading commission images
      */
-    commissionImageUploader: f({ image: { maxFileCount: 5, maxFileSize: '16MB' } })
+    commissionImageUploader: f({ image: { maxFileCount: 5, maxFileSize: '4MB' } })
         .middleware(({ req }) => auth(req, true))
         .onUploadComplete(async () => {
             console.log('Commission Image Upload Complete')
+        }),
+
+    /**
+     *
+     */
+    commissionDownloadUploader: f({
+        image: { maxFileCount: 1, maxFileSize: '16MB' },
+        'application/zip': { maxFileCount: 1, maxFileSize: '16MB' },
+        video: { maxFileCount: 1, maxFileSize: '16MB' }
+    })
+        .middleware(({ req }) => auth(req, true))
+        .onUploadComplete(async () => {
+            console.log('Commission Download Upload Complete')
         })
 } satisfies FileRouter
 

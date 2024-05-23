@@ -122,6 +122,27 @@ export const requestRouter = createTRPCRouter({
             return result
         }),
 
+    get_request_invoice: protectedProcedure
+        .input(z.string())
+        .query(async ({ input, ctx }) => {
+            const request = await ctx.db.query.requests.findFirst({
+                where: eq(requests.order_id, input),
+                with: {
+                    invoice: {
+                        with: {
+                            invoice_items: true
+                        }
+                    }
+                }
+            })
+
+            if (!request) {
+                return undefined
+            }
+
+            return request.invoice
+        }),
+
     get_request_client: protectedProcedure
         .input(z.string())
         .query(async ({ input, ctx }) => {
@@ -405,7 +426,8 @@ export const requestRouter = createTRPCRouter({
                         user_id: customer_id.user_id,
                         artist_id: customer_id.artist_id,
                         status: InvoiceStatus.Creating,
-                        request_id: request.id
+                        request_id: request.id,
+                        total: request.commission.price
                     })
                     .returning()
             )[0]!

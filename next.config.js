@@ -27,6 +27,11 @@ const coreConfig = {
                 pathname: '/**'
             }
         ]
+    },
+    logging: {
+        fetches: {
+            fullUrl: true
+        }
     }
 }
 

@@ -57,7 +57,7 @@ function CustomChannelList() {
     }
 
     return (
-        <div className="join-item flex h-full w-full flex-col gap-5 bg-base-300 p-5">
+        <div className="join-item flex h-full w-14 md:w-60 xl:w-96 flex-col gap-5 bg-base-300 p-5">
             <div className="flex flex-col">
                 <h2 className="card-title">Channels</h2>
                 <div className="divider"></div>
@@ -68,7 +68,7 @@ function CustomChannelList() {
                 ) as SendbirdMetadata
 
                 const other_user = channel.members.filter(
-                    (member) => member.userId !== session.user.id
+                    (member) => member.userId !== session?.user?.id
                 )[0]
 
                 return (
