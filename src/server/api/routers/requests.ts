@@ -77,6 +77,51 @@ export const requestRouter = createTRPCRouter({
         return result
     }),
 
+    /**
+     * Gets all request details for a given order_id
+     */
+    get_request_details: protectedProcedure
+        .input(z.string())
+        .query(async ({ input, ctx }) => {
+            const cachedRequestDetails = await ctx.cache.get(
+                AsRedisKey('requests', input, 'details')
+            )
+
+            if (cachedRequestDetails) {
+                return JSON.parse(cachedRequestDetails) as ClientRequestData
+            }
+
+            const request = await ctx.db.query.requests.findFirst({
+                where: eq(requests.order_id, input),
+                with: {
+                    commission: {
+                        with: {
+                            artist: true
+                        }
+                    }
+                }
+            })
+
+            if (!request) {
+                return undefined
+            }
+
+            const result: ClientRequestData = {
+                ...request,
+                user: await clerkClient.users.getUser(request.user_id)
+            }
+
+            await ctx.cache.set(
+                AsRedisKey('requests', input, 'details'),
+                JSON.stringify(result),
+                {
+                    EX: 3600
+                }
+            )
+
+            return result
+        }),
+
     get_request_client: protectedProcedure
         .input(z.string())
         .query(async ({ input, ctx }) => {

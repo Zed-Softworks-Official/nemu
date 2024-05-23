@@ -15,7 +15,7 @@ export default async function RequestsDetailPage({
 }: {
     params: { order_id: string }
 }) {
-    const request = await api.requests.get_request_client(params.order_id)
+    const request = await api.requests.get_request_details(params.order_id)
 
     if (!request || !request.commission) {
         return notFound()

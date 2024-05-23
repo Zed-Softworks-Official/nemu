@@ -1,7 +1,5 @@
-import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import RequestSidenavLink from '~/components/requests/request-sidenav-link'
-import { RequestContent } from '~/core/structures'
 import { api } from '~/trpc/server'
 
 export default async function Layout({
@@ -11,7 +9,7 @@ export default async function Layout({
     children: React.ReactNode
     params: { order_id: string }
 }) {
-    const request = await api.requests.get_request_client(params.order_id)
+    const request = await api.requests.get_request_details(params.order_id)
 
     if (!request || !request.commission) {
         return notFound()
@@ -43,7 +41,12 @@ export default async function Layout({
                         >
                             Downloads
                         </RequestSidenavLink>
-                        <span>Invoices</span>
+                        <RequestSidenavLink
+                            href={`/requests/${params.order_id}/invoices`}
+                            path="invoices"
+                        >
+                            Invoices
+                        </RequestSidenavLink>
                     </nav>
                     {children}
                 </div>
