@@ -190,7 +190,7 @@ export const verificationRouter = createTRPCRouter({
                             .where(eq(artist_codes.id, artist_code.id))
 
                         // Delete User Cache
-                        await ctx.cache.del(AsRedisKey('users', ctx.user.id))
+                        // await ctx.cache.del(AsRedisKey('users', ctx.user.id))
 
                         // Notify user of status
                         novu.trigger('artist-verification', {

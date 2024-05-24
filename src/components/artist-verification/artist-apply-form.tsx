@@ -400,12 +400,12 @@ export default function ArtistApplyForm() {
                         <Button
                             className="disabled:btn-outline disabled:cursor-not-allowed disabled:opacity-60"
                             disabled={currentStep === 0}
-                            onClick={() => Prev()}
+                            onMouseDown={() => Prev()}
                         >
                             <ChevronLeftIcon className="h-6 w-6" />
                         </Button>
 
-                        <Button onClick={async () => await Next()}>
+                        <Button onMouseDown={async () => await Next()}>
                             {currentStep === 2 ? (
                                 verificationMutation.isPending ? (
                                     <span className="loading loading-spinner"></span>

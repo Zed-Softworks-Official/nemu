@@ -251,7 +251,7 @@ export default function Kanban({
                             <Button
                                 variant={'dark'}
                                 disabled={mutation.isPending}
-                                onClick={() => SaveKanban({ containers, tasks })}
+                                onMouseDown={() => SaveKanban({ containers, tasks })}
                             >
                                 {mutation.isPending ? (
                                     <>
@@ -265,7 +265,7 @@ export default function Kanban({
                                     </>
                                 )}
                             </Button>
-                            <Button onClick={() => CreateNewContainer()}>
+                            <Button onMouseDown={() => CreateNewContainer()}>
                                 <PlusCircleIcon className="h-6 w-6" />
                                 Add Container
                             </Button>

@@ -32,7 +32,7 @@ export default function ParallelModal({ children }: { children: React.ReactNode 
             <div className="modal-box bg-base-300 max-w-6xl w-full animate-pop-in transition-all duration-200 ease-in-out">
                 {children}
             </div>
-            <div className="modal-backdrop bg-black/80" onClick={onDismiss}></div>
+            <div className="modal-backdrop bg-black/80" onMouseDown={onDismiss}></div>
         </dialog>
     )
 }

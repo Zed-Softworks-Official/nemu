@@ -105,7 +105,7 @@ export default function KanbanContainerComponent({
                     {!editMode ? (
                         <h2
                             className="card-title cursor-pointer"
-                            onClick={() => {
+                            onMouseDown={() => {
                                 setEditMode(true)
                             }}
                         >
@@ -132,12 +132,12 @@ export default function KanbanContainerComponent({
                 </div>
 
                 <div className="flex gap-5">
-                    <Button onClick={() => CreateTask(container_data.id)}>
+                    <Button onMouseDown={() => CreateTask(container_data.id)}>
                         <PlusCircleIcon className="w-6 h-6" />
                     </Button>
                     <Button
                         variant={'outline'}
-                        onClick={() => DeleteContainer(container_data.id)}
+                        onMouseDown={() => DeleteContainer(container_data.id)}
                     >
                         <Trash2Icon className="w-6 h-6" />
                     </Button>

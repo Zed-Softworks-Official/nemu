@@ -56,7 +56,7 @@ export default function CommissionPublishButton({
         <Button
             variant={!currentlyPublished ? 'default' : 'destructive'}
             disabled={mutation.isPending}
-            onClick={() => {
+            onMouseDown={() => {
                 mutation.mutate({
                     type: 'update',
                     commission_id: id,

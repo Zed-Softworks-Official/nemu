@@ -9,7 +9,7 @@ import {
     NemuImageData
 } from '~/core/structures'
 import { artistProcedure, createTRPCRouter, publicProcedure } from '~/server/api/trpc'
-import { AsRedisKey } from '~/server/cache'
+import { AsRedisKey, cache } from '~/server/cache'
 import {
     convert_images_to_nemu_images,
     format_for_image_editor
@@ -37,21 +37,16 @@ export const commissionRouter = createTRPCRouter({
         .input(
             z.object({
                 artist_id: z.string(),
-                include_stats: z.boolean().optional(),
-                show_unpublished: z.boolean().optional()
+                include_stats: z.boolean().optional()
             })
         )
         .query(async ({ input, ctx }) => {
-            const cachedCommissions = await ctx.cache.get(
-                AsRedisKey(
-                    'commissions',
-                    input.artist_id,
-                    input.show_unpublished ? 'dashboard' : 'standard'
-                )
+            const cachedCommissions = await cache.json.get(
+                AsRedisKey('commissions', input.artist_id)
             )
 
             if (cachedCommissions) {
-                return JSON.parse(cachedCommissions) as ClientCommissionItem[]
+                return cachedCommissions as ClientCommissionItem[]
             }
 
             const db_commissions = await ctx.db.query.commissions.findMany({
@@ -68,7 +63,7 @@ export const commissionRouter = createTRPCRouter({
             // Format for client
             const result: ClientCommissionItem[] = []
             for (const commission of db_commissions) {
-                if (!input.show_unpublished && !commission.published) {
+                if (!commission.published) {
                     continue
                 }
 
@@ -100,17 +95,7 @@ export const commissionRouter = createTRPCRouter({
                 })
             }
 
-            await ctx.cache.set(
-                AsRedisKey(
-                    'commissions',
-                    input.artist_id,
-                    input.show_unpublished ? 'dashboard' : 'standard'
-                ),
-                JSON.stringify(result),
-                {
-                    EX: 3600
-                }
-            )
+            await cache.json.set(AsRedisKey('commissions', input.artist_id), '$', result)
 
             return result
         }),
@@ -121,13 +106,13 @@ export const commissionRouter = createTRPCRouter({
     get_commission_dashboard_details: artistProcedure
         .input(z.object({ slug: z.string(), handle: z.string() }))
         .query(async ({ input, ctx }) => {
-            const cachedCommission = await ctx.cache.get(
-                AsRedisKey('commissions', input.handle, input.slug, 'dashboard')
-            )
+            // const cachedCommission = await ctx.cache.get(
+            //     AsRedisKey('commissions', input.handle, input.slug, 'dashboard')
+            // )
 
-            if (cachedCommission) {
-                return JSON.parse(cachedCommission) as ClientCommissionItem
-            }
+            // if (cachedCommission) {
+            //     return JSON.parse(cachedCommission) as ClientCommissionItem
+            // }
 
             const commission = await ctx.db.query.commissions.findFirst({
                 where: eq(commissions.slug, input.slug),
@@ -173,13 +158,13 @@ export const commissionRouter = createTRPCRouter({
                 requests: requests
             }
 
-            await ctx.cache.set(
-                AsRedisKey('commissions', input.handle, input.slug, 'dashboard'),
-                JSON.stringify(result),
-                {
-                    EX: 3600
-                }
-            )
+            // await ctx.cache.set(
+            //     AsRedisKey('commissions', input.handle, input.slug, 'dashboard'),
+            //     JSON.stringify(result),
+            //     {
+            //         EX: 3600
+            //     }
+            // )
 
             return result
         }),
@@ -239,13 +224,12 @@ export const commissionRouter = createTRPCRouter({
         )
         .query(async ({ input, ctx }) => {
             // Check if we have the commission already cached
-            const cachedCommission = await ctx.cache.get(
+            const cachedCommission = await cache.json.get(
                 AsRedisKey('commissions', input.handle, input.slug)
             )
 
-            // If we do return that
             if (cachedCommission) {
-                return JSON.parse(cachedCommission) as ClientCommissionItem
+                return cachedCommission as ClientCommissionItem
             }
 
             const artist = await ctx.db.query.artists.findFirst({
@@ -274,8 +258,6 @@ export const commissionRouter = createTRPCRouter({
                 return undefined
             }
 
-            console.log(commission)
-
             // Format for client
             const images = await convert_images_to_nemu_images(commission?.images)
 
@@ -299,12 +281,10 @@ export const commissionRouter = createTRPCRouter({
                 }
             }
 
-            await ctx.cache.set(
+            await cache.json.set(
                 AsRedisKey('commissions', input.handle, input.slug),
-                JSON.stringify(result),
-                {
-                    EX: 3600
-                }
+                '$',
+                result
             )
 
             return result
@@ -424,20 +404,20 @@ export const commissionRouter = createTRPCRouter({
                     .where(eq(commissions.id, input.commission_id))
 
                 // Delete Cache
-                await ctx.cache.del(
-                    AsRedisKey(
-                        'commissions',
-                        ctx.user.privateMetadata.artist_id as string,
-                        'standard'
-                    )
-                )
-                await ctx.cache.del(
-                    AsRedisKey(
-                        'commissions',
-                        ctx.user.privateMetadata.artist_id as string,
-                        'dashboard'
-                    )
-                )
+                // await ctx.cache.del(
+                //     AsRedisKey(
+                //         'commissions',
+                //         ctx.user.privateMetadata.artist_id as string,
+                //         'standard'
+                //     )
+                // )
+                // await ctx.cache.del(
+                //     AsRedisKey(
+                //         'commissions',
+                //         ctx.user.privateMetadata.artist_id as string,
+                //         'dashboard'
+                //     )
+                // )
 
                 return { success: true, updated: true }
             }
@@ -494,13 +474,13 @@ export const commissionRouter = createTRPCRouter({
                 )
             })
 
-            await ctx.cache.set(
-                AsRedisKey('commissions', ctx.user.privateMetadata.artist_id as string),
-                JSON.stringify(db_commissions),
-                {
-                    EX: 3600
-                }
-            )
+            // await ctx.cache.set(
+            //     AsRedisKey('commissions', ctx.user.privateMetadata.artist_id as string),
+            //     JSON.stringify(db_commissions),
+            //     {
+            //         EX: 3600
+            //     }
+            // )
 
             return { success: true }
         })

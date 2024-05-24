@@ -54,7 +54,7 @@ export default function RequestCardDropdown(props: { request_id: string }) {
             </DropdownMenuTrigger>
             <DropdownMenuContent>
                 <DropdownMenuItem
-                    onClick={() => {
+                    onMouseDown={() => {
                         mutation.mutate({
                             request_id: props.request_id,
                             accepted: true
@@ -66,7 +66,7 @@ export default function RequestCardDropdown(props: { request_id: string }) {
                 </DropdownMenuItem>
                 <DropdownMenuItem
                     className="hover:!bg-error"
-                    onClick={() => {
+                    onMouseDown={() => {
                         mutation.mutate({
                             request_id: props.request_id,
                             accepted: false

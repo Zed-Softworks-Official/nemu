@@ -4,6 +4,7 @@ import { artistProcedure, createTRPCRouter, protectedProcedure } from '~/server/
 import {
     StripeCreateAccountLink,
     StripeCreateCustomer,
+    StripeCreateCustomerZed,
     StripeCreateLoginLink,
     StripeCreateProductPaymentIntent,
     StripeCreateSupporterBilling,
@@ -19,7 +20,8 @@ import {
     products,
     stripe_customer_ids
 } from '~/server/db/schema'
-import { AsRedisKey } from '~/server/cache'
+import { AsRedisKey, cache } from '~/server/cache'
+import { StripeDashboardData } from '~/core/structures'
 
 export const stripeRouter = createTRPCRouter({
     /**
@@ -87,44 +89,69 @@ export const stripeRouter = createTRPCRouter({
     /**
      * Gets the onboarding or dashboard url for stripe depending on the what
      * the account needs
+     *
+     * Gets the billing portal url so the user can edit their subscription
      */
-    get_managment_url: artistProcedure.query(
-        async ({ ctx }): Promise<{ type: 'dashboard' | 'onboarding'; url: string }> => {
-            const cachedManagmentUrl = await ctx.cache.get(AsRedisKey('stripe', ctx.user.id, 'managment'))
+    get_dashboard_links: artistProcedure.query(async ({ ctx }) => {
+        // Get Cached response
+        const cachedLinks = await cache.json.get(
+            AsRedisKey('stripe', ctx.user.id, 'dashboard_links')
+        )
 
-            if (cachedManagmentUrl) {
-                return JSON.parse(cachedManagmentUrl) as { type: 'dashboard' | 'onboarding'; url: string }
+        if (cachedLinks) {
+            return cachedLinks as StripeDashboardData
+        }
+
+        // Get the artist from the db
+        const artist = await ctx.db.query.artists.findFirst({
+            where: eq(artists.user_id, ctx.user.id)
+        })
+
+        if (!artist) {
+            return undefined
+        }
+
+        let result: StripeDashboardData = {
+            managment: {
+                type: 'onboarding',
+                url: ''
+            },
+            checkout_portal: ''
+        }
+
+        // Get the stripe account if they have one
+        const stripe_account = await StripeGetAccount(artist.stripe_account)
+
+        // If the user has not completed the onboarding, return an onboarding url
+        // else return the stripe connect url
+        if (!stripe_account.charges_enabled) {
+            result.managment = {
+                type: 'onboarding',
+                url: (await StripeCreateAccountLink(stripe_account.id)).url
             }
-
-            const artist = await ctx.db.query.artists.findFirst({
-                where: eq(artists.id, ctx.user.privateMetadata.artist_id as string)
-            })
-
-            if (!artist) {
-                throw new TRPCError({
-                    code: 'INTERNAL_SERVER_ERROR',
-                    message: 'Artist does not exist'
-                })
-            }
-
-            // Get the stripe account if they have one
-            const stripe_account = await StripeGetAccount(artist.stripe_account)
-
-            // If the user has not completed the onboarding, return an onboarding url
-            if (!stripe_account.charges_enabled) {
-                return {
-                    type: 'onboarding',
-                    url: (await StripeCreateAccountLink(stripe_account.id)).url
-                }
-            }
-
-            // Return the dashboard url if the artist has completed onboarding and has an account
-            return {
+        } else {
+            result.managment = {
                 type: 'dashboard',
                 url: (await StripeCreateLoginLink(stripe_account.id)).url
             }
         }
-    ),
+
+        if (artist.zed_customer_id) {
+            const portal_url = (
+                await StripeCreateSupporterBilling(artist.zed_customer_id)
+            ).url
+
+            result.checkout_portal = portal_url
+        }
+
+        await cache.json.set(
+            AsRedisKey('stripe', ctx.user.id, 'dashboard_links'),
+            '$',
+            result
+        )
+
+        return result
+    }),
 
     /**
      * Gets stripe checkout data
@@ -195,33 +222,5 @@ export const stripeRouter = createTRPCRouter({
             })
 
             return { client_secret: payment_intent.client_secret }
-        }),
-
-    /**
-     * Gets the billing portal url so the user can edit their subscription
-     */
-    get_checkout_portal: artistProcedure.query(async ({ ctx }) => {
-        const cachedCheckoutPortal = await ctx.cache.get(AsRedisKey('stripe', ctx.user.id, 'checkout_portal'))
-
-        if (cachedCheckoutPortal) {
-            return JSON.parse(cachedCheckoutPortal) as string
-        }
-
-        const artist = await ctx.db.query.artists.findFirst({
-            where: eq(artists.id, ctx.user.privateMetadata.artist_id as string)
         })
-
-        if (!artist) {
-            throw new TRPCError({
-                code: 'INTERNAL_SERVER_ERROR',
-                message: 'Failed to find artist'
-            })
-        }
-
-        if (!artist.zed_customer_id) {
-            return undefined
-        }
-
-        return (await StripeCreateSupporterBilling(artist.zed_customer_id)).url
-    })
 })

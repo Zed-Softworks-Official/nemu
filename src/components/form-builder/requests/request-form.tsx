@@ -168,7 +168,7 @@ export default function RequestSubmitForm({
             <Button
                 variant={'outline'}
                 className="absolute"
-                onClick={() => setShowForm(false)}
+                onMouseDown={() => setShowForm(false)}
             >
                 <ArrowLeftCircleIcon className="w-6 h-6" />
                 Back
@@ -202,7 +202,7 @@ export default function RequestSubmitForm({
             })}
             <div className="divider"></div>
             <Button
-                onClick={() => startTransition(submitForm)}
+                onMouseDown={() => startTransition(submitForm)}
                 disabled={pending || userRequested}
             >
                 {pending ? 'Submitting' : 'Submit'}

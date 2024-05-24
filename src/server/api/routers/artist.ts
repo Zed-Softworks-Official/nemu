@@ -1,7 +1,7 @@
 import { createTRPCRouter, publicProcedure } from '~/server/api/trpc'
 
 import { z } from 'zod'
-import { AsRedisKey } from '~/server/cache'
+import { AsRedisKey, cache } from '~/server/cache'
 import { clerkClient } from '@clerk/nextjs/server'
 import { ClientArtist } from '~/core/structures'
 
@@ -22,17 +22,15 @@ export const artistRouter = createTRPCRouter({
         )
         .query(async ({ input, ctx }) => {
             // Get the cached artist if they are cached
-            const cachedArtist = await ctx.cache.get(
+            const cachedArtist = await cache.json.get(
                 AsRedisKey(
                     'artists',
-                    input !== undefined
-                        ? input.handle
-                        : (ctx.user?.publicMetadata.handle as string)
+                    input?.handle ?? (ctx.user?.publicMetadata.handle as string)
                 )
             )
 
             if (cachedArtist) {
-                return JSON.parse(cachedArtist) as ClientArtist
+                return cachedArtist as ClientArtist
             }
 
             // Fetch from database if they're not in the cache
@@ -60,15 +58,13 @@ export const artistRouter = createTRPCRouter({
                 user: await clerkClient.users.getUser(artist.user_id)
             }
 
-            await ctx.cache.set(
+            await cache.json.set(
                 AsRedisKey(
                     'artists',
-                    input ? input.handle : (ctx.user?.publicMetadata.handle as string)
+                    input?.handle ?? (ctx.user?.publicMetadata.handle as string)
                 ),
-                JSON.stringify(result),
-                {
-                    EX: 3600
-                }
+                '$',
+                result
             )
 
             return result

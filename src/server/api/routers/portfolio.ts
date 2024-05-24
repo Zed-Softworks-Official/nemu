@@ -87,16 +87,16 @@ export const portfolioRouter = createTRPCRouter({
                 })
             }
 
-            await ctx.cache.set(
-                AsRedisKey(
-                    'portfolio_items',
-                    ctx.user.privateMetadata.artist_id as string
-                ),
-                JSON.stringify(result),
-                {
-                    EX: 3600
-                }
-            )
+            // await ctx.cache.set(
+            //     AsRedisKey(
+            //         'portfolio_items',
+            //         ctx.user.privateMetadata.artist_id as string
+            //     ),
+            //     JSON.stringify(result),
+            //     {
+            //         EX: 3600
+            //     }
+            // )
         }),
 
     /**
@@ -109,13 +109,13 @@ export const portfolioRouter = createTRPCRouter({
             })
         )
         .query(async ({ input, ctx }) => {
-            const cachedPorfolioItems = await ctx.cache.get(
-                AsRedisKey('portfolio_items', input.artist_id)
-            )
+            // const cachedPorfolioItems = await ctx.cache.get(
+            //     AsRedisKey('portfolio_items', input.artist_id)
+            // )
 
-            if (cachedPorfolioItems) {
-                return JSON.parse(cachedPorfolioItems) as ClientPortfolioItem[]
-            }
+            // if (cachedPorfolioItems) {
+            //     return JSON.parse(cachedPorfolioItems) as ClientPortfolioItem[]
+            // }
 
             const portfolioItems = await ctx.db.query.portfolios.findMany({
                 where: eq(portfolios.artist_id, input.artist_id)
@@ -134,11 +134,11 @@ export const portfolioRouter = createTRPCRouter({
                 })
             }
 
-            await ctx.cache.set(
-                AsRedisKey('portfolio_items', input.artist_id),
-                JSON.stringify(result),
-                { EX: 3600 }
-            )
+            // await ctx.cache.set(
+            //     AsRedisKey('portfolio_items', input.artist_id),
+            //     JSON.stringify(result),
+            //     { EX: 3600 }
+            // )
 
             return result
         }),
@@ -154,13 +154,13 @@ export const portfolioRouter = createTRPCRouter({
             })
         )
         .query(async ({ input, ctx }) => {
-            const cachedPorfolioItem = await ctx.cache.get(
-                AsRedisKey('portfolio_items', input.artist_id, input.item_id)
-            )
+            // const cachedPorfolioItem = await ctx.cache.get(
+            //     AsRedisKey('portfolio_items', input.artist_id, input.item_id)
+            // )
 
-            if (cachedPorfolioItem) {
-                return JSON.parse(cachedPorfolioItem) as ClientPortfolioItem
-            }
+            // if (cachedPorfolioItem) {
+            //     return JSON.parse(cachedPorfolioItem) as ClientPortfolioItem
+            // }
 
             const portfolio_item = await ctx.db.query.portfolios.findFirst({
                 where: and(
@@ -185,11 +185,11 @@ export const portfolioRouter = createTRPCRouter({
                 }
             }
 
-            await ctx.cache.set(
-                AsRedisKey('portfolio_items', input.artist_id, input.item_id),
-                JSON.stringify(result),
-                { EX: 3600 }
-            )
+            // await ctx.cache.set(
+            //     AsRedisKey('portfolio_items', input.artist_id, input.item_id),
+            //     JSON.stringify(result),
+            //     { EX: 3600 }
+            // )
 
             return result
         }),

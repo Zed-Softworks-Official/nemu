@@ -41,7 +41,7 @@ export default function PreviewButton() {
         //     <button
         //         type="button"
         //         className="btn btn-accent btn-outline"
-        //         onClick={() => setShowModal(true)}
+        //         onMouseDown={() => setShowModal(true)}
         //     >
         //         <EyeIcon className="w-6 h-6 swap-off fill-current" />
         //     </button>

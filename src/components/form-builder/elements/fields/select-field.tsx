@@ -257,7 +257,7 @@ function PropertiesComponent({
                                 <button
                                     type="button"
                                     className="btn btn-outline join-item"
-                                    onClick={(e) => {
+                                    onMouseDown={(e) => {
                                         e.preventDefault()
                                         form.setValue(
                                             'options',
@@ -289,7 +289,7 @@ function PropertiesComponent({
                                             <button
                                                 type="button"
                                                 className="btn btn-ghost join-item bg-base-200"
-                                                onClick={(e) => {
+                                                onMouseDown={(e) => {
                                                     e.preventDefault()
 
                                                     const newOptions = [...field.value]

@@ -78,7 +78,7 @@ function CustomChannelList() {
                             'w-full cursor-pointer bg-base-200 transition-all duration-200 ease-in-out hover:bg-primary active:scale-95',
                             currentChannel === channel.url && 'bg-primary'
                         )}
-                        onClick={() => {
+                        onMouseDown={() => {
                             setCurrentChannel(channel.url)
                             setOtherUser(other_user)
                             setMetadata(metadata)

@@ -66,7 +66,7 @@ export default function NemuPreviewItem({
                 </div>
             </ContextMenuTrigger>
             <ContextMenuContent>
-                <ContextMenuItem onClick={() => onDelete(index)}>
+                <ContextMenuItem onMouseDown={() => onDelete(index)}>
                     <Trash2Icon className="h-6 w-6" />
                     Delete
                 </ContextMenuItem>

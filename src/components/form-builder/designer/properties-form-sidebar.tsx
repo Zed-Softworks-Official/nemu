@@ -17,7 +17,7 @@ export default function PropertiesFormSidebar() {
                 <h2 className="text-base-content/80">Element Properties</h2>
                 <button
                     className="btn btn-ghost text-base-content/80"
-                    onClick={() => setSelectedElement(null)}
+                    onMouseDown={() => setSelectedElement(null)}
                 >
                     <XCircleIcon className="w-6 h-6" />
                 </button>

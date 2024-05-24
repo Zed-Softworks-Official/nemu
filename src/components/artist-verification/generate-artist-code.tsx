@@ -37,7 +37,7 @@ export default function GenerateAristCode() {
                     />
                     <button
                         className="btn"
-                        onClick={async () => {
+                        onMouseDown={async () => {
                             await navigator.clipboard.writeText(generatedCode)
                             nemu_toast('Copied to clipboard', {
                                 theme: resolvedTheme,
@@ -51,7 +51,7 @@ export default function GenerateAristCode() {
                 </div>
                 <button
                     className="btn btn-primary btn-wide"
-                    onClick={() => {
+                    onMouseDown={() => {
                         setGenerating(true)
                         mutation.mutate()
                     }}

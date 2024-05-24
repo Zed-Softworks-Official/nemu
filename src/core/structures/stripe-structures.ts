@@ -38,3 +38,12 @@ export type StripeProductCheckoutData = CheckoutData & {
 }
 
 export type StripeGetClientSecretInput = RouterInput['stripe']['get_client_secret']
+
+export type StripeDashboardData = {
+    managment: {
+        type: 'dashboard' | 'onboarding'
+        url: string
+    }
+
+    checkout_portal?: string
+}

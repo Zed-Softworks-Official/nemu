@@ -120,7 +120,7 @@ export default function Designer() {
         <div className="flex w-full h-full">
             <div
                 className="p-4 w-full"
-                onClick={() => {
+                onMouseDown={() => {
                     if (selectedElement) setSelectedElement(null)
                 }}
             >
@@ -206,7 +206,7 @@ function DesignerElementWrapper({ element }: { element: FormElementInstance }) {
             onMouseLeave={() => {
                 setMouseIsOver(false)
             }}
-            onClick={(event) => {
+            onMouseDown={(event) => {
                 event.stopPropagation()
 
                 setSelectedElement(element)
@@ -226,7 +226,7 @@ function DesignerElementWrapper({ element }: { element: FormElementInstance }) {
                         <Button
                             variant={'destructive'}
                             className="h-full rounded-l-none rounded-r-[1.2rem]"
-                            onClick={(event) => {
+                            onMouseDown={(event) => {
                                 event.stopPropagation()
 
                                 removeElement(element.id)

@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 
 import { artistProcedure, createTRPCRouter, protectedProcedure } from '~/server/api/trpc'
-import { AsRedisKey } from '~/server/cache'
+import { AsRedisKey, cache } from '~/server/cache'
 import { forms } from '~/server/db/schema'
 import { ClientForm } from '~/core/structures'
 import { TRPCError } from '@trpc/server'
@@ -20,15 +20,21 @@ export const formRouter = createTRPCRouter({
             })
         )
         .mutation(async ({ input, ctx }) => {
-            await ctx.db.insert(forms).values({
-                id: createId(),
-                name: input.name,
-                description: input.description,
-                artist_id: ctx.user.privateMetadata.artist_id as string
-            })
+            const form = await ctx.db
+                .insert(forms)
+                .values({
+                    id: createId(),
+                    name: input.name,
+                    description: input.description,
+                    artist_id: ctx.user.privateMetadata.artist_id as string
+                })
+                .returning()
 
-            await ctx.cache.del(
-                AsRedisKey('forms', ctx.user.privateMetadata.artist_id as string)
+            // Invalidate cache
+            await cache.json.arrappend(
+                AsRedisKey('forms', ctx.user.privateMetadata.artist_id as string),
+                '$',
+                form[0]
             )
         }),
 
@@ -38,10 +44,9 @@ export const formRouter = createTRPCRouter({
     get_form_list: protectedProcedure
         .input(z.object({ artist_id: z.string() }))
         .query(async ({ input, ctx }) => {
-            const cachedForms = await ctx.cache.get(AsRedisKey('forms', input.artist_id))
-
+            const cachedForms = await cache.json.get(AsRedisKey('forms', input.artist_id))
             if (cachedForms) {
-                return JSON.parse(cachedForms) as ClientForm[]
+                return cachedForms as ClientForm[]
             }
 
             const db_forms = await ctx.db.query.forms.findMany({
@@ -52,13 +57,7 @@ export const formRouter = createTRPCRouter({
                 return undefined
             }
 
-            await ctx.cache.set(
-                AsRedisKey('forms', input.artist_id),
-                JSON.stringify(db_forms),
-                {
-                    EX: 3600
-                }
-            )
+            await cache.json.set(AsRedisKey('forms', input.artist_id), '$', db_forms)
 
             return db_forms
         }),
@@ -67,10 +66,10 @@ export const formRouter = createTRPCRouter({
      * Gets a SINGLE from from an artist given the artist id and the form id
      */
     get_form: protectedProcedure.input(z.string()).query(async ({ input, ctx }) => {
-        const cachedForm = await ctx.cache.get(AsRedisKey('forms', input))
+        const cachedForm = await cache.json.get(AsRedisKey('forms', input))
 
         if (cachedForm) {
-            return JSON.parse(cachedForm) as ClientForm
+            return cachedForm as ClientForm
         }
 
         const form = await ctx.db.query.forms.findFirst({
@@ -81,9 +80,7 @@ export const formRouter = createTRPCRouter({
             return undefined
         }
 
-        await ctx.cache.set(AsRedisKey('forms', input), JSON.stringify(form), {
-            EX: 3600
-        })
+        await cache.json.set(AsRedisKey('forms', input), '$', form)
 
         return form
     }),
@@ -117,10 +114,10 @@ export const formRouter = createTRPCRouter({
             }
 
             // Update Cache
-            await ctx.cache.set(
-                AsRedisKey('forms', updated.id),
-                JSON.stringify(updated),
-                { EX: 3600 }
+            await cache.json.set(
+                AsRedisKey('forms', input.form_id),
+                '$.content',
+                input.content
             )
 
             return { success: true }

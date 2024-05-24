@@ -33,8 +33,11 @@ export default async function Layout({ children }: { children: React.ReactNode }
         return redirect('/u/login')
     }
 
-    const managment_url = await api.stripe.get_managment_url()
-    const portal_url = await api.stripe.get_checkout_portal()
+    const dashboard_links = await api.stripe.get_dashboard_links()
+
+    if (!dashboard_links) {
+        return redirect('/u/login')
+    }
 
     return (
         <div className="flex min-h-screen w-full flex-col bg-base-100">
@@ -80,16 +83,20 @@ export default async function Layout({ children }: { children: React.ReactNode }
                     <SidebarItem
                         icon={<HandCoinsIcon className="h-6 w-6" />}
                         title={
-                            managment_url.type === 'onboarding'
+                            dashboard_links.managment.type === 'onboarding'
                                 ? 'Complete Onboarding'
                                 : 'Payout'
                         }
-                        href={managment_url.url}
+                        href={dashboard_links.managment.url}
                     />
                     <SidebarItem
                         icon={<BadgeDollarSign className="h-6 w-6" />}
                         title="Supporter"
-                        href={portal_url ? portal_url : '/artists/supporter'}
+                        href={
+                            dashboard_links.checkout_portal
+                                ? dashboard_links.checkout_portal
+                                : '/artists/supporter'
+                        }
                     />
                     <Tooltip>
                         <TooltipTrigger asChild>
@@ -109,7 +116,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
                 </nav>
             </aside>
             <div className="flex flex-col sm:gap-4 sm:py-4 sm:pl-20">
-                <header className="sm:static sticky top-0 z-30 flex h-14 items-center gap-4 px-4 sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
+                <header className="sticky top-0 z-30 flex h-14 items-center gap-4 px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
                     <Sheet>
                         <SheetTrigger asChild>
                             <Button variant={'outline'} className="sm:hidden">

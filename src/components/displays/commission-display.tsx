@@ -117,7 +117,7 @@ export default function CommissionDisplay({
                                 <Price value={commission.price} />
                                 <Button
                                     className="btn-wide"
-                                    onClick={() => {
+                                    onMouseDown={() => {
                                         if (!user || !isLoaded) {
                                             return push('/u/login')
                                         }

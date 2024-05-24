@@ -9,9 +9,6 @@ export const env = createEnv({
     server: {
         BASE_URL: z.string().url(),
         POSTGRES_URL: z.string().url(),
-        REDIS_HOST: z.string(),
-        REDIS_PORT: z.number(),
-        REDIS_PASSWORD: z.string(),
         CLERK_WEBHOOK_SECRET: z.string(),
         CLERK_SECRET_KEY: z.string(),
         NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -24,7 +21,11 @@ export const env = createEnv({
         SENDBIRD_API_TOKEN: z.string(),
         UPLOADTHING_SECRET: z.string(),
         UPLOADTHING_APP_ID: z.string(),
-        SENTRY_AUTH_TOKEN: z.string()
+        SENTRY_AUTH_TOKEN: z.string(),
+        KV_URL: z.string(),
+        KV_REST_API_URL: z.string(),
+        KV_REST_API_TOKEN: z.string(),
+        KV_REST_API_READ_ONLY_TOKEN: z.string()
     },
 
     /**
@@ -46,9 +47,10 @@ export const env = createEnv({
     runtimeEnv: {
         BASE_URL: process.env.BASE_URL,
         POSTGRES_URL: process.env.POSTGRES_URL,
-        REDIS_HOST: process.env.REDIS_HOST,
-        REDIS_PORT: Number(process.env.REDIS_PORT),
-        REDIS_PASSWORD: process.env.REDIS_PASSWORD,
+        KV_URL: process.env.KV_URL,
+        KV_REST_API_URL: process.env.KV_REST_API_URL,
+        KV_REST_API_TOKEN: process.env.KV_REST_API_TOKEN,
+        KV_REST_API_READ_ONLY_TOKEN: process.env.KV_REST_API_READ_ONLY_TOKEN,
         CLERK_WEBHOOK_SECRET: process.env.CLERK_WEBHOOK_SECRET,
         CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY,
         NODE_ENV: process.env.NODE_ENV,
@@ -62,7 +64,7 @@ export const env = createEnv({
         UPLOADTHING_APP_ID: process.env.UPLOADTHING_APP_ID,
         UPLOADTHING_SECRET: process.env.UPLOADTHING_SECRET,
         SENTRY_AUTH_TOKEN: process.env.SENTRY_AUTH_TOKEN,
-        
+
         NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
         NEXT_PUBLIC_ALGOLIA_APP_ID: process.env.NEXT_PUBLIC_ALGOLIA_APP_ID,
         NEXT_PUBLIC_ALGOLIA_SEARCH_API_KEY: process.env.NEXT_PUBLIC_ALGOLIA_SEARCH_API_KEY

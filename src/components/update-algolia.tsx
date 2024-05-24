@@ -9,7 +9,7 @@ export default function UpdateAlgoliaButtons() {
     return (
         <div className="flex flex-col gap-5">
             <Button
-                onClick={() => {
+                onMouseDown={() => {
                     artist_mutation.mutate()
                 }}
             >

@@ -24,7 +24,7 @@ export default function SaveButton({ form_id }: { form_id: string }) {
 
     return (
         <Button
-            onClick={() => {
+            onMouseDown={() => {
                 mutation.mutate({
                     form_id,
                     content: JSON.stringify(elements)

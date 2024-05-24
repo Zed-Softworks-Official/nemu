@@ -162,7 +162,7 @@ export default function PortfolioCreateEditForm({
                             <Button
                                 variant={'destructive'}
                                 type="button"
-                                onClick={() => {
+                                onMouseDown={() => {
                                     delete_mutation.mutate({
                                         id: data.id,
                                         utKey: data.utKey!

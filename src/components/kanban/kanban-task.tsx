@@ -102,7 +102,7 @@ export default function KanbanItemComponent({
                 onMouseLeave={() => {
                     setMouseIsOver(false)
                 }}
-                onClick={() => {
+                onMouseDown={() => {
                     ToggleEditMode()
                 }}
                 className={cn(
@@ -119,7 +119,7 @@ export default function KanbanItemComponent({
                         {mouseIsOver && (
                             <Button
                                 variant={'ghost'}
-                                onClick={() => DeleteTask(item_data.id)}
+                                onMouseDown={() => DeleteTask(item_data.id)}
                             >
                                 <Trash2Icon className="w-6 h-6" />
                             </Button>

@@ -14,7 +14,7 @@ export default function ShareButton() {
     return (
         <Button
             variant={'outline'}
-            onClick={() => {
+            onMouseDown={() => {
                 navigator.clipboard.writeText('http://localhost:3000' + pathname)
                 nemu_toast('Copied to clipboard', { theme: resolvedTheme, type: 'info' })
             }}

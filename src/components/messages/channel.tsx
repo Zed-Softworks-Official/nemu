@@ -116,7 +116,7 @@ function ChannelTextInput() {
                         </span>
                         <p>{(replyMessage as UserMessage).message || ''}</p>
                     </div>
-                    <Button variant={'ghost'} onClick={() => cancel_reply()}>
+                    <Button variant={'ghost'} onMouseDown={() => cancel_reply()}>
                         <XCircleIcon className="h-6 w-6" />
                     </Button>
                 </motion.div>
@@ -173,7 +173,7 @@ function ChannelTextInput() {
                 <div className="join-item">
                     <Button
                         variant={'ghost'}
-                        onClick={() => {
+                        onMouseDown={() => {
                             if (messageContent === '') {
                                 inputRef.current?.click()
                                 return
@@ -255,7 +255,7 @@ function ChannelMessages() {
                         <ContextMenuContent>
                             {session.user.meta === metadata?.artist_id && (
                                 <ContextMenuItem
-                                    onClick={() => {
+                                    onMouseDown={() => {
                                         setToastId(
                                             nemu_toast.loading('Adding', {
                                                 theme: resolvedTheme
@@ -268,7 +268,7 @@ function ChannelMessages() {
                                 </ContextMenuItem>
                             )}
                             <ContextMenuItem
-                                onClick={() => {
+                                onMouseDown={() => {
                                     start_reply(current_message)
                                 }}
                             >

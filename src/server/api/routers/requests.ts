@@ -274,10 +274,10 @@ export const requestRouter = createTRPCRouter({
                 }
             })
 
-            // Delete Cache
-            await ctx.cache.del(
-                AsRedisKey('commissions', commission.artist_id, commission.slug)
-            )
+            // Invalidate Cache
+            // await ctx.cache.del(
+            //     AsRedisKey('commissions', commission.artist_id, commission.slug)
+            // )
         }),
 
     /**
@@ -493,17 +493,6 @@ export const requestRouter = createTRPCRouter({
             )[0]!
 
             // Update the request to reflect the acceptance
-            // await ctx.db.request.update({
-            //     where: {
-            //         id: request.id
-            //     },
-            //     data: {
-            //         status: RequestStatus.Accepted,
-            //         invoiceId: invoice.id,
-            //         kanbanId: kanban.id,
-            //         sendbirdChannelURL: request.orderId
-            //     }
-            // })
             await ctx.db
                 .update(requests)
                 .set({
@@ -515,8 +504,8 @@ export const requestRouter = createTRPCRouter({
                 .where(eq(requests.id, request.id))
 
             // Delete Dashboard Caches
-            await ctx.cache.del(AsRedisKey('commissions', request.commission.artist_id))
-            await ctx.cache.del(AsRedisKey('requests', request.commission_id))
+            // await ctx.cache.del(AsRedisKey('commissions', request.commission.artist_id))
+            // await ctx.cache.del(AsRedisKey('requests', request.commission_id))
 
             return { success: true }
         })
