@@ -29,11 +29,11 @@ import { sendbird } from '~/server/sendbird'
 
 export const requestRouter = createTRPCRouter({
     get_request_list_client: protectedProcedure.query(async ({ ctx }) => {
-        const cachedRequests = await ctx.cache.get(AsRedisKey('requests', ctx.user.id))
+        // const cachedRequests = await ctx.cache.get(AsRedisKey('requests', ctx.user.id))
 
-        if (cachedRequests) {
-            return JSON.parse(cachedRequests) as ClientRequestData[]
-        }
+        // if (cachedRequests) {
+        //     return JSON.parse(cachedRequests) as ClientRequestData[]
+        // }
 
         const db_requests = await ctx.db.query.requests.findMany({
             where: eq(requests.user_id, ctx.user.id),
@@ -70,9 +70,9 @@ export const requestRouter = createTRPCRouter({
             })
         }
 
-        await ctx.cache.set(AsRedisKey('requests', ctx.user.id), JSON.stringify(result), {
-            EX: 3600
-        })
+        // await ctx.cache.set(AsRedisKey('requests', ctx.user.id), JSON.stringify(result), {
+        //     EX: 3600
+        // })
 
         return result
     }),
@@ -83,13 +83,13 @@ export const requestRouter = createTRPCRouter({
     get_request_details: protectedProcedure
         .input(z.string())
         .query(async ({ input, ctx }) => {
-            const cachedRequestDetails = await ctx.cache.get(
-                AsRedisKey('requests', input, 'details')
-            )
+            // const cachedRequestDetails = await ctx.cache.get(
+            //     AsRedisKey('requests', input, 'details')
+            // )
 
-            if (cachedRequestDetails) {
-                return JSON.parse(cachedRequestDetails) as ClientRequestData
-            }
+            // if (cachedRequestDetails) {
+            //     return JSON.parse(cachedRequestDetails) as ClientRequestData
+            // }
 
             const request = await ctx.db.query.requests.findFirst({
                 where: eq(requests.order_id, input),
@@ -111,13 +111,13 @@ export const requestRouter = createTRPCRouter({
                 user: await clerkClient.users.getUser(request.user_id)
             }
 
-            await ctx.cache.set(
-                AsRedisKey('requests', input, 'details'),
-                JSON.stringify(result),
-                {
-                    EX: 3600
-                }
-            )
+            // await ctx.cache.set(
+            //     AsRedisKey('requests', input, 'details'),
+            //     JSON.stringify(result),
+            //     {
+            //         EX: 3600
+            //     }
+            // )
 
             return result
         }),
@@ -146,13 +146,13 @@ export const requestRouter = createTRPCRouter({
     get_request_client: protectedProcedure
         .input(z.string())
         .query(async ({ input, ctx }) => {
-            const cachedRequest = await ctx.cache.get(
-                AsRedisKey('requests', ctx.user.id, input)
-            )
+            // const cachedRequest = await ctx.cache.get(
+            //     AsRedisKey('requests', ctx.user.id, input)
+            // )
 
-            if (cachedRequest) {
-                return JSON.parse(cachedRequest) as ClientRequestData
-            }
+            // if (cachedRequest) {
+            //     return JSON.parse(cachedRequest) as ClientRequestData
+            // }
 
             const request = await ctx.db.query.requests.findFirst({
                 where: and(
@@ -191,13 +191,13 @@ export const requestRouter = createTRPCRouter({
                 user: await clerkClient.users.getUser(request.user_id)
             }
 
-            await ctx.cache.set(
-                AsRedisKey('requests', ctx.user.id, input),
-                JSON.stringify(result),
-                {
-                    EX: 3600
-                }
-            )
+            // await ctx.cache.set(
+            //     AsRedisKey('requests', ctx.user.id, input),
+            //     JSON.stringify(result),
+            //     {
+            //         EX: 3600
+            //     }
+            // )
 
             return result
         }),

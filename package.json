@@ -48,6 +48,7 @@
     "@trpc/react-query": "next",
     "@trpc/server": "next",
     "@uploadthing/react": "^6.5.4",
+    "@vercel/kv": "^1.0.1",
     "@vercel/postgres": "^0.8.0",
     "algoliasearch": "^4.23.3",
     "class-variance-authority": "^0.7.0",

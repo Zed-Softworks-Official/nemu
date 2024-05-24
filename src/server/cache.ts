@@ -1,29 +1,6 @@
-import { env } from '~/env'
-import { createClient } from 'redis'
+import { kv } from '@vercel/kv'
 
-const createRedisClient = async () => {
-    const client = createClient({
-        password: env.REDIS_PASSWORD,
-        socket: {
-            host: env.REDIS_HOST,
-            port: env.REDIS_PORT
-        }
-    })
-
-    if (!client.isOpen) {
-        await client.connect()
-    }
-
-    return client
-}
-
-const globalForRedis = globalThis as unknown as {
-    redis: Awaited<ReturnType<typeof createRedisClient>> | undefined
-}
-
-export const cache = globalForRedis.redis ?? (await createRedisClient())
-
-if (env.NODE_ENV !== 'production') globalForRedis.redis = cache
+export const cache = kv
 
 /**
  * Creates a redis key from a
@@ -50,4 +27,20 @@ export function AsRedisKey(
     ...unique_identifiers: string[]
 ) {
     return `${object}:${unique_identifiers.join(':')}`
+}
+
+export namespace nemu_cache {
+    export async function invalidate() {}
+
+    export async function set_hash(key: string, data: { [field: string]: unknown }) {
+        return await kv.hset(key, data)
+    }
+
+    export async function set(
+        key: string,
+        data: { [field: string]: unknown },
+        ttl?: number
+    ) {
+        return await kv.set(key, data, ttl ? { ex: ttl } : undefined)
+    }
 }
