@@ -78,7 +78,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
                     <SidebarItem
                         icon={<BrushIcon className="h-6 w-6" />}
                         title="My Page"
-                        href="/@${user.publicMetadata.handle as string}"
+                        href={`/@${user.publicMetadata.handle as string}`}
                     />
                     <SidebarItem
                         icon={<HandCoinsIcon className="h-6 w-6" />}
@@ -138,7 +138,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
                     </Sheet>
                     <DashboardBreadcrumbs />
                 </header>
-                <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 md:gap-8 sm:pt-5">
+                <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:pt-5 md:gap-8">
                     <DashboardProvider
                         artist_id={user.publicMetadata.artist_id as string}
                     >

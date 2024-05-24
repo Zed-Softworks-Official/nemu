@@ -1,11 +1,14 @@
 import { clerkClient } from '@clerk/nextjs/server'
 import { notFound } from 'next/navigation'
-import Kanban from '~/components/kanban/kanban'
+
 import MessagesClient from '~/components/messages/messages'
-import DashboardContainer from '~/components/ui/dashboard-container'
+import Kanban from '~/components/kanban/kanban'
+
+import { api } from '~/trpc/server'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 import { KanbanContainerData, KanbanTask, RequestContent } from '~/core/structures'
-import { api } from '~/trpc/server'
+
+import { UploadDropzone } from '~/components/files/uploadthing'
 
 export default async function CommissionOrderDetailPage({
     params
@@ -29,9 +32,9 @@ export default async function CommissionOrderDetailPage({
     return (
         <main className="flex flex-col gap-5">
             <h1 className="text-3xl font-bold">
-                {user.username || user.firstName || 'User'}
+                Request for {user.username || user.firstName || 'User'}
             </h1>
-            <h2 className="text-lg text-base-content/80">
+            <h2 className="text-lg italic text-base-content/80">
                 Requested {new Date(request.created_at).toLocaleDateString()}
             </h2>
             <div className="divider"></div>
@@ -59,6 +62,7 @@ export default async function CommissionOrderDetailPage({
                 <TabsList className="w-full justify-start bg-base-300">
                     <TabsTrigger value="kanban">Kanban</TabsTrigger>
                     <TabsTrigger value="messages">Messages</TabsTrigger>
+                    <TabsTrigger value="downloads">Downloads</TabsTrigger>
                 </TabsList>
                 <TabsContent value="kanban">
                     <Kanban
@@ -72,6 +76,12 @@ export default async function CommissionOrderDetailPage({
                         hide_channel_list
                         channel_url={request.sendbird_channel_url!}
                     />
+                </TabsContent>
+                <TabsContent value="downloads">
+                    <div className="flex flex-col gap-5 p-5">
+                        <h2 className="card-title">Downloads</h2>
+                        <UploadDropzone endpoint="commissionDownloadUploader" />
+                    </div>
                 </TabsContent>
             </Tabs>
         </main>

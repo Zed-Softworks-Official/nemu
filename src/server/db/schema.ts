@@ -68,7 +68,6 @@ export const downloads = createTable('download', {
     id: cuid('id').primaryKey(),
     user_id: varchar('user_id').notNull(),
     file_key: varchar('file_key', { length: 60 }).notNull(),
-    receipt_url: varchar('receipt_url'),
 
     created_at: timestamp('created_at')
         .default(sql`CURRENT_TIMESTAMP`)

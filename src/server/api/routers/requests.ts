@@ -143,6 +143,23 @@ export const requestRouter = createTRPCRouter({
             return request.invoice
         }),
 
+    get_request_download: protectedProcedure
+        .input(z.string())
+        .query(async ({ input, ctx }) => {
+            const request = await ctx.db.query.requests.findFirst({
+                where: eq(requests.order_id, input),
+                with: {
+                    download: true
+                }
+            })
+
+            if (!request) {
+                return undefined
+            }
+
+            return request.download
+        }),
+
     get_request_client: protectedProcedure
         .input(z.string())
         .query(async ({ input, ctx }) => {
