@@ -138,7 +138,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
                     </Sheet>
                     <DashboardBreadcrumbs />
                 </header>
-                <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
+                <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 md:gap-8 sm:pt-5">
                     <DashboardProvider
                         artist_id={user.publicMetadata.artist_id as string}
                     >

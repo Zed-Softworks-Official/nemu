@@ -27,11 +27,15 @@ export default async function CommissionOrderDetailPage({
     }
 
     return (
-        <DashboardContainer
-            title={`Request for ${user.username || user.firstName || 'User'}`}
-            contentClassName="flex flex-col gap-5"
-        >
-            <div className="flex flex-col gap-5 rounded-xl bg-base-100 p-5">
+        <main className="flex flex-col gap-5">
+            <h1 className="text-3xl font-bold">
+                {user.username || user.firstName || 'User'}
+            </h1>
+            <h2 className="text-lg text-base-content/80">
+                Requested {new Date(request.created_at).toLocaleDateString()}
+            </h2>
+            <div className="divider"></div>
+            <div className="flex flex-col gap-5 rounded-xl bg-base-200 p-5">
                 <div className="flex flex-col">
                     <h2 className="text-xl font-bold">Order Details</h2>
                     <span className="font-lg">
@@ -52,7 +56,7 @@ export default async function CommissionOrderDetailPage({
                 </div>
             </div>
             <Tabs defaultValue="kanban">
-                <TabsList className="w-full justify-start">
+                <TabsList className="w-full justify-start bg-base-300">
                     <TabsTrigger value="kanban">Kanban</TabsTrigger>
                     <TabsTrigger value="messages">Messages</TabsTrigger>
                 </TabsList>
@@ -70,6 +74,6 @@ export default async function CommissionOrderDetailPage({
                     />
                 </TabsContent>
             </Tabs>
-        </DashboardContainer>
+        </main>
     )
 }
