@@ -460,15 +460,17 @@ export const requestRouter = createTRPCRouter({
 
             // Create a sendbird user if they don't exist
             const user = await clerkClient.users.getUser(request.user_id)
-            await sendbird.CreateUser({
-                user_id: user.id,
-                nickname: user.username || 'User',
-                profile_url: user.imageUrl
-            })
+            if (!user.publicMetadata.has_sendbird_account) {
+                await sendbird.CreateUser({
+                    user_id: user.id,
+                    nickname: user.username || 'User',
+                    profile_url: user.imageUrl
+                })
+            }
 
             // Create a sendbird channel
             await sendbird.CreateGroupChannel({
-                user_ids: [request.user_id, request.commission.artist.user_id],
+                user_ids: [user.id, request.commission.artist.user_id],
                 name: `${request.commission.title} - ${user.username}`,
                 cover_url:
                     request.commission.images[0]?.url || env.BASE_URL + '/profile.png',
