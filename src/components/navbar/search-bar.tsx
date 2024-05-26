@@ -27,7 +27,6 @@ export default function SearchBar() {
         <div className="relative h-full w-full">
             <InstantSearchNext
                 searchClient={search_client}
-                indexName="artists"
                 future={{ preserveSharedStateOnUnmount: true }}
             >
                 <div className="relative ml-auto h-full w-full flex-1">
