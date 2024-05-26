@@ -1,34 +1,18 @@
 'use client'
 
+import Link from 'next/link'
+import { useMemo, useState } from 'react'
 import algoliasearch from 'algoliasearch/lite'
 
 import { InstantSearchNext } from 'react-instantsearch-nextjs'
-import {
-    Index,
-    useSearchBox,
-    useHits,
-    UseHitsProps,
-    UseSearchBoxProps
-} from 'react-instantsearch'
-import { SearchIcon, UserIcon } from 'lucide-react'
-import { motion } from 'framer-motion'
-import { useState } from 'react'
+import { Index, SearchBox, Hits } from 'react-instantsearch'
+
+import { SearchIcon } from 'lucide-react'
 
 import { env } from '~/env'
-import { Input } from '~/components/ui/input'
-import { debounce } from '~/lib/utils'
-import { Avatar, AvatarFallback } from '../ui/avatar'
-import { AvatarImage } from '@radix-ui/react-avatar'
 import { ArtistIndex } from '~/core/search'
-import Link from 'next/link'
-import {
-    Command,
-    CommandEmpty,
-    CommandGroup,
-    CommandInput,
-    CommandItem,
-    CommandList
-} from '~/components/ui/command'
+import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
+import NemuImage from '~/components/nemu-image'
 
 const search_client = algoliasearch(
     env.NEXT_PUBLIC_ALGOLIA_APP_ID,
@@ -36,64 +20,70 @@ const search_client = algoliasearch(
 )
 
 export default function SearchBar() {
+    // const [activeSearch, setActiveSearch] = useState('')
+    const [searchFocused, setSearchFocused] = useState(false)
+
     return (
-        <div className="relative w-full">
+        <div className="relative h-full w-full">
             <InstantSearchNext
                 searchClient={search_client}
+                indexName="artists"
                 future={{ preserveSharedStateOnUnmount: true }}
             >
-                <SearchBox />
+                <div className="relative ml-auto h-full w-full flex-1">
+                    <SearchBox
+                        queryHook={(query, search) => {
+                            // setActiveSearch(query)
+                            search(query)
+                        }}
+                        onFocus={() => setSearchFocused(true)}
+                        onBlur={() => setSearchFocused(false)}
+                        placeholder="Search"
+                        classNames={{
+                            input: 'w-full h-16 rounded-xl bg-base-200 p-5 pl-10 '
+                        }}
+                        submitIconComponent={() => (
+                            <SearchIcon className="absolute left-3 top-[1.30rem] h-5 w-5 text-base-content/80" />
+                        )}
+                        resetIconComponent={() => null}
+                    />
+                </div>
+
+                {searchFocused && (
+                    <div className="absolute top-20 z-10 w-full rounded-xl bg-base-300 p-5 shadow-xl">
+                        <div className="relative flex h-full flex-col">
+                            <div className="divider card-title">Artists</div>
+                            <Index indexName="artists">
+                                <Hits hitComponent={ArtistHit} />
+                            </Index>
+                        </div>
+                    </div>
+                )}
             </InstantSearchNext>
         </div>
     )
 }
 
-function SearchBox(props: UseSearchBoxProps) {
-    const { refine, query, clear } = useSearchBox(props)
-
+function ArtistHit(props: { hit: ArtistIndex }) {
     return (
-        <Command className="ml-5 w-full rounded-xl bg-base-200 z-20">
-            <CommandInput placeholder="Search" className="h-16" />
-            <CommandList>
-                <CommandEmpty>No Results Found!</CommandEmpty>
-                <CommandGroup heading="Artists">
-                    <Index indexName="artists">
-                        <ArtistResult />
-                    </Index>
-                </CommandGroup>
-            </CommandList>
-        </Command>
-    )
-}
-
-function ArtistResult(props: UseHitsProps<ArtistIndex>) {
-    const { hits, sendEvent } = useHits(props)
-
-    return (
-        <>
-            {hits.map((hit) => (
-                <CommandItem
-                    key={hit.objectID}
-                    asChild
-                >
-                    <Link href={`/@${hit.handle}`} className='cursor-pointer'>
-                        <div className="flex flex-row gap-5 p-2">
-                            <Avatar>
-                                <AvatarImage src={hit.image_url} alt="Avatar" />
-                                <AvatarFallback>
-                                    <UserIcon className="h-6 w-6" />
-                                </AvatarFallback>
-                            </Avatar>
-                            <div className="flex flex-col">
-                                <h2 className="card-title">{hit.handle}</h2>
-                                <p className="text-sm text-base-content/60">
-                                    {hit.about}
-                                </p>
-                            </div>
-                        </div>
-                    </Link>
-                </CommandItem>
-            ))}
-        </>
+        <Link
+            href={`/@${props.hit.handle}`}
+            className="flex flex-row items-center justify-between gap-3 rounded-xl p-5 hover:bg-base-100"
+        >
+            <div className="flex flex-row items-center gap-5">
+                <Avatar>
+                    <AvatarImage src={props.hit.image_url} alt="Avatar" />
+                    <AvatarFallback>
+                        <NemuImage
+                            src={'/profile.png'}
+                            alt="Profile"
+                            width={20}
+                            height={20}
+                        />
+                    </AvatarFallback>
+                </Avatar>
+                <h1>{props.hit.handle}</h1>
+            </div>
+        </Link>
     )
 }

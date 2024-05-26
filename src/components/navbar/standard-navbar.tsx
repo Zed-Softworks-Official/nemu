@@ -3,6 +3,7 @@ import { currentUser } from '@clerk/nextjs/server'
 import Logo from '~/components/ui/logo'
 import UserDropdown from '~/components/navbar/user-dropdown'
 import SearchBar from '~/components/navbar/search-bar'
+import { BellIcon } from 'lucide-react'
 
 export default async function StandardNavbar() {
     const user = await currentUser()
@@ -12,8 +13,9 @@ export default async function StandardNavbar() {
             <div className="container mx-auto">
                 <div className="flex w-full items-center justify-between gap-5">
                     <Logo />
-                    {/* <SearchBar /> */}
+                    <SearchBar />
                     <div className="flex flex-row items-center gap-5">
+                        <BellIcon className="h-6 w-6" />
                         <UserDropdown user={user} />
                     </div>
                 </div>
