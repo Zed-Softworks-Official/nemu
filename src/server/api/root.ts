@@ -10,6 +10,7 @@ import { formRouter } from '~/server/api/routers/form'
 import { requestRouter } from '~/server/api/routers/requests'
 import { kanbanRouter } from '~/server/api/routers/kanban'
 import { algoliaRouter } from '~/server/api/routers/algolia'
+import { downloadsRouter } from '~/server/api/routers/downloads'
 
 /**
  * This is the primary router for your server.
@@ -26,7 +27,8 @@ export const appRouter = createTRPCRouter({
     stripe: stripeRouter,
     kanban: kanbanRouter,
     user: userRouter,
-    algolia: algoliaRouter
+    algolia: algoliaRouter,
+    downloads: downloadsRouter
 })
 
 // export type definition of API

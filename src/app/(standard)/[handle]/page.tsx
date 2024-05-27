@@ -1,7 +1,10 @@
+import { clerkClient } from '@clerk/nextjs/server'
 import { faPixiv, faXTwitter } from '@fortawesome/free-brands-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { eq } from 'drizzle-orm'
 import { GlobeIcon } from 'lucide-react'
 import { Metadata, ResolvingMetadata } from 'next'
+import { unstable_cache } from 'next/cache'
 import Link from 'next/link'
 
 import { notFound } from 'next/navigation'
@@ -12,18 +15,37 @@ import NemuImage from '~/components/nemu-image'
 import Loading from '~/components/ui/loading'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 import { SocialAgent } from '~/core/structures'
-import { api } from '~/trpc/server'
+import { db } from '~/server/db'
+import { artists } from '~/server/db/schema'
 
 type Props = {
     params: { handle: string }
 }
+
+const get_artist_data = unstable_cache(
+    async (handle: string) => {
+        const artist = await db.query.artists.findFirst({
+            where: eq(artists.handle, handle)
+        })
+
+        if (!artist) {
+            return undefined
+        }
+
+        return {
+            ...artist,
+            user: await clerkClient.users.getUser(artist.user_id)
+        }
+    },
+    ['artist-data']
+)
 
 export async function generateMetadata(
     { params }: Props,
     parent: ResolvingMetadata
 ): Promise<Metadata> {
     const handle = params.handle.substring(3, params.handle.length + 1)
-    const artist = await api.artist.get_artist({ handle })
+    const artist = await get_artist_data(handle)
 
     if (!artist) {
         return {}
@@ -37,7 +59,7 @@ export async function generateMetadata(
 
 export default async function ArtistPage({ params }: Props) {
     const handle = params.handle.substring(3, params.handle.length + 1)
-    const artist_data = await api.artist.get_artist({ handle })
+    const artist_data = await get_artist_data(handle)
 
     if (!artist_data) {
         return notFound()

@@ -10,6 +10,7 @@ import { artists } from '~/server/db/schema'
 
 export const artistRouter = createTRPCRouter({
     /**
+     * @deprecated
      * Gets a specific artist given a handle
      */
     get_artist: publicProcedure
