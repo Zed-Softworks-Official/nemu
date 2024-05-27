@@ -37,7 +37,18 @@ const get_request_data = unstable_cache(
         }
 
         return {
-            request,
+            request: {
+                id: request.id,
+                content: request.content as RequestContent,
+                created_at: request.created_at,
+                commission_id: request.commission_id,
+                order_id: request.order_id,
+                sendbird_channel_url: request.sendbird_channel_url,
+                download_id: request.download_id,
+                commission: {
+                    title: request.commission.title
+                }
+            },
             user: await clerkClient.users.getUser(request.user_id),
             kanban
         }
@@ -56,7 +67,6 @@ export default async function CommissionOrderDetailPage({
         return notFound()
     }
 
-    const request_details = request_data.request.content as RequestContent
     const request_columns: ColumnDef<{
         item_label: string
         item_value: string
@@ -99,9 +109,9 @@ export default async function CommissionOrderDetailPage({
                 <div className="flex flex-col gap-5">
                     <DataTable
                         columns={request_columns}
-                        data={Object.keys(request_details).map((key) => ({
-                            item_label: request_details[key]?.label!,
-                            item_value: request_details[key]?.value!
+                        data={Object.keys(request_data.request.content).map((key) => ({
+                            item_label: request_data.request.content[key]?.label!,
+                            item_value: request_data.request.content[key]?.value!
                         }))}
                     />
                 </div>
@@ -129,14 +139,30 @@ export default async function CommissionOrderDetailPage({
                 </TabsContent>
                 <TabsContent value="downloads">
                     <div className="flex flex-col gap-5 p-5">
-                        <h2 className="card-title">Downloads</h2>
-                        <DownloadsDropzone
+                        <DownloadsDisplay
                             user_id={request_data.user.id}
                             request_id={request_data.request.id}
+                            download_id={request_data.request.download_id}
                         />
                     </div>
                 </TabsContent>
             </Tabs>
         </main>
+    )
+}
+
+function DownloadsDisplay(props: {
+    download_id: string | null
+    user_id: string
+    request_id: string
+}) {
+    if (!props.download_id) {
+        return <DownloadsDropzone user_id={props.user_id} request_id={props.request_id} />
+    }
+
+    return (
+        <div className="flex flex-col gap-5 p-5">
+            <>Download has been submitted!</>
+        </div>
     )
 }

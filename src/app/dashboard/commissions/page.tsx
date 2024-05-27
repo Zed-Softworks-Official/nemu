@@ -18,7 +18,6 @@ export default async function CommissionsDashboardPage() {
     const commissions = await api.commission.get_commission_list({
         artist_id: user?.privateMetadata.artist_id as string,
         include_stats: true,
-        show_unpublished: true,
     })
 
     if (!commissions || commissions.length === 0) {
