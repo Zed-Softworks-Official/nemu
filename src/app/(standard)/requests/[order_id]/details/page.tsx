@@ -8,20 +8,35 @@ import {
     CardTitle
 } from '~/components/ui/card'
 import { RequestContent } from '~/core/structures'
-import { api } from '~/trpc/server'
+import { get_request_details } from '../layout'
+import DataTable from '~/components/data-table'
+import { ColumnDef } from '@tanstack/react-table'
 
 export default async function RequestsDetailPage({
     params
 }: {
     params: { order_id: string }
 }) {
-    const request = await api.requests.get_request_details(params.order_id)
+    const request = await get_request_details(params.order_id)
 
     if (!request || !request.commission) {
         return notFound()
     }
 
-    const request_data = request.content as RequestContent
+    const request_columns: ColumnDef<{
+        item_label: string
+        item_value: string
+    }>[] = [
+        {
+            accessorKey: 'item_label',
+            header: 'Form Item'
+        },
+        {
+            accessorKey: 'item_value',
+            header: 'Response'
+        }
+    ]
+    const request_details = request.content as RequestContent
 
     return (
         <div className="flex flex-col gap-5">
@@ -41,14 +56,13 @@ export default async function RequestsDetailPage({
                 <div className="divider"></div>
                 <CardContent>
                     <div className="flex flex-col gap-5">
-                        {Object.keys(request_data).map((key) => (
-                            <div key={key} className="flex flex-col">
-                                <h1 className="text-xl font-semibold">
-                                    {request_data[key]?.label}
-                                </h1>
-                                <p>{request_data[key]?.value}</p>
-                            </div>
-                        ))}
+                        <DataTable
+                            columns={request_columns}
+                            data={Object.keys(request_details).map((key) => ({
+                                item_label: request_details[key]?.label!,
+                                item_value: request_details[key]?.value!
+                            }))}
+                        />
                     </div>
                 </CardContent>
             </Card>
