@@ -1,15 +1,19 @@
 import { notFound, redirect } from 'next/navigation'
 
-import { api } from '~/trpc/server'
 
-import DashboardContainer from '~/components/ui/dashboard-container'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 import Link from 'next/link'
-import { EyeIcon, MenuIcon, PencilIcon } from 'lucide-react'
+import { EyeIcon, PencilIcon } from 'lucide-react'
 import CommissionPublishButton from '~/components/dashboard/commission-publish'
-import { ClientRequestData, RequestContent, RequestStatus } from '~/core/structures'
-// import RequestCard from '~/components/dashboard/request-card'
-import { currentUser } from '@clerk/nextjs/server'
+import {
+    ClientCommissionItem,
+    ClientRequestData,
+    CommissionAvailability,
+    NemuImageData,
+    RequestContent,
+    RequestStatus
+} from '~/core/structures'
+import { clerkClient, currentUser } from '@clerk/nextjs/server'
 import {
     Dialog,
     DialogContent,
@@ -21,24 +25,87 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
 import NemuImage from '~/components/nemu-image'
 import { Button } from '~/components/ui/button'
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuTrigger
-} from '~/components/ui/dropdown-menu'
+
 import RequestCardDropdown from '~/components/dashboard/request-card-dropdown'
+import { unstable_cache } from 'next/cache'
+import { db } from '~/server/db'
+import { commissions } from '~/server/db/schema'
+import { eq } from 'drizzle-orm'
+import { get_blur_data } from '~/lib/blur_data'
+import { format_to_currency } from '~/lib/utils'
+import { Suspense } from 'react'
+import Loading from '~/components/ui/loading'
+
+const get_request_list = unstable_cache(
+    async (slug: string, handle: string) => {
+        const commission = await db.query.commissions.findFirst({
+            where: eq(commissions.slug, slug),
+            with: {
+                requests: true
+            }
+        })
+
+        if (!commission) {
+            return undefined
+        }
+
+        // Format for client
+        const images: NemuImageData[] = []
+
+        for (const image of commission?.images) {
+            images.push({
+                url: image.url,
+                blur_data: await get_blur_data(image.url)
+            })
+        }
+
+        const requests: ClientRequestData[] = []
+
+        for (const request of commission.requests) {
+            requests.push({
+                ...request,
+                user: await clerkClient.users.getUser(request.user_id)
+            })
+        }
+
+        const result: ClientCommissionItem = {
+            title: commission.title,
+            description: commission.description,
+            price: format_to_currency(Number(commission.price)),
+            availability: commission.availability as CommissionAvailability,
+            rating: Number(commission.rating),
+            images: images,
+            slug: commission.slug,
+            published: commission.published,
+            total_requests: commission.total_requests,
+            new_requests: commission.new_requests,
+            requests: requests
+        }
+
+        return result
+    },
+    ['request-list-dashboard']
+)
 
 export default async function CommissionDetailPage({
     params
 }: {
     params: { slug: string }
 }) {
+    return (
+        <Suspense fallback={<Loading />}>
+            <RequestsList slug={params.slug} />
+        </Suspense>
+    )
+}
+
+async function RequestsList(props: { slug: string }) {
     const user = await currentUser()
 
-    const commission = await api.commission.get_commission_dashboard_details({
-        handle: user?.publicMetadata.handle as string,
-        slug: params.slug
-    })
+    const commission = await get_request_list(
+        props.slug,
+        user?.privateMetadata.handle as string
+    )
 
     if (!commission) {
         return notFound()
