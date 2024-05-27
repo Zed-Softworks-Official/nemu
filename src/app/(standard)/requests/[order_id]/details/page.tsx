@@ -7,10 +7,41 @@ import {
     CardHeader,
     CardTitle
 } from '~/components/ui/card'
-import { RequestContent } from '~/core/structures'
-import { get_request_details } from '../layout'
+import { ClientRequestData, RequestContent } from '~/core/structures'
 import DataTable from '~/components/data-table'
 import { ColumnDef } from '@tanstack/react-table'
+import { unstable_cache } from 'next/cache'
+import { db } from '~/server/db'
+import { requests } from '~/server/db/schema'
+import { eq } from 'drizzle-orm'
+import { clerkClient } from '@clerk/nextjs/server'
+
+const get_request_details = unstable_cache(
+    async (order_id: string) => {
+        const request = await db.query.requests.findFirst({
+            where: eq(requests.order_id, order_id),
+            with: {
+                commission: {
+                    with: {
+                        artist: true
+                    }
+                }
+            }
+        })
+
+        if (!request) {
+            return undefined
+        }
+
+        const result: ClientRequestData = {
+            ...request,
+            user: await clerkClient.users.getUser(request.user_id)
+        }
+
+        return result
+    },
+    ['request-details']
+)
 
 export default async function RequestsDetailPage({
     params
