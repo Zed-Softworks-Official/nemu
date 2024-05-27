@@ -227,7 +227,8 @@ export const requestRouter = createTRPCRouter({
             where: eq(requests.order_id, input),
             with: {
                 user: true,
-                commission: true
+                commission: true,
+                download: true
             }
         })
 

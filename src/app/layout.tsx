@@ -1,5 +1,4 @@
 import '~/styles/globals.css'
-import 'react-toastify/dist/ReactToastify.css'
 
 import NextTopLoader from 'nextjs-toploader'
 
@@ -11,8 +10,6 @@ import { extractRouterConfig } from 'uploadthing/server'
 
 import { ClerkProvider } from '@clerk/nextjs'
 import { dark } from '@clerk/themes'
-
-import { ToastContainer } from 'react-toastify'
 
 import { TRPCReactProvider } from '~/trpc/react'
 import { ThemeProvider } from '~/components/theme-provider'
@@ -59,9 +56,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     >
                         <TooltipProvider>
                             <TRPCReactProvider>{children}</TRPCReactProvider>
-                            <ToastContainer stacked />
-                            <Toaster position='bottom-right' />
                         </TooltipProvider>
+                        <Toaster position="bottom-right" richColors />
                     </ThemeProvider>
                 </ClerkProvider>
             </body>

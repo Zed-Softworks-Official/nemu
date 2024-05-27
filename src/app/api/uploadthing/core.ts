@@ -1,4 +1,4 @@
-import { clerkClient, currentUser, getAuth } from '@clerk/nextjs/server'
+import { clerkClient, getAuth } from '@clerk/nextjs/server'
 import { eq } from 'drizzle-orm'
 import { NextRequest } from 'next/server'
 import { createUploadthing, type FileRouter } from 'uploadthing/next'

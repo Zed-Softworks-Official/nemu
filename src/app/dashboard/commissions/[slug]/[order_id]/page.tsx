@@ -7,8 +7,9 @@ import Kanban from '~/components/kanban/kanban'
 import { api } from '~/trpc/server'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 import { KanbanContainerData, KanbanTask, RequestContent } from '~/core/structures'
-
-import { UploadDropzone } from '~/components/files/uploadthing'
+import DownloadsDropzone from '~/components/dashboard/downloads-dropzone'
+import DataTable from '~/components/data-table'
+import { ColumnDef } from '@tanstack/react-table'
 
 export default async function CommissionOrderDetailPage({
     params
@@ -23,7 +24,21 @@ export default async function CommissionOrderDetailPage({
 
     const user = await clerkClient.users.getUser(request.user_id)
     const kanban = await api.kanban.get_kanban(request.id)
+
     const request_data = request.content as RequestContent
+    const request_columns: ColumnDef<{
+        item_label: string
+        item_value: string
+    }>[] = [
+        {
+            accessorKey: 'item_label',
+            header: 'Form Item'
+        },
+        {
+            accessorKey: 'item_value',
+            header: 'Response'
+        }
+    ]
 
     if (!kanban) {
         return null
@@ -48,14 +63,13 @@ export default async function CommissionOrderDetailPage({
                 </div>
                 <div className="divider"></div>
                 <div className="flex flex-col gap-5">
-                    {Object.keys(request_data).map((key) => (
-                        <div key={key} className="flex flex-col gap-5">
-                            <div className="rounded-xl bg-base-300 p-5">
-                                <h3 className="card-title">{request_data[key]?.label}</h3>
-                                <p>{request_data[key]?.value}</p>
-                            </div>
-                        </div>
-                    ))}
+                    <DataTable
+                        columns={request_columns}
+                        data={Object.keys(request_data).map((key) => ({
+                            item_label: request_data[key]?.label!,
+                            item_value: request_data[key]?.value!
+                        }))}
+                    />
                 </div>
             </div>
             <Tabs defaultValue="kanban">
@@ -80,7 +94,10 @@ export default async function CommissionOrderDetailPage({
                 <TabsContent value="downloads">
                     <div className="flex flex-col gap-5 p-5">
                         <h2 className="card-title">Downloads</h2>
-                        <UploadDropzone endpoint="commissionDownloadUploader" />
+                        <DownloadsDropzone
+                            commission_id={request.commission_id}
+                            request_id={request.id}
+                        />
                     </div>
                 </TabsContent>
             </Tabs>

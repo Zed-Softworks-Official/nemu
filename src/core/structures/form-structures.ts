@@ -1,3 +1,5 @@
+import { ColumnDef } from "@tanstack/react-table"
+
 export type ClientForm = {
     id: string
     name: string

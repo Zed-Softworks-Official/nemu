@@ -32,6 +32,9 @@ const coreConfig = {
         fetches: {
             fullUrl: true
         }
+    },
+    experimental: {
+        turbo: {} 
     }
 }
 

@@ -17,43 +17,56 @@ export default function DashboardBreadcrumbs() {
     return (
         <Breadcrumb className="hidden md:flex">
             <BreadcrumbList>
-                {pathname.map((item, index) => {
-                    const title =
-                        item.substring(0, 1).toUpperCase() +
-                        item.substring(1, item.length)
-
-                    let href = '/'
-                    for (let i = 1; i < index + 1; i++) {
-                        if (i === index) {
-                            href += pathname[i]
-                            continue
-                        }
-
-                        href += pathname[i] + '/'
-                    }
-
-                    if (index === 0) {
-                        return null
-                    }
-
-                    if (index === pathname.length - 1) {
-                        return <BreadcrumbPage key={item}>{title}</BreadcrumbPage>
-                    }
-
-                    return (
-                        <>
-                            <BreadcrumbItem key={item}>
-                                <BreadcrumbLink href={href}>{title}</BreadcrumbLink>
-                            </BreadcrumbItem>
-                            {index !== pathname.length - 1 && (
-                                <BreadcrumbSeparator key={`separator-${item}`}>
-                                    <SlashIcon className="h-6 w-6" />
-                                </BreadcrumbSeparator>
-                            )}
-                        </>
-                    )
-                })}
+                {pathname.map((item, index) => (
+                    <DrashboardBreadcrumbItem
+                        key={item}
+                        item={item}
+                        index={index}
+                        total_length={pathname.length}
+                    />
+                ))}
             </BreadcrumbList>
         </Breadcrumb>
+    )
+}
+
+function DrashboardBreadcrumbItem(props: {
+    item: string
+    index: number
+    total_length: number
+}) {
+    const title =
+        props.item.substring(0, 1).toUpperCase() +
+        props.item.substring(1, props.item.length)
+
+    let href = '/'
+    for (let i = 1; i < props.index + 1; i++) {
+        if (i === props.index) {
+            href += props.item
+            continue
+        }
+
+        href += props.item + '/'
+    }
+
+    if (props.index === 0) {
+        return null
+    }
+
+    if (props.index === props.total_length - 1) {
+        return <BreadcrumbPage>{title}</BreadcrumbPage>
+    }
+
+    return (
+        <>
+            <BreadcrumbItem>
+                <BreadcrumbLink href={href}>{title}</BreadcrumbLink>
+            </BreadcrumbItem>
+            {props.index !== props.total_length - 1 && (
+                <BreadcrumbSeparator>
+                    <SlashIcon className="h-6 w-6" />
+                </BreadcrumbSeparator>
+            )}
+        </>
     )
 }

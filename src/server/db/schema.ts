@@ -67,15 +67,16 @@ export const stripe_customer_ids = createTable('stripe_customer_ids', {
 export const downloads = createTable('download', {
     id: cuid('id').primaryKey(),
     user_id: varchar('user_id').notNull(),
-    file_key: varchar('file_key', { length: 60 }).notNull(),
+
+    url: varchar('url').notNull(),
+    ut_key: varchar('ut_key'),
 
     created_at: timestamp('created_at')
         .default(sql`CURRENT_TIMESTAMP`)
         .notNull(),
 
     artist_id: varchar('artist_id').notNull(),
-    product_id: varchar('product_id'),
-    commission_id: varchar('commission_id'),
+    // product_id: varchar('product_id'),
     request_id: varchar('request_id')
 })
 
@@ -407,6 +408,14 @@ export const downloadRelations = relations(downloads, ({ one }) => ({
     user: one(users, {
         fields: [downloads.user_id],
         references: [users.clerk_id]
+    }),
+    artist: one(artists, {
+        fields: [downloads.artist_id],
+        references: [artists.id]
+    }),
+    request: one(requests, {
+        fields: [downloads.request_id],
+        references: [requests.id]
     })
 }))
 

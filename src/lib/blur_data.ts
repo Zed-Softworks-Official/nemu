@@ -1,4 +1,4 @@
-import { getPlaiceholder } from 'plaiceholder'
+import { getPlaiceholder} from 'plaiceholder'
 
 /**
  * Creates a blur_data placeholder for the given image
