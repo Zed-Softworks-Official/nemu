@@ -11,8 +11,11 @@ import DataTable from '~/components/data-table'
 import { ColumnDef } from '@tanstack/react-table'
 import { unstable_cache } from 'next/cache'
 import { db } from '~/server/db'
-import { kanbans, requests } from '~/server/db/schema'
+import { invoices, kanbans, requests } from '~/server/db/schema'
 import { eq } from 'drizzle-orm'
+import { Suspense } from 'react'
+import Loading from '~/components/ui/loading'
+import InvoiceEditor from '~/components/dashboard/invoice-editor'
 
 const get_request_data = unstable_cache(
     async (order_id: string) => {
@@ -39,6 +42,7 @@ const get_request_data = unstable_cache(
         return {
             request: {
                 id: request.id,
+                invoice_id: request.invoice_id,
                 content: request.content as RequestContent,
                 created_at: request.created_at,
                 commission_id: request.commission_id,
@@ -54,6 +58,24 @@ const get_request_data = unstable_cache(
         }
     },
     ['request-data']
+)
+
+const get_invoice_data = unstable_cache(
+    async (invoice_id: string) => {
+        const invoice = await db.query.invoices.findFirst({
+            where: eq(invoices.id, invoice_id),
+            with: {
+                invoice_items: true
+            }
+        })
+
+        if (!invoice) {
+            return undefined
+        }
+
+        return invoice
+    },
+    ['request-invoice-data']
 )
 
 export default async function CommissionOrderDetailPage({
@@ -121,6 +143,7 @@ export default async function CommissionOrderDetailPage({
                     <TabsTrigger value="kanban">Kanban</TabsTrigger>
                     <TabsTrigger value="messages">Messages</TabsTrigger>
                     <TabsTrigger value="downloads">Downloads</TabsTrigger>
+                    <TabsTrigger value="invoice">Invoice</TabsTrigger>
                 </TabsList>
                 <TabsContent value="kanban">
                     <Kanban
@@ -146,6 +169,15 @@ export default async function CommissionOrderDetailPage({
                         />
                     </div>
                 </TabsContent>
+                <TabsContent value="invoice">
+                    <div className="flex flex-col gap-5 p-5">
+                        <Suspense fallback={<Loading />}>
+                            <InvoiceDisplay
+                                invoice_id={request_data.request.invoice_id}
+                            />
+                        </Suspense>
+                    </div>
+                </TabsContent>
             </Tabs>
         </main>
     )
@@ -165,4 +197,18 @@ function DownloadsDisplay(props: {
             <>Download has been submitted!</>
         </div>
     )
+}
+
+async function InvoiceDisplay(props: { invoice_id: string | null }) {
+    if (!props.invoice_id) {
+        return null
+    }
+
+    const invoice = await get_invoice_data(props.invoice_id)
+
+    if (!invoice) {
+        return null
+    }
+
+    return <InvoiceEditor invoice={invoice} />
 }

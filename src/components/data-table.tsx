@@ -75,3 +75,10 @@ export default function DataTable<TData, TValue>({
         </Table>
     )
 }
+
+export function EditDataTable<TData, TValue>({
+    columns,
+    data
+}: DataTableProps<TData, TValue>) {
+    return <></>
+}

@@ -101,7 +101,7 @@ async function CommissionsDisplay() {
         >
             <div className="grid grid-cols-1 gap-5">
                 {commissions.map((commission) => (
-                    <CommissionCard key={commission.id} commission={commission} />
+                    <CommissionCard key={commission.slug} commission={commission} />
                 ))}
             </div>
         </DashboardContainer>
