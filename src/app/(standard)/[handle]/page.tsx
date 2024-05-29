@@ -155,10 +155,7 @@ export default async function ArtistPage({ params }: Props) {
                                 />
                             </Suspense>
                         </TabsContent>
-                        {/* <TabsContent value="artist-corner">
-                            <h2 className="card-title">Artist's Corner</h2>
-                            <div className="divider"></div>
-                        </TabsContent> */}
+                        
                         <TabsContent value="portfolio">
                             <h2 className="card-title">Portfolio</h2>
                             <div className="divider"></div>

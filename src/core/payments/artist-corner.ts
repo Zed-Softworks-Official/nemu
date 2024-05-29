@@ -6,7 +6,7 @@ import {
     PurchaseType,
     StripeProductCheckoutData
 } from '~/core/structures'
-import { CalculateApplicationFee } from '~/core/payments'
+import { calculate_application_fee } from '~/core/payments'
 
 export async function StripeCreateProductPaymentIntent(
     checkout_data: StripeProductCheckoutData
@@ -27,7 +27,7 @@ export async function StripeCreateProductPaymentIntent(
             payment_method_types: ['card', 'link'],
             application_fee_amount:
                 checkout_data.supporter === false
-                    ? CalculateApplicationFee(checkout_data.price) * 100
+                    ? calculate_application_fee(checkout_data.price) * 100
                     : undefined,
             metadata: metadata as unknown as Stripe.MetadataParam
         },

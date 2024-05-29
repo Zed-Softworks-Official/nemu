@@ -7,15 +7,8 @@ import { format_to_currency } from '~/lib/utils'
 import { Button } from '~/components/ui/button'
 import { ColumnDef } from '@tanstack/react-table'
 import DataTable from '~/components/data-table'
-import { InvoiceStatus } from '~/core/structures'
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger
-} from '~/components/ui/dialog'
+import { InvoiceItem, InvoiceStatus } from '~/core/structures'
+
 import { Dispatch, SetStateAction, useState } from 'react'
 import { Input } from '~/components/ui/input'
 import { Label } from '~/components/ui/label'
@@ -31,14 +24,6 @@ import {
     AlertDialogAction,
     AlertDialogDescription
 } from '~/components/ui/alert-dialog'
-import { api } from '~/trpc/react'
-
-interface InvoiceItem {
-    id: string | null
-    name: string
-    price: string
-    quantity: number
-}
 
 export default function InvoiceEditor(props: {
     invoice: InferSelectModel<typeof invoices> & {
@@ -49,7 +34,7 @@ export default function InvoiceEditor(props: {
         props.invoice.invoice_items.map((item) => ({
             id: item.id,
             name: item.name,
-            price: item.price,
+            price: Number(item.price),
             quantity: item.quantity
         }))
     )
@@ -122,17 +107,17 @@ function EditInvoiceModel(props: {
     setInvoiceItems: Dispatch<SetStateAction<InvoiceItem[]>>
 }) {
     return (
-        <Dialog>
-            <DialogTrigger asChild>
+        <AlertDialog>
+            <AlertDialogTrigger asChild>
                 <Button variant={'outline'}>Edit Invoice</Button>
-            </DialogTrigger>
-            <DialogContent>
-                <DialogHeader className="flex flex-row items-center justify-between">
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+                <AlertDialogHeader className="flex flex-row items-center justify-between">
                     <div className="flex flex-col gap-2">
-                        <DialogTitle>Edit Invoice</DialogTitle>
-                        <DialogDescription>
+                        <AlertDialogTitle>Edit Invoice</AlertDialogTitle>
+                        <AlertDialogDescription>
                             Make changes to the invoice here
-                        </DialogDescription>
+                        </AlertDialogDescription>
                     </div>
                     <Button
                         variant={'outline'}
@@ -142,7 +127,7 @@ function EditInvoiceModel(props: {
                                 {
                                     id: null,
                                     name: '',
-                                    price: '',
+                                    price: 0,
                                     quantity: 1
                                 }
                             ])
@@ -150,7 +135,7 @@ function EditInvoiceModel(props: {
                     >
                         <PlusCircleIcon className="h-6 w-6" />
                     </Button>
-                </DialogHeader>
+                </AlertDialogHeader>
                 <div className="grid gap-4 py-4">
                     {props.invoice_items.map((item, index) => (
                         <div
@@ -193,14 +178,12 @@ function EditInvoiceModel(props: {
                         </div>
                     ))}
                 </div>
-            </DialogContent>
-        </Dialog>
+            </AlertDialogContent>
+        </AlertDialog>
     )
 }
 
 function SendInvoiceButton(props: { invoice_id: string; invoice_items: InvoiceItem[] }) {
-    
-
     return (
         <AlertDialog>
             <AlertDialogTrigger asChild>

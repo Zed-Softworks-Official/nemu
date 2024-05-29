@@ -13,6 +13,13 @@ export enum InvoiceStatus {
     Cancelled = 'cancelled'
 }
 
+export type InvoiceItem = {
+    id: string | null,
+    name: string,
+    price: number,
+    quantity: number
+}
+
 export type StripePaymentMetadata = {
     purchase_type: PurchaseType
     user_id: string

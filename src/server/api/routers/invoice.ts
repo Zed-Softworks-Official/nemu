@@ -2,6 +2,8 @@ import { createId } from '@paralleldrive/cuid2'
 import { TRPCError } from '@trpc/server'
 import { and, eq } from 'drizzle-orm'
 import { z } from 'zod'
+import { StripeFinalizeInvoice, StripeUpdateInvoice } from '~/core/payments'
+import { InvoiceStatus } from '~/core/structures'
 import { artistProcedure, createTRPCRouter } from '~/server/api/trpc'
 import { invoice_items, invoices, stripe_customer_ids } from '~/server/db/schema'
 
@@ -21,6 +23,34 @@ export const invoiceRouter = createTRPCRouter({
             })
         )
         .mutation(async ({ input, ctx }) => {
+            const invoice = await ctx.db.query.invoices.findFirst({
+                where: eq(invoices.id, input.invoice_id),
+                with: {
+                    artist: true
+                }
+            })
+
+            if (!invoice) {
+                return new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Invoice not found!'
+                })
+            }
+
+            const stripe_account = await ctx.db.query.stripe_customer_ids.findFirst({
+                where: and(
+                    eq(stripe_customer_ids.user_id, ctx.user.id),
+                    eq(stripe_customer_ids.artist_id, invoice.artist_id)
+                )
+            })
+
+            if (!stripe_account) {
+                return new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'User does not have a stripe account!'
+                })
+            }
+
             // Create Invoice Item Object
             for (const item of input.items) {
                 await ctx.db.insert(invoice_items).values({
@@ -31,6 +61,14 @@ export const invoiceRouter = createTRPCRouter({
                     quantity: item.quantity
                 })
             }
+
+            await StripeUpdateInvoice(
+                stripe_account.customer_id,
+                stripe_account.stripe_account,
+                input.invoice_id,
+                input.items,
+                invoice.artist.supporter
+            )
         }),
 
     send_invoice: artistProcedure.input(z.string()).mutation(async ({ input, ctx }) => {
@@ -63,5 +101,30 @@ export const invoiceRouter = createTRPCRouter({
                 message: 'User does not have a stripe account!'
             })
         }
+
+        // Finalize the invoice and send it to the user
+        const finalized_invoice = await StripeFinalizeInvoice(
+            invoice.id,
+            stripe_account.id
+        )
+
+        if (!finalized_invoice) {
+            return new TRPCError({
+                code: 'INTERNAL_SERVER_ERROR',
+                message: 'Failed to finalize invoice!'
+            })
+        }
+
+        // Update the invoice status flags
+        await ctx.db
+            .update(invoices)
+            .set({
+                status: InvoiceStatus.Pending,
+                sent: true,
+                hosted_url: finalized_invoice.hosted_invoice_url
+            })
+            .where(eq(invoices.id, invoice.id))
+
+        // Notify User That Invoice Has Been Sent
     })
 })

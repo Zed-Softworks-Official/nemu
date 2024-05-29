@@ -3,7 +3,6 @@ import DashboardContainer from '~/components/ui/dashboard-container'
 import Link from 'next/link'
 import { EyeIcon, FolderPlusIcon } from 'lucide-react'
 
-import { api } from '~/trpc/server'
 import NemuImage from '~/components/nemu-image'
 import EmptyState from '~/components/ui/empty-state'
 import { format_to_currency, get_availability_badge_data } from '~/lib/utils'

@@ -10,4 +10,4 @@ export * from '~/core/payments/commission'
  * @param {number} amount - The price to caluclate from 
  * @returns the total amount that zed softworks receives
  */
-export const CalculateApplicationFee = (amount: number) => amount - amount * 0.95
+export const calculate_application_fee = (amount: number) => amount - amount * 0.95
