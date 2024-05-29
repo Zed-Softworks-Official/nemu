@@ -11,6 +11,7 @@ import { requestRouter } from '~/server/api/routers/requests'
 import { kanbanRouter } from '~/server/api/routers/kanban'
 import { algoliaRouter } from '~/server/api/routers/algolia'
 import { downloadsRouter } from '~/server/api/routers/downloads'
+import { invoiceRouter } from '~/server/api/routers/invoice'
 
 /**
  * This is the primary router for your server.
@@ -28,7 +29,8 @@ export const appRouter = createTRPCRouter({
     kanban: kanbanRouter,
     user: userRouter,
     algolia: algoliaRouter,
-    downloads: downloadsRouter
+    downloads: downloadsRouter,
+    invoice: invoiceRouter
 })
 
 // export type definition of API

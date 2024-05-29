@@ -20,6 +20,18 @@ import { Dispatch, SetStateAction, useState } from 'react'
 import { Input } from '~/components/ui/input'
 import { Label } from '~/components/ui/label'
 import { PlusCircleIcon, Trash2Icon } from 'lucide-react'
+import {
+    AlertDialog,
+    AlertDialogHeader,
+    AlertDialogTrigger,
+    AlertDialogContent,
+    AlertDialogTitle,
+    AlertDialogFooter,
+    AlertDialogCancel,
+    AlertDialogAction,
+    AlertDialogDescription
+} from '~/components/ui/alert-dialog'
+import { api } from '~/trpc/react'
 
 interface InvoiceItem {
     id: string | null
@@ -91,18 +103,21 @@ export default function InvoiceEditor(props: {
                     <InvoiceStatusBadge status={props.invoice.status as InvoiceStatus} />
                 </div>
                 <div className="flex flex-row gap-5">
-                    <EditInvoice
+                    <EditInvoiceModel
                         invoice_items={invoiceItems}
                         setInvoiceItems={setInvoiceItems}
                     />
-                    <Button>Send Invoice</Button>
+                    <SendInvoiceButton
+                        invoice_id={props.invoice.id}
+                        invoice_items={invoiceItems}
+                    />
                 </div>
             </div>
         </div>
     )
 }
 
-function EditInvoice(props: {
+function EditInvoiceModel(props: {
     invoice_items: InvoiceItem[]
     setInvoiceItems: Dispatch<SetStateAction<InvoiceItem[]>>
 }) {
@@ -180,6 +195,33 @@ function EditInvoice(props: {
                 </div>
             </DialogContent>
         </Dialog>
+    )
+}
+
+function SendInvoiceButton(props: { invoice_id: string; invoice_items: InvoiceItem[] }) {
+    
+
+    return (
+        <AlertDialog>
+            <AlertDialogTrigger asChild>
+                <Button>Send Invoice</Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        This will send the invoice to the client, there is no undo so make
+                        sure everything is correct before sending.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onMouseDown={() => {}}>
+                        Send Invoice
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
     )
 }
 
