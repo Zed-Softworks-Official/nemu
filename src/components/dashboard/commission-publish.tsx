@@ -3,9 +3,8 @@
 import { EyeIcon, EyeOffIcon } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { useState } from 'react'
-import { Id } from 'react-toastify'
+import { toast } from 'sonner'
 import { Button } from '~/components/ui/button'
-import { nemu_toast } from '~/lib/utils'
 import { api } from '~/trpc/react'
 
 export default function CommissionPublishButton({
@@ -15,39 +14,29 @@ export default function CommissionPublishButton({
     id: string
     published: boolean
 }) {
-    const [toastId, setToastId] = useState<Id | undefined>()
+    const [toastId, setToastId] = useState<string | number | undefined>()
     const [currentlyPublished, setCurrentlyPublished] = useState(published)
-
-    const { resolvedTheme } = useTheme()
 
     const mutation = api.commission.set_commission.useMutation({
         onMutate: (opts) => {
             if (opts.type === 'update') {
                 setCurrentlyPublished(opts.data.published!)
 
-                setToastId(
-                    nemu_toast.loading('Updating commission', { theme: resolvedTheme })
-                )
+                setToastId(toast.loading('Updating commission'))
             }
         },
         onSuccess: () => {
             if (!toastId) return
 
-            nemu_toast.update(toastId, {
-                render: 'Commission Updated!',
-                isLoading: false,
-                autoClose: 5000,
-                type: 'success'
+            toast.success('Commission updated!', {
+                id: toastId
             })
         },
         onError: (e) => {
             if (!toastId) return
 
-            nemu_toast.update(toastId, {
-                render: e.message,
-                isLoading: false,
-                autoClose: 5000,
-                type: 'error'
+            toast.error(e.message, {
+                id: toastId
             })
         }
     })
@@ -90,7 +79,7 @@ function ButtonText({
     if (published) {
         return (
             <>
-                <EyeOffIcon className="w-6 h-6" />
+                <EyeOffIcon className="h-6 w-6" />
                 Unpublish
             </>
         )
@@ -98,7 +87,7 @@ function ButtonText({
 
     return (
         <>
-            <EyeIcon className="w-6 h-6" />
+            <EyeIcon className="h-6 w-6" />
             Publish
         </>
     )

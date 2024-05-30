@@ -76,7 +76,6 @@
     "react-instantsearch": "^7.8.1",
     "react-instantsearch-nextjs": "^0.2.4",
     "react-responsive-masonry": "^2.2.0",
-    "react-toastify": "^10.0.5",
     "server-only": "^0.0.1",
     "sharp": "^0.33.4",
     "sonner": "^1.4.41",

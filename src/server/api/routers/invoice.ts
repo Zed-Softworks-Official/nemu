@@ -53,6 +53,8 @@ export const invoiceRouter = createTRPCRouter({
 
             // Create Invoice Item Object
             for (const item of input.items) {
+                if (item.id != null) continue
+
                 await ctx.db.insert(invoice_items).values({
                     id: createId(),
                     invoice_id: input.invoice_id,
@@ -61,14 +63,6 @@ export const invoiceRouter = createTRPCRouter({
                     quantity: item.quantity
                 })
             }
-
-            await StripeUpdateInvoice(
-                stripe_account.customer_id,
-                stripe_account.stripe_account,
-                input.invoice_id,
-                input.items,
-                invoice.artist.supporter
-            )
         }),
 
     send_invoice: artistProcedure.input(z.string()).mutation(async ({ input, ctx }) => {
@@ -76,7 +70,8 @@ export const invoiceRouter = createTRPCRouter({
         const invoice = await ctx.db.query.invoices.findFirst({
             where: eq(invoices.id, input),
             with: {
-                invoice_items: true
+                invoice_items: true,
+                artist: true
             }
         })
 
@@ -101,6 +96,20 @@ export const invoiceRouter = createTRPCRouter({
                 message: 'User does not have a stripe account!'
             })
         }
+
+        // Update Invoice Items On Stripe
+        await StripeUpdateInvoice(
+            stripe_account.customer_id,
+            stripe_account.stripe_account,
+            invoice.id,
+            invoice.invoice_items.map((item) => ({
+                id: item.id,
+                name: item.name,
+                price: Number(item.price),
+                quantity: item.quantity
+            })),
+            invoice.artist.supporter
+        )
 
         // Finalize the invoice and send it to the user
         const finalized_invoice = await StripeFinalizeInvoice(

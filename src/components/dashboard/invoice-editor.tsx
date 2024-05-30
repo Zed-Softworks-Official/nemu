@@ -26,6 +26,7 @@ import {
     AlertDialogDescription
 } from '~/components/ui/alert-dialog'
 import { api } from '~/trpc/react'
+import { toast } from 'sonner'
 
 export default function InvoiceEditor(props: {
     invoice: InferSelectModel<typeof invoices> & {
@@ -93,6 +94,7 @@ export default function InvoiceEditor(props: {
                     <EditInvoiceModel
                         invoice_items={invoiceItems}
                         setInvoiceItems={setInvoiceItems}
+                        invoice_id={props.invoice.id}
                     />
                     <SendInvoiceButton
                         invoice_id={props.invoice.id}
@@ -105,17 +107,33 @@ export default function InvoiceEditor(props: {
 }
 
 function EditInvoiceModel(props: {
+    invoice_id: string
     invoice_items: InvoiceItem[]
     setInvoiceItems: Dispatch<SetStateAction<InvoiceItem[]>>
 }) {
+    const [toastId, setToastId] = useState<string | number | null>(null)
     const [editableInvoiceItems, setEditableInvoiceItems] = useState<InvoiceItem[]>(
         props.invoice_items
     )
 
     const mutation = api.invoice.update_invoice_items.useMutation({
-        onMutate: () => {},
-        onSuccess: () => {},
-        onError: () => {}
+        onMutate: () => {
+            setToastId(toast.loading('Updating invoice'))
+        },
+        onSuccess: () => {
+            if (!toastId) return
+
+            toast.success('Invoice Updated', {
+                id: toastId
+            })
+        },
+        onError: (e) => {
+            if (!toastId) return
+
+            toast.error(e.message, {
+                id: toastId
+            })
+        }
     })
 
     return (
@@ -171,8 +189,6 @@ function EditInvoiceModel(props: {
 
                                             items[index]!.name = e.currentTarget.value
                                             setEditableInvoiceItems(items)
-
-                                            console.log(e.currentTarget.value)
                                         }, 300)
                                     }}
                                 />
@@ -182,14 +198,16 @@ function EditInvoiceModel(props: {
                                 <Input
                                     defaultValue={item.price}
                                     placeholder="Item Price"
-                                    onBlur={(e) => {
-                                        const items = [...editableInvoiceItems]
+                                    onChange={(e) =>
+                                        debounce(() => {
+                                            const items = [...editableInvoiceItems]
 
-                                        items[index]!.price = Number(
-                                            e.currentTarget.value
-                                        )
-                                        setEditableInvoiceItems(items)
-                                    }}
+                                            items[index]!.price = Number(
+                                                e.currentTarget.value
+                                            )
+                                            setEditableInvoiceItems(items)
+                                        })
+                                    }
                                 />
                             </div>
                             <div className="form-control">
@@ -197,14 +215,16 @@ function EditInvoiceModel(props: {
                                 <Input
                                     defaultValue={item.quantity}
                                     placeholder="Item Quantity"
-                                    onBlur={(e) => {
-                                        const items = [...editableInvoiceItems]
+                                    onChange={(e) =>
+                                        debounce(() => {
+                                            const items = [...editableInvoiceItems]
 
-                                        items[index]!.quantity = Number(
-                                            e.currentTarget.value
-                                        )
-                                        setEditableInvoiceItems(items)
-                                    }}
+                                            items[index]!.quantity = Number(
+                                                e.currentTarget.value
+                                            )
+                                            setEditableInvoiceItems(items)
+                                        })
+                                    }
                                 />
                             </div>
                         </div>
@@ -215,6 +235,10 @@ function EditInvoiceModel(props: {
                     <AlertDialogAction
                         onMouseDown={() => {
                             props.setInvoiceItems(editableInvoiceItems)
+                            mutation.mutate({
+                                invoice_id: props.invoice_id,
+                                items: editableInvoiceItems
+                            })
                         }}
                     >
                         Update Invoice
