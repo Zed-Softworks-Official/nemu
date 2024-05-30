@@ -61,6 +61,7 @@
     "drizzle-orm": "^0.30.10",
     "embla-carousel-react": "^8.0.4",
     "framer-motion": "^11.2.0",
+    "lodash.debounce": "^4.0.8",
     "lucide-react": "^0.368.0",
     "next": "^14.2.3",
     "next-themes": "^0.3.0",
@@ -92,6 +93,7 @@
   },
   "devDependencies": {
     "@types/eslint": "^8.56.10",
+    "@types/lodash.debounce": "^4.0.9",
     "@types/node": "^20.12.12",
     "@types/react": "^18.3.2",
     "@types/react-dom": "^18.3.0",

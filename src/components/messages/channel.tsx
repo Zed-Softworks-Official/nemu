@@ -19,7 +19,7 @@ import {
     XCircleIcon
 } from 'lucide-react'
 
-import { cn, nemu_toast } from '~/lib/utils'
+import { cn } from '~/lib/utils'
 
 import NemuImage from '~/components/nemu-image'
 import { useMessagesContext } from '~/components/messages/messages-context'
@@ -38,6 +38,7 @@ import { SendbirdMetadata } from '~/sendbird/sendbird-structures'
 import { api } from '~/trpc/react'
 import { Id } from 'react-toastify'
 import { useTheme } from 'next-themes'
+import { toast } from 'sonner'
 
 /**
  * Shows the current channel messages and allows the user to send messages
@@ -253,14 +254,10 @@ function ChannelMessages() {
                             <ChatMessage message={current_message} />
                         </ContextMenuTrigger>
                         <ContextMenuContent>
-                            {session.user.meta === metadata?.artist_id && (
+                            {session.user?.publicMetadata === metadata?.artist_id && (
                                 <ContextMenuItem
                                     onMouseDown={() => {
-                                        setToastId(
-                                            nemu_toast.loading('Adding', {
-                                                theme: resolvedTheme
-                                            })
-                                        )
+                                        setToastId(toast.loading('Adding To Kanban'))
                                     }}
                                 >
                                     <PinIcon className="h-6 w-6" />
@@ -293,7 +290,7 @@ function ChatMessage({
     const { session } = useMessagesContext()
 
     const chat_style =
-        message.sender.userId === session.user.id ? 'chat-end' : 'chat-start'
+        message.sender.userId === session.user?.id ? 'chat-end' : 'chat-start'
 
     if (message.isFileMessage()) {
         return (
@@ -343,7 +340,7 @@ function ChatMessage({
             <div
                 className={cn(
                     'chat-bubble',
-                    message.sender.userId === session.user.id
+                    message.sender.userId === session.user?.id
                         ? 'chat-bubble-primary text-white'
                         : 'chat-bubble-accent'
                 )}

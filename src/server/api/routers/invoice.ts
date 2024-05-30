@@ -8,7 +8,7 @@ import { artistProcedure, createTRPCRouter } from '~/server/api/trpc'
 import { invoice_items, invoices, stripe_customer_ids } from '~/server/db/schema'
 
 export const invoiceRouter = createTRPCRouter({
-    add_invoice_item: artistProcedure
+    update_invoice_items: artistProcedure
         .input(
             z.object({
                 invoice_id: z.string(),

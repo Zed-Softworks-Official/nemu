@@ -23,7 +23,7 @@ import { Button } from '~/components/ui/button'
 import Masonry, { ResponsiveMasonry } from 'react-responsive-masonry'
 import { Id } from 'react-toastify'
 import { useTheme } from 'next-themes'
-import { nemu_toast } from '~/lib/utils'
+import { toast } from 'sonner'
 
 export default function Kanban({
     header,
@@ -54,27 +54,21 @@ export default function Kanban({
 
     const mutation = api.kanban.set_kanban.useMutation({
         onMutate: () => {
-            setToastId(nemu_toast.loading('Saving Kanban', { theme: resolvedTheme }))
+            setToastId(toast.loading('Saving Kanban'))
         },
         onSuccess: () => {
             if (!toastId) return
 
-            nemu_toast.update(toastId, {
-                render: 'Kanban Saved!',
-                isLoading: false,
-                autoClose: 5000,
-                type: 'success'
+            toast.success('Kanban Saved!', {
+                id: toastId
             })
         },
         onError: (e) => {
             if (!toastId) return
 
-            nemu_toast.update(toastId, {
-                render: e.message,
-                isLoading: false,
-                autoClose: 5000,
-                type: 'error'
-            })
+            toast.error(e.message, {
+                id: toastId
+            }) 
         }
     })
 

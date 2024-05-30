@@ -7,6 +7,7 @@ import { format_to_currency } from '~/lib/utils'
 import { Button } from '~/components/ui/button'
 import { ColumnDef } from '@tanstack/react-table'
 import DataTable from '~/components/data-table'
+import debounce from 'lodash.debounce'
 import { InvoiceItem, InvoiceStatus } from '~/core/structures'
 
 import { Dispatch, SetStateAction, useState } from 'react'
@@ -24,6 +25,7 @@ import {
     AlertDialogAction,
     AlertDialogDescription
 } from '~/components/ui/alert-dialog'
+import { api } from '~/trpc/react'
 
 export default function InvoiceEditor(props: {
     invoice: InferSelectModel<typeof invoices> & {
@@ -106,6 +108,16 @@ function EditInvoiceModel(props: {
     invoice_items: InvoiceItem[]
     setInvoiceItems: Dispatch<SetStateAction<InvoiceItem[]>>
 }) {
+    const [editableInvoiceItems, setEditableInvoiceItems] = useState<InvoiceItem[]>(
+        props.invoice_items
+    )
+
+    const mutation = api.invoice.update_invoice_items.useMutation({
+        onMutate: () => {},
+        onSuccess: () => {},
+        onError: () => {}
+    })
+
     return (
         <AlertDialog>
             <AlertDialogTrigger asChild>
@@ -122,8 +134,8 @@ function EditInvoiceModel(props: {
                     <Button
                         variant={'outline'}
                         onMouseDown={() =>
-                            props.setInvoiceItems([
-                                ...props.invoice_items,
+                            setEditableInvoiceItems([
+                                ...editableInvoiceItems,
                                 {
                                     id: null,
                                     name: '',
@@ -137,7 +149,7 @@ function EditInvoiceModel(props: {
                     </Button>
                 </AlertDialogHeader>
                 <div className="grid gap-4 py-4">
-                    {props.invoice_items.map((item, index) => (
+                    {editableInvoiceItems.map((item, index) => (
                         <div
                             key={item.id}
                             className="flex flex-col gap-5 rounded-xl bg-base-200 p-5"
@@ -153,11 +165,15 @@ function EditInvoiceModel(props: {
                                 <Input
                                     defaultValue={item.name}
                                     placeholder="Item Name"
-                                    onBlur={(e) => {
-                                        const items = [...props.invoice_items]
+                                    onChange={(e) => {
+                                        debounce(() => {
+                                            const items = [...editableInvoiceItems]
 
-                                        items[index]!.name = e.currentTarget.value
-                                        props.setInvoiceItems(props.invoice_items)
+                                            items[index]!.name = e.currentTarget.value
+                                            setEditableInvoiceItems(items)
+
+                                            console.log(e.currentTarget.value)
+                                        }, 300)
                                     }}
                                 />
                             </div>
@@ -166,6 +182,14 @@ function EditInvoiceModel(props: {
                                 <Input
                                     defaultValue={item.price}
                                     placeholder="Item Price"
+                                    onBlur={(e) => {
+                                        const items = [...editableInvoiceItems]
+
+                                        items[index]!.price = Number(
+                                            e.currentTarget.value
+                                        )
+                                        setEditableInvoiceItems(items)
+                                    }}
                                 />
                             </div>
                             <div className="form-control">
@@ -173,11 +197,29 @@ function EditInvoiceModel(props: {
                                 <Input
                                     defaultValue={item.quantity}
                                     placeholder="Item Quantity"
+                                    onBlur={(e) => {
+                                        const items = [...editableInvoiceItems]
+
+                                        items[index]!.quantity = Number(
+                                            e.currentTarget.value
+                                        )
+                                        setEditableInvoiceItems(items)
+                                    }}
                                 />
                             </div>
                         </div>
                     ))}
                 </div>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                        onMouseDown={() => {
+                            props.setInvoiceItems(editableInvoiceItems)
+                        }}
+                    >
+                        Update Invoice
+                    </AlertDialogAction>
+                </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
     )
