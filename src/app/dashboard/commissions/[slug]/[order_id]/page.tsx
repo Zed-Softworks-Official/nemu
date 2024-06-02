@@ -142,8 +142,8 @@ export default async function CommissionOrderDetailPage({
                 <TabsList className="w-full justify-start bg-base-300">
                     <TabsTrigger value="kanban">Kanban</TabsTrigger>
                     <TabsTrigger value="messages">Messages</TabsTrigger>
-                    <TabsTrigger value="downloads">Downloads</TabsTrigger>
                     <TabsTrigger value="invoice">Invoice</TabsTrigger>
+                    <TabsTrigger value="delivery">Delivery</TabsTrigger>
                 </TabsList>
                 <TabsContent value="kanban">
                     <Kanban
@@ -160,15 +160,6 @@ export default async function CommissionOrderDetailPage({
                         channel_url={request_data.request.sendbird_channel_url!}
                     />
                 </TabsContent>
-                <TabsContent value="downloads">
-                    <div className="flex flex-col gap-5 p-5">
-                        <DownloadsDisplay
-                            user_id={request_data.user.id}
-                            request_id={request_data.request.id}
-                            download_id={request_data.request.download_id}
-                        />
-                    </div>
-                </TabsContent>
                 <TabsContent value="invoice">
                     <div className="flex flex-col gap-5 p-5">
                         <Suspense fallback={<Loading />}>
@@ -176,6 +167,15 @@ export default async function CommissionOrderDetailPage({
                                 invoice_id={request_data.request.invoice_id}
                             />
                         </Suspense>
+                    </div>
+                </TabsContent>
+                <TabsContent value="delivery">
+                    <div className="flex flex-col gap-5 p-5">
+                        <DownloadsDisplay
+                            user_id={request_data.user.id}
+                            request_id={request_data.request.id}
+                            download_id={request_data.request.download_id}
+                        />
                     </div>
                 </TabsContent>
             </Tabs>

@@ -31,7 +31,7 @@ export const invoiceRouter = createTRPCRouter({
             })
 
             if (!invoice) {
-                return new TRPCError({
+                throw new TRPCError({
                     code: 'INTERNAL_SERVER_ERROR',
                     message: 'Invoice not found!'
                 })
@@ -39,30 +39,50 @@ export const invoiceRouter = createTRPCRouter({
 
             const stripe_account = await ctx.db.query.stripe_customer_ids.findFirst({
                 where: and(
-                    eq(stripe_customer_ids.user_id, ctx.user.id),
+                    eq(stripe_customer_ids.user_id, invoice.user_id),
                     eq(stripe_customer_ids.artist_id, invoice.artist_id)
                 )
             })
 
             if (!stripe_account) {
-                return new TRPCError({
+                throw new TRPCError({
                     code: 'INTERNAL_SERVER_ERROR',
                     message: 'User does not have a stripe account!'
                 })
             }
 
             // Create Invoice Item Object
+            let total_price = 0
             for (const item of input.items) {
-                if (item.id != null) continue
+                if (item.id != null) {
+                    await ctx.db
+                        .update(invoice_items)
+                        .set({
+                            name: item.name,
+                            price: item.price.toPrecision(4),
+                            quantity: item.quantity
+                        })
+                        .where(eq(invoice_items.id, item.id))
+                } else {
+                    await ctx.db.insert(invoice_items).values({
+                        id: createId(),
+                        invoice_id: input.invoice_id,
+                        name: item.name,
+                        price: item.price.toPrecision(4),
+                        quantity: item.quantity
+                    })
+                }
 
-                await ctx.db.insert(invoice_items).values({
-                    id: createId(),
-                    invoice_id: input.invoice_id,
-                    name: item.name,
-                    price: item.price.toPrecision(4),
-                    quantity: item.quantity
-                })
+                total_price += item.price * item.quantity
             }
+
+            // Update the innvoice information
+            await ctx.db
+                .update(invoices)
+                .set({
+                    total: total_price.toPrecision(4)
+                })
+                .where(eq(invoices.id, input.invoice_id))
         }),
 
     send_invoice: artistProcedure.input(z.string()).mutation(async ({ input, ctx }) => {

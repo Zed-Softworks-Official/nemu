@@ -10,7 +10,7 @@ import DataTable from '~/components/data-table'
 import debounce from 'lodash.debounce'
 import { InvoiceItem, InvoiceStatus } from '~/core/structures'
 
-import { Dispatch, SetStateAction, useState } from 'react'
+import { Dispatch, SetStateAction, useCallback, useState } from 'react'
 import { Input } from '~/components/ui/input'
 import { Label } from '~/components/ui/label'
 import { PlusCircleIcon, Trash2Icon } from 'lucide-react'
@@ -136,6 +136,35 @@ function EditInvoiceModel(props: {
         }
     })
 
+    const debounceInput = useCallback(
+        debounce(
+            (
+                index: number,
+                opts:
+                    | ({ field: 'name' | 'price' | 'quantity' } & {
+                          field: 'name'
+                          value: string
+                      })
+                    | { field: 'price'; value: number }
+                    | { field: 'quantity'; value: number }
+            ) => {
+                const items = [...editableInvoiceItems]
+
+                if (opts.field === 'name') {
+                    editableInvoiceItems[index]!.name = opts.value
+                } else if (opts.field === 'price') {
+                    editableInvoiceItems[index]!.price = opts.value
+                } else if (opts.field === 'quantity') {
+                    editableInvoiceItems[index]!.quantity = opts.value
+                }
+
+                setEditableInvoiceItems(items)
+            },
+            300
+        ),
+        [editableInvoiceItems]
+    )
+
     return (
         <AlertDialog>
             <AlertDialogTrigger asChild>
@@ -166,7 +195,7 @@ function EditInvoiceModel(props: {
                         <PlusCircleIcon className="h-6 w-6" />
                     </Button>
                 </AlertDialogHeader>
-                <div className="grid gap-4 py-4">
+                <div className="grid gap-4 overflow-auto py-4">
                     {editableInvoiceItems.map((item, index) => (
                         <div
                             key={item.id}
@@ -174,7 +203,18 @@ function EditInvoiceModel(props: {
                         >
                             <div className="flex flex-row items-center justify-between">
                                 <h1 className="text-lg font-bold">Item {index + 1}</h1>
-                                <Button variant={'destructive'}>
+                                <Button
+                                    variant={'destructive'}
+                                    onMouseDown={() => {
+                                        setEditableInvoiceItems(() => {
+                                            const items = editableInvoiceItems.filter(
+                                                (_, item_index) => item_index !== index
+                                            )
+
+                                            return items
+                                        })
+                                    }}
+                                >
                                     <Trash2Icon className="h-6 w-6" />
                                 </Button>
                             </div>
@@ -183,14 +223,12 @@ function EditInvoiceModel(props: {
                                 <Input
                                     defaultValue={item.name}
                                     placeholder="Item Name"
-                                    onChange={(e) => {
-                                        debounce(() => {
-                                            const items = [...editableInvoiceItems]
-
-                                            items[index]!.name = e.currentTarget.value
-                                            setEditableInvoiceItems(items)
-                                        }, 300)
-                                    }}
+                                    onChange={(e) =>
+                                        debounceInput(index, {
+                                            field: 'name',
+                                            value: e.currentTarget.value
+                                        })
+                                    }
                                 />
                             </div>
                             <div className="form-control">
@@ -199,13 +237,9 @@ function EditInvoiceModel(props: {
                                     defaultValue={item.price}
                                     placeholder="Item Price"
                                     onChange={(e) =>
-                                        debounce(() => {
-                                            const items = [...editableInvoiceItems]
-
-                                            items[index]!.price = Number(
-                                                e.currentTarget.value
-                                            )
-                                            setEditableInvoiceItems(items)
+                                        debounceInput(index, {
+                                            field: 'price',
+                                            value: Number(e.currentTarget.value)
                                         })
                                     }
                                 />
@@ -216,13 +250,9 @@ function EditInvoiceModel(props: {
                                     defaultValue={item.quantity}
                                     placeholder="Item Quantity"
                                     onChange={(e) =>
-                                        debounce(() => {
-                                            const items = [...editableInvoiceItems]
-
-                                            items[index]!.quantity = Number(
-                                                e.currentTarget.value
-                                            )
-                                            setEditableInvoiceItems(items)
+                                        debounceInput(index, {
+                                            field: 'quantity',
+                                            value: Number(e.currentTarget.value)
                                         })
                                     }
                                 />
@@ -250,6 +280,27 @@ function EditInvoiceModel(props: {
 }
 
 function SendInvoiceButton(props: { invoice_id: string; invoice_items: InvoiceItem[] }) {
+    const [toastId, setToastId] = useState<string | number | undefined>(undefined)
+    const mutation = api.invoice.send_invoice.useMutation({
+        onMutate: () => {
+            setToastId(toast.loading('Sending Invoice'))
+        },
+        onSuccess: () => {
+            if (!toastId) return
+
+            toast.success('Invoice sent!', {
+                id: toastId
+            })
+        },
+        onError: (e) => {
+            if (!toastId) return
+
+            toast.error(e.message, {
+                id: toastId
+            })
+        }
+    })
+
     return (
         <AlertDialog>
             <AlertDialogTrigger asChild>
