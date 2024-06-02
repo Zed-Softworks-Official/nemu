@@ -1,9 +1,9 @@
 import { RouterInput } from '~/core/structures'
 
 export enum PurchaseType {
-    ArtistCorner = 0,
-    CommissionInvoice,
-    Supporter
+    ArtistCorner = 'artist_corner',
+    CommissionInvoice = 'commission_invoice',
+    Supporter = 'supporter'
 }
 
 export enum InvoiceStatus {
@@ -14,9 +14,9 @@ export enum InvoiceStatus {
 }
 
 export type InvoiceItem = {
-    id: string | null,
-    name: string,
-    price: number,
+    id: string | null
+    name: string
+    price: number
     quantity: number
 }
 

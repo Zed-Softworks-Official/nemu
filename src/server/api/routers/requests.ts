@@ -75,7 +75,7 @@ export const requestRouter = createTRPCRouter({
         // })
 
         return result
-    }), 
+    }),
 
     get_request_invoice: protectedProcedure
         .input(z.string())
@@ -100,9 +100,7 @@ export const requestRouter = createTRPCRouter({
 
     get_request_download: protectedProcedure
         .input(z.string())
-        .query(async ({ input, ctx }) => {
-            
-        }),
+        .query(async ({ input, ctx }) => {}),
 
     get_request_client: protectedProcedure
         .input(z.string())
@@ -367,12 +365,15 @@ export const requestRouter = createTRPCRouter({
                 return { success: true }
             }
 
+            const generated_invoice_id = createId()
+
             // If accepted, Create a stripe invoice draft
             const stripe_draft = await StripeCreateInvoice(customer_id.stripe_account, {
                 customer_id: customer_id.customer_id,
                 user_id: request.user_id,
                 commission_id: request.commission_id,
-                order_id: request.order_id
+                order_id: request.order_id,
+                invoice_id: generated_invoice_id
             })
 
             // Create the invoice object in the database with the initial item
@@ -380,7 +381,7 @@ export const requestRouter = createTRPCRouter({
                 await ctx.db
                     .insert(invoices)
                     .values({
-                        id: createId(),
+                        id: generated_invoice_id,
                         stripe_id: stripe_draft.id,
                         customer_id: customer_id.customer_id,
                         stripe_account: customer_id.stripe_account,
