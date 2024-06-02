@@ -47,12 +47,12 @@ export async function StripeCreateInvoice(
 export async function StripeUpdateInvoice(
     customer_id: string,
     stripe_account: string,
-    invoice_id: string,
+    invoice_stripe_id: string,
     items: InvoiceItem[],
     supporter: boolean
 ) {
     // Clear the invoice items if any
-    const line_items = await stripe.invoices.listLineItems(invoice_id, {
+    const line_items = await stripe.invoices.listLineItems(invoice_stripe_id, {
         stripeAccount: stripe_account
     })
 
@@ -73,7 +73,7 @@ export async function StripeUpdateInvoice(
                 customer: customer_id,
                 unit_amount: item.price * 100,
                 quantity: item.quantity,
-                invoice: invoice_id,
+                invoice: invoice_stripe_id,
                 description: item.name
             },
             { stripeAccount: stripe_account }
@@ -83,7 +83,7 @@ export async function StripeUpdateInvoice(
     // Add Application fee to invoice
     if (!supporter) {
         await stripe.invoices.update(
-            invoice_id,
+            invoice_stripe_id,
             {
                 application_fee_amount: calculate_application_fee(total_price) * 100
             },
@@ -99,8 +99,11 @@ export async function StripeUpdateInvoice(
  * @param {string} stripe_account - The stripe account id
  * @returns {Promise<Stripe.Invoice>} - The finalized invoice object
  */
-export async function StripeFinalizeInvoice(invoice_id: string, stripe_account: string) {
-    return await stripe.invoices.finalizeInvoice(invoice_id, {
+export async function StripeFinalizeInvoice(
+    invoice_stripe_id: string,
+    stripe_account: string
+) {
+    return await stripe.invoices.finalizeInvoice(invoice_stripe_id, {
         stripeAccount: stripe_account
     })
 }

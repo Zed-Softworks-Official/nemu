@@ -27,6 +27,7 @@ import {
 } from '~/components/ui/alert-dialog'
 import { api } from '~/trpc/react'
 import { toast } from 'sonner'
+import { revalidateTag } from 'next/cache'
 
 export default function InvoiceEditor(props: {
     invoice: InferSelectModel<typeof invoices> & {
@@ -97,8 +98,8 @@ export default function InvoiceEditor(props: {
                         invoice_id={props.invoice.id}
                     />
                     <SendInvoiceButton
+                        disabled={props.invoice.sent}
                         invoice_id={props.invoice.id}
-                        invoice_items={invoiceItems}
                     />
                 </div>
             </div>
@@ -122,6 +123,8 @@ function EditInvoiceModel(props: {
         },
         onSuccess: () => {
             if (!toastId) return
+
+            revalidateTag('request-invoice-data')
 
             toast.success('Invoice Updated', {
                 id: toastId
@@ -279,14 +282,18 @@ function EditInvoiceModel(props: {
     )
 }
 
-function SendInvoiceButton(props: { invoice_id: string; invoice_items: InvoiceItem[] }) {
+function SendInvoiceButton(props: { invoice_id: string; disabled: boolean }) {
+    const [disabled, setDisabled] = useState(props.disabled)
     const [toastId, setToastId] = useState<string | number | undefined>(undefined)
+
     const mutation = api.invoice.send_invoice.useMutation({
         onMutate: () => {
             setToastId(toast.loading('Sending Invoice'))
         },
         onSuccess: () => {
             if (!toastId) return
+
+            revalidateTag('request-invoice-data')
 
             toast.success('Invoice sent!', {
                 id: toastId
@@ -303,7 +310,11 @@ function SendInvoiceButton(props: { invoice_id: string; invoice_items: InvoiceIt
 
     return (
         <AlertDialog>
-            <AlertDialogTrigger asChild>
+            <AlertDialogTrigger
+                onClick={() => setDisabled(true)}
+                disabled={disabled}
+                asChild
+            >
                 <Button>Send Invoice</Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
@@ -315,8 +326,14 @@ function SendInvoiceButton(props: { invoice_id: string; invoice_items: InvoiceIt
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onMouseDown={() => {}}>
+                    <AlertDialogCancel onMouseDown={() => setDisabled(false)}>
+                        Cancel
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                        onMouseDown={() => {
+                            mutation.mutate(props.invoice_id)
+                        }}
+                    >
                         Send Invoice
                     </AlertDialogAction>
                 </AlertDialogFooter>

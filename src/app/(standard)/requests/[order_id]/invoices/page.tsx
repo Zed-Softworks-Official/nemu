@@ -2,16 +2,14 @@ import { ColumnDef } from '@tanstack/react-table'
 import { eq } from 'drizzle-orm'
 import { index } from 'drizzle-orm/mysql-core'
 import { unstable_cache } from 'next/cache'
+import Link from 'next/link'
 import { Suspense } from 'react'
 import DataTable from '~/components/data-table'
 import { Badge } from '~/components/ui/badge'
-import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle
-} from '~/components/ui/card'
+import { Button } from '~/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card'
 import Loading from '~/components/ui/loading'
+import { InvoiceStatus } from '~/core/structures'
 import { format_to_currency } from '~/lib/utils'
 import { db } from '~/server/db'
 import { requests } from '~/server/db/schema'
@@ -35,7 +33,8 @@ const get_invoice = unstable_cache(
 
         return request.invoice
     },
-    ['request-invoice']
+    ['request-invoice'],
+    { revalidate: 3600 }
 )
 
 export default async function RequestInvoicesPage({
@@ -92,7 +91,7 @@ async function InvoiceDataTable(props: { order_id: string }) {
         <div className="flex flex-col gap-5">
             <div className="flex flex-row gap-3">
                 <span className="text-sm text-base-content/60">Invoice Status</span>
-                <Badge variant={'warning'}>{invoice.status}</Badge>
+                <InvoiceStatusBadge status={invoice.status as InvoiceStatus} />
             </div>
             <DataTable
                 columns={columns}
@@ -109,8 +108,32 @@ async function InvoiceDataTable(props: { order_id: string }) {
                     <div className="stat-value">
                         {format_to_currency(Number(invoice.total))}
                     </div>
+                    {invoice.sent && invoice.hosted_url && (
+                        <div className="stat-actions">
+                            <Link
+                                href={invoice.hosted_url}
+                                target="_blank"
+                                className="btn btn-primary btn-sm text-white"
+                            >
+                                View Invoice
+                            </Link>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
     )
+}
+
+function InvoiceStatusBadge({ status }: { status: InvoiceStatus }) {
+    switch (status) {
+        case InvoiceStatus.Creating:
+            return <Badge variant={'warning'}>Creating</Badge>
+        case InvoiceStatus.Pending:
+            return <Badge variant={'destructive'}>Unpaid</Badge>
+        case InvoiceStatus.Paid:
+            return <Badge variant={'success'}>Paid</Badge>
+        case InvoiceStatus.Cancelled:
+            return <Badge variant={'destructive'}>Cancelled</Badge>
+    }
 }

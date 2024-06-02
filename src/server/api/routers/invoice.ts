@@ -96,7 +96,7 @@ export const invoiceRouter = createTRPCRouter({
         })
 
         if (!invoice) {
-            return new TRPCError({
+            throw new TRPCError({
                 code: 'INTERNAL_SERVER_ERROR',
                 message: 'Invoice not found!'
             })
@@ -105,13 +105,13 @@ export const invoiceRouter = createTRPCRouter({
         // Check if the user has a stripe account
         const stripe_account = await ctx.db.query.stripe_customer_ids.findFirst({
             where: and(
-                eq(stripe_customer_ids.user_id, ctx.user.id),
+                eq(stripe_customer_ids.user_id, invoice.user_id),
                 eq(stripe_customer_ids.artist_id, invoice.artist_id)
             )
         })
 
         if (!stripe_account) {
-            return new TRPCError({
+            throw new TRPCError({
                 code: 'INTERNAL_SERVER_ERROR',
                 message: 'User does not have a stripe account!'
             })
@@ -121,7 +121,7 @@ export const invoiceRouter = createTRPCRouter({
         await StripeUpdateInvoice(
             stripe_account.customer_id,
             stripe_account.stripe_account,
-            invoice.id,
+            invoice.stripe_id,
             invoice.invoice_items.map((item) => ({
                 id: item.id,
                 name: item.name,
@@ -133,8 +133,8 @@ export const invoiceRouter = createTRPCRouter({
 
         // Finalize the invoice and send it to the user
         const finalized_invoice = await StripeFinalizeInvoice(
-            invoice.id,
-            stripe_account.id
+            invoice.stripe_id,
+            stripe_account.stripe_account
         )
 
         if (!finalized_invoice) {
@@ -152,7 +152,7 @@ export const invoiceRouter = createTRPCRouter({
                 sent: true,
                 hosted_url: finalized_invoice.hosted_invoice_url
             })
-            .where(eq(invoices.id, invoice.id))
+            .where(eq(invoices.id, input))
 
         // Notify User That Invoice Has Been Sent
     })
