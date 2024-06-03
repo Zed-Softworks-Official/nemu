@@ -17,6 +17,16 @@ import { Suspense } from 'react'
 import Loading from '~/components/ui/loading'
 import InvoiceEditor from '~/components/dashboard/invoice-editor'
 
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle
+} from '~/components/ui/card'
+import { Badge } from '~/components/ui/badge'
+import DeliverButton from '~/components/dashboard/deliver-button'
+
 const get_request_data = unstable_cache(
     async (order_id: string) => {
         const request = await db.query.requests.findFirst({
@@ -57,7 +67,10 @@ const get_request_data = unstable_cache(
             kanban
         }
     },
-    ['request-data']
+    ['request-data'],
+    {
+        revalidate: 3600
+    }
 )
 
 const get_invoice_data = unstable_cache(
@@ -170,12 +183,47 @@ export default async function CommissionOrderDetailPage({
                     </div>
                 </TabsContent>
                 <TabsContent value="delivery">
-                    <div className="flex flex-col gap-5 p-5">
-                        <DownloadsDisplay
-                            user_id={request_data.user.id}
-                            request_id={request_data.request.id}
-                            download_id={request_data.request.download_id}
-                        />
+                    <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-3">
+                                    Status
+                                    <Badge
+                                        variant={
+                                            request_data.request.download_id
+                                                ? 'success'
+                                                : 'destructive'
+                                        }
+                                        className="badge-lg"
+                                    >
+                                        {request_data.request.download_id
+                                            ? 'Delivered'
+                                            : 'Not Delivered'}
+                                    </Badge>
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <DeliverButton
+                                    download_id={request_data.request.download_id}
+                                    order_id={request_data.request.order_id}
+                                />
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Downloads</CardTitle>
+                                <CardDescription>
+                                    Upload your download here
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <DownloadsDisplay
+                                    user_id={request_data.user.id}
+                                    request_id={request_data.request.id}
+                                    download_id={request_data.request.download_id}
+                                />
+                            </CardContent>
+                        </Card>
                     </div>
                 </TabsContent>
             </Tabs>

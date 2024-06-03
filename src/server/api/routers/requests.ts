@@ -472,5 +472,19 @@ export const requestRouter = createTRPCRouter({
             // await ctx.cache.del(AsRedisKey('requests', request.commission_id))
 
             return { success: true }
+        }),
+
+    /**
+     * Marks a request as delivered
+     */
+    mark_as_delivered: protectedProcedure
+        .input(z.string())
+        .mutation(async ({ input, ctx }) => {
+            await ctx.db
+                .update(requests)
+                .set({
+                    status: RequestStatus.Delivered
+                })
+                .where(eq(requests.order_id, input))
         })
 })

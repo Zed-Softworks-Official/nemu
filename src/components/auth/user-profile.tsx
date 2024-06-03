@@ -4,7 +4,6 @@ import { z } from 'zod'
 
 import { UserProfile, useUser } from '@clerk/nextjs'
 import { BrushIcon, SaveIcon } from 'lucide-react'
-import { useTheme } from 'next-themes'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { api } from '~/trpc/react'
@@ -14,7 +13,7 @@ import { Button } from '~/components/ui/button'
 import { UploadDropzone } from '~/components/files/uploadthing'
 import { Textarea } from '~/components/ui/textarea'
 import { Switch } from '~/components/ui/switch'
-import { nemu_toast } from '~/lib/utils'
+import { toast } from 'sonner'
 
 const artistSchema = z.object({
     about: z.string().max(256),
@@ -52,8 +51,6 @@ function ArtistSettings(props: { handle: string }) {
     const { data: artist, isLoading } = api.artist.get_artist.useQuery({
         handle: props.handle
     })
-
-    const { resolvedTheme } = useTheme()
 
     const form = useForm<ArtistSchemaType>({
         resolver: zodResolver(artistSchema),
@@ -171,10 +168,7 @@ function ArtistSettings(props: { handle: string }) {
                         className="w-full ut-button:bg-primary ut-button:transition-all ut-button:duration-200 ut-button:ease-in-out ut-button:active:scale-95 ut-allowed-content:italic ut-allowed-content:text-base-content/80 ut-label:text-base-content ut-ready:border-2 ut-ready:border-base-content/60 ut-ready:bg-base-100 ut-ready:transition-all ut-ready:duration-200 ut-ready:ease-in-out ut-ready:hover:border-primary"
                         endpoint="headerPhotoUploader"
                         onClientUploadComplete={() => {
-                            nemu_toast('Header photo updated!', {
-                                theme: resolvedTheme,
-                                type: 'success'
-                            })
+                            toast.success('Header photo updated!')
                         }}
                     />
                 </div>

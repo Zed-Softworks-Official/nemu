@@ -2,7 +2,6 @@ import { eq } from 'drizzle-orm'
 import { FileArchiveIcon } from 'lucide-react'
 import { unstable_cache } from 'next/cache'
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
 import NemuImage from '~/components/nemu-image'
 import {
     Card,
@@ -45,16 +44,12 @@ const get_downloads = unstable_cache(
     ['request-downloads']
 )
 
-export default async function RequestsDownloadsPage({
+export default async function RequestDeliveryPage({
     params
 }: {
     params: { order_id: string }
 }) {
     const downloads = await get_downloads(params.order_id)
-
-    if (!downloads) {
-        return notFound()
-    }
 
     if (!downloads) {
         return (

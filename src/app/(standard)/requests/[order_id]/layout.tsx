@@ -28,10 +28,10 @@ export default async function Layout({
                             Messages
                         </RequestSidenavLink>
                         <RequestSidenavLink
-                            href={`/requests/${params.order_id}/downloads`}
-                            path="downloads"
+                            href={`/requests/${params.order_id}/delivery`}
+                            path="delivery"
                         >
-                            Downloads
+                            Delivery
                         </RequestSidenavLink>
                         <RequestSidenavLink
                             href={`/requests/${params.order_id}/invoices`}
