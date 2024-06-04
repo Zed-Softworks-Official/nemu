@@ -5,7 +5,12 @@ import MessagesClient from '~/components/messages/messages'
 import Kanban from '~/components/kanban/kanban'
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
-import { KanbanContainerData, KanbanTask, RequestContent } from '~/core/structures'
+import {
+    KanbanContainerData,
+    KanbanTask,
+    RequestContent,
+    RequestStatus
+} from '~/core/structures'
 import DownloadsDropzone from '~/components/dashboard/downloads-dropzone'
 import DataTable from '~/components/data-table'
 import { ColumnDef } from '@tanstack/react-table'
@@ -25,7 +30,7 @@ import {
     CardTitle
 } from '~/components/ui/card'
 import { Badge } from '~/components/ui/badge'
-import DeliverButton from '~/components/dashboard/deliver-button'
+import DeliverForm from '~/components/dashboard/deliver-form'
 
 const get_request_data = unstable_cache(
     async (order_id: string) => {
@@ -61,7 +66,8 @@ const get_request_data = unstable_cache(
                 download_id: request.download_id,
                 commission: {
                     title: request.commission.title
-                }
+                },
+                status: request.status
             },
             user: await clerkClient.users.getUser(request.user_id),
             kanban
@@ -183,7 +189,31 @@ export default async function CommissionOrderDetailPage({
                     </div>
                 </TabsContent>
                 <TabsContent value="delivery">
-                    <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+                        <Card className="col-span-2">
+                            <CardHeader>
+                                <CardTitle>Delivery</CardTitle>
+                                <CardDescription>
+                                    Upload your final product here
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <DownloadsDisplay
+                                    user_id={request_data.user.id}
+                                    request_id={request_data.request.id}
+                                    download_id={request_data.request.download_id}
+                                />
+                                <div className="divider">OR</div>
+                                <DeliverForm
+                                    request_id={request_data.request.id}
+                                    user_id={request_data.user.id}
+                                    delivered={
+                                        request_data.request.status ===
+                                        RequestStatus.Delivered
+                                    }
+                                />
+                            </CardContent>
+                        </Card>
                         <Card>
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-3">
@@ -202,27 +232,7 @@ export default async function CommissionOrderDetailPage({
                                     </Badge>
                                 </CardTitle>
                             </CardHeader>
-                            <CardContent>
-                                <DeliverButton
-                                    download_id={request_data.request.download_id}
-                                    order_id={request_data.request.order_id}
-                                />
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Downloads</CardTitle>
-                                <CardDescription>
-                                    Upload your download here
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <DownloadsDisplay
-                                    user_id={request_data.user.id}
-                                    request_id={request_data.request.id}
-                                    download_id={request_data.request.download_id}
-                                />
-                            </CardContent>
+                            <CardContent></CardContent>
                         </Card>
                     </div>
                 </TabsContent>

@@ -13,8 +13,8 @@ import {
 
 import Loading from '~/components/ui/loading'
 import { api } from '~/trpc/react'
-import { nemu_toast } from '~/lib/utils'
 import { Button } from '~/components/ui/button'
+import { toast } from 'sonner'
 
 export default function RequestSubmitForm({
     commission_id,
@@ -25,8 +25,6 @@ export default function RequestSubmitForm({
     form_id: string
     setShowForm: (show: boolean) => void
 }) {
-    const { resolvedTheme } = useTheme()
-
     // Fetch the form data
     const { data, isLoading } = api.form.get_form.useQuery(form_id, {
         refetchOnMount: false,
@@ -45,18 +43,12 @@ export default function RequestSubmitForm({
     // Mutation to submit the form
     const mutation = api.requests.set_request.useMutation({
         onSuccess: () => {
-            nemu_toast('Commission Request Submitted!', {
-                theme: resolvedTheme,
-                type: 'success'
-            })
+            toast.success('Commission Request Submitted!')
 
             setSubmitted(true)
         },
         onError: () => {
-            nemu_toast('Commission request could not be submitted!', {
-                theme: resolvedTheme,
-                type: 'error'
-            })
+            toast.error('Commission request could not be submitted!')
         }
     })
 
@@ -84,10 +76,7 @@ export default function RequestSubmitForm({
         const validForm = validateForm()
         if (!validForm) {
             setRenderKey(new Date().getTime())
-            nemu_toast('Please check all required fields!', {
-                theme: resolvedTheme,
-                type: 'error'
-            })
+            toast.error('Please check all required fields!')
 
             return
         }
@@ -132,7 +121,7 @@ export default function RequestSubmitForm({
     // Loading state for client side
     if (isLoading || requestedLoading) {
         return (
-            <div className="flex justify-center items-center h-full">
+            <div className="flex h-full items-center justify-center">
                 <Loading />
             </div>
         )
@@ -141,8 +130,8 @@ export default function RequestSubmitForm({
     // If the form has been submitted then show the success message
     if (submitted) {
         return (
-            <div className="max-w-xl mx-auto h-full">
-                <div className="flex flex-col gap-5 items-center justify-center p-5 h-full w-full text-center">
+            <div className="mx-auto h-full max-w-xl">
+                <div className="flex h-full w-full flex-col items-center justify-center gap-5 p-5 text-center">
                     <NemuImage
                         src={'/nemu/sparkles.png'}
                         alt="Nemu Excited"
@@ -152,7 +141,7 @@ export default function RequestSubmitForm({
                     />
 
                     <h2 className="text-2xl font-bold">Things are happening!</h2>
-                    <p className="text-base-content/80 italic">
+                    <p className="italic text-base-content/80">
                         You'll recieve an email from the artist about wether your
                         commission has been accepted or rejected. Until then hold on
                         tight!
@@ -164,16 +153,16 @@ export default function RequestSubmitForm({
 
     // If the form has not been submitted then show the form
     return (
-        <div key={renderKey} className="flex flex-col w-full p-5 gap-4 rounded-xl h-full">
+        <div key={renderKey} className="flex h-full w-full flex-col gap-4 rounded-xl p-5">
             <Button
                 variant={'outline'}
                 className="absolute"
                 onMouseDown={() => setShowForm(false)}
             >
-                <ArrowLeftCircleIcon className="w-6 h-6" />
+                <ArrowLeftCircleIcon className="h-6 w-6" />
                 Back
             </Button>
-            <div className="flex flex-col justify-center items-center gap-3">
+            <div className="flex flex-col items-center justify-center gap-3">
                 <NemuImage
                     src={'/nemu/fillout.png'}
                     alt="Nemu filling out form"

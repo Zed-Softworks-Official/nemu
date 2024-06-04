@@ -1,6 +1,8 @@
 import { createId } from '@paralleldrive/cuid2'
 import { eq } from 'drizzle-orm'
+import { revalidateTag } from 'next/cache'
 import { z } from 'zod'
+import { RequestStatus } from '~/core/structures'
 import { artistProcedure, createTRPCRouter } from '~/server/api/trpc'
 import { downloads, requests } from '~/server/db/schema'
 
@@ -32,8 +34,11 @@ export const downloadsRouter = createTRPCRouter({
             await ctx.db
                 .update(requests)
                 .set({
-                    download_id: download[0]?.id
+                    download_id: download[0]?.id,
+                    status: RequestStatus.Delivered
                 })
                 .where(eq(requests.id, input.request_id))
+
+            revalidateTag('request-data')
         })
 })
