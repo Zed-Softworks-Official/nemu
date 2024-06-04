@@ -1,12 +1,13 @@
 'use client'
 
+import { useUser } from '@clerk/nextjs'
+import SendbirdProvider from '@sendbird/uikit-react/SendbirdProvider'
+
 import Channel from '~/components/messages/channel'
 import ChannelList from '~/components/messages/channel-list'
 
-import SendbirdProvider from '@sendbird/uikit-react/SendbirdProvider'
-
 import { MessagesProvider } from '~/components/messages/messages-context'
-import { useUser } from '@clerk/nextjs'
+import Loading from '~/components/ui/loading'
 
 export default function MessagesClient(props: {
     hide_channel_list?: boolean
@@ -15,7 +16,7 @@ export default function MessagesClient(props: {
     const session = useUser()
 
     if (!session.isLoaded || !session.user) {
-        return null
+        return <Loading />
     }
 
     return (

@@ -16,14 +16,17 @@ import { api } from '~/trpc/react'
 import { useUser } from '@clerk/nextjs'
 import { InferSelectModel } from 'drizzle-orm'
 import { kanbans } from '~/server/db/schema'
+import { RouterOutput } from '~/core/structures'
 
 type MessagesContextType = {
     currentChannel?: string
     setCurrentChannel: Dispatch<SetStateAction<string | undefined>>
 
     session: ReturnType<typeof useUser>
-    kanbanData: InferSelectModel<typeof kanbans> | undefined
-    setKanbanData: Dispatch<SetStateAction<InferSelectModel<typeof kanbans> | undefined>>
+    kanbanData: RouterOutput['kanban']['get_kanban_messages'] | undefined
+    setKanbanData: Dispatch<
+        SetStateAction<RouterOutput['kanban']['get_kanban_messages'] | undefined>
+    >
 
     replyMode: boolean
     replyMessage?: BaseMessage | FileMessage
@@ -57,7 +60,9 @@ export function MessagesProvider({
     const [replyMessage, setReplyMessage] = useState<
         BaseMessage | FileMessage | undefined
     >()
-    const [kanbanData, setKanbanData] = useState<InferSelectModel<typeof kanbans> | undefined>(undefined)
+    const [kanbanData, setKanbanData] = useState<
+        RouterOutput['kanban']['get_kanban_messages'] | undefined
+    >(undefined)
     const [otherUser, setOtherUser] = useState<Member | undefined>(undefined)
     const [inputPlaceholder, setInputPlaceholder] = useState<string>(`Message`)
     const [metadata, setMetadata] = useState<SendbirdMetadata | undefined>(undefined)
@@ -66,7 +71,7 @@ export function MessagesProvider({
         onSuccess: (data) => {
             if (!data) return
 
-            // setKanbanData(data)
+            setKanbanData(data)
         }
     })
 

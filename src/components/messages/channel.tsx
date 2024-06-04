@@ -35,10 +35,8 @@ import {
 } from '~/components/ui/context-menu'
 
 import { SendbirdMetadata } from '~/sendbird/sendbird-structures'
-import { api } from '~/trpc/react'
-import { Id } from 'react-toastify'
-import { useTheme } from 'next-themes'
 import { toast } from 'sonner'
+import { api } from '~/trpc/react'
 
 /**
  * Shows the current channel messages and allows the user to send messages
@@ -220,11 +218,30 @@ function ChannelTextInput() {
  * Shows all of the messages in the current channel
  */
 function ChannelMessages() {
-    const [toastId, setToastId] = useState<Id | undefined>(undefined)
+    const [toastId, setToastId] = useState<string | number | undefined>(undefined)
 
-    const { resolvedTheme } = useTheme()
     const { messages } = useGroupChannelContext()
     const { session, start_reply, metadata, kanbanData } = useMessagesContext()
+
+    const mutation = api.kanban.add_to_kanban.useMutation({
+        onMutate: () => {
+            setToastId(toast.loading('Adding to Kanban'))
+        },
+        onSuccess: () => {
+            if (!toastId) return
+
+            toast.success('Added to Kanban', {
+                id: toastId
+            })
+        },
+        onError: (e) => {
+            if (!toastId) return
+
+            toast.error(e.message, {
+                id: toastId
+            })
+        }
+    })
 
     if (messages.length === 0) {
         return (
@@ -254,10 +271,15 @@ function ChannelMessages() {
                             <ChatMessage message={current_message} />
                         </ContextMenuTrigger>
                         <ContextMenuContent>
-                            {session.user?.publicMetadata === metadata?.artist_id && (
+                            {session.user?.publicMetadata.artist_id ===
+                                metadata?.artist_id && (
                                 <ContextMenuItem
                                     onMouseDown={() => {
-                                        setToastId(toast.loading('Adding To Kanban'))
+                                        if (!kanbanData) return
+
+                                        mutation.mutate({
+                                            kanban_id: kanbanData.id!
+                                        })
                                     }}
                                 >
                                     <PinIcon className="h-6 w-6" />

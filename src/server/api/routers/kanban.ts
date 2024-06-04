@@ -38,6 +38,7 @@ export const kanbanRouter = createTRPCRouter({
             }
 
             return {
+                id: request.kanban_id,
                 containers: request.kanban.containers as KanbanContainerData[],
                 tasks: request.kanban.tasks as KanbanTask[]
             }
@@ -62,5 +63,15 @@ export const kanbanRouter = createTRPCRouter({
                     tasks: JSON.parse(input.tasks)
                 })
                 .where(eq(kanbans.id, input.kanban_id))
+        }),
+
+    add_to_kanban: artistProcedure
+        .input(
+            z.object({
+                kanban_id: z.string()
+            })
+        )
+        .mutation(async ({ input, ctx }) => {
+            console.log(input)
         })
 })
