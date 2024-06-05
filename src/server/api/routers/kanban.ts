@@ -65,10 +65,15 @@ export const kanbanRouter = createTRPCRouter({
                 .where(eq(kanbans.id, input.kanban_id))
         }),
 
+    /**
+     *
+     */
     add_to_kanban: artistProcedure
         .input(
             z.object({
-                kanban_id: z.string()
+                kanban_id: z.string(),
+                container_id: z.string(),
+                content: z.string()
             })
         )
         .mutation(async ({ input, ctx }) => {

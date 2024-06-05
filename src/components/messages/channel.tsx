@@ -37,6 +37,24 @@ import {
 import { SendbirdMetadata } from '~/sendbird/sendbird-structures'
 import { toast } from 'sonner'
 import { api } from '~/trpc/react'
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger
+} from '~/components/ui/alert-dialog'
+import { KanbanContainerData } from '~/core/structures'
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue
+} from '../ui/select'
 
 /**
  * Shows the current channel messages and allows the user to send messages
@@ -219,6 +237,9 @@ function ChannelTextInput() {
  */
 function ChannelMessages() {
     const [toastId, setToastId] = useState<string | number | undefined>(undefined)
+    const [selectedKanbanId, setSelectedKanbanId] = useState<string | undefined>(
+        undefined
+    )
 
     const { messages } = useGroupChannelContext()
     const { session, start_reply, metadata, kanbanData } = useMessagesContext()
@@ -265,37 +286,83 @@ function ChannelMessages() {
 
                 if (!current_message) return null
 
+                const user_is_artist =
+                    session.user?.publicMetadata.artist_id === metadata?.artist_id
+
                 return (
-                    <ContextMenu key={message.messageId}>
-                        <ContextMenuTrigger>
-                            <ChatMessage message={current_message} />
-                        </ContextMenuTrigger>
-                        <ContextMenuContent>
-                            {session.user?.publicMetadata.artist_id ===
-                                metadata?.artist_id && (
+                    <AlertDialog>
+                        <ContextMenu key={message.messageId}>
+                            <ContextMenuTrigger>
+                                <ChatMessage message={current_message} />
+                            </ContextMenuTrigger>
+                            <ContextMenuContent>
+                                {user_is_artist && (
+                                    <ContextMenuItem>
+                                        <AlertDialogTrigger asChild>
+                                            <div className="flex flex-row items-center gap-2">
+                                                <PinIcon className="h-6 w-6" />
+                                                Add to kanban
+                                            </div>
+                                        </AlertDialogTrigger>
+                                    </ContextMenuItem>
+                                )}
                                 <ContextMenuItem
                                     onMouseDown={() => {
-                                        if (!kanbanData) return
+                                        start_reply(current_message)
+                                    }}
+                                >
+                                    <ReplyIcon className="h-6 w-6" />
+                                    Reply
+                                </ContextMenuItem>
+                            </ContextMenuContent>
+                        </ContextMenu>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>
+                                    Which board would you like to add this to?
+                                </AlertDialogTitle>
+                            </AlertDialogHeader>
+                            <div className="flex flex-col gap-5">
+                                <Select
+                                    onValueChange={(value) => {
+                                        setSelectedKanbanId(value)
+                                    }}
+                                >
+                                    <SelectTrigger className="bg-base-300">
+                                        <SelectValue placeholder="Select your board" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {kanbanData?.containers.map((container) => (
+                                            <SelectItem
+                                                key={container.id}
+                                                value={container.id.toString()}
+                                            >
+                                                {container.title}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <AlertDialogFooter>
+                                <AlertDialogAction
+                                    onMouseDown={() => {
+                                        if (!selectedKanbanId) return
 
                                         mutation.mutate({
-                                            kanban_id: kanbanData.id!
+                                            kanban_id: kanbanData?.id!,
+                                            container_id: selectedKanbanId,
+                                            content: current_message.isUserMessage()
+                                                ? current_message.message
+                                                : 'Not Valid'
                                         })
                                     }}
                                 >
-                                    <PinIcon className="h-6 w-6" />
-                                    Add to kanban
-                                </ContextMenuItem>
-                            )}
-                            <ContextMenuItem
-                                onMouseDown={() => {
-                                    start_reply(current_message)
-                                }}
-                            >
-                                <ReplyIcon className="h-6 w-6" />
-                                Reply
-                            </ContextMenuItem>
-                        </ContextMenuContent>
-                    </ContextMenu>
+                                    Add to Kanban
+                                </AlertDialogAction>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
                 )
             })}
         </>
