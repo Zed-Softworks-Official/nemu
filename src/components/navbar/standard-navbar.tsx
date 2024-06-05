@@ -13,7 +13,7 @@ export default async function StandardNavbar() {
             <div className="container mx-auto">
                 <div className="flex w-full items-center justify-between gap-5">
                     <Logo />
-                    {/* <SearchBar /> */}
+                    <SearchBar />
                     <div className="flex flex-row items-center gap-5">
                         <BellIcon className="h-6 w-6" />
                         <UserDropdown user={user} />

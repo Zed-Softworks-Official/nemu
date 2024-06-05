@@ -9,7 +9,7 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 
 import { api } from '~/trpc/react'
-import { cn, nemu_toast } from '~/lib/utils'
+import { cn } from '~/lib/utils'
 
 import { Input } from '~/components/ui/input'
 import { Form, FormField, FormItem, FormLabel } from '~/components/ui/form'
@@ -22,7 +22,7 @@ import { VerificationMethod } from '~/core/structures'
 import SelectCountries from '~/components/ui/select-countries'
 
 import { useUser } from '@clerk/nextjs'
-import { useTheme } from 'next-themes'
+import { toast } from 'sonner'
 
 const steps = [
     {
@@ -94,7 +94,6 @@ export default function ArtistApplyForm() {
     const delta = currentStep - previousStep
 
     const { user } = useUser()
-    const { resolvedTheme } = useTheme()
 
     const codeCheckMutation = api.verification.get_artist_code.useMutation()
     const handleExistsMutation = api.verification.handle_exists.useMutation()
@@ -148,19 +147,14 @@ export default function ArtistApplyForm() {
             currentStep === 2 &&
             form.getValues('verification_method') === VerificationMethod.Code
         ) {
-            const toast_id = nemu_toast.loading('Checking artist code', {
-                theme: resolvedTheme
-            })
+            const toast_id = toast.loading('Checking artist code')
             const res = await codeCheckMutation.mutateAsync(
                 form.getValues('artist_code')!
             )
 
             if (!res.success) {
-                nemu_toast.update(toast_id, {
-                    isLoading: false,
-                    type: 'error',
-                    render: 'Artist code invalid!',
-                    autoClose: 5000
+                toast.error('Artist code invalid!', {
+                    id: toast_id
                 })
 
                 form.setError(
@@ -172,11 +166,8 @@ export default function ArtistApplyForm() {
                 return
             }
 
-            nemu_toast.update(toast_id, {
-                isLoading: false,
-                type: 'success',
-                render: 'Artist code valid!',
-                autoClose: 5000
+            toast.success('Artist code valid!', {
+                id: toast_id
             })
         }
 

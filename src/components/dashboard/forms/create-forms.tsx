@@ -10,11 +10,9 @@ import { Textarea } from '~/components/ui/textarea'
 import { Button } from '~/components/ui/button'
 import { CheckCircle2Icon } from 'lucide-react'
 import { api } from '~/trpc/react'
-import { useTheme } from 'next-themes'
-import { nemu_toast } from '~/lib/utils'
-import { Id } from 'react-toastify'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 
 const commissionCreateFormSchema = z.object({
     name: z.string().min(2).max(50),
@@ -24,23 +22,19 @@ const commissionCreateFormSchema = z.object({
 type CommissionCreateFormSchemaType = z.infer<typeof commissionCreateFormSchema>
 
 export default function FormCreateForm() {
-    const [toastId, setToastId] = useState<Id | undefined>(undefined)
+    const [toastId, setToastId] = useState<string | number | undefined>(undefined)
 
-    const { resolvedTheme } = useTheme()
-    const {replace} = useRouter()
+    const { replace } = useRouter()
 
     const mutation = api.form.set_form.useMutation({
         onMutate: () => {
-            setToastId(nemu_toast.loading('Creating Form', { theme: resolvedTheme }))
+            setToastId(toast.loading('Creating Form'))
         },
         onSuccess: () => {
             if (!toastId) return
 
-            nemu_toast.update(toastId, {
-                render: 'Form Created!',
-                isLoading: false,
-                autoClose: 5000,
-                type: 'success'
+            toast.success('Form Created!', {
+                id: toastId
             })
 
             replace('/dashboard/forms')
@@ -48,11 +42,8 @@ export default function FormCreateForm() {
         onError: (e) => {
             if (!toastId) return
 
-            nemu_toast.update(toastId, {
-                render: e.message,
-                isLoading: false,
-                autoClose: 5000,
-                type: 'error'
+            toast.error(e.message, {
+                id: toastId
             })
         }
     })

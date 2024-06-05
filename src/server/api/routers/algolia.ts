@@ -31,7 +31,11 @@ export const algoliaRouter = createTRPCRouter({
      */
     load_commissions: adminProcedure.mutation(async ({ ctx }) => {
         // Get all commissions from the database
-        const db_commissions = await ctx.db.query.commissions.findMany()
+        const db_commissions = await ctx.db.query.commissions.findMany({
+            with: {
+                artist: true
+            }
+        })
 
         // Wipe Algolia Indicies
         await db_commissions.map(async (artist) => {
@@ -46,7 +50,8 @@ export const algoliaRouter = createTRPCRouter({
                 price: commission.price,
                 description: commission.description,
                 featured_image: commission.images[0]?.url!,
-                slug: commission.slug
+                slug: commission.slug,
+                artist_handle: commission.artist.handle
             })
         }
     })

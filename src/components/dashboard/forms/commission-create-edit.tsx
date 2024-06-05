@@ -2,11 +2,10 @@
 
 import { zodResolver } from '@hookform/resolvers/zod'
 import { CheckCircle2Icon, CircleDollarSignIcon, XCircleIcon } from 'lucide-react'
-import { useTheme } from 'next-themes'
 import Link from 'next/link'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { Id } from 'react-toastify'
+import { toast } from 'sonner'
 
 import { z } from 'zod'
 
@@ -24,7 +23,6 @@ import {
 } from '~/components/ui/select'
 import { Textarea } from '~/components/ui/textarea'
 import { CommissionAvailability, ImageEditorData, RouterOutput } from '~/core/structures'
-import { nemu_toast } from '~/lib/utils'
 import { api } from '~/trpc/react'
 
 /**
@@ -62,9 +60,8 @@ export default function CommissionCreateEditForm({
     forms: RouterOutput['form']['get_form_list']
     edit_data?: RouterOutput['commission']['get_commission_edit']
 }) {
-    const [toastId, setToastId] = useState<Id | undefined>()
+    const [toastId, setToastId] = useState<string | number | undefined>()
 
-    const { resolvedTheme } = useTheme()
     const {
         images,
         uploadImages,
@@ -77,21 +74,15 @@ export default function CommissionCreateEditForm({
         onSuccess: (res) => {
             if (!toastId) return
 
-            nemu_toast.update(toastId, {
-                render: `Commission ${res.updated ? 'updated' : 'created'}!`,
-                isLoading: false,
-                autoClose: 5000,
-                type: 'success'
+            toast.success(`Commission ${res.updated ? 'updated' : 'created'}!`, {
+                id: toastId
             })
         },
         onError: (e) => {
             if (!toastId) return
 
-            nemu_toast.update(toastId, {
-                render: e.message,
-                isLoading: false,
-                autoClose: 5000,
-                type: 'error'
+            toast.error(e.message, {
+                id: toastId
             })
 
             // TODO: Delete the files from uploadthing
@@ -117,9 +108,8 @@ export default function CommissionCreateEditForm({
 
     async function ProcessForm(values: CommissionSchemaType) {
         // Create Toast
-        const toast_id = nemu_toast.loading(
-            edit_data ? 'Updating Commission' : 'Uploading Files',
-            { theme: resolvedTheme }
+        const toast_id = toast.loading(
+            edit_data ? 'Updating Commission' : 'Uploading Files'
         )
         setToastId(toast_id)
 
@@ -175,11 +165,8 @@ export default function CommissionCreateEditForm({
                     const res = await uploadImages()
 
                     if (!res) {
-                        nemu_toast.update(toast_id, {
-                            render: 'Uploading Images Failed!',
-                            isLoading: false,
-                            autoClose: 5000,
-                            type: 'error'
+                        toast.error('Uploading Images Failed!', {
+                            id: toast_id
                         })
 
                         return
@@ -229,11 +216,8 @@ export default function CommissionCreateEditForm({
         //////////////////////////////////////////
         // Check if we have images to upload
         if (images.length === 0) {
-            nemu_toast.update(toast_id, {
-                render: 'Images are required!',
-                isLoading: false,
-                autoClose: 5000,
-                type: 'error'
+            toast.error('Images are required!', {
+                id: toast_id
             })
 
             return
@@ -243,11 +227,8 @@ export default function CommissionCreateEditForm({
         const res = await uploadImages()
 
         if (!res) {
-            nemu_toast.update(toast_id, {
-                render: 'Uploading Images Failed!',
-                isLoading: false,
-                autoClose: 5000,
-                type: 'error'
+            toast.error('Uploading Images Failed!', {
+                id: toast_id
             })
 
             return
@@ -260,8 +241,8 @@ export default function CommissionCreateEditForm({
         }))
 
         // Update Toast
-        nemu_toast.update(toast_id, {
-            render: 'Creating Commission'
+        toast.loading('Creating Commission', {
+            id: toast_id
         })
 
         // Create the new commission item

@@ -32,11 +32,6 @@ const coreConfig = {
         fetches: {
             fullUrl: true
         }
-    }, 
-    experimental: {
-        turbo: {
-
-        } 
     }
 }
 
@@ -47,7 +42,7 @@ const coreConfigWithPlaiceholder = withPlaiceholder(coreConfig)
 import { withSentryConfig } from '@sentry/nextjs'
 
 const config = withSentryConfig(
-    coreConfigWithPlaiceholder ,
+    coreConfigWithPlaiceholder,
     {
         // For all available options, see:
         // https://github.com/getsentry/sentry-webpack-plugin#options

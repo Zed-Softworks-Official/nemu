@@ -22,6 +22,7 @@ export type ArtistIndex = {
  * Contains all of the information relavent for a commission search
  */
 export type CommissionIndex = {
+    artist_handle: string
     title: string
     price: string
     description: string

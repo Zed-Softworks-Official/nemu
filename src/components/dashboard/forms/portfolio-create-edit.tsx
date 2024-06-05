@@ -24,8 +24,7 @@ import NemuUploadPreview from '~/components/files/nemu-upload-preview'
 import NemuUploadProgress from '~/components/files/nemu-upload-progress'
 import { RouterOutput } from '~/core/structures'
 import NemuImage from '~/components/nemu-image'
-import { useTheme } from 'next-themes'
-import { nemu_toast } from '~/lib/utils'
+import { toast } from 'sonner'
 
 const portfolioSchema = z.object({
     title: z.string().min(2).max(50)
@@ -38,28 +37,33 @@ export default function PortfolioCreateEditForm({
 }: {
     data?: RouterOutput['portfolio']['get_portfolio']
 }) {
+    const [toastId, setToastId] = useState<string | number | undefined>(undefined)
     const [disabled, setDisabled] = useState(false)
 
     const { uploadImages } = useUploadThingContext()
     const { replace } = useRouter()
-    const { resolvedTheme } = useTheme()
 
     /**
      * Create Mutation
      */
     const set_mutation = api.portfolio.set_portfolio_item.useMutation({
+        onMutate: () => {
+            setToastId(toast.loading('Creating Portfolio Item'))
+        },
         onSuccess: () => {
-            nemu_toast('Portfolio Item Created', {
-                theme: resolvedTheme,
-                type: 'success'
+            if (!toastId) return
+
+            toast.success('Portfolio Item Created', {
+                id: toastId
             })
 
             replace('/dashboard/portfolio')
         },
         onError: (e) => {
-            nemu_toast('Error Creating Portfolio Item', {
-                theme: resolvedTheme,
-                type: 'error'
+            if (!toastId) return
+
+            toast.error('Error Creating Portfolio Item', {
+                id: toastId
             })
         }
     })
@@ -68,13 +72,24 @@ export default function PortfolioCreateEditForm({
      * Delete Mutation
      */
     const delete_mutation = api.portfolio.del_portfolio_item.useMutation({
+        onMutate: () => {
+            setToastId(toast.loading('Deleting Portfolio Item'))
+        },
         onSuccess: () => {
-            nemu_toast('Portfolio Item Deleted!', {
-                theme: resolvedTheme,
-                type: 'success'
+            if (!toastId) return
+
+            toast.success('Portfolio Item Deleted', {
+                id: toastId
             })
 
             replace('/dashboard/portfolio')
+        },
+        onError: (e) => {
+            if (!toastId) return
+
+            toast.error('Error Deleting Portfolio Item', {
+                id: toastId
+            })
         }
     })
 
@@ -148,6 +163,7 @@ export default function PortfolioCreateEditForm({
                     </div>
                 ) : (
                     <>
+                        {/* TODO: Fix this */}
                         <NemuUploadDropzone />
                         <NemuUploadPreview />
                     </>

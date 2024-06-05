@@ -5,7 +5,7 @@ import * as z from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 
-import { CheckCircle2, SaveIcon } from 'lucide-react'
+import { SaveIcon } from 'lucide-react'
 
 import { Form, FormField, FormItem, FormLabel } from '~/components/ui/form'
 import { Textarea } from '~/components/ui/textarea'
@@ -16,11 +16,10 @@ import Container from '~/components/ui/container'
 import { Button } from '~/components/ui/button'
 import SelectCountries from '~/components/ui/select-countries'
 import { UploadDropzone } from '~/components/files/uploadthing'
-import { nemu_toast } from '~/lib/utils'
-import { useTheme } from 'next-themes'
 import { ClientArtist } from '~/core/structures'
 import { InferSelectModel } from 'drizzle-orm'
 import { artists } from '~/server/db/schema'
+import { toast } from 'sonner'
 
 const artistSchema = z.object({
     about: z.string().max(256),
@@ -39,8 +38,6 @@ export default function ArtistSettings({
 }: {
     artist: InferSelectModel<typeof artists>
 }) {
-    const { resolvedTheme } = useTheme()
-
     const form = useForm<ArtistSchemaType>({
         resolver: zodResolver(artistSchema),
         mode: 'onSubmit',
@@ -154,10 +151,7 @@ export default function ArtistSettings({
                         className="w-full ut-button:bg-primary ut-button:transition-all ut-button:duration-200 ut-button:ease-in-out ut-button:active:scale-95 ut-allowed-content:italic ut-allowed-content:text-base-content/80 ut-label:text-base-content ut-ready:border-2 ut-ready:border-base-content/60 ut-ready:bg-base-100 ut-ready:transition-all ut-ready:duration-200 ut-ready:ease-in-out ut-ready:hover:border-primary"
                         endpoint="headerPhotoUploader"
                         onClientUploadComplete={() => {
-                            nemu_toast('Header photo updated!', {
-                                theme: resolvedTheme,
-                                type: 'success'
-                            })
+                            toast.success('Header photo updated!')
                         }}
                     />
                 </div>

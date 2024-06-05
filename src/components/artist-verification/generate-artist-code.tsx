@@ -1,24 +1,36 @@
 'use client'
 
 import { ClipboardIcon } from 'lucide-react'
-import { useTheme } from 'next-themes'
 import { useState } from 'react'
-import { nemu_toast } from '~/lib/utils'
+import { toast } from 'sonner'
 import { api } from '~/trpc/react'
 
 export default function GenerateAristCode() {
+    const [toastId, setToastId] = useState<string | number | undefined>(undefined)
     const [generatedCode, setGeneratedCode] = useState(crypto.randomUUID())
     const [generating, setGenerating] = useState(false)
-    const { resolvedTheme } = useTheme()
 
     const mutation = api.verification.set_artist_code.useMutation({
+        onMutate: () => {
+            setToastId(toast.loading('Generating Artist Code'))
+        },
         onSuccess(res) {
+            if (!toastId) return
+
             setGenerating(false)
             setGeneratedCode(res.generated_code)
+
+            toast.success('Artist Code Generated!', {
+                id: toastId
+            })
         },
         onError(e) {
+            if (!toastId) return
+
             setGenerating(false)
-            nemu_toast(e.message, { theme: resolvedTheme, type: 'error' })
+            toast.error(e.message, {
+                id: toastId
+            })
         }
     })
 
@@ -33,19 +45,16 @@ export default function GenerateAristCode() {
                         value={generatedCode}
                         placeholder="No code generated yet!"
                         readOnly
-                        className="input w-full join-item"
+                        className="input join-item w-full"
                     />
                     <button
                         className="btn"
                         onMouseDown={async () => {
                             await navigator.clipboard.writeText(generatedCode)
-                            nemu_toast('Copied to clipboard', {
-                                theme: resolvedTheme,
-                                type: 'info'
-                            })
+                            toast.success('Copied to clipboard')
                         }}
                     >
-                        <ClipboardIcon className="w-6 h-6" />
+                        <ClipboardIcon className="h-6 w-6" />
                         Copy
                     </button>
                 </div>

@@ -6,19 +6,26 @@ import { api } from '~/trpc/react'
 
 import { Button } from '~/components/ui/button'
 import { useDesigner } from '~/components/form-builder/designer/designer-context'
-import { nemu_toast } from '~/lib/utils'
-import { useTheme } from 'next-themes'
+import { useState } from 'react'
+import { toast } from 'sonner'
 
 export default function SaveButton({ form_id }: { form_id: string }) {
+    const [toastId, setToastId] = useState<string | number | undefined>(undefined)
     const { elements } = useDesigner()
-    const { resolvedTheme } = useTheme()
 
     const mutation = api.form.set_form_content.useMutation({
-        onSuccess: () => {
-            nemu_toast('Form Updated!', { theme: resolvedTheme, type: 'success' })
+        onMutate: () => {
+            setToastId(toast.loading('Creating forms'))
         },
-        onError: () => {
-            nemu_toast('Failed to update form!', { theme: resolvedTheme, type: 'error' })
+        onSuccess: () => {
+            toast.success('Form Saved!', {
+                id: toastId
+            })
+        },
+        onError: (e) => {
+            toast.error(e.message, {
+                id: toastId
+            })
         }
     })
 
@@ -35,7 +42,7 @@ export default function SaveButton({ form_id }: { form_id: string }) {
             {mutation.isPending ? (
                 <span className="loading loading-spinner"></span>
             ) : (
-                <SaveIcon className="w-6 h-6" />
+                <SaveIcon className="h-6 w-6" />
             )}
             Save
         </Button>
