@@ -1,4 +1,6 @@
+import { TRPCError } from '@trpc/server'
 import { eq } from 'drizzle-orm'
+import { revalidatePath, revalidateTag } from 'next/cache'
 import { z } from 'zod'
 import { KanbanContainerData, KanbanTask } from '~/core/structures'
 import { artistProcedure, createTRPCRouter, protectedProcedure } from '~/server/api/trpc'
@@ -77,6 +79,26 @@ export const kanbanRouter = createTRPCRouter({
             })
         )
         .mutation(async ({ input, ctx }) => {
-            console.log(input)
+            // Fetch Kanban from database
+            const kanban = await ctx.db.query.kanbans.findFirst({
+                where: eq(kanbans.id, input.kanban_id)
+            })
+
+            if (!kanban) {
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Kanban not found!'
+                })
+            }
+
+            // // Add Item to Kanban
+            const prev_tasks: KanbanTask[] = kanban.tasks ? kanban.tasks as KanbanTask[] : []
+            await ctx.db.update(kanbans).set({
+                tasks: [...prev_tasks, {
+                    id: crypto.randomUUID(),
+                    container_id: input.container_id,
+                    content: input.content
+                }]
+            })
         })
 })

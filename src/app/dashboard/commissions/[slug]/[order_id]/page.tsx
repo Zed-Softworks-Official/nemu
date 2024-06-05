@@ -75,7 +75,7 @@ const get_request_data = unstable_cache(
     },
     ['request-data'],
     {
-        revalidate: 3600
+        revalidate: 60
     }
 )
 
