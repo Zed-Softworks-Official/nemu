@@ -328,6 +328,7 @@ export const requestRouter = createTRPCRouter({
             }
 
             // Update commission stats based on acceptance or rejection
+            // TODO: Fix this because it's not working and i'm dumb
             await ctx.db
                 .update(commissions)
                 .set({
@@ -410,6 +411,12 @@ export const requestRouter = createTRPCRouter({
                     user_id: user.id,
                     nickname: user.username || 'User',
                     profile_url: user.imageUrl
+                })
+
+                await clerkClient.users.updateUserMetadata(user.id, {
+                    publicMetadata: {
+                        has_sendbird_account: true
+                    }
                 })
             }
 

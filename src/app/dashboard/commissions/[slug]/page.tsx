@@ -84,7 +84,10 @@ const get_request_list = unstable_cache(
 
         return result
     },
-    ['request-list-dashboard']
+    ['request-list-dashboard'],
+    {
+        revalidate: 60
+    }
 )
 
 export default async function CommissionDetailPage({

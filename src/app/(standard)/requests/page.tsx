@@ -25,9 +25,11 @@ export default async function RequestsPage() {
         <main className="flex h-full w-full flex-col p-6">
             <Tabs defaultValue="pending">
                 <TabsList className="w-full justify-start bg-base-300">
+                    <TabsTrigger value='all'>All</TabsTrigger>
                     <TabsTrigger value="pending">Pending</TabsTrigger>
                     <TabsTrigger value="accepted">Accepted</TabsTrigger>
                     <TabsTrigger value="rejected">Rejected</TabsTrigger>
+                    <TabsTrigger value='delivered'>Delivered</TabsTrigger>
                     <TabsTrigger value="waitlist">Waitlist</TabsTrigger>
                 </TabsList>
                 <TabsContent value="pending">
@@ -55,6 +57,17 @@ export default async function RequestsPage() {
                         {requests
                             .filter(
                                 (request) => request.status === RequestStatus.Rejected
+                            )
+                            .map((request) => (
+                                <RequestCard key={request.id} request={request} />
+                            ))}
+                    </div>
+                </TabsContent>
+                <TabsContent value='delivered'>
+                    <div className="flex flex-col gap-5">
+                        {requests
+                            .filter(
+                                (request) => request.status === RequestStatus.Delivered
                             )
                             .map((request) => (
                                 <RequestCard key={request.id} request={request} />
@@ -104,7 +117,7 @@ function RequestCard({ request }: { request: ClientRequestData }) {
                         </div>
                         <RequestStatusBadge status={request.status as RequestStatus} />
                     </div>
-                    {request.status === RequestStatus.Accepted && (
+                    {request.status === RequestStatus.Accepted || request.status === RequestStatus.Delivered && (
                         <div className="flex justify-end">
                             <Link
                                 href={`/requests/${request.order_id}/details`}
@@ -130,5 +143,7 @@ function RequestStatusBadge({ status }: { status: RequestStatus }) {
             return <Badge variant="success">Accepted</Badge>
         case RequestStatus.Rejected:
             return <Badge variant="destructive">Rejected</Badge>
+        case RequestStatus.Delivered:
+            return <Badge>Delivered</Badge>
     }
 }
