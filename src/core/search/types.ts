@@ -28,4 +28,5 @@ export type CommissionIndex = {
     description: string
     featured_image: string
     slug: string
+    published: boolean
 } & BaseSearchIndex

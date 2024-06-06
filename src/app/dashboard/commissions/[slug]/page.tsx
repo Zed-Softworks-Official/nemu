@@ -69,6 +69,7 @@ const get_request_list = unstable_cache(
         }
 
         const result: ClientCommissionItem = {
+            id: commission.id,
             title: commission.title,
             description: commission.description,
             price: format_to_currency(Number(commission.price)),
@@ -90,7 +91,7 @@ const get_request_list = unstable_cache(
     }
 )
 
-export default async function CommissionDetailPage({
+export default function CommissionDetailPage({
     params
 }: {
     params: { slug: string }

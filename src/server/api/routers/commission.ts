@@ -22,7 +22,7 @@ import { and, eq } from 'drizzle-orm'
 import { createId } from '@paralleldrive/cuid2'
 import { utapi } from '~/server/uploadthing'
 import { clerkClient } from '@clerk/nextjs/server'
-import { set_index } from '~/core/search'
+import { set_index, update_index } from '~/core/search'
 
 const request_data = z.object({
     artist: z.boolean().optional(),
@@ -99,49 +99,6 @@ export const commissionRouter = createTRPCRouter({
             await cache.json.set(AsRedisKey('commissions', input.artist_id), '$', result)
 
             return result
-        }),
-
-    /**
-     * Gets a single commission given a commission id to be used for editing the commission in the dashboard
-     */
-    get_commission_edit: artistProcedure
-        .input(z.object({ slug: z.string() }))
-        .query(async ({ input, ctx }) => {
-            // Get the artist from the db
-            const artist = await ctx.db.query.artists.findFirst({
-                where: eq(artists.user_id, ctx.user.privateMetadata.artist_id as string)
-            })
-
-            // Get the commission from the db
-            const commission = await ctx.db.query.commissions.findFirst({
-                where: eq(commissions.slug, input.slug),
-                with: {
-                    artist: true
-                }
-            })
-
-            if (!commission) {
-                return undefined
-            }
-
-            // Format for client
-            return {
-                id: commission.id,
-                title: commission.title,
-                description: commission.description,
-                price: Number(commission.price),
-
-                form_id: commission.form_id,
-
-                availability: commission.availability as CommissionAvailability,
-                slug: commission.slug,
-                published: commission.published,
-
-                images: await format_for_image_editor(commission?.images),
-
-                max_commissions_until_closed: commission.max_commissions_until_closed,
-                max_commissions_until_waitlist: commission.max_commissions_until_waitlist
-            } satisfies ClientCommissionItemEditable
         }),
 
     /**
@@ -315,12 +272,12 @@ export const commissionRouter = createTRPCRouter({
                 }
 
                 // Update the database with the relavent information that has been updated
-                await ctx.db
+                const commission_udpated= (await ctx.db
                     .update(commissions)
                     .set({
                         title: input.data.title,
                         description: input.data.description,
-                        price: input.data.price?.toPrecision(4),
+                        price: input.data.price,
                         images: input.data.images?.map((image) => ({
                             url: image.url,
                             ut_key: image.ut_key
@@ -333,7 +290,20 @@ export const commissionRouter = createTRPCRouter({
                         published: input.data.published,
                         form_id: input.data.form_id
                     })
-                    .where(eq(commissions.id, input.commission_id))
+                    .where(eq(commissions.id, input.commission_id)).returning())[0]!
+
+
+                // Update Algolia
+                await update_index('commissions', {
+                    objectID:commission_udpated.id,
+                    title: commission_udpated.title,
+                    price: format_to_currency(commission_udpated.price),
+                    description: commission_udpated.description,
+                    featured_image: commission_udpated.images[0]?.url!, 
+                    slug: commission_udpated.slug,
+                    artist_handle: ctx.user.publicMetadata.handle as string,
+                    published: commission_udpated.published
+                })
 
                 // Delete Cache
                 // await ctx.cache.del(
@@ -357,6 +327,7 @@ export const commissionRouter = createTRPCRouter({
             ////////////////////////////
             // Create New Commission
             ////////////////////////////
+
             // Create Slug
             const slug = input.data
                 .title!.toLowerCase()
@@ -375,7 +346,10 @@ export const commissionRouter = createTRPCRouter({
             })
 
             if (slugExists) {
-                return { success: false, reason: 'Slug already exists!' }
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Slug already exists!'
+                })
             }
 
             // Create database object
@@ -387,7 +361,7 @@ export const commissionRouter = createTRPCRouter({
                         artist_id: ctx.user.privateMetadata.artist_id as string,
                         title: input.data.title,
                         description: input.data.description,
-                        price: input.data.price?.toPrecision(4),
+                        price: input.data.price,
                         images: input.data.images,
                         availability: input.data.availability as CommissionAvailability,
                         slug: slug,
@@ -405,23 +379,16 @@ export const commissionRouter = createTRPCRouter({
                     .returning()
             )[0]!
 
-            // Update Cache
-            const db_commissions = await ctx.db.query.commissions.findMany({
-                where: eq(
-                    commissions.artist_id,
-                    ctx.user.privateMetadata.artist_id as string
-                )
-            })
-
             // Update Algolia
             await set_index('commissions', {
                 objectID: commission.id,
                 title: commission.title,
-                price: commission.price,
+                price: format_to_currency(commission.price),
                 description: commission.description,
                 featured_image: commission.images[0]?.url!,
                 slug: commission.slug,
-                artist_handle: ctx.user.privateMetadata.handle as string
+                artist_handle: ctx.user.publicMetadata.handle as string,
+                published: commission.published
             })
 
             // await ctx.cache.set(

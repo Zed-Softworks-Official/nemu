@@ -75,7 +75,7 @@ function ArtistHit(props: { hit: ArtistIndex }) {
     return (
         <Link
             href={`/@${props.hit.handle}`}
-            className="flex flex-row items-center justify-between gap-3 rounded-xl p-5 transition-all duration-200 ease-in-out hover:bg-base-100"
+            className="flex flex-row items-center justify-between gap-3 rounded-xl p-5 transition-all duration-200 ease-in-out hover:bg-base-100 my-3"
         >
             <div className="flex flex-row items-center gap-5">
                 <Avatar>
@@ -96,10 +96,12 @@ function ArtistHit(props: { hit: ArtistIndex }) {
 }
 
 function CommissionHit(props: { hit: CommissionIndex }) {
+    if (!props.hit.published) return null
+
     return (
         <Link
             href={`/@${props.hit.artist_handle}/commission/${props.hit.slug}`}
-            className="card transition-all duration-200 ease-in-out lg:card-side hover:bg-base-100"
+            className="card transition-all duration-200 ease-in-out lg:card-side hover:bg-base-100 my-3"
         >
             <figure>
                 <NemuImage
@@ -107,10 +109,12 @@ function CommissionHit(props: { hit: CommissionIndex }) {
                     alt="Featured Image"
                     width={80}
                     height={80}
+                    className='h-full'
                 />
             </figure>
             <div className="card-body">
-                <h2 className="text-lg font-bold">{props.hit.title}</h2>
+                <h1 className="text-lg font-bold">{props.hit.title}</h1>
+                <Link href={`/@${props.hit.artist_handle}`} className='text-sm italic link link-hover'>@{props.hit.artist_handle}</Link>
                 <p>{props.hit.description}</p>
                 <div className="card-actions">{props.hit.price}</div>
             </div>

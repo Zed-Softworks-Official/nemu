@@ -35,10 +35,6 @@ const get_commissions = unstable_cache(
         // Format for client
         const result: ClientCommissionItem[] = []
         for (const commission of db_commissions) {
-            if (!commission.published) {
-                continue
-            }
-
             result.push({
                 title: commission.title,
                 description: commission.description,

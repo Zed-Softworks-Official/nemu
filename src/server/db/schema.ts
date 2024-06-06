@@ -245,7 +245,7 @@ export const products = createTable('product', {
 export const commissions = createTable('commission', {
     id: cuid('id').primaryKey(),
     artist_id: varchar('artist_id').notNull(),
-    price: decimal('price', { precision: 4, scale: 2 }).notNull(),
+    price: integer('price').notNull(),
     rating: decimal('rating', { precision: 2, scale: 1 }).notNull(),
 
     form_id: varchar('form_id').notNull(),

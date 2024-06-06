@@ -22,7 +22,7 @@ import {
     SelectValue
 } from '~/components/ui/select'
 import { Textarea } from '~/components/ui/textarea'
-import { CommissionAvailability, ImageEditorData, RouterOutput } from '~/core/structures'
+import { ClientCommissionItemEditable, CommissionAvailability, ImageEditorData, RouterOutput } from '~/core/structures'
 import { api } from '~/trpc/react'
 
 /**
@@ -58,7 +58,7 @@ export default function CommissionCreateEditForm({
     edit_data
 }: {
     forms: RouterOutput['form']['get_form_list']
-    edit_data?: RouterOutput['commission']['get_commission_edit']
+    edit_data?: ClientCommissionItemEditable  
 }) {
     const [toastId, setToastId] = useState<string | number | undefined>()
 
@@ -74,7 +74,7 @@ export default function CommissionCreateEditForm({
         onSuccess: (res) => {
             if (!toastId) return
 
-            toast.success(`Commission ${res.updated ? 'updated' : 'created'}!`, {
+            toast.success(`Commission ${res?.updated ? 'updated' : 'created'}!`, {
                 id: toastId
             })
         },

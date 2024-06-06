@@ -1,5 +1,6 @@
 import { clerkClient } from '@clerk/nextjs/server'
 import { del_index, set_index } from '~/core/search'
+import { format_to_currency } from '~/lib/utils'
 import { adminProcedure, createTRPCRouter } from '~/server/api/trpc'
 
 export const algoliaRouter = createTRPCRouter({
@@ -47,10 +48,11 @@ export const algoliaRouter = createTRPCRouter({
             await set_index('commissions', {
                 objectID: commission.id,
                 title: commission.title,
-                price: commission.price,
+                price: format_to_currency(commission.price),
                 description: commission.description,
                 featured_image: commission.images[0]?.url!,
                 slug: commission.slug,
+                published: commission.published,
                 artist_handle: commission.artist.handle
             })
         }
