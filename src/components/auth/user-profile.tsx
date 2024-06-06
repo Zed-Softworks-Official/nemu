@@ -6,7 +6,6 @@ import { UserProfile, useUser } from '@clerk/nextjs'
 import { BrushIcon, SaveIcon } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { api } from '~/trpc/react'
 import { Form, FormField, FormItem, FormLabel } from '~/components/ui/form'
 import { Input } from '~/components/ui/input'
 import { Button } from '~/components/ui/button'
@@ -14,6 +13,10 @@ import { UploadDropzone } from '~/components/files/uploadthing'
 import { Textarea } from '~/components/ui/textarea'
 import { Switch } from '~/components/ui/switch'
 import { toast } from 'sonner'
+import { artists } from '~/server/db/schema'
+import { InferSelectModel } from 'drizzle-orm'
+import { api } from '~/trpc/react'
+import { useState } from 'react'
 
 const artistSchema = z.object({
     about: z.string().max(256),
@@ -27,9 +30,11 @@ const artistSchema = z.object({
 
 type ArtistSchemaType = z.infer<typeof artistSchema>
 
-export default function NemuUserProfile(props: { artist: boolean }) {
-    const { user } = useUser()
+type Props = {
+    artist?: InferSelectModel<typeof artists>
+}
 
+export default function NemuUserProfile(props: Props) {
     if (!props.artist) {
         return <UserProfile path="/u/account" />
     }
@@ -41,15 +46,33 @@ export default function NemuUserProfile(props: { artist: boolean }) {
                 labelIcon={<BrushIcon className="h-4 w-4" />}
                 url="artist"
             >
-                <ArtistSettings handle={user?.publicMetadata.handle as string} />
+                <ArtistSettings artist={props.artist} />
             </UserProfile.Page>
         </UserProfile>
     )
 }
 
-function ArtistSettings(props: { handle: string }) {
-    const { data: artist, isLoading } = api.artist.get_artist.useQuery({
-        handle: props.handle
+function ArtistSettings({ artist }: Props) {
+    const [toastId, setToastId] = useState<string | number | undefined>()
+
+    const mutation = api.artist.set_artist.useMutation({
+        onMutate: () => {
+            setToastId(toast.loading('Updating Artist'))
+        },
+        onSuccess: () => {
+            if (!toastId) return
+
+            toast.success('Artist Updated', {
+                id: toastId
+            })
+        },
+        onError: (e) => {
+            if (!toastId) return
+
+            toast.error(e.message, {
+                id: toastId
+            })
+        }
     })
 
     const form = useForm<ArtistSchemaType>({
@@ -60,16 +83,28 @@ function ArtistSettings(props: { handle: string }) {
                   about: artist.about,
                   location: artist.location,
                   terms: artist.terms,
-                  tipJarUrl: artist.tip_jar_url,
-                  automatedMessageEnabled: artist.automated_message_enabled!,
+                  tipJarUrl: artist.tip_jar_url ?? undefined,
+                  automatedMessageEnabled: artist.automated_message_enabled ?? false,
                   automatedMessage: artist.automated_message ?? undefined
               }
             : undefined
     })
 
+    function ProcessForm(values: ArtistSchemaType) {
+        console.log(values)
+
+        mutation.mutate({
+            artist_id: artist!.id!,
+            ...values
+        })
+    }
+
     return (
         <Form {...form}>
-            <form className="flex flex-col gap-5">
+            <form
+                className="flex flex-col gap-5"
+                onSubmit={form.handleSubmit(ProcessForm)}
+            >
                 {/* <FormField
                     control={form.control}
                     name="location"

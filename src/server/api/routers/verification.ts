@@ -14,7 +14,6 @@ import {
     protectedProcedure,
     publicProcedure
 } from '~/server/api/trpc'
-import { AsRedisKey } from '~/server/cache'
 import { db } from '~/server/db'
 import { StripeCreateAccount } from '~/core/payments'
 import { SendbirdUserData } from '~/sendbird/sendbird-structures'
@@ -24,6 +23,7 @@ import { clerkClient, User } from '@clerk/nextjs/server'
 import { artist_codes, artist_verifications, artists, users } from '~/server/db/schema'
 import { createId } from '@paralleldrive/cuid2'
 import { count, eq } from 'drizzle-orm'
+import { set_index } from '~/core/search'
 
 /**
  * Data required for verification
@@ -112,6 +112,14 @@ export async function CreateArtist(input: VerificationDataType, user: User) {
         privateMetadata: {
             artist_id: artist.id
         }
+    })
+
+    // Update Algolia
+    await set_index('artists', {
+        objectID: artist.id,
+        handle: artist.handle,
+        about: artist.about,
+        image_url: artist.header_photo
     })
 
     return artist

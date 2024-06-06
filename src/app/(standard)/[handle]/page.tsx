@@ -37,7 +37,8 @@ const get_artist_data = unstable_cache(
             user: await clerkClient.users.getUser(artist.user_id)
         }
     },
-    ['artist-data']
+    ['artist-data'],
+    { revalidate: 3600 }
 )
 
 export async function generateMetadata(
@@ -57,7 +58,15 @@ export async function generateMetadata(
     }
 }
 
-export default async function ArtistPage({ params }: Props) {
+export default function ArtistPage({ params }: Props) {
+    return (
+        <Suspense fallback={<Loading />}>
+            <PageContent params={params} />
+        </Suspense>
+    )
+}
+
+async function PageContent({ params }: Props) {
     const handle = params.handle.substring(3, params.handle.length + 1)
     const artist_data = await get_artist_data(handle)
 
@@ -155,7 +164,7 @@ export default async function ArtistPage({ params }: Props) {
                                 />
                             </Suspense>
                         </TabsContent>
-                        
+
                         <TabsContent value="portfolio">
                             <h2 className="card-title">Portfolio</h2>
                             <div className="divider"></div>

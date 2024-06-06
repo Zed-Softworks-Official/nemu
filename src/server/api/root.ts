@@ -1,7 +1,6 @@
 import { createCallerFactory, createTRPCRouter } from '~/server/api/trpc'
 
 import { userRouter } from '~/server/api/routers/user'
-import { artistRouter } from '~/server/api/routers/artist'
 import { commissionRouter } from '~/server/api/routers/commission'
 import { stripeRouter } from '~/server/api/routers/stripe'
 import { portfolioRouter } from '~/server/api/routers/portfolio'
@@ -12,6 +11,7 @@ import { kanbanRouter } from '~/server/api/routers/kanban'
 import { algoliaRouter } from '~/server/api/routers/algolia'
 import { downloadsRouter } from '~/server/api/routers/downloads'
 import { invoiceRouter } from '~/server/api/routers/invoice'
+import { artistRouter } from './routers/artists'
 
 /**
  * This is the primary router for your server.

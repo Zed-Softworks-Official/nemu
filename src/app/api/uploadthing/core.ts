@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm'
 import { NextRequest } from 'next/server'
 import { createUploadthing, type FileRouter } from 'uploadthing/next'
 import { UploadThingError } from 'uploadthing/server'
+import { update_index } from '~/core/search'
 
 import { db } from '~/server/db'
 import { artists } from '~/server/db/schema'
@@ -57,6 +58,14 @@ export const nemuFileRouter = {
                     ut_key: file.key
                 })
                 .where(eq(artists.id, artist.id))
+
+            // Update Algolia
+            await update_index('artists', {
+                objectID: artist.id,
+                handle: artist.handle,
+                about: artist.about,
+                image_url: (await clerkClient.users.getUser(artist.user_id)).imageUrl
+            })
         }),
 
     /**
