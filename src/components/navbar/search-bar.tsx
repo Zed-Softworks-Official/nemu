@@ -2,6 +2,8 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
+
+import debounce from 'lodash.debounce'
 import algoliasearch from 'algoliasearch/lite'
 
 import { InstantSearchNext } from 'react-instantsearch-nextjs'
@@ -13,7 +15,6 @@ import { env } from '~/env'
 import { ArtistIndex, CommissionIndex } from '~/core/search'
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
 import NemuImage from '~/components/nemu-image'
-import debounce from 'lodash.debounce'
 
 const search_client = algoliasearch(
     env.NEXT_PUBLIC_ALGOLIA_APP_ID,

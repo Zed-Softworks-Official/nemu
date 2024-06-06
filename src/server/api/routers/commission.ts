@@ -22,6 +22,7 @@ import { and, eq } from 'drizzle-orm'
 import { createId } from '@paralleldrive/cuid2'
 import { utapi } from '~/server/uploadthing'
 import { clerkClient } from '@clerk/nextjs/server'
+import { set_index } from '~/core/search'
 
 const request_data = z.object({
     artist: z.boolean().optional(),
@@ -378,24 +379,31 @@ export const commissionRouter = createTRPCRouter({
             }
 
             // Create database object
-            await ctx.db.insert(commissions).values({
-                id: createId(),
-                artist_id: ctx.user.privateMetadata.artist_id as string,
-                title: input.data.title,
-                description: input.data.description,
-                price: input.data.price?.toPrecision(4),
-                images: input.data.images,
-                availability: input.data.availability as CommissionAvailability,
-                slug: slug,
-                max_commissions_until_waitlist: input.data.max_commissions_until_waitlist,
-                max_commissions_until_closed: input.data.max_commissions_until_closed,
-                published: input.data.published,
-                form_id: input.data.form_id,
-                rating: '5.00'
-                // rush_charge: 0,
-                // rush_orders_allowed: false,
-                // rush_percentage: false
-            })
+            const commission = (
+                await ctx.db
+                    .insert(commissions)
+                    .values({
+                        id: createId(),
+                        artist_id: ctx.user.privateMetadata.artist_id as string,
+                        title: input.data.title,
+                        description: input.data.description,
+                        price: input.data.price?.toPrecision(4),
+                        images: input.data.images,
+                        availability: input.data.availability as CommissionAvailability,
+                        slug: slug,
+                        max_commissions_until_waitlist:
+                            input.data.max_commissions_until_waitlist,
+                        max_commissions_until_closed:
+                            input.data.max_commissions_until_closed,
+                        published: input.data.published,
+                        form_id: input.data.form_id,
+                        rating: '5.00'
+                        // rush_charge: 0,
+                        // rush_orders_allowed: false,
+                        // rush_percentage: false
+                    })
+                    .returning()
+            )[0]!
 
             // Update Cache
             const db_commissions = await ctx.db.query.commissions.findMany({
@@ -403,6 +411,17 @@ export const commissionRouter = createTRPCRouter({
                     commissions.artist_id,
                     ctx.user.privateMetadata.artist_id as string
                 )
+            })
+
+            // Update Algolia
+            await set_index('commissions', {
+                objectID: commission.id,
+                title: commission.title,
+                price: commission.price,
+                description: commission.description,
+                featured_image: commission.images[0]?.url!,
+                slug: commission.slug,
+                artist_handle: ctx.user.privateMetadata.handle as string
             })
 
             // await ctx.cache.set(
