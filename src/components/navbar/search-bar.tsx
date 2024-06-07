@@ -1,13 +1,13 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { Dispatch, SetStateAction, useCallback, useEffect, useState } from 'react'
 
 import debounce from 'lodash.debounce'
 import algoliasearch from 'algoliasearch/lite'
 
 import { InstantSearchNext } from 'react-instantsearch-nextjs'
-import { Index, SearchBox, Hits, Configure } from 'react-instantsearch'
+import { Index, SearchBox, Hits, Configure, useSearchBox } from 'react-instantsearch'
 
 import { ChevronRightIcon, SearchIcon } from 'lucide-react'
 
@@ -30,24 +30,13 @@ const search_client = algoliasearch(
     env.NEXT_PUBLIC_ALGOLIA_SEARCH_API_KEY
 )
 
+const query_hook = debounce((query: string, search: (value: string) => void) => {
+    search(query)
+    console.log(query)
+}, 300)
+
 export default function SearchBar() {
     const [open, setOpen] = useState(false)
-
-    const debounceInput = debounce((query: string, search: (value: string) => void) => {
-        search(query)
-    }, 300)
-
-    useEffect(() => {
-        const down = (e: KeyboardEvent) => {
-            if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
-                e.preventDefault()
-                setOpen((open) => !open)
-            }
-        }
-
-        document.addEventListener('keydown', down)
-        return () => document.removeEventListener('keydown', down)
-    }, [])
 
     return (
         <div className="relative h-full w-full">
@@ -60,6 +49,7 @@ export default function SearchBar() {
                     className="flex h-16 w-full flex-row justify-between rounded-xl bg-base-200 p-5"
                     onClick={() => setOpen(true)}
                 >
+                    <Configure hitsPerPage={1} />
                     <div className="flex flex-row items-center gap-5">
                         <SearchIcon className="h-6 w-6" />
                         <span className="text-base-content/80">Search</span>
@@ -68,29 +58,62 @@ export default function SearchBar() {
                         <span className="text-xs">⌘</span>K
                     </kbd>
                 </div>
-                <CommandDialog open={open} onOpenChange={setOpen}>
-                    <CommandInput placeholder="Search" />
-                    <CommandList>
-                        <CommandEmpty>No Results Found</CommandEmpty>
-                        <CommandGroup heading="Artists">
-                            <Index indexName="artists">
-                                <Hits hitComponent={ArtistHit} />
-                            </Index>
-                        </CommandGroup>
-                        <CommandSeparator />
-                        <CommandGroup heading="Commissions">
-                            <Index indexName="commissions">
-                                <Hits hitComponent={CommissionHit} />
-                            </Index>
-                        </CommandGroup>
-                    </CommandList>
-                </CommandDialog>
+                <SearchPallete open={open} setOpen={setOpen} />
             </InstantSearchNext>
         </div>
     )
 }
 
+function SearchPallete(props: {
+    open: boolean
+    setOpen: Dispatch<SetStateAction<boolean>>
+}) {
+    const [searchQuery, setSearchQuery] = useState('')
+
+    const { refine } = useSearchBox({
+        queryHook: query_hook
+    })
+
+    useEffect(() => {
+        const down = (e: KeyboardEvent) => {
+            if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault()
+                props.setOpen((open) => !open)
+            }
+        }
+
+        document.addEventListener('keydown', down)
+        return () => document.removeEventListener('keydown', down)
+    }, [])
+
+    return (
+        <CommandDialog
+            open={props.open}
+            onOpenChange={props.setOpen}
+            shouldFilter={false}
+        >
+            <CommandInput placeholder="Search" onValueChange={(value) => refine(value)} />
+            <CommandList>
+                <CommandEmpty>No Results Found</CommandEmpty>
+                <CommandGroup heading="Artists">
+                    <Index indexName="artists">
+                        <Hits hitComponent={ArtistHit} />
+                    </Index>
+                </CommandGroup>
+                <CommandSeparator />
+                <CommandGroup heading="Commissions">
+                    <Index indexName="commissions">
+                        <Hits hitComponent={CommissionHit} />
+                    </Index>
+                </CommandGroup>
+            </CommandList>
+        </CommandDialog>
+    )
+}
+
 function ArtistHit(props: { hit: ArtistIndex }) {
+    const url = `/@${props.hit.handle}`
+
     return (
         <CommandItem className="rounded-xl">
             <Link
@@ -108,7 +131,7 @@ function ArtistHit(props: { hit: ArtistIndex }) {
                         />
                     </AvatarFallback>
                 </Avatar>
-                <span>{props.hit.handle}</span>
+                <span>@{props.hit.handle}</span>
             </Link>
         </CommandItem>
     )
