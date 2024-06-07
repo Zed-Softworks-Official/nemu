@@ -46,7 +46,7 @@ export default function SearchBar() {
                 future={{ preserveSharedStateOnUnmount: true }}
             >
                 <div
-                    className="flex h-16 w-full flex-row justify-between rounded-xl bg-base-200 p-5"
+                    className="flex h-16 w-full flex-row items-center justify-between rounded-xl bg-base-200 p-5"
                     onClick={() => setOpen(true)}
                 >
                     <Configure hitsPerPage={5} />
