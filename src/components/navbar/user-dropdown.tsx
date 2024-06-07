@@ -20,10 +20,16 @@ import {
 
 import Link from 'next/link'
 import { SignedIn, SignedOut, SignOutButton } from '@clerk/nextjs'
-import { User } from '@clerk/nextjs/server'
+import { currentUser, User } from '@clerk/nextjs/server'
 import { UserRole } from '~/core/structures'
 
-export default async function UserDropdown({ user }: { user: User | null }) {
+export default function UserDropdown() {
+    return <Menu />
+}
+
+async function Menu() {
+    const user = await currentUser()
+
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>

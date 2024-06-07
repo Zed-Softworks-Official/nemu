@@ -1,20 +1,29 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import debounce from 'lodash.debounce'
 import algoliasearch from 'algoliasearch/lite'
 
 import { InstantSearchNext } from 'react-instantsearch-nextjs'
-import { Index, SearchBox, Hits } from 'react-instantsearch'
+import { Index, SearchBox, Hits, Configure } from 'react-instantsearch'
 
-import { SearchIcon } from 'lucide-react'
+import { ChevronRightIcon, SearchIcon } from 'lucide-react'
 
 import { env } from '~/env'
 import { ArtistIndex, CommissionIndex } from '~/core/search'
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
 import NemuImage from '~/components/nemu-image'
+import {
+    CommandDialog,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
+    CommandSeparator
+} from '~/components/ui/command'
 
 const search_client = algoliasearch(
     env.NEXT_PUBLIC_ALGOLIA_APP_ID,
@@ -22,11 +31,23 @@ const search_client = algoliasearch(
 )
 
 export default function SearchBar() {
-    const [searchFocused, setSearchFocused] = useState(false)
+    const [open, setOpen] = useState(false)
 
     const debounceInput = debounce((query: string, search: (value: string) => void) => {
         search(query)
     }, 300)
+
+    useEffect(() => {
+        const down = (e: KeyboardEvent) => {
+            if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault()
+                setOpen((open) => !open)
+            }
+        }
+
+        document.addEventListener('keydown', down)
+        return () => document.removeEventListener('keydown', down)
+    }, [])
 
     return (
         <div className="relative h-full w-full">
@@ -35,37 +56,35 @@ export default function SearchBar() {
                 indexName="artists"
                 future={{ preserveSharedStateOnUnmount: true }}
             >
-                <div className="relative ml-auto h-full w-full flex-1">
-                    <SearchBox
-                        queryHook={debounceInput}
-                        onFocus={() => setSearchFocused(true)}
-                        onBlur={() => setSearchFocused(false)}
-                        placeholder="Search"
-                        classNames={{
-                            input: 'w-full h-16 rounded-xl bg-base-200 p-5 pl-10 '
-                        }}
-                        submitIconComponent={() => (
-                            <SearchIcon className="absolute left-3 top-[1.30rem] h-5 w-5 text-base-content/80" />
-                        )}
-                        resetIconComponent={() => null}
-                    />
+                <div
+                    className="flex h-16 w-full flex-row justify-between rounded-xl bg-base-200 p-5"
+                    onClick={() => setOpen(true)}
+                >
+                    <div className="flex flex-row items-center gap-5">
+                        <SearchIcon className="h-6 w-6" />
+                        <span className="text-base-content/80">Search</span>
+                    </div>
+                    <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded bg-base-300 px-1.5 font-mono text-[10px] font-medium text-base-content/80 opacity-100">
+                        <span className="text-xs">⌘</span>K
+                    </kbd>
                 </div>
-
-                {searchFocused && (
-                    <div className="absolute top-20 z-10 w-full rounded-xl bg-base-300 p-5 shadow-xl">
-                        <div className="relative flex h-full flex-col">
-                            <div className="divider card-title">Artists</div>
+                <CommandDialog open={open} onOpenChange={setOpen}>
+                    <CommandInput placeholder="Search" />
+                    <CommandList>
+                        <CommandEmpty>No Results Found</CommandEmpty>
+                        <CommandGroup heading="Artists">
                             <Index indexName="artists">
                                 <Hits hitComponent={ArtistHit} />
                             </Index>
-
-                            <div className="divider card-title">Commissions</div>
+                        </CommandGroup>
+                        <CommandSeparator />
+                        <CommandGroup heading="Commissions">
                             <Index indexName="commissions">
                                 <Hits hitComponent={CommissionHit} />
                             </Index>
-                        </div>
-                    </div>
-                )}
+                        </CommandGroup>
+                    </CommandList>
+                </CommandDialog>
             </InstantSearchNext>
         </div>
     )
@@ -73,11 +92,11 @@ export default function SearchBar() {
 
 function ArtistHit(props: { hit: ArtistIndex }) {
     return (
-        <Link
-            href={`/@${props.hit.handle}`}
-            className="my-3 flex flex-row items-center justify-between gap-3 rounded-xl p-5 transition-all duration-200 ease-in-out hover:bg-base-100"
-        >
-            <div className="flex flex-row items-center gap-5">
+        <CommandItem className="rounded-xl">
+            <Link
+                href={`/@${props.hit.handle}`}
+                className="flex flex-row items-center gap-3"
+            >
                 <Avatar>
                     <AvatarImage src={props.hit.image_url} alt="Avatar" />
                     <AvatarFallback>
@@ -89,9 +108,9 @@ function ArtistHit(props: { hit: ArtistIndex }) {
                         />
                     </AvatarFallback>
                 </Avatar>
-                <h1>{props.hit.handle}</h1>
-            </div>
-        </Link>
+                <span>{props.hit.handle}</span>
+            </Link>
+        </CommandItem>
     )
 }
 
@@ -99,30 +118,43 @@ function CommissionHit(props: { hit: CommissionIndex }) {
     if (!props.hit.published) return null
 
     return (
-        <Link
-            href={`/@${props.hit.artist_handle}/commission/${props.hit.slug}`}
-            className="card my-3 transition-all duration-200 ease-in-out lg:card-side hover:bg-base-100"
-        >
-            <figure>
+        <CommandItem className="rounded-xl">
+            <Link
+                href={`/@${props.hit.artist_handle}/commission/${props.hit.slug}`}
+                className="flex flex-row items-center gap-3"
+            >
                 <NemuImage
                     src={props.hit.featured_image}
                     alt="Featured Image"
                     width={80}
                     height={80}
-                    className="h-full"
+                    className="rounded-xl"
                 />
-            </figure>
-            <div className="card-body">
-                <h1 className="text-lg font-bold">{props.hit.title}</h1>
-                <Link
-                    href={`/@${props.hit.artist_handle}`}
-                    className="link-hover link text-sm italic"
-                >
-                    @{props.hit.artist_handle}
-                </Link>
-                <p>{props.hit.description}</p>
-                <div className="card-actions">{props.hit.price}</div>
-            </div>
+                <div className="flex flex-col gap-3">
+                    <span className="text-sm text-base-content">{props.hit.title}</span>
+                    <span className="text-sm text-base-content/40">
+                        @{props.hit.artist_handle}
+                    </span>
+                    <span className="text-sm text-base-content/80">
+                        {props.hit.description}
+                    </span>
+                    <span className="text-sm text-base-content/60">
+                        {props.hit.price}
+                    </span>
+                </div>
+            </Link>
+        </CommandItem>
+    )
+}
+
+function MoreResultsLink(props: { searchQuery: string; results: boolean }) {
+    return (
+        <Link
+            href={'/search'}
+            className="flex flex-row items-center justify-between rounded-xl bg-base-200 p-5 transition-all duration-200 ease-in-out hover:bg-base-100"
+        >
+            <span className=" text-sm text-base-content/80">See More Results</span>
+            <ChevronRightIcon className="h-6 w-6" />
         </Link>
     )
 }
