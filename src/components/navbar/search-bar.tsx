@@ -49,7 +49,7 @@ export default function SearchBar() {
                     className="flex h-16 w-full flex-row justify-between rounded-xl bg-base-200 p-5"
                     onClick={() => setOpen(true)}
                 >
-                    <Configure hitsPerPage={1} />
+                    <Configure hitsPerPage={5} />
                     <div className="flex flex-row items-center gap-5">
                         <SearchIcon className="h-6 w-6" />
                         <span className="text-base-content/80">Search</span>

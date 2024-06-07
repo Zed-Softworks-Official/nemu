@@ -1,7 +1,6 @@
 import { currentUser } from '@clerk/nextjs/server'
 import { ClipboardPlusIcon } from 'lucide-react'
 import Link from 'next/link'
-import { redirect } from 'next/navigation'
 
 import DashboardContainer from '~/components/ui/dashboard-container'
 import EmptyState from '~/components/ui/empty-state'
@@ -22,7 +21,7 @@ export default async function FormsDashboardPage() {
                     heading="No Forms Found"
                     description="Create a new form to get started"
                     button_text="Create Form"
-                    icon={<ClipboardPlusIcon className="w-10 h-10" />}
+                    icon={<ClipboardPlusIcon className="h-10 w-10" />}
                 />
             </DashboardContainer>
         )

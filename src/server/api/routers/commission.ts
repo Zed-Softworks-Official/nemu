@@ -272,34 +272,37 @@ export const commissionRouter = createTRPCRouter({
                 }
 
                 // Update the database with the relavent information that has been updated
-                const commission_udpated= (await ctx.db
-                    .update(commissions)
-                    .set({
-                        title: input.data.title,
-                        description: input.data.description,
-                        price: input.data.price,
-                        images: input.data.images?.map((image) => ({
-                            url: image.url,
-                            ut_key: image.ut_key
-                        })),
-                        availability: input.data.availability as CommissionAvailability,
-                        max_commissions_until_waitlist:
-                            input.data.max_commissions_until_waitlist,
-                        max_commissions_until_closed:
-                            input.data.max_commissions_until_closed,
-                        published: input.data.published,
-                        form_id: input.data.form_id
-                    })
-                    .where(eq(commissions.id, input.commission_id)).returning())[0]!
-
+                const commission_udpated = (
+                    await ctx.db
+                        .update(commissions)
+                        .set({
+                            title: input.data.title,
+                            description: input.data.description,
+                            price: input.data.price,
+                            images: input.data.images?.map((image) => ({
+                                url: image.url,
+                                ut_key: image.ut_key
+                            })),
+                            availability: input.data
+                                .availability as CommissionAvailability,
+                            max_commissions_until_waitlist:
+                                input.data.max_commissions_until_waitlist,
+                            max_commissions_until_closed:
+                                input.data.max_commissions_until_closed,
+                            published: input.data.published,
+                            form_id: input.data.form_id
+                        })
+                        .where(eq(commissions.id, input.commission_id))
+                        .returning()
+                )[0]!
 
                 // Update Algolia
                 await update_index('commissions', {
-                    objectID:commission_udpated.id,
+                    objectID: commission_udpated.id,
                     title: commission_udpated.title,
                     price: format_to_currency(commission_udpated.price),
                     description: commission_udpated.description,
-                    featured_image: commission_udpated.images[0]?.url!, 
+                    featured_image: commission_udpated.images[0]?.url!,
                     slug: commission_udpated.slug,
                     artist_handle: ctx.user.publicMetadata.handle as string,
                     published: commission_udpated.published

@@ -12,9 +12,11 @@ import { Suspense } from 'react'
 import CommissionsList from '~/components/lists/commissions-list'
 import PortfolioList from '~/components/lists/portfolio-list'
 import NemuImage from '~/components/nemu-image'
+import { AspectRatio } from '~/components/ui/aspect-ratio'
 import Loading from '~/components/ui/loading'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 import { SocialAgent } from '~/core/structures'
+import { get_blur_data } from '~/lib/blur_data'
 import { db } from '~/server/db'
 import { artists } from '~/server/db/schema'
 
@@ -34,7 +36,11 @@ const get_artist_data = unstable_cache(
 
         return {
             ...artist,
-            user: await clerkClient.users.getUser(artist.user_id)
+            user: await clerkClient.users.getUser(artist.user_id),
+            header_photo: {
+                photo: artist.header_photo,
+                blur_data: await get_blur_data(artist.header_photo)
+            }
         }
     },
     ['artist-data'],
@@ -78,10 +84,18 @@ async function PageContent({ params }: Props) {
         <Tabs defaultValue="commissions">
             {/* Artist Header */}
             <div className="flex flex-1 flex-col flex-wrap">
-                <div
-                    className="mx-auto h-96 w-full rounded-xl bg-cover bg-center bg-no-repeat"
-                    style={{ backgroundImage: `url(${artist_data.header_photo})` }}
-                ></div>
+                <AspectRatio ratio={12 / 3}>
+                    <NemuImage
+                        src={artist_data.header_photo.photo}
+                        alt="Header Photo"
+                        width={1000}
+                        height={1000}
+                        priority
+                        placeholder="blur"
+                        blurDataURL={artist_data.header_photo.blur_data}
+                        className="mx-auto h-96 w-full overflow-hidden rounded-xl object-cover"
+                    />
+                </AspectRatio>
                 <div className="-my-28 mx-auto w-full rounded-xl bg-base-300/60 px-10 py-14 shadow-lg backdrop-blur-xl sm:max-w-[85%]">
                     <div className="flex flex-col items-center justify-between sm:flex-row">
                         <div className="flex items-center justify-start">
