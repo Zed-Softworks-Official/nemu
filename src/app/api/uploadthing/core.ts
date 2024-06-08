@@ -4,6 +4,8 @@ import { NextRequest } from 'next/server'
 import { createUploadthing, type FileRouter } from 'uploadthing/next'
 import { UploadThingError } from 'uploadthing/server'
 import { update_index } from '~/core/search'
+import { get_blur_data } from '~/lib/blur_data'
+import { AsRedisKey, invalidate_cache } from '~/server/cache'
 
 import { db } from '~/server/db'
 import { artists } from '~/server/db/schema'
@@ -66,6 +68,24 @@ export const nemuFileRouter = {
                 about: artist.about,
                 image_url: (await clerkClient.users.getUser(artist.user_id)).imageUrl
             })
+
+            // Invalidate cache
+            const new_cache_item = {
+                ...artist,
+                user: await clerkClient.users.getUser(artist.user_id),
+                header: {
+                    url: file.url,
+                    blur_data: await get_blur_data(file.url)
+                },
+                ut_key: file.key,
+                header_photo: file.url
+            }
+
+            invalidate_cache(
+                AsRedisKey('artists', artist.handle),
+                'artist-data',
+                new_cache_item
+            )
         }),
 
     /**

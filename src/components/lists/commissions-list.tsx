@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import { EyeIcon } from 'lucide-react'
 
-import { api } from '~/trpc/server'
 import { format_to_currency, get_availability_badge_data } from '~/lib/utils'
 
 import NemuImage from '~/components/nemu-image'
@@ -13,9 +12,18 @@ import { commissions } from '~/server/db/schema'
 import { ClientCommissionItem, CommissionAvailability } from '~/core/structures'
 import { get_blur_data } from '~/lib/blur_data'
 import { eq } from 'drizzle-orm'
+import { AsRedisKey, cache } from '~/server/cache'
 
 const get_commissions = unstable_cache(
     async (artist_id: string) => {
+        const cachedCommissions = await cache.json.get(
+            AsRedisKey('commissions', artist_id)
+        )
+
+        if (cachedCommissions) {
+            return cachedCommissions as ClientCommissionItem[]
+        }
+
         const db_commissions = await db.query.commissions.findMany({
             where: eq(commissions.artist_id, artist_id),
             with: {
@@ -30,10 +38,6 @@ const get_commissions = unstable_cache(
         // Format for client
         const result: ClientCommissionItem[] = []
         for (const commission of db_commissions) {
-            if (!commission.published) {
-                continue
-            }
-
             result.push({
                 title: commission.title,
                 description: commission.description,
@@ -55,11 +59,13 @@ const get_commissions = unstable_cache(
             })
         }
 
+        await cache.json.set(AsRedisKey('commissions', artist_id), '$', result)
+
         return result
     },
     ['commission_list'],
     {
-        tags: ['commission']
+        tags: ['commission', 'commission_list']
     }
 )
 
@@ -79,6 +85,11 @@ export default async function CommissionsList({
     return (
         <div className="grid w-full grid-cols-1 gap-5">
             {data.map((commission) => {
+                // If the item hasn't hasn't been published, don't show it
+                if (!commission.published) {
+                    return null
+                }
+
                 const [variant, text] = get_availability_badge_data(
                     commission.availability
                 )

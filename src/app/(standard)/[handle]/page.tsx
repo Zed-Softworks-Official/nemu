@@ -1,7 +1,7 @@
-import { clerkClient } from '@clerk/nextjs/server'
+import { clerkClient, User } from '@clerk/nextjs/server'
 import { faPixiv, faXTwitter } from '@fortawesome/free-brands-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { eq } from 'drizzle-orm'
+import { eq, InferSelectModel } from 'drizzle-orm'
 import { GlobeIcon } from 'lucide-react'
 import { Metadata, ResolvingMetadata } from 'next'
 import { unstable_cache } from 'next/cache'
@@ -15,8 +15,9 @@ import NemuImage from '~/components/nemu-image'
 import { AspectRatio } from '~/components/ui/aspect-ratio'
 import Loading from '~/components/ui/loading'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
-import { SocialAgent } from '~/core/structures'
+import { NemuImageData, SocialAgent } from '~/core/structures'
 import { get_blur_data } from '~/lib/blur_data'
+import { AsRedisKey, cache } from '~/server/cache'
 import { db } from '~/server/db'
 import { artists } from '~/server/db/schema'
 
@@ -24,8 +25,19 @@ type Props = {
     params: { handle: string }
 }
 
+type ArtistData = InferSelectModel<typeof artists> & {
+    user: User
+    header: NemuImageData
+}
+
 const get_artist_data = unstable_cache(
     async (handle: string) => {
+        const cachedArtist = await cache.json.get(AsRedisKey('artists', handle))
+
+        if (cachedArtist) {
+            return cachedArtist as ArtistData
+        }
+
         const artist = await db.query.artists.findFirst({
             where: eq(artists.handle, handle)
         })
@@ -34,14 +46,18 @@ const get_artist_data = unstable_cache(
             return undefined
         }
 
-        return {
+        const result: ArtistData = {
             ...artist,
             user: await clerkClient.users.getUser(artist.user_id),
-            header_photo: {
-                photo: artist.header_photo,
+            header: {
+                url: artist.header_photo,
                 blur_data: await get_blur_data(artist.header_photo)
             }
         }
+
+        await cache.json.set(AsRedisKey('artists', handle), '$', result)
+
+        return result
     },
     ['artist-data'],
     { tags: ['artist-data'] }
@@ -89,13 +105,13 @@ async function PageContent({ params }: Props) {
             <div className="flex flex-1 flex-col flex-wrap">
                 <AspectRatio ratio={12 / 3}>
                     <NemuImage
-                        src={artist_data.header_photo.photo}
+                        src={artist_data.header.url}
                         alt="Header Photo"
                         width={1000}
                         height={1000}
                         priority
                         placeholder="blur"
-                        blurDataURL={artist_data.header_photo.blur_data}
+                        blurDataURL={artist_data.header.blur_data}
                         className="mx-auto h-96 w-full overflow-hidden rounded-xl object-cover"
                     />
                 </AspectRatio>

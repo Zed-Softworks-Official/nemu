@@ -1,4 +1,5 @@
 import { createClient } from '@vercel/kv'
+import { revalidateTag } from 'next/cache'
 import { env } from '~/env'
 
 const globalForRedis = global as unknown as { cache: ReturnType<typeof createClient> }
@@ -23,4 +24,14 @@ export function AsRedisKey(
     ...unique_identifiers: string[]
 ) {
     return `${object}:${unique_identifiers.join(':')}`
+}
+
+export function invalidate_cache(
+    key: string,
+    tag: string,
+    data: any,
+    path: string = '$'
+) {
+    cache.json.set(key, path, data)
+    revalidateTag(tag)
 }
