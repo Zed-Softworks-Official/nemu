@@ -296,7 +296,7 @@ export const invoices = createTable('invoice', {
 
     customer_id: varchar('customer_id').notNull(),
     stripe_account: varchar('stripe_account').notNull(),
-    total: decimal('total', { precision: 4, scale: 2 }).notNull(),
+    total: integer('total').notNull(),
 
     user_id: varchar('user_id').notNull(),
     artist_id: varchar('artist_id').notNull(),
@@ -313,7 +313,7 @@ export const invoice_items = createTable('invoice_item', {
     invoice_id: varchar('invoice_id').notNull(),
 
     name: varchar('name').notNull(),
-    price: decimal('price', { precision: 4, scale: 2 }).notNull(),
+    price: integer('price').notNull(),
     quantity: integer('quantity').notNull(),
 
     created_at: timestamp('created_at')

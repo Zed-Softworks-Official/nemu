@@ -201,14 +201,12 @@ export const verificationRouter = createTRPCRouter({
                         // await ctx.cache.del(AsRedisKey('users', ctx.user.id))
 
                         // Notify user of status
-                        novu.trigger('artist-verification', {
+                        await novu.trigger('sign-up-approved', {
                             to: {
                                 subscriberId: ctx.user.id
                             },
                             payload: {
-                                result: true,
-                                intro_message: `Congratulations ${artist.handle}!`,
-                                status: 'accepted'
+                                artist_handle: artist.handle
                             }
                         })
                     }
@@ -238,13 +236,11 @@ export const verificationRouter = createTRPCRouter({
                             })
                         }
 
-                        novu.trigger('artist-verification-submit', {
+                        await novu.trigger('status-pending', {
                             to: {
                                 subscriberId: ctx.user.id
                             },
-                            payload: {
-                                method: 'Twitter'
-                            }
+                            payload: {}
                         })
                     }
                     break
@@ -278,6 +274,24 @@ export const verificationRouter = createTRPCRouter({
                 })
             }
 
+            // If they're rejected, exit early
+            if (!input.approved) {
+                // Delete Verification Object
+                await ctx.db
+                    .delete(artist_verifications)
+                    .where(eq(artist_verifications.id, input.verification_id))
+
+                // Notify User that they were rejected
+                await novu.trigger('sign-up-rejected', {
+                    to: {
+                        subscriberId: artist_verification?.user_id!
+                    },
+                    payload: {}
+                })
+
+                return { success: true }
+            }
+
             // Get User Object
             const user = await clerkClient.users.getUser(artist_verification.user_id)
 
@@ -306,17 +320,13 @@ export const verificationRouter = createTRPCRouter({
                 .delete(artist_verifications)
                 .where(eq(artist_verifications.id, input.verification_id))
 
-            // Notify User
-            novu.trigger('artist-verification', {
+            // Notify User that they were approved
+            await novu.trigger('sign-up-approved', {
                 to: {
                     subscriberId: artist_verification?.user_id!
                 },
                 payload: {
-                    method: 'result',
-                    intro_message: input.approved
-                        ? `Congratulations ${artist.handle}!`
-                        : 'Oh Nyo!',
-                    status: input.approved ? 'approved' : 'rejected'
+                    artist_handle: artist.handle
                 }
             })
 

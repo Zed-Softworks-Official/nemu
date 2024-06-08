@@ -6,6 +6,7 @@ import { StripeFinalizeInvoice, StripeUpdateInvoice } from '~/core/payments'
 import { InvoiceStatus } from '~/core/structures'
 import { artistProcedure, createTRPCRouter } from '~/server/api/trpc'
 import { invoice_items, invoices, stripe_customer_ids } from '~/server/db/schema'
+import { novu } from '~/server/novu'
 
 export const invoiceRouter = createTRPCRouter({
     update_invoice_items: artistProcedure
@@ -59,7 +60,7 @@ export const invoiceRouter = createTRPCRouter({
                         .update(invoice_items)
                         .set({
                             name: item.name,
-                            price: item.price.toPrecision(4),
+                            price: item.price,
                             quantity: item.quantity
                         })
                         .where(eq(invoice_items.id, item.id))
@@ -68,7 +69,7 @@ export const invoiceRouter = createTRPCRouter({
                         id: createId(),
                         invoice_id: input.invoice_id,
                         name: item.name,
-                        price: item.price.toPrecision(4),
+                        price: item.price,
                         quantity: item.quantity
                     })
                 }
@@ -80,7 +81,7 @@ export const invoiceRouter = createTRPCRouter({
             await ctx.db
                 .update(invoices)
                 .set({
-                    total: total_price.toPrecision(4)
+                    total: total_price
                 })
                 .where(eq(invoices.id, input.invoice_id))
         }),
@@ -91,7 +92,12 @@ export const invoiceRouter = createTRPCRouter({
             where: eq(invoices.id, input),
             with: {
                 invoice_items: true,
-                artist: true
+                artist: true,
+                request: {
+                    with: {
+                        commission: true
+                    }
+                }
             }
         })
 
@@ -155,5 +161,15 @@ export const invoiceRouter = createTRPCRouter({
             .where(eq(invoices.id, input))
 
         // Notify User That Invoice Has Been Sent
+        await novu.trigger('invoice-sent', {
+            to: {
+                subscriberId: invoice.user_id
+            },
+            payload: {
+                order_id: invoice.request.order_id,
+                commission_title: invoice.request.commission.title,
+                artist_handle: invoice.artist.handle
+            }
+        })
     })
 })

@@ -221,15 +221,25 @@ export const requestRouter = createTRPCRouter({
                 content: JSON.parse(input.content)
             })
 
+            // Notify the user of the request
+            await novu.trigger('commission-request-user-end', {
+                to: {
+                    subscriberId: ctx.user.id
+                },
+                payload: {
+                    commission_title: commission.title,
+                    artist_handle: commission.artist.handle
+                }
+            })
+
             // Notify the artist of a new request
-            novu.trigger('commission-request', {
+            await novu.trigger('commission-request-artist-end', {
                 to: {
                     subscriberId: commission.artist.user_id
                 },
                 payload: {
-                    username: ctx.user.username!,
-                    commission_name: commission.title,
-                    slug: env.BASE_URL + '/dashboard/commissions/' + commission.slug
+                    commission_title: commission.title,
+                    slug: commission.slug
                 }
             })
 
@@ -328,31 +338,28 @@ export const requestRouter = createTRPCRouter({
             }
 
             // Update commission stats based on acceptance or rejection
-            // TODO: Fix this because it's not working and i'm dumb
+            const increase_amount = input.accepted ? 1 : 0
+            const decrease_amount = input.accepted ? 0 : 1
             await ctx.db
                 .update(commissions)
                 .set({
                     new_requests: sql`${commissions.new_requests} - 1`,
-                    accepted_requests: input.accepted
-                        ? sql`${commissions.accepted_requests} + 1`
-                        : sql`${commissions.accepted_requests} - 1`,
-                    rejected_requests: input.accepted
-                        ? sql`${commissions.rejected_requests} - 1`
-                        : sql`${commissions.rejected_requests} + 1`
+                    accepted_requests: sql`${commissions.accepted_requests} + ${increase_amount}`,
+                    rejected_requests: sql`${commissions.rejected_requests} + ${decrease_amount}`
                 })
                 .where(eq(commissions.id, request.commission_id))
 
             // Notify the user of the decision
-            // novu.trigger('commission-request-decision', {
-            //     to: {
-            //         subscriberId: request.user_id
-            //     },
-            //     payload: {
-            //         username: request.commission.artist.handle,
-            //         commission_name: request.commission.title,
-            //         accepted: input.accepted
-            //     }
-            // })
+            novu.trigger('commission-determine-request', {
+                to: {
+                    subscriberId: request.user_id
+                },
+                payload: {
+                    commission_title: request.commission.title,
+                    artist_handle: request.commission.artist.handle,
+                    accepted: input.accepted
+                }
+            })
 
             // If rejected, Update the request to reflect the rejection and return
             if (!input.accepted) {
