@@ -73,9 +73,9 @@ const get_request_data = unstable_cache(
             kanban
         }
     },
-    ['request-data'],
+    ['request-details'],
     {
-        revalidate: 60
+        tags: ['commission-requests']
     }
 )
 
@@ -94,15 +94,26 @@ const get_invoice_data = unstable_cache(
 
         return invoice
     },
-    ['request-invoice-data']
+    ['request-invoice-data'],
+    {
+        tags: ['invoice']
+    }
 )
 
-export default async function CommissionOrderDetailPage({
+export default function CommissionDetailsPage({
     params
 }: {
     params: { slug: string; order_id: string }
 }) {
-    const request_data = await get_request_data(params.order_id)
+    return (
+        <Suspense fallback={<Loading />}>
+            <PageContent slug={params.slug} order_id={params.order_id} />
+        </Suspense>
+    )
+}
+
+async function PageContent(props: { slug: string; order_id: string }) {
+    const request_data = await get_request_data(props.order_id)
 
     if (!request_data) {
         return notFound()

@@ -28,7 +28,7 @@ const get_random_artists = unstable_cache(
         return result
     },
     ['random-artists'],
-    { revalidate: 3600 }
+    { tags: ['random-artists'] }
 )
 
 export default function Home() {

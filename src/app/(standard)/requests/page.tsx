@@ -1,13 +1,73 @@
+import { clerkClient, currentUser } from '@clerk/nextjs/server'
+import { eq } from 'drizzle-orm'
 import { EyeIcon } from 'lucide-react'
+import { unstable_cache } from 'next/cache'
 import Link from 'next/link'
+import { Suspense } from 'react'
 import NemuImage from '~/components/nemu-image'
 import { Badge } from '~/components/ui/badge'
+import Loading from '~/components/ui/loading'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 import { ClientRequestData, RequestStatus } from '~/core/structures'
+import { get_blur_data } from '~/lib/blur_data'
+import { db } from '~/server/db'
+import { requests } from '~/server/db/schema'
 import { api } from '~/trpc/server'
 
-export default async function RequestsPage() {
-    const requests = await api.requests.get_request_list_client()
+const get_request_list = unstable_cache(
+    async (user_id: string) => {
+        const db_requests = await db.query.requests.findMany({
+            where: eq(requests.user_id, user_id),
+            with: {
+                commission: {
+                    with: {
+                        artist: true
+                    }
+                }
+            }
+        })
+
+        if (!db_requests) {
+            return []
+        }
+
+        // Format for client
+        const result: ClientRequestData[] = []
+        for (const request of db_requests) {
+            result.push({
+                ...request,
+                commission: {
+                    ...request.commission,
+                    images: [
+                        {
+                            url: request.commission.images[0]?.url!,
+                            blur_data: await get_blur_data(
+                                request.commission.images[0]?.url!
+                            )
+                        }
+                    ]
+                },
+                user: await clerkClient.users.getUser(request.user_id)
+            })
+        }
+
+        return result
+    },
+    ['request_list'],
+    { tags: ['request_list'] }
+)
+
+export default function RequestsPage() {
+    return (
+        <Suspense fallback={<Loading />}>
+            <PageContent />
+        </Suspense>
+    )
+}
+
+async function PageContent() {
+    const user = await currentUser()
+    const requests = await get_request_list(user!.id)
 
     if (requests.length === 0) {
         return (
@@ -25,11 +85,11 @@ export default async function RequestsPage() {
         <main className="flex h-full w-full flex-col p-6">
             <Tabs defaultValue="pending">
                 <TabsList className="w-full justify-start bg-base-300">
-                    <TabsTrigger value='all'>All</TabsTrigger>
+                    <TabsTrigger value="all">All</TabsTrigger>
                     <TabsTrigger value="pending">Pending</TabsTrigger>
                     <TabsTrigger value="accepted">Accepted</TabsTrigger>
                     <TabsTrigger value="rejected">Rejected</TabsTrigger>
-                    <TabsTrigger value='delivered'>Delivered</TabsTrigger>
+                    <TabsTrigger value="delivered">Delivered</TabsTrigger>
                     <TabsTrigger value="waitlist">Waitlist</TabsTrigger>
                 </TabsList>
                 <TabsContent value="pending">
@@ -63,7 +123,7 @@ export default async function RequestsPage() {
                             ))}
                     </div>
                 </TabsContent>
-                <TabsContent value='delivered'>
+                <TabsContent value="delivered">
                     <div className="flex flex-col gap-5">
                         {requests
                             .filter(
@@ -117,7 +177,8 @@ function RequestCard({ request }: { request: ClientRequestData }) {
                         </div>
                         <RequestStatusBadge status={request.status as RequestStatus} />
                     </div>
-                    {request.status === RequestStatus.Accepted || request.status === RequestStatus.Delivered && (
+                    {(request.status === RequestStatus.Accepted ||
+                        request.status === RequestStatus.Delivered) && (
                         <div className="flex justify-end">
                             <Link
                                 href={`/requests/${request.order_id}/details`}

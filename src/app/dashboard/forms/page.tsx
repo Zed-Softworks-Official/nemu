@@ -4,14 +4,21 @@ import Link from 'next/link'
 
 import DashboardContainer from '~/components/ui/dashboard-container'
 import EmptyState from '~/components/ui/empty-state'
-import { api } from '~/trpc/server'
+import { Suspense } from 'react'
+import Loading from '~/components/ui/loading'
+import { get_form_list } from '~/app/dashboard/commissions/create/page'
 
-export default async function FormsDashboardPage() {
+export default function FormsDashboardPage() {
+    return (
+        <Suspense fallback={<Loading />}>
+            <PageContent />
+        </Suspense>
+    )
+}
+
+async function PageContent() {
     const user = await currentUser()
-
-    const forms = await api.form.get_form_list({
-        artist_id: user?.privateMetadata.artist_id as string
-    })
+    const forms = await get_form_list(user!.privateMetadata.artist_id as string)
 
     if (!forms || forms.length === 0) {
         return (

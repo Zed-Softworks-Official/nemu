@@ -1,6 +1,5 @@
 'use client'
 
-import { useTheme } from 'next-themes'
 import { ArrowLeftCircleIcon } from 'lucide-react'
 import { useCallback, useRef, useState, useTransition } from 'react'
 
@@ -11,35 +10,23 @@ import {
     FormElements
 } from '~/components/form-builder/elements/form-elements'
 
-import Loading from '~/components/ui/loading'
 import { api } from '~/trpc/react'
 import { Button } from '~/components/ui/button'
 import { toast } from 'sonner'
+import { InferSelectModel } from 'drizzle-orm'
+import { forms } from '~/server/db/schema'
 
 export default function RequestSubmitForm({
+    setShowForm,
+    user_requested,
     commission_id,
-    form_id,
-    setShowForm
+    form_data
 }: {
-    commission_id: string
-    form_id: string
     setShowForm: (show: boolean) => void
+    form_data: InferSelectModel<typeof forms>
+    user_requested: boolean
+    commission_id: string
 }) {
-    // Fetch the form data
-    const { data, isLoading } = api.form.get_form.useQuery(form_id, {
-        refetchOnMount: false,
-        refetchOnReconnect: false,
-        refetchOnWindowFocus: false
-    })
-
-    // Fetch the requested users
-    const { data: userRequested, isLoading: requestedLoading } =
-        api.requests.get_user_requsted.useQuery(form_id, {
-            refetchOnMount: false,
-            refetchOnReconnect: false,
-            refetchOnWindowFocus: false
-        })
-
     // Mutation to submit the form
     const mutation = api.requests.set_request.useMutation({
         onSuccess: () => {
@@ -82,7 +69,7 @@ export default function RequestSubmitForm({
         }
 
         const newFormData: { [key: string]: { value: string; label: string } } = {}
-        const formElements = data?.content as FormElementInstance[]
+        const formElements = form_data?.content as FormElementInstance[]
         for (let key in formValues.current) {
             newFormData[key] = {
                 value: formValues.current[key]!,
@@ -92,7 +79,7 @@ export default function RequestSubmitForm({
         }
 
         mutation.mutate({
-            form_id,
+            form_id: form_data.id,
             commission_id,
             content: JSON.stringify(newFormData)
         })
@@ -102,7 +89,7 @@ export default function RequestSubmitForm({
 
     // Validate the form
     const validateForm: () => boolean = useCallback(() => {
-        for (const field of data?.content as FormElementInstance[]) {
+        for (const field of form_data?.content as FormElementInstance[]) {
             const actualValue = formValues.current[field.id] || ''
             const valid = FormElements[field.type].validate(field, actualValue)
 
@@ -116,16 +103,7 @@ export default function RequestSubmitForm({
         }
 
         return true
-    }, [data?.content])
-
-    // Loading state for client side
-    if (isLoading || requestedLoading) {
-        return (
-            <div className="flex h-full items-center justify-center">
-                <Loading />
-            </div>
-        )
-    }
+    }, [form_data?.content])
 
     // If the form has been submitted then show the success message
     if (submitted) {
@@ -176,7 +154,7 @@ export default function RequestSubmitForm({
                 </p>
                 <div className="divider"></div>
             </div>
-            {(data?.content as FormElementInstance[]).map((element) => {
+            {(form_data?.content as FormElementInstance[]).map((element) => {
                 const FormComponent = FormElements[element.type].form_component
 
                 return (
@@ -192,7 +170,7 @@ export default function RequestSubmitForm({
             <div className="divider"></div>
             <Button
                 onMouseDown={() => startTransition(submitForm)}
-                disabled={pending || userRequested}
+                disabled={pending || user_requested}
             >
                 {pending ? 'Submitting' : 'Submit'}
             </Button>

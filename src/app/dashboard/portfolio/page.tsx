@@ -1,21 +1,62 @@
-import { redirect } from 'next/navigation'
-
 import NemuImage from '~/components/nemu-image'
 import DashboardContainer from '~/components/ui/dashboard-container'
 
-import { api } from '~/trpc/server'
 import Link from 'next/link'
 import EmptyState from '~/components/ui/empty-state'
 import { ImagePlusIcon } from 'lucide-react'
 import Masonry from '~/components/ui/masonry'
 import { currentUser } from '@clerk/nextjs/server'
+import { Suspense } from 'react'
+import Loading from '~/components/ui/loading'
+import { unstable_cache } from 'next/cache'
+import { db } from '~/server/db'
+import { eq } from 'drizzle-orm'
+import { portfolios } from '~/server/db/schema'
+import { get_blur_data } from '~/lib/blur_data'
+import { ClientPortfolioItem } from '~/core/structures'
 
-export default async function PortfolioDashboardPage() {
+const get_portfolio_list = unstable_cache(
+    async (artist_id: string) => {
+        const portfolio_items = await db.query.portfolios.findMany({
+            where: eq(portfolios.artist_id, artist_id)
+        })
+
+        if (!portfolio_items) {
+            return []
+        }
+
+        const result: ClientPortfolioItem[] = []
+        for (const portfolio of portfolio_items) {
+            result.push({
+                ...portfolio,
+                image: {
+                    url: portfolio.image_url,
+                    blur_data: await get_blur_data(portfolio.image_url)
+                }
+            })
+        }
+
+        return result
+    },
+    ['portfolio_list'],
+    {
+        tags: ['portfolio']
+    }
+)
+
+export default function PortfolioDashboardPage() {
+    return (
+        <Suspense fallback={<Loading />}>
+            <PageContent />
+        </Suspense>
+    )
+}
+
+async function PageContent() {
     const user = await currentUser()
-
-    const portfolio_items = await api.portfolio.get_portfolio_list({
-        artist_id: user?.privateMetadata.artist_id as string
-    })
+    const portfolio_items = await get_portfolio_list(
+        user!.privateMetadata.artist_id as string
+    )
 
     if (portfolio_items.length === 0) {
         return (

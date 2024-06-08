@@ -60,10 +60,13 @@ const get_commissions = unstable_cache(
 
         return result
     },
-    ['commissions-list-dashboard']
+    ['commissions-list-dashboard'],
+    {
+        tags: ['commission']
+    }
 )
 
-export default async function CommissionsDashboardPage() {
+export default function CommissionsDashboardPage() {
     return (
         <Suspense fallback={<Loading />}>
             <CommissionsDisplay />
@@ -73,7 +76,7 @@ export default async function CommissionsDashboardPage() {
 
 async function CommissionsDisplay() {
     const user = await currentUser()
-    const commissions = await get_commissions(user?.privateMetadata.artist_id as string)
+    const commissions = await get_commissions(user!.privateMetadata.artist_id as string)
 
     if (!commissions || commissions.length === 0) {
         return (

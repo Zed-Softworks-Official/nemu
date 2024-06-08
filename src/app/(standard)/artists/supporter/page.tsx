@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 
 const includedFeatures = ['0% Platform Fees', 'Fund Nemu Development', 'More Coming Soon']
 
-export default async function GetSupporterPage() {
+export default function GetSupporterPage() {
     return (
         <div className="card bg-base-300 py-24 shadow-xl sm:py-32">
             <div className="card-body">

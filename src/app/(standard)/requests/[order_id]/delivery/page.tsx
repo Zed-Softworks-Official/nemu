@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm'
 import { FileArchiveIcon } from 'lucide-react'
 import { unstable_cache } from 'next/cache'
 import Link from 'next/link'
+import { Suspense } from 'react'
 import NemuImage from '~/components/nemu-image'
 import {
     Card,
@@ -10,6 +11,7 @@ import {
     CardHeader,
     CardTitle
 } from '~/components/ui/card'
+import Loading from '~/components/ui/loading'
 import { get_blur_data } from '~/lib/blur_data'
 import { db } from '~/server/db'
 import { requests } from '~/server/db/schema'
@@ -44,17 +46,25 @@ const get_downloads = unstable_cache(
     ['request-downloads']
 )
 
-export default async function RequestDeliveryPage({
+export default function RequestDeliveryPage({
     params
 }: {
     params: { order_id: string }
 }) {
-    const downloads = await get_downloads(params.order_id)
+    return (
+        <Suspense fallback={<Loading />}>
+            <PageContent order_id={params.order_id} />
+        </Suspense>
+    )
+}
+
+async function PageContent(props: { order_id: string }) {
+    const downloads = await get_downloads(props.order_id)
 
     if (!downloads) {
         return (
             <Card>
-                <CardHeader>
+                <CardHeader className="flex h-full w-full items-center justify-center">
                     <NemuImage
                         src={'/nemu/sad.png'}
                         alt="Not Like This"

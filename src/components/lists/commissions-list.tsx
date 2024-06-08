@@ -57,7 +57,10 @@ const get_commissions = unstable_cache(
 
         return result
     },
-    ['commissions-list-artist-page']
+    ['commission_list'],
+    {
+        tags: ['commission']
+    }
 )
 
 export default async function CommissionsList({

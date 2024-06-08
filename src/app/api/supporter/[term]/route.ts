@@ -1,7 +1,9 @@
 import { clerkClient, getAuth } from '@clerk/nextjs/server'
+import { eq } from 'drizzle-orm'
 import { NextRequest, NextResponse } from 'next/server'
 import { StripeCreateCustomerZed, StripeCreateSupporterCheckout } from '~/core/payments'
 import { db } from '~/server/db'
+import { artists } from '~/server/db/schema'
 
 export async function GET(
     req: NextRequest,
@@ -21,10 +23,8 @@ export async function GET(
     const user = await clerkClient.users.getUser(auth.userId)
 
     // Get artist from db
-    const artist = await db.artist.findFirst({
-        where: {
-            userId: auth.userId
-        }
+    const artist = await db.query.artists.findFirst({
+        where: eq(artists.user_id, auth.userId)
     })
 
     // If the user doesn't have an artist id, redirect to home page
@@ -33,22 +33,20 @@ export async function GET(
     }
 
     // Check if the artist has a zed customer id, and if not, create one
-    if (!artist.zedCustomerId) {
+    if (!artist.zed_customer_id) {
         const stripe_customer = await StripeCreateCustomerZed(
             artist.handle,
             user.emailAddresses[0]?.emailAddress
         )
 
-        await db.artist.update({
-            where: {
-                id: artist.id
-            },
-            data: {
-                zedCustomerId: stripe_customer.id
-            }
-        })
+        await db
+            .update(artists)
+            .set({
+                zed_customer_id: stripe_customer.id
+            })
+            .where(eq(artists.id, artist.id))
 
-        artist.zedCustomerId = stripe_customer.id
+        artist.zed_customer_id = stripe_customer.id
     }
 
     // Generate the stripe checkout session
@@ -57,7 +55,7 @@ export async function GET(
             await StripeCreateSupporterCheckout(
                 artist.id,
                 params.term,
-                artist.zedCustomerId
+                artist.zed_customer_id
             )
         ).url!
     )

@@ -1,6 +1,5 @@
 import { notFound } from 'next/navigation'
 
-
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 import Link from 'next/link'
 import { EyeIcon, PencilIcon } from 'lucide-react'
@@ -29,8 +28,8 @@ import { Button } from '~/components/ui/button'
 import RequestCardDropdown from '~/components/dashboard/request-card-dropdown'
 import { unstable_cache } from 'next/cache'
 import { db } from '~/server/db'
-import { commissions } from '~/server/db/schema'
-import { eq } from 'drizzle-orm'
+import { artists, commissions } from '~/server/db/schema'
+import { and, eq } from 'drizzle-orm'
 import { get_blur_data } from '~/lib/blur_data'
 import { format_to_currency } from '~/lib/utils'
 import { Suspense } from 'react'
@@ -38,8 +37,16 @@ import Loading from '~/components/ui/loading'
 
 const get_request_list = unstable_cache(
     async (slug: string, handle: string) => {
+        const artist = await db.query.artists.findFirst({
+            where: eq(artists.handle, handle)
+        })
+
+        if (!artist) {
+            return undefined
+        }
+
         const commission = await db.query.commissions.findFirst({
-            where: eq(commissions.slug, slug),
+            where: and(eq(commissions.slug, slug), eq(commissions.artist_id, artist.id)),
             with: {
                 requests: true
             }
@@ -87,15 +94,11 @@ const get_request_list = unstable_cache(
     },
     ['request-list-dashboard'],
     {
-        revalidate: 60
+        tags: ['commission-requests']
     }
 )
 
-export default function CommissionDetailPage({
-    params
-}: {
-    params: { slug: string }
-}) {
+export default function CommissionDetailPage({ params }: { params: { slug: string } }) {
     return (
         <Suspense fallback={<Loading />}>
             <RequestsList slug={params.slug} />
@@ -108,7 +111,7 @@ async function RequestsList(props: { slug: string }) {
 
     const commission = await get_request_list(
         props.slug,
-        user?.privateMetadata.handle as string
+        user?.publicMetadata.handle as string
     )
 
     if (!commission) {
@@ -174,18 +177,45 @@ async function RequestsList(props: { slug: string }) {
                     </div>
                 </TabsContent>
                 <TabsContent value="waitlisted_requests">
-                    <div className="card bg-base-200 shadow-xl">
-                        <div className="card-body">
-                            <h2 className="card-title">Waitlisted Requests</h2>
-                            <div className="divider"></div>
+                    <div className="flex flex-col gap-5 pt-5">
+                        <h2 className="card-title">Waitlisted Requests</h2>
+                        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                            {commission.requests
+                                ?.filter(
+                                    (request) => request.status === RequestStatus.Waitlist
+                                )
+                                .map((request) => (
+                                    <RequestCard
+                                        key={request.id}
+                                        request={request}
+                                        accepted_data={{
+                                            accepted: true,
+                                            slug: commission.slug
+                                        }}
+                                    />
+                                ))}
                         </div>
                     </div>
                 </TabsContent>
                 <TabsContent value="delivered_requests">
-                    <div className="card bg-base-200 shadow-xl">
-                        <div className="card-body">
-                            <h2 className="card-title">Delivered Requests</h2>
-                            <div className="divider"></div>
+                    <div className="flex flex-col gap-5 pt-5">
+                        <h2 className="card-title">Delivered Requests</h2>
+                        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                            {commission.requests
+                                ?.filter(
+                                    (request) =>
+                                        request.status === RequestStatus.Delivered
+                                )
+                                .map((request) => (
+                                    <RequestCard
+                                        key={request.id}
+                                        request={request}
+                                        accepted_data={{
+                                            accepted: true,
+                                            slug: commission.slug
+                                        }}
+                                    />
+                                ))}
                         </div>
                     </div>
                 </TabsContent>

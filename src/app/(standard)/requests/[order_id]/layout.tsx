@@ -1,6 +1,6 @@
 import RequestSidenavLink from '~/components/requests/request-sidenav-link'
 
-export default async function Layout({
+export default function Layout({
     children,
     params
 }: {

@@ -10,15 +10,10 @@ import Loading from '~/components/ui/loading'
 import { ClientCommissionItemEditable, CommissionAvailability } from '~/core/structures'
 import { format_for_image_editor } from '~/lib/server-utils'
 import { db } from '~/server/db'
-import { artists, commissions } from '~/server/db/schema'
-import { api } from '~/trpc/server'
+import { commissions } from '~/server/db/schema'
+import { get_form_list } from '~/app/dashboard/commissions/create/page'
 
 async function get_edit_data(user: User, slug: string) {
-    // Get the artist from the db
-    const artist = await db.query.artists.findFirst({
-        where: eq(artists.user_id, user.privateMetadata.artist_id as string)
-    })
-
     // Get the commission from the db
     const commission = await db.query.commissions.findFirst({
         where: eq(commissions.slug, slug),
@@ -66,11 +61,8 @@ async function PageContent(props: { slug: string }) {
         return redirect('/u/login')
     }
 
-    const forms = await api.form.get_form_list({
-        artist_id: user?.privateMetadata.artist_id as string
-    })
-
     const edit_data = await get_edit_data(user, props.slug)
+    const forms = await get_form_list(user.privateMetadata.artist_id as string)
 
     if (!edit_data) {
         return notFound()

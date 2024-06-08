@@ -22,7 +22,7 @@ import NemuUploadDropzone from '~/components/files/nemu-dropzone'
 import NemuUploadPreview from '~/components/files/nemu-upload-preview'
 
 import NemuUploadProgress from '~/components/files/nemu-upload-progress'
-import { RouterOutput } from '~/core/structures'
+import { ClientPortfolioItem, RouterOutput } from '~/core/structures'
 import NemuImage from '~/components/nemu-image'
 import { toast } from 'sonner'
 
@@ -35,7 +35,7 @@ type PortfolioSchemaType = z.infer<typeof portfolioSchema>
 export default function PortfolioCreateEditForm({
     data
 }: {
-    data?: RouterOutput['portfolio']['get_portfolio']
+    data?: ClientPortfolioItem
 }) {
     const [toastId, setToastId] = useState<string | number | undefined>(undefined)
     const [disabled, setDisabled] = useState(false)

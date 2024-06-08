@@ -15,6 +15,8 @@ import { db } from '~/server/db'
 import { requests } from '~/server/db/schema'
 import { eq } from 'drizzle-orm'
 import { clerkClient } from '@clerk/nextjs/server'
+import { Suspense } from 'react'
+import Loading from '~/components/ui/loading'
 
 const get_request_details = unstable_cache(
     async (order_id: string) => {
@@ -43,12 +45,16 @@ const get_request_details = unstable_cache(
     ['request-details']
 )
 
-export default async function RequestsDetailPage({
-    params
-}: {
-    params: { order_id: string }
-}) {
-    const request = await get_request_details(params.order_id)
+export default function RequestDetailsPage({ params }: { params: { order_id: string } }) {
+    return (
+        <Suspense fallback={<Loading />}>
+            <PageContent order_id={params.order_id} />
+        </Suspense>
+    )
+}
+
+async function PageContent(props: { order_id: string }) {
+    const request = await get_request_details(props.order_id)
 
     if (!request || !request.commission) {
         return notFound()

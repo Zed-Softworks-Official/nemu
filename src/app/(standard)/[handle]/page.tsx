@@ -44,7 +44,7 @@ const get_artist_data = unstable_cache(
         }
     },
     ['artist-data'],
-    { revalidate: 3600 }
+    { tags: ['artist-data'] }
 )
 
 export async function generateMetadata(
@@ -60,7 +60,10 @@ export async function generateMetadata(
 
     return {
         title: `Nemu | @${artist.handle}`,
-        description: `Check out ${artist.handle}'s profile on Nemu!`
+        description: `Check out ${artist.handle}'s profile on Nemu!`,
+        openGraph: {
+            images: [(await clerkClient.users.getUser(artist.user_id)).imageUrl]
+        }
     }
 }
 

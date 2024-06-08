@@ -34,10 +34,10 @@ const get_invoice = unstable_cache(
         return request.invoice
     },
     ['request-invoice'],
-    { revalidate: 3600 }
+    { tags: ['request-invoice'] }
 )
 
-export default async function RequestInvoicesPage({
+export default function RequestInvoicesPage({
     params
 }: {
     params: { order_id: string }
