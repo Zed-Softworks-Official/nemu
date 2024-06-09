@@ -1,41 +1,13 @@
 import { ColumnDef } from '@tanstack/react-table'
-import { eq } from 'drizzle-orm'
-import { index } from 'drizzle-orm/mysql-core'
-import { unstable_cache } from 'next/cache'
 import Link from 'next/link'
 import { Suspense } from 'react'
 import DataTable from '~/components/data-table'
 import { Badge } from '~/components/ui/badge'
-import { Button } from '~/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card'
 import Loading from '~/components/ui/loading'
 import { InvoiceStatus } from '~/core/structures'
 import { format_to_currency } from '~/lib/utils'
-import { db } from '~/server/db'
-import { requests } from '~/server/db/schema'
-
-const get_invoice = unstable_cache(
-    async (order_id: string) => {
-        const request = await db.query.requests.findFirst({
-            where: eq(requests.order_id, order_id),
-            with: {
-                invoice: {
-                    with: {
-                        invoice_items: true
-                    }
-                }
-            }
-        })
-
-        if (!request || !request.invoice) {
-            return undefined
-        }
-
-        return request.invoice
-    },
-    ['request-invoice'],
-    { tags: ['request-invoice'] }
-)
+import { get_request_details } from '~/app/(standard)/requests/[order_id]/details/page'
 
 export default function RequestInvoicesPage({
     params
@@ -57,7 +29,7 @@ export default function RequestInvoicesPage({
 }
 
 async function InvoiceDataTable(props: { order_id: string }) {
-    const invoice = await get_invoice(props.order_id)
+    const invoice = (await get_request_details(props.order_id))?.invoice
 
     if (!invoice) {
         return <>No Invoice</>

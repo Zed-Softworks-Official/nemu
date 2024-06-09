@@ -14,7 +14,7 @@ import { get_blur_data } from '~/lib/blur_data'
 import { eq } from 'drizzle-orm'
 import { AsRedisKey, cache } from '~/server/cache'
 
-const get_commissions = unstable_cache(
+const get_commission_list = unstable_cache(
     async (artist_id: string) => {
         const cachedCommissions = await cache.json.get(
             AsRedisKey('commissions', artist_id)
@@ -65,7 +65,7 @@ const get_commissions = unstable_cache(
     },
     ['commission_list'],
     {
-        tags: ['commission', 'commission_list']
+        tags: ['commission_list']
     }
 )
 
@@ -76,7 +76,7 @@ export default async function CommissionsList({
     artist_id: string
     handle: string
 }) {
-    const data = await get_commissions(artist_id)
+    const data = await get_commission_list(artist_id)
 
     if (!data) {
         return <></>

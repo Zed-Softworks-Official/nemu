@@ -6,7 +6,14 @@ import {
     KanbanTask,
     ImageEditorData
 } from '~/core/structures'
-import { artists, commissions, requests } from '~/server/db/schema'
+import {
+    artists,
+    commissions,
+    downloads,
+    invoice_items,
+    invoices,
+    requests
+} from '~/server/db/schema'
 
 /**
  * The different states a commission can be in
@@ -45,6 +52,13 @@ export type ClientRequestData = InferSelectModel<typeof requests> & {
     user: User
     commission?: InferSelectModel<typeof commissions> & {
         artist?: InferSelectModel<typeof artists>
+    }
+    delivery?: InferSelectModel<typeof downloads> & {
+        blur_data?: string
+        file_type: 'image' | 'zip'
+    }
+    invoice?: InferSelectModel<typeof invoices> & {
+        invoice_items: InferSelectModel<typeof invoice_items>[]
     }
 }
 
@@ -96,7 +110,7 @@ export type ClientCommissionItem = {
     }[]
 
     // Request Data
-    requests?: ClientRequestData[] 
+    requests?: ClientRequestData[]
 }
 
 export type ClientCommissionItemEditable = {

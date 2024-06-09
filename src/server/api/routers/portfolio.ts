@@ -7,6 +7,7 @@ import { ClientPortfolioItem, NemuImageData } from '~/core/structures'
 import { get_blur_data } from '~/lib/blur_data'
 
 import { artistProcedure, createTRPCRouter, publicProcedure } from '~/server/api/trpc'
+import { AsRedisKey, cache, invalidate_cache } from '~/server/cache'
 import { portfolios } from '~/server/db/schema'
 
 import { utapi } from '~/server/uploadthing'
@@ -86,16 +87,11 @@ export const portfolioRouter = createTRPCRouter({
                 })
             }
 
-            // await ctx.cache.set(
-            //     AsRedisKey(
-            //         'portfolio_items',
-            //         ctx.user.privateMetadata.artist_id as string
-            //     ),
-            //     JSON.stringify(result),
-            //     {
-            //         EX: 3600
-            //     }
-            // )
+            invalidate_cache(
+                AsRedisKey('portfolios', ctx.user.privateMetadata.artist_id as string),
+                'portfolio_list',
+                result
+            )
         }),
 
     /**
@@ -114,5 +110,41 @@ export const portfolioRouter = createTRPCRouter({
 
             // Delete from db
             await ctx.db.delete(portfolios).where(eq(portfolios.id, input.id))
+
+            // Delete single item from kv cache
+            await cache.json.del(
+                AsRedisKey(
+                    'portfolios',
+                    ctx.user.privateMetadata.artist_id as string,
+                    input.id
+                )
+            )
+
+            // Invalidate Cache
+            const portfolioItems = await ctx.db.query.portfolios.findMany({
+                where: eq(
+                    portfolios.artist_id,
+                    ctx.user.privateMetadata.artist_id as string
+                )
+            })
+
+            // Format for client
+            const result: ClientPortfolioItem[] = []
+            for (const portfolio of portfolioItems) {
+                result.push({
+                    id: portfolio.id,
+                    title: portfolio.title,
+                    image: {
+                        url: portfolio.image_url,
+                        blur_data: await get_blur_data(portfolio.image_url)
+                    }
+                })
+            }
+
+            invalidate_cache(
+                AsRedisKey('portfolios', ctx.user.privateMetadata.artist_id as string),
+                'portfolio_list',
+                result
+            )
         })
 })

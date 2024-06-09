@@ -34,9 +34,18 @@ import { get_blur_data } from '~/lib/blur_data'
 import { format_to_currency } from '~/lib/utils'
 import { Suspense } from 'react'
 import Loading from '~/components/ui/loading'
+import { AsRedisKey, cache } from '~/server/cache'
 
 const get_request_list = unstable_cache(
     async (slug: string, handle: string) => {
+        const cachedCommissionRequests = await cache.json.get(
+            AsRedisKey('requests', handle, slug)
+        )
+
+        if (cachedCommissionRequests) {
+            return cachedCommissionRequests as ClientCommissionItem
+        }
+
         const artist = await db.query.artists.findFirst({
             where: eq(artists.handle, handle)
         })
@@ -89,6 +98,8 @@ const get_request_list = unstable_cache(
             new_requests: commission.new_requests,
             requests: requests
         }
+
+        await cache.json.set(AsRedisKey('requests', handle, slug), '$', result)
 
         return result
     },

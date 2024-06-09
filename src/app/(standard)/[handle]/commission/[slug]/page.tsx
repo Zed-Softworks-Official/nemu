@@ -3,14 +3,23 @@ import { unstable_cache } from 'next/cache'
 import { Suspense } from 'react'
 import CommissionDisplay from '~/components/displays/commission/display'
 import Loading from '~/components/ui/loading'
-import { CommissionAvailability } from '~/core/structures'
+import { ClientCommissionItem, CommissionAvailability } from '~/core/structures'
 import { convert_images_to_nemu_images } from '~/lib/server-utils'
 import { format_to_currency } from '~/lib/utils'
+import { AsRedisKey, cache } from '~/server/cache'
 import { db } from '~/server/db'
 import { artists, commissions } from '~/server/db/schema'
 
 export const get_commission = unstable_cache(
     async (handle: string, slug: string) => {
+        const cachedCommission = await cache.json.get(
+            AsRedisKey('commissions', handle, slug)
+        )
+
+        if (cachedCommission) {
+            return cachedCommission as ClientCommissionItem
+        }
+
         // Get the artist from the db to fetch the commission
         const artist = await db.query.artists.findFirst({
             where: eq(artists.handle, handle)
@@ -31,8 +40,7 @@ export const get_commission = unstable_cache(
 
         // Format images for client
         const images = await convert_images_to_nemu_images(commission.images)
-
-        return {
+        const result: ClientCommissionItem = {
             title: commission.title,
             description: commission.description,
             price: format_to_currency(Number(commission.price)),
@@ -51,6 +59,10 @@ export const get_commission = unstable_cache(
                 terms: artist.terms
             }
         }
+
+        await cache.json.set(AsRedisKey('commissions', handle, slug), '$', result)
+
+        return result
     },
     ['commission'],
     { tags: ['commission'] }

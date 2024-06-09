@@ -9,7 +9,7 @@ import {
     NemuImageData
 } from '~/core/structures'
 import { artistProcedure, createTRPCRouter, publicProcedure } from '~/server/api/trpc'
-import { AsRedisKey, cache } from '~/server/cache'
+import { AsRedisKey, cache, invalidate_cache } from '~/server/cache'
 import {
     convert_images_to_nemu_images,
     format_for_image_editor
@@ -125,7 +125,7 @@ export const commissionRouter = createTRPCRouter({
                 }
 
                 // Update the database with the relavent information that has been updated
-                const commission_udpated = (
+                const commission_updated = (
                     await ctx.db
                         .update(commissions)
                         .set({
@@ -151,18 +151,95 @@ export const commissionRouter = createTRPCRouter({
 
                 // Update Algolia
                 await update_index('commissions', {
-                    objectID: commission_udpated.id,
-                    title: commission_udpated.title,
-                    price: format_to_currency(commission_udpated.price),
-                    description: commission_udpated.description,
-                    featured_image: commission_udpated.images[0]?.url!,
-                    slug: commission_udpated.slug,
+                    objectID: commission_updated.id,
+                    title: commission_updated.title,
+                    price: format_to_currency(commission_updated.price),
+                    description: commission_updated.description,
+                    featured_image: commission_updated.images[0]?.url!,
+                    slug: commission_updated.slug,
                     artist_handle: ctx.user.publicMetadata.handle as string,
-                    published: commission_udpated.published
+                    published: commission_updated.published
+                })
+
+                const artist = await ctx.db.query.artists.findFirst({
+                    where: eq(artists.id, commission_updated.artist_id)
                 })
 
                 // Invalidate cache
-                revalidateTag('commission')
+                const images = await convert_images_to_nemu_images(
+                    commission_updated.images
+                )
+
+                const new_cached_commission: ClientCommissionItem = {
+                    title: commission_updated.title,
+                    description: commission_updated.description,
+                    price: format_to_currency(Number(commission_updated.price)),
+                    availability:
+                        commission_updated.availability as CommissionAvailability,
+                    rating: Number(commission_updated.rating),
+                    images: images,
+                    slug: commission_updated.slug,
+                    published: commission_updated.published,
+
+                    id: commission_updated.id,
+                    form_id: commission_updated.form_id,
+
+                    artist: {
+                        handle: artist!.handle,
+                        supporter: artist!.supporter,
+                        terms: artist!.terms
+                    }
+                }
+
+                invalidate_cache(
+                    AsRedisKey(
+                        'commissions',
+                        ctx.user.publicMetadata.handle as string,
+                        commission_updated.slug
+                    ),
+                    'commission',
+                    new_cached_commission
+                )
+
+                // Invalidate Commission List Cache
+                const commission_to_cache: ClientCommissionItem[] = []
+                const db_commissions = await ctx.db.query.commissions.findMany({
+                    where: eq(
+                        commissions.artist_id,
+                        ctx.user.privateMetadata.artist_id as string
+                    ),
+                    with: {
+                        artist: true
+                    }
+                })
+
+                for (const commission of db_commissions) {
+                    commission_to_cache.push({
+                        title: commission.title,
+                        description: commission.description,
+                        price: format_to_currency(commission.price),
+                        availability: commission.availability as CommissionAvailability,
+                        rating: Number(commission.rating),
+                        published: commission.published,
+                        images: [
+                            {
+                                url: commission.images[0]?.url!,
+                                blur_data: await get_blur_data(commission.images[0]?.url!)
+                            }
+                        ],
+                        slug: commission.slug,
+                        artist: {
+                            handle: commission.artist.handle,
+                            supporter: commission.artist.supporter
+                        }
+                    })
+                }
+
+                invalidate_cache(
+                    AsRedisKey('commissions', commission_updated.artist_id),
+                    'commission_list',
+                    commission_to_cache
+                )
 
                 return { success: true, updated: true }
             }
@@ -235,7 +312,44 @@ export const commissionRouter = createTRPCRouter({
             })
 
             // Revalidate Cache
-            revalidateTag('commission')
+            const commission_to_cache: ClientCommissionItem[] = []
+            const db_commissions = await ctx.db.query.commissions.findMany({
+                where: eq(
+                    commissions.artist_id,
+                    ctx.user.privateMetadata.artist_id as string
+                ),
+                with: {
+                    artist: true
+                }
+            })
+
+            for (const commission of db_commissions) {
+                commission_to_cache.push({
+                    title: commission.title,
+                    description: commission.description,
+                    price: format_to_currency(commission.price),
+                    availability: commission.availability as CommissionAvailability,
+                    rating: Number(commission.rating),
+                    published: commission.published,
+                    images: [
+                        {
+                            url: commission.images[0]?.url!,
+                            blur_data: await get_blur_data(commission.images[0]?.url!)
+                        }
+                    ],
+                    slug: commission.slug,
+                    artist: {
+                        handle: commission.artist.handle,
+                        supporter: commission.artist.supporter
+                    }
+                })
+            }
+
+            invalidate_cache(
+                AsRedisKey('commissions', commission.artist_id),
+                'commission_list',
+                commission_to_cache
+            )
 
             return { success: true }
         })

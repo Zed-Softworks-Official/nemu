@@ -10,12 +10,18 @@ import Loading from '~/components/ui/loading'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 import { ClientRequestData, RequestStatus } from '~/core/structures'
 import { get_blur_data } from '~/lib/blur_data'
+import { AsRedisKey, cache } from '~/server/cache'
 import { db } from '~/server/db'
 import { requests } from '~/server/db/schema'
-import { api } from '~/trpc/server'
 
 const get_request_list = unstable_cache(
     async (user_id: string) => {
+        const cachedRequests = await cache.json.get(AsRedisKey('requests', user_id))
+
+        if (cachedRequests) {
+            return cachedRequests as ClientRequestData[]
+        }
+
         const db_requests = await db.query.requests.findMany({
             where: eq(requests.user_id, user_id),
             with: {
@@ -50,6 +56,8 @@ const get_request_list = unstable_cache(
                 user: await clerkClient.users.getUser(request.user_id)
             })
         }
+
+        await cache.json.set(AsRedisKey('requests', user_id), '$', result)
 
         return result
     },

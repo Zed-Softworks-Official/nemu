@@ -1,6 +1,4 @@
-import { eq } from 'drizzle-orm'
 import { FileArchiveIcon } from 'lucide-react'
-import { unstable_cache } from 'next/cache'
 import Link from 'next/link'
 import { Suspense } from 'react'
 import NemuImage from '~/components/nemu-image'
@@ -12,39 +10,7 @@ import {
     CardTitle
 } from '~/components/ui/card'
 import Loading from '~/components/ui/loading'
-import { get_blur_data } from '~/lib/blur_data'
-import { db } from '~/server/db'
-import { requests } from '~/server/db/schema'
-
-const get_downloads = unstable_cache(
-    async (order_id: string) => {
-        const request = await db.query.requests.findFirst({
-            where: eq(requests.order_id, order_id),
-            with: {
-                download: true
-            }
-        })
-
-        if (!request || !request.download) {
-            return undefined
-        }
-
-        const file_type: 'image' | 'zip' = request.download.url.includes('.zip')
-            ? 'zip'
-            : 'image'
-
-        return {
-            url: request.download.url,
-            blur_data:
-                file_type === 'image'
-                    ? await get_blur_data(request.download.url)
-                    : undefined,
-            file_type,
-            created_at: request.download.created_at
-        }
-    },
-    ['request-downloads']
-)
+import { get_request_details } from '../details/page'
 
 export default function RequestDeliveryPage({
     params
@@ -59,7 +25,7 @@ export default function RequestDeliveryPage({
 }
 
 async function PageContent(props: { order_id: string }) {
-    const downloads = await get_downloads(props.order_id)
+    const downloads = (await get_request_details(props.order_id))?.delivery
 
     if (!downloads) {
         return (

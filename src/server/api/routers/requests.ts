@@ -91,7 +91,7 @@ export const requestRouter = createTRPCRouter({
                 }
             })
 
-            // Invalidate Cache
+            // TODO: Invalidate Cache
             // await ctx.cache.del(
             //     AsRedisKey('commissions', commission.artist_id, commission.slug)
             // )
@@ -312,7 +312,7 @@ export const requestRouter = createTRPCRouter({
                 })
                 .where(eq(requests.id, request.id))
 
-            // Delete Dashboard Caches
+            // TODO: Invalidate Cache
             // await ctx.cache.del(AsRedisKey('commissions', request.commission.artist_id))
             // await ctx.cache.del(AsRedisKey('requests', request.commission_id))
 

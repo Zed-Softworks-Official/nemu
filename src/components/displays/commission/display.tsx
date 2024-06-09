@@ -22,21 +22,27 @@ const get_form = unstable_cache(
     }
 )
 
-const get_user_requested = unstable_cache(async (form_id: string, user_id?: string) => {
-    if (!user_id) {
-        return undefined
+const get_user_requested = unstable_cache(
+    async (form_id: string, user_id?: string) => {
+        if (!user_id) {
+            return undefined
+        }
+
+        const request = await db.query.requests.findFirst({
+            where: and(eq(requests.user_id, user_id), eq(requests.form_id, form_id))
+        })
+
+        if (!request) {
+            return false
+        }
+
+        return true
+    },
+    ['request'],
+    {
+        tags: ['requests']
     }
-
-    const request = await db.query.requests.findFirst({
-        where: and(eq(requests.user_id, user_id), eq(requests.form_id, form_id))
-    })
-
-    if (!request) {
-        return false
-    }
-
-    return true
-})
+)
 
 export default async function CommissionDisplay(props: {
     commission?: ClientCommissionItem

@@ -4,11 +4,20 @@ import NemuImage from '~/components/nemu-image'
 import Masonry from '~/components/ui/masonry'
 import { ClientPortfolioItem } from '~/core/structures'
 import { get_blur_data } from '~/lib/blur_data'
+import { AsRedisKey, cache } from '~/server/cache'
 import { db } from '~/server/db'
 import { portfolios } from '~/server/db/schema'
 
 const get_portfolio_list = unstable_cache(
     async (artist_id: string) => {
+        const cachedPortfolioItems = await cache.json.get(
+            AsRedisKey('portfolios', artist_id)
+        )
+
+        if (cachedPortfolioItems) {
+            return cachedPortfolioItems as ClientPortfolioItem[]
+        }
+
         const portfolioItems = await db.query.portfolios.findMany({
             where: eq(portfolios.artist_id, artist_id)
         })
@@ -25,6 +34,8 @@ const get_portfolio_list = unstable_cache(
                 }
             })
         }
+
+        await cache.json.set(AsRedisKey('portfolios', artist_id), '$', result)
 
         return result
     },
