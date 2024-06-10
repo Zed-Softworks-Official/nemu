@@ -1,31 +1,11 @@
 import { currentUser } from '@clerk/nextjs/server'
 import { eq } from 'drizzle-orm'
-import { unstable_cache } from 'next/cache'
 import { Suspense } from 'react'
 import CommissionCreateEditForm from '~/components/dashboard/forms/commission-create-edit'
 import UploadThingProvider from '~/components/files/uploadthing-context'
 import DashboardContainer from '~/components/ui/dashboard-container'
 import Loading from '~/components/ui/loading'
-import { db } from '~/server/db'
-import { forms } from '~/server/db/schema'
-
-export const get_form_list = unstable_cache(
-    async (artist_id: string) => {
-        const db_forms = await db.query.forms.findMany({
-            where: eq(forms.artist_id, artist_id)
-        })
-
-        if (!db_forms) {
-            return undefined
-        }
-
-        return db_forms
-    },
-    ['forms'],
-    {
-        tags: ['forms']
-    }
-)
+import { get_form_list } from '~/server/db/query'
 
 export default function CreateCommissionPage() {
     return (

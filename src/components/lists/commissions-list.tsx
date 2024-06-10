@@ -1,73 +1,12 @@
 import Link from 'next/link'
 import { EyeIcon } from 'lucide-react'
 
-import { format_to_currency, get_availability_badge_data } from '~/lib/utils'
+import { get_availability_badge_data } from '~/lib/utils'
 
 import NemuImage from '~/components/nemu-image'
 import { Badge } from '~/components/ui/badge'
 import Price from '~/components/ui/price'
-import { unstable_cache } from 'next/cache'
-import { db } from '~/server/db'
-import { commissions } from '~/server/db/schema'
-import { ClientCommissionItem, CommissionAvailability } from '~/core/structures'
-import { get_blur_data } from '~/lib/blur_data'
-import { eq } from 'drizzle-orm'
-import { AsRedisKey, cache } from '~/server/cache'
-
-const get_commission_list = unstable_cache(
-    async (artist_id: string) => {
-        const cachedCommissions = await cache.json.get(
-            AsRedisKey('commissions', artist_id)
-        )
-
-        if (cachedCommissions) {
-            return cachedCommissions as ClientCommissionItem[]
-        }
-
-        const db_commissions = await db.query.commissions.findMany({
-            where: eq(commissions.artist_id, artist_id),
-            with: {
-                artist: true
-            }
-        })
-
-        if (!db_commissions) {
-            return undefined
-        }
-
-        // Format for client
-        const result: ClientCommissionItem[] = []
-        for (const commission of db_commissions) {
-            result.push({
-                title: commission.title,
-                description: commission.description,
-                price: format_to_currency(Number(commission.price)),
-                availability: commission.availability as CommissionAvailability,
-                rating: Number(commission.rating),
-                published: commission.published,
-                images: [
-                    {
-                        url: commission.images[0]?.url!,
-                        blur_data: await get_blur_data(commission.images[0]?.url!)
-                    }
-                ],
-                slug: commission.slug,
-                artist: {
-                    handle: commission.artist.handle,
-                    supporter: commission.artist.supporter
-                }
-            })
-        }
-
-        await cache.json.set(AsRedisKey('commissions', artist_id), '$', result)
-
-        return result
-    },
-    ['commission_list'],
-    {
-        tags: ['commission_list']
-    }
-)
+import { get_commission_list } from '~/server/db/query'
 
 export default async function CommissionsList({
     artist_id,

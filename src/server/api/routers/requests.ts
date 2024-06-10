@@ -5,17 +5,18 @@ import { and, eq, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { StripeCreateCustomer, StripeCreateInvoice } from '~/core/payments'
 import {
+    ClientCommissionItem,
     ClientRequestData,
+    CommissionAvailability,
     InvoiceStatus,
     KanbanContainerData,
     NemuImageData,
     RequestStatus
 } from '~/core/structures'
 import { env } from '~/env'
-import { get_blur_data } from '~/lib/blur_data'
 import { update_commission_check_waitlist } from '~/lib/server-utils'
 import { artistProcedure, createTRPCRouter, protectedProcedure } from '~/server/api/trpc'
-import { AsRedisKey } from '~/server/cache'
+import { AsRedisKey, invalidate_cache } from '~/server/cache'
 import {
     commissions,
     invoice_items,
@@ -91,10 +92,11 @@ export const requestRouter = createTRPCRouter({
                 }
             })
 
-            // TODO: Invalidate Cache
-            // await ctx.cache.del(
-            //     AsRedisKey('commissions', commission.artist_id, commission.slug)
-            // )
+            //  Invalidate Cache
+            invalidate_cache(
+                AsRedisKey('requests', commission.artist.handle, commission.slug),
+                'commission_requests'
+            )
         }),
 
     /**
@@ -312,9 +314,15 @@ export const requestRouter = createTRPCRouter({
                 })
                 .where(eq(requests.id, request.id))
 
-            // TODO: Invalidate Cache
-            // await ctx.cache.del(AsRedisKey('commissions', request.commission.artist_id))
-            // await ctx.cache.del(AsRedisKey('requests', request.commission_id))
+            // Invalidate Cache
+            await invalidate_cache(
+                AsRedisKey(
+                    'requests',
+                    request.commission.artist.handle,
+                    request.commission.slug
+                ),
+                'commission_requests'
+            )
 
             return { success: true }
         })

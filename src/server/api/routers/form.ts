@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 
 import { artistProcedure, createTRPCRouter, protectedProcedure } from '~/server/api/trpc'
-import { AsRedisKey, cache } from '~/server/cache'
+import { AsRedisKey, invalidate_cache } from '~/server/cache'
 import { forms } from '~/server/db/schema'
 import { TRPCError } from '@trpc/server'
 import { createId } from '@paralleldrive/cuid2'
@@ -30,11 +30,10 @@ export const formRouter = createTRPCRouter({
                 .returning()
 
             // Invalidate cache
-            // await cache.json.arrappend(
-            //     AsRedisKey('forms', ctx.user.privateMetadata.artist_id as string),
-            //     '$',
-            //     form[0]
-            // )
+            invalidate_cache(
+                AsRedisKey('forms', form[0]?.artist_id as string),
+                'forms_list'
+            )
         }),
 
     /**
@@ -65,12 +64,8 @@ export const formRouter = createTRPCRouter({
                 })
             }
 
-            // Update Cache
-            // await cache.json.set(
-            //     AsRedisKey('forms', input.form_id),
-            //     '$.content',
-            //     input.content
-            // )
+            // Invalidate Cache
+            invalidate_cache(AsRedisKey('forms', updated.id), 'form')
 
             return { success: true }
         })

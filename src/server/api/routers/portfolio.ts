@@ -66,31 +66,11 @@ export const portfolioRouter = createTRPCRouter({
                 ut_key: input.data.utKey
             })
 
-            // Update Cache
-            const portfolioItems = await ctx.db.query.portfolios.findMany({
-                where: eq(
-                    portfolios.artist_id,
-                    ctx.user.privateMetadata.artist_id as string
-                )
-            })
-
-            // Format for client
-            const result: ClientPortfolioItem[] = []
-            for (const portfolio of portfolioItems) {
-                result.push({
-                    id: portfolio.id,
-                    title: portfolio.title,
-                    image: {
-                        url: portfolio.image_url,
-                        blur_data: await get_blur_data(portfolio.image_url)
-                    }
-                })
-            }
+            // Invalidate Cache
 
             invalidate_cache(
                 AsRedisKey('portfolios', ctx.user.privateMetadata.artist_id as string),
-                'portfolio_list',
-                result
+                'portfolio_list'
             )
         }),
 
@@ -121,30 +101,10 @@ export const portfolioRouter = createTRPCRouter({
             )
 
             // Invalidate Cache
-            const portfolioItems = await ctx.db.query.portfolios.findMany({
-                where: eq(
-                    portfolios.artist_id,
-                    ctx.user.privateMetadata.artist_id as string
-                )
-            })
-
-            // Format for client
-            const result: ClientPortfolioItem[] = []
-            for (const portfolio of portfolioItems) {
-                result.push({
-                    id: portfolio.id,
-                    title: portfolio.title,
-                    image: {
-                        url: portfolio.image_url,
-                        blur_data: await get_blur_data(portfolio.image_url)
-                    }
-                })
-            }
 
             invalidate_cache(
                 AsRedisKey('portfolios', ctx.user.privateMetadata.artist_id as string),
-                'portfolio_list',
-                result
+                'portfolio_list'
             )
         })
 })

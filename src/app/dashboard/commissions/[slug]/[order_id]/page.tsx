@@ -1,4 +1,3 @@
-import { clerkClient } from '@clerk/nextjs/server'
 import { notFound } from 'next/navigation'
 
 import MessagesClient from '~/components/messages/messages'
@@ -14,10 +13,6 @@ import {
 import DownloadsDropzone from '~/components/dashboard/downloads-dropzone'
 import DataTable from '~/components/data-table'
 import { ColumnDef } from '@tanstack/react-table'
-import { unstable_cache } from 'next/cache'
-import { db } from '~/server/db'
-import { invoices, kanbans, requests } from '~/server/db/schema'
-import { eq } from 'drizzle-orm'
 import { Suspense } from 'react'
 import Loading from '~/components/ui/loading'
 import InvoiceEditor from '~/components/dashboard/invoice-editor'
@@ -31,74 +26,9 @@ import {
 } from '~/components/ui/card'
 import { Badge } from '~/components/ui/badge'
 import DeliverForm from '~/components/dashboard/deliver-form'
-
-const get_request_data = unstable_cache(
-    async (order_id: string) => {
-        const request = await db.query.requests.findFirst({
-            where: eq(requests.order_id, order_id),
-            with: {
-                user: true,
-                commission: true
-            }
-        })
-
-        if (!request) {
-            return undefined
-        }
-
-        const kanban = await db.query.kanbans.findFirst({
-            where: eq(kanbans.request_id, request.id)
-        })
-
-        if (!kanban) {
-            return undefined
-        }
-
-        return {
-            request: {
-                id: request.id,
-                invoice_id: request.invoice_id,
-                content: request.content as RequestContent,
-                created_at: request.created_at,
-                commission_id: request.commission_id,
-                order_id: request.order_id,
-                sendbird_channel_url: request.sendbird_channel_url,
-                download_id: request.download_id,
-                commission: {
-                    title: request.commission.title
-                },
-                status: request.status
-            },
-            user: await clerkClient.users.getUser(request.user_id),
-            kanban
-        }
-    },
-    ['request-details'],
-    {
-        tags: ['commission-requests']
-    }
-)
-
-const get_invoice_data = unstable_cache(
-    async (invoice_id: string) => {
-        const invoice = await db.query.invoices.findFirst({
-            where: eq(invoices.id, invoice_id),
-            with: {
-                invoice_items: true
-            }
-        })
-
-        if (!invoice) {
-            return undefined
-        }
-
-        return invoice
-    },
-    ['request-invoice-data'],
-    {
-        tags: ['invoice']
-    }
-)
+import { get_request_details } from '~/server/db/query'
+import { InferSelectModel } from 'drizzle-orm'
+import { invoice_items, invoices } from '~/server/db/schema'
 
 export default function CommissionDetailsPage({
     params
@@ -113,7 +43,7 @@ export default function CommissionDetailsPage({
 }
 
 async function PageContent(props: { slug: string; order_id: string }) {
-    const request_data = await get_request_data(props.order_id)
+    const request_data = await get_request_details(props.order_id)
 
     if (!request_data) {
         return notFound()
@@ -144,27 +74,29 @@ async function PageContent(props: { slug: string; order_id: string }) {
                 {request_data.user.username || request_data.user.firstName || 'User'}
             </h1>
             <h2 className="text-lg italic text-base-content/80">
-                Requested {new Date(request_data.request.created_at).toLocaleDateString()}
+                Requested {new Date(request_data.created_at).toLocaleDateString()}
             </h2>
             <div className="divider"></div>
             <div className="flex flex-col gap-5 rounded-xl bg-base-200 p-5">
                 <div className="flex flex-col">
                     <h2 className="text-xl font-bold">Order Details</h2>
                     <span className="font-lg">
-                        Commission: {request_data.request.commission.title}
+                        Commission: {request_data.commission?.title}
                     </span>
-                    <span className="font-md">
-                        Order ID: {request_data.request.order_id}
-                    </span>
+                    <span className="font-md">Order ID: {request_data.order_id}</span>
                 </div>
                 <div className="divider"></div>
                 <div className="flex flex-col gap-5">
                     <DataTable
                         columns={request_columns}
-                        data={Object.keys(request_data.request.content).map((key) => ({
-                            item_label: request_data.request.content[key]?.label!,
-                            item_value: request_data.request.content[key]?.value!
-                        }))}
+                        data={Object.keys(request_data.content as RequestContent).map(
+                            (key) => ({
+                                item_label: (request_data.content as RequestContent)[key]
+                                    ?.label!,
+                                item_value: (request_data.content as RequestContent)[key]
+                                    ?.value!
+                            })
+                        )}
                     />
                 </div>
             </div>
@@ -187,15 +119,13 @@ async function PageContent(props: { slug: string; order_id: string }) {
                 <TabsContent value="messages">
                     <MessagesClient
                         hide_channel_list
-                        channel_url={request_data.request.sendbird_channel_url!}
+                        channel_url={request_data.sendbird_channel_url!}
                     />
                 </TabsContent>
                 <TabsContent value="invoice">
                     <div className="flex flex-col gap-5 p-5">
                         <Suspense fallback={<Loading />}>
-                            <InvoiceDisplay
-                                invoice_id={request_data.request.invoice_id}
-                            />
+                            <InvoiceDisplay invoice={request_data.invoice} />
                         </Suspense>
                     </div>
                 </TabsContent>
@@ -211,16 +141,15 @@ async function PageContent(props: { slug: string; order_id: string }) {
                             <CardContent>
                                 <DownloadsDisplay
                                     user_id={request_data.user.id}
-                                    request_id={request_data.request.id}
-                                    download_id={request_data.request.download_id}
+                                    request_id={request_data.id}
+                                    download_id={request_data.download_id}
                                 />
                                 <div className="divider">OR</div>
                                 <DeliverForm
-                                    request_id={request_data.request.id}
+                                    request_id={request_data.id}
                                     user_id={request_data.user.id}
                                     delivered={
-                                        request_data.request.status ===
-                                        RequestStatus.Delivered
+                                        request_data.status === RequestStatus.Delivered
                                     }
                                 />
                             </CardContent>
@@ -231,13 +160,13 @@ async function PageContent(props: { slug: string; order_id: string }) {
                                     Status
                                     <Badge
                                         variant={
-                                            request_data.request.download_id
+                                            request_data.download_id
                                                 ? 'success'
                                                 : 'destructive'
                                         }
                                         className="badge-lg"
                                     >
-                                        {request_data.request.download_id
+                                        {request_data.download_id
                                             ? 'Delivered'
                                             : 'Not Delivered'}
                                     </Badge>
@@ -268,16 +197,14 @@ function DownloadsDisplay(props: {
     )
 }
 
-async function InvoiceDisplay(props: { invoice_id: string | null }) {
-    if (!props.invoice_id) {
+async function InvoiceDisplay(props: {
+    invoice?: InferSelectModel<typeof invoices> & {
+        invoice_items: InferSelectModel<typeof invoice_items>[]
+    }
+}) {
+    if (!props.invoice) {
         return null
     }
 
-    const invoice = await get_invoice_data(props.invoice_id)
-
-    if (!invoice) {
-        return null
-    }
-
-    return <InvoiceEditor invoice={invoice} />
+    return <InvoiceEditor invoice={props.invoice} />
 }

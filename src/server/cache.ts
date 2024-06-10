@@ -20,13 +20,18 @@ if (env.NODE_ENV !== 'production') globalForRedis.cache = cache
  * @param unique_identifiers - The unique identifiers for the object
  */
 export function AsRedisKey(
-    object: 'artists' | 'commissions' | 'portfolios' | 'requests',
+    object: 'artists' | 'commissions' | 'portfolios' | 'requests' | 'forms',
     ...unique_identifiers: string[]
 ) {
     return `${object}:${unique_identifiers.join(':')}`
 }
 
-export function invalidate_cache(
+export function invalidate_cache(key: string, tag: string, path: string = '$') {
+    cache.json.del(key, path)
+    revalidateTag(tag)
+}
+
+export function revalidate_cache(
     key: string,
     tag: string,
     data: any,

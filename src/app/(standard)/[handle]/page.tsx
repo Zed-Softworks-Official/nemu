@@ -1,10 +1,8 @@
-import { clerkClient, User } from '@clerk/nextjs/server'
+import { clerkClient } from '@clerk/nextjs/server'
 import { faPixiv, faXTwitter } from '@fortawesome/free-brands-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { eq, InferSelectModel } from 'drizzle-orm'
 import { GlobeIcon } from 'lucide-react'
 import { Metadata, ResolvingMetadata } from 'next'
-import { unstable_cache } from 'next/cache'
 import Link from 'next/link'
 
 import { notFound } from 'next/navigation'
@@ -15,53 +13,12 @@ import NemuImage from '~/components/nemu-image'
 import { AspectRatio } from '~/components/ui/aspect-ratio'
 import Loading from '~/components/ui/loading'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
-import { NemuImageData, SocialAgent } from '~/core/structures'
-import { get_blur_data } from '~/lib/blur_data'
-import { AsRedisKey, cache } from '~/server/cache'
-import { db } from '~/server/db'
-import { artists } from '~/server/db/schema'
+import { SocialAgent } from '~/core/structures'
+import { get_artist_data } from '~/server/db/query'
 
 type Props = {
     params: { handle: string }
 }
-
-type ArtistData = InferSelectModel<typeof artists> & {
-    user: User
-    header: NemuImageData
-}
-
-const get_artist_data = unstable_cache(
-    async (handle: string) => {
-        const cachedArtist = await cache.json.get(AsRedisKey('artists', handle))
-
-        if (cachedArtist) {
-            return cachedArtist as ArtistData
-        }
-
-        const artist = await db.query.artists.findFirst({
-            where: eq(artists.handle, handle)
-        })
-
-        if (!artist) {
-            return undefined
-        }
-
-        const result: ArtistData = {
-            ...artist,
-            user: await clerkClient.users.getUser(artist.user_id),
-            header: {
-                url: artist.header_photo,
-                blur_data: await get_blur_data(artist.header_photo)
-            }
-        }
-
-        await cache.json.set(AsRedisKey('artists', handle), '$', result)
-
-        return result
-    },
-    ['artist-data'],
-    { tags: ['artist-data'] }
-)
 
 export async function generateMetadata(
     { params }: Props,

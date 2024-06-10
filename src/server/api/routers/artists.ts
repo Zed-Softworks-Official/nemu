@@ -51,19 +51,6 @@ export const artistRouter = createTRPCRouter({
             })
 
             // Invalidate cache
-            const new_cache_item = {
-                ...artist_updated,
-                user: clerkClient.users.getUser(artist_updated.user_id),
-                header: {
-                    url: artist_updated.header_photo,
-                    blur_data: await get_blur_data(artist_updated.header_photo)
-                }
-            }
-
-            invalidate_cache(
-                AsRedisKey('artists', artist_updated.handle),
-                'artist-data',
-                new_cache_item
-            )
+            invalidate_cache(AsRedisKey('artists', artist_updated.handle), 'artist-data')
         })
 })

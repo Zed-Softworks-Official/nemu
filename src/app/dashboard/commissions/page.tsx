@@ -5,78 +5,29 @@ import { EyeIcon, FolderPlusIcon } from 'lucide-react'
 
 import NemuImage from '~/components/nemu-image'
 import EmptyState from '~/components/ui/empty-state'
-import { format_to_currency, get_availability_badge_data } from '~/lib/utils'
+import { get_availability_badge_data } from '~/lib/utils'
 import { Badge } from '~/components/ui/badge'
 import { Card, CardDescription, CardHeader, CardTitle } from '~/components/ui/card'
 
 import { currentUser } from '@clerk/nextjs/server'
 import { Suspense } from 'react'
 import Loading from '~/components/ui/loading'
-import { unstable_cache } from 'next/cache'
-import { db } from '~/server/db'
-import { eq } from 'drizzle-orm'
-import { commissions } from '~/server/db/schema'
 import { ClientCommissionItem, CommissionAvailability } from '~/core/structures'
-import { get_blur_data } from '~/lib/blur_data'
-
-const get_commissions = unstable_cache(
-    async (artist_id: string) => {
-        const db_commissions = await db.query.commissions.findMany({
-            where: eq(commissions.artist_id, artist_id),
-            with: {
-                artist: true
-            }
-        })
-
-        if (!db_commissions) {
-            return undefined
-        }
-
-        // Format for client
-        const result: ClientCommissionItem[] = []
-        for (const commission of db_commissions) {
-            result.push({
-                title: commission.title,
-                description: commission.description,
-                price: format_to_currency(Number(commission.price)),
-                availability: commission.availability as CommissionAvailability,
-                rating: Number(commission.rating),
-                published: commission.published,
-                images: [
-                    {
-                        url: commission.images[0]?.url!,
-                        blur_data: await get_blur_data(commission.images[0]?.url!)
-                    }
-                ],
-                slug: commission.slug,
-                total_requests: commission.total_requests,
-                new_requests: commission.new_requests,
-                artist: {
-                    handle: commission.artist.handle,
-                    supporter: commission.artist.supporter
-                }
-            })
-        }
-
-        return result
-    },
-    ['commissions-list-dashboard'],
-    {
-        tags: ['commission']
-    }
-)
+import { get_commission_list } from '~/server/db/query'
 
 export default function CommissionsDashboardPage() {
     return (
         <Suspense fallback={<Loading />}>
-            <CommissionsDisplay />
+            <PageContent />
         </Suspense>
     )
 }
 
-async function CommissionsDisplay() {
+async function PageContent() {
     const user = await currentUser()
-    const commissions = await get_commissions(user!.privateMetadata.artist_id as string)
+    const commissions = await get_commission_list(
+        user!.privateMetadata.artist_id as string
+    )
 
     if (!commissions || commissions.length === 0) {
         return (

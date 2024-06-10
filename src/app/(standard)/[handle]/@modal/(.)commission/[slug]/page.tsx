@@ -1,8 +1,8 @@
 import ParallelModal from '~/components/ui/parallel-modal'
-import { get_commission } from '~/app/(standard)/[handle]/commission/[slug]/page'
 import { Suspense } from 'react'
 import Loading from '~/components/ui/loading'
 import CommissionDisplay from '~/components/displays/commission/display'
+import { get_commission } from '~/server/db/query'
 
 export default function CommissionsPage({
     params

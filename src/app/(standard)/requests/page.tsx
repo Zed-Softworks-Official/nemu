@@ -1,7 +1,5 @@
-import { clerkClient, currentUser } from '@clerk/nextjs/server'
-import { eq } from 'drizzle-orm'
+import { currentUser } from '@clerk/nextjs/server'
 import { EyeIcon } from 'lucide-react'
-import { unstable_cache } from 'next/cache'
 import Link from 'next/link'
 import { Suspense } from 'react'
 import NemuImage from '~/components/nemu-image'
@@ -9,61 +7,7 @@ import { Badge } from '~/components/ui/badge'
 import Loading from '~/components/ui/loading'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 import { ClientRequestData, RequestStatus } from '~/core/structures'
-import { get_blur_data } from '~/lib/blur_data'
-import { AsRedisKey, cache } from '~/server/cache'
-import { db } from '~/server/db'
-import { requests } from '~/server/db/schema'
-
-const get_request_list = unstable_cache(
-    async (user_id: string) => {
-        const cachedRequests = await cache.json.get(AsRedisKey('requests', user_id))
-
-        if (cachedRequests) {
-            return cachedRequests as ClientRequestData[]
-        }
-
-        const db_requests = await db.query.requests.findMany({
-            where: eq(requests.user_id, user_id),
-            with: {
-                commission: {
-                    with: {
-                        artist: true
-                    }
-                }
-            }
-        })
-
-        if (!db_requests) {
-            return []
-        }
-
-        // Format for client
-        const result: ClientRequestData[] = []
-        for (const request of db_requests) {
-            result.push({
-                ...request,
-                commission: {
-                    ...request.commission,
-                    images: [
-                        {
-                            url: request.commission.images[0]?.url!,
-                            blur_data: await get_blur_data(
-                                request.commission.images[0]?.url!
-                            )
-                        }
-                    ]
-                },
-                user: await clerkClient.users.getUser(request.user_id)
-            })
-        }
-
-        await cache.json.set(AsRedisKey('requests', user_id), '$', result)
-
-        return result
-    },
-    ['request_list'],
-    { tags: ['request_list'] }
-)
+import { get_request_list } from '~/server/db/query'
 
 export default function RequestsPage() {
     return (

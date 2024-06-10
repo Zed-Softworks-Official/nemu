@@ -36,7 +36,7 @@ import { Suspense } from 'react'
 import Loading from '~/components/ui/loading'
 import { AsRedisKey, cache } from '~/server/cache'
 
-const get_request_list = unstable_cache(
+const get_commission_requests = unstable_cache(
     async (slug: string, handle: string) => {
         const cachedCommissionRequests = await cache.json.get(
             AsRedisKey('requests', handle, slug)
@@ -103,9 +103,9 @@ const get_request_list = unstable_cache(
 
         return result
     },
-    ['request-list-dashboard'],
+    ['comission_requests'],
     {
-        tags: ['commission-requests']
+        tags: ['commission_requests']
     }
 )
 
@@ -120,7 +120,7 @@ export default function CommissionDetailPage({ params }: { params: { slug: strin
 async function RequestsList(props: { slug: string }) {
     const user = await currentUser()
 
-    const commission = await get_request_list(
+    const commission = await get_commission_requests(
         props.slug,
         user?.publicMetadata.handle as string
     )

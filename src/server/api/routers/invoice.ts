@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { StripeFinalizeInvoice, StripeUpdateInvoice } from '~/core/payments'
 import { InvoiceStatus } from '~/core/structures'
 import { artistProcedure, createTRPCRouter } from '~/server/api/trpc'
+import { AsRedisKey, invalidate_cache } from '~/server/cache'
 import { invoice_items, invoices, stripe_customer_ids } from '~/server/db/schema'
 import { novu } from '~/server/novu'
 
@@ -27,7 +28,8 @@ export const invoiceRouter = createTRPCRouter({
             const invoice = await ctx.db.query.invoices.findFirst({
                 where: eq(invoices.id, input.invoice_id),
                 with: {
-                    artist: true
+                    artist: true,
+                    request: true
                 }
             })
 
@@ -84,6 +86,12 @@ export const invoiceRouter = createTRPCRouter({
                     total: total_price
                 })
                 .where(eq(invoices.id, input.invoice_id))
+
+            // Invalidate cache
+            invalidate_cache(
+                AsRedisKey('requests', invoice.request.order_id),
+                'commission_requests'
+            )
         }),
 
     send_invoice: artistProcedure.input(z.string()).mutation(async ({ input, ctx }) => {
@@ -170,6 +178,11 @@ export const invoiceRouter = createTRPCRouter({
                 commission_title: invoice.request.commission.title,
                 artist_handle: invoice.artist.handle
             }
-        })
+        }),
+            // Invalidate cache
+            invalidate_cache(
+                AsRedisKey('requests', invoice.request.order_id),
+                'commission_requests'
+            )
     })
 })

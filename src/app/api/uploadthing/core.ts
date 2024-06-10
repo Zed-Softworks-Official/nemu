@@ -70,22 +70,7 @@ export const nemuFileRouter = {
             })
 
             // Invalidate cache
-            const new_cache_item = {
-                ...artist,
-                user: await clerkClient.users.getUser(artist.user_id),
-                header: {
-                    url: file.url,
-                    blur_data: await get_blur_data(file.url)
-                },
-                ut_key: file.key,
-                header_photo: file.url
-            }
-
-            invalidate_cache(
-                AsRedisKey('artists', artist.handle),
-                'artist-data',
-                new_cache_item
-            )
+            invalidate_cache(AsRedisKey('artists', artist.handle), 'artist-data')
         }),
 
     /**

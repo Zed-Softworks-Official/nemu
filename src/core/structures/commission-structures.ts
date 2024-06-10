@@ -12,6 +12,7 @@ import {
     downloads,
     invoice_items,
     invoices,
+    kanbans,
     requests
 } from '~/server/db/schema'
 
@@ -60,6 +61,7 @@ export type ClientRequestData = InferSelectModel<typeof requests> & {
     invoice?: InferSelectModel<typeof invoices> & {
         invoice_items: InferSelectModel<typeof invoice_items>[]
     }
+    kanban?: InferSelectModel<typeof kanbans>
 }
 
 /**

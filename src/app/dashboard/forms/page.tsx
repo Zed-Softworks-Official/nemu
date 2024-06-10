@@ -6,7 +6,7 @@ import DashboardContainer from '~/components/ui/dashboard-container'
 import EmptyState from '~/components/ui/empty-state'
 import { Suspense } from 'react'
 import Loading from '~/components/ui/loading'
-import { get_form_list } from '~/app/dashboard/commissions/create/page'
+import { get_form_list } from '~/server/db/query'
 
 export default function FormsDashboardPage() {
     return (
