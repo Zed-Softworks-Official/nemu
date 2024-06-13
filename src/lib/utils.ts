@@ -1,7 +1,6 @@
 import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 
-import { Id, ToastContent, ToastOptions, UpdateOptions, toast } from 'react-toastify'
 import { CommissionAvailability } from '~/core/structures'
 
 /**
