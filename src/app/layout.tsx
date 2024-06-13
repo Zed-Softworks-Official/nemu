@@ -16,6 +16,7 @@ import { ThemeProvider } from '~/components/theme-provider'
 import { nemuFileRouter } from '~/app/api/uploadthing/core'
 import { TooltipProvider } from '~/components/ui/tooltip'
 import { Toaster } from '~/components/ui/sonner'
+import PosthogProvider from '~/components/posthog-provider'
 
 const nunito = Nunito({
     subsets: ['latin'],
@@ -47,19 +48,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                      */
                     routerConfig={extractRouterConfig(nemuFileRouter)}
                 />
-                <ClerkProvider appearance={{ baseTheme: dark }}>
-                    <ThemeProvider
-                        attribute="data-theme"
-                        defaultTheme="system"
-                        enableSystem
-                        disableTransitionOnChange
-                    >
-                        <TooltipProvider>
-                            <TRPCReactProvider>{children}</TRPCReactProvider>
-                        </TooltipProvider>
-                        <Toaster position="bottom-right" richColors />
-                    </ThemeProvider>
-                </ClerkProvider>
+                <PosthogProvider>
+                    <ClerkProvider appearance={{ baseTheme: dark }}>
+                        <ThemeProvider
+                            attribute="data-theme"
+                            defaultTheme="system"
+                            enableSystem
+                            disableTransitionOnChange
+                        >
+                            <TooltipProvider>
+                                <TRPCReactProvider>{children}</TRPCReactProvider>
+                            </TooltipProvider>
+                            <Toaster position="bottom-right" richColors />
+                        </ThemeProvider>
+                    </ClerkProvider>
+                </PosthogProvider>
             </body>
         </html>
     )
