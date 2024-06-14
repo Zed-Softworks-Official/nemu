@@ -7,28 +7,25 @@ import { Suspense } from 'react'
 import NemuImage from '~/components/nemu-image'
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
 import Loading from '~/components/ui/loading'
+import Masonry from '~/components/ui/masonry'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 import { NemuImageData } from '~/core/structures'
 import { get_blur_data } from '~/lib/blur_data'
+import { format_to_currency } from '~/lib/utils'
 import { db } from '~/server/db'
-import { artists, portfolios } from '~/server/db/schema'
+import { artists } from '~/server/db/schema'
 
 type RandomArtistReturnType = InferSelectModel<typeof artists> & { user: User }
-
 type RandomCommissionReturnType = {
     id: string
     title: string
     description: string
     featured_image: NemuImageData
+    price: string
     handle: string
     slug: string
 }
 
-type RandomPortfolioReturnType = {
-    id: string
-    image: NemuImageData
-    artist: InferSelectModel<typeof artists>
-}
 const get_random_artists = unstable_cache(
     async () => {
         const artists = await db.query.artists.findMany()
@@ -66,6 +63,7 @@ const get_random_commissions = unstable_cache(
                     blur_data: await get_blur_data(commissions[i]?.images[0]?.url!)
                 },
                 handle: commissions[i]?.artist.handle!,
+                price: format_to_currency(commissions[i]?.price!),
                 slug: commissions[i]?.slug!
             })
         }
@@ -75,35 +73,6 @@ const get_random_commissions = unstable_cache(
     ['random_commissions'],
     {
         tags: ['random_comissions'],
-        revalidate: 60
-    }
-)
-
-const get_random_portfolio = unstable_cache(
-    async () => {
-        const portfolio = await db.query.portfolios.findMany({
-            with: {
-                artist: true
-            }
-        })
-
-        const result: RandomPortfolioReturnType[] = []
-        for (let i = 0; i < portfolio.length; i++) {
-            result.push({
-                id: portfolio[i]?.id!,
-                image: {
-                    url: portfolio[i]?.image_url!,
-                    blur_data: await get_blur_data(portfolio[i]?.image_url!)
-                },
-                artist: portfolio[i]?.artist!
-            })
-        }
-
-        return result
-    },
-    ['random_portfolio'],
-    {
-        tags: ['random_portfolio'],
         revalidate: 60
     }
 )
@@ -218,32 +187,6 @@ async function CommissionsList() {
                         className="w-full rounded-xl"
                         placeholder="blur"
                         blurDataURL={commission.featured_image.blur_data}
-                    />
-                </Link>
-            ))}
-        </div>
-    )
-}
-
-async function PortfolioList() {
-    const portfolio = await get_random_portfolio()
-
-    return (
-        <div className="columns-1 gap-5 space-y-5 sm:columns-3 lg:columns-4 xl:columns-5">
-            {portfolio.map((portfolio) => (
-                <Link
-                    key={portfolio.id}
-                    href={`/@${portfolio.artist.handle}`}
-                    className="animate-pop-in rounded-xl transition-all duration-200 ease-in-out"
-                >
-                    <NemuImage
-                        src={portfolio.image.url!}
-                        alt="Portfolio Image"
-                        width={200}
-                        height={200}
-                        className="w-full rounded-xl"
-                        placeholder="blur"
-                        blurDataURL={portfolio.image.blur_data}
                     />
                 </Link>
             ))}
