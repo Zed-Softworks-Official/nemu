@@ -37,10 +37,11 @@ export const env = createEnv({
      * `NEXT_PUBLIC_`.
      */
     client: {
-        // NEXT_PUBLIC_CLIENTVAR: z.string(),
         NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: z.string(),
         NEXT_PUBLIC_ALGOLIA_APP_ID: z.string(),
-        NEXT_PUBLIC_ALGOLIA_SEARCH_API_KEY: z.string()
+        NEXT_PUBLIC_ALGOLIA_SEARCH_API_KEY: z.string(),
+        NEXT_PUBLIC_POSTHOG_KEY: z.string(),
+        NEXT_PUBLIC_POSTHOG_HOST: z.string()
     },
 
     /**
@@ -48,6 +49,7 @@ export const env = createEnv({
      * middlewares) or client-side so we need to destruct manually.
      */
     runtimeEnv: {
+        // Server
         BASE_URL: process.env.BASE_URL,
         CLERK_WEBHOOK_SECRET: process.env.CLERK_WEBHOOK_SECRET,
         CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY,
@@ -71,9 +73,13 @@ export const env = createEnv({
         DATABASE_USERNAME: process.env.DATABASE_USERNAME,
         DATABASE_PASSWORD: process.env.DATABASE_PASSWORD,
 
+        // Client
         NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
         NEXT_PUBLIC_ALGOLIA_APP_ID: process.env.NEXT_PUBLIC_ALGOLIA_APP_ID,
-        NEXT_PUBLIC_ALGOLIA_SEARCH_API_KEY: process.env.NEXT_PUBLIC_ALGOLIA_SEARCH_API_KEY
+        NEXT_PUBLIC_ALGOLIA_SEARCH_API_KEY:
+            process.env.NEXT_PUBLIC_ALGOLIA_SEARCH_API_KEY,
+        NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
+        NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST
     },
     /**
      * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

@@ -6,12 +6,13 @@ import { Suspense } from 'react'
 
 import NemuImage from '~/components/nemu-image'
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
+import { Badge } from '~/components/ui/badge'
 import Loading from '~/components/ui/loading'
 import Masonry from '~/components/ui/masonry'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
-import { NemuImageData } from '~/core/structures'
+import { CommissionAvailability, NemuImageData } from '~/core/structures'
 import { get_blur_data } from '~/lib/blur_data'
-import { format_to_currency } from '~/lib/utils'
+import { get_availability_badge_data } from '~/lib/utils'
 import { db } from '~/server/db'
 import { artists } from '~/server/db/schema'
 
@@ -21,9 +22,15 @@ type RandomCommissionReturnType = {
     title: string
     description: string
     featured_image: NemuImageData
-    price: string
-    handle: string
+    artist_handle: string
     slug: string
+    availability: CommissionAvailability
+}
+
+type RandomPortfolioReturnType = {
+    id: string
+    image: NemuImageData
+    artist: InferSelectModel<typeof artists>
 }
 
 const get_random_artists = unstable_cache(
@@ -44,12 +51,13 @@ const get_random_artists = unstable_cache(
     { tags: ['random_artists'], revalidate: 60 }
 )
 
-const get_random_commissions = unstable_cache(
+const get_commissions = unstable_cache(
     async () => {
         const commissions = await db.query.commissions.findMany({
             with: {
                 artist: true
-            }
+            },
+            orderBy: (commission, { desc }) => [desc(commission.created_at)]
         })
 
         const result: RandomCommissionReturnType[] = []
@@ -62,9 +70,9 @@ const get_random_commissions = unstable_cache(
                     url: commissions[i]?.images[0]?.url!,
                     blur_data: await get_blur_data(commissions[i]?.images[0]?.url!)
                 },
-                handle: commissions[i]?.artist.handle!,
-                price: format_to_currency(commissions[i]?.price!),
-                slug: commissions[i]?.slug!
+                artist_handle: commissions[i]?.artist.handle!,
+                slug: commissions[i]?.slug!,
+                availability: commissions[i]?.availability as CommissionAvailability
             })
         }
 
@@ -117,7 +125,11 @@ export default function Home() {
                         <ArtistsList />
                     </Suspense>
                 </TabsContent>
-                <TabsContent value="portfolio"></TabsContent>
+                <TabsContent value="portfolio">
+                    <Suspense fallback={<Loading />}>
+                        <PortfolioList />
+                    </Suspense>
+                </TabsContent>
             </Tabs>
         </main>
     )
@@ -158,35 +170,69 @@ async function ArtistsList() {
 }
 
 async function CommissionsList() {
-    const commissions = await get_random_commissions()
+    const commissions = await get_commissions()
 
     return (
         <div
             className={'columns-1 gap-5 space-y-5 sm:columns-3 lg:columns-4 xl:columns-5'}
         >
-            {commissions.map((commission) => (
-                <Link
-                    key={commission.id}
-                    href={`/@${commission.handle}/commission/${commission.slug}`}
-                    className="group relative animate-pop-in rounded-xl transition-all duration-150 ease-in-out"
-                >
-                    <div className="absolute flex h-full w-full flex-col items-center rounded-xl bg-base-300/80 p-5 opacity-0 transition-all duration-200 ease-in-out group-hover:opacity-100">
-                        <div>
-                            <h1 className="text-2xl font-bold">{commission.title}</h1>
-                            <p className="text-base-content/80">
-                                {commission.description}
-                            </p>
+            {commissions.map((commission) => {
+                const [variant, text] = get_availability_badge_data(
+                    commission.availability
+                )
+
+                return (
+                    <Link
+                        key={commission.id}
+                        href={`/@${commission.artist_handle}/commission/${commission.slug}`}
+                        className="relative flex animate-pop-in flex-col overflow-hidden rounded-xl transition-all duration-200 ease-in-out active:scale-95"
+                    >
+                        <span className="badge badge-primary badge-lg absolute left-5 top-5 text-white">
+                            @{commission.artist_handle}
+                        </span>
+                        <NemuImage
+                            src={commission.featured_image.url!}
+                            alt="Commission Image"
+                            width={200}
+                            height={200}
+                            className="w-full rounded-xl"
+                            placeholder="blur"
+                            blurDataURL={commission.featured_image.blur_data}
+                        />
+                        <div className="flex flex-col gap-5 bg-base-300 p-5">
+                            <div className="flex flex-row gap-3">
+                                <h1 className="text-2xl font-bold">{commission.title}</h1>
+                                <Badge variant={variant} className="badge-lg">
+                                    {text}
+                                </Badge>
+                            </div>
                         </div>
-                        <div className="flex h-full items-end justify-start"></div>
-                    </div>
+                    </Link>
+                )
+            })}
+        </div>
+    )
+}
+
+async function PortfolioList() {
+    const portfolio = await get_random_portfolio()
+
+    return (
+        <div className="columns-1 gap-5 space-y-5 sm:columns-3 lg:columns-4 xl:columns-5">
+            {portfolio.map((portfolio) => (
+                <Link
+                    key={portfolio.id}
+                    href={`/@${portfolio.artist.handle}`}
+                    className="flex animate-pop-in rounded-xl transition-all duration-200 ease-in-out"
+                >
                     <NemuImage
-                        src={commission.featured_image.url!}
-                        alt="Commission Image"
+                        src={portfolio.image.url!}
+                        alt="Portfolio Image"
                         width={200}
                         height={200}
                         className="w-full rounded-xl"
                         placeholder="blur"
-                        blurDataURL={commission.featured_image.blur_data}
+                        blurDataURL={portfolio.image.blur_data}
                     />
                 </Link>
             ))}

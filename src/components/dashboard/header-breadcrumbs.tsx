@@ -23,6 +23,7 @@ export default function DashboardBreadcrumbs() {
                         item={item}
                         index={index}
                         total_length={pathname.length}
+                        items={pathname}
                     />
                 ))}
             </BreadcrumbList>
@@ -34,6 +35,7 @@ function DrashboardBreadcrumbItem(props: {
     item: string
     index: number
     total_length: number
+    items: string[]
 }) {
     const title =
         props.item.substring(0, 1).toUpperCase() +
@@ -46,7 +48,7 @@ function DrashboardBreadcrumbItem(props: {
             continue
         }
 
-        href += props.item + '/'
+        href += props.items[i] + '/'
     }
 
     if (props.index === 0) {
