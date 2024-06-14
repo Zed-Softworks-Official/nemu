@@ -8,7 +8,6 @@ import NemuImage from '~/components/nemu-image'
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
 import { Badge } from '~/components/ui/badge'
 import Loading from '~/components/ui/loading'
-import Masonry from '~/components/ui/masonry'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 import { CommissionAvailability, NemuImageData } from '~/core/structures'
 import { get_blur_data } from '~/lib/blur_data'
@@ -83,6 +82,36 @@ const get_commissions = unstable_cache(
         tags: ['random_comissions'],
         revalidate: 60
     }
+)
+
+const get_random_portfolio = unstable_cache(
+    async () => {
+        const portfolio = await db.query.portfolios.findMany({
+            with: {
+                artist: true
+            }
+        })
+
+        if (!portfolio) {
+            return []
+        }
+
+        const result: RandomPortfolioReturnType[] = []
+        for (let i = 0; i < portfolio.length; i++) {
+            result.push({
+                id: portfolio[i]?.id!,
+                image: {
+                    url: portfolio[i]?.image_url!,
+                    blur_data: await get_blur_data(portfolio[i]?.image_url!)
+                },
+                artist: portfolio[i]?.artist!!
+            })
+        }
+
+        return result
+    },
+    ['random_portfolio'],
+    { tags: ['random_portfolio'], revalidate: 60 }
 )
 
 export default function Home() {
