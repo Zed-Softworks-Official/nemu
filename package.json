@@ -82,6 +82,7 @@
     "react-instantsearch": "^7.11.1",
     "react-instantsearch-nextjs": "^0.2.5",
     "react-responsive-masonry": "^2.2.0",
+    "recharts": "^2.12.7",
     "server-only": "^0.0.1",
     "sharp": "^0.33.4",
     "sonner": "^1.5.0",

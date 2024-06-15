@@ -11,6 +11,7 @@ import {
     CardTitle
 } from '~/components/ui/card'
 import Loading from '~/components/ui/loading'
+import { InvoiceStatus } from '~/core/structures'
 
 import { db } from '~/server/db'
 import { commissions, invoices, requests } from '~/server/db/schema'
@@ -19,6 +20,13 @@ type RecentRequests = {
     commission_title: string
     requester_username: string
     created_at: string
+}
+
+type RecentInvoices = {
+    status: InvoiceStatus
+    created_at: string
+    requester_username: string
+    commission_title: string
 }
 
 const get_recent_requests = unstable_cache(
@@ -63,10 +71,32 @@ const get_recent_invoices = unstable_cache(
         const db_invoices = await db.query.invoices.findMany({
             where: eq(invoices.artist_id, artist_id),
             orderBy: (invoice, { desc }) => [desc(invoice.created_at)],
-            limit: 10
+            limit: 10,
+            with: {
+                request: {
+                    with: {
+                        commission: true
+                    }
+                }
+            }
         })
 
-        return db_invoices
+        if (db_invoices.length <= 0) {
+            return []
+        }
+
+        const result: RecentInvoices[] = []
+        for (const invoice of db_invoices) {
+            result.push({
+                status: invoice.status as InvoiceStatus,
+                created_at: invoice.created_at.toLocaleDateString(),
+                requester_username: (await clerkClient.users.getUser(invoice.user_id!))
+                    .username!,
+                commission_title: invoice.request.commission.title!
+            })
+        }
+
+        return result
     },
     ['recent_invoices'],
     {
@@ -74,35 +104,37 @@ const get_recent_invoices = unstable_cache(
     }
 )
 
+const get_total_sales = unstable_cache(
+    async () => {
+        return undefined
+    },
+    ['total_sales'],
+    {
+        tags: ['total_sales']
+    }
+)
+
 export default function DashboardHome() {
     return (
         <main className="flex flex-col gap-5">
             <h1 className="text-3xl font-bold">Home</h1>
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Something else</CardTitle>
-                        <CardDescription>Oh boy, something else</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <>Hello, World!</>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Invoices</CardTitle>
-                        <CardDescription>
-                            View Invoice Statuses at a glance
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <RecentInvoices />
-                    </CardContent>
-                </Card>
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                <Suspense fallback={<Loading />}>
+                    <RecentInvoices />
+                </Suspense>
                 <Suspense fallback={<Loading />}>
                     <RecentRequests />
                 </Suspense>
             </div>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Total Sales</CardTitle>
+                    <CardDescription>View total sales</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <>Something</>
+                </CardContent>
+            </Card>
         </main>
     )
 }
@@ -186,8 +218,12 @@ async function RecentInvoices() {
                 <DataTable
                     columns={[
                         {
-                            accessorKey: 'invoice_id',
+                            accessorKey: 'commission_title',
                             header: 'Invoice ID'
+                        },
+                        {
+                            accessorKey: 'requester_username',
+                            header: 'Requester Username'
                         },
                         {
                             accessorKey: 'status',
@@ -203,4 +239,10 @@ async function RecentInvoices() {
             </CardContent>
         </Card>
     )
+}
+
+async function TotalSales() {
+    const total_sales = await get_total_sales()
+
+    return <pre>{JSON.stringify(total_sales, null, 2)}</pre>
 }
