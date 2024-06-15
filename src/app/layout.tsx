@@ -48,8 +48,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                      */
                     routerConfig={extractRouterConfig(nemuFileRouter)}
                 />
-                <PosthogProvider>
-                    <ClerkProvider appearance={{ baseTheme: dark }}>
+                <ClerkProvider appearance={{ baseTheme: dark }}>
+                    <PosthogProvider>
                         <ThemeProvider
                             attribute="data-theme"
                             defaultTheme="system"
@@ -61,8 +61,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                             </TooltipProvider>
                             <Toaster position="bottom-right" richColors />
                         </ThemeProvider>
-                    </ClerkProvider>
-                </PosthogProvider>
+                    </PosthogProvider>
+                </ClerkProvider>
             </body>
         </html>
     )
