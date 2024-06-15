@@ -236,7 +236,6 @@ export const get_request_list = unstable_cache(
 //////////////////////////////////////////////////////////
 // Requests Details
 //////////////////////////////////////////////////////////
-
 export const get_request_details = unstable_cache(
     async (order_id: string) => {
         const cachedRequest = await cache.json.get(AsRedisKey('requests', order_id))
@@ -308,7 +307,6 @@ export const get_request_details = unstable_cache(
 //////////////////////////////////////////////////////////
 // Forms List
 //////////////////////////////////////////////////////////
-
 export const get_form_list = unstable_cache(
     async (artist_id: string) => {
         const cachedForms = await cache.json.get(AsRedisKey('forms', artist_id))
@@ -338,7 +336,6 @@ export const get_form_list = unstable_cache(
 //////////////////////////////////////////////////////////
 // Form Details
 //////////////////////////////////////////////////////////
-
 export const get_form = unstable_cache(
     async (form_id: string) => {
         const cachedForm = await cache.json.get(AsRedisKey('forms', form_id))

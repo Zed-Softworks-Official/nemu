@@ -13,7 +13,7 @@ import {
 import Loading from '~/components/ui/loading'
 
 import { db } from '~/server/db'
-import { commissions, requests } from '~/server/db/schema'
+import { commissions, invoices, requests } from '~/server/db/schema'
 
 type RecentRequests = {
     commission_title: string
@@ -58,6 +58,22 @@ const get_recent_requests = unstable_cache(
     }
 )
 
+const get_recent_invoices = unstable_cache(
+    async (artist_id: string) => {
+        const db_invoices = await db.query.invoices.findMany({
+            where: eq(invoices.artist_id, artist_id),
+            orderBy: (invoice, { desc }) => [desc(invoice.created_at)],
+            limit: 10
+        })
+
+        return db_invoices
+    },
+    ['recent_invoices'],
+    {
+        tags: ['recent_invoices']
+    }
+)
+
 export default function DashboardHome() {
     return (
         <main className="flex flex-col gap-5">
@@ -80,7 +96,7 @@ export default function DashboardHome() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <>Hello, World!</>
+                        <RecentInvoices />
                     </CardContent>
                 </Card>
                 <Suspense fallback={<Loading />}>
@@ -134,6 +150,55 @@ async function RecentRequests() {
                         }
                     ]}
                     data={recent_requests}
+                />
+            </CardContent>
+        </Card>
+    )
+}
+
+async function RecentInvoices() {
+    const user = await currentUser()
+    const recent_invoices = await get_recent_invoices(
+        user!.privateMetadata.artist_id as string
+    )
+
+    if (recent_invoices.length === 0) {
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Recent Invoices</CardTitle>
+                    <CardDescription>View latest invoices</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <p>No recent invoices</p>
+                </CardContent>
+            </Card>
+        )
+    }
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Recent Invoices</CardTitle>
+                <CardDescription>View latest invoices</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <DataTable
+                    columns={[
+                        {
+                            accessorKey: 'invoice_id',
+                            header: 'Invoice ID'
+                        },
+                        {
+                            accessorKey: 'status',
+                            header: 'Status'
+                        },
+                        {
+                            accessorKey: 'created_at',
+                            header: 'Date'
+                        }
+                    ]}
+                    data={recent_invoices}
                 />
             </CardContent>
         </Card>
