@@ -21,3 +21,8 @@ export type RouterOutput = inferRouterOutputs<AppRouter>
  * TRPC Base Router Input Response Object
  */
 export type RouterInput = inferRouterInputs<AppRouter>
+
+export type SalesData = {
+    month: string
+    total_sales: number
+}
