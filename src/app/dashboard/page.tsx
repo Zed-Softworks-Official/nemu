@@ -193,12 +193,16 @@ const get_recent_sales = unstable_cache(
                 continue
             }
 
+            // Convert the charge date from utc epoch to a date object
+            const charge_date = new Date(0)
+            charge_date.setUTCSeconds(charge.created)
+
             // Add the amount to the correct month in the sales data
-            // const month_index = sales_data.findIndex(
-            //     (month) => month.month === new Date(charge.created).getMonth().toString()
-            // )
-            // sales_data[month_index]!.total_sales += charge.amount / 100
-            console.log(new Date(charge.created))
+            const month_index = sales_data.findIndex(
+                (month) =>
+                    month.month === charge_date.toLocaleString('en-US', { month: 'long' })
+            )
+            sales_data[month_index]!.total_sales += charge.amount / 100
 
             // Add the amount to the total revenue
             total_revenue_amount += charge.amount / 100
