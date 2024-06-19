@@ -17,6 +17,7 @@ import { artists } from '~/server/db/schema'
 import { InferSelectModel } from 'drizzle-orm'
 import { api } from '~/trpc/react'
 import { useState } from 'react'
+import SelectCountries from '~/components/ui/select-countries'
 
 const artistSchema = z.object({
     about: z.string().max(256),
@@ -24,8 +25,9 @@ const artistSchema = z.object({
     terms: z.string(),
 
     tipJarUrl: z.string().url('Needs to be a valid url!').optional().or(z.literal('')),
-    automatedMessageEnabled: z.boolean(),
-    automatedMessage: z.string().optional()
+    automatedMessageEnabled: z.boolean().default(false),
+    automatedMessage: z.string().optional(),
+    socials: z.array(z.object({ agent: z.string(), url: z.string() }))
 })
 
 type ArtistSchemaType = z.infer<typeof artistSchema>
@@ -85,7 +87,8 @@ function ArtistSettings({ artist }: Props) {
                   terms: artist.terms,
                   tipJarUrl: artist.tip_jar_url ?? undefined,
                   automatedMessageEnabled: artist.automated_message_enabled ?? false,
-                  automatedMessage: artist.automated_message ?? undefined
+                  automatedMessage: artist.automated_message ?? undefined,
+                  socials: artist.socials
               }
             : undefined
     })
@@ -105,19 +108,19 @@ function ArtistSettings({ artist }: Props) {
                 className="flex flex-col gap-5"
                 onSubmit={form.handleSubmit(ProcessForm)}
             >
-                {/* <FormField
+                <FormField
                     control={form.control}
                     name="location"
                     render={({ field }) => (
                         <FormItem className="form-control">
-                            <FormLabel className="label">Location:</FormLabel>
+                            <FormLabel className="label">Location*</FormLabel>
                             <SelectCountries
                                 onValueChange={field.onChange}
                                 defaultValue={field.value}
                             />
                         </FormItem>
                     )}
-                /> */}
+                />
                 <FormField
                     control={form.control}
                     name="about"
@@ -154,11 +157,24 @@ function ArtistSettings({ artist }: Props) {
                     render={({ field }) => (
                         <FormItem className="form-control">
                             <FormLabel className="label">Tip Jar URL:</FormLabel>
-                            <Input placeholder="Tip Jar UR" {...field} />
+                            <Input placeholder="Tip Jar URL" {...field} />
                         </FormItem>
                     )}
                 />
-                <div className="card bg-base-200 shadow-xl">
+                <FormField
+                    control={form.control}
+                    name="socials"
+                    render={({ field }) => (
+                        <FormItem className="form-control">
+                            <FormLabel className="label">Socials:</FormLabel>
+                            {field.value?.map((social) => (
+                                <div className="flex w-full flex-col gap-2"></div>
+                            ))}
+                        </FormItem>
+                    )}
+                />
+                {/* TODO: Add Automated Messages */}
+                {/* <div className="card bg-base-200 shadow-xl">
                     <div className="card-body">
                         <FormField
                             control={form.control}
@@ -195,7 +211,7 @@ function ArtistSettings({ artist }: Props) {
                             )}
                         />
                     </div>
-                </div>
+                </div> */}
 
                 <div className="form-control">
                     <label className="label">Header Photo Upload</label>
