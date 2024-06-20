@@ -3,7 +3,7 @@
 import { z } from 'zod'
 
 import { UserProfile, useUser } from '@clerk/nextjs'
-import { BrushIcon, SaveIcon } from 'lucide-react'
+import { BrushIcon, PlusCircleIcon, SaveIcon } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Form, FormField, FormItem, FormLabel } from '~/components/ui/form'
@@ -18,6 +18,8 @@ import { InferSelectModel } from 'drizzle-orm'
 import { api } from '~/trpc/react'
 import { useState } from 'react'
 import SelectCountries from '~/components/ui/select-countries'
+import SocialsList from './socials-list'
+import { SocialAccount } from '~/core/structures'
 
 const artistSchema = z.object({
     about: z.string().max(256),
@@ -27,7 +29,7 @@ const artistSchema = z.object({
     tipJarUrl: z.string().url('Needs to be a valid url!').optional().or(z.literal('')),
     automatedMessageEnabled: z.boolean().default(false),
     automatedMessage: z.string().optional(),
-    socials: z.array(z.object({ agent: z.string(), url: z.string() }))
+    socials: z.array(z.object({ agent: z.string().optional(), url: z.string() }))
 })
 
 type ArtistSchemaType = z.infer<typeof artistSchema>
@@ -166,10 +168,10 @@ function ArtistSettings({ artist }: Props) {
                     name="socials"
                     render={({ field }) => (
                         <FormItem className="form-control">
-                            <FormLabel className="label">Socials:</FormLabel>
-                            {field.value?.map((social) => (
-                                <div className="flex w-full flex-col gap-2"></div>
-                            ))}
+                            <SocialsList
+                                socials={field.value as SocialAccount[]}
+                                onSocialsChange={(socials) => field.onChange(socials)}
+                            />
                         </FormItem>
                     )}
                 />
