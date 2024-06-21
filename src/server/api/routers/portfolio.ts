@@ -1,10 +1,7 @@
 import { createId } from '@paralleldrive/cuid2'
 import { TRPCError } from '@trpc/server'
-import { and, eq } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { z } from 'zod'
-
-import { ClientPortfolioItem, NemuImageData } from '~/core/structures'
-import { get_blur_data } from '~/lib/blur_data'
 
 import { artistProcedure, createTRPCRouter, publicProcedure } from '~/server/api/trpc'
 import { AsRedisKey, cache, invalidate_cache } from '~/server/cache'

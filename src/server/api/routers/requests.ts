@@ -156,18 +156,25 @@ export const requestRouter = createTRPCRouter({
                 }
 
                 // Save the customer id in the database
-                customer_id = (
-                    await ctx.db
-                        .insert(stripe_customer_ids)
-                        .values({
-                            id: createId(),
-                            user_id: request.user_id,
-                            artist_id: request.commission.artist_id,
-                            customer_id: customer.id,
-                            stripe_account: request.commission.artist.stripe_account
-                        })
-                        .returning()
-                )[0]!
+                const generated_customer_id = createId()
+                await ctx.db.insert(stripe_customer_ids).values({
+                    id: generated_customer_id,
+                    user_id: request.user_id,
+                    artist_id: request.commission.artist_id,
+                    customer_id: customer.id,
+                    stripe_account: request.commission.artist.stripe_account
+                })
+
+                customer_id = await ctx.db.query.stripe_customer_ids.findFirst({
+                    where: eq(stripe_customer_ids.id, generated_customer_id)
+                })
+
+                if (!customer_id) {
+                    return new TRPCError({
+                        code: 'INTERNAL_SERVER_ERROR',
+                        message: 'Failed to create customer account'
+                    })
+                }
             }
 
             // Update commission stats based on acceptance or rejection
@@ -218,22 +225,28 @@ export const requestRouter = createTRPCRouter({
             })
 
             // Create the invoice object in the database with the initial item
-            const invoice = (
-                await ctx.db
-                    .insert(invoices)
-                    .values({
-                        id: generated_invoice_id,
-                        stripe_id: stripe_draft.id,
-                        customer_id: customer_id.customer_id,
-                        stripe_account: customer_id.stripe_account,
-                        user_id: customer_id.user_id,
-                        artist_id: customer_id.artist_id,
-                        status: InvoiceStatus.Creating,
-                        request_id: request.id,
-                        total: request.commission.price
-                    })
-                    .returning()
-            )[0]!
+            await ctx.db.insert(invoices).values({
+                id: generated_invoice_id,
+                stripe_id: stripe_draft.id,
+                customer_id: customer_id.customer_id,
+                stripe_account: customer_id.stripe_account,
+                user_id: customer_id.user_id,
+                artist_id: customer_id.artist_id,
+                status: InvoiceStatus.Creating,
+                request_id: request.id,
+                total: request.commission.price
+            })
+
+            const invoice = await ctx.db.query.invoices.findFirst({
+                where: eq(invoices.id, generated_invoice_id)
+            })
+
+            if (!invoice) {
+                return new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Failed to create invoice!'
+                })
+            }
 
             // Create invoice items
             await ctx.db.insert(invoice_items).values({
@@ -292,16 +305,23 @@ export const requestRouter = createTRPCRouter({
                 }
             ]
 
-            const kanban = (
-                await ctx.db
-                    .insert(kanbans)
-                    .values({
-                        id: createId(),
-                        request_id: request.id,
-                        containers: containers
-                    })
-                    .returning()
-            )[0]!
+            const kanban_id = createId()
+            await ctx.db.insert(kanbans).values({
+                id: kanban_id,
+                request_id: request.id,
+                containers: containers
+            })
+
+            const kanban = await ctx.db.query.kanbans.findFirst({
+                where: eq(kanbans.id, kanban_id)
+            })
+
+            if (!kanban) {
+                return new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Failed to create kanban!'
+                })
+            }
 
             // Update the request to reflect the acceptance
             await ctx.db

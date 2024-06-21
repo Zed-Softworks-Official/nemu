@@ -1,6 +1,5 @@
 import { TRPCError } from '@trpc/server'
 import { eq } from 'drizzle-orm'
-import { revalidatePath, revalidateTag } from 'next/cache'
 import { z } from 'zod'
 import { KanbanContainerData, KanbanTask } from '~/core/structures'
 import { artistProcedure, createTRPCRouter, protectedProcedure } from '~/server/api/trpc'
@@ -92,13 +91,18 @@ export const kanbanRouter = createTRPCRouter({
             }
 
             // // Add Item to Kanban
-            const prev_tasks: KanbanTask[] = kanban.tasks ? kanban.tasks as KanbanTask[] : []
+            const prev_tasks: KanbanTask[] = kanban.tasks
+                ? (kanban.tasks as KanbanTask[])
+                : []
             await ctx.db.update(kanbans).set({
-                tasks: [...prev_tasks, {
-                    id: crypto.randomUUID(),
-                    container_id: input.container_id,
-                    content: input.content
-                }]
+                tasks: [
+                    ...prev_tasks,
+                    {
+                        id: crypto.randomUUID(),
+                        container_id: input.container_id,
+                        content: input.content
+                    }
+                ]
             })
         })
 })

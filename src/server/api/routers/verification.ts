@@ -71,19 +71,19 @@ export async function CreateArtist(input: VerificationDataType, user: User) {
     const stripe_account = await StripeCreateAccount()
 
     // Create artist in the database
-    const artist = (
-        await db
-            .insert(artists)
-            .values({
-                id: createId(),
-                stripe_account: stripe_account.id,
-                location: input.location,
-                user_id: user.id,
-                handle: input.requested_handle,
-                socials: social_accounts
-            })
-            .returning()
-    )[0]!
+    const generated_id = createId()
+    await db.insert(artists).values({
+        id: generated_id,
+        stripe_account: stripe_account.id,
+        location: input.location,
+        user_id: user.id,
+        handle: input.requested_handle,
+        socials: social_accounts
+    })
+
+    const artist = await db.query.artists.findFirst({
+        where: eq(artists.id, generated_id)
+    })
 
     if (!artist) {
         throw new TRPCError({
@@ -216,18 +216,21 @@ export const verificationRouter = createTRPCRouter({
                 ////////////////////////////
                 case VerificationMethod.Twitter:
                     {
-                        const artist_verification = await ctx.db
-                            .insert(artist_verifications)
-                            .values({
-                                id: createId(),
-                                user_id: ctx.user.id!,
-                                location: input.location,
-                                requested_handle: input.requested_handle,
-                                twitter: input.twitter,
-                                pixiv: input.pixiv,
-                                website: input.website
+                        const generated_id = createId()
+                        await ctx.db.insert(artist_verifications).values({
+                            id: generated_id,
+                            user_id: ctx.user.id!,
+                            location: input.location,
+                            requested_handle: input.requested_handle,
+                            twitter: input.twitter,
+                            pixiv: input.pixiv,
+                            website: input.website
+                        })
+
+                        const artist_verification =
+                            await ctx.db.query.artist_verifications.findFirst({
+                                where: eq(artist_verifications.id, generated_id)
                             })
-                            .returning()
 
                         if (!artist_verification) {
                             throw new TRPCError({

@@ -3,10 +3,10 @@ import NemuImage from '~/components/nemu-image'
 
 export default function Footer() {
     return (
-        <div className="sticky top-[100%] w-full mt-10">
+        <div className="sticky top-[100%] mt-10 w-full">
             <div className="bg-base-200">
-                <footer className="footer p-10 container mx-auto text-base-content">
-                    <aside className="h-full flex flex-col justify-between">
+                <footer className="container footer mx-auto p-10 text-base-content">
+                    <aside className="flex h-full flex-col justify-between">
                         <NemuImage
                             src={'/zed-logo.svg'}
                             alt="zedsoftworks logo"
@@ -22,32 +22,22 @@ export default function Footer() {
                     </aside>
                     <nav>
                         <h6 className="footer-title">Services</h6>
-                        <Link href={'/artists/apply'} className="link link-hover">
+                        <Link href={'/artists/apply'} className="link-hover link">
                             Become an artist
                         </Link>
-                        <Link href={'/artists/supporter'} className="link link-hover">
+                        <Link href={'/artists/supporter'} className="link-hover link">
                             Become an Supporter
                         </Link>
-                        <Link href={'/roadmap'} className="link link-hover">
+                        <Link href={'/roadmap'} className="link-hover link">
                             Roadmap
                         </Link>
                     </nav>
                     <nav>
-                        <h6 className="footer-title">Company</h6>
-                        <Link
-                            href="https://zedsoftworks.com/about"
-                            target="_blank"
-                            className="link link-hover"
-                        >
-                            About us
-                        </Link>
-                        <a className="link link-hover">Contact</a>
-                    </nav>
-                    <nav>
                         <h6 className="footer-title">Legal</h6>
-                        <a className="link link-hover">Terms of use</a>
-                        <a className="link link-hover">Privacy policy</a>
-                        <a className="link link-hover">Cookie policy</a>
+                        <Link className="link-hover link" href={'/terms'}>
+                            Terms &amp; Conditions
+                        </Link>
+                        <a className="link-hover link">Privacy policy</a>
                     </nav>
                 </footer>
             </div>

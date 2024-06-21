@@ -1,4 +1,5 @@
 import { clerkClient } from '@clerk/nextjs/server'
+import { TRPCError } from '@trpc/server'
 import { eq } from 'drizzle-orm'
 import { revalidateTag } from 'next/cache'
 import { z } from 'zod'
@@ -27,20 +28,28 @@ export const artistRouter = createTRPCRouter({
             })
         )
         .mutation(async ({ input, ctx }) => {
-            const artist_updated = (
-                await ctx.db
-                    .update(artists)
-                    .set({
-                        about: input.about,
-                        location: input.location,
-                        terms: input.terms,
-                        tip_jar_url: input.tipJarUrl,
-                        automated_message_enabled: input.automatedMessageEnabled,
-                        automated_message: input.automatedMessage
-                    })
-                    .where(eq(artists.id, input.artist_id))
-                    .returning()
-            )[0]!
+            await ctx.db
+                .update(artists)
+                .set({
+                    about: input.about,
+                    location: input.location,
+                    terms: input.terms,
+                    tip_jar_url: input.tipJarUrl,
+                    automated_message_enabled: input.automatedMessageEnabled,
+                    automated_message: input.automatedMessage
+                })
+                .where(eq(artists.id, input.artist_id))
+
+            const artist_updated = await ctx.db.query.artists.findFirst({
+                where: eq(artists.id, input.artist_id)
+            })
+
+            if (!artist_updated) {
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Could not update artist'
+                })
+            }
 
             // Update Algolia
             await update_index('artists', {

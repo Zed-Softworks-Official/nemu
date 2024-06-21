@@ -125,29 +125,37 @@ export const commissionRouter = createTRPCRouter({
                 }
 
                 // Update the database with the relavent information that has been updated
-                const commission_updated = (
-                    await ctx.db
-                        .update(commissions)
-                        .set({
-                            title: input.data.title,
-                            description: input.data.description,
-                            price: input.data.price,
-                            images: input.data.images?.map((image) => ({
-                                url: image.url,
-                                ut_key: image.ut_key
-                            })),
-                            availability: input.data
-                                .availability as CommissionAvailability,
-                            max_commissions_until_waitlist:
-                                input.data.max_commissions_until_waitlist,
-                            max_commissions_until_closed:
-                                input.data.max_commissions_until_closed,
-                            published: input.data.published,
-                            form_id: input.data.form_id
-                        })
-                        .where(eq(commissions.id, input.commission_id))
-                        .returning()
-                )[0]!
+
+                await ctx.db
+                    .update(commissions)
+                    .set({
+                        title: input.data.title,
+                        description: input.data.description,
+                        price: input.data.price,
+                        images: input.data.images?.map((image) => ({
+                            url: image.url,
+                            ut_key: image.ut_key
+                        })),
+                        availability: input.data.availability as CommissionAvailability,
+                        max_commissions_until_waitlist:
+                            input.data.max_commissions_until_waitlist,
+                        max_commissions_until_closed:
+                            input.data.max_commissions_until_closed,
+                        published: input.data.published,
+                        form_id: input.data.form_id
+                    })
+                    .where(eq(commissions.id, input.commission_id))
+
+                const commission_updated = await ctx.db.query.commissions.findFirst({
+                    where: eq(commissions.id, input.commission_id)
+                })
+
+                if (!commission_updated) {
+                    throw new TRPCError({
+                        code: 'INTERNAL_SERVER_ERROR',
+                        message: 'Could not update commission'
+                    })
+                }
 
                 // Update Algolia
                 await update_index('commissions', {
@@ -214,31 +222,37 @@ export const commissionRouter = createTRPCRouter({
             }
 
             // Create database object
-            const commission = (
-                await ctx.db
-                    .insert(commissions)
-                    .values({
-                        id: createId(),
-                        artist_id: ctx.user.privateMetadata.artist_id as string,
-                        title: input.data.title,
-                        description: input.data.description,
-                        price: input.data.price,
-                        images: input.data.images,
-                        availability: input.data.availability as CommissionAvailability,
-                        slug: slug,
-                        max_commissions_until_waitlist:
-                            input.data.max_commissions_until_waitlist,
-                        max_commissions_until_closed:
-                            input.data.max_commissions_until_closed,
-                        published: input.data.published,
-                        form_id: input.data.form_id,
-                        rating: '5.00'
-                        // rush_charge: 0,
-                        // rush_orders_allowed: false,
-                        // rush_percentage: false
-                    })
-                    .returning()
-            )[0]!
+            const commission_id = createId()
+
+            await ctx.db.insert(commissions).values({
+                id: commission_id,
+                artist_id: ctx.user.privateMetadata.artist_id as string,
+                title: input.data.title,
+                description: input.data.description,
+                price: input.data.price,
+                images: input.data.images,
+                availability: input.data.availability as CommissionAvailability,
+                slug: slug,
+                max_commissions_until_waitlist: input.data.max_commissions_until_waitlist,
+                max_commissions_until_closed: input.data.max_commissions_until_closed,
+                published: input.data.published,
+                form_id: input.data.form_id,
+                rating: '5.00'
+                // rush_charge: 0,
+                // rush_orders_allowed: false,
+                // rush_percentage: false
+            })
+
+            const commission = await ctx.db.query.commissions.findFirst({
+                where: eq(commissions.id, commission_id)
+            })
+
+            if (!commission) {
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Could not create commission'
+                })
+            }
 
             // Update Algolia
             await set_index('commissions', {

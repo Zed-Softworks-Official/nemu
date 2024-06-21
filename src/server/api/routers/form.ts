@@ -19,19 +19,16 @@ export const formRouter = createTRPCRouter({
             })
         )
         .mutation(async ({ input, ctx }) => {
-            const form = await ctx.db
-                .insert(forms)
-                .values({
-                    id: createId(),
-                    name: input.name,
-                    description: input.description,
-                    artist_id: ctx.user.privateMetadata.artist_id as string
-                })
-                .returning()
+            const form = await ctx.db.insert(forms).values({
+                id: createId(),
+                name: input.name,
+                description: input.description,
+                artist_id: ctx.user.privateMetadata.artist_id as string
+            })
 
             // Invalidate cache
             invalidate_cache(
-                AsRedisKey('forms', form[0]?.artist_id as string),
+                AsRedisKey('forms', ctx.user.privateMetadata.artist_id as string),
                 'forms_list'
             )
         }),
@@ -47,25 +44,15 @@ export const formRouter = createTRPCRouter({
             })
         )
         .mutation(async ({ input, ctx }) => {
-            const updated = (
-                await ctx.db
-                    .update(forms)
-                    .set({
-                        content: JSON.parse(input.content)
-                    })
-                    .where(eq(forms.id, input.form_id))
-                    .returning()
-            )[0]
-
-            if (!updated) {
-                throw new TRPCError({
-                    code: 'INTERNAL_SERVER_ERROR',
-                    message: 'Unable to update form'
+            await ctx.db
+                .update(forms)
+                .set({
+                    content: JSON.parse(input.content)
                 })
-            }
+                .where(eq(forms.id, input.form_id))
 
             // Invalidate Cache
-            invalidate_cache(AsRedisKey('forms', updated.id), 'form')
+            invalidate_cache(AsRedisKey('forms', input.form_id), 'form')
 
             return { success: true }
         })

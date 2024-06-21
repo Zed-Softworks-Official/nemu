@@ -20,7 +20,7 @@ if (env.NODE_ENV !== 'production') globalForRedis.cache = cache
  * @param unique_identifiers - The unique identifiers for the object
  */
 export function AsRedisKey(
-    object: 'artists' | 'commissions' | 'portfolios' | 'requests' | 'forms',
+    object: 'artists' | 'commissions' | 'portfolios' | 'requests' | 'forms' | 'stripe',
     ...unique_identifiers: string[]
 ) {
     return `${object}:${unique_identifiers.join(':')}`

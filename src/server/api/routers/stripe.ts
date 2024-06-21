@@ -1,10 +1,9 @@
-import { number, z } from 'zod'
+import { z } from 'zod'
 import { artistProcedure, createTRPCRouter, protectedProcedure } from '~/server/api/trpc'
 
 import {
     StripeCreateAccountLink,
     StripeCreateCustomer,
-    StripeCreateCustomerZed,
     StripeCreateLoginLink,
     StripeCreateProductPaymentIntent,
     StripeCreateSupporterBilling,
@@ -14,14 +13,10 @@ import {
 import { TRPCError } from '@trpc/server'
 import { clerkClient } from '@clerk/nextjs/server'
 import { and, eq } from 'drizzle-orm'
-import {
-    artists,
-    customerIdRelations,
-    products,
-    stripe_customer_ids
-} from '~/server/db/schema'
+import { artists, products, stripe_customer_ids } from '~/server/db/schema'
 import { AsRedisKey, cache } from '~/server/cache'
 import { StripeDashboardData } from '~/core/structures'
+import { createId } from '@paralleldrive/cuid2'
 
 export const stripeRouter = createTRPCRouter({
     /**
@@ -67,22 +62,29 @@ export const stripeRouter = createTRPCRouter({
             )
 
             // Create a customer id object in the data for this user
-            const customer = await ctx.db
-                .insert(stripe_customer_ids)
-                .values({
-                    user_id: user.id,
-                    artist_id: artist.id,
-                    stripe_account: artist.stripe_account,
-                    customer_id: stripe_customer.id
+            const generateed_id = createId()
+            await ctx.db.insert(stripe_customer_ids).values({
+                id: generateed_id,
+                user_id: user.id,
+                artist_id: artist.id,
+                stripe_account: artist.stripe_account,
+                customer_id: stripe_customer.id
+            })
+
+            const customer = await ctx.db.query.stripe_customer_ids.findFirst({
+                where: eq(stripe_customer_ids.id, generateed_id)
+            })
+
+            if (!customer) {
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Failed to create customer id!'
                 })
-                .returning({
-                    customer_id: stripe_customer_ids.customer_id,
-                    stripe_account: stripe_customer_ids.stripe_account
-                })
+            }
 
             return {
-                customer_id: customer[0]?.customer_id,
-                stripe_account: customer[0]?.stripe_account
+                customer_id: customer.customer_id,
+                stripe_account: customer.stripe_account
             }
         }),
 
@@ -196,17 +198,25 @@ export const stripeRouter = createTRPCRouter({
                     ctx.user.emailAddresses[0]?.emailAddress || undefined
                 )
 
-                db_customer_link = (
-                    await ctx.db
-                        .insert(stripe_customer_ids)
-                        .values({
-                            stripe_account: input.stripe_account,
-                            customer_id: new_stripe_customer.id,
-                            artist_id: product.artist_id,
-                            user_id: ctx.user.id
-                        })
-                        .returning()
-                )[0]!
+                const generated_id = createId()
+                await ctx.db.insert(stripe_customer_ids).values({
+                    id: generated_id,
+                    stripe_account: input.stripe_account,
+                    customer_id: new_stripe_customer.id,
+                    artist_id: product.artist_id,
+                    user_id: ctx.user.id
+                })
+
+                db_customer_link = await ctx.db.query.stripe_customer_ids.findFirst({
+                    where: eq(stripe_customer_ids.id, generated_id)
+                })
+
+                if (!db_customer_link) {
+                    throw new TRPCError({
+                        code: 'INTERNAL_SERVER_ERROR',
+                        message: 'Failed to create customer id!'
+                    })
+                }
             }
 
             // Create the payment intent
