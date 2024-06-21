@@ -1,10 +1,10 @@
-import { and, eq, InferSelectModel } from 'drizzle-orm'
+import { and, eq, type InferSelectModel } from 'drizzle-orm'
 import { unstable_cache } from 'next/cache'
 
 import { AsRedisKey, cache } from '~/server/cache'
-import { artists, commissions, downloads, forms, requests } from '~/server/db/schema'
-import { clerkClient, User } from '@clerk/nextjs/server'
-import {
+import { artists, commissions, type downloads, forms, requests } from '~/server/db/schema'
+import { clerkClient, type User } from '@clerk/nextjs/server'
+import type {
     ClientCommissionItem,
     ClientRequestData,
     CommissionAvailability,
@@ -292,8 +292,8 @@ export const get_request_details = unstable_cache(
             ...request,
             user: await clerkClient.users.getUser(request.user_id),
             delivery: delivery,
-            invoice: request.invoice || undefined,
-            kanban: request.kanban || undefined
+            invoice: request.invoice ?? undefined,
+            kanban: request.kanban ?? undefined
         }
 
         await cache.json.set(AsRedisKey('requests', order_id), '$', result)
