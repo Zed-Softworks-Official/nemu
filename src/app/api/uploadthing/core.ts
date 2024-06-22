@@ -1,10 +1,9 @@
 import { clerkClient, getAuth } from '@clerk/nextjs/server'
 import { eq } from 'drizzle-orm'
-import { NextRequest } from 'next/server'
+import { type NextRequest } from 'next/server'
 import { createUploadthing, type FileRouter } from 'uploadthing/next'
 import { UploadThingError } from 'uploadthing/server'
 import { update_index } from '~/core/search'
-import { get_blur_data } from '~/lib/blur_data'
 import { AsRedisKey, invalidate_cache } from '~/server/cache'
 
 import { db } from '~/server/db'
@@ -13,8 +12,8 @@ import { utapi } from '~/server/uploadthing'
 
 const f = createUploadthing()
 
-const auth = async (req: NextRequest, check_artist: boolean = false) => {
-    const auth = await getAuth(req)
+const auth = async (req: NextRequest, check_artist = false) => {
+    const auth = getAuth(req)
 
     if (!auth.userId) {
         throw new UploadThingError('Unauthorized')

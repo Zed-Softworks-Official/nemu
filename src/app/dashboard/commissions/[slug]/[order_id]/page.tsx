@@ -5,14 +5,14 @@ import Kanban from '~/components/kanban/kanban'
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 import {
-    KanbanContainerData,
-    KanbanTask,
-    RequestContent,
+    type KanbanContainerData,
+    type KanbanTask,
+    type RequestContent,
     RequestStatus
 } from '~/core/structures'
 import DownloadsDropzone from '~/components/dashboard/downloads-dropzone'
 import DataTable from '~/components/data-table'
-import { ColumnDef } from '@tanstack/react-table'
+import type { ColumnDef } from '@tanstack/react-table'
 import { Suspense } from 'react'
 import Loading from '~/components/ui/loading'
 import InvoiceEditor from '~/components/dashboard/invoice-editor'
@@ -27,8 +27,8 @@ import {
 import { Badge } from '~/components/ui/badge'
 import DeliverForm from '~/components/dashboard/deliver-form'
 import { get_request_details } from '~/server/db/query'
-import { InferSelectModel } from 'drizzle-orm'
-import { invoice_items, invoices } from '~/server/db/schema'
+import type { InferSelectModel } from 'drizzle-orm'
+import type { invoice_items, invoices } from '~/server/db/schema'
 
 export default function CommissionDetailsPage({
     params
@@ -71,7 +71,7 @@ async function PageContent(props: { slug: string; order_id: string }) {
         <main className="flex flex-col gap-5">
             <h1 className="text-3xl font-bold">
                 Request for{' '}
-                {request_data.user.username || request_data.user.firstName || 'User'}
+                {request_data.user.username ?? request_data.user.firstName ?? 'User'}
             </h1>
             <h2 className="text-lg italic text-base-content/80">
                 Requested {new Date(request_data.created_at).toLocaleDateString()}
@@ -92,9 +92,9 @@ async function PageContent(props: { slug: string; order_id: string }) {
                         data={Object.keys(request_data.content as RequestContent).map(
                             (key) => ({
                                 item_label: (request_data.content as RequestContent)[key]
-                                    ?.label!,
+                                    ?.label,
                                 item_value: (request_data.content as RequestContent)[key]
-                                    ?.value!
+                                    ?.value
                             })
                         )}
                     />
@@ -149,7 +149,7 @@ async function PageContent(props: { slug: string; order_id: string }) {
                                     request_id={request_data.id}
                                     user_id={request_data.user.id}
                                     delivered={
-                                        request_data.status === RequestStatus.Delivered
+                                        (request_data.status as RequestStatus) === RequestStatus.Delivered
                                     }
                                 />
                             </CardContent>

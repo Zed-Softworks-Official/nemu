@@ -6,7 +6,7 @@ import PortfolioCreateEditForm from '~/components/dashboard/forms/portfolio-crea
 import UploadThingProvider from '~/components/files/uploadthing-context'
 import DashboardContainer from '~/components/ui/dashboard-container'
 import Loading from '~/components/ui/loading'
-import { ClientPortfolioItem } from '~/core/structures'
+import type { ClientPortfolioItem } from '~/core/structures'
 import { get_blur_data } from '~/lib/blur_data'
 import { db } from '~/server/db'
 import { portfolios } from '~/server/db/schema'

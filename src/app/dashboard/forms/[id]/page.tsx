@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation'
 import { Suspense } from 'react'
 
 import { DesignerProvider } from '~/components/form-builder/designer/designer-context'
-import { FormElementInstance } from '~/components/form-builder/elements/form-elements'
+import type { FormElementInstance } from '~/components/form-builder/elements/form-elements'
 import FormBuilder from '~/components/form-builder/form-builder'
 import DashboardContainer from '~/components/ui/dashboard-container'
 import Loading from '~/components/ui/loading'

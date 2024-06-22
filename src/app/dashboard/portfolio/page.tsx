@@ -13,7 +13,7 @@ import { db } from '~/server/db'
 import { eq } from 'drizzle-orm'
 import { portfolios } from '~/server/db/schema'
 import { get_blur_data } from '~/lib/blur_data'
-import { ClientPortfolioItem } from '~/core/structures'
+import type { ClientPortfolioItem } from '~/core/structures'
 
 const get_portfolio_list = unstable_cache(
     async (artist_id: string) => {

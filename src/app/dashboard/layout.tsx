@@ -8,7 +8,6 @@ import {
     LayersIcon,
     MailIcon,
     PanelLeftIcon,
-    StoreIcon,
     UserIcon
 } from 'lucide-react'
 

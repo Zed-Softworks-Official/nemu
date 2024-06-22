@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 
-export default async function POST(req: NextRequest) {
+export default async function POST() {
     return NextResponse.error().json()
 }

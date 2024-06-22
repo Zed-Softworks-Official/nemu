@@ -5,11 +5,11 @@ import Link from 'next/link'
 import { EyeIcon, PencilIcon } from 'lucide-react'
 import CommissionPublishButton from '~/components/dashboard/commission-publish'
 import {
-    ClientCommissionItem,
-    ClientRequestData,
-    CommissionAvailability,
-    NemuImageData,
-    RequestContent,
+    type ClientCommissionItem,
+    type ClientRequestData,
+    type CommissionAvailability,
+    type NemuImageData,
+    type RequestContent,
     RequestStatus
 } from '~/core/structures'
 import { clerkClient, currentUser } from '@clerk/nextjs/server'
@@ -158,7 +158,7 @@ async function RequestsList(props: { slug: string }) {
                         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                             {commission.requests
                                 ?.filter(
-                                    (request) => request.status === RequestStatus.Pending
+                                    (request) => (request.status as RequestStatus) === RequestStatus.Pending
                                 )
                                 .map((request) => (
                                     <RequestCard key={request.id} request={request} />
@@ -172,7 +172,7 @@ async function RequestsList(props: { slug: string }) {
                         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                             {commission.requests
                                 ?.filter(
-                                    (request) => request.status === RequestStatus.Accepted
+                                    (request) => (request.status as RequestStatus) === RequestStatus.Accepted
                                 )
                                 .map((request) => (
                                     <RequestCard
@@ -193,7 +193,7 @@ async function RequestsList(props: { slug: string }) {
                         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                             {commission.requests
                                 ?.filter(
-                                    (request) => request.status === RequestStatus.Waitlist
+                                    (request) => (request.status as RequestStatus) === RequestStatus.Waitlist
                                 )
                                 .map((request) => (
                                     <RequestCard
@@ -215,7 +215,7 @@ async function RequestsList(props: { slug: string }) {
                             {commission.requests
                                 ?.filter(
                                     (request) =>
-                                        request.status === RequestStatus.Delivered
+                                        (request.status as RequestStatus) === RequestStatus.Delivered
                                 )
                                 .map((request) => (
                                     <RequestCard
@@ -264,7 +264,7 @@ function RequestCard({
                         </AvatarFallback>
                     </Avatar>
                     <h3 className="card-title">
-                        {request.user.username || request.user.firstName}
+                        {request.user.username ?? request.user.firstName}
                     </h3>
                 </div>
                 <div className="divider-vertical"></div>
@@ -281,7 +281,7 @@ function RequestCard({
                 <DialogHeader className="flex flex-row items-center justify-between">
                     <div>
                         <DialogTitle>
-                            Requst from {request.user.username || request.user.firstName}
+                            Requst from {request.user.username ?? request.user.firstName}
                         </DialogTitle>
                         <DialogDescription>
                             <span className="italic text-base-content/60">

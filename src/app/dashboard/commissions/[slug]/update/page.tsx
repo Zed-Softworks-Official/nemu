@@ -1,4 +1,4 @@
-import { currentUser, User } from '@clerk/nextjs/server'
+import { currentUser, type User } from '@clerk/nextjs/server'
 import { eq } from 'drizzle-orm'
 import { notFound, redirect } from 'next/navigation'
 import { Suspense } from 'react'
@@ -7,11 +7,11 @@ import CommissionCreateEditForm from '~/components/dashboard/forms/commission-cr
 import UploadThingProvider from '~/components/files/uploadthing-context'
 import DashboardContainer from '~/components/ui/dashboard-container'
 import Loading from '~/components/ui/loading'
-import { ClientCommissionItemEditable, CommissionAvailability } from '~/core/structures'
+import type { ClientCommissionItemEditable, CommissionAvailability } from '~/core/structures'
 import { format_for_image_editor } from '~/lib/server-utils'
 import { db } from '~/server/db'
+import { get_form_list } from '~/server/db/query'
 import { commissions } from '~/server/db/schema'
-import { get_form_list } from '~/app/dashboard/commissions/create/page'
 
 async function get_edit_data(user: User, slug: string) {
     // Get the commission from the db

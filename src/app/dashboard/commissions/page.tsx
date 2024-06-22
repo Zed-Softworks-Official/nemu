@@ -12,7 +12,7 @@ import { Card, CardDescription, CardHeader, CardTitle } from '~/components/ui/ca
 import { currentUser } from '@clerk/nextjs/server'
 import { Suspense } from 'react'
 import Loading from '~/components/ui/loading'
-import { ClientCommissionItem, CommissionAvailability } from '~/core/structures'
+import type { ClientCommissionItem } from '~/core/structures'
 import { get_commission_list } from '~/server/db/query'
 
 export default function CommissionsDashboardPage() {
@@ -64,7 +64,7 @@ function CommissionCard({ commission }: { commission: ClientCommissionItem }) {
         <div className="card animate-pop-in bg-base-100 transition-all duration-150 lg:card-side">
             <figure>
                 <NemuImage
-                    src={commission.images[0]?.url!}
+                    src={commission.images[0]?.url ?? '/nemu/not-like-this.png'}
                     placeholder="blur"
                     blurDataURL={commission.images[0]?.blur_data}
                     alt={`${commission.title} Featured Image`}

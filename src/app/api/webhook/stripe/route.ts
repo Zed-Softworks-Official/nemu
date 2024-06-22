@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server'
 import { env } from '~/env'
 import { db } from '~/server/db'
 import { invoices } from '~/server/db/schema'
-import { InvoiceStatus, PurchaseType, StripePaymentMetadata } from '~/core/structures'
+import { InvoiceStatus, PurchaseType, type StripePaymentMetadata } from '~/core/structures'
 import { novu } from '~/server/novu'
 import { clerkClient } from '@clerk/nextjs/server'
 
@@ -32,7 +32,7 @@ export async function POST(req: Request) {
     switch (event.type) {
         case 'invoice.paid':
             {
-                const invoice = event.data.object as Stripe.Invoice
+                const invoice = event.data.object 
                 const metadata = invoice.metadata as unknown as StripePaymentMetadata
 
                 if (

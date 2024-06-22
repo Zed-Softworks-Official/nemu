@@ -1,10 +1,10 @@
 import { Webhook } from 'svix'
 import { headers } from 'next/headers'
 
-import { clerkClient, WebhookEvent } from '@clerk/nextjs/server'
+import { clerkClient, type WebhookEvent } from '@clerk/nextjs/server'
 
 import { env } from '~/env'
-import { PublicUserMetadata, UserRole } from '~/core/structures'
+import { type PublicUserMetadata, UserRole } from '~/core/structures'
 import { db } from '~/server/db'
 import { users } from '~/server/db/schema'
 
@@ -24,6 +24,7 @@ export async function POST(req: Request) {
     }
 
     // Get Body
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const payload = await req.json()
     const body = JSON.stringify(payload)
 
@@ -44,9 +45,7 @@ export async function POST(req: Request) {
         return new Response('An Error Occured', { status: 400 })
     }
 
-    // Get the ID and the type of the event
-    const { id } = event.data
-
+    // Switch on the type of event that we received 
     switch (event.type) {
         case 'user.created':
             {

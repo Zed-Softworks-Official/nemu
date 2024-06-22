@@ -8,12 +8,11 @@ import NemuImage from '~/components/nemu-image'
 import {
     Card,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle
 } from '~/components/ui/card'
 import Loading from '~/components/ui/loading'
-import { InvoiceStatus, SalesData } from '~/core/structures'
+import type { InvoiceStatus, SalesData } from '~/core/structures'
 import { calculate_percentage_change, format_to_currency } from '~/lib/utils'
 
 import { db } from '~/server/db'
@@ -66,9 +65,9 @@ const get_recent_requests = unstable_cache(
             }
 
             result.push({
-                commission_title: recent.commission.title!,
+                commission_title: recent.commission.title,
                 requester_username: (
-                    await clerkClient.users.getUser(recent.request?.user_id!)
+                    await clerkClient.users.getUser(recent.request?.user_id)
                 ).username!,
                 created_at: recent.request.created_at.toLocaleDateString()
             })
@@ -106,9 +105,9 @@ const get_recent_invoices = unstable_cache(
             result.push({
                 status: invoice.status as InvoiceStatus,
                 created_at: invoice.created_at.toLocaleDateString(),
-                requester_username: (await clerkClient.users.getUser(invoice.user_id!))
+                requester_username: (await clerkClient.users.getUser(invoice.user_id))
                     .username!,
-                commission_title: invoice.request.commission.title!
+                commission_title: invoice.request.commission.title
             })
         }
 
@@ -182,7 +181,7 @@ const get_recent_sales = unstable_cache(
             const charge_month = charge_date.toLocaleString('en-US', { month: 'long' })
             sales_data[charge_month] = {
                 month: charge_date.toLocaleString('en-US', { month: 'long' }),
-                total_sales: sales_data[charge_month]
+                total_sales: sales_data[charge_month] 
                     ? (sales_data[charge_month].total_sales += charge.amount / 100)
                     : charge.amount / 100
             }

@@ -1,4 +1,4 @@
-import { RouterInput } from '~/core/structures'
+import type { RouterInput } from '~/core/structures'
 
 export enum PurchaseType {
     ArtistCorner = 'artist_corner',

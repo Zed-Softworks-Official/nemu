@@ -1,6 +1,6 @@
 import { clerkClient, getAuth } from '@clerk/nextjs/server'
 import { eq } from 'drizzle-orm'
-import { NextRequest, NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 import { StripeCreateCustomerZed, StripeCreateSupporterCheckout } from '~/core/payments'
 import { db } from '~/server/db'
 import { artists } from '~/server/db/schema'
