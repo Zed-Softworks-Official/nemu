@@ -1,4 +1,4 @@
-import { ColumnDef } from '@tanstack/react-table'
+import type { ColumnDef } from '@tanstack/react-table'
 import Link from 'next/link'
 import { Suspense } from 'react'
 import DataTable from '~/components/data-table'
@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card'
 import Loading from '~/components/ui/loading'
 import { InvoiceStatus } from '~/core/structures'
 import { format_to_currency } from '~/lib/utils'
-import { get_request_details } from '~/app/(standard)/requests/[order_id]/details/page'
+import { get_request_details } from '~/server/db/query'
 
 export default function RequestInvoicesPage({
     params

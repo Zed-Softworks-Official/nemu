@@ -1,5 +1,5 @@
-import { clerkClient, User } from '@clerk/nextjs/server'
-import { InferSelectModel } from 'drizzle-orm'
+import { clerkClient, type User } from '@clerk/nextjs/server'
+import type { InferSelectModel } from 'drizzle-orm'
 import { unstable_cache } from 'next/cache'
 import Link from 'next/link'
 import { Suspense } from 'react'
@@ -9,11 +9,11 @@ import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
 import { Badge } from '~/components/ui/badge'
 import Loading from '~/components/ui/loading'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
-import { CommissionAvailability, NemuImageData } from '~/core/structures'
+import type { CommissionAvailability, NemuImageData } from '~/core/structures'
 import { get_blur_data } from '~/lib/blur_data'
 import { get_availability_badge_data } from '~/lib/utils'
 import { db } from '~/server/db'
-import { artists } from '~/server/db/schema'
+import type { artists } from '~/server/db/schema'
 
 type RandomArtistReturnType = InferSelectModel<typeof artists> & { user: User }
 type RandomCommissionReturnType = {
@@ -37,10 +37,10 @@ const get_random_artists = unstable_cache(
         const artists = await db.query.artists.findMany()
 
         const result: RandomArtistReturnType[] = []
-        for (let i = 0; i < artists.length; i++) {
+        for (const artist of artists) {
             result.push({
-                ...artists[i]!,
-                user: await clerkClient.users.getUser(artists[i]!.user_id)
+                ...artist,
+                user: await clerkClient.users.getUser(artist.user_id)
             })
         }
 
@@ -60,18 +60,18 @@ const get_commissions = unstable_cache(
         })
 
         const result: RandomCommissionReturnType[] = []
-        for (let i = 0; i < commissions.length; i++) {
+        for (const commission of commissions) {
             result.push({
-                id: commissions[i]?.id!,
-                title: commissions[i]?.title!,
-                description: commissions[i]?.description!,
+                id: commission.id,
+                title: commission.title,
+                description: commission.description,
                 featured_image: {
-                    url: commissions[i]?.images[0]?.url!,
-                    blur_data: await get_blur_data(commissions[i]?.images[0]?.url!)
+                    url: commission.images[0]!.url,
+                    blur_data: await get_blur_data(commission.images[0]!.url)
                 },
-                artist_handle: commissions[i]?.artist.handle!,
-                slug: commissions[i]?.slug!,
-                availability: commissions[i]?.availability as CommissionAvailability
+                artist_handle: commission.artist.handle,
+                slug: commission.slug,
+                availability: commission.availability as CommissionAvailability
             })
         }
 
@@ -97,14 +97,14 @@ const get_random_portfolio = unstable_cache(
         }
 
         const result: RandomPortfolioReturnType[] = []
-        for (let i = 0; i < portfolio.length; i++) {
+        for (const item of portfolio) {
             result.push({
-                id: portfolio[i]?.id!,
+                id: item.id,
                 image: {
-                    url: portfolio[i]?.image_url!,
-                    blur_data: await get_blur_data(portfolio[i]?.image_url!)
+                    url: item.image_url,
+                    blur_data: await get_blur_data(item.image_url)
                 },
-                artist: portfolio[i]?.artist!!
+                artist: item.artist
             })
         }
 
@@ -220,7 +220,7 @@ async function CommissionsList() {
                             @{commission.artist_handle}
                         </span>
                         <NemuImage
-                            src={commission.featured_image.url!}
+                            src={commission.featured_image.url}
                             alt="Commission Image"
                             width={200}
                             height={200}
@@ -255,7 +255,7 @@ async function PortfolioList() {
                     className="flex animate-pop-in rounded-xl transition-all duration-200 ease-in-out"
                 >
                     <NemuImage
-                        src={portfolio.image.url!}
+                        src={portfolio.image.url}
                         alt="Portfolio Image"
                         width={200}
                         height={200}
