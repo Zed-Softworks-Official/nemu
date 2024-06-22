@@ -2,7 +2,7 @@ import { clerkClient } from '@clerk/nextjs/server'
 import { faPixiv, faXTwitter } from '@fortawesome/free-brands-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { GlobeIcon } from 'lucide-react'
-import { Metadata, ResolvingMetadata } from 'next'
+import type { Metadata } from 'next'
 import Link from 'next/link'
 
 import { notFound } from 'next/navigation'
@@ -20,10 +20,7 @@ type Props = {
     params: { handle: string }
 }
 
-export async function generateMetadata(
-    { params }: Props,
-    parent: ResolvingMetadata
-): Promise<Metadata> {
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const handle = params.handle.substring(3, params.handle.length + 1)
     const artist = await get_artist_data(handle)
 
@@ -169,13 +166,13 @@ async function PageContent({ params }: Props) {
     )
 }
 
-function get_social_icon(agent: string) {
+function get_social_icon(agent: SocialAgent) {
     switch (agent) {
         case SocialAgent.Twitter:
             return <FontAwesomeIcon icon={faXTwitter} className="h-6 w-6" />
         case SocialAgent.Pixiv:
             return <FontAwesomeIcon icon={faPixiv} className="h-6 w-6" />
-        default:
+        case SocialAgent.Website:
             return <GlobeIcon className="h-6 w-6" />
     }
 }

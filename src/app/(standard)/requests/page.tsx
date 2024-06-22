@@ -6,7 +6,7 @@ import NemuImage from '~/components/nemu-image'
 import { Badge } from '~/components/ui/badge'
 import Loading from '~/components/ui/loading'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
-import { ClientRequestData, RequestStatus } from '~/core/structures'
+import { type ClientRequestData, RequestStatus } from '~/core/structures'
 import { get_request_list } from '~/server/db/query'
 
 export default function RequestsPage() {
@@ -47,7 +47,11 @@ async function PageContent() {
                 <TabsContent value="pending">
                     <div className="flex flex-col gap-5">
                         {requests
-                            .filter((request) => request.status === RequestStatus.Pending)
+                            .filter(
+                                (request) =>
+                                    (request.status as RequestStatus) ===
+                                    RequestStatus.Pending
+                            )
                             .map((request) => (
                                 <RequestCard key={request.id} request={request} />
                             ))}
@@ -57,7 +61,9 @@ async function PageContent() {
                     <div className="flex flex-col gap-5">
                         {requests
                             .filter(
-                                (request) => request.status === RequestStatus.Accepted
+                                (request) =>
+                                    (request.status as RequestStatus) ===
+                                    RequestStatus.Accepted
                             )
                             .map((request) => (
                                 <RequestCard key={request.id} request={request} />
@@ -68,7 +74,9 @@ async function PageContent() {
                     <div className="flex flex-col gap-5">
                         {requests
                             .filter(
-                                (request) => request.status === RequestStatus.Rejected
+                                (request) =>
+                                    (request.status as RequestStatus) ===
+                                    RequestStatus.Rejected
                             )
                             .map((request) => (
                                 <RequestCard key={request.id} request={request} />
@@ -79,7 +87,9 @@ async function PageContent() {
                     <div className="flex flex-col gap-5">
                         {requests
                             .filter(
-                                (request) => request.status === RequestStatus.Delivered
+                                (request) =>
+                                    (request.status as RequestStatus) ===
+                                    RequestStatus.Delivered
                             )
                             .map((request) => (
                                 <RequestCard key={request.id} request={request} />
@@ -103,9 +113,9 @@ function RequestCard({ request }: { request: ClientRequestData }) {
         <div className="card h-52 animate-pop-in bg-base-200 shadow-xl transition-all duration-200 ease-in-out lg:card-side">
             <figure>
                 <NemuImage
-                    src={request.commission.images[0]?.url || '/nemu/not-like-this.png'}
+                    src={request.commission.images[0]?.url ?? '/nemu/not-like-this.png'}
                     placeholder="blur"
-                    blurDataURL={request.commission.images[0]?.blur_data!}
+                    blurDataURL={request.commission.images[0]?.blur_data}
                     alt="Featured Image"
                     width={200}
                     height={200}
@@ -129,8 +139,9 @@ function RequestCard({ request }: { request: ClientRequestData }) {
                         </div>
                         <RequestStatusBadge status={request.status as RequestStatus} />
                     </div>
-                    {(request.status === RequestStatus.Accepted ||
-                        request.status === RequestStatus.Delivered) && (
+                    {((request.status as RequestStatus) === RequestStatus.Accepted ||
+                        (request.status as RequestStatus) ===
+                            RequestStatus.Delivered) && (
                         <div className="flex justify-end">
                             <Link
                                 href={`/requests/${request.order_id}/details`}

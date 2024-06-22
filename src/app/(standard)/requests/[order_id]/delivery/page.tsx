@@ -10,7 +10,7 @@ import {
     CardTitle
 } from '~/components/ui/card'
 import Loading from '~/components/ui/loading'
-import { get_request_details } from '../details/page'
+import { get_request_details } from '~/server/db/query'
 
 export default function RequestDeliveryPage({
     params

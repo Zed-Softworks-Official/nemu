@@ -1,5 +1,5 @@
 import { currentUser } from '@clerk/nextjs/server'
-import { eq, InferSelectModel } from 'drizzle-orm'
+import { eq, type InferSelectModel } from 'drizzle-orm'
 import { redirect } from 'next/navigation'
 import { Suspense } from 'react'
 

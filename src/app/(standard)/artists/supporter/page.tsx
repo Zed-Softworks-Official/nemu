@@ -15,9 +15,9 @@ export default function GetSupporterPage() {
                             Become A Supporter
                         </h2>
                         <p className="mt-6 text-lg leading-8 text-base-content/80">
-                            As a supporter, you'll be able to reduce Nemu's platform fees
-                            to 0%. Becoming a supporter is a fantastic way to help fund
-                            the development of Nemu.
+                            As a supporter, you&apos;ll be able to reduce Nemu&apos;s
+                            platform fees to 0%. Becoming a supporter is a fantastic way
+                            to help fund the development of Nemu.
                         </p>
                     </div>
                     <div className="mx-auto mt-16 max-w-2xl rounded-3xl ring-1 ring-base-100 sm:mt-20 lg:mx-0 lg:flex lg:max-w-none">
@@ -27,11 +27,13 @@ export default function GetSupporterPage() {
                             </h3>
                             <p className="mt-6 text-base leading-7 text-base-content/80">
                                 As of now, supporters only reduce the platform fees to 0%
-                                and help fund the development of Nemu. We're working on
-                                adding more features to the supporter membership, so stay
-                                tuned!
+                                and help fund the development of Nemu. We&apos;re working
+                                on adding more features to the supporter membership, so
+                                stay tuned!
                             </p>
-                            <div className="divider text-primary">What's included</div>
+                            <div className="divider text-primary">
+                                What&apos;s included
+                            </div>
                             <ul
                                 role="list"
                                 className="mt-8 grid grid-cols-1 gap-4 text-sm leading-6 text-base-content/80 sm:grid-cols-2 sm:gap-6"

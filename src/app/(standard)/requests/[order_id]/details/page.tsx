@@ -7,9 +7,9 @@ import {
     CardHeader,
     CardTitle
 } from '~/components/ui/card'
-import { RequestContent } from '~/core/structures'
+import type { RequestContent } from '~/core/structures'
 import DataTable from '~/components/data-table'
-import { ColumnDef } from '@tanstack/react-table'
+import type { ColumnDef } from '@tanstack/react-table'
 import { Suspense } from 'react'
 import Loading from '~/components/ui/loading'
 import { get_request_details } from '~/server/db/query'
@@ -65,8 +65,8 @@ async function PageContent(props: { order_id: string }) {
                         <DataTable
                             columns={request_columns}
                             data={Object.keys(request_details).map((key) => ({
-                                item_label: request_details[key]?.label!,
-                                item_value: request_details[key]?.value!
+                                item_label: request_details[key]?.label,
+                                item_value: request_details[key]?.value
                             }))}
                         />
                     </div>

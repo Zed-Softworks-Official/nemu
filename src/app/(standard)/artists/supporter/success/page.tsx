@@ -17,8 +17,9 @@ export default function SupporterSuccessPage() {
                             Thank you for your support!
                         </h2>
                         <p className="mt-6 text-lg leading-8 text-base-content/80">
-                            We're so glad you're supporting us! We'll be in touch soon
-                            with updates on how you can help fund the development of Nemu.
+                            We&apos;re so glad you&apos;re supporting us! We&apos;ll be in
+                            touch soon with updates on how you can help fund the
+                            development of Nemu.
                         </p>
                     </div>
                 </div>

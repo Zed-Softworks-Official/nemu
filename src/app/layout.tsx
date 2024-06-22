@@ -2,7 +2,7 @@ import '~/styles/globals.css'
 
 import NextTopLoader from 'nextjs-toploader'
 
-import { Metadata } from 'next'
+import type { Metadata } from 'next'
 import { Nunito } from 'next/font/google'
 
 import { NextSSRPlugin } from '@uploadthing/react/next-ssr-plugin'

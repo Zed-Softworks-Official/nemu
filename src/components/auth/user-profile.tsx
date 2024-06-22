@@ -2,8 +2,8 @@
 
 import { z } from 'zod'
 
-import { UserProfile, useUser } from '@clerk/nextjs'
-import { BrushIcon, PlusCircleIcon, SaveIcon } from 'lucide-react'
+import { UserProfile } from '@clerk/nextjs'
+import { BrushIcon, SaveIcon } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Form, FormField, FormItem, FormLabel } from '~/components/ui/form'
@@ -11,15 +11,14 @@ import { Input } from '~/components/ui/input'
 import { Button } from '~/components/ui/button'
 import { UploadDropzone } from '~/components/files/uploadthing'
 import { Textarea } from '~/components/ui/textarea'
-import { Switch } from '~/components/ui/switch'
 import { toast } from 'sonner'
-import { artists } from '~/server/db/schema'
-import { InferSelectModel } from 'drizzle-orm'
+import type { artists } from '~/server/db/schema'
+import type { InferSelectModel } from 'drizzle-orm'
 import { api } from '~/trpc/react'
 import { useState } from 'react'
 import SelectCountries from '~/components/ui/select-countries'
 import SocialsList from './socials-list'
-import { SocialAccount } from '~/core/structures'
+import type { SocialAccount } from '~/core/structures'
 
 const artistSchema = z.object({
     about: z.string().max(256),
