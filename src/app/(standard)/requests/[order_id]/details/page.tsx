@@ -65,8 +65,8 @@ async function PageContent(props: { order_id: string }) {
                         <DataTable
                             columns={request_columns}
                             data={Object.keys(request_details).map((key) => ({
-                                item_label: request_details[key]?.label,
-                                item_value: request_details[key]?.value
+                                item_label: request_details[key]!.label,
+                                item_value: request_details[key]!.value
                             }))}
                         />
                     </div>

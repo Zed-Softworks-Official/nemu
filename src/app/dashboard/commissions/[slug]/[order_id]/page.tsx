@@ -91,10 +91,10 @@ async function PageContent(props: { slug: string; order_id: string }) {
                         columns={request_columns}
                         data={Object.keys(request_data.content as RequestContent).map(
                             (key) => ({
-                                item_label: (request_data.content as RequestContent)[key]
-                                    ?.label,
-                                item_value: (request_data.content as RequestContent)[key]
-                                    ?.value
+                                item_label: (request_data.content as RequestContent)[key]!
+                                    .label,
+                                item_value: (request_data.content as RequestContent)[key]!
+                                    .value
                             })
                         )}
                     />
@@ -149,7 +149,8 @@ async function PageContent(props: { slug: string; order_id: string }) {
                                     request_id={request_data.id}
                                     user_id={request_data.user.id}
                                     delivered={
-                                        (request_data.status as RequestStatus) === RequestStatus.Delivered
+                                        (request_data.status as RequestStatus) ===
+                                        RequestStatus.Delivered
                                     }
                                 />
                             </CardContent>
