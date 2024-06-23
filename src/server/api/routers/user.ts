@@ -1,5 +1,5 @@
 import { createTRPCRouter, protectedProcedure } from '~/server/api/trpc'
-import { PublicUserMetadata, UserRole } from '~/core/structures'
+import { type PublicUserMetadata, UserRole } from '~/core/structures'
 
 import { clerkClient } from '@clerk/nextjs/server'
 import { users } from '~/server/db/schema'

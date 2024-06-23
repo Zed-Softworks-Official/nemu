@@ -1,12 +1,9 @@
-import { clerkClient } from '@clerk/nextjs/server'
 import { TRPCError } from '@trpc/server'
 import { eq } from 'drizzle-orm'
-import { revalidateTag } from 'next/cache'
 import { z } from 'zod'
 import { update_index } from '~/core/search'
-import { get_blur_data } from '~/lib/blur_data'
 import { artistProcedure, createTRPCRouter } from '~/server/api/trpc'
-import { AsRedisKey, cache, invalidate_cache } from '~/server/cache'
+import { AsRedisKey, invalidate_cache } from '~/server/cache'
 import { artists } from '~/server/db/schema'
 
 export const artistRouter = createTRPCRouter({
@@ -60,6 +57,9 @@ export const artistRouter = createTRPCRouter({
             })
 
             // Invalidate cache
-            invalidate_cache(AsRedisKey('artists', artist_updated.handle), 'artist-data')
+            await invalidate_cache(
+                AsRedisKey('artists', artist_updated.handle),
+                'artist-data'
+            )
         })
 })

@@ -15,7 +15,7 @@ import { clerkClient } from '@clerk/nextjs/server'
 import { and, eq } from 'drizzle-orm'
 import { artists, products, stripe_customer_ids } from '~/server/db/schema'
 import { AsRedisKey, cache } from '~/server/cache'
-import { StripeDashboardData } from '~/core/structures'
+import type { StripeDashboardData } from '~/core/structures'
 import { createId } from '@paralleldrive/cuid2'
 
 export const stripeRouter = createTRPCRouter({
@@ -113,7 +113,7 @@ export const stripeRouter = createTRPCRouter({
             return undefined
         }
 
-        let result: StripeDashboardData = {
+        const result: StripeDashboardData = {
             managment: {
                 type: 'onboarding',
                 url: ''
@@ -194,8 +194,8 @@ export const stripeRouter = createTRPCRouter({
             if (!db_customer_link) {
                 const new_stripe_customer = await StripeCreateCustomer(
                     input.stripe_account,
-                    ctx.user.username || undefined,
-                    ctx.user.emailAddresses[0]?.emailAddress || undefined
+                    ctx.user.username ?? undefined,
+                    ctx.user.emailAddresses[0]?.emailAddress ?? undefined
                 )
 
                 const generated_id = createId()

@@ -4,15 +4,7 @@ import { TRPCError } from '@trpc/server'
 import { and, eq, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { StripeCreateCustomer, StripeCreateInvoice } from '~/core/payments'
-import {
-    ClientCommissionItem,
-    ClientRequestData,
-    CommissionAvailability,
-    InvoiceStatus,
-    KanbanContainerData,
-    NemuImageData,
-    RequestStatus
-} from '~/core/structures'
+import { InvoiceStatus, type KanbanContainerData, RequestStatus } from '~/core/structures'
 import { env } from '~/env'
 import { update_commission_check_waitlist } from '~/lib/server-utils'
 import { artistProcedure, createTRPCRouter, protectedProcedure } from '~/server/api/trpc'
@@ -93,7 +85,7 @@ export const requestRouter = createTRPCRouter({
             })
 
             //  Invalidate Cache
-            invalidate_cache(
+            await invalidate_cache(
                 AsRedisKey('requests', commission.artist.handle, commission.slug),
                 'commission_requests'
             )
@@ -144,8 +136,8 @@ export const requestRouter = createTRPCRouter({
                 // Create customer account in stripe
                 const customer = await StripeCreateCustomer(
                     request.commission.artist.stripe_account,
-                    request_user.username || request_user.firstName || undefined,
-                    request_user.emailAddresses[0]?.emailAddress || undefined
+                    request_user.username ?? request_user.firstName ?? undefined,
+                    request_user.emailAddresses[0]?.emailAddress ?? undefined
                 )
 
                 if (!customer) {
@@ -190,7 +182,7 @@ export const requestRouter = createTRPCRouter({
                 .where(eq(commissions.id, request.commission_id))
 
             // Notify the user of the decision
-            novu.trigger('commission-determine-request', {
+            await novu.trigger('commission-determine-request', {
                 to: {
                     subscriberId: request.user_id
                 },
@@ -262,7 +254,7 @@ export const requestRouter = createTRPCRouter({
             if (!user.publicMetadata.has_sendbird_account) {
                 await sendbird.CreateUser({
                     user_id: user.id,
-                    nickname: user.username || 'User',
+                    nickname: user.username ?? 'User',
                     profile_url: user.imageUrl
                 })
 
@@ -278,7 +270,7 @@ export const requestRouter = createTRPCRouter({
                 user_ids: [user.id, request.commission.artist.user_id],
                 name: `${request.commission.title} - ${user.username}`,
                 cover_url:
-                    request.commission.images[0]?.url || env.BASE_URL + '/profile.png',
+                    request.commission.images[0]?.url ?? env.BASE_URL + '/profile.png',
                 channel_url: request.order_id,
                 operator_ids: [request.commission.artist.user_id],
                 block_sdk_user_channel_join: true,

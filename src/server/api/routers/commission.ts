@@ -1,35 +1,17 @@
 import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
 
-import {
-    ClientCommissionItem,
-    ClientCommissionItemEditable,
-    ClientRequestData,
-    CommissionAvailability,
-    NemuImageData
-} from '~/core/structures'
-import { artistProcedure, createTRPCRouter, publicProcedure } from '~/server/api/trpc'
-import { AsRedisKey, cache, invalidate_cache } from '~/server/cache'
-import {
-    convert_images_to_nemu_images,
-    format_for_image_editor
-} from '~/lib/server-utils'
-import { get_blur_data } from '~/lib/blur_data'
+import type { CommissionAvailability } from '~/core/structures'
+import { artistProcedure, createTRPCRouter } from '~/server/api/trpc'
+import { AsRedisKey, invalidate_cache } from '~/server/cache'
+
 import { format_to_currency } from '~/lib/utils'
-import { artists, commissions } from '~/server/db/schema'
+import { commissions } from '~/server/db/schema'
 
 import { and, eq } from 'drizzle-orm'
 import { createId } from '@paralleldrive/cuid2'
 import { utapi } from '~/server/uploadthing'
-import { clerkClient } from '@clerk/nextjs/server'
 import { set_index, update_index } from '~/core/search'
-import { revalidateTag } from 'next/cache'
-
-const request_data = z.object({
-    artist: z.boolean().optional(),
-    form: z.boolean().optional(),
-    reviews: z.boolean().optional()
-})
 
 export const commissionRouter = createTRPCRouter({
     /**
@@ -163,18 +145,14 @@ export const commissionRouter = createTRPCRouter({
                     title: commission_updated.title,
                     price: format_to_currency(commission_updated.price),
                     description: commission_updated.description,
-                    featured_image: commission_updated.images[0]?.url!,
+                    featured_image: commission_updated.images[0]!.url,
                     slug: commission_updated.slug,
                     artist_handle: ctx.user.publicMetadata.handle as string,
                     published: commission_updated.published
                 })
 
-                const artist = await ctx.db.query.artists.findFirst({
-                    where: eq(artists.id, commission_updated.artist_id)
-                })
-
                 // Invalidate cache
-                invalidate_cache(
+                await invalidate_cache(
                     AsRedisKey(
                         'commissions',
                         ctx.user.publicMetadata.handle as string,
@@ -185,7 +163,7 @@ export const commissionRouter = createTRPCRouter({
 
                 // Invalidate Commission List Cache
 
-                invalidate_cache(
+                await invalidate_cache(
                     AsRedisKey('commissions', commission_updated.artist_id),
                     'commission_list'
                 )
@@ -198,8 +176,8 @@ export const commissionRouter = createTRPCRouter({
             ////////////////////////////
 
             // Create Slug
-            const slug = input.data
-                .title!.toLowerCase()
+            const slug = input.data.title
+                .toLowerCase()
                 .replace(/[^a-zA-Z ]/g, '')
                 .replaceAll(' ', '-')
 
@@ -260,7 +238,7 @@ export const commissionRouter = createTRPCRouter({
                 title: commission.title,
                 price: format_to_currency(commission.price),
                 description: commission.description,
-                featured_image: commission.images[0]?.url!,
+                featured_image: commission.images[0]!.url,
                 slug: commission.slug,
                 artist_handle: ctx.user.publicMetadata.handle as string,
                 published: commission.published
@@ -268,7 +246,7 @@ export const commissionRouter = createTRPCRouter({
 
             // Invalidate Cache
 
-            invalidate_cache(
+            await invalidate_cache(
                 AsRedisKey('commissions', commission.artist_id),
                 'commission_list'
             )

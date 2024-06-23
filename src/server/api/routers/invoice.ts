@@ -88,7 +88,7 @@ export const invoiceRouter = createTRPCRouter({
                 .where(eq(invoices.id, input.invoice_id))
 
             // Invalidate cache
-            invalidate_cache(
+            await invalidate_cache(
                 AsRedisKey('requests', invoice.request.order_id),
                 'commission_requests'
             )
@@ -180,7 +180,7 @@ export const invoiceRouter = createTRPCRouter({
             }
         }),
             // Invalidate cache
-            invalidate_cache(
+            await invalidate_cache(
                 AsRedisKey('requests', invoice.request.order_id),
                 'commission_requests'
             )

@@ -155,8 +155,8 @@ export const get_commission_list = unstable_cache(
                 published: commission.published,
                 images: [
                     {
-                        url: commission.images[0]?.url!,
-                        blur_data: await get_blur_data(commission.images[0]?.url!)
+                        url: commission.images[0]!.url,
+                        blur_data: await get_blur_data(commission.images[0]!.url)
                     }
                 ],
                 slug: commission.slug,
@@ -214,9 +214,9 @@ export const get_request_list = unstable_cache(
                     ...request.commission,
                     images: [
                         {
-                            url: request.commission.images[0]?.url!,
+                            url: request.commission.images[0]!.url,
                             blur_data: await get_blur_data(
-                                request.commission.images[0]?.url!
+                                request.commission.images[0]!.url
                             )
                         }
                     ]

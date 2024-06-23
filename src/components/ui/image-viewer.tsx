@@ -3,11 +3,11 @@
 import { useState } from 'react'
 
 import NemuImage from '~/components/nemu-image'
-import { NemuImageData } from '~/core/structures'
+import type { NemuImageData } from '~/core/structures'
 
 import { Swiper, SwiperSlide } from 'swiper/react'
 import { Navigation, FreeMode, Thumbs } from 'swiper/modules'
-import { Swiper as SwiperType } from 'swiper/types'
+import type { Swiper as SwiperType } from 'swiper/types'
 
 import 'swiper/css'
 import 'swiper/css/navigation'
@@ -28,7 +28,7 @@ export default function ImageViewer({ images }: { images: NemuImageData[] }) {
                             thumbsSwiper && !thumbsSwiper.destroyed ? thumbsSwiper : null
                     }}
                     modules={[FreeMode, Navigation, Thumbs]}
-                    className="rounded-xl h-full w-full max-w-[35rem]"
+                    className="h-full w-full max-w-[35rem] rounded-xl"
                 >
                     {images?.map((image, index) => (
                         <SwiperSlide key={index}>
@@ -39,7 +39,7 @@ export default function ImageViewer({ images }: { images: NemuImageData[] }) {
                                 blurDataURL={image.blur_data}
                                 width={800}
                                 height={800}
-                                className="block w-full h-full object-cover"
+                                className="block h-full w-full object-cover"
                             />
                         </SwiperSlide>
                     ))}
@@ -53,7 +53,7 @@ export default function ImageViewer({ images }: { images: NemuImageData[] }) {
                 freeMode
                 watchSlidesProgress
                 modules={[FreeMode, Navigation, Thumbs]}
-                className="thumbs h-full w-full max-w-[35rem] "
+                className="thumbs h-full w-full max-w-[35rem]"
             >
                 {images?.map((image, index) => (
                     <SwiperSlide key={index}>
@@ -64,7 +64,7 @@ export default function ImageViewer({ images }: { images: NemuImageData[] }) {
                             blurDataURL={image.blur_data}
                             width={200}
                             height={200}
-                            className="block w-fit h-fit object-cover rounded-xl cursor-pointer transition-all scale-100 duration-150 hover:scale-105"
+                            className="block h-fit w-fit scale-100 cursor-pointer rounded-xl object-cover transition-all duration-150 hover:scale-105"
                         />
                     </SwiperSlide>
                 ))}

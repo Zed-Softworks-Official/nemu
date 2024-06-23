@@ -11,8 +11,8 @@ export default function ShareButton() {
     return (
         <Button
             variant={'outline'}
-            onMouseDown={() => {
-                navigator.clipboard.writeText('http://localhost:3000' + pathname)
+            onMouseDown={async () => {
+                await navigator.clipboard.writeText('http://localhost:3000' + pathname)
                 toast.info('Copied to clipboard')
             }}
         >

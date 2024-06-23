@@ -69,7 +69,7 @@ export const nemuFileRouter = {
             })
 
             // Invalidate cache
-            invalidate_cache(AsRedisKey('artists', artist.handle), 'artist-data')
+            await invalidate_cache(AsRedisKey('artists', artist.handle), 'artist-data')
         }),
 
     /**

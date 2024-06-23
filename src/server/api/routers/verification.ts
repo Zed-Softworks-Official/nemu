@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
 
 import {
-    SocialAccount,
+    type SocialAccount,
     SocialAgent,
     UserRole,
     VerificationMethod
@@ -16,10 +16,10 @@ import {
 } from '~/server/api/trpc'
 import { db } from '~/server/db'
 import { StripeCreateAccount } from '~/core/payments'
-import { SendbirdUserData } from '~/sendbird/sendbird-structures'
+import type { SendbirdUserData } from '~/sendbird/sendbird-structures'
 import { sendbird } from '~/server/sendbird'
 import { novu } from '~/server/novu'
-import { clerkClient, User } from '@clerk/nextjs/server'
+import { clerkClient, type User } from '@clerk/nextjs/server'
 import { artist_codes, artist_verifications, artists, users } from '~/server/db/schema'
 import { createId } from '@paralleldrive/cuid2'
 import { count, eq } from 'drizzle-orm'
@@ -101,7 +101,7 @@ export async function CreateArtist(input: VerificationDataType, user: User) {
             profile_url: user.imageUrl
         }
 
-        sendbird.CreateUser(user_data)
+        await sendbird.CreateUser(user_data)
     }
 
     // Update User Metadata
@@ -161,7 +161,7 @@ export const verificationRouter = createTRPCRouter({
             }
 
             // Work on the appropriate method
-            switch (input.method) {
+            switch (input.method as VerificationMethod) {
                 ////////////////////////////
                 // Verification by Code
                 ////////////////////////////
@@ -182,9 +182,12 @@ export const verificationRouter = createTRPCRouter({
                         const artist = await CreateArtist(input, ctx.user)
 
                         // Update User Role
-                        await ctx.db.update(users).set({
-                            role: UserRole.Artist
-                        })
+                        await ctx.db
+                            .update(users)
+                            .set({
+                                role: UserRole.Artist
+                            })
+                            .where(eq(users.clerk_id, artist.user_id))
 
                         await clerkClient.users.updateUserMetadata(ctx.user.id, {
                             publicMetadata: {
@@ -219,7 +222,7 @@ export const verificationRouter = createTRPCRouter({
                         const generated_id = createId()
                         await ctx.db.insert(artist_verifications).values({
                             id: generated_id,
-                            user_id: ctx.user.id!,
+                            user_id: ctx.user.id,
                             location: input.location,
                             requested_handle: input.requested_handle,
                             twitter: input.twitter,
@@ -287,7 +290,7 @@ export const verificationRouter = createTRPCRouter({
                 // Notify User that they were rejected
                 await novu.trigger('sign-up-rejected', {
                     to: {
-                        subscriberId: artist_verification?.user_id!
+                        subscriberId: artist_verification?.user_id
                     },
                     payload: {}
                 })
@@ -302,11 +305,11 @@ export const verificationRouter = createTRPCRouter({
             const artist = await CreateArtist(
                 {
                     method: VerificationMethod.Twitter,
-                    requested_handle: artist_verification?.requested_handle!,
-                    location: artist_verification?.location!,
-                    pixiv: artist_verification?.pixiv || undefined,
-                    twitter: artist_verification?.twitter || undefined,
-                    website: artist_verification?.website || undefined
+                    requested_handle: artist_verification?.requested_handle,
+                    location: artist_verification?.location,
+                    pixiv: artist_verification?.pixiv ?? undefined,
+                    twitter: artist_verification?.twitter ?? undefined,
+                    website: artist_verification?.website ?? undefined
                 },
                 user
             )
@@ -326,7 +329,7 @@ export const verificationRouter = createTRPCRouter({
             // Notify User that they were approved
             await novu.trigger('sign-up-approved', {
                 to: {
-                    subscriberId: artist_verification?.user_id!
+                    subscriberId: artist_verification?.user_id
                 },
                 payload: {
                     artist_handle: artist.handle

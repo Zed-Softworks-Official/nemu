@@ -7,7 +7,9 @@ import {
     UserRole
 } from '~/core/structures'
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const enum_to_mysql_enum = (m_Enum: any) =>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
     Object.values(m_Enum).map((value: any) => `${value}`) as [string, ...string[]]
 
 /**

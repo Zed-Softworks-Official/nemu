@@ -94,15 +94,19 @@ export const kanbanRouter = createTRPCRouter({
             const prev_tasks: KanbanTask[] = kanban.tasks
                 ? (kanban.tasks as KanbanTask[])
                 : []
-            await ctx.db.update(kanbans).set({
-                tasks: [
-                    ...prev_tasks,
-                    {
-                        id: crypto.randomUUID(),
-                        container_id: input.container_id,
-                        content: input.content
-                    }
-                ]
-            })
+
+            await ctx.db
+                .update(kanbans)
+                .set({
+                    tasks: [
+                        ...prev_tasks,
+                        {
+                            id: crypto.randomUUID(),
+                            container_id: input.container_id,
+                            content: input.content
+                        }
+                    ]
+                })
+                .where(eq(kanbans.id, kanban.id))
         })
 })

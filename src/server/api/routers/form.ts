@@ -1,10 +1,9 @@
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 
-import { artistProcedure, createTRPCRouter, protectedProcedure } from '~/server/api/trpc'
+import { artistProcedure, createTRPCRouter } from '~/server/api/trpc'
 import { AsRedisKey, invalidate_cache } from '~/server/cache'
 import { forms } from '~/server/db/schema'
-import { TRPCError } from '@trpc/server'
 import { createId } from '@paralleldrive/cuid2'
 
 export const formRouter = createTRPCRouter({
@@ -19,7 +18,7 @@ export const formRouter = createTRPCRouter({
             })
         )
         .mutation(async ({ input, ctx }) => {
-            const form = await ctx.db.insert(forms).values({
+            await ctx.db.insert(forms).values({
                 id: createId(),
                 name: input.name,
                 description: input.description,
@@ -27,7 +26,7 @@ export const formRouter = createTRPCRouter({
             })
 
             // Invalidate cache
-            invalidate_cache(
+            await invalidate_cache(
                 AsRedisKey('forms', ctx.user.privateMetadata.artist_id as string),
                 'forms_list'
             )
@@ -52,7 +51,7 @@ export const formRouter = createTRPCRouter({
                 .where(eq(forms.id, input.form_id))
 
             // Invalidate Cache
-            invalidate_cache(AsRedisKey('forms', input.form_id), 'form')
+            await invalidate_cache(AsRedisKey('forms', input.form_id), 'form')
 
             return { success: true }
         })

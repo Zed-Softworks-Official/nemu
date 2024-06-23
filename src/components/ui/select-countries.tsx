@@ -1,5 +1,5 @@
 import { allCountries } from 'country-region-data'
-import * as SelectPrimitive from '@radix-ui/react-select'
+import type * as SelectPrimitive from '@radix-ui/react-select'
 
 import {
     Select,

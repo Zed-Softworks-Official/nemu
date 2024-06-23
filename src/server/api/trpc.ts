@@ -11,7 +11,7 @@ import { initTRPC, TRPCError } from '@trpc/server'
 import superjson from 'superjson'
 import { ZodError } from 'zod'
 
-import { clerkClient, getAuth } from '@clerk/nextjs/server'
+import { clerkClient, type getAuth } from '@clerk/nextjs/server'
 import { UserRole } from '~/core/structures'
 import { db } from '~/server/db'
 
@@ -99,8 +99,8 @@ export const publicProcedure = t.procedure
  *
  * @see https://trpc.io/docs/procedures
  */
-export const protectedProcedure = t.procedure.use(({ ctx, next }) => {    
-    if (!ctx || !ctx.auth.userId || !ctx.user) {
+export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
+    if (!ctx ?? !ctx.auth.userId ?? !ctx.user) {
         throw new TRPCError({ code: 'UNAUTHORIZED' })
     }
 

@@ -26,17 +26,17 @@ export function AsRedisKey(
     return `${object}:${unique_identifiers.join(':')}`
 }
 
-export function invalidate_cache(key: string, tag: string, path: string = '$') {
-    cache.json.del(key, path)
+export async function invalidate_cache(key: string, tag: string, path = '$') {
+    await cache.json.del(key, path)
     revalidateTag(tag)
 }
 
-export function revalidate_cache(
+export async function revalidate_cache(
     key: string,
     tag: string,
-    data: any,
-    path: string = '$'
+    data: Record<string, unknown>,
+    path = '$'
 ) {
-    cache.json.set(key, path, data)
+    await cache.json.set(key, path, data)
     revalidateTag(tag)
 }

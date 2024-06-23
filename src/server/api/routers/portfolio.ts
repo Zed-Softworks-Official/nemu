@@ -65,7 +65,7 @@ export const portfolioRouter = createTRPCRouter({
 
             // Invalidate Cache
 
-            invalidate_cache(
+            await invalidate_cache(
                 AsRedisKey('portfolios', ctx.user.privateMetadata.artist_id as string),
                 'portfolio_list'
             )
@@ -99,7 +99,7 @@ export const portfolioRouter = createTRPCRouter({
 
             // Invalidate Cache
 
-            invalidate_cache(
+            await invalidate_cache(
                 AsRedisKey('portfolios', ctx.user.privateMetadata.artist_id as string),
                 'portfolio_list'
             )
