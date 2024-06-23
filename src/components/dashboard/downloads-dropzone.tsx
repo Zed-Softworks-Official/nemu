@@ -36,8 +36,8 @@ export default function DownloadsDropzone(props: {
             onClientUploadComplete={(res) => {
                 mutation.mutate({
                     ...props,
-                    ut_key: res[0]?.key!,
-                    url: res[0]?.url!
+                    ut_key: res[0]!.key,
+                    url: res[0]!.url
                 })
             }}
             onUploadBegin={() => {

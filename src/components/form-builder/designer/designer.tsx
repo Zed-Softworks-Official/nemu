@@ -4,13 +4,13 @@ import { useState } from 'react'
 import { Trash2Icon } from 'lucide-react'
 import { v4 as uuidv4 } from 'uuid'
 
-import { DragEndEvent, useDndMonitor, useDraggable, useDroppable } from '@dnd-kit/core'
+import { type DragEndEvent, useDndMonitor, useDraggable, useDroppable } from '@dnd-kit/core'
 
 import DesignerSidebar from '~/components/form-builder/designer/designer-sidebar'
 import { useDesigner } from '~/components/form-builder/designer/designer-context'
 import {
-    ElementsType,
-    FormElementInstance,
+    type ElementsType,
+    type FormElementInstance,
     FormElements
 } from '~/components/form-builder/elements/form-elements'
 
@@ -34,13 +34,13 @@ export default function Designer() {
             if (!active || !over) return
 
             // Handle dropping over container
-            const isDesignerBtnElement = active.data?.current?.isDesignerBtnElement
-            const isDroppingOverDesignerDropArea = over.data?.current?.isDesignerDropArea
+            const isDesignerBtnElement = active.data?.current?.isDesignerBtnElement as boolean
+            const isDroppingOverDesignerDropArea = over.data?.current?.isDesignerDropArea as boolean
 
             // Dropping a sidebar btn element over designer drop area
             if (isDesignerBtnElement && isDroppingOverDesignerDropArea) {
-                const type = active.data?.current?.type
-                const newElement = FormElements[type as ElementsType].construct(
+                const type = active.data?.current?.type as ElementsType
+                const newElement = FormElements[type].construct(
                     uuidv4().toString()
                 )
 
@@ -49,17 +49,17 @@ export default function Designer() {
             }
 
             // Handle dropping sidebar elements over designer elements
-            const isDroppingOverTopHalf = over.data?.current?.isTopHalfDesignerElement
+            const isDroppingOverTopHalf = over.data?.current?.isTopHalfDesignerElement as boolean
             const isDroppingOverBottomHalf =
-                over.data?.current?.isBottomHalfDesignerElement
+                over.data?.current?.isBottomHalfDesignerElement as boolean
 
             // Dropping a sidebar btn element of another designer element
             if (
                 isDesignerBtnElement &&
                 (isDroppingOverTopHalf || isDroppingOverBottomHalf)
             ) {
-                const type = active.data?.current?.type
-                const newElement = FormElements[type as ElementsType].construct(
+                const type = active.data?.current?.type as ElementsType
+                const newElement = FormElements[type].construct(
                     uuidv4().toString()
                 )
 
@@ -83,13 +83,13 @@ export default function Designer() {
             }
 
             // Handle designer elements over designer elements
-            const isDraggingDesignerElement = active.data?.current?.isDesignerElement
+            const isDraggingDesignerElement = active.data?.current?.isDesignerElement as boolean 
             if (
                 (isDroppingOverTopHalf || isDroppingOverBottomHalf) &&
                 isDraggingDesignerElement
             ) {
-                const activeId = active.data?.current?.elementId
-                const overId = over.data?.current?.elementId
+                const activeId = active.data?.current?.elementId as string 
+                const overId = over.data?.current?.elementId as string
 
                 const activeElementIndex = elements.findIndex(
                     (element) => element.id === activeId
@@ -161,7 +161,7 @@ export default function Designer() {
 function DesignerElementWrapper({ element }: { element: FormElementInstance }) {
     const [mouseIsOver, setMouseIsOver] = useState(false)
 
-    const { removeElement, selectedElement, setSelectedElement } = useDesigner()
+    const { removeElement, setSelectedElement } = useDesigner()
 
     const DesignerElement = FormElements[element.type].designer_component
 

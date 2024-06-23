@@ -1,7 +1,8 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client'
 
 import { SeparatorHorizontalIcon } from 'lucide-react'
-import {
+import type {
     ElementsType,
     FormElement,
     FormElementInstance

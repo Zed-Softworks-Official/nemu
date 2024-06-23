@@ -1,16 +1,16 @@
 'use client'
 
-import { InferSelectModel } from 'drizzle-orm'
-import { invoice_items, invoices } from '~/server/db/schema'
+import type { InferSelectModel } from 'drizzle-orm'
+import type { invoice_items, invoices } from '~/server/db/schema'
 import { Badge } from '~/components/ui/badge'
 import { format_to_currency } from '~/lib/utils'
 import { Button } from '~/components/ui/button'
-import { ColumnDef } from '@tanstack/react-table'
+import type { ColumnDef } from '@tanstack/react-table'
 import DataTable from '~/components/data-table'
 import debounce from 'lodash.debounce'
-import { InvoiceItem, InvoiceStatus } from '~/core/structures'
+import { type InvoiceItem, InvoiceStatus } from '~/core/structures'
 
-import { Dispatch, SetStateAction, useCallback, useState } from 'react'
+import  { type Dispatch, type SetStateAction, useCallback, useState } from 'react'
 import { Input } from '~/components/ui/input'
 import { Label } from '~/components/ui/label'
 import { PlusCircleIcon, Trash2Icon } from 'lucide-react'
@@ -139,6 +139,7 @@ function EditInvoiceModel(props: {
         }
     })
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     const debounceInput = useCallback(
         debounce(
             (
@@ -165,7 +166,7 @@ function EditInvoiceModel(props: {
             },
             300
         ),
-        [editableInvoiceItems]
+        [editableInvoiceItems, setEditableInvoiceItems]
     )
 
     return (

@@ -1,6 +1,8 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
+import type { InferSelectModel } from 'drizzle-orm'
+import type { forms } from '~/server/db/schema'
 import { CheckCircle2Icon, CircleDollarSignIcon, XCircleIcon } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
@@ -22,7 +24,7 @@ import {
     SelectValue
 } from '~/components/ui/select'
 import { Textarea } from '~/components/ui/textarea'
-import { ClientCommissionItemEditable, CommissionAvailability, ImageEditorData, RouterOutput } from '~/core/structures'
+import { type ClientCommissionItemEditable, CommissionAvailability, type ImageEditorData  } from '~/core/structures'
 import { api } from '~/trpc/react'
 
 /**
@@ -53,11 +55,8 @@ type CommissionSchemaType = z.infer<typeof commissionSchema>
 /**
  * The actual create/edit form
  */
-export default function CommissionCreateEditForm({
-    forms,
-    edit_data
-}: {
-    forms: RouterOutput['form']['get_form_list']
+export default function CommissionCreateEditForm(props: {
+    forms: InferSelectModel<typeof forms>[]
     edit_data?: ClientCommissionItemEditable  
 }) {
     const [toastId, setToastId] = useState<string | number | undefined>()
@@ -92,16 +91,16 @@ export default function CommissionCreateEditForm({
     const form = useForm<CommissionSchemaType>({
         resolver: zodResolver(commissionSchema),
         mode: 'onSubmit',
-        defaultValues: edit_data
+        defaultValues: props.edit_data
             ? {
-                  title: edit_data.title,
-                  description: edit_data.description,
-                  form_id: edit_data.form_id,
+                  title: props.edit_data.title,
+                  description: props.edit_data.description,
+                  form_id: props.edit_data.form_id,
                   max_commissions_until_waitlist:
-                      edit_data.max_commissions_until_waitlist,
-                  max_commissions_until_closed: edit_data.max_commissions_until_closed,
-                  price: edit_data.price,
-                  commission_availability: edit_data.availability
+                      props.edit_data.max_commissions_until_waitlist,
+                  max_commissions_until_closed: props.edit_data.max_commissions_until_closed,
+                  price: props.edit_data.price,
+                  commission_availability: props.edit_data.availability
               }
             : undefined
     })
@@ -109,7 +108,7 @@ export default function CommissionCreateEditForm({
     async function ProcessForm(values: CommissionSchemaType) {
         // Create Toast
         const toast_id = toast.loading(
-            edit_data ? 'Updating Commission' : 'Uploading Files'
+            props.edit_data ? 'Updating Commission' : 'Uploading Files'
         )
         setToastId(toast_id)
 
@@ -121,7 +120,7 @@ export default function CommissionCreateEditForm({
         // Update Commission
         //////////////////////////////////////////
         // If edit_data is present then that means we are editing a commission
-        if (edit_data) {
+        if (props.edit_data) {
             // Sort items into create, update, and delete
             const editor_state: {
                 create: ImageEditorData[]
@@ -184,7 +183,7 @@ export default function CommissionCreateEditForm({
             // Call the endpoint to update the database
             mutation.mutate({
                 type: 'update',
-                commission_id: edit_data.id!,
+                commission_id: props.edit_data.id,
                 data: {
                     title: values.title,
                     description: values.description,
@@ -322,7 +321,7 @@ export default function CommissionCreateEditForm({
                     )}
                 />
                 <div className="divider"></div>
-                {forms && (
+                {props.forms && (
                     <FormField
                         control={form.control}
                         name="form_id"
@@ -331,13 +330,13 @@ export default function CommissionCreateEditForm({
                                 <FormLabel className="label">User Form:</FormLabel>
                                 <Select
                                     onValueChange={field.onChange}
-                                    defaultValue={edit_data?.form_id}
+                                    defaultValue={props.edit_data?.form_id}
                                 >
                                     <SelectTrigger>
                                         <SelectValue placeholder="Select User Form" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {forms.map((form) => (
+                                        {props.forms.map((form) => (
                                             <SelectItem key={form.id} value={form.id}>
                                                 {form.name}
                                             </SelectItem>
@@ -358,7 +357,7 @@ export default function CommissionCreateEditForm({
                             <Select
                                 onValueChange={field.onChange}
                                 defaultValue={
-                                    edit_data ? edit_data.availability : undefined
+                                    props.edit_data ? props.edit_data.availability : undefined
                                 }
                             >
                                 <SelectTrigger>
@@ -445,7 +444,7 @@ export default function CommissionCreateEditForm({
                     </Link>
                     <Button type="submit" disabled={isUploading || mutation.isPending}>
                         <CheckCircle2Icon className="h-6 w-6" />
-                        {edit_data ? 'Update' : 'Create'}
+                        {props.edit_data ? 'Update' : 'Create'}
                     </Button>
                 </div>
             </form>

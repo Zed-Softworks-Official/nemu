@@ -4,9 +4,9 @@ import { useState } from 'react'
 
 import {
     DndContext,
-    DragEndEvent,
+    type DragEndEvent,
     DragOverlay,
-    DragStartEvent,
+    type DragStartEvent,
     PointerSensor,
     useSensor,
     useSensors
@@ -19,7 +19,7 @@ import NemuUploadDropzone from '~/components/files/nemu-dropzone'
 import NemuUploadPreview from '~/components/files/nemu-upload-preview'
 import NemuUploadProgress from '~/components/files/nemu-upload-progress'
 import NemuPreviewItem from '~/components/files/nemu-preview-item'
-import { ImageEditorData } from '~/core/structures'
+import type { ImageEditorData } from '~/core/structures'
 
 export default function NemuUploadThing() {
     const { images, setImages } = useUploadThingContext()
@@ -45,7 +45,7 @@ export default function NemuUploadThing() {
     }
 
     function OnDragStart(event: DragStartEvent) {
-        setActiveFile(event.active.data.current?.preview)
+        setActiveFile(event.active.data.current?.preview as ImageEditorData | null)
     }
 
     function OnDragEnd(event: DragEndEvent) {

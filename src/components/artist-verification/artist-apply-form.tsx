@@ -33,36 +33,6 @@ const steps = [
     { name: 'Get Verified', fields: ['artist_code'] }
 ]
 
-enum Method {
-    Twitter,
-    Email,
-    ArtistCode
-}
-
-type VerificationMethodInterface = {
-    id: string
-    name: string
-    method: Method
-}
-
-const methods: VerificationMethodInterface[] = [
-    {
-        id: 'twitter',
-        name: 'X (Twitter)',
-        method: Method.Twitter
-    },
-    // {
-    //     name: 'Email',
-    //     icon: SocialIcon.Email,
-    //     method: MethodEnum.Email
-    // },
-    {
-        id: 'artist_code',
-        name: 'Artist Code',
-        method: Method.ArtistCode
-    }
-]
-
 // TODO: add username check
 const verificationSchema = z.object({
     requested_handle: z
@@ -98,7 +68,9 @@ export default function ArtistApplyForm() {
     const codeCheckMutation = api.verification.get_artist_code.useMutation()
     const handleExistsMutation = api.verification.handle_exists.useMutation()
     const verificationMutation = api.verification.set_verification.useMutation({
-        onSuccess: () => {}
+        onSuccess: () => {
+            toast.success('Verification Successful!')
+        }
     })
 
     const form = useForm<VerificationSchemaType>({
@@ -110,13 +82,13 @@ export default function ArtistApplyForm() {
         verificationMutation.mutate({
             location: data.location,
             requested_handle: data.requested_handle,
-            artist_code: data.artist_code || undefined,
+            artist_code: data.artist_code ?? undefined,
             method: data.artist_code
                 ? VerificationMethod.Code
                 : VerificationMethod.Twitter,
             twitter: data.twitter_url,
             website: data.website_url,
-            username: user?.username || undefined
+            username: user?.username ?? undefined
         })
     }
 
@@ -145,7 +117,7 @@ export default function ArtistApplyForm() {
 
         if (
             currentStep === 2 &&
-            form.getValues('verification_method') === VerificationMethod.Code
+            (form.getValues('verification_method') as VerificationMethod) === VerificationMethod.Code
         ) {
             const toast_id = toast.loading('Checking artist code')
             const res = await codeCheckMutation.mutateAsync(
@@ -195,6 +167,7 @@ export default function ArtistApplyForm() {
             <ul className="steps">
                 {steps.map((step, i) => (
                     <li
+                        key={step.name}
                         className={cn(
                             'step before:transition-all before:duration-150 after:transition-all after:duration-150',
                             currentStep < i
@@ -337,7 +310,7 @@ export default function ArtistApplyForm() {
                                             </h2>
                                             <p>
                                                 Just paste the artist code you received
-                                                into the box below and we'll validate it
+                                                into the box below and we&apos;ll validate it
                                                 for you and you can start your journey!
                                             </p>
                                         </div>
@@ -375,10 +348,10 @@ export default function ArtistApplyForm() {
                                         <p>
                                             Go ahead and hit that submit button and tweet
                                             @zedsoftworks with the tags #JOINNEMU and
-                                            #NEMUART and an art piece that you'd like to
-                                            show off (it doesn't have to be recent).
+                                            #NEMUART and an art piece that you&apos;d like to
+                                            show off (it doesn&apos;t have to be recent).
                                             Please note that we only have to verify that
-                                            you're the artist that submited the request.
+                                            you&apos;re the artist that submited the request.
                                             ANY and ALL art is welcome on nemu!
                                         </p>
                                     </div>

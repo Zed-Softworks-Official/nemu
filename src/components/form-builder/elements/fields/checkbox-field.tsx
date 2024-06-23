@@ -1,6 +1,6 @@
 'use client'
 
-import {
+import type {
     ElementsType,
     FormElement,
     FormElementInstance,
@@ -115,10 +115,10 @@ function FormComponent({
     defaultValue?: string
 }) {
     const element = elementInstance as CustomInstance
-    const { label, required, placeholder, helperText } = element.extra_attributes
+    const { label, required, helperText } = element.extra_attributes
 
-    const [value, setValue] = useState<boolean>(defaultValue === 'true' ? true : false)
-    const [error, setError] = useState(false)
+    const [, setValue] = useState<boolean>(defaultValue === 'true' ? true : false)
+    const [, setError] = useState(false)
 
     useEffect(() => {
         setError(isInvalid === true)

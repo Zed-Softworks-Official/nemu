@@ -1,6 +1,6 @@
 'use client'
 
-import {
+import type {
     ElementsType,
     FormElement,
     FormElementInstance,
@@ -16,7 +16,6 @@ import { useDesigner } from '~/components/form-builder/designer/designer-context
 import {
     DesignerCheckboxField,
     DesignerInputField,
-    DesignerRangeField
 } from '~/components/form-builder/elements/input-field'
 
 import { HashIcon } from 'lucide-react'
@@ -110,7 +109,7 @@ function FormComponent({
     const element = elementInstance as CustomInstance
     const { label, required, placeholder, helperText } = element.extra_attributes
 
-    const [value, setValue] = useState(defaultValue || '')
+    const [value, setValue] = useState(defaultValue ?? '')
     const [error, setError] = useState(false)
 
     useEffect(() => {

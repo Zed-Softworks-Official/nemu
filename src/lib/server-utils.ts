@@ -1,8 +1,8 @@
-import { eq, InferSelectModel, sql } from 'drizzle-orm'
+import { eq, type InferSelectModel, sql } from 'drizzle-orm'
 import {
     CommissionAvailability,
-    ImageEditorData,
-    NemuImageData
+    type ImageEditorData,
+    type NemuImageData
 } from '~/core/structures'
 import { db } from '~/server/db'
 import { commissions } from '~/server/db/schema'
@@ -18,7 +18,7 @@ export async function update_commission_check_waitlist(
     commission: InferSelectModel<typeof commissions>
 ) {
     // Check if the commission is full
-    if (commission.availability === CommissionAvailability.Closed) {
+    if ((commission.availability as CommissionAvailability) === CommissionAvailability.Closed) {
         return true
     }
 
@@ -27,7 +27,7 @@ export async function update_commission_check_waitlist(
 
     // Check if the commission is full and if it is then waitlist the request
     if (
-        commission.new_requests! + 1 >= commission.max_commissions_until_waitlist! &&
+        commission.new_requests + 1 >= commission.max_commissions_until_waitlist &&
         commission.max_commissions_until_waitlist !== 0
     ) {
         availability = CommissionAvailability.Waitlist
@@ -54,7 +54,7 @@ export async function update_commission_check_waitlist(
         .where(eq(commissions.id, commission.id))
 
     // Return whether or not the request has been waitlisted
-    return availability === CommissionAvailability.Waitlist
+    return (availability as CommissionAvailability) === CommissionAvailability.Waitlist
 }
 
 /**

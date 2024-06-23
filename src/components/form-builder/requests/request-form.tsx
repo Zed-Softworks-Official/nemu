@@ -6,15 +6,20 @@ import { useCallback, useRef, useState, useTransition } from 'react'
 import NemuImage from '~/components/nemu-image'
 
 import {
-    FormElementInstance,
+    type FormElementInstance,
     FormElements
 } from '~/components/form-builder/elements/form-elements'
 
 import { api } from '~/trpc/react'
 import { Button } from '~/components/ui/button'
 import { toast } from 'sonner'
-import { InferSelectModel } from 'drizzle-orm'
-import { forms } from '~/server/db/schema'
+import type { InferSelectModel } from 'drizzle-orm'
+import type { forms } from '~/server/db/schema'
+
+interface FormDataType {
+    value: string
+    label: string
+}
 
 export default function RequestSubmitForm({
     setShowForm,
@@ -40,15 +45,13 @@ export default function RequestSubmitForm({
     })
 
     // Form values and errors
-    const formValues = useRef<{ [key: string]: string }>({})
-    const formErrors = useRef<{ [key: string]: boolean }>({})
+    const formValues = useRef<Record<string, string>>({})
+    const formErrors = useRef<Record<string, boolean>>({})
 
     // Key to re-render the form and submitted state and user form data
     const [renderKey, setRenderKey] = useState(new Date().getTime())
     const [submitted, setSubmitted] = useState(false)
-    const [formData, setFormData] = useState<{
-        [key: string]: { value: string; label: string }
-    }>({})
+    const [, setFormData] = useState<Record<string, FormDataType>>({})
 
     const [pending, startTransition] = useTransition()
 
@@ -68,13 +71,12 @@ export default function RequestSubmitForm({
             return
         }
 
-        const newFormData: { [key: string]: { value: string; label: string } } = {}
+        const newFormData: Record<string, FormDataType> = {}
         const formElements = form_data?.content as FormElementInstance[]
-        for (let key in formValues.current) {
+        for (const key in formValues.current) {
             newFormData[key] = {
                 value: formValues.current[key]!,
-                label: formElements.find((element) => element.id == key)?.extra_attributes
-                    ?.label
+                label: (formElements.find((element) => element.id == key)?.extra_attributes as FormDataType).label
             }
         }
 
@@ -90,7 +92,7 @@ export default function RequestSubmitForm({
     // Validate the form
     const validateForm: () => boolean = useCallback(() => {
         for (const field of form_data?.content as FormElementInstance[]) {
-            const actualValue = formValues.current[field.id] || ''
+            const actualValue = formValues.current[field.id] ?? ''
             const valid = FormElements[field.type].validate(field, actualValue)
 
             if (!valid) {
@@ -120,7 +122,7 @@ export default function RequestSubmitForm({
 
                     <h2 className="text-2xl font-bold">Things are happening!</h2>
                     <p className="italic text-base-content/80">
-                        You'll recieve an email from the artist about wether your
+                        You&apos;ll recieve an email from the artist about wether your
                         commission has been accepted or rejected. Until then hold on
                         tight!
                     </p>
@@ -147,9 +149,9 @@ export default function RequestSubmitForm({
                     width={200}
                     height={200}
                 />
-                <h2 className="card-title">You're onto the next step!</h2>
+                <h2 className="card-title">You&apos;re onto the next step!</h2>
                 <p className="text-base-content/80">
-                    We'll need you to fill out this form provided by the artist to get a
+                    We&apos;ll need you to fill out this form provided by the artist to get a
                     better understanding of your commission.
                 </p>
                 <div className="divider"></div>

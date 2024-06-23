@@ -15,18 +15,15 @@ import PreviewButton from '~/components/form-builder/nav/preview-button'
 
 import DragOverlayWrapper from '~/components/form-builder/drag-overlay-wrapper'
 
-import { RouterOutput } from '~/core/structures'
+import type { InferSelectModel } from 'drizzle-orm'
+import type { forms } from '~/server/db/schema'
 import { notFound } from 'next/navigation'
 
 export default function FormBuilder({
     form
 }: {
-    form: RouterOutput['form']['get_form']
+    form: InferSelectModel<typeof forms> 
 }) {
-    if (!form) {
-        return notFound()
-    }
-
     const mouseSensor = useSensor(MouseSensor, {
         activationConstraint: {
             distance: 10
@@ -41,6 +38,10 @@ export default function FormBuilder({
     })
 
     const sensors = useSensors(mouseSensor, touchSesnor)
+
+    if (!form) {
+        return notFound()
+    }
 
     return (
         <DndContext sensors={sensors}>

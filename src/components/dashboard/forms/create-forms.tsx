@@ -24,7 +24,7 @@ type CommissionCreateFormSchemaType = z.infer<typeof commissionCreateFormSchema>
 export default function FormCreateForm() {
     const [toastId, setToastId] = useState<string | number | undefined>(undefined)
 
-    const { replace } = useRouter()
+    const router = useRouter()
 
     const mutation = api.form.set_form.useMutation({
         onMutate: () => {
@@ -37,7 +37,7 @@ export default function FormCreateForm() {
                 id: toastId
             })
 
-            replace('/dashboard/forms')
+            router.replace('/dashboard/forms')
         },
         onError: (e) => {
             if (!toastId) return

@@ -1,10 +1,10 @@
-import Stripe from 'stripe'
+import type Stripe from 'stripe'
 import { stripe } from '~/server/stripe'
 
 import {
-    StripePaymentMetadata,
+    type StripePaymentMetadata,
     PurchaseType,
-    StripeProductCheckoutData
+    type StripeProductCheckoutData
 } from '~/core/structures'
 import { calculate_application_fee } from '~/core/payments'
 

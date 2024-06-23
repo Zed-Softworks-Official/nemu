@@ -8,7 +8,7 @@ import {
     useGroupChannelContext
 } from '@sendbird/uikit-react/GroupChannel/context'
 
-import { FileMessage, UserMessage } from '@sendbird/chat/message'
+import type { FileMessage, UserMessage } from '@sendbird/chat/message'
 
 import {
     MessageCircleMoreIcon,
@@ -34,7 +34,7 @@ import {
     ContextMenuTrigger
 } from '~/components/ui/context-menu'
 
-import { SendbirdMetadata } from '~/sendbird/sendbird-structures'
+import type { SendbirdMetadata } from '~/sendbird/sendbird-structures'
 import { toast } from 'sonner'
 import { api } from '~/trpc/react'
 import {
@@ -47,14 +47,13 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger
 } from '~/components/ui/alert-dialog'
-import { KanbanContainerData } from '~/core/structures'
 import {
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
     SelectValue
-} from '../ui/select'
+} from '~/components/ui/select'
 
 /**
  * Shows the current channel messages and allows the user to send messages
@@ -117,7 +116,7 @@ function ChannelTextInput() {
 
         window.addEventListener('keydown', closeOnEscapePressed)
         return () => window.removeEventListener('keydown', closeOnEscapePressed)
-    }, [])
+    }, [cancel_reply, replyMode])
 
     return (
         <div className="relative flex w-full flex-col">
@@ -151,7 +150,7 @@ function ChannelTextInput() {
                     role="textarea"
                     data-placeholder={inputPlaceholder}
                     onInput={() => {
-                        setMessageContent(ref.current?.innerText || '')
+                        setMessageContent(ref.current?.innerText ?? '')
                     }}
                     onKeyDown={(e) => {
                         // If we press shift + enter, we don't want to send the message
@@ -177,9 +176,13 @@ function ChannelTextInput() {
                                     message: messageContent,
                                     isReplyToChannel: true,
                                     parentMessageId: replyMessage?.messageId
+                                }).catch(() => {
+                                    toast.error('Failed to send message!')
                                 })
                             } else {
-                                sendUserMessage({ message: messageContent })
+                                sendUserMessage({ message: messageContent }).catch(() => {
+                                    toast.error('Failed to send message!')
+                                })
                             }
 
                             setMessageContent('')
@@ -222,7 +225,9 @@ function ChannelTextInput() {
                             if (inputRef.current?.files?.length === 0) return
 
                             sendFileMessage({
-                                file: inputRef.current?.files![0] as File
+                                file: inputRef.current?.files![0]
+                            }).catch(() => {
+                                toast.error('Failed to send file!')
                             })
                         }}
                     />
@@ -279,9 +284,9 @@ function ChannelMessages() {
                 let current_message: UserMessage | FileMessage | null = null
 
                 if (message.isUserMessage()) {
-                    current_message = message as UserMessage
+                    current_message = message
                 } else if (message.isFileMessage()) {
-                    current_message = message as FileMessage
+                    current_message = message
                 }
 
                 if (!current_message) return null
@@ -290,7 +295,7 @@ function ChannelMessages() {
                     session.user?.publicMetadata.artist_id === metadata?.artist_id
 
                 return (
-                    <AlertDialog>
+                    <AlertDialog key={message.messageId}>
                         <ContextMenu key={message.messageId}>
                             <ContextMenuTrigger>
                                 <ChatMessage message={current_message} />
@@ -349,7 +354,7 @@ function ChannelMessages() {
                                         if (!selectedKanbanId) return
 
                                         mutation.mutate({
-                                            kanban_id: kanbanData?.id!,
+                                            kanban_id: kanbanData!.id,
                                             container_id: selectedKanbanId,
                                             content: current_message.isUserMessage()
                                                 ? current_message.message

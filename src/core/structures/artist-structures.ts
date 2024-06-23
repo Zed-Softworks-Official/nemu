@@ -1,5 +1,3 @@
-import { User } from '@clerk/nextjs/server'
-
 /**
  * Types of verification that can be used
  */

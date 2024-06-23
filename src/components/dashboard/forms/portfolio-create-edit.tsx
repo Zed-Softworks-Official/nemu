@@ -22,7 +22,7 @@ import NemuUploadDropzone from '~/components/files/nemu-dropzone'
 import NemuUploadPreview from '~/components/files/nemu-upload-preview'
 
 import NemuUploadProgress from '~/components/files/nemu-upload-progress'
-import { ClientPortfolioItem, RouterOutput } from '~/core/structures'
+import type { ClientPortfolioItem  } from '~/core/structures'
 import NemuImage from '~/components/nemu-image'
 import { toast } from 'sonner'
 
@@ -40,8 +40,8 @@ export default function PortfolioCreateEditForm({
     const [toastId, setToastId] = useState<string | number | undefined>(undefined)
     const [disabled, setDisabled] = useState(false)
 
-    const { uploadImages } = useUploadThingContext()
-    const { replace } = useRouter()
+    const { uploadImages, images, setImages } = useUploadThingContext()
+    const router = useRouter()
 
     /**
      * Create Mutation
@@ -57,9 +57,9 @@ export default function PortfolioCreateEditForm({
                 id: toastId
             })
 
-            replace('/dashboard/portfolio')
+            router.replace('/dashboard/portfolio')
         },
-        onError: (e) => {
+        onError: () => {
             if (!toastId) return
 
             toast.error('Error Creating Portfolio Item', {
@@ -82,9 +82,9 @@ export default function PortfolioCreateEditForm({
                 id: toastId
             })
 
-            replace('/dashboard/portfolio')
+            router.replace('/dashboard/portfolio')
         },
-        onError: (e) => {
+        onError: () => {
             if (!toastId) return
 
             toast.error('Error Deleting Portfolio Item', {
@@ -124,8 +124,8 @@ export default function PortfolioCreateEditForm({
             type: 'create',
             data: {
                 title: values.title,
-                image: res[0]?.url!,
-                utKey: res[0]?.key!
+                image: res[0]!.url,
+                utKey: res[0]!.key
             }
         })
     }
@@ -163,9 +163,13 @@ export default function PortfolioCreateEditForm({
                     </div>
                 ) : (
                     <>
-                        {/* TODO: Fix this */}
-                        <NemuUploadDropzone />
-                        <NemuUploadPreview />
+                        <NemuUploadDropzone setCurrentImages={setImages} />
+                        <NemuUploadPreview images={images} onDelete={(index) => {
+                            setImages((prev) => {
+                                prev.splice(index, 1)
+                                return prev
+                            })
+                        }} />
                     </>
                 )}
                 {data ? (

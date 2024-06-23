@@ -5,7 +5,7 @@ import { cn } from '~/lib/utils'
 import NemuImage from '~/components/nemu-image'
 import { useDroppable } from '@dnd-kit/core'
 import NemuPreviewItem from '~/components/files/nemu-preview-item'
-import { ImageEditorData } from '~/core/structures'
+import type { ImageEditorData } from '~/core/structures'
 
 export default function NemuUploadPreview({
     className,
@@ -16,7 +16,7 @@ export default function NemuUploadPreview({
     onDelete: (index: number) => void
     images: ImageEditorData[]
 }) {
-    const { isOver, setNodeRef } = useDroppable({
+    const { setNodeRef } = useDroppable({
         id: 'nemu-upload-preview'
     })
 
@@ -29,7 +29,7 @@ export default function NemuUploadPreview({
             <div className={cn('card shadow-xl', className)}>
                 <figure>
                     <NemuImage
-                        src={images[0]?.data.image_data.url!}
+                        src={images[0]?.data.image_data.url ?? '/nemu/not-like-this.png'}
                         alt="Image Preview"
                         className="h-full w-full"
                         width={200}

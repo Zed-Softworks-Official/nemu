@@ -1,6 +1,6 @@
 import { stripe } from '~/server/stripe'
-import { InvoiceItem, PurchaseType, StripePaymentMetadata } from '~/core/structures'
-import Stripe from 'stripe'
+import { type InvoiceItem, PurchaseType, type StripePaymentMetadata } from '~/core/structures'
+import type Stripe from 'stripe'
 import { calculate_application_fee } from '.'
 
 /**

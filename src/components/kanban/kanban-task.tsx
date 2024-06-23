@@ -1,11 +1,10 @@
 'use client'
 
-import { KanbanTask } from '~/core/structures'
-import { UniqueIdentifier } from '@dnd-kit/core'
+import type { KanbanTask } from '~/core/structures'
+import type { UniqueIdentifier } from '@dnd-kit/core'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useState } from 'react'
-import { usePathname, useRouter } from 'next/navigation'
 import { Trash2Icon } from 'lucide-react'
 import { cn } from '~/lib/utils'
 import { Button } from '../ui/button'
@@ -22,8 +21,6 @@ export default function KanbanItemComponent({
     const [mouseIsOver, setMouseIsOver] = useState(false)
     const [editMode, setEditMode] = useState(false)
 
-    const pathname = usePathname()
-
     const { setNodeRef, attributes, listeners, transform, transition, isDragging } =
         useSortable({
             id: item_data.id,
@@ -33,8 +30,6 @@ export default function KanbanItemComponent({
             },
             disabled: editMode
         })
-
-    const { replace } = useRouter()
 
     const style = {
         transition,

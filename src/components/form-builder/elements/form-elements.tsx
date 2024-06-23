@@ -60,6 +60,7 @@ type FormElementsType = {
 export type FormElementInstance = {
     id: string
     type: ElementsType
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     extra_attributes?: Record<string, any>
 }
 

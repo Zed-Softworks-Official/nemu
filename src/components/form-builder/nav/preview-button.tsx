@@ -1,7 +1,5 @@
 'use client'
 
-import { useDesigner } from '~/components/form-builder/designer/designer-context'
-import { FormElements } from '~/components/form-builder/elements/form-elements'
 import { EyeIcon } from 'lucide-react'
 import {
     AlertDialog,
@@ -16,7 +14,6 @@ import {
 } from '~/components/ui/alert-dialog'
 
 export default function PreviewButton() {
-    const { elements } = useDesigner()
 
     return (
         <AlertDialog>

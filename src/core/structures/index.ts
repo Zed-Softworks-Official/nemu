@@ -1,7 +1,6 @@
-import { inferRouterOutputs, inferRouterInputs } from '@trpc/server'
-import { z } from 'zod'
+import type { inferRouterOutputs, inferRouterInputs } from '@trpc/server'
 
-import { AppRouter } from '~/server/api/root'
+import type { AppRouter } from '~/server/api/root'
 
 export * from '~/core/structures/user-structures'
 export * from '~/core/structures/commission-structures'

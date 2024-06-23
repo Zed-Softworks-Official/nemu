@@ -1,12 +1,12 @@
-import { User } from '@clerk/nextjs/server'
-import { InferSelectModel } from 'drizzle-orm'
-import {
+import type { User } from '@clerk/nextjs/server'
+import type { InferSelectModel } from 'drizzle-orm'
+import type {
     NemuImageData,
     KanbanContainerData,
     KanbanTask,
     ImageEditorData
 } from '~/core/structures'
-import {
+import type {
     artists,
     commissions,
     downloads,

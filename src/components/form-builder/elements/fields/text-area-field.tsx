@@ -1,6 +1,6 @@
 'use client'
 
-import {
+import type {
     ElementsType,
     FormElement,
     FormElementInstance,
@@ -92,7 +92,7 @@ function DesignerComponent({
                 </h2>
                 <Textarea
                     placeholder={placeholder}
-                    rows={rows}
+                    rows={rows as number ?? 6}
                     className="resize-none bg-base-300"
                     disabled
                 />
@@ -116,7 +116,7 @@ function FormComponent({
     const element = elementInstance as CustomInstance
     const { label, required, placeholder, helperText, rows } = element.extra_attributes
 
-    const [value, setValue] = useState(defaultValue || '')
+    const [value, setValue] = useState(defaultValue ?? '')
     const [error, setError] = useState(false)
 
     useEffect(() => {
@@ -132,7 +132,7 @@ function FormComponent({
                 </h2>
                 <Textarea
                     className="resize-none"
-                    rows={rows}
+                    rows={rows as number ?? 6}
                     placeholder={placeholder}
                     onChange={(e) => setValue(e.currentTarget.validationMessage)}
                     onBlur={(e) => {
@@ -174,7 +174,7 @@ function PropertiesComponent({
             helperText: element.extra_attributes.helperText,
             required: element.extra_attributes.required,
             placeholder: element.extra_attributes.placeholder,
-            rows: element.extra_attributes.rows
+            rows: element.extra_attributes.rows as number
         }
     })
 

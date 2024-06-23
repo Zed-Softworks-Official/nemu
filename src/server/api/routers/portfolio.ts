@@ -3,7 +3,7 @@ import { TRPCError } from '@trpc/server'
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 
-import { artistProcedure, createTRPCRouter, publicProcedure } from '~/server/api/trpc'
+import { artistProcedure, createTRPCRouter } from '~/server/api/trpc'
 import { AsRedisKey, cache, invalidate_cache } from '~/server/cache'
 import { portfolios } from '~/server/db/schema'
 

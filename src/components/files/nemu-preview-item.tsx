@@ -12,8 +12,7 @@ import {
     ContextMenuContent,
     ContextMenuItem
 } from '~/components/ui/context-menu'
-import { useUploadThingContext } from '~/components/files/uploadthing-context'
-import { ImageEditorData, NemuEditImageData } from '~/core/structures'
+import type { ImageEditorData  } from '~/core/structures'
 import { cn } from '~/lib/utils'
 
 export default function NemuPreviewItem({
@@ -25,7 +24,6 @@ export default function NemuPreviewItem({
     onDelete: (index: number) => void
     index: number
 }) {
-    const { images, setImages } = useUploadThingContext()
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
         useSortable({
             id: preview.id,

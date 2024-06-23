@@ -1,4 +1,5 @@
-import { SendbirdChannelData, SendbirdUserData } from '~/sendbird/sendbird-structures'
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+import type { SendbirdChannelData, SendbirdUserData } from '~/sendbird/sendbird-structures'
 
 // TODO: Access Token/Session Tokens so shit doesn't go wrong
 export class SendbirdAPI {
@@ -30,7 +31,7 @@ export class SendbirdAPI {
         })
         const json = await response.json()
 
-        console.log(JSON.stringify(json))
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return
         return json
     }
 
@@ -39,7 +40,7 @@ export class SendbirdAPI {
      * @param user_data
      */
     async CreateUser(user_data: SendbirdUserData) {
-        this.BasePOSTRequest('users', user_data)
+        await this.BasePOSTRequest('users', user_data)
     }
 
     /**
@@ -50,15 +51,15 @@ export class SendbirdAPI {
         return this.BasePOSTRequest('group_channels', channel_data)
     }
 
-    /**
-     *
-     */
-    async CreateMessage() {}
+    // /**
+    //  *
+    //  */
+    // async CreateMessage() {}
 
-    /**
-     * 
-     */
-    async UpdateUser() {
+    // /**
+    //  * 
+    //  */
+    // async UpdateUser() {
 
-    }
+    // }
 }

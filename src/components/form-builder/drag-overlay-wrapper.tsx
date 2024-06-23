@@ -1,10 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { Active, DragOverlay, useDndMonitor } from '@dnd-kit/core'
+import { type Active, DragOverlay, useDndMonitor } from '@dnd-kit/core'
 
 import { SidebarBtnElementOverlay } from '~/components/form-builder/designer/sidebar-btn-element'
-import { ElementsType, FormElements } from '~/components/form-builder/elements/form-elements'
+import { type ElementsType, FormElements } from '~/components/form-builder/elements/form-elements'
 import { useDesigner } from '~/components/form-builder/designer/designer-context'
 
 export default function DragOverlayWrapper() {
@@ -26,16 +26,16 @@ export default function DragOverlayWrapper() {
     if (!draggedItem) return null
 
     let node = <div>No Drag Overlay</div>
-    const isSidebarBtnElement = draggedItem?.data?.current?.isDesignerBtnElement
+    const isSidebarBtnElement = draggedItem?.data?.current?.isDesignerBtnElement as boolean
 
     if (isSidebarBtnElement) {
         const type = draggedItem.data?.current?.type as ElementsType
         node = <SidebarBtnElementOverlay formElement={FormElements[type]} />
     }
 
-    const isDesignerElement = draggedItem.data?.current?.isDesignerElement
+    const isDesignerElement = draggedItem.data?.current?.isDesignerElement as boolean
     if (isDesignerElement) {
-        const elementId = draggedItem.data?.current?.elementId
+        const elementId = draggedItem.data?.current?.elementId as string
         const element = elements.find((el) => el.id === elementId)
 
         if (!element) {

@@ -4,23 +4,17 @@ import {
     useChannelListContext,
     ChannelListProvider
 } from '@sendbird/uikit-react/ChannelList/context'
-import { UserMessage, BaseMessage } from '@sendbird/chat/message'
+import type { BaseMessage } from '@sendbird/chat/message'
 
 import Loading from '~/components/ui/loading'
 import { useMemo } from 'react'
 import { TriangleAlertIcon } from 'lucide-react'
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle
-} from '~/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card'
 import { cn } from '~/lib/utils'
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
 import { Badge } from '~/components/ui/badge'
 import { useMessagesContext } from '~/components/messages/messages-context'
-import { SendbirdMetadata } from '~/sendbird/sendbird-structures'
+import type { SendbirdMetadata } from '~/sendbird/sendbird-structures'
 
 function CustomChannelList() {
     const { allChannels, loading, initialized } = useChannelListContext()
@@ -46,7 +40,7 @@ function CustomChannelList() {
 
     function GetLastMessage(last_message: BaseMessage) {
         if (last_message.isUserMessage()) {
-            return (last_message as UserMessage).message
+            return last_message.message
         }
 
         if (last_message.isFileMessage()) {
@@ -57,7 +51,7 @@ function CustomChannelList() {
     }
 
     return (
-        <div className="join-item flex h-full w-14 md:w-60 xl:w-96 flex-col gap-5 bg-base-300 p-5">
+        <div className="join-item flex h-full w-14 flex-col gap-5 bg-base-300 p-5 md:w-60 xl:w-96">
             <div className="flex flex-col">
                 <h2 className="card-title">Channels</h2>
                 <div className="divider"></div>
@@ -118,10 +112,6 @@ export default function ChannelList({
 }: {
     hide_channel_list?: boolean
 }) {
-    if (hide_channel_list) {
-        return null
-    }
-
     const query = useMemo(() => {
         return {
             channelListQuery: {
@@ -129,6 +119,10 @@ export default function ChannelList({
             }
         }
     }, [])
+
+    if (hide_channel_list) {
+        return null
+    }
 
     return (
         <ChannelListProvider queries={query} isTypingIndicatorEnabled={true}>

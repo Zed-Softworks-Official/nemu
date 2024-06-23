@@ -1,6 +1,6 @@
 'use client'
 
-import {
+import type {
     ElementsType,
     FormElement,
     FormElementInstance,
@@ -20,8 +20,6 @@ import {
 import { ListIcon, PlusCircleIcon, XCircleIcon } from 'lucide-react'
 import {
     Select,
-    SelectContent,
-    SelectItem,
     SelectTrigger,
     SelectValue
 } from '~/components/ui/select'
@@ -85,7 +83,7 @@ function DesignerComponent({
     elementInstance: FormElementInstance
 }) {
     const element = elementInstance as CustomInstance
-    const { label, required, placeholder, helperText, options } = element.extra_attributes
+    const { label, required, placeholder, helperText } = element.extra_attributes
 
     return (
         <div className="card bg-base-100 shadow-xl w-full">
@@ -120,7 +118,7 @@ function FormComponent({
     const element = elementInstance as CustomInstance
     const { label, required, placeholder, helperText, options } = element.extra_attributes
 
-    const [value, setValue] = useState(defaultValue || '')
+    const [value, setValue] = useState(defaultValue ?? '')
     const [error, setError] = useState(false)
 
     useEffect(() => {

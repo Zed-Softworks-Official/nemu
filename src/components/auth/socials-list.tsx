@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { SocialAccount, SocialAgent } from '~/core/structures'
+import { type SocialAccount, SocialAgent } from '~/core/structures'
 import { Button } from '~/components/ui/button'
 import { PlusCircleIcon, Trash2Icon } from 'lucide-react'
 import { Input } from '~/components/ui/input'

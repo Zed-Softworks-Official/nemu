@@ -1,4 +1,3 @@
-import { ColumnDef } from "@tanstack/react-table"
 
 export type ClientForm = {
     id: string
@@ -7,6 +6,4 @@ export type ClientForm = {
     content?: string
 }
 
-export type RequestContent = {
-    [key: string]: { value: string; label: string }
-}
+export type RequestContent = Record<string, { value: string, label: string }>

@@ -1,6 +1,6 @@
 'use client'
 
-import {
+import type {
     ElementsType,
     FormElement,
     FormElementInstance
@@ -10,7 +10,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 
 import * as z from 'zod'
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useDesigner } from '~/components/form-builder/designer/designer-context'
 import { DesignerInputField } from '~/components/form-builder/elements/input-field'
 import { Heading2Icon } from 'lucide-react'

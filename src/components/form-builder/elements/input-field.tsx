@@ -1,4 +1,4 @@
-import { forwardRef, InputHTMLAttributes, TextareaHTMLAttributes } from 'react'
+import { forwardRef, type InputHTMLAttributes, type TextareaHTMLAttributes } from 'react'
 
 export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
     label: string
@@ -26,6 +26,7 @@ export const DesignerInputField = forwardRef<HTMLInputElement, InputProps>(
         )
     }
 )
+DesignerInputField.displayName = 'DesignerInputField'
 
 export const DesignerRangeField = forwardRef<HTMLInputElement, InputProps>(
     ({ label, description, ...props }, ref) => {
@@ -48,6 +49,7 @@ export const DesignerRangeField = forwardRef<HTMLInputElement, InputProps>(
         )
     }
 )
+DesignerRangeField.displayName = 'DesignerRangeField'
 
 export const DesignerCheckboxField = forwardRef<HTMLInputElement, InputProps>(
     ({ label, description, type, ...props }, ref) => {
@@ -70,6 +72,7 @@ export const DesignerCheckboxField = forwardRef<HTMLInputElement, InputProps>(
         )
     }
 )
+DesignerCheckboxField.displayName = 'DesignerCheckboxField'
 
 export const DesignerTextAreaField = forwardRef<HTMLTextAreaElement, TextAreaInputProps>(
     ({ label, description, ...props }, ref) => {
@@ -91,3 +94,4 @@ export const DesignerTextAreaField = forwardRef<HTMLTextAreaElement, TextAreaInp
         )
     }
 )
+DesignerTextAreaField.displayName = 'DesignerTextAreaField'

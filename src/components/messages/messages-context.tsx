@@ -2,21 +2,19 @@
 
 import {
     createContext,
-    Dispatch,
-    SetStateAction,
+    type Dispatch,
+    type SetStateAction,
     useContext,
     useEffect,
     useState
 } from 'react'
 
-import { BaseMessage, FileMessage, UserMessage } from '@sendbird/chat/message'
-import { Member } from '@sendbird/chat/groupChannel'
-import { SendbirdMetadata } from '~/sendbird/sendbird-structures'
+import type { BaseMessage, FileMessage, UserMessage } from '@sendbird/chat/message'
+import type { Member } from '@sendbird/chat/groupChannel'
+import type { SendbirdMetadata } from '~/sendbird/sendbird-structures'
 import { api } from '~/trpc/react'
-import { useUser } from '@clerk/nextjs'
-import { InferSelectModel } from 'drizzle-orm'
-import { kanbans } from '~/server/db/schema'
-import { RouterOutput } from '~/core/structures'
+import type { useUser } from '@clerk/nextjs'
+import type { RouterOutput } from '~/core/structures'
 
 type MessagesContextType = {
     currentChannel?: string
@@ -79,7 +77,7 @@ export function MessagesProvider({
         if (!currentChannel) return
 
         kanban.mutate(currentChannel)
-    }, [currentChannel])
+    }, [currentChannel, kanban])
 
     function start_reply(message: UserMessage | FileMessage) {
         setReplyMode(true)

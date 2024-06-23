@@ -1,7 +1,6 @@
 'use client'
 
 import { EyeIcon, EyeOffIcon } from 'lucide-react'
-import { useTheme } from 'next-themes'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '~/components/ui/button'

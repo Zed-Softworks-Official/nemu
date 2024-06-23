@@ -1,5 +1,5 @@
 import algoliasearch from 'algoliasearch'
-import { ArtistIndex, CommissionIndex } from '~/core/search/types'
+import type { ArtistIndex, CommissionIndex } from '~/core/search/types'
 
 import { env } from '~/env'
 

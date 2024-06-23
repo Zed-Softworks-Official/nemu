@@ -20,7 +20,7 @@ import {
 
 import Link from 'next/link'
 import { SignedIn, SignedOut, SignOutButton } from '@clerk/nextjs'
-import { currentUser, User } from '@clerk/nextjs/server'
+import { currentUser, type User } from '@clerk/nextjs/server'
 import { UserRole } from '~/core/structures'
 
 export default function UserDropdown() {
@@ -75,7 +75,7 @@ async function UserDropdownContent({ user }: { user: User }) {
                 <>
                     <DropdownMenuItem>
                         <Link
-                            href={`/@${user.publicMetadata.handle}`}
+                            href={`/@${user.publicMetadata.handle as string}`}
                             className="flex w-full items-center gap-3"
                         >
                             <BrushIcon className="h-6 w-6" />
@@ -88,7 +88,7 @@ async function UserDropdownContent({ user }: { user: User }) {
                             className="flex w-full items-center gap-3"
                         >
                             <BarChartIcon className="h-6 w-6" />
-                            Artist's Dashboard
+                            Artist&apos;s Dashboard
                         </Link>
                     </DropdownMenuItem>
                 </>

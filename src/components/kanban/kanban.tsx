@@ -2,15 +2,15 @@
 
 import React, { useMemo, useState } from 'react'
 import KanbanContainerComponent from '~/components/kanban/kanban-container'
-import { KanbanContainerData, KanbanTask } from '~/core/structures'
+import type { KanbanContainerData, KanbanTask } from '~/core/structures'
 import {
     DndContext,
-    DragEndEvent,
-    DragOverEvent,
+    type DragEndEvent,
+    type DragOverEvent,
     DragOverlay,
-    DragStartEvent,
+    type DragStartEvent,
     PointerSensor,
-    UniqueIdentifier,
+    type UniqueIdentifier,
     useSensor,
     useSensors
 } from '@dnd-kit/core'
@@ -21,8 +21,6 @@ import { PlusCircleIcon, SaveIcon } from 'lucide-react'
 import { api } from '~/trpc/react'
 import { Button } from '~/components/ui/button'
 import Masonry, { ResponsiveMasonry } from 'react-responsive-masonry'
-import { Id } from 'react-toastify'
-import { useTheme } from 'next-themes'
 import { toast } from 'sonner'
 
 export default function Kanban({
@@ -36,7 +34,7 @@ export default function Kanban({
     kanban_containers: KanbanContainerData[]
     kanban_tasks: KanbanTask[]
 }) {
-    const [toastId, setToastId] = useState<Id | undefined>()
+    const [toastId, setToastId] = useState<string | number | undefined>()
     const [containers, setContainers] = useState<KanbanContainerData[]>(kanban_containers)
     const [tasks, setTasks] = useState<KanbanTask[]>(kanban_tasks)
 
@@ -44,8 +42,6 @@ export default function Kanban({
         null
     )
     const [activeTask, setActiveTask] = useState<KanbanTask | null>(null)
-
-    const { resolvedTheme } = useTheme()
 
     const containerIds = useMemo(
         () => containers.map((container) => container.id),
@@ -87,8 +83,8 @@ export default function Kanban({
         if (kanban_id) {
             mutation.mutate({
                 kanban_id,
-                containers: JSON.stringify(containers),
-                tasks: JSON.stringify(tasks)
+                containers: JSON.stringify(data.containers),
+                tasks: JSON.stringify(data.tasks)
             })
         }
     }
@@ -148,12 +144,12 @@ export default function Kanban({
 
     function OnDragStart(event: DragStartEvent) {
         if (event.active.data.current?.type === 'Container') {
-            setActiveContainer(event.active.data.current.container_data)
+            setActiveContainer(event.active.data.current.container_data as KanbanContainerData)
             return
         }
 
         if (event.active.data.current?.type === 'Task') {
-            setActiveTask(event.active.data.current.item_data)
+            setActiveTask(event.active.data.current.item_data as KanbanTask)
             return
         }
     }

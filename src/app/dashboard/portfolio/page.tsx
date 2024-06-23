@@ -40,7 +40,7 @@ const get_portfolio_list = unstable_cache(
     },
     ['portfolio_list'],
     {
-        tags: ['portfolio']
+        tags: ['portfolio', 'portfolio_list']
     }
 )
 

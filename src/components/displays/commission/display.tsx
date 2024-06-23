@@ -5,7 +5,7 @@ import ImageViewer from '~/components/ui/image-viewer'
 import { db } from '~/server/db'
 import { forms, requests } from '~/server/db/schema'
 import CommissionContent from './content'
-import { ClientCommissionItem } from '~/core/structures'
+import type { ClientCommissionItem } from '~/core/structures'
 import { currentUser } from '@clerk/nextjs/server'
 
 const get_form = unstable_cache(

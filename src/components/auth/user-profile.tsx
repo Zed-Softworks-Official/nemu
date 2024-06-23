@@ -98,7 +98,7 @@ function ArtistSettings({ artist }: Props) {
         console.log(values)
 
         mutation.mutate({
-            artist_id: artist!.id!,
+            artist_id: artist!.id,
             ...values
         })
     }

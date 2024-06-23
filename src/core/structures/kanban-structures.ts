@@ -1,4 +1,4 @@
-import { UniqueIdentifier } from '@dnd-kit/core'
+import type { UniqueIdentifier } from '@dnd-kit/core'
 
 /**
  * Data for kanban tasks

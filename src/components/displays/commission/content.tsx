@@ -9,7 +9,7 @@ import {
 } from '~/components/ui/accordion'
 import { Badge } from '~/components/ui/badge'
 import ShareButton from '~/components/ui/share-button'
-import { ClientCommissionItem } from '~/core/structures'
+import type { ClientCommissionItem } from '~/core/structures'
 import { get_availability_badge_data } from '~/lib/utils'
 import Price from '~/components/ui/price'
 import { Checkbox } from '~/components/ui/checkbox'
@@ -17,8 +17,8 @@ import { useState } from 'react'
 import { Button } from '~/components/ui/button'
 import { ClipboardListIcon } from 'lucide-react'
 import RequestSubmitForm from '~/components/form-builder/requests/request-form'
-import { InferSelectModel } from 'drizzle-orm'
-import { forms } from '~/server/db/schema'
+import type { InferSelectModel } from 'drizzle-orm'
+import type { forms } from '~/server/db/schema'
 
 export default function CommissionContent(props: {
     commission: ClientCommissionItem

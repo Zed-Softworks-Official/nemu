@@ -1,18 +1,18 @@
 'use client'
 
 import Link from 'next/link'
-import { Dispatch, SetStateAction, useCallback, useEffect, useState } from 'react'
+import { type Dispatch, type SetStateAction, useEffect, useState } from 'react'
 
 import debounce from 'lodash.debounce'
 import algoliasearch from 'algoliasearch/lite'
 
 import { InstantSearchNext } from 'react-instantsearch-nextjs'
-import { Index, SearchBox, Hits, Configure, useSearchBox } from 'react-instantsearch'
+import { Index, Hits, Configure, useSearchBox } from 'react-instantsearch'
 
-import { ChevronRightIcon, SearchIcon } from 'lucide-react'
+import { SearchIcon } from 'lucide-react'
 
 import { env } from '~/env'
-import { ArtistIndex, CommissionIndex } from '~/core/search'
+import type { ArtistIndex, CommissionIndex } from '~/core/search'
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
 import NemuImage from '~/components/nemu-image'
 import {
@@ -68,8 +68,6 @@ function SearchPallete(props: {
     open: boolean
     setOpen: Dispatch<SetStateAction<boolean>>
 }) {
-    const [searchQuery, setSearchQuery] = useState('')
-
     const { refine } = useSearchBox({
         queryHook: query_hook
     })
@@ -84,7 +82,7 @@ function SearchPallete(props: {
 
         document.addEventListener('keydown', down)
         return () => document.removeEventListener('keydown', down)
-    }, [])
+    }, [props])
 
     return (
         <CommandDialog
@@ -112,8 +110,6 @@ function SearchPallete(props: {
 }
 
 function ArtistHit(props: { hit: ArtistIndex }) {
-    const url = `/@${props.hit.handle}`
-
     return (
         <CommandItem className="rounded-xl">
             <Link
@@ -167,17 +163,5 @@ function CommissionHit(props: { hit: CommissionIndex }) {
                 </div>
             </Link>
         </CommandItem>
-    )
-}
-
-function MoreResultsLink(props: { searchQuery: string; results: boolean }) {
-    return (
-        <Link
-            href={'/search'}
-            className="flex flex-row items-center justify-between rounded-xl bg-base-200 p-5 transition-all duration-200 ease-in-out hover:bg-base-100"
-        >
-            <span className=" text-sm text-base-content/80">See More Results</span>
-            <ChevronRightIcon className="h-6 w-6" />
-        </Link>
     )
 }

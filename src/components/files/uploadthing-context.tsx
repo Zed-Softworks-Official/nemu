@@ -2,17 +2,17 @@
 
 import {
     createContext,
-    Dispatch,
-    SetStateAction,
+    type Dispatch,
+    type SetStateAction,
     useContext,
     useEffect,
     useState
 } from 'react'
 
-import { EndpointHelper, useUploadThing } from '~/components/files/uploadthing'
-import { NemuFileRouterType } from '~/app/api/uploadthing/core'
-import { ClientUploadedFileData } from 'uploadthing/types'
-import { ImageEditorData } from '~/core/structures'
+import { type EndpointHelper, useUploadThing } from '~/components/files/uploadthing'
+import { type NemuFileRouterType } from '~/app/api/uploadthing/core'
+import { type ClientUploadedFileData } from 'uploadthing/types'
+import { type ImageEditorData } from '~/core/structures'
 
 type EditorState = {
     create: ImageEditorData[]
@@ -55,17 +55,17 @@ export default function UploadThingProvider({
         delete: []
     })
 
-    const [images, setImages] = useState<ImageEditorData[]>(edit_previews || [])
+    const [images, setImages] = useState<ImageEditorData[]>(edit_previews ?? [])
     const [uploadProgress, setUploadProgress] = useState(0)
 
-    const { startUpload, permittedFileInfo, isUploading } = useUploadThing(endpoint, {
+    const { startUpload, routeConfig, isUploading } = useUploadThing(endpoint, {
         onUploadProgress: (p) => {
             setUploadProgress(p)
         }
     })
 
-    const fileTypes = permittedFileInfo?.config
-        ? Object.keys(permittedFileInfo?.config)
+    const fileTypes = routeConfig
+        ? Object.keys(routeConfig)
         : []
 
     useEffect(() => {

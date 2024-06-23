@@ -1,7 +1,7 @@
 'use client'
 
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis } from 'recharts'
-import { SalesData } from '~/core/structures'
+import type { SalesData } from '~/core/structures'
 
 export default function SalesChart(props: { sales_data: SalesData[] }) {
     return (

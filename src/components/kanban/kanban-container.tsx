@@ -1,7 +1,7 @@
 'use client'
 
-import { KanbanContainerData, KanbanTask } from '~/core/structures'
-import { UniqueIdentifier } from '@dnd-kit/core'
+import type { KanbanContainerData, KanbanTask } from '~/core/structures'
+import type { UniqueIdentifier } from '@dnd-kit/core'
 import { SortableContext, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useMemo, useState } from 'react'

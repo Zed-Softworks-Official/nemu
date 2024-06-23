@@ -1,7 +1,7 @@
 import { TRPCError } from '@trpc/server'
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
-import { KanbanContainerData, KanbanTask } from '~/core/structures'
+import type { KanbanContainerData, KanbanTask } from '~/core/structures'
 import { artistProcedure, createTRPCRouter, protectedProcedure } from '~/server/api/trpc'
 import { kanbans, requests } from '~/server/db/schema'
 
@@ -34,12 +34,12 @@ export const kanbanRouter = createTRPCRouter({
                 }
             })
 
-            if (!request || !request.kanban) {
+            if (!request ?? !request?.kanban) {
                 return undefined
             }
 
             return {
-                id: request.kanban_id,
+                id: request.kanban_id!,
                 containers: request.kanban.containers as KanbanContainerData[],
                 tasks: request.kanban.tasks as KanbanTask[]
             }
