@@ -17,6 +17,7 @@ import { nemuFileRouter } from '~/app/api/uploadthing/core'
 import { TooltipProvider } from '~/components/ui/tooltip'
 import { Toaster } from '~/components/ui/sonner'
 import PosthogProvider from '~/components/posthog-provider'
+import { env } from '~/env'
 
 const nunito = Nunito({
     subsets: ['latin'],
@@ -48,7 +49,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                      */
                     routerConfig={extractRouterConfig(nemuFileRouter)}
                 />
-                <ClerkProvider appearance={{ baseTheme: dark }}>
+                <ClerkProvider appearance={{ baseTheme: dark }} publishableKey={env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}>
                     <PosthogProvider>
                         <ThemeProvider
                             attribute="data-theme"
