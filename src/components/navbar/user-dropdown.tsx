@@ -97,7 +97,7 @@ async function UserDropdownContent({ user }: { user: User }) {
                 <>
                     <DropdownMenuItem>
                         <Link
-                            href={'/artists/gen-code'}
+                            href={'/admin/gen-code'}
                             className="flex w-full items-center gap-3"
                         >
                             <CodeIcon className="h-6 w-6" />

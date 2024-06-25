@@ -397,23 +397,20 @@ export const verificationRouter = createTRPCRouter({
     /**
      * Creates an artist code to add to the database
      */
-    set_artist_code: adminProcedure.mutation(async (opts) => {
-        const { ctx } = opts
+    set_artist_code: adminProcedure.input(z.number()).mutation(async ({ input, ctx }) => {
+        const result: string[] = []
 
-        const new_code = 'NEMU-' + crypto.randomUUID()
-
-        const result = await ctx.db.insert(artist_codes).values({
-            id: createId(),
-            code: new_code
-        })
-
-        if (!result) {
-            throw new TRPCError({
-                code: 'INTERNAL_SERVER_ERROR',
-                message: 'Could not generate artist code!'
+        for (let i = 0; i < input; i++) {
+            const new_code = 'NEMU-' + crypto.randomUUID()
+            
+            await ctx.db.insert(artist_codes).values({
+                id: createId(),
+                code: new_code
             })
+
+            result.push(new_code)
         }
 
-        return { generated_code: new_code }
+        return result
     })
 })
