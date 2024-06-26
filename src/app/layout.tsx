@@ -49,7 +49,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                      */
                     routerConfig={extractRouterConfig(nemuFileRouter)}
                 />
-                <ClerkProvider appearance={{ baseTheme: dark }} publishableKey={env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}>
+                <ClerkProvider
+                    appearance={{
+                        baseTheme: dark
+                    }}
+                    publishableKey={env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+                >
                     <PosthogProvider>
                         <ThemeProvider
                             attribute="data-theme"

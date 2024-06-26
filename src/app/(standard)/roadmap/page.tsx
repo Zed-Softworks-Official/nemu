@@ -21,9 +21,20 @@ const features: Feature[] = [
         status: FeatureStatus.Completed
     },
     {
+        title: 'Artist Feedback',
+        description: 'A way to give feedback on various aspects of the artist dashboard',
+        status: FeatureStatus.InProgress
+    },
+    {
         title: 'Artists Corner',
         description: 'A place to sell ready-made art/assets',
-        status: FeatureStatus.InProgress
+        status: FeatureStatus.Planned
+    },
+    {
+        title: 'Markdown Editor',
+        description:
+            'Use markdown to create descriptions for artist corner products and commissions',
+        status: FeatureStatus.Planned
     },
     {
         title: 'Embedded Donations/Tipping',
@@ -33,12 +44,6 @@ const features: Feature[] = [
     {
         title: 'Favorites',
         description: 'A way to save artists and their work for later',
-        status: FeatureStatus.Planned
-    },
-    {
-        title: 'Markdown Editor',
-        description:
-            'Use markdown to create descriptions for artist corner products and commissions',
         status: FeatureStatus.Planned
     },
     {

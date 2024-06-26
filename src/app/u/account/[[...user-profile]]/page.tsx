@@ -1,5 +1,7 @@
 import { currentUser } from '@clerk/nextjs/server'
 import { eq, type InferSelectModel } from 'drizzle-orm'
+import { ArrowLeftIcon } from 'lucide-react'
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { Suspense } from 'react'
 
@@ -35,5 +37,15 @@ async function PageContent() {
         artist = await get_artist_data(user.publicMetadata.handle as string)
     }
 
-    return <NemuUserProfile artist={artist} />
+    return (
+        <section>
+            <Link
+                href="/"
+                className="btn btn-circle btn-primary absolute left-4 top-4 text-base-content"
+            >
+                <ArrowLeftIcon className="h-6 w-6" />
+            </Link>
+            <NemuUserProfile artist={artist} />
+        </section>
+    )
 }
