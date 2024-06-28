@@ -370,10 +370,6 @@ export const verificationRouter = createTRPCRouter({
                 }
             }
 
-            if (verification_handle_exists) {
-                return { exists: true }
-            }
-
             return { exists: false }
         }),
 
@@ -388,7 +384,7 @@ export const verificationRouter = createTRPCRouter({
             })
 
             if (!result) {
-                throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' })
+                return { success: false }
             }
 
             return { success: true }
@@ -402,7 +398,7 @@ export const verificationRouter = createTRPCRouter({
 
         for (let i = 0; i < input; i++) {
             const new_code = 'NEMU-' + crypto.randomUUID()
-            
+
             await ctx.db.insert(artist_codes).values({
                 id: createId(),
                 code: new_code

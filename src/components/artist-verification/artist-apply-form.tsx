@@ -65,7 +65,16 @@ export default function ArtistApplyForm() {
 
     const { user } = useUser()
 
-    const codeCheckMutation = api.verification.get_artist_code.useMutation()
+    const codeCheckMutation = api.verification.get_artist_code.useMutation({
+        onSuccess: (res) => {
+            if (!res.success) {
+                toast.error('Artist code does not exist!')
+                return
+            }
+
+            toast.success('Artist code exists!')
+        }
+    })
     const handleExistsMutation = api.verification.handle_exists.useMutation()
     const verificationMutation = api.verification.set_verification.useMutation({
         onSuccess: () => {
@@ -117,7 +126,8 @@ export default function ArtistApplyForm() {
 
         if (
             currentStep === 2 &&
-            (form.getValues('verification_method') as VerificationMethod) === VerificationMethod.Code
+            (form.getValues('verification_method') as VerificationMethod) ===
+                VerificationMethod.Code
         ) {
             const toast_id = toast.loading('Checking artist code')
             const res = await codeCheckMutation.mutateAsync(
@@ -310,8 +320,8 @@ export default function ArtistApplyForm() {
                                             </h2>
                                             <p>
                                                 Just paste the artist code you received
-                                                into the box below and we&apos;ll validate it
-                                                for you and you can start your journey!
+                                                into the box below and we&apos;ll validate
+                                                it for you and you can start your journey!
                                             </p>
                                         </div>
                                         <div className="divider"></div>
@@ -348,11 +358,12 @@ export default function ArtistApplyForm() {
                                         <p>
                                             Go ahead and hit that submit button and tweet
                                             @zedsoftworks with the tags #JOINNEMU and
-                                            #NEMUART and an art piece that you&apos;d like to
-                                            show off (it doesn&apos;t have to be recent).
-                                            Please note that we only have to verify that
-                                            you&apos;re the artist that submited the request.
-                                            ANY and ALL art is welcome on nemu!
+                                            #NEMUART and an art piece that you&apos;d like
+                                            to show off (it doesn&apos;t have to be
+                                            recent). Please note that we only have to
+                                            verify that you&apos;re the artist that
+                                            submited the request. ANY and ALL art is
+                                            welcome on nemu!
                                         </p>
                                     </div>
                                 )}

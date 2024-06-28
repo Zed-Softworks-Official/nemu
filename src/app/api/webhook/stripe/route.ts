@@ -4,10 +4,16 @@ import { NextResponse } from 'next/server'
 
 import { env } from '~/env'
 import { db } from '~/server/db'
-import { invoices } from '~/server/db/schema'
-import { InvoiceStatus, PurchaseType, type StripePaymentMetadata } from '~/core/structures'
+import { artists, invoices } from '~/server/db/schema'
+import {
+    InvoiceStatus,
+    PurchaseType,
+    type StripePaymentMetadata
+} from '~/core/structures'
 import { novu } from '~/server/novu'
 import { clerkClient } from '@clerk/nextjs/server'
+import { AsRedisKey, invalidate_cache, revalidate_cache } from '~/server/cache'
+import { revalidateTag } from 'next/cache'
 
 export async function POST(req: Request) {
     const sig = req.headers.get('stripe-signature')
@@ -32,7 +38,7 @@ export async function POST(req: Request) {
     switch (event.type) {
         case 'invoice.paid':
             {
-                const invoice = event.data.object 
+                const invoice = event.data.object
                 const metadata = invoice.metadata as unknown as StripePaymentMetadata
 
                 if (
@@ -79,6 +85,46 @@ export async function POST(req: Request) {
                             .username!
                     }
                 })
+            }
+            break
+        case 'customer.subscription.created':
+            {
+                // Get the user from the metadata
+                const subscription = event.data.object
+
+                // Update the artist's subscription status
+                await db
+                    .update(artists)
+                    .set({
+                        supporter: true
+                    })
+                    .where(eq(artists.zed_customer_id, subscription.customer as string))
+
+                // Invalidate dashboard cache
+                await invalidate_cache(
+                    AsRedisKey('artists', subscription.customer as string),
+                    'artist-data'
+                )
+            }
+            break
+        case 'customer.subscription.deleted':
+            {
+                // Get the user from the metadata
+                const subscription = event.data.object
+
+                // Update the artist's subscription status
+                await db
+                    .update(artists)
+                    .set({
+                        supporter: false
+                    })
+                    .where(eq(artists.zed_customer_id, subscription.customer as string))
+
+                // Invalidate dashboard cache
+                await invalidate_cache(
+                    AsRedisKey('artists', subscription.customer as string),
+                    'artist-data'
+                )
             }
             break
     }
