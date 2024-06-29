@@ -46,8 +46,8 @@ export default function SearchBar() {
                 future={{ preserveSharedStateOnUnmount: true }}
             >
                 <div
-                    className="flex h-16 w-full flex-row items-center justify-between rounded-xl bg-base-200 p-5"
-                    onClick={() => setOpen(true)}
+                    className="hidden h-16 w-full flex-row items-center justify-between rounded-xl bg-base-200 p-5 sm:flex"
+                    onMouseDown={() => setOpen(true)}
                 >
                     <Configure hitsPerPage={5} />
                     <div className="flex flex-row items-center gap-5">
@@ -57,6 +57,13 @@ export default function SearchBar() {
                     <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded bg-base-300 px-1.5 font-mono text-[10px] font-medium text-base-content/80 opacity-100">
                         <span className="text-xs">⌘</span>K
                     </kbd>
+                </div>
+                <div
+                    className="flex w-full items-center justify-center sm:hidden"
+                    onMouseDown={() => setOpen(true)}
+                >
+                    <Configure hitsPerPage={5} />
+                    <SearchIcon className="h-6 w-6" />
                 </div>
                 <SearchPallete open={open} setOpen={setOpen} />
             </InstantSearchNext>
