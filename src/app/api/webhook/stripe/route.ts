@@ -12,8 +12,7 @@ import {
 } from '~/core/structures'
 import { novu } from '~/server/novu'
 import { clerkClient } from '@clerk/nextjs/server'
-import { AsRedisKey, invalidate_cache, revalidate_cache } from '~/server/cache'
-import { revalidateTag } from 'next/cache'
+import { AsRedisKey, invalidate_cache } from '~/server/cache'
 
 export async function POST(req: Request) {
     const sig = req.headers.get('stripe-signature')

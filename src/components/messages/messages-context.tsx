@@ -11,7 +11,7 @@ import {
 
 import type { BaseMessage, FileMessage, UserMessage } from '@sendbird/chat/message'
 import type { Member } from '@sendbird/chat/groupChannel'
-import type { SendbirdMetadata } from '~/sendbird/sendbird-structures'
+import type { SendbirdMetadata } from '~/server/sendbird'
 import { api } from '~/trpc/react'
 import type { useUser } from '@clerk/nextjs'
 import type { RouterOutput } from '~/core/structures'

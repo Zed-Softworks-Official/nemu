@@ -18,7 +18,7 @@ import {
     stripe_customer_ids
 } from '~/server/db/schema'
 import { novu } from '~/server/novu'
-import { sendbird } from '~/server/sendbird'
+import * as sendbird from '~/server/sendbird'
 
 export const requestRouter = createTRPCRouter({
     /**
@@ -252,7 +252,7 @@ export const requestRouter = createTRPCRouter({
             // Create a sendbird user if they don't exist
             const user = await clerkClient.users.getUser(request.user_id)
             if (!user.publicMetadata.has_sendbird_account) {
-                await sendbird.CreateUser({
+                await sendbird.create_user({
                     user_id: user.id,
                     nickname: user.username ?? 'User',
                     profile_url: user.imageUrl
@@ -266,7 +266,7 @@ export const requestRouter = createTRPCRouter({
             }
 
             // Create a sendbird channel
-            await sendbird.CreateGroupChannel({
+            await sendbird.create_channel({
                 user_ids: [user.id, request.commission.artist.user_id],
                 name: `${request.commission.title} - ${user.username}`,
                 cover_url:

@@ -16,8 +16,7 @@ import {
 } from '~/server/api/trpc'
 import { db } from '~/server/db'
 import { StripeCreateAccount } from '~/core/payments'
-import type { SendbirdUserData } from '~/sendbird/sendbird-structures'
-import { sendbird } from '~/server/sendbird'
+import * as sendbird from '~/server/sendbird'
 import { novu } from '~/server/novu'
 import { clerkClient, type User } from '@clerk/nextjs/server'
 import { artist_codes, artist_verifications, artists, users } from '~/server/db/schema'
@@ -95,13 +94,11 @@ export async function CreateArtist(input: VerificationDataType, user: User) {
     // Check if the user already has a sendbird account
     if (!user.publicMetadata.has_sendbird_account) {
         // Create Sendbird user
-        const user_data: SendbirdUserData = {
+        await sendbird.create_user({
             user_id: user.id,
             nickname: artist.handle,
             profile_url: user.imageUrl
-        }
-
-        await sendbird.CreateUser(user_data)
+        })
     }
 
     // Update User Metadata

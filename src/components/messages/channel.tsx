@@ -34,7 +34,7 @@ import {
     ContextMenuTrigger
 } from '~/components/ui/context-menu'
 
-import type { SendbirdMetadata } from '~/sendbird/sendbird-structures'
+import type { SendbirdMetadata } from '~/server/sendbird'
 import { toast } from 'sonner'
 import { api } from '~/trpc/react'
 import {

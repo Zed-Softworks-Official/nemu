@@ -14,7 +14,7 @@ import { cn } from '~/lib/utils'
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
 import { Badge } from '~/components/ui/badge'
 import { useMessagesContext } from '~/components/messages/messages-context'
-import type { SendbirdMetadata } from '~/sendbird/sendbird-structures'
+import type { SendbirdMetadata } from '~/server/sendbird'
 
 function CustomChannelList() {
     const { allChannels, loading, initialized } = useChannelListContext()
