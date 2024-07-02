@@ -123,7 +123,11 @@ export default function Home() {
             >
                 <div className="flex h-full flex-col gap-5 p-10">
                     <h1 className="text-3xl font-bold">Artists Wanted</h1>
-                    <p className="text-lg">Placeholder Copy</p>
+                    <p className="max-w-xl text-lg">
+                        Join Nemu to showcase your art, connect with a global audience,
+                        sell your creations effortlessly, and get commissioned for custom
+                        work.
+                    </p>
                     <div className="flex h-full items-end">
                         <span className="btn btn-outline">Become An Aritst</span>
                     </div>

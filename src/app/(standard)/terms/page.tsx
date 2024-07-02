@@ -115,7 +115,13 @@ export default function TermsPage() {
                                 not linked to your individual identity beyond your
                                 username.
                             </li>
-                            <li>For more details, please review our Privacy Policy.</li>
+                            <li>
+                                For more details, please review our{' '}
+                                <Link href={'/privacy'} className="link-hover link">
+                                    Privacy Policy
+                                </Link>
+                                .
+                            </li>
                         </ul>
                     </section>
 
