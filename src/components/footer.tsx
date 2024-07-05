@@ -23,10 +23,10 @@ export default function Footer() {
                     <nav>
                         <h6 className="footer-title">Services</h6>
                         <Link href={'/artists/apply'} className="link-hover link">
-                            Become an artist
+                            Become an Artist
                         </Link>
                         <Link href={'/artists/supporter'} className="link-hover link">
-                            Become an Supporter
+                            Become a Supporter
                         </Link>
                         <Link href={'/roadmap'} className="link-hover link">
                             Roadmap

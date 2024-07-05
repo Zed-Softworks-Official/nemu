@@ -119,9 +119,9 @@ export default function Home() {
         <main className="flex flex-col gap-5">
             <Link
                 href={'/artists/apply'}
-                className="flex h-[300px] w-full flex-row justify-between gap-5 rounded-xl bg-gradient-to-tr from-primary to-primary/80"
+                className="grid min-h-[300px] w-full grid-cols-1 gap-5 rounded-xl bg-gradient-to-tr from-primary to-primary/80 sm:grid-cols-2"
             >
-                <div className="flex h-full flex-col gap-5 p-10">
+                <div className="flex h-full flex-col items-center gap-5 p-10 sm:items-start">
                     <h1 className="text-3xl font-bold">Artists Wanted</h1>
                     <p className="max-w-xl text-lg">
                         Join Nemu to showcase your art, connect with a global audience,
@@ -132,7 +132,7 @@ export default function Home() {
                         <span className="btn btn-outline">Become An Aritst</span>
                     </div>
                 </div>
-                <div className="flex h-full grow-0 items-end justify-end pr-10">
+                <div className="flex h-full w-full grow-0 items-center justify-center pr-10 sm:items-end sm:justify-end">
                     <NemuImage
                         src={'/nemu/artists-wanted.png'}
                         alt="Artists Wanted"
