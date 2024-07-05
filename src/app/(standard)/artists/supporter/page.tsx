@@ -1,7 +1,7 @@
-import Link from 'next/link'
 import { CheckCircleIcon } from 'lucide-react'
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
+import SupporterButton from '~/components/supporter-button'
 
 const includedFeatures = ['0% Platform Fees', 'Fund Nemu Development', 'More Coming Soon']
 
@@ -52,7 +52,7 @@ export default function GetSupporterPage() {
                         <div className="-mt-2 p-2 lg:mt-0 lg:w-full lg:max-w-md lg:flex-shrink-0">
                             <div className="rounded-2xl bg-base-200 py-10 text-center ring-1 ring-inset ring-gray-900/5 lg:flex lg:flex-col lg:justify-center lg:py-16">
                                 <div className="mx-auto max-w-xs px-8">
-                                    <Tabs defaultValue="monthly" className="">
+                                    <Tabs defaultValue="monthly">
                                         <TabsList className="mb-6">
                                             <TabsTrigger value="monthly">
                                                 Monthly
@@ -70,12 +70,7 @@ export default function GetSupporterPage() {
                                                     /month
                                                 </span>
                                             </p>
-                                            <Link
-                                                href={'/api/supporter/monthly'}
-                                                className="btn btn-primary btn-wide mt-10 text-white"
-                                            >
-                                                Become a supporter
-                                            </Link>
+                                            <SupporterButton term="monthly" />
                                             <p className="mt-6 text-xs leading-5 text-base-content/60">
                                                 Invoices and receipts available for easy
                                                 company reimbursement
@@ -90,12 +85,7 @@ export default function GetSupporterPage() {
                                                     /year
                                                 </span>
                                             </p>
-                                            <Link
-                                                href={'/api/supporter/annual'}
-                                                className="btn btn-primary btn-wide mt-10 text-white"
-                                            >
-                                                Become a supporter
-                                            </Link>
+                                            <SupporterButton term="annual" />
                                             <p className="mt-6 text-xs leading-5 text-base-content/60">
                                                 Invoices and receipts available for easy
                                                 company reimbursement
