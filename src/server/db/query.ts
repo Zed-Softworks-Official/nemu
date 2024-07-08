@@ -14,6 +14,7 @@ import { db } from '.'
 import { get_blur_data } from '~/lib/blur_data'
 import { convert_images_to_nemu_images } from '~/lib/server-utils'
 import { format_to_currency } from '~/lib/utils'
+import { env } from '~/env'
 
 //////////////////////////////////////////////////////////
 // Aritst Data
@@ -39,12 +40,16 @@ export const get_artist_data = unstable_cache(
             return undefined
         }
 
+        const header_photo = artist.ut_key
+            ? artist.header_photo
+            : env.BASE_URL + artist.header_photo
+
         const result: ArtistData = {
             ...artist,
             user: await clerkClient.users.getUser(artist.user_id),
             header: {
-                url: artist.header_photo,
-                blur_data: await get_blur_data(artist.header_photo)
+                url: header_photo,
+                blur_data: await get_blur_data(header_photo)
             }
         }
 

@@ -25,6 +25,12 @@ const coreConfig = {
                 hostname: 'img.clerk.com',
                 port: '',
                 pathname: '/**'
+            },
+            {
+                protocol: 'https',
+                hostname: 'nemu.art',
+                port: '',
+                pathname: '/**'
             }
         ]
     },
