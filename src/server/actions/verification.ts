@@ -14,22 +14,7 @@ import * as sendbird from '~/server/sendbird'
 import { set_index } from '~/core/search'
 import { verify_clerk_auth } from './auth'
 
-export const verification_data = z.object({
-    method: z.literal('artist_code').or(z.literal('twitter')),
-    requested_handle: z
-        .string()
-        .min(1, 'Handles must be longer then one character')
-        .refine(
-            (value) => !value.includes('@'),
-            'Handles will contain "@" by default, no need to add them'
-        ),
-    twitter: z.string().url('Must be a valid url'),
-    website: z.string().url('Must be a valid url').optional().or(z.literal('')),
-    location: z.string(),
-    artist_code: z.string().optional()
-})
-
-export type VerificationDataType = z.infer<typeof verification_data>
+import { type VerificationDataType, verification_data } from '~/core/structures'
 
 async function create_artist(input: VerificationDataType, user: User) {
     const social_accounts: SocialAccount[] = []
@@ -118,4 +103,8 @@ export async function verify_artist(prev_state: unknown, form_data: FormData) {
     })
 
     console.log(validateFields.data)
+
+    return {
+        success: true
+    }
 }
