@@ -76,3 +76,10 @@ export async function create_channel(channel_data: SendbirdChannelData) {
 
     return channel
 }
+
+export async function update_user(data: { profile_url?: string; nickname?: string }) {
+    await sendbird.updateCurrentUserInfo({
+        nickname: data.nickname,
+        profileUrl: data.profile_url
+    })
+}

@@ -1,5 +1,6 @@
 import { Webhook } from 'svix'
 import { headers } from 'next/headers'
+import { eq } from 'drizzle-orm'
 
 import { clerkClient, type WebhookEvent } from '@clerk/nextjs/server'
 
@@ -7,6 +8,9 @@ import { env } from '~/env'
 import { type PublicUserMetadata, UserRole } from '~/core/structures'
 import { db } from '~/server/db'
 import { users } from '~/server/db/schema'
+import { update_index } from '~/core/search'
+import { AsRedisKey, invalidate_cache } from '~/server/cache'
+import * as sendbird from '~/server/sendbird'
 
 /**
  * Handles Clerk Webhook Events
@@ -45,7 +49,7 @@ export async function POST(req: Request) {
         return new Response('An Error Occured', { status: 400 })
     }
 
-    // Switch on the type of event that we received 
+    // Switch on the type of event that we received
     switch (event.type) {
         case 'user.created':
             {
@@ -85,6 +89,35 @@ export async function POST(req: Request) {
             break
         case 'user.updated':
             {
+                // Update the users profile photo if it's changed inside of
+                // algolia, sendbird, and invalidate the cache
+                const artist = await db.query.artists.findFirst({
+                    where: eq(users.clerk_id, event.data.id)
+                })
+
+                if (!artist) {
+                    return new Response('Artist not found', { status: 400 })
+                }
+
+                // Update Algolia
+                await update_index('artists', {
+                    objectID: event.data.id,
+                    handle: artist.handle,
+                    about: artist.about,
+                    image_url: event.data.image_url
+                })
+
+                // Invalidate Cache
+                await invalidate_cache(
+                    AsRedisKey('artists', artist.handle),
+                    'artist_data'
+                )
+
+                // Update Sendbird
+                await sendbird.update_user({
+                    profile_url: event.data.image_url
+                })
+
                 return new Response('User Updated', { status: 200 })
             }
             break
