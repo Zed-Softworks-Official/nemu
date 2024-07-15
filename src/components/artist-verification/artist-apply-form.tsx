@@ -1,6 +1,6 @@
 'use client'
 
-import { useFormState, useFormStatus } from 'react-dom'
+import { useFormState } from 'react-dom'
 import { useEffect, useState } from 'react'
 
 import { verify_artist } from '~/server/actions/verification'
@@ -9,11 +9,11 @@ import { Input } from '~/components/ui/input'
 import { FormItem } from '~/components/ui/form'
 import { RadioGroup, RadioGroupItem } from '~/components/ui/radio-group'
 import { Label } from '~/components/ui/label'
-import { Button } from '~/components/ui/button'
 import { VerificationMethod } from '~/core/structures'
 import SelectCountries from '~/components/ui/select-countries'
 
 import { toast } from 'sonner'
+import SubmitButton from './submit-button'
 
 export default function ArtistApplyForm() {
     const [verificationMethod, setVerificationMethod] = useState<
@@ -21,10 +21,13 @@ export default function ArtistApplyForm() {
     >(undefined)
 
     const [state, formAction] = useFormState(verify_artist, { success: false })
-    const { pending } = useFormStatus()
 
     useEffect(() => {
-        toast.success(state?.success ? 'Verification Successful' : 'Verification Failed')
+        if (state.success && state.error === undefined) {
+            toast.success('Verification Successful')
+        } else if (!state.success && state.error !== undefined) {
+            toast.error(state.error)
+        }
     }, [state])
 
     return (
@@ -83,19 +86,9 @@ export default function ArtistApplyForm() {
                 <VerificationStep verificationMethod={verificationMethod} />
             </div>
             <div className="divider"></div>
-            <Button type="submit" disabled={pending || verificationMethod === undefined}>
-                <NextButtonText pending={pending} />
-            </Button>
+            <SubmitButton verification_method={verificationMethod} />
         </form>
     )
-}
-
-function NextButtonText(props: { pending: boolean }) {
-    if (props.pending) {
-        return <span className="loading loading-spinner"></span>
-    }
-
-    return <>Submit</>
 }
 
 function VerificationStep(props: { verificationMethod?: VerificationMethod }) {

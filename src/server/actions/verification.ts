@@ -1,13 +1,12 @@
 'use server'
 
-import { z } from 'zod'
-import { clerkClient, type User } from '@clerk/nextjs/server'
+import { auth, clerkClient, type User } from '@clerk/nextjs/server'
 
-import { type SocialAccount, SocialAgent } from '~/core/structures'
+import { type SocialAccount, SocialAgent, VerificationMethod } from '~/core/structures'
 import { StripeCreateAccount } from '~/core/payments'
 import { createId } from '@paralleldrive/cuid2'
 import { db } from '~/server/db'
-import { artists } from '~/server/db/schema'
+import { artist_codes, artist_verifications, artists } from '~/server/db/schema'
 import { eq } from 'drizzle-orm'
 
 import * as sendbird from '~/server/sendbird'
@@ -15,6 +14,7 @@ import { set_index } from '~/core/search'
 import { verify_clerk_auth } from './auth'
 
 import { type VerificationDataType, verification_data } from '~/core/structures'
+import { novu } from '~/server/novu'
 
 async function create_artist(input: VerificationDataType, user: User) {
     const social_accounts: SocialAccount[] = []
@@ -90,7 +90,8 @@ async function create_artist(input: VerificationDataType, user: User) {
 export async function verify_artist(prev_state: unknown, form_data: FormData) {
     // Check if the user is logged in,
     // if the user is not logged in, return a failure state
-    if (!(await verify_clerk_auth())) return { success: false }
+    if (!(await verify_clerk_auth()))
+        return { success: false, error: 'User not logged in' }
 
     // Validate fields
     const validateFields = verification_data.safeParse({
@@ -99,10 +100,71 @@ export async function verify_artist(prev_state: unknown, form_data: FormData) {
         website: form_data.get('website'),
         location: form_data.get('location'),
         method: form_data.get('method'),
-        artist_code: form_data.get('artist_code')
+        artist_code: form_data.get('artist_code') ?? undefined
     })
 
-    console.log(validateFields.data)
+    // Check if we have errors
+    if (validateFields.error) {
+        return { success: false, error: validateFields.error.message }
+    }
+
+    switch (validateFields.data.method) {
+        case VerificationMethod.Code:
+            {
+                // Check if the artist code is present
+                if (!validateFields.data.artist_code) {
+                    return { success: false, error: 'Artist code is required' }
+                }
+
+                // Check if the artist code exists
+                const artist_code = await db.query.artist_codes.findFirst({
+                    where: eq(artist_codes.code, validateFields.data.artist_code)
+                })
+
+                if (!artist_code) {
+                    return { success: false, error: 'Artist code does not exist' }
+                }
+
+                const user = auth()
+
+                // Create the artist
+                await create_artist(
+                    validateFields.data,
+                    await clerkClient.users.getUser(user.userId!)
+                )
+
+                await novu.trigger('sign-up-approved', {
+                    to: {
+                        subscriberId: user.userId!
+                    },
+                    payload: {
+                        artist_handle: validateFields.data.requested_handle
+                    }
+                })
+            }
+            break
+        case VerificationMethod.Twitter:
+            {
+                // Create the artist verification object in the db
+                await db.insert(artist_verifications).values({
+                    id: createId(),
+                    user_id: auth().userId!,
+                    requested_handle: validateFields.data.requested_handle,
+                    location: validateFields.data.location,
+                    twitter: validateFields.data.twitter,
+                    website: validateFields.data.website
+                })
+
+                // Notify the user of the request
+                await novu.trigger('status-pending', {
+                    to: {
+                        subscriberId: auth().userId!
+                    },
+                    payload: {}
+                })
+            }
+            break
+    }
 
     return {
         success: true
