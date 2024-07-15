@@ -2,6 +2,7 @@
 
 import { useFormState } from 'react-dom'
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 
 import { verify_artist } from '~/server/actions/verification'
 
@@ -13,22 +14,25 @@ import { VerificationMethod } from '~/core/structures'
 import SelectCountries from '~/components/ui/select-countries'
 
 import { toast } from 'sonner'
-import SubmitButton from './submit-button'
+import SubmitButton from '~/components/artist-verification/submit-button'
 
 export default function ArtistApplyForm() {
     const [verificationMethod, setVerificationMethod] = useState<
         VerificationMethod | undefined
     >(undefined)
-
     const [state, formAction] = useFormState(verify_artist, { success: false })
+
+    const router = useRouter()
 
     useEffect(() => {
         if (state.success && state.error === undefined) {
             toast.success('Verification Successful')
+
+            router.replace('/artists/apply/success')
         } else if (!state.success && state.error !== undefined) {
             toast.error(state.error)
         }
-    }, [state])
+    }, [state, router])
 
     return (
         <form action={formAction} className="flex w-full flex-col gap-5">
