@@ -36,7 +36,10 @@ export const createTable = mysqlTableCreator((name) => `nemu_${name}`)
  */
 export const users = createTable('user', {
     clerk_id: varchar('clerk_id', { length: 256 }).primaryKey(),
-    role: UserRoleEnum('role').default(UserRole.Standard)
+    role: UserRoleEnum('role').default(UserRole.Standard),
+
+    has_sendbird_account: boolean('has_sendbird_account').default(false),
+    artist_id: varchar('artist_id', { length: 128 })
 })
 
 /**

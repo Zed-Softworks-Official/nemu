@@ -59,7 +59,7 @@ function CustomChannelList() {
             {allChannels.map((channel) => {
                 const metadata = JSON.parse(
                     channel.data.replace(/'/g, '"')
-                ) as SendbirdMetadata
+                ) as unknown as SendbirdMetadata
 
                 const other_user = channel.members.filter(
                     (member) => member.userId !== session?.user?.id

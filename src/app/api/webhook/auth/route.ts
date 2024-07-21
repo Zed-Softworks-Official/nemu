@@ -114,8 +114,10 @@ export async function POST(req: Request) {
                 )
 
                 // Update Sendbird
-                await sendbird.update_user({
-                    profile_url: event.data.image_url
+                await sendbird.update_user(artist.user_id, {
+                    userId: artist.user_id,
+                    nickname: artist.handle,
+                    profileUrl: event.data.image_url
                 })
 
                 return new Response('User Updated', { status: 200 })

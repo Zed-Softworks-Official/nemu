@@ -68,7 +68,7 @@ function CustomChannel() {
 
     const metadata = JSON.parse(
         currentChannel.data.replace(/'/g, '"')
-    ) as SendbirdMetadata
+    ) as unknown as SendbirdMetadata
 
     return (
         <div className="join-item h-full w-full bg-base-200">

@@ -253,9 +253,9 @@ export const requestRouter = createTRPCRouter({
             const user = await clerkClient.users.getUser(request.user_id)
             if (!user.publicMetadata.has_sendbird_account) {
                 await sendbird.create_user({
-                    user_id: user.id,
+                    userId: user.id,
                     nickname: user.username ?? 'User',
-                    profile_url: user.imageUrl
+                    profileUrl: user.imageUrl
                 })
 
                 await clerkClient.users.updateUserMetadata(user.id, {
@@ -267,18 +267,18 @@ export const requestRouter = createTRPCRouter({
 
             // Create a sendbird channel
             await sendbird.create_channel({
-                user_ids: [user.id, request.commission.artist.user_id],
+                userIds: [user.id, request.commission.artist.user_id],
                 name: `${request.commission.title} - ${user.username}`,
-                cover_url:
+                coverUrl:
                     request.commission.images[0]?.url ?? env.BASE_URL + '/profile.png',
-                channel_url: request.order_id,
-                operator_ids: [request.commission.artist.user_id],
-                block_sdk_user_channel_join: true,
-                is_distinct: false,
-                data: {
+                channelUrl: request.order_id,
+                operatorIds: [request.commission.artist.user_id],
+                blockSdkUserChannelJoin: true,
+                isDistinct: false,
+                data: JSON.stringify({
                     artist_id: request.commission.artist_id,
                     commission_title: request.commission.title
-                }
+                })
             })
 
             // Create default containers for kanban

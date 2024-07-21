@@ -30,3 +30,4 @@ if (env.NODE_ENV !== 'production') globalForSendbird.sendbird = sendbird
 
 export * from './users'
 export * from './channels'
+export * from './types'
