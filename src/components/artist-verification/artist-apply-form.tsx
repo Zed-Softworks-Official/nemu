@@ -28,7 +28,7 @@ export default function ArtistApplyForm() {
         if (state.success && state.error === undefined) {
             toast.success('Verification Successful')
 
-            router.replace('/artists/apply/success')
+            router.push('/artists/apply/success')
         } else if (!state.success && state.error !== undefined) {
             toast.error(state.error)
         }

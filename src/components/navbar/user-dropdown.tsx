@@ -22,13 +22,21 @@ import Link from 'next/link'
 import { SignedIn, SignedOut, SignOutButton } from '@clerk/nextjs'
 import { currentUser, type User } from '@clerk/nextjs/server'
 import { UserRole } from '~/core/structures'
+import { Suspense } from 'react'
+import { db } from '~/server/db'
+import { eq } from 'drizzle-orm'
+import { users } from '~/server/db/schema'
 
 export default function UserDropdown() {
-    return <Menu />
+    return (
+        <Suspense fallback={<div className="skeleton h-10 w-10"></div>}>
+            <Menu />
+        </Suspense>
+    )
 }
 
 async function Menu() {
-    const user = await currentUser()
+    const current_user = await currentUser()
 
     return (
         <DropdownMenu>
@@ -36,7 +44,7 @@ async function Menu() {
                 <div className="cursor-pointer">
                     <SignedIn>
                         <Avatar>
-                            <AvatarImage src={user?.imageUrl} alt="Avatar" />
+                            <AvatarImage src={current_user?.imageUrl} alt="Avatar" />
                             <AvatarFallback>
                                 <UserIcon className="h-6 w-6" />
                             </AvatarFallback>
@@ -49,7 +57,7 @@ async function Menu() {
             </DropdownMenuTrigger>
             <DropdownMenuContent className="min-w-52">
                 <SignedIn>
-                    <UserDropdownContent user={user!} />
+                    <UserDropdownContent user={current_user!} />
                 </SignedIn>
                 <SignedOut>
                     <DropdownMenuItem>
@@ -64,18 +72,20 @@ async function Menu() {
     )
 }
 
-async function UserDropdownContent({ user }: { user: User }) {
-    const messages_url = user.privateMetadata.artist_id
-        ? '/dashboard/messsages'
-        : '/messages'
+async function UserDropdownContent(props: { user: User }) {
+    const current_user = await db.query.users.findFirst({
+        where: eq(users.clerk_id, props.user.id)
+    })
+
+    const messages_url = current_user?.artist_id ? '/dashboard/messsages' : '/messages'
 
     return (
         <>
-            {user.publicMetadata.role === UserRole.Artist && (
+            {current_user?.role === UserRole.Artist && (
                 <>
                     <DropdownMenuItem>
                         <Link
-                            href={`/@${user.publicMetadata.handle as string}`}
+                            href={`/@${props.user.publicMetadata.handle as string}`}
                             className="flex w-full items-center gap-3"
                         >
                             <BrushIcon className="h-6 w-6" />
@@ -93,7 +103,7 @@ async function UserDropdownContent({ user }: { user: User }) {
                     </DropdownMenuItem>
                 </>
             )}
-            {user.publicMetadata.role === UserRole.Admin && (
+            {current_user?.role === UserRole.Admin && (
                 <>
                     <DropdownMenuItem>
                         <Link

@@ -79,6 +79,7 @@ async function create_artist(input: VerificationDataType, user_id: string) {
         })
     }
 
+    // Update the user in the database
     await db
         .update(users)
         .set({
@@ -86,6 +87,13 @@ async function create_artist(input: VerificationDataType, user_id: string) {
             artist_id: artist.id
         })
         .where(eq(users.clerk_id, user.clerk_id))
+
+    // Update the user in clerk
+    await clerkClient.users.updateUserMetadata(user.clerk_id, {
+        publicMetadata: {
+            handle: artist.handle
+        }
+    })
 
     // Update Algolia
     await set_index('artists', {

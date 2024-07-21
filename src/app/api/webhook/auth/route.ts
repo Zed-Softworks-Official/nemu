@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm'
 import { clerkClient, type WebhookEvent } from '@clerk/nextjs/server'
 
 import { env } from '~/env'
-import { type PublicUserMetadata, UserRole } from '~/core/structures'
+import { UserRole } from '~/core/structures'
 import { db } from '~/server/db'
 import { users } from '~/server/db/schema'
 import { update_index } from '~/core/search'
@@ -53,16 +53,6 @@ export async function POST(req: Request) {
     switch (event.type) {
         case 'user.created':
             {
-                // Add metadata to the user
-                const publicMetadata: PublicUserMetadata = {
-                    role: UserRole.Standard,
-                    has_sendbird_account: false
-                }
-
-                await clerkClient.users.updateUserMetadata(event.data.id, {
-                    publicMetadata
-                })
-
                 // Add a username to the user if it doesn't exist
                 if (!event.data.username && event.data.first_name) {
                     await clerkClient.users.updateUser(event.data.id, {
@@ -81,7 +71,8 @@ export async function POST(req: Request) {
                 // Create a new user in the database
                 await db.insert(users).values({
                     clerk_id: event.data.id,
-                    role: UserRole.Standard
+                    role: UserRole.Standard,
+                    has_sendbird_account: false
                 })
 
                 return new Response('User Created', { status: 200 })
