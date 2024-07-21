@@ -1,12 +1,12 @@
 'use server'
 
-import { auth, clerkClient, type User } from '@clerk/nextjs/server'
+import { auth, clerkClient } from '@clerk/nextjs/server'
 
 import { type SocialAccount, SocialAgent, VerificationMethod } from '~/core/structures'
 import { StripeCreateAccount } from '~/core/payments'
 import { createId } from '@paralleldrive/cuid2'
 import { db } from '~/server/db'
-import { artist_codes, artist_verifications, artists } from '~/server/db/schema'
+import { artist_codes, artist_verifications, artists, users } from '~/server/db/schema'
 import { eq } from 'drizzle-orm'
 
 import * as sendbird from '~/server/sendbird'
@@ -14,9 +14,9 @@ import { set_index } from '~/core/search'
 import { verify_clerk_auth } from './auth'
 
 import { type VerificationDataType, verification_data } from '~/core/structures'
-import { novu } from '~/server/novu'
+import { novu, NovuWorkflows } from '~/server/novu'
 
-async function create_artist(input: VerificationDataType, user: User) {
+async function create_artist(input: VerificationDataType, user_id: string) {
     const social_accounts: SocialAccount[] = []
 
     if (input.twitter) {
@@ -33,6 +33,18 @@ async function create_artist(input: VerificationDataType, user: User) {
         })
     }
 
+    // Get the user from the database
+    const user = await db.query.users.findFirst({
+        where: eq(users.clerk_id, user_id)
+    })
+
+    if (!user) {
+        throw new Error('User could not be found!')
+    }
+
+    // Get the user's profile url
+    const profile_url = (await clerkClient.users.getUser(user_id)).imageUrl
+
     // Create Stripe Account for artist
     const generated_stripe_account = await StripeCreateAccount()
 
@@ -44,7 +56,7 @@ async function create_artist(input: VerificationDataType, user: User) {
         id: generated_id,
         stripe_account: generated_stripe_account.id,
         location: input.location,
-        user_id: user.id,
+        user_id: user.clerk_id,
         handle: input.requested_handle,
         socials: social_accounts
     })
@@ -58,30 +70,29 @@ async function create_artist(input: VerificationDataType, user: User) {
     }
 
     // Check if the user already has a sendbird account
-    if (!user.publicMetadata.has_sendbird_account) {
+    if (!user.has_sendbird_account) {
         // Create Sendbird user
         await sendbird.create_user({
-            userId: user.id,
+            userId: user.clerk_id,
             nickname: artist.handle,
-            profileUrl: user.imageUrl
+            profileUrl: profile_url
         })
     }
 
-    await clerkClient.users.updateUserMetadata(user.id, {
-        publicMetadata: {
-            has_sendbird_account: true
-        },
-        privateMetadata: {
+    await db
+        .update(users)
+        .set({
+            has_sendbird_account: true,
             artist_id: artist.id
-        }
-    })
+        })
+        .where(eq(users.clerk_id, user.clerk_id))
 
     // Update Algolia
     await set_index('artists', {
         objectID: artist.id,
         handle: artist.handle,
         about: artist.about,
-        image_url: user.imageUrl
+        image_url: user.clerk_id
     })
 
     return artist
@@ -127,15 +138,16 @@ export async function verify_artist(prev_state: unknown, form_data: FormData) {
 
                 const user = auth()
 
-                // Create the artist
-                await create_artist(
-                    validateFields.data,
-                    await clerkClient.users.getUser(user.userId!)
-                )
+                if (!user.userId) {
+                    return { success: false, error: 'User not found' }
+                }
 
-                await novu.trigger('sign-up-approved', {
+                // Create the artist
+                await create_artist(validateFields.data, user.userId)
+
+                await novu.trigger(NovuWorkflows.SignUpApproved, {
                     to: {
-                        subscriberId: user.userId!
+                        subscriberId: user.userId
                     },
                     payload: {
                         artist_handle: validateFields.data.requested_handle
@@ -156,7 +168,7 @@ export async function verify_artist(prev_state: unknown, form_data: FormData) {
                 })
 
                 // Notify the user of the request
-                await novu.trigger('status-pending', {
+                await novu.trigger(NovuWorkflows.SignUpPending, {
                     to: {
                         subscriberId: auth().userId!
                     },

@@ -1,10 +1,10 @@
 import { createId } from '@paralleldrive/cuid2'
 import { TRPCError } from '@trpc/server'
 import { eq } from 'drizzle-orm'
+import { revalidateTag } from 'next/cache'
 import { z } from 'zod'
 
 import { artistProcedure, createTRPCRouter } from '~/server/api/trpc'
-import { AsRedisKey, cache, invalidate_cache } from '~/server/cache'
 import { portfolios } from '~/server/db/schema'
 
 import { utapi } from '~/server/uploadthing'
@@ -65,10 +65,7 @@ export const portfolioRouter = createTRPCRouter({
 
             // Invalidate Cache
 
-            await invalidate_cache(
-                AsRedisKey('portfolios', ctx.user.privateMetadata.artist_id as string),
-                'portfolio_list'
-            )
+            revalidateTag('portfolio_list')
         }),
 
     /**
@@ -89,19 +86,16 @@ export const portfolioRouter = createTRPCRouter({
             await ctx.db.delete(portfolios).where(eq(portfolios.id, input.id))
 
             // Delete single item from kv cache
-            await cache.json.del(
-                AsRedisKey(
-                    'portfolios',
-                    ctx.user.privateMetadata.artist_id as string,
-                    input.id
-                )
-            )
+            // await cache.json.del(
+            //     AsRedisKey(
+            //         'portfolios',
+            //         ctx.user.privateMetadata.artist_id as string,
+            //         input.id
+            //     )
+            // )
 
             // Invalidate Cache
 
-            await invalidate_cache(
-                AsRedisKey('portfolios', ctx.user.privateMetadata.artist_id as string),
-                'portfolio_list'
-            )
+            revalidateTag('portfolio_list')
         })
 })

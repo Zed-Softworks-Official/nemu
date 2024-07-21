@@ -34,17 +34,16 @@ import { get_blur_data } from '~/lib/blur_data'
 import { format_to_currency } from '~/lib/utils'
 import { Suspense } from 'react'
 import Loading from '~/components/ui/loading'
-import { AsRedisKey, cache } from '~/server/cache'
 
 const get_commission_requests = unstable_cache(
     async (slug: string, handle: string) => {
-        const cachedCommissionRequests = await cache.json.get(
-            AsRedisKey('requests', handle, slug)
-        )
+        // const cachedCommissionRequests = await cache.json.get(
+        //     AsRedisKey('requests', handle, slug)
+        // )
 
-        if (cachedCommissionRequests) {
-            return cachedCommissionRequests as ClientCommissionItem
-        }
+        // if (cachedCommissionRequests) {
+        //     return cachedCommissionRequests as ClientCommissionItem
+        // }
 
         const artist = await db.query.artists.findFirst({
             where: eq(artists.handle, handle)
@@ -99,7 +98,7 @@ const get_commission_requests = unstable_cache(
             requests: requests
         }
 
-        await cache.json.set(AsRedisKey('requests', handle, slug), '$', result)
+        // await cache.json.set(AsRedisKey('requests', handle, slug), '$', result)
 
         return result
     },
@@ -158,7 +157,9 @@ async function RequestsList(props: { slug: string }) {
                         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                             {commission.requests
                                 ?.filter(
-                                    (request) => (request.status as RequestStatus) === RequestStatus.Pending
+                                    (request) =>
+                                        (request.status as RequestStatus) ===
+                                        RequestStatus.Pending
                                 )
                                 .map((request) => (
                                     <RequestCard key={request.id} request={request} />
@@ -172,7 +173,9 @@ async function RequestsList(props: { slug: string }) {
                         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                             {commission.requests
                                 ?.filter(
-                                    (request) => (request.status as RequestStatus) === RequestStatus.Accepted
+                                    (request) =>
+                                        (request.status as RequestStatus) ===
+                                        RequestStatus.Accepted
                                 )
                                 .map((request) => (
                                     <RequestCard
@@ -193,7 +196,9 @@ async function RequestsList(props: { slug: string }) {
                         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                             {commission.requests
                                 ?.filter(
-                                    (request) => (request.status as RequestStatus) === RequestStatus.Waitlist
+                                    (request) =>
+                                        (request.status as RequestStatus) ===
+                                        RequestStatus.Waitlist
                                 )
                                 .map((request) => (
                                     <RequestCard
@@ -215,7 +220,8 @@ async function RequestsList(props: { slug: string }) {
                             {commission.requests
                                 ?.filter(
                                     (request) =>
-                                        (request.status as RequestStatus) === RequestStatus.Delivered
+                                        (request.status as RequestStatus) ===
+                                        RequestStatus.Delivered
                                 )
                                 .map((request) => (
                                     <RequestCard

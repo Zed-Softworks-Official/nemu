@@ -1,13 +1,13 @@
 import { createId } from '@paralleldrive/cuid2'
 import { TRPCError } from '@trpc/server'
 import { and, eq } from 'drizzle-orm'
+import { revalidateTag } from 'next/cache'
 import { z } from 'zod'
 import { StripeFinalizeInvoice, StripeUpdateInvoice } from '~/core/payments'
 import { InvoiceStatus } from '~/core/structures'
 import { artistProcedure, createTRPCRouter } from '~/server/api/trpc'
-import { AsRedisKey, invalidate_cache } from '~/server/cache'
 import { invoice_items, invoices, stripe_customer_ids } from '~/server/db/schema'
-import { novu } from '~/server/novu'
+import { novu, NovuWorkflows } from '~/server/novu'
 
 export const invoiceRouter = createTRPCRouter({
     update_invoice_items: artistProcedure
@@ -88,10 +88,7 @@ export const invoiceRouter = createTRPCRouter({
                 .where(eq(invoices.id, input.invoice_id))
 
             // Invalidate cache
-            await invalidate_cache(
-                AsRedisKey('requests', invoice.request.order_id),
-                'commission_requests'
-            )
+            revalidateTag('commission_requests')
         }),
 
     send_invoice: artistProcedure.input(z.string()).mutation(async ({ input, ctx }) => {
@@ -169,7 +166,7 @@ export const invoiceRouter = createTRPCRouter({
             .where(eq(invoices.id, input))
 
         // Notify User That Invoice Has Been Sent
-        await novu.trigger('invoice-sent', {
+        await novu.trigger(NovuWorkflows.InvoiceSent, {
             to: {
                 subscriberId: invoice.user_id
             },
@@ -178,11 +175,9 @@ export const invoiceRouter = createTRPCRouter({
                 commission_title: invoice.request.commission.title,
                 artist_handle: invoice.artist.handle
             }
-        }),
-            // Invalidate cache
-            await invalidate_cache(
-                AsRedisKey('requests', invoice.request.order_id),
-                'commission_requests'
-            )
+        })
+
+        // Invalidate cache
+        revalidateTag('commission_requests')
     })
 })

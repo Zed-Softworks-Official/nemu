@@ -12,7 +12,7 @@ import {
 } from '~/core/structures'
 import { novu } from '~/server/novu'
 import { clerkClient } from '@clerk/nextjs/server'
-import { AsRedisKey, invalidate_cache } from '~/server/cache'
+import { revalidateTag } from 'next/cache'
 
 export async function POST(req: Request) {
     const sig = req.headers.get('stripe-signature')
@@ -100,10 +100,7 @@ export async function POST(req: Request) {
                     .where(eq(artists.zed_customer_id, subscription.customer as string))
 
                 // Invalidate dashboard cache
-                await invalidate_cache(
-                    AsRedisKey('artists', subscription.customer as string),
-                    'artist-data'
-                )
+                revalidateTag('artist_data')
             }
             break
         case 'customer.subscription.deleted':
@@ -120,10 +117,7 @@ export async function POST(req: Request) {
                     .where(eq(artists.zed_customer_id, subscription.customer as string))
 
                 // Invalidate dashboard cache
-                await invalidate_cache(
-                    AsRedisKey('artists', subscription.customer as string),
-                    'artist-data'
-                )
+                revalidateTag('artist_data')
             }
             break
     }

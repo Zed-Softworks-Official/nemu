@@ -1,7 +1,6 @@
 import { and, eq, type InferSelectModel } from 'drizzle-orm'
 import { unstable_cache } from 'next/cache'
 
-import { AsRedisKey, cache } from '~/server/cache'
 import { artists, commissions, type downloads, forms, requests } from '~/server/db/schema'
 import { clerkClient, type User } from '@clerk/nextjs/server'
 import type {
@@ -26,11 +25,11 @@ type ArtistData = InferSelectModel<typeof artists> & {
 
 export const get_artist_data = unstable_cache(
     async (handle: string) => {
-        const cachedArtist = await cache.json.get(AsRedisKey('artists', handle))
+        // const cachedArtist = await cache.json.get(AsRedisKey('artists', handle))
 
-        if (cachedArtist) {
-            return cachedArtist as ArtistData
-        }
+        // if (cachedArtist) {
+        //     return cachedArtist as ArtistData
+        // }
 
         const artist = await db.query.artists.findFirst({
             where: eq(artists.handle, handle)
@@ -53,7 +52,7 @@ export const get_artist_data = unstable_cache(
             }
         }
 
-        await cache.json.set(AsRedisKey('artists', handle), '$', result)
+        // await cache.json.set(AsRedisKey('artists', handle), '$', result)
 
         return result
     },
@@ -67,13 +66,13 @@ export const get_artist_data = unstable_cache(
 
 export const get_commission = unstable_cache(
     async (handle: string, slug: string) => {
-        const cachedCommission = await cache.json.get(
-            AsRedisKey('commissions', handle, slug)
-        )
+        // const cachedCommission = await cache.json.get(
+        //     AsRedisKey('commissions', handle, slug)
+        // )
 
-        if (cachedCommission) {
-            return cachedCommission as ClientCommissionItem
-        }
+        // if (cachedCommission) {
+        //     return cachedCommission as ClientCommissionItem
+        // }
 
         // Get the artist from the db to fetch the commission
         const artist = await db.query.artists.findFirst({
@@ -115,7 +114,7 @@ export const get_commission = unstable_cache(
             }
         }
 
-        await cache.json.set(AsRedisKey('commissions', handle, slug), '$', result)
+        // await cache.json.set(AsRedisKey('commissions', handle, slug), '$', result)
 
         return result
     },
@@ -129,13 +128,13 @@ export const get_commission = unstable_cache(
 
 export const get_commission_list = unstable_cache(
     async (artist_id: string) => {
-        const cachedCommissions = await cache.json.get(
-            AsRedisKey('commissions', artist_id)
-        )
+        // const cachedCommissions = await cache.json.get(
+        //     AsRedisKey('commissions', artist_id)
+        // )
 
-        if (cachedCommissions) {
-            return cachedCommissions as ClientCommissionItem[]
-        }
+        // if (cachedCommissions) {
+        //     return cachedCommissions as ClientCommissionItem[]
+        // }
 
         const db_commissions = await db.query.commissions.findMany({
             where: eq(commissions.artist_id, artist_id),
@@ -174,7 +173,7 @@ export const get_commission_list = unstable_cache(
             })
         }
 
-        await cache.json.set(AsRedisKey('commissions', artist_id), '$', result)
+        // await cache.json.set(AsRedisKey('commissions', artist_id), '$', result)
 
         return result
     },
@@ -189,11 +188,11 @@ export const get_commission_list = unstable_cache(
 //////////////////////////////////////////////////////////
 export const get_request_list = unstable_cache(
     async (user_id: string) => {
-        const cachedRequests = await cache.json.get(AsRedisKey('requests', user_id))
+        // const cachedRequests = await cache.json.get(AsRedisKey('requests', user_id))
 
-        if (cachedRequests) {
-            return cachedRequests as ClientRequestData[]
-        }
+        // if (cachedRequests) {
+        //     return cachedRequests as ClientRequestData[]
+        // }
 
         const db_requests = await db.query.requests.findMany({
             where: eq(requests.user_id, user_id),
@@ -230,7 +229,7 @@ export const get_request_list = unstable_cache(
             })
         }
 
-        await cache.json.set(AsRedisKey('requests', user_id), '$', result)
+        // await cache.json.set(AsRedisKey('requests', user_id), '$', result)
 
         return result
     },
@@ -243,11 +242,11 @@ export const get_request_list = unstable_cache(
 //////////////////////////////////////////////////////////
 export const get_request_details = unstable_cache(
     async (order_id: string) => {
-        const cachedRequest = await cache.json.get(AsRedisKey('requests', order_id))
+        // const cachedRequest = await cache.json.get(AsRedisKey('requests', order_id))
 
-        if (cachedRequest) {
-            return cachedRequest as ClientRequestData
-        }
+        // if (cachedRequest) {
+        //     return cachedRequest as ClientRequestData
+        // }
 
         const request = await db.query.requests.findFirst({
             where: eq(requests.order_id, order_id),
@@ -301,7 +300,7 @@ export const get_request_details = unstable_cache(
             kanban: request.kanban ?? undefined
         }
 
-        await cache.json.set(AsRedisKey('requests', order_id), '$', result)
+        // await cache.json.set(AsRedisKey('requests', order_id), '$', result)
 
         return result
     },
@@ -314,11 +313,11 @@ export const get_request_details = unstable_cache(
 //////////////////////////////////////////////////////////
 export const get_form_list = unstable_cache(
     async (artist_id: string) => {
-        const cachedForms = await cache.json.get(AsRedisKey('forms', artist_id))
+        // const cachedForms = await cache.json.get(AsRedisKey('forms', artist_id))
 
-        if (cachedForms) {
-            return cachedForms as InferSelectModel<typeof forms>[]
-        }
+        // if (cachedForms) {
+        //     return cachedForms as InferSelectModel[]
+        // }
 
         const db_forms = await db.query.forms.findMany({
             where: eq(forms.artist_id, artist_id)
@@ -328,7 +327,7 @@ export const get_form_list = unstable_cache(
             return undefined
         }
 
-        await cache.json.set(AsRedisKey('forms', artist_id), '$', db_forms)
+        // await cache.json.set(AsRedisKey('forms', artist_id), '$', db_forms)
 
         return db_forms
     },
@@ -343,11 +342,11 @@ export const get_form_list = unstable_cache(
 //////////////////////////////////////////////////////////
 export const get_form = unstable_cache(
     async (form_id: string) => {
-        const cachedForm = await cache.json.get(AsRedisKey('forms', form_id))
+        // const cachedForm = await cache.json.get(AsRedisKey('forms', form_id))
 
-        if (cachedForm) {
-            return cachedForm as InferSelectModel<typeof forms>
-        }
+        // if (cachedForm) {
+        //     return cachedForm as InferSelectModel
+        // }
 
         const form = await db.query.forms.findFirst({
             where: eq(forms.id, form_id)
@@ -357,7 +356,7 @@ export const get_form = unstable_cache(
             return undefined
         }
 
-        await cache.json.set(AsRedisKey('forms', form_id), '$', form)
+        // await cache.json.set(AsRedisKey('forms', form_id), '$', form)
 
         return form
     },

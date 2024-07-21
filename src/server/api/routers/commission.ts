@@ -3,7 +3,6 @@ import { TRPCError } from '@trpc/server'
 
 import type { CommissionAvailability } from '~/core/structures'
 import { artistProcedure, createTRPCRouter } from '~/server/api/trpc'
-import { AsRedisKey, invalidate_cache } from '~/server/cache'
 
 import { format_to_currency } from '~/lib/utils'
 import { commissions } from '~/server/db/schema'
@@ -12,6 +11,7 @@ import { and, eq } from 'drizzle-orm'
 import { createId } from '@paralleldrive/cuid2'
 import { utapi } from '~/server/uploadthing'
 import { set_index, update_index } from '~/core/search'
+import { revalidateTag } from 'next/cache'
 
 export const commissionRouter = createTRPCRouter({
     /**
@@ -152,21 +152,10 @@ export const commissionRouter = createTRPCRouter({
                 })
 
                 // Invalidate cache
-                await invalidate_cache(
-                    AsRedisKey(
-                        'commissions',
-                        ctx.user.publicMetadata.handle as string,
-                        commission_updated.slug
-                    ),
-                    'commission'
-                )
+                revalidateTag('commission')
 
                 // Invalidate Commission List Cache
-
-                await invalidate_cache(
-                    AsRedisKey('commissions', commission_updated.artist_id),
-                    'commission_list'
-                )
+                revalidateTag('commission_list')
 
                 return { success: true, updated: true }
             }
@@ -246,10 +235,7 @@ export const commissionRouter = createTRPCRouter({
 
             // Invalidate Cache
 
-            await invalidate_cache(
-                AsRedisKey('commissions', commission.artist_id),
-                'commission_list'
-            )
+            revalidateTag('commission_list')
 
             return { success: true }
         })

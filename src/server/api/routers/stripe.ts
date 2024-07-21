@@ -14,7 +14,6 @@ import { TRPCError } from '@trpc/server'
 import { clerkClient } from '@clerk/nextjs/server'
 import { and, eq } from 'drizzle-orm'
 import { artists, products, stripe_customer_ids } from '~/server/db/schema'
-import { AsRedisKey, cache } from '~/server/cache'
 import type { StripeDashboardData } from '~/core/structures'
 import { createId } from '@paralleldrive/cuid2'
 
@@ -96,13 +95,13 @@ export const stripeRouter = createTRPCRouter({
      */
     get_dashboard_links: artistProcedure.query(async ({ ctx }) => {
         // Get Cached response
-        const cachedLinks = await cache.json.get(
-            AsRedisKey('stripe', ctx.user.id, 'dashboard_links')
-        )
+        // const cachedLinks = await cache.json.get(
+        //     AsRedisKey('stripe', ctx.user.id, 'dashboard_links')
+        // )
 
-        if (cachedLinks) {
-            return cachedLinks as StripeDashboardData
-        }
+        // if (cachedLinks) {
+        //     return cachedLinks as StripeDashboardData
+        // }
 
         // Get the artist from the db
         const artist = await ctx.db.query.artists.findFirst({
@@ -146,11 +145,11 @@ export const stripeRouter = createTRPCRouter({
             result.checkout_portal = portal_url
         }
 
-        await cache.json.set(
-            AsRedisKey('stripe', ctx.user.id, 'dashboard_links'),
-            '$',
-            result
-        )
+        // await cache.json.set(
+        //     AsRedisKey('stripe', ctx.user.id, 'dashboard_links'),
+        //     '$',
+        //     result
+        // )
 
         return result
     }),

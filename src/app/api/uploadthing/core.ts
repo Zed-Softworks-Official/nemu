@@ -1,10 +1,10 @@
 import { clerkClient, getAuth } from '@clerk/nextjs/server'
 import { eq } from 'drizzle-orm'
+import { revalidateTag } from 'next/cache'
 import { type NextRequest } from 'next/server'
 import { createUploadthing, type FileRouter } from 'uploadthing/next'
 import { UploadThingError } from 'uploadthing/server'
 import { update_index } from '~/core/search'
-import { AsRedisKey, invalidate_cache } from '~/server/cache'
 
 import { db } from '~/server/db'
 import { artists } from '~/server/db/schema'
@@ -69,7 +69,7 @@ export const nemuFileRouter = {
             })
 
             // Invalidate cache
-            await invalidate_cache(AsRedisKey('artists', artist.handle), 'artist-data')
+            revalidateTag('artist-data')
         }),
 
     /**

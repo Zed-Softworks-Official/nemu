@@ -9,8 +9,8 @@ import { type PublicUserMetadata, UserRole } from '~/core/structures'
 import { db } from '~/server/db'
 import { users } from '~/server/db/schema'
 import { update_index } from '~/core/search'
-import { AsRedisKey, invalidate_cache } from '~/server/cache'
 import * as sendbird from '~/server/sendbird'
+import { revalidateTag } from 'next/cache'
 
 /**
  * Handles Clerk Webhook Events
@@ -108,10 +108,7 @@ export async function POST(req: Request) {
                 })
 
                 // Invalidate Cache
-                await invalidate_cache(
-                    AsRedisKey('artists', artist.handle),
-                    'artist_data'
-                )
+                revalidateTag('artist_data')
 
                 // Update Sendbird
                 await sendbird.update_user(artist.user_id, {

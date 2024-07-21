@@ -2,13 +2,13 @@ import { clerkClient } from '@clerk/nextjs/server'
 import { createId } from '@paralleldrive/cuid2'
 import { TRPCError } from '@trpc/server'
 import { and, eq, sql } from 'drizzle-orm'
+import { revalidateTag } from 'next/cache'
 import { z } from 'zod'
 import { StripeCreateCustomer, StripeCreateInvoice } from '~/core/payments'
 import { InvoiceStatus, type KanbanContainerData, RequestStatus } from '~/core/structures'
 import { env } from '~/env'
 import { update_commission_check_waitlist } from '~/lib/server-utils'
 import { artistProcedure, createTRPCRouter, protectedProcedure } from '~/server/api/trpc'
-import { AsRedisKey, invalidate_cache } from '~/server/cache'
 import {
     commissions,
     invoice_items,
@@ -85,10 +85,7 @@ export const requestRouter = createTRPCRouter({
             })
 
             //  Invalidate Cache
-            await invalidate_cache(
-                AsRedisKey('requests', commission.artist.handle, commission.slug),
-                'commission_requests'
-            )
+            revalidateTag('commission_requests')
         }),
 
     /**
@@ -327,14 +324,7 @@ export const requestRouter = createTRPCRouter({
                 .where(eq(requests.id, request.id))
 
             // Invalidate Cache
-            await invalidate_cache(
-                AsRedisKey(
-                    'requests',
-                    request.commission.artist.handle,
-                    request.commission.slug
-                ),
-                'commission_requests'
-            )
+            revalidateTag('commission_requests')
 
             return { success: true }
         })

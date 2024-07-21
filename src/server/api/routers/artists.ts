@@ -1,9 +1,9 @@
 import { TRPCError } from '@trpc/server'
 import { eq } from 'drizzle-orm'
+import { revalidateTag } from 'next/cache'
 import { z } from 'zod'
 import { update_index } from '~/core/search'
 import { artistProcedure, createTRPCRouter } from '~/server/api/trpc'
-import { AsRedisKey, invalidate_cache } from '~/server/cache'
 import { artists } from '~/server/db/schema'
 
 export const artistRouter = createTRPCRouter({
@@ -57,9 +57,6 @@ export const artistRouter = createTRPCRouter({
             })
 
             // Invalidate cache
-            await invalidate_cache(
-                AsRedisKey('artists', artist_updated.handle),
-                'artist-data'
-            )
+            revalidateTag('artist_data')
         })
 })
