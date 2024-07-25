@@ -14,9 +14,12 @@ export default function NotificationPopover(props: { user_id: string }) {
     const theme = useTheme()
 
     return (
-        <KnockProvider apiKey={env.NEXT_PUBLIC_KNOCK_API_KEY} userId={props.user_id}>
+        <KnockProvider
+            apiKey={env.NEXT_PUBLIC_KNOCK_PUBLIC_API_KEY}
+            userId={props.user_id}
+        >
             <KnockFeedProvider
-                feedId={env.NEXT_PUBLIC_KNOCK_PUBLIC_API_KEY}
+                feedId={env.NEXT_PUBLIC_KNOCK_FEED_ID}
                 colorMode={theme.resolvedTheme === 'dark' ? 'dark' : 'light'}
             >
                 <FeedPopover />
@@ -26,7 +29,7 @@ export default function NotificationPopover(props: { user_id: string }) {
 }
 
 function FeedPopover() {
-    const knockFeed = useKnockFeed()
+    // const knockFeed = useKnockFeed()
 
     return (
         <Popover>
