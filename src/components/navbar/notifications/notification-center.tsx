@@ -1,6 +1,7 @@
 import { currentUser } from '@clerk/nextjs/server'
 
 import { Suspense } from 'react'
+
 import NotificationPopover from '~/components/navbar/notifications/notification-popover'
 
 export default function NotificationCenter() {

@@ -24,7 +24,8 @@ export const env = createEnv({
         DATABASE_URL: z.string(),
         DATABASE_HOST: z.string(),
         DATABASE_USERNAME: z.string(),
-        DATABASE_PASSWORD: z.string()
+        DATABASE_PASSWORD: z.string(),
+        KNOCK_API_KEY: z.string()
     },
 
     /**
@@ -37,7 +38,9 @@ export const env = createEnv({
         NEXT_PUBLIC_ALGOLIA_APP_ID: z.string(),
         NEXT_PUBLIC_ALGOLIA_SEARCH_API_KEY: z.string(),
         NEXT_PUBLIC_POSTHOG_KEY: z.string(),
-        NEXT_PUBLIC_POSTHOG_HOST: z.string()
+        NEXT_PUBLIC_POSTHOG_HOST: z.string(),
+        NEXT_PUBLIC_KNOCK_API_KEY: z.string(),
+        NEXT_PUBLIC_KNOCK_FEED_ID: z.string()
     },
 
     /**
@@ -60,6 +63,7 @@ export const env = createEnv({
         UPLOADTHING_APP_ID: process.env.UPLOADTHING_APP_ID,
         UPLOADTHING_SECRET: process.env.UPLOADTHING_SECRET,
         SENTRY_AUTH_TOKEN: process.env.SENTRY_AUTH_TOKEN,
+        KNOCK_API_KEY: process.env.KNOCK_API_KEY,
 
         DATABASE_URL: process.env.DATABASE_URL,
         DATABASE_HOST: process.env.DATABASE_HOST,
@@ -72,7 +76,9 @@ export const env = createEnv({
         NEXT_PUBLIC_ALGOLIA_SEARCH_API_KEY:
             process.env.NEXT_PUBLIC_ALGOLIA_SEARCH_API_KEY,
         NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
-        NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST
+        NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
+        NEXT_PUBLIC_KNOCK_API_KEY: process.env.NEXT_PUBLIC_KNOCK_API_KEY,
+        NEXT_PUBLIC_KNOCK_FEED_ID: process.env.NEXT_PUBLIC_KNOCK_FEED_ID
     },
     /**
      * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially
