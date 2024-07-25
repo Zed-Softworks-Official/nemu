@@ -39,7 +39,6 @@ export const env = createEnv({
         NEXT_PUBLIC_ALGOLIA_SEARCH_API_KEY: z.string(),
         NEXT_PUBLIC_POSTHOG_KEY: z.string(),
         NEXT_PUBLIC_POSTHOG_HOST: z.string(),
-        NEXT_PUBLIC_KNOCK_API_KEY: z.string(),
         NEXT_PUBLIC_KNOCK_PUBLIC_API_KEY: z.string(),
         NEXT_PUBLIC_KNOCK_FEED_ID: z.string()
     },
@@ -78,7 +77,6 @@ export const env = createEnv({
             process.env.NEXT_PUBLIC_ALGOLIA_SEARCH_API_KEY,
         NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
         NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
-        NEXT_PUBLIC_KNOCK_API_KEY: process.env.NEXT_PUBLIC_KNOCK_API_KEY,
         NEXT_PUBLIC_KNOCK_PUBLIC_API_KEY: process.env.NEXT_PUBLIC_KNOCK_PUBLIC_API_KEY,
         NEXT_PUBLIC_KNOCK_FEED_ID: process.env.NEXT_PUBLIC_KNOCK_FEED_ID
     },
