@@ -16,7 +16,7 @@ export default function NotificationPopover(props: { user_id: string }) {
     return (
         <KnockProvider apiKey={env.NEXT_PUBLIC_KNOCK_API_KEY} userId={props.user_id}>
             <KnockFeedProvider
-                feedId={env.NEXT_PUBLIC_KNOCK_FEED_ID}
+                feedId={env.NEXT_PUBLIC_KNOCK_PUBLIC_API_KEY}
                 colorMode={theme.resolvedTheme === 'dark' ? 'dark' : 'light'}
             >
                 <FeedPopover />
