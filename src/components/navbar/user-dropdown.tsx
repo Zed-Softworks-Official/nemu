@@ -122,12 +122,14 @@ async function UserDropdownContent(props: { user: User }) {
                     Requests
                 </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem>
-                <Link href={messages_url} className="flex w-full items-center gap-3">
-                    <MailIcon className="h-6 w-6" />
-                    Messages
-                </Link>
-            </DropdownMenuItem>
+            {current_user?.has_sendbird_account && (
+                <DropdownMenuItem>
+                    <Link href={messages_url} className="flex w-full items-center gap-3">
+                        <MailIcon className="h-6 w-6" />
+                        Messages
+                    </Link>
+                </DropdownMenuItem>
+            )}
             <DropdownMenuItem>
                 <Link href={'/u/account'} className="flex w-full items-center gap-3">
                     <Settings2Icon className="h-6 w-6" />

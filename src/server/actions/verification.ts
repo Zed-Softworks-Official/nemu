@@ -2,7 +2,12 @@
 
 import { auth, clerkClient } from '@clerk/nextjs/server'
 
-import { type SocialAccount, SocialAgent, VerificationMethod } from '~/core/structures'
+import {
+    type SocialAccount,
+    SocialAgent,
+    UserRole,
+    VerificationMethod
+} from '~/core/structures'
 import { StripeCreateAccount } from '~/core/payments'
 import { createId } from '@paralleldrive/cuid2'
 import { db } from '~/server/db'
@@ -14,7 +19,7 @@ import { set_index } from '~/core/search'
 import { verify_clerk_auth } from './auth'
 
 import { type VerificationDataType, verification_data } from '~/core/structures'
-import { novu, NovuWorkflows } from '~/server/novu'
+import { knock, KnockWorkflows } from '../knock'
 
 async function create_artist(input: VerificationDataType, user_id: string) {
     const social_accounts: SocialAccount[] = []
@@ -83,6 +88,7 @@ async function create_artist(input: VerificationDataType, user_id: string) {
     await db
         .update(users)
         .set({
+            role: UserRole.Artist,
             has_sendbird_account: true,
             artist_id: artist.id
         })
@@ -153,11 +159,10 @@ export async function verify_artist(prev_state: unknown, form_data: FormData) {
                 // Create the artist
                 await create_artist(validateFields.data, user.userId)
 
-                await novu.trigger(NovuWorkflows.SignUpApproved, {
-                    to: {
-                        subscriberId: user.userId
-                    },
-                    payload: {
+                // Notify the user that they've been approved
+                await knock.workflows.trigger(KnockWorkflows.VerificationApproved, {
+                    recipients: [user.userId],
+                    data: {
                         artist_handle: validateFields.data.requested_handle
                     }
                 })
@@ -176,11 +181,8 @@ export async function verify_artist(prev_state: unknown, form_data: FormData) {
                 })
 
                 // Notify the user of the request
-                await novu.trigger(NovuWorkflows.SignUpPending, {
-                    to: {
-                        subscriberId: auth().userId!
-                    },
-                    payload: {}
+                await knock.workflows.trigger(KnockWorkflows.VerificationPending, {
+                    recipients: [auth().userId!]
                 })
             }
             break

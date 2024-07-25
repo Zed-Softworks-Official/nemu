@@ -11,6 +11,7 @@ import { users } from '~/server/db/schema'
 import { update_index } from '~/core/search'
 import * as sendbird from '~/server/sendbird'
 import { revalidateTag } from 'next/cache'
+import { knock } from '~/server/knock'
 
 /**
  * Handles Clerk Webhook Events
@@ -73,6 +74,12 @@ export async function POST(req: Request) {
                     clerk_id: event.data.id,
                     role: UserRole.Standard,
                     has_sendbird_account: false
+                })
+
+                // Identify the user in Knock
+                await knock.users.identify(event.data.id, {
+                    username: event.data.username,
+                    email: event.data.email_addresses[0]?.email_address
                 })
 
                 return new Response('User Created', { status: 200 })
