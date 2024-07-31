@@ -5,9 +5,10 @@ import { revalidateTag } from 'next/cache'
 import { z } from 'zod'
 import { StripeFinalizeInvoice, StripeUpdateInvoice } from '~/core/payments'
 import { InvoiceStatus } from '~/core/structures'
+import { env } from '~/env'
 import { artistProcedure, createTRPCRouter } from '~/server/api/trpc'
 import { invoice_items, invoices, stripe_customer_ids } from '~/server/db/schema'
-import { novu, NovuWorkflows } from '~/server/novu'
+import { knock, KnockWorkflows } from '~/server/knock'
 
 export const invoiceRouter = createTRPCRouter({
     update_invoice_items: artistProcedure
@@ -166,14 +167,13 @@ export const invoiceRouter = createTRPCRouter({
             .where(eq(invoices.id, input))
 
         // Notify User That Invoice Has Been Sent
-        await novu.trigger(NovuWorkflows.InvoiceSent, {
-            to: {
-                subscriberId: invoice.user_id
-            },
-            payload: {
-                order_id: invoice.request.order_id,
+        await knock.workflows.trigger(KnockWorkflows.InvoiceSent, {
+            recipients: [invoice.user_id],
+            data: {
                 commission_title: invoice.request.commission.title,
-                artist_handle: invoice.artist.handle
+                artist_handle: invoice.artist.handle,
+                invoice_url:
+                    env.BASE_URL + '/requests/' + invoice.request.order_id + '/invoices'
             }
         })
 

@@ -196,10 +196,10 @@ export default function TermsPage() {
                             Our designated agent for notice of claims of copyright
                             infringement can be reached at:{' '}
                             <Link
-                                href="mailto:support@zedsoftworks.com"
+                                href="mailto:support@zedsoftworks.dev"
                                 className="link-hover link"
                             >
-                                support@zedsoftworks.com
+                                support@zedsoftworks.dev
                             </Link>
                             .
                         </p>
@@ -257,10 +257,10 @@ export default function TermsPage() {
                             If you have any questions about these Terms, please contact us
                             at{' '}
                             <Link
-                                href="mailto:support@zedsoftworks.com"
+                                href="mailto:support@zedsoftworks.dev"
                                 className="link-hover link"
                             >
-                                support@zedsoftworks.com
+                                support@zedsoftworks.dev
                             </Link>
                             .
                         </p>

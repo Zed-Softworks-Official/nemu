@@ -9,5 +9,13 @@ if (env.NODE_ENV !== 'production') globalForKnock.knock = knock
 
 export enum KnockWorkflows {
     VerificationApproved = 'verification-approved',
-    VerificationPending = 'verification-pending'
+    VerificationDeclined = 'verification-declined',
+    VerificationPending = 'verification-pending',
+
+    InvoiceSent = 'invoice-sent',
+    InvoicePaid = 'invoice-paid',
+
+    CommissionRequestUserEnd = 'commission-request-user-end',
+    CommissionRequestArtistEnd = 'commission-request-artist-end',
+    CommissionDetermineRequest = 'commission-determine-request'
 }

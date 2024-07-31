@@ -10,9 +10,9 @@ import {
     PurchaseType,
     type StripePaymentMetadata
 } from '~/core/structures'
-import { novu } from '~/server/novu'
 import { clerkClient } from '@clerk/nextjs/server'
 import { revalidateTag } from 'next/cache'
+import { knock, KnockWorkflows } from '~/server/knock'
 
 export async function POST(req: Request) {
     const sig = req.headers.get('stripe-signature')
@@ -74,14 +74,13 @@ export async function POST(req: Request) {
                 }
 
                 // Notify artist that invoice has been paid
-                await novu.trigger('invoice-paid', {
-                    to: {
-                        subscriberId: db_invoice?.artist.user_id
-                    },
-                    payload: {
+                await knock.workflows.trigger(KnockWorkflows.InvoicePaid, {
+                    recipients: [db_invoice?.artist.user_id],
+                    data: {
                         commission_title: db_invoice?.request.commission.title,
-                        username: (await clerkClient.users.getUser(db_invoice.user_id))
-                            .username!
+                        request_username: (
+                            await clerkClient.users.getUser(db_invoice.user_id)
+                        ).username
                     }
                 })
             }

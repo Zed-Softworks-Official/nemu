@@ -15,7 +15,7 @@ export default function Footer() {
                         />
                         <p>
                             &copy; {new Date().getFullYear()}{' '}
-                            <Link href="https://zedsoftworks.com" target="_blank">
+                            <Link href="https://zedsoftworks.dev" target="_blank">
                                 Zed Softworks LLC
                             </Link>
                         </p>

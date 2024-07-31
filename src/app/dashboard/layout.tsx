@@ -70,7 +70,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     <footer className="flex flex-row items-center justify-center gap-5">
                         <span className="text-base-content/80">
                             &copy; {new Date().getFullYear()}{' '}
-                            <Link href={'https://zedsoftworks.com'} target={'_blank'}>
+                            <Link href={'https://zedsoftworks.dev'} target={'_blank'}>
                                 Zed Softworks LLC
                             </Link>
                         </span>

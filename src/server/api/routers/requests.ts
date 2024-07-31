@@ -17,7 +17,7 @@ import {
     requests,
     stripe_customer_ids
 } from '~/server/db/schema'
-import { novu } from '~/server/novu'
+import { knock, KnockWorkflows } from '~/server/knock'
 import * as sendbird from '~/server/sendbird'
 
 export const requestRouter = createTRPCRouter({
@@ -63,24 +63,21 @@ export const requestRouter = createTRPCRouter({
             })
 
             // Notify the user of the request
-            await novu.trigger('commission-request-user-end', {
-                to: {
-                    subscriberId: ctx.user.id
-                },
-                payload: {
+            await knock.workflows.trigger(KnockWorkflows.CommissionRequestUserEnd, {
+                recipients: [ctx.user.id],
+                data: {
                     commission_title: commission.title,
                     artist_handle: commission.artist.handle
                 }
             })
 
             // Notify the artist of a new request
-            await novu.trigger('commission-request-artist-end', {
-                to: {
-                    subscriberId: commission.artist.user_id
-                },
-                payload: {
+            await knock.workflows.trigger(KnockWorkflows.CommissionRequestArtistEnd, {
+                recipients: [commission.artist.user_id],
+                data: {
                     commission_title: commission.title,
-                    slug: commission.slug
+                    commission_requests_url:
+                        env.BASE_URL + '/dashboard/commissions/' + commission.slug
                 }
             })
 
@@ -179,14 +176,12 @@ export const requestRouter = createTRPCRouter({
                 .where(eq(commissions.id, request.commission_id))
 
             // Notify the user of the decision
-            await novu.trigger('commission-determine-request', {
-                to: {
-                    subscriberId: request.user_id
-                },
-                payload: {
+            await knock.workflows.trigger(KnockWorkflows.CommissionDetermineRequest, {
+                recipients: [request.user_id],
+                data: {
                     commission_title: request.commission.title,
                     artist_handle: request.commission.artist.handle,
-                    accepted: input.accepted
+                    status: input.accepted ? 'accepted' : 'rejected'
                 }
             })
 

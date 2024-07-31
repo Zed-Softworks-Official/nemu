@@ -114,8 +114,8 @@ export default function PrivacyPage() {
                 <p>
                     If you have any questions or concerns about this Privacy Policy,
                     please contact us at{' '}
-                    <a href="mailto:support@zedsoftworks.com" className="link-hover link">
-                        support@zedsoftworks.com
+                    <a href="mailto:support@zedsoftworks.dev" className="link-hover link">
+                        support@zedsoftworks.dev
                     </a>
                     .
                 </p>
