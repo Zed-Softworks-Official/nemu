@@ -312,12 +312,8 @@ export const get_request_details = unstable_cache(
 // Forms List
 //////////////////////////////////////////////////////////
 export const get_form_list = unstable_cache(
-    async (artist_id: string) => {
-        // const cachedForms = await cache.json.get(AsRedisKey('forms', artist_id))
-
-        // if (cachedForms) {
-        //     return cachedForms as InferSelectModel[]
-        // }
+    async (artist_id: string | null) => {
+        if (artist_id === null) return null
 
         const db_forms = await db.query.forms.findMany({
             where: eq(forms.artist_id, artist_id)
@@ -326,8 +322,6 @@ export const get_form_list = unstable_cache(
         if (!db_forms) {
             return undefined
         }
-
-        // await cache.json.set(AsRedisKey('forms', artist_id), '$', db_forms)
 
         return db_forms
     },

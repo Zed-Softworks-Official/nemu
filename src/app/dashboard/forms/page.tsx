@@ -6,7 +6,10 @@ import DashboardContainer from '~/components/ui/dashboard-container'
 import EmptyState from '~/components/ui/empty-state'
 import { Suspense } from 'react'
 import Loading from '~/components/ui/loading'
+import { db } from '~/server/db'
+import { users } from '~/server/db/schema'
 import { get_form_list } from '~/server/db/query'
+import { eq } from 'drizzle-orm'
 
 export default function FormsDashboardPage() {
     return (
@@ -17,8 +20,11 @@ export default function FormsDashboardPage() {
 }
 
 async function PageContent() {
-    const user = await currentUser()
-    const forms = await get_form_list(user!.privateMetadata.artist_id as string)
+    const user = await db.query.users.findFirst({
+        where: eq(users.clerk_id, (await currentUser())!.id)
+    })
+
+    const forms = await get_form_list(user!.artist_id)
 
     if (!forms || forms.length === 0) {
         return (

@@ -98,6 +98,9 @@ async function create_artist(input: VerificationDataType, user_id: string) {
     await clerkClient.users.updateUserMetadata(user.clerk_id, {
         publicMetadata: {
             handle: artist.handle
+        },
+        privateMetadata: {
+            artist_id: artist.id
         }
     })
 
