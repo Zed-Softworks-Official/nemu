@@ -28,7 +28,28 @@ const nunito = Nunito({
 export const metadata = {
     title: 'Nemu',
     description: 'An Artists Best Friend',
-    icons: [{ rel: 'icon', url: '/favicon.ico' }]
+    icons: [{ rel: 'icon', url: '/favicon.ico' }],
+    openGraph: {
+        images: [
+            {
+                url: 'https://nemu.art/profile.png'
+            }
+        ],
+        siteName: 'Nemu',
+        title: 'Nemu',
+        description: 'An Artists Best Friend',
+        url: 'https://nemu.art'
+    },
+    twitter: {
+        card: 'summary_large_image',
+        title: 'Nemu',
+        description: 'An Artists Best Friend',
+        images: [
+            {
+                url: 'https://nemu.art/profile.png'
+            }
+        ]
+    }
 } satisfies Metadata
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -138,7 +138,6 @@ export default function Home() {
                         alt="Artists Wanted"
                         width={200}
                         height={200}
-                        className=""
                     />
                 </div>
             </Link>
@@ -148,7 +147,7 @@ export default function Home() {
                     <TabsTrigger value="artists">Artists</TabsTrigger>
                     <TabsTrigger value="portfolio">Portfolio</TabsTrigger>
                 </TabsList>
-                <TabsContent value="commissions">
+                <TabsContent value="Commissions">
                     <Suspense fallback={<Loading />}>
                         <CommissionsList />
                     </Suspense>
