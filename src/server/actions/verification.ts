@@ -169,6 +169,11 @@ export async function verify_artist(prev_state: unknown, form_data: FormData) {
                         artist_handle: validateFields.data.requested_handle
                     }
                 })
+
+                // Delete artist code
+                await db
+                    .delete(artist_codes)
+                    .where(eq(artist_codes.code, validateFields.data.artist_code))
             }
             break
         case VerificationMethod.Twitter:

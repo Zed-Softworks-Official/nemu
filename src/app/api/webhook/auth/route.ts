@@ -7,7 +7,7 @@ import { clerkClient, type WebhookEvent } from '@clerk/nextjs/server'
 import { env } from '~/env'
 import { UserRole } from '~/core/structures'
 import { db } from '~/server/db'
-import { users } from '~/server/db/schema'
+import { users, artists } from '~/server/db/schema'
 import { update_index } from '~/core/search'
 import * as sendbird from '~/server/sendbird'
 import { revalidateTag } from 'next/cache'
@@ -90,7 +90,7 @@ export async function POST(req: Request) {
                 // Update the users profile photo if it's changed inside of
                 // algolia, sendbird, and invalidate the cache
                 const artist = await db.query.artists.findFirst({
-                    where: eq(users.clerk_id, event.data.id)
+                    where: eq(artists.user_id, event.data.id)
                 })
 
                 if (!artist) {
