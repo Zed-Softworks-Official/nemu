@@ -69,6 +69,12 @@ export async function POST(req: Request) {
                     })
                 }
 
+                await clerkClient.users.updateUserMetadata(event.data.id, {
+                    publicMetadata: {
+                        role: UserRole.Standard
+                    }
+                })
+
                 // Create a new user in the database
                 await db.insert(users).values({
                     clerk_id: event.data.id,
