@@ -1,4 +1,4 @@
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 import Link from 'next/link'
@@ -28,7 +28,7 @@ import { Button } from '~/components/ui/button'
 import RequestCardDropdown from '~/components/dashboard/request-card-dropdown'
 import { unstable_cache } from 'next/cache'
 import { db } from '~/server/db'
-import { artists, commissions } from '~/server/db/schema'
+import { artists, commissions, users } from '~/server/db/schema'
 import { and, eq } from 'drizzle-orm'
 import { get_blur_data } from '~/lib/blur_data'
 import { format_to_currency } from '~/lib/utils'
@@ -117,12 +117,33 @@ export default function CommissionDetailPage({ params }: { params: { slug: strin
 }
 
 async function RequestsList(props: { slug: string }) {
-    const user = await currentUser()
+    const clerk_user = await currentUser()
 
-    const commission = await get_commission_requests(
-        props.slug,
-        user?.publicMetadata.handle as string
-    )
+    if (!clerk_user) {
+        return redirect('/u/login')
+    }
+
+    const user = await db.query.users.findFirst({
+        where: eq(users.clerk_id, clerk_user.id)
+    })
+
+    if (!user) {
+        return redirect('/u/login')
+    }
+
+    if (user.artist_id === null) {
+        return notFound()
+    }
+
+    const artist = await db.query.artists.findFirst({
+        where: eq(artists.id, user.artist_id)
+    })
+
+    if (!artist) {
+        return notFound()
+    }
+
+    const commission = await get_commission_requests(props.slug, artist?.handle)
 
     if (!commission) {
         return notFound()

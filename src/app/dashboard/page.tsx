@@ -62,7 +62,7 @@ const get_recent_requests = unstable_cache(
             result.push({
                 commission_title: recent.commission.title,
                 requester_username: (
-                    await clerkClient().users.getUser(recent.request?.user_id)
+                    await clerkClient.users.getUser(recent.request?.user_id)
                 ).username!,
                 created_at: recent.request.created_at.toLocaleDateString()
             })
