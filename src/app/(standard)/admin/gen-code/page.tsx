@@ -46,7 +46,7 @@ export default function GenerateCodePage() {
     )
 }
 
-export async function CurrentArtistCodes() {
+async function CurrentArtistCodes() {
     const artist_codes = await get_artist_codes()
 
     return (
