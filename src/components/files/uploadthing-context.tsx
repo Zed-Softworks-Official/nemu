@@ -64,9 +64,7 @@ export default function UploadThingProvider({
         }
     })
 
-    const fileTypes = routeConfig
-        ? Object.keys(routeConfig)
-        : []
+    const fileTypes = routeConfig ? Object.keys(routeConfig) : []
 
     useEffect(() => {
         return () => {

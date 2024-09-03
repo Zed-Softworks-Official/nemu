@@ -28,7 +28,7 @@ import { Button } from '~/components/ui/button'
 import RequestCardDropdown from '~/components/dashboard/request-card-dropdown'
 import { unstable_cache } from 'next/cache'
 import { db } from '~/server/db'
-import { artists, commissions, users } from '~/server/db/schema'
+import { artists, commissions } from '~/server/db/schema'
 import { and, eq } from 'drizzle-orm'
 import { get_blur_data } from '~/lib/blur_data'
 import { format_to_currency } from '~/lib/utils'
@@ -37,14 +37,6 @@ import Loading from '~/components/ui/loading'
 
 const get_commission_requests = unstable_cache(
     async (slug: string, handle: string) => {
-        // const cachedCommissionRequests = await cache.json.get(
-        //     AsRedisKey('requests', handle, slug)
-        // )
-
-        // if (cachedCommissionRequests) {
-        //     return cachedCommissionRequests as ClientCommissionItem
-        // }
-
         const artist = await db.query.artists.findFirst({
             where: eq(artists.handle, handle)
         })
@@ -98,8 +90,6 @@ const get_commission_requests = unstable_cache(
             requests: requests
         }
 
-        // await cache.json.set(AsRedisKey('requests', handle, slug), '$', result)
-
         return result
     },
     ['comission_requests'],
@@ -123,27 +113,10 @@ async function RequestsList(props: { slug: string }) {
         return redirect('/u/login')
     }
 
-    const user = await db.query.users.findFirst({
-        where: eq(users.clerk_id, clerk_user.id)
-    })
-
-    if (!user) {
-        return redirect('/u/login')
-    }
-
-    if (user.artist_id === null) {
-        return notFound()
-    }
-
-    const artist = await db.query.artists.findFirst({
-        where: eq(artists.id, user.artist_id)
-    })
-
-    if (!artist) {
-        return notFound()
-    }
-
-    const commission = await get_commission_requests(props.slug, artist?.handle)
+    const commission = await get_commission_requests(
+        props.slug,
+        clerk_user.publicMetadata.handle as string
+    )
 
     if (!commission) {
         return notFound()

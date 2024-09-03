@@ -70,7 +70,7 @@
         "nodemailer": "^6.9.14",
         "optional": "^0.1.4",
         "plaiceholder": "^3.0.0",
-        "posthog-js": "^1.154.2",
+        "posthog-js": "^1.160.0",
         "react": "^18.3.1",
         "react-dom": "^18.3.1",
         "react-hook-form": "^7.52.2",

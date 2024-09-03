@@ -100,6 +100,9 @@ async function create_artist(input: VerificationDataType, user_id: string) {
             handle: artist.handle,
             role: UserRole.Artist,
             artist_id: artist.id
+        },
+        privateMetadata: {
+            artist_id: artist.id
         }
     })
 

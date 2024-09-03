@@ -94,6 +94,13 @@ export async function POST(req: Request) {
         case 'user.updated':
             {
                 // Update the users profile photo if it's changed inside of
+                if (
+                    (await clerkClient.users.getUser(event.data.id)).privateMetadata
+                        .role !== UserRole.Artist
+                ) {
+                    return new Response('User not an artist', { status: 200 })
+                }
+
                 // algolia, sendbird, and invalidate the cache
                 const artist = await db.query.artists.findFirst({
                     where: eq(artists.user_id, event.data.id)

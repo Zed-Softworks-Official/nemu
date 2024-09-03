@@ -26,7 +26,7 @@ export default function CommissionsDashboardPage() {
 async function PageContent() {
     const user = await currentUser()
     const commissions = await get_commission_list(
-        user!.privateMetadata.artist_id as string
+        user!.publicMetadata.artist_id as string
     )
 
     if (!commissions || commissions.length === 0) {

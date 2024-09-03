@@ -13,10 +13,9 @@ import {
 
 import { DashboardLogo } from '~/components/ui/logo'
 
-import { notFound, redirect } from 'next/navigation'
+import { redirect } from 'next/navigation'
 import { api } from '~/trpc/server'
 import { currentUser } from '@clerk/nextjs/server'
-import { UserRole } from '~/core/structures'
 import Link from 'next/link'
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '~/components/ui/tooltip'
@@ -26,7 +25,7 @@ import { Sheet, SheetContent, SheetTrigger } from '~/components/ui/sheet'
 import { Suspense } from 'react'
 import DashboardSidebarSkeleton from '~/components/skeletons/dashboard-sidebar-skeleton'
 import { db } from '~/server/db'
-import { users, artists } from '~/server/db/schema'
+import { artists } from '~/server/db/schema'
 import { eq } from 'drizzle-orm'
 
 export const metadata = {
@@ -91,24 +90,8 @@ async function SidebarContent() {
         return redirect('/u/login')
     }
 
-    const user = await db.query.users.findFirst({
-        where: eq(users.clerk_id, clerk_user.id)
-    })
-
-    if (!user) {
-        return notFound()
-    }
-
-    if (user.artist_id === null) {
-        return notFound()
-    }
-
-    if (user.role !== UserRole.Artist) {
-        return redirect('/u/login')
-    }
-
     const artist = await db.query.artists.findFirst({
-        where: eq(artists.id, user.artist_id)
+        where: eq(artists.id, clerk_user.publicMetadata.artist_id as string)
     })
 
     if (!artist) {
