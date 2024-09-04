@@ -199,6 +199,10 @@ export async function verify_artist(prev_state: unknown, form_data: FormData) {
     }
 
     return {
-        success: true
+        success: true,
+        route:
+            validateFields.data.method === VerificationMethod.Twitter
+                ? '/artists/apply/further-steps'
+                : '/artists/apply/success'
     }
 }

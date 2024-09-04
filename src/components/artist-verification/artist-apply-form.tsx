@@ -20,7 +20,10 @@ export default function ArtistApplyForm() {
     const [verificationMethod, setVerificationMethod] = useState<
         VerificationMethod | undefined
     >(undefined)
-    const [state, formAction] = useFormState(verify_artist, { success: false })
+    const [state, formAction] = useFormState(verify_artist, {
+        success: false,
+        route: '/artists/further-steps'
+    })
 
     const router = useRouter()
 
@@ -28,7 +31,7 @@ export default function ArtistApplyForm() {
         if (state.success && state.error === undefined) {
             toast.success('Verification Successful')
 
-            router.push('/artists/apply/success')
+            router.push(state.route)
         } else if (!state.success && state.error !== undefined) {
             toast.error(state.error)
         }
