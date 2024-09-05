@@ -39,7 +39,7 @@ export const stripeRouter = createTRPCRouter({
                 }
             }
 
-            const user = await clerkClient.users.getUser(ctx.user.id)
+            const user = await clerkClient().users.getUser(ctx.user.id)
 
             if (!user) {
                 throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' })

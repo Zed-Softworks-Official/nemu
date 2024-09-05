@@ -63,6 +63,7 @@ async function ArtistOnboardingButton() {
 
     return (
         <Link
+            target="_blank"
             href={dashboard_links?.managment.url ?? '/dashboard'}
             className="btn btn-primary btn-wide mt-10 text-white"
         >

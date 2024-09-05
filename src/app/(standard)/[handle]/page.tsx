@@ -30,7 +30,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         title: `Nemu | @${artist.handle}`,
         description: `Check out ${artist.handle}'s profile on Nemu!`,
         openGraph: {
-            images: [(await clerkClient.users.getUser(artist.user_id)).imageUrl]
+            images: [(await clerkClient().users.getUser(artist.user_id)).imageUrl]
         }
     }
 }

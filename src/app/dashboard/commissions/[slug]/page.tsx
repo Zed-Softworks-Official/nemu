@@ -71,7 +71,7 @@ const get_commission_requests = unstable_cache(
         for (const request of commission.requests) {
             requests.push({
                 ...request,
-                user: await clerkClient.users.getUser(request.user_id)
+                user: await clerkClient().users.getUser(request.user_id)
             })
         }
 

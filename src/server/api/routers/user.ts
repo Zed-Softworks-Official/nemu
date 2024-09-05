@@ -14,7 +14,7 @@ export const userRouter = createTRPCRouter({
             has_sendbird_account: false
         }
 
-        const user = await clerkClient.users.updateUserMetadata(ctx.auth.userId, {
+        const user = await clerkClient().users.updateUserMetadata(ctx.auth.userId, {
             publicMetadata
         })
 
@@ -30,7 +30,7 @@ export const userRouter = createTRPCRouter({
      * Add username to user
      */
     add_username: protectedProcedure.mutation(async ({ ctx }) => {
-        await clerkClient.users.updateUser(ctx.auth.userId, {
+        await clerkClient().users.updateUser(ctx.auth.userId, {
             username: ctx.user.firstName!
         })
 

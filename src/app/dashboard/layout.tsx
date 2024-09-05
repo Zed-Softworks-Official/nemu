@@ -8,7 +8,8 @@ import {
     LayersIcon,
     MailIcon,
     PanelLeftIcon,
-    UserIcon
+    UserIcon,
+    CogIcon
 } from 'lucide-react'
 
 import { DashboardLogo } from '~/components/ui/logo'
@@ -24,6 +25,13 @@ import DashboardBreadcrumbs from '~/components/dashboard/header-breadcrumbs'
 import { Sheet, SheetContent, SheetTrigger } from '~/components/ui/sheet'
 import { Suspense } from 'react'
 import DashboardSidebarSkeleton from '~/components/skeletons/dashboard-sidebar-skeleton'
+
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger
+} from '~/components/ui/dropdown-menu'
 import { db } from '~/server/db'
 import { artists } from '~/server/db/schema'
 import { eq } from 'drizzle-orm'
@@ -160,14 +168,36 @@ async function SidebarContent() {
                 />
                 <Tooltip>
                     <TooltipTrigger asChild>
-                        <Link href={'/u/account'}>
-                            <Avatar>
-                                <AvatarImage src={clerk_user.imageUrl} alt="Avatar" />
-                                <AvatarFallback>
-                                    <UserIcon className="h-6 w-6" />
-                                </AvatarFallback>
-                            </Avatar>
-                        </Link>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Avatar>
+                                    <AvatarImage src={clerk_user.imageUrl} alt="Avatar" />
+                                    <AvatarFallback>
+                                        <UserIcon className="h-6 w-6" />
+                                    </AvatarFallback>
+                                </Avatar>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent side="right" sideOffset={5}>
+                                <DropdownMenuItem>
+                                    <Link
+                                        href={'/u/account'}
+                                        className="flex flex-row items-center gap-3"
+                                    >
+                                        <UserIcon className="h-6 w-6" />
+                                        Account Settings
+                                    </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem>
+                                    <Link
+                                        href={'/dashboard/settings'}
+                                        className="flex flex-row items-center gap-3"
+                                    >
+                                        <CogIcon className="h-6 w-6" />
+                                        Artist Settings
+                                    </Link>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </TooltipTrigger>
                     <TooltipContent side="right" sideOffset={5}>
                         Account

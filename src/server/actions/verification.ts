@@ -19,7 +19,7 @@ import { set_index } from '~/core/search'
 import { verify_clerk_auth } from './auth'
 
 import { type VerificationDataType, verification_data } from '~/core/structures'
-import { knock, KnockWorkflows } from '../knock'
+import { knock, KnockWorkflows } from '~/server/knock'
 
 async function create_artist(input: VerificationDataType, user_id: string) {
     const social_accounts: SocialAccount[] = []
@@ -48,7 +48,7 @@ async function create_artist(input: VerificationDataType, user_id: string) {
     }
 
     // Get the user's profile url
-    const profile_url = (await clerkClient.users.getUser(user_id)).imageUrl
+    const profile_url = (await clerkClient().users.getUser(user_id)).imageUrl
 
     // Create Stripe Account for artist
     const generated_stripe_account = await StripeCreateAccount()
@@ -95,7 +95,7 @@ async function create_artist(input: VerificationDataType, user_id: string) {
         .where(eq(users.clerk_id, user.clerk_id))
 
     // Update the user in clerk
-    await clerkClient.users.updateUserMetadata(user.clerk_id, {
+    await clerkClient().users.updateUserMetadata(user.clerk_id, {
         publicMetadata: {
             handle: artist.handle,
             role: UserRole.Artist,

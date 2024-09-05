@@ -62,7 +62,7 @@ const get_recent_requests = unstable_cache(
             result.push({
                 commission_title: recent.commission.title,
                 requester_username: (
-                    await clerkClient.users.getUser(recent.request?.user_id)
+                    await clerkClient().users.getUser(recent.request?.user_id)
                 ).username!,
                 created_at: recent.request.created_at.toLocaleDateString()
             })
@@ -100,7 +100,7 @@ const get_recent_invoices = unstable_cache(
             result.push({
                 status: invoice.status as InvoiceStatus,
                 created_at: invoice.created_at.toLocaleDateString(),
-                requester_username: (await clerkClient.users.getUser(invoice.user_id))
+                requester_username: (await clerkClient().users.getUser(invoice.user_id))
                     .username!,
                 commission_title: invoice.request.commission.title
             })

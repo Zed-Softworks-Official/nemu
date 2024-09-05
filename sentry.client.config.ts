@@ -26,5 +26,8 @@ Sentry.init({
             maskAllText: true,
             blockAllMedia: true
         })
-    ]
+    ],
+
+    // Only allow errors from the nemu.art domain
+    allowUrls: ['https://nemu.art']
 })

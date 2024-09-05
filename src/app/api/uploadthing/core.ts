@@ -19,7 +19,7 @@ const auth = async (req: NextRequest, check_artist = false) => {
         throw new UploadThingError('Unauthorized')
     }
 
-    const user = await clerkClient.users.getUser(auth.userId)
+    const user = await clerkClient().users.getUser(auth.userId)
     if (check_artist) {
         if (!user.privateMetadata.artist_id) {
             throw new UploadThingError('Unauthorized')
@@ -65,11 +65,11 @@ export const nemuFileRouter = {
                 objectID: artist.id,
                 handle: artist.handle,
                 about: artist.about,
-                image_url: (await clerkClient.users.getUser(artist.user_id)).imageUrl
+                image_url: (await clerkClient().users.getUser(artist.user_id)).imageUrl
             })
 
             // Invalidate cache
-            revalidateTag('artist-data')
+            revalidateTag('artist_data')
         }),
 
     /**

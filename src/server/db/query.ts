@@ -39,7 +39,7 @@ export const get_artist_data = unstable_cache(
 
         const result: ArtistData = {
             ...artist,
-            user: await clerkClient.users.getUser(artist.user_id),
+            user: await clerkClient().users.getUser(artist.user_id),
             header: {
                 url: header_photo,
                 blur_data: await get_blur_data(header_photo)
@@ -191,7 +191,7 @@ export const get_request_list = unstable_cache(
                         }
                     ]
                 },
-                user: await clerkClient.users.getUser(request.user_id)
+                user: await clerkClient().users.getUser(request.user_id)
             })
         }
 
@@ -252,7 +252,7 @@ export const get_request_details = unstable_cache(
 
         const result: ClientRequestData = {
             ...request,
-            user: await clerkClient.users.getUser(request.user_id),
+            user: await clerkClient().users.getUser(request.user_id),
             delivery: delivery,
             invoice: request.invoice ?? undefined,
             kanban: request.kanban ?? undefined

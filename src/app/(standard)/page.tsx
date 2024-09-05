@@ -40,7 +40,7 @@ const get_random_artists = unstable_cache(
         for (const artist of artists) {
             result.push({
                 ...artist,
-                user: await clerkClient.users.getUser(artist.user_id)
+                user: await clerkClient().users.getUser(artist.user_id)
             })
         }
 

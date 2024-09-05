@@ -79,7 +79,7 @@ export async function POST(req: Request) {
                     data: {
                         commission_title: db_invoice?.request.commission.title,
                         request_username: (
-                            await clerkClient.users.getUser(db_invoice.user_id)
+                            await clerkClient().users.getUser(db_invoice.user_id)
                         ).username
                     }
                 })

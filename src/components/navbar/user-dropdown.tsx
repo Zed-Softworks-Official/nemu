@@ -2,6 +2,7 @@ import {
     BarChartIcon,
     BrushIcon,
     CodeIcon,
+    CogIcon,
     LogInIcon,
     LogOutIcon,
     MailIcon,
@@ -99,6 +100,15 @@ async function UserDropdownContent(props: { user: User }) {
                         >
                             <BarChartIcon className="h-6 w-6" />
                             Artist&apos;s Dashboard
+                        </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                        <Link
+                            href={`/dashboard/settings`}
+                            className="flex w-full items-center gap-3"
+                        >
+                            <CogIcon className="h-6 w-6" />
+                            Artist Settings
                         </Link>
                     </DropdownMenuItem>
                 </>

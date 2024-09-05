@@ -125,7 +125,7 @@ export const requestRouter = createTRPCRouter({
 
             // If the stripe account does not exist, create one
             if (!customer_id) {
-                const request_user = await clerkClient.users.getUser(request.user_id)
+                const request_user = await clerkClient().users.getUser(request.user_id)
 
                 // Create customer account in stripe
                 const customer = await StripeCreateCustomer(
@@ -242,7 +242,7 @@ export const requestRouter = createTRPCRouter({
             })
 
             // Create a sendbird user if they don't exist
-            const user = await clerkClient.users.getUser(request.user_id)
+            const user = await clerkClient().users.getUser(request.user_id)
             if (!user.publicMetadata.has_sendbird_account) {
                 await sendbird.create_user({
                     userId: user.id,
@@ -250,7 +250,7 @@ export const requestRouter = createTRPCRouter({
                     profileUrl: user.imageUrl
                 })
 
-                await clerkClient.users.updateUserMetadata(user.id, {
+                await clerkClient().users.updateUserMetadata(user.id, {
                     publicMetadata: {
                         has_sendbird_account: true
                     }
