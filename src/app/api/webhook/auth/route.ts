@@ -112,7 +112,7 @@ export async function POST(req: Request) {
 
                 // Update Algolia
                 await update_index('artists', {
-                    objectID: event.data.id,
+                    objectID: artist.id,
                     handle: artist.handle,
                     about: artist.about,
                     image_url: event.data.image_url
