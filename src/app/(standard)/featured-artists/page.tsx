@@ -55,7 +55,7 @@ async function ArtistsList() {
                         priority
                     />
                 </figure>
-                <div className="card-body"></div>
+                <div className="card-body">How did you get here?</div>
             </div>
         </div>
     )
