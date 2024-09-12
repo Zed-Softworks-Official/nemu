@@ -13,7 +13,7 @@ import { currentUser } from '@clerk/nextjs/server'
 import { Suspense } from 'react'
 import Loading from '~/components/ui/loading'
 import type { ClientCommissionItem } from '~/core/structures'
-import { get_commission_list } from '~/server/db/query'
+import { get_commission_list, is_onboarding_complete } from '~/server/db/query'
 
 export default function CommissionsDashboardPage() {
     return (
@@ -29,6 +29,10 @@ async function PageContent() {
         user!.publicMetadata.artist_id as string
     )
 
+    const artist_onboarding_complete = await is_onboarding_complete(
+        user!.publicMetadata.artist_id as string
+    )
+
     if (!commissions || commissions.length === 0) {
         return (
             <DashboardContainer title="Commissions" contentClassName="h-full">
@@ -38,6 +42,7 @@ async function PageContent() {
                     description="Create a new commission to get started"
                     button_text="Create Commission"
                     icon={<FolderPlusIcon className="h-10 w-10" />}
+                    disabled={artist_onboarding_complete}
                 />
             </DashboardContainer>
         )

@@ -14,6 +14,7 @@ import { get_blur_data } from '~/lib/blur_data'
 import { convert_images_to_nemu_images } from '~/lib/server-utils'
 import { format_to_currency } from '~/lib/utils'
 import { env } from '~/env'
+import { StripeGetAccount } from '~/core/payments'
 
 //////////////////////////////////////////////////////////
 // Aritst Data
@@ -307,5 +308,33 @@ export const get_form = unstable_cache(
     ['form_details'],
     {
         tags: ['form']
+    }
+)
+
+//////////////////////////////////////////////////////////
+// Stripe
+//////////////////////////////////////////////////////////
+export const is_onboarding_complete = unstable_cache(
+    async (artist_id: string) => {
+        const artist = await db.query.artists.findFirst({
+            where: eq(artists.id, artist_id)
+        })
+
+        if (!artist) {
+            return false
+        }
+
+        const stripe_account = await StripeGetAccount(artist.stripe_account)
+
+        if (!stripe_account.charges_enabled) {
+            return false
+        }
+
+        return true
+    },
+    ['stripe_onboarding'],
+    {
+        tags: ['stripe_onboarding'],
+        revalidate: 3600
     }
 )
