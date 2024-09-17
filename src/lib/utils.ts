@@ -50,7 +50,7 @@ export function calculate_percentage_change(current: number, previous: number) {
 
     return (
         new Intl.NumberFormat('en-US', { signDisplay: 'exceptZero' }).format(
-            ((current - previous) / current) * 100
+            (current - previous) / current
         ) + '%'
     )
 }

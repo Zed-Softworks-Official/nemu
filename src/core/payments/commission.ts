@@ -1,5 +1,9 @@
 import { stripe } from '~/server/stripe'
-import { type InvoiceItem, PurchaseType, type StripePaymentMetadata } from '~/core/structures'
+import {
+    type InvoiceItem,
+    PurchaseType,
+    type StripePaymentMetadata
+} from '~/core/structures'
 import type Stripe from 'stripe'
 import { calculate_application_fee } from '.'
 
@@ -73,7 +77,7 @@ export async function StripeUpdateInvoice(
         await stripe.invoiceItems.create(
             {
                 customer: customer_id,
-                unit_amount: item.price * 100,
+                unit_amount: item.price,
                 quantity: item.quantity,
                 invoice: invoice_stripe_id,
                 description: item.name
@@ -87,7 +91,7 @@ export async function StripeUpdateInvoice(
         await stripe.invoices.update(
             invoice_stripe_id,
             {
-                application_fee_amount: calculate_application_fee(total_price) * 100
+                application_fee_amount: calculate_application_fee(total_price)
             },
             { stripeAccount: stripe_account }
         )

@@ -192,7 +192,7 @@ export default function CommissionCreateEditForm(props: {
                 data: {
                     title: values.title,
                     description: values.description,
-                    price: values.price * 100,
+                    price: values.price,
                     availability: values.commission_availability,
                     form_id: values.form_id,
                     max_commissions_until_waitlist: values.max_commissions_until_waitlist,
@@ -255,7 +255,7 @@ export default function CommissionCreateEditForm(props: {
             data: {
                 title: values.title,
                 description: values.description,
-                price: values.price * 100,
+                price: values.price,
                 availability: values.commission_availability,
                 images: uploaded_images,
                 form_id: values.form_id,
@@ -316,11 +316,11 @@ export default function CommissionCreateEditForm(props: {
                                     ref={field.ref}
                                     disabled={field.disabled}
                                     defaultValue={field.value}
-                                    onChange={(e) =>
+                                    onChange={(e) => {
                                         field.onChange(
-                                            e.currentTarget.valueAsNumber * 100
+                                            parseFloat(e.currentTarget.value) * 100
                                         )
-                                    }
+                                    }}
                                 />
                             </div>
                             <FormMessage />

@@ -21,13 +21,13 @@ export async function StripeCreateProductPaymentIntent(
     // TODO: Add Title of commission to payment intent
     return await stripe.paymentIntents.create(
         {
-            amount: checkout_data.price * 100,
+            amount: checkout_data.price,
             currency: 'usd',
             customer: checkout_data.customer_id,
             payment_method_types: ['card', 'link'],
             application_fee_amount:
                 checkout_data.supporter === false
-                    ? calculate_application_fee(checkout_data.price) * 100
+                    ? calculate_application_fee(checkout_data.price)
                     : undefined,
             metadata: metadata as unknown as Stripe.MetadataParam
         },
