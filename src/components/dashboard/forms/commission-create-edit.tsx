@@ -24,7 +24,11 @@ import {
     SelectValue
 } from '~/components/ui/select'
 import { Textarea } from '~/components/ui/textarea'
-import { type ClientCommissionItemEditable, CommissionAvailability, type ImageEditorData  } from '~/core/structures'
+import {
+    type ClientCommissionItemEditable,
+    CommissionAvailability,
+    type ImageEditorData
+} from '~/core/structures'
 import { api } from '~/trpc/react'
 
 /**
@@ -57,7 +61,7 @@ type CommissionSchemaType = z.infer<typeof commissionSchema>
  */
 export default function CommissionCreateEditForm(props: {
     forms: InferSelectModel<typeof forms>[]
-    edit_data?: ClientCommissionItemEditable  
+    edit_data?: ClientCommissionItemEditable
 }) {
     const [toastId, setToastId] = useState<string | number | undefined>()
 
@@ -98,8 +102,9 @@ export default function CommissionCreateEditForm(props: {
                   form_id: props.edit_data.form_id,
                   max_commissions_until_waitlist:
                       props.edit_data.max_commissions_until_waitlist,
-                  max_commissions_until_closed: props.edit_data.max_commissions_until_closed,
-                  price: props.edit_data.price,
+                  max_commissions_until_closed:
+                      props.edit_data.max_commissions_until_closed,
+                  price: props.edit_data.price / 100,
                   commission_availability: props.edit_data.availability
               }
             : undefined
@@ -187,7 +192,7 @@ export default function CommissionCreateEditForm(props: {
                 data: {
                     title: values.title,
                     description: values.description,
-                    price: values.price,
+                    price: values.price * 100,
                     availability: values.commission_availability,
                     form_id: values.form_id,
                     max_commissions_until_waitlist: values.max_commissions_until_waitlist,
@@ -250,7 +255,7 @@ export default function CommissionCreateEditForm(props: {
             data: {
                 title: values.title,
                 description: values.description,
-                price: values.price,
+                price: values.price * 100,
                 availability: values.commission_availability,
                 images: uploaded_images,
                 form_id: values.form_id,
@@ -305,14 +310,16 @@ export default function CommissionCreateEditForm(props: {
                                 </div>
                                 <Input
                                     placeholder="Starting Price"
-                                    type="number"
+                                    type="text"
                                     inputMode="numeric"
                                     className="join-item w-full"
                                     ref={field.ref}
                                     disabled={field.disabled}
                                     defaultValue={field.value}
                                     onChange={(e) =>
-                                        field.onChange(e.currentTarget.valueAsNumber)
+                                        field.onChange(
+                                            e.currentTarget.valueAsNumber * 100
+                                        )
                                     }
                                 />
                             </div>
@@ -357,7 +364,9 @@ export default function CommissionCreateEditForm(props: {
                             <Select
                                 onValueChange={field.onChange}
                                 defaultValue={
-                                    props.edit_data ? props.edit_data.availability : undefined
+                                    props.edit_data
+                                        ? props.edit_data.availability
+                                        : undefined
                                 }
                             >
                                 <SelectTrigger>

@@ -81,7 +81,7 @@ export const get_commission = unstable_cache(
         const result: ClientCommissionItem = {
             title: commission.title,
             description: commission.description,
-            price: format_to_currency(Number(commission.price)),
+            price: format_to_currency(Number(commission.price / 100)),
             availability: commission.availability as CommissionAvailability,
             rating: Number(commission.rating),
             images: images,
@@ -127,7 +127,7 @@ export const get_commission_list = unstable_cache(
             result.push({
                 title: commission.title,
                 description: commission.description,
-                price: format_to_currency(Number(commission.price)),
+                price: format_to_currency(Number(commission.price / 100)),
                 availability: commission.availability as CommissionAvailability,
                 rating: Number(commission.rating),
                 published: commission.published,
