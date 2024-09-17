@@ -47,7 +47,7 @@ const get_random_artists = unstable_cache(
         return result
     },
     ['random_artists'],
-    { tags: ['random_artists'], revalidate: 60 }
+    { tags: ['random_artists'], revalidate: 3600 }
 )
 
 const get_commissions = unstable_cache(
@@ -80,7 +80,7 @@ const get_commissions = unstable_cache(
     ['random_commissions'],
     {
         tags: ['random_comissions'],
-        revalidate: 60
+        revalidate: 3600
     }
 )
 
@@ -111,7 +111,7 @@ const get_random_portfolio = unstable_cache(
         return result
     },
     ['random_portfolio'],
-    { tags: ['random_portfolio'], revalidate: 60 }
+    { tags: ['random_portfolio'], revalidate: 3600 }
 )
 
 export default function Home() {
@@ -208,6 +208,7 @@ async function CommissionsList() {
         <div
             className={'columns-1 gap-5 space-y-5 sm:columns-3 lg:columns-4 xl:columns-5'}
         >
+            <pre>{JSON.stringify(commissions, null, 2)}</pre>
             {commissions.map((commission) => {
                 const [variant, text] = get_availability_badge_data(
                     commission.availability
