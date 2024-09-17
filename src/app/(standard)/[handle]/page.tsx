@@ -26,11 +26,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         return {}
     }
 
+    const image = (await clerkClient().users.getUser(artist.user_id)).imageUrl
+
     return {
         title: `Nemu | @${artist.handle}`,
         description: `Check out ${artist.handle}'s profile on Nemu!`,
+        twitter: {
+            title: `Nemu | @${artist.handle}`,
+            description: `Check out ${artist.handle}'s profile on Nemu!`,
+            images: [image]
+        },
         openGraph: {
-            images: [(await clerkClient().users.getUser(artist.user_id)).imageUrl]
+            images: [image]
         }
     }
 }
