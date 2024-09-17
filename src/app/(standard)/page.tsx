@@ -147,7 +147,7 @@ export default function Home() {
                     <TabsTrigger value="artists">Artists</TabsTrigger>
                     <TabsTrigger value="portfolio">Portfolio</TabsTrigger>
                 </TabsList>
-                <TabsContent value="Commissions">
+                <TabsContent value="commissions">
                     <Suspense fallback={<Loading />}>
                         <CommissionsList />
                     </Suspense>
@@ -208,7 +208,6 @@ async function CommissionsList() {
         <div
             className={'columns-1 gap-5 space-y-5 sm:columns-3 lg:columns-4 xl:columns-5'}
         >
-            <pre>{JSON.stringify(commissions, null, 2)}</pre>
             {commissions.map((commission) => {
                 const [variant, text] = get_availability_badge_data(
                     commission.availability
