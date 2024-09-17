@@ -23,14 +23,14 @@ import type { forms } from '~/server/db/schema'
 export default function CommissionContent(props: {
     commission: ClientCommissionItem
     form_data: InferSelectModel<typeof forms>
-    user_requested: boolean
+    user_requested: boolean | undefined
 }) {
     const [showForm, setShowForm] = useState(false)
     const [acceptedTerms, setAcceptedTerms] = useState(false)
 
     const [variant, text] = get_availability_badge_data(props.commission.availability)
 
-    if (showForm) {
+    if (showForm && props.user_requested !== undefined) {
         return (
             <RequestSubmitForm
                 commission_id={props.commission.id!}
@@ -104,7 +104,9 @@ export default function CommissionContent(props: {
                             onMouseDown={() => {
                                 setShowForm(true)
                             }}
-                            disabled={!acceptedTerms}
+                            disabled={
+                                !acceptedTerms || props.user_requested === undefined
+                            }
                         >
                             <ClipboardListIcon className="h-6 w-6" />
                             Commission

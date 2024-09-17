@@ -56,7 +56,7 @@ export default async function CommissionDisplay(props: {
     const form_data = await get_form(props.commission.form_id!)
     const user_requested = await get_user_requested(props.commission.form_id!, user?.id)
 
-    if (!form_data || user_requested === undefined) {
+    if (!form_data) {
         return notFound()
     }
 
