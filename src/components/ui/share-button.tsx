@@ -12,7 +12,7 @@ export default function ShareButton() {
         <Button
             variant={'outline'}
             onMouseDown={async () => {
-                await navigator.clipboard.writeText('http://localhost:3000' + pathname)
+                await navigator.clipboard.writeText('https://nemu.art' + pathname)
                 toast.info('Copied to clipboard')
             }}
         >
