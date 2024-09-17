@@ -143,7 +143,7 @@ export const commissionRouter = createTRPCRouter({
                 await update_index('commissions', {
                     objectID: commission_updated.id,
                     title: commission_updated.title,
-                    price: format_to_currency(commission_updated.price),
+                    price: format_to_currency(commission_updated.price / 100),
                     description: commission_updated.description,
                     featured_image: commission_updated.images[0]!.url,
                     slug: commission_updated.slug,

@@ -42,7 +42,7 @@ export const algoliaRouter = createTRPCRouter({
             await set_index('commissions', {
                 objectID: commission.id,
                 title: commission.title,
-                price: format_to_currency(commission.price),
+                price: format_to_currency(commission.price / 100),
                 description: commission.description,
                 featured_image: commission.images[0]!.url,
                 slug: commission.slug,
