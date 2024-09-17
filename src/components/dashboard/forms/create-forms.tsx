@@ -37,7 +37,7 @@ export default function FormCreateForm() {
                 id: toastId
             })
 
-            router.replace('/dashboard/forms')
+            router.push('/dashboard/forms')
         },
         onError: (e) => {
             if (!toastId) return
