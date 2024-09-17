@@ -8,8 +8,9 @@ import { Suspense } from 'react'
 import Loading from '~/components/ui/loading'
 import { db } from '~/server/db'
 import { users } from '~/server/db/schema'
-import { get_form_list } from '~/server/db/query'
+import { get_form_list, is_onboarding_complete } from '~/server/db/query'
 import { eq } from 'drizzle-orm'
+import { notFound } from 'next/navigation'
 
 export default function FormsDashboardPage() {
     return (
@@ -24,7 +25,17 @@ async function PageContent() {
         where: eq(users.clerk_id, (await currentUser())!.id)
     })
 
-    const forms = await get_form_list(user!.artist_id)
+    if (!user) {
+        return notFound()
+    }
+
+    if (!user.artist_id) {
+        return notFound()
+    }
+
+    const forms = await get_form_list(user.artist_id)
+
+    const onboarding_complete = await is_onboarding_complete(user.artist_id)
 
     if (!forms || forms.length === 0) {
         return (
@@ -35,6 +46,7 @@ async function PageContent() {
                     description="Create a new form to get started"
                     button_text="Create Form"
                     icon={<ClipboardPlusIcon className="h-10 w-10" />}
+                    disabled={onboarding_complete}
                 />
             </DashboardContainer>
         )

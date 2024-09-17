@@ -14,6 +14,7 @@ import { eq } from 'drizzle-orm'
 import { portfolios } from '~/server/db/schema'
 import { get_blur_data } from '~/lib/blur_data'
 import type { ClientPortfolioItem } from '~/core/structures'
+import { is_onboarding_complete } from '~/server/db/query'
 
 const get_portfolio_list = unstable_cache(
     async (artist_id: string) => {
@@ -58,6 +59,10 @@ async function PageContent() {
         user!.privateMetadata.artist_id as string
     )
 
+    const artist_onboarding_complete = await is_onboarding_complete(
+        user!.publicMetadata.artist_id as string
+    )
+
     if (portfolio_items.length === 0) {
         return (
             <DashboardContainer title="Portfolio" contentClassName="h-full">
@@ -67,6 +72,7 @@ async function PageContent() {
                     heading="No Portfolio Items"
                     description="Get started by creating a protfolio item"
                     button_text="Create Portfolio Item"
+                    disabled={artist_onboarding_complete}
                 />
             </DashboardContainer>
         )

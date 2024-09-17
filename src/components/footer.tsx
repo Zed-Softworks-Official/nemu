@@ -21,13 +21,19 @@ export default function Footer() {
                         </p>
                     </aside>
                     <nav>
-                        <h6 className="footer-title">Services</h6>
+                        <h6 className="footer-title">Artists</h6>
+                        {/*<Link href={'/featured-artists'} className="link-hover link">
+                            Featured Artists
+                        </Link> */}
                         <Link href={'/artists/apply'} className="link-hover link">
                             Become an Artist
                         </Link>
                         <Link href={'/artists/supporter'} className="link-hover link">
                             Become a Supporter
                         </Link>
+                    </nav>
+                    <nav>
+                        <h6 className="footer-title">Company</h6>
                         <Link href={'/roadmap'} className="link-hover link">
                             Roadmap
                         </Link>
