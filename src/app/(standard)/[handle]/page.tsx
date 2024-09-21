@@ -74,8 +74,8 @@ async function PageContent({ params }: Props) {
                         className="mx-auto h-96 w-full overflow-hidden rounded-xl object-cover"
                     />
                 </AspectRatio>
-                <div className="-my-28 mx-auto w-full rounded-xl bg-base-300/60 px-10 py-14 shadow-lg backdrop-blur-xl sm:max-w-[85%]">
-                    <div className="flex flex-col items-center justify-between sm:flex-row">
+                <div className="mx-auto my-28 w-full rounded-xl bg-base-300/60 px-10 py-14 shadow-lg backdrop-blur-xl sm:max-w-[85%] lg:-my-20 lg:py-14 xl:-my-28">
+                    <div className="flex flex-col items-center justify-between gap-5 lg:flex-row lg:gap-0">
                         <div className="flex items-center justify-start">
                             <div className="avatar relative">
                                 {artist_data.supporter && (
@@ -119,8 +119,8 @@ async function PageContent({ params }: Props) {
             </div>
 
             {/* Content Body */}
-            <div className="mt-36 flex gap-10">
-                <div className="h-fit w-1/3 rounded-xl bg-base-300 p-10 text-center">
+            <div className="flex flex-col gap-10 lg:mt-36 lg:flex-row">
+                <div className="h-fit w-full rounded-xl bg-base-300 p-10 text-center lg:w-1/3">
                     <div className="flex flex-col justify-center gap-5">
                         <div className="flex flex-col">
                             <div className="divider card-title">About</div>
