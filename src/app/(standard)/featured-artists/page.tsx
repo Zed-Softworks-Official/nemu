@@ -1,11 +1,44 @@
 import { unstable_cache } from 'next/cache'
+import { clerkClient } from '@clerk/nextjs/server'
 import { Suspense } from 'react'
+import { eq } from 'drizzle-orm'
+
+import { db } from '~/server/db'
+import { artists } from '~/server/db/schema'
+
 import NemuImage from '~/components/nemu-image'
 import Loading from '~/components/ui/loading'
 
+import { Card, CardHeader, CardTitle } from '~/components/ui/card'
+
+type FeaturedArtist = {
+    handle: string
+    header_photo: string
+    profile_photo?: string
+    about: string
+}
+
 const get_featured_artists = unstable_cache(
     async () => {
-        return []
+        const result: FeaturedArtist[] = []
+
+        const blinkyblonk = await db.query.artists.findFirst({
+            where: eq(artists.handle, 'blinkyblonk')
+        })
+
+        if (!blinkyblonk) {
+            return result
+        }
+
+        result.push({
+            handle: blinkyblonk.handle,
+            profile_photo: (await clerkClient().users.getUser(blinkyblonk.user_id))
+                .imageUrl,
+            header_photo: blinkyblonk.header_photo,
+            about: blinkyblonk.about
+        })
+
+        return result
     },
     ['featured_artists'],
     {
@@ -55,7 +88,15 @@ async function ArtistsList() {
                         priority
                     />
                 </figure>
-                <div className="card-body">How did you get here?</div>
+                <div className="card-body">
+                    {featured_artists.map((artist) => (
+                        <Card key={artist.handle}>
+                            <CardHeader>
+                                <CardTitle>{artist.handle}</CardTitle>
+                            </CardHeader>
+                        </Card>
+                    ))}
+                </div>
             </div>
         </div>
     )
