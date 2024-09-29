@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { CheckCircle2Icon, XCircleIcon } from 'lucide-react'
+import { CheckCircle2Icon, Save, Trash2, XCircleIcon } from 'lucide-react'
 import { useState } from 'react'
 
 import { toast } from 'sonner'
@@ -16,7 +16,9 @@ import { Button } from '~/components/ui/button'
 import { Label } from '~/components/ui/label'
 import { Input } from '~/components/ui/input'
 
-import { set_portfolio_item } from '~/server/actions/portfolio'
+import { delete_portfolio_item, set_portfolio_item } from '~/server/actions/portfolio'
+import NemuImage from '~/components/nemu-image'
+import { ClientPortfolioItem } from '~/core/structures'
 
 export function PortfolioCreateForm() {
     const [title, setTitle] = useState('')
@@ -108,8 +110,78 @@ export function PortfolioCreateForm() {
     )
 }
 
-export function PortfolioUpdateForm() {
-    return <></>
+export function PortfolioUpdateForm(props: { portfolio_item: ClientPortfolioItem }) {
+    const [title, setTitle] = useState(props.portfolio_item.title)
+    const [pending, setPending] = useState(false)
+
+    const router = useRouter()
+
+    async function DeletePortfolioItem() {
+        setPending(true)
+
+        const toast_id = toast.loading('Deleting Portfolio Item!')
+
+        const result = await delete_portfolio_item(props.portfolio_item.id)
+
+        if (!result.success) {
+            toast.error('Failed to delete portfolio item!', {
+                id: toast_id
+            })
+
+            setPending(false)
+            return
+        }
+
+        setPending(false)
+        toast.success('Deleted Portfolio Item!')
+
+        router.push('/dashboard/portfolio')
+    }
+
+    return (
+        <form className="mx-auto flex max-w-xl flex-col gap-5">
+            <div className="form-control">
+                <Label className="label">Title:</Label>
+                <Input
+                    placeholder="Title"
+                    name="title"
+                    defaultValue={title}
+                    onChange={(e) => setTitle(e.currentTarget.value)}
+                />
+            </div>
+            <div className="form-control">
+                <NemuImage
+                    src={props.portfolio_item.image.url}
+                    alt={props.portfolio_item.title}
+                    placeholder="blur"
+                    blurDataURL={props.portfolio_item.image.blur_data}
+                    width={1000}
+                    height={1000}
+                />
+            </div>
+            <div className="flex w-full flex-col items-center justify-between gap-5 sm:flex-row">
+                <Link href={'/dashboard/portfolio'} className="btn btn-outline">
+                    <XCircleIcon className="h-5 w-5" />
+                    Cancel
+                </Link>
+                <div className="flex flex-col gap-5 sm:flex-row">
+                    <Button
+                        onClick={() => DeletePortfolioItem()}
+                        variant={'destructive'}
+                        type="button"
+                        disabled={pending}
+                    >
+                        <Trash2 className="h-5 w-5" />
+                        Delete
+                    </Button>
+                    <Button type="button" disabled={pending}>
+                        <Save className="h-5 w-5" />
+                        Save
+                    </Button>
+                </div>
+            </div>
+        </form>
+    )
 }
 
 function PortfolioUploadThing() {
