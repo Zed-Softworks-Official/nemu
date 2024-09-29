@@ -85,17 +85,7 @@ export const portfolioRouter = createTRPCRouter({
             // Delete from db
             await ctx.db.delete(portfolios).where(eq(portfolios.id, input.id))
 
-            // Delete single item from kv cache
-            // await cache.json.del(
-            //     AsRedisKey(
-            //         'portfolios',
-            //         ctx.user.privateMetadata.artist_id as string,
-            //         input.id
-            //     )
-            // )
-
             // Invalidate Cache
-
             revalidateTag('portfolio_list')
         })
 })

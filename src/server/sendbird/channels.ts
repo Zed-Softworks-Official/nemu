@@ -10,7 +10,7 @@ import { sendbird } from './index'
  * @param {SendbirdChannelData} channel_data - the data for the channel to be created
  */
 export async function create_channel(channel_data: GcCreateChannelData) {
-    const channel = await sendbird.chanels.gcCreateChannel(
+    const channel = await sendbird.channels.gcCreateChannel(
         env.SENDBIRD_API_TOKEN,
         channel_data
     )

@@ -20,7 +20,7 @@ const init_sendbird = () => {
 const globalForSendbird = global as unknown as {
     sendbird: {
         users: sb.UserApi
-        chanels: sb.GroupChannelApi
+        channels: sb.GroupChannelApi
     }
 }
 

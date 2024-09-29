@@ -8,8 +8,8 @@ import { artists } from '~/server/db/schema'
 
 import NemuImage from '~/components/nemu-image'
 import Loading from '~/components/ui/loading'
-
-import { Card, CardHeader, CardTitle } from '~/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card'
+import { Avatar, AvatarImage, AvatarFallback } from '~/components/ui/avatar'
 
 type FeaturedArtist = {
     handle: string
@@ -78,26 +78,25 @@ async function ArtistsList() {
 
     return (
         <div className="grid grid-cols-1">
-            <div className="card bg-base-200 shadow-xl lg:card-side">
-                <figure>
-                    <NemuImage
-                        src={'/nemu/sparkles.png'}
-                        alt="Nemu Sparkles"
-                        width={200}
-                        height={200}
-                        priority
-                    />
-                </figure>
-                <div className="card-body">
-                    {featured_artists.map((artist) => (
-                        <Card key={artist.handle}>
-                            <CardHeader>
-                                <CardTitle>{artist.handle}</CardTitle>
-                            </CardHeader>
-                        </Card>
-                    ))}
-                </div>
-            </div>
+            {featured_artists.map((artist) => (
+                <Card key={artist.handle}>
+                    <CardHeader>
+                        <Avatar>
+                            <AvatarImage src={artist.profile_photo} alt="Avatar" />
+                            <AvatarFallback>
+                                <NemuImage
+                                    src={'/profile.png'}
+                                    alt="Profile"
+                                    width={20}
+                                    height={20}
+                                />
+                            </AvatarFallback>
+                        </Avatar>
+                        <CardTitle>{artist.handle}</CardTitle>
+                    </CardHeader>
+                    <CardContent>{artist.about}</CardContent>
+                </Card>
+            ))}
         </div>
     )
 }
