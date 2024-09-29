@@ -1,16 +1,17 @@
-import DashboardContainer from '~/components/ui/dashboard-container'
-
 import Link from 'next/link'
+import { Suspense } from 'react'
+import { notFound } from 'next/navigation'
+import { currentUser } from '@clerk/nextjs/server'
+
 import { EyeIcon, FolderPlusIcon } from 'lucide-react'
 
 import NemuImage from '~/components/nemu-image'
 import EmptyState from '~/components/ui/empty-state'
 import { get_availability_badge_data } from '~/lib/utils'
+import DashboardContainer from '~/components/ui/dashboard-container'
 import { Badge } from '~/components/ui/badge'
 import { Card, CardDescription, CardHeader, CardTitle } from '~/components/ui/card'
 
-import { currentUser } from '@clerk/nextjs/server'
-import { Suspense } from 'react'
 import Loading from '~/components/ui/loading'
 import type { ClientCommissionItem } from '~/core/structures'
 import { get_commission_list, is_onboarding_complete } from '~/server/db/query'
@@ -25,12 +26,16 @@ export default function CommissionsDashboardPage() {
 
 async function PageContent() {
     const user = await currentUser()
+    if (!user) {
+        return notFound()
+    }
+
     const commissions = await get_commission_list(
-        user!.publicMetadata.artist_id as string
+        user.privateMetadata.artist_id as string
     )
 
     const artist_onboarding_complete = await is_onboarding_complete(
-        user!.publicMetadata.artist_id as string
+        user.privateMetadata.artist_id as string
     )
 
     if (!commissions || commissions.length === 0) {

@@ -78,7 +78,6 @@
         "react-instantsearch-nextjs": "^0.3.12",
         "react-responsive-masonry": "^2.3.0",
         "recharts": "^2.12.7",
-        "sendbird-platform-sdk-typescript": "^0.0.18",
         "server-only": "^0.0.1",
         "sharp": "^0.33.5",
         "sonner": "^1.5.0",

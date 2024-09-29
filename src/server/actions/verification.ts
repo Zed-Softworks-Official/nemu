@@ -78,9 +78,9 @@ async function create_artist(input: VerificationDataType, user_id: string) {
     if (!user.has_sendbird_account) {
         // Create Sendbird user
         await sendbird.create_user({
-            userId: user.clerk_id,
+            user_id: user.clerk_id,
             nickname: artist.handle,
-            profileUrl: profile_url
+            profile_url: profile_url
         })
     }
 

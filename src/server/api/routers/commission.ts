@@ -234,7 +234,6 @@ export const commissionRouter = createTRPCRouter({
             })
 
             // Invalidate Cache
-
             revalidateTag('commission_list')
 
             return { success: true }
