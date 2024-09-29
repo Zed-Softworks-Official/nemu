@@ -34,7 +34,7 @@ export const kanbanRouter = createTRPCRouter({
                 }
             })
 
-            if (!request ?? !request?.kanban) {
+            if (!request?.kanban) {
                 return undefined
             }
 

@@ -16,9 +16,13 @@ import { Button } from '~/components/ui/button'
 import { Label } from '~/components/ui/label'
 import { Input } from '~/components/ui/input'
 
-import { delete_portfolio_item, set_portfolio_item } from '~/server/actions/portfolio'
+import {
+    delete_portfolio_item,
+    set_portfolio_item,
+    update_portfolio_item
+} from '~/server/actions/portfolio'
 import NemuImage from '~/components/nemu-image'
-import { ClientPortfolioItem } from '~/core/structures'
+import type { ClientPortfolioItem } from '~/core/structures'
 
 export function PortfolioCreateForm() {
     const [title, setTitle] = useState('')
@@ -138,6 +142,30 @@ export function PortfolioUpdateForm(props: { portfolio_item: ClientPortfolioItem
         router.push('/dashboard/portfolio')
     }
 
+    async function UpdatePortfolioItem() {
+        setPending(true)
+
+        const toast_id = toast.loading('Updating Portfolio Item')
+
+        const result = await update_portfolio_item(props.portfolio_item.id, title)
+
+        if (!result.success) {
+            toast.error('Failed to update portfolio item', {
+                id: toast_id
+            })
+
+            setPending(false)
+            return
+        }
+
+        setPending(false)
+        toast.success('Portfolio Item Updated', {
+            id: toast_id
+        })
+
+        router.push('/dashboard/portfolio')
+    }
+
     return (
         <form className="mx-auto flex max-w-xl flex-col gap-5">
             <div className="form-control">
@@ -174,7 +202,11 @@ export function PortfolioUpdateForm(props: { portfolio_item: ClientPortfolioItem
                         <Trash2 className="h-5 w-5" />
                         Delete
                     </Button>
-                    <Button type="button" disabled={pending}>
+                    <Button
+                        type="button"
+                        disabled={pending}
+                        onClick={() => UpdatePortfolioItem()}
+                    >
                         <Save className="h-5 w-5" />
                         Save
                     </Button>

@@ -110,3 +110,50 @@ export async function delete_portfolio_item(item_id: string) {
 
     return { success: true }
 }
+
+/**
+ * Updates the current portfolio item
+ * This function is skipped if the titles haven't changed
+ *
+ * @param {string} id - The id of the portfolio id
+ * @param {string} new_title - The new portfolio item
+ */
+export async function update_portfolio_item(id: string, new_title: string) {
+    // Check if the user is logged in
+    const auth_data = auth()
+    if (!auth_data.userId) {
+        console.error('User not signed in')
+
+        return { success: false }
+    }
+
+    // Get the portfolio item
+    const portfolio_item = await db.query.portfolios.findFirst({
+        where: eq(portfolios.id, id)
+    })
+
+    if (!portfolio_item) {
+        console.error('Portfolio item could not be found')
+
+        return { success: false }
+    }
+
+    // If the title didn't update then there's nothing to do
+    if (portfolio_item.title === new_title) {
+        return { success: true }
+    }
+
+    // Update the portfolio item
+    await db
+        .update(portfolios)
+        .set({
+            title: new_title
+        })
+        .where(eq(portfolios.id, portfolio_item.id))
+
+    // Invalidate the cache
+    revalidateTag('portfolio_list')
+    revalidateTag('portfolio')
+
+    return { success: true }
+}

@@ -100,7 +100,7 @@ export const publicProcedure = t.procedure
  * @see https://trpc.io/docs/procedures
  */
 export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
-    if (!ctx ?? !ctx.auth.userId ?? !ctx.user) {
+    if (!ctx.auth.userId || !ctx.user) {
         throw new TRPCError({ code: 'UNAUTHORIZED' })
     }
 
