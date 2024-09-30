@@ -11,9 +11,11 @@ import { useState } from 'react'
 import { api } from '~/trpc/react'
 import { CheckCircle2Icon, MenuIcon, XCircleIcon } from 'lucide-react'
 import { toast } from 'sonner'
+import { useRouter } from 'next/navigation'
 
 export default function RequestCardDropdown(props: { request_id: string }) {
     const [toastId, setToastId] = useState<string | number | null>(null)
+    const router = useRouter()
 
     const mutation = api.requests.determine_request.useMutation({
         onMutate: () => {
@@ -25,6 +27,7 @@ export default function RequestCardDropdown(props: { request_id: string }) {
             toast.success('Request Updated', {
                 id: toastId
             })
+            router.refresh()
         },
         onError: (e) => {
             if (!toastId) return

@@ -63,7 +63,7 @@ export const invoiceRouter = createTRPCRouter({
                         .update(invoice_items)
                         .set({
                             name: item.name,
-                            price: item.price,
+                            price: item.price * 100,
                             quantity: item.quantity
                         })
                         .where(eq(invoice_items.id, item.id))
@@ -72,7 +72,7 @@ export const invoiceRouter = createTRPCRouter({
                         id: createId(),
                         invoice_id: input.invoice_id,
                         name: item.name,
-                        price: item.price,
+                        price: item.price * 100,
                         quantity: item.quantity
                     })
                 }

@@ -10,7 +10,7 @@ import DataTable from '~/components/data-table'
 import debounce from 'lodash.debounce'
 import { type InvoiceItem, InvoiceStatus } from '~/core/structures'
 
-import  { type Dispatch, type SetStateAction, useCallback, useState } from 'react'
+import { type Dispatch, type SetStateAction, useCallback, useState } from 'react'
 import { Input } from '~/components/ui/input'
 import { Label } from '~/components/ui/label'
 import { PlusCircleIcon, Trash2Icon } from 'lucide-react'
@@ -38,7 +38,7 @@ export default function InvoiceEditor(props: {
         props.invoice.invoice_items.map((item) => ({
             id: item.id,
             name: item.name,
-            price: Number(item.price),
+            price: Number(item.price / 100),
             quantity: item.quantity
         }))
     )
@@ -124,7 +124,7 @@ function EditInvoiceModel(props: {
         onSuccess: () => {
             if (!toastId) return
 
-            revalidateTag('request-invoice-data')
+            revalidateTag('commission_requests')
 
             toast.success('Invoice Updated', {
                 id: toastId
