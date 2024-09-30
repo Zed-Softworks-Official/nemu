@@ -53,7 +53,8 @@ export default function RequestSubmitForm({
     const [submitted, setSubmitted] = useState(false)
     const [, setFormData] = useState<Record<string, FormDataType>>({})
 
-    const [pending, startTransition] = useTransition()
+    const [, startTransition] = useTransition()
+    const [pending, setPending] = useState(false)
 
     // Submit a value to the form
     const submitValue = useCallback((key: string, value: string) => {
@@ -63,8 +64,11 @@ export default function RequestSubmitForm({
 
     // Handles the form submission to the server
     async function submitForm() {
+        setPending(true)
+
         const validForm = validateForm()
         if (!validForm) {
+            setPending(false)
             setRenderKey(new Date().getTime())
             toast.error('Please check all required fields!')
 
@@ -76,7 +80,10 @@ export default function RequestSubmitForm({
         for (const key in formValues.current) {
             newFormData[key] = {
                 value: formValues.current[key]!,
-                label: (formElements.find((element) => element.id == key)?.extra_attributes as FormDataType).label
+                label: (
+                    formElements.find((element) => element.id == key)
+                        ?.extra_attributes as FormDataType
+                ).label
             }
         }
 
@@ -151,8 +158,8 @@ export default function RequestSubmitForm({
                 />
                 <h2 className="card-title">You&apos;re onto the next step!</h2>
                 <p className="text-base-content/80">
-                    We&apos;ll need you to fill out this form provided by the artist to get a
-                    better understanding of your commission.
+                    We&apos;ll need you to fill out this form provided by the artist to
+                    get a better understanding of your commission.
                 </p>
                 <div className="divider"></div>
             </div>
