@@ -23,7 +23,7 @@ const get_featured_artists = unstable_cache(
         const result: FeaturedArtist[] = []
 
         const blinkyblonk = await db.query.artists.findFirst({
-            where: eq(artists.handle, 'blinkyblonk')
+            where: eq(artists.handle, 'blinkeyblonk')
         })
 
         if (!blinkyblonk) {
