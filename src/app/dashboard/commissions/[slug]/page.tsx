@@ -92,7 +92,7 @@ const get_commission_requests = unstable_cache(
 
         return result
     },
-    ['comission_requests'],
+    ['commission_requests'],
     {
         tags: ['commission_requests']
     }

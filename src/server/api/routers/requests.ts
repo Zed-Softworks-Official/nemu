@@ -83,6 +83,7 @@ export const requestRouter = createTRPCRouter({
 
             //  Invalidate Cache
             revalidateTag('commission_requests')
+            revalidateTag('requests')
         }),
 
     /**

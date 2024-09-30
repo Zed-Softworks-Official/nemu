@@ -1,11 +1,11 @@
-import { and, eq } from 'drizzle-orm'
+import { and, eq, or } from 'drizzle-orm'
 import { unstable_cache } from 'next/cache'
 import { notFound } from 'next/navigation'
 import ImageViewer from '~/components/ui/image-viewer'
 import { db } from '~/server/db'
 import { forms, requests } from '~/server/db/schema'
 import CommissionContent from './content'
-import type { ClientCommissionItem } from '~/core/structures'
+import { RequestStatus, type ClientCommissionItem } from '~/core/structures'
 import { currentUser } from '@clerk/nextjs/server'
 
 const get_form = unstable_cache(
@@ -29,7 +29,14 @@ const get_user_requested = unstable_cache(
         }
 
         const request = await db.query.requests.findFirst({
-            where: and(eq(requests.user_id, user_id), eq(requests.form_id, form_id))
+            where: and(
+                eq(requests.user_id, user_id),
+                eq(requests.form_id, form_id),
+                or(
+                    eq(requests.status, RequestStatus.Pending),
+                    eq(requests.status, RequestStatus.Accepted)
+                )
+            )
         })
 
         if (!request) {

@@ -105,7 +105,9 @@ export default function CommissionContent(props: {
                                 setShowForm(true)
                             }}
                             disabled={
-                                !acceptedTerms || props.user_requested === undefined
+                                !acceptedTerms ||
+                                props.user_requested === undefined ||
+                                props.user_requested
                             }
                         >
                             <ClipboardListIcon className="h-6 w-6" />

@@ -227,7 +227,7 @@ async function CommissionsList() {
                             alt="Commission Image"
                             width={200}
                             height={200}
-                            className="w-full rounded-xl"
+                            className="w-full rounded-xl rounded-b-none"
                             placeholder="blur"
                             blurDataURL={commission.featured_image.blur_data}
                         />
