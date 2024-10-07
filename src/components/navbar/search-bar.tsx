@@ -1,20 +1,13 @@
 'use client'
 
 import Link from 'next/link'
-import { type Dispatch, type SetStateAction, useEffect, useState } from 'react'
-
-import debounce from 'lodash.debounce'
-import algoliasearch from 'algoliasearch/lite'
-
-import { InstantSearchNext } from 'react-instantsearch-nextjs'
-import { Index, Hits, Configure, useSearchBox } from 'react-instantsearch'
-
+import { useState, useEffect } from 'react'
 import { SearchIcon } from 'lucide-react'
 
-import { env } from '~/env'
+import debounce from 'lodash.debounce'
 import type { ArtistIndex, CommissionIndex } from '~/core/search'
-import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
-import NemuImage from '~/components/nemu-image'
+import { artist_index, commission_index } from '~/server/algolia'
+
 import {
     CommandDialog,
     CommandEmpty,
@@ -25,98 +18,100 @@ import {
     CommandSeparator
 } from '~/components/ui/command'
 
-const search_client = algoliasearch(
-    env.NEXT_PUBLIC_ALGOLIA_APP_ID,
-    env.NEXT_PUBLIC_ALGOLIA_SEARCH_API_KEY
-)
-
-const query_hook = debounce((query: string, search: (value: string) => void) => {
-    search(query)
-    console.log(query)
-}, 300)
+import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
+import NemuImage from '~/components/nemu-image'
 
 export default function SearchBar() {
     const [open, setOpen] = useState(false)
+    const [query, setQuery] = useState('')
 
-    return (
-        <div className="relative h-full w-full">
-            <InstantSearchNext
-                searchClient={search_client}
-                indexName="artists"
-                future={{ preserveSharedStateOnUnmount: true }}
-            >
-                <div
-                    className="hidden h-16 w-full flex-row items-center justify-between rounded-xl bg-base-200 p-5 sm:flex"
-                    onMouseDown={() => setOpen(true)}
-                >
-                    <Configure hitsPerPage={5} />
-                    <div className="flex flex-row items-center gap-5">
-                        <SearchIcon className="h-6 w-6" />
-                        <span className="text-base-content/80">Search</span>
-                    </div>
-                    <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded bg-base-300 px-1.5 font-mono text-[10px] font-medium text-base-content/80 opacity-100">
-                        <span className="text-xs">⌘</span>K
-                    </kbd>
-                </div>
-                <div
-                    className="flex w-full items-center justify-center sm:hidden"
-                    onMouseDown={() => setOpen(true)}
-                >
-                    <Configure hitsPerPage={5} />
-                    <SearchIcon className="h-6 w-6" />
-                </div>
-                <SearchPallete open={open} setOpen={setOpen} />
-            </InstantSearchNext>
-        </div>
-    )
-}
-
-function SearchPallete(props: {
-    open: boolean
-    setOpen: Dispatch<SetStateAction<boolean>>
-}) {
-    const { refine } = useSearchBox({
-        queryHook: query_hook
-    })
+    const [artistHits, setArtistHits] = useState<ArtistIndex[]>([])
+    const [commissionHits, setCommissionHits] = useState<CommissionIndex[]>([])
 
     useEffect(() => {
         const down = (e: KeyboardEvent) => {
             if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault()
-                props.setOpen((open) => !open)
+                setOpen((open) => !open)
             }
         }
 
         document.addEventListener('keydown', down)
         return () => document.removeEventListener('keydown', down)
-    }, [props])
+    }, [])
+
+    const search = debounce(async (query: string) => {
+        if (query) {
+            const artists = await artist_index.search(query, {
+                hitsPerPage: 5
+            })
+
+            const commissions = await commission_index.search(query, {
+                hitsPerPage: 5
+            })
+
+            setArtistHits(artists.hits as unknown as ArtistIndex[])
+            setCommissionHits(commissions.hits as unknown as CommissionIndex[])
+        } else {
+            setArtistHits([])
+            setCommissionHits([])
+        }
+    }, 500)
+
+    const handle_change = async (query: string) => {
+        await search(query)
+        setQuery(query)
+    }
 
     return (
-        <CommandDialog
-            open={props.open}
-            onOpenChange={props.setOpen}
-            shouldFilter={false}
-        >
-            <CommandInput placeholder="Search" onValueChange={(value) => refine(value)} />
-            <CommandList>
-                <CommandEmpty>No Results Found</CommandEmpty>
-                <CommandGroup heading="Artists">
-                    <Index indexName="artists">
-                        <Hits hitComponent={ArtistHit} />
-                    </Index>
-                </CommandGroup>
-                <CommandSeparator />
-                <CommandGroup heading="Commissions">
-                    <Index indexName="commissions">
-                        <Hits hitComponent={CommissionHit} />
-                    </Index>
-                </CommandGroup>
-            </CommandList>
-        </CommandDialog>
+        <div className="relative h-full w-full">
+            <div
+                className="hidden h-16 w-full flex-row items-center justify-between rounded-xl bg-base-200 p-5 sm:flex"
+                onClick={() => setOpen(true)}
+            >
+                <div className="flex flex-row items-center gap-5">
+                    <SearchIcon className="h-6 w-6" />
+                    <span className="text-base-content/80">Search</span>
+                </div>
+                <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded bg-base-300 px-1.5 font-mono text-[10px] font-medium text-base-content/80 opacity-100">
+                    <span className="text-xs">⌘</span>K
+                </kbd>
+            </div>
+            <CommandDialog open={open} onOpenChange={setOpen}>
+                <CommandInput
+                    placeholder="Search"
+                    value={query}
+                    onValueChange={handle_change}
+                />
+                <CommandList key={query}>
+                    <CommandEmpty>No Results Found</CommandEmpty>
+                    {(artistHits.length > 0 || commissionHits.length > 0) && (
+                        <>
+                            <CommandGroup heading="Artists">
+                                {artistHits.map((artist) => (
+                                    <ArtistHit key={artist.objectID} hit={artist} />
+                                ))}
+                            </CommandGroup>
+                            <CommandSeparator />
+                            <CommandGroup heading="Commissions">
+                                {commissionHits.map((commission) => (
+                                    <CommissionHit
+                                        key={commission.objectID}
+                                        hit={commission}
+                                    />
+                                ))}
+                            </CommandGroup>
+                        </>
+                    )}
+                </CommandList>
+            </CommandDialog>
+        </div>
     )
 }
 
-function ArtistHit(props: { hit: ArtistIndex }) {
+function ArtistHit(props: { hit: ArtistIndex | undefined }) {
+    if (!props.hit) return null
+
     return (
         <CommandItem className="rounded-xl">
             <Link
