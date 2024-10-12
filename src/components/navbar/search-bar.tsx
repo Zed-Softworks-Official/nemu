@@ -83,29 +83,38 @@ export default function SearchBar() {
                     value={query}
                     onValueChange={handle_change}
                 />
-                <CommandList key={query}>
-                    <CommandEmpty>No Results Found</CommandEmpty>
-                    {(artistHits.length > 0 || commissionHits.length > 0) && (
-                        <>
-                            <CommandGroup heading="Artists">
-                                {artistHits.map((artist) => (
-                                    <ArtistHit key={artist.objectID} hit={artist} />
-                                ))}
-                            </CommandGroup>
-                            <CommandSeparator />
-                            <CommandGroup heading="Commissions">
-                                {commissionHits.map((commission) => (
-                                    <CommissionHit
-                                        key={commission.objectID}
-                                        hit={commission}
-                                    />
-                                ))}
-                            </CommandGroup>
-                        </>
-                    )}
-                </CommandList>
+                <SearchResults artistHits={artistHits} commissionHits={commissionHits} />
             </CommandDialog>
         </div>
+    )
+}
+
+function SearchResults(props: {
+    artistHits: ArtistIndex[]
+    commissionHits: CommissionIndex[]
+}) {
+    if (props.artistHits.length === 0 || props.commissionHits.length === 0) {
+        return (
+            <CommandList>
+                <CommandEmpty>No Results Found</CommandEmpty>
+            </CommandList>
+        )
+    }
+
+    return (
+        <CommandList>
+            <CommandGroup heading="Artists">
+                {props.artistHits.map((artist) => (
+                    <ArtistHit key={artist.objectID} hit={artist} />
+                ))}
+            </CommandGroup>
+            <CommandSeparator />
+            <CommandGroup heading="Commissions">
+                {props.commissionHits.map((commission) => (
+                    <CommissionHit key={commission.objectID} hit={commission} />
+                ))}
+            </CommandGroup>
+        </CommandList>
     )
 }
 
