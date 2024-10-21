@@ -41,7 +41,7 @@ export default function SearchBar() {
     }, [])
 
     const search = debounce(async (query: string) => {
-        if (query) {
+        if (query.length > 0) {
             const artists = await artist_index.search(query, {
                 hitsPerPage: 5
             })
@@ -58,10 +58,13 @@ export default function SearchBar() {
         }
     }, 500)
 
-    const handle_change = async (query: string) => {
-        await search(query)
-        setQuery(query)
-    }
+    useEffect(() => {
+        const fetchResults = async () => {
+            await search(query)
+        }
+
+        fetchResults().catch((e) => console.error(e))
+    }, [query, search])
 
     return (
         <div className="relative h-full w-full">
@@ -77,13 +80,18 @@ export default function SearchBar() {
                     <span className="text-xs">⌘</span>K
                 </kbd>
             </div>
-            <CommandDialog open={open} onOpenChange={setOpen}>
+            <CommandDialog open={open} onOpenChange={setOpen} shouldFilter={false}>
                 <CommandInput
                     placeholder="Search"
                     value={query}
-                    onValueChange={handle_change}
+                    onValueChange={(value) => setQuery(value)}
                 />
-                <SearchResults artistHits={artistHits} commissionHits={commissionHits} />
+                <CommandList key={query}>
+                    <SearchResults
+                        artistHits={artistHits}
+                        commissionHits={commissionHits}
+                    />
+                </CommandList>
             </CommandDialog>
         </div>
     )
@@ -93,16 +101,12 @@ function SearchResults(props: {
     artistHits: ArtistIndex[]
     commissionHits: CommissionIndex[]
 }) {
-    if (props.artistHits.length === 0 || props.commissionHits.length === 0) {
-        return (
-            <CommandList>
-                <CommandEmpty>No Results Found</CommandEmpty>
-            </CommandList>
-        )
+    if (props.artistHits.length === 0 && props.commissionHits.length === 0) {
+        return <CommandEmpty>No Results Found</CommandEmpty>
     }
 
     return (
-        <CommandList>
+        <>
             <CommandGroup heading="Artists">
                 {props.artistHits.map((artist) => (
                     <ArtistHit key={artist.objectID} hit={artist} />
@@ -114,7 +118,7 @@ function SearchResults(props: {
                     <CommissionHit key={commission.objectID} hit={commission} />
                 ))}
             </CommandGroup>
-        </CommandList>
+        </>
     )
 }
 
