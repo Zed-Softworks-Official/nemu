@@ -86,7 +86,7 @@ export default function SearchBar() {
                     value={query}
                     onValueChange={(value) => setQuery(value)}
                 />
-                <CommandList key={query}>
+                <CommandList>
                     <SearchResults
                         artistHits={artistHits}
                         commissionHits={commissionHits}
