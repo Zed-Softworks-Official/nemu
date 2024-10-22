@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { SearchIcon } from 'lucide-react'
 
 import debounce from 'lodash.debounce'
@@ -40,28 +40,37 @@ export default function SearchBar() {
         return () => document.removeEventListener('keydown', down)
     }, [])
 
-    const search = debounce(async (query: string) => {
-        if (query) {
-            const artists = await artist_index.search(query, {
-                hitsPerPage: 5
-            })
+    const search = useMemo(
+        () =>
+            debounce(async (query: string) => {
+                if (query.length > 0) {
+                    const artists = await artist_index.search(query, {
+                        hitsPerPage: 5
+                    })
 
-            const commissions = await commission_index.search(query, {
-                hitsPerPage: 5
-            })
+                    const commissions = await commission_index.search(query, {
+                        hitsPerPage: 5
+                    })
 
-            setArtistHits(artists.hits as unknown as ArtistIndex[])
-            setCommissionHits(commissions.hits as unknown as CommissionIndex[])
-        } else {
-            setArtistHits([])
-            setCommissionHits([])
+                    setArtistHits(artists.hits as unknown as ArtistIndex[])
+                    setCommissionHits(commissions.hits as unknown as CommissionIndex[])
+                } else {
+                    setArtistHits([])
+                    setCommissionHits([])
+                }
+            }, 500),
+        []
+    )
+
+    useEffect(() => {
+        const fetchResults = async () => {
+            await search(query)
         }
-    }, 500)
 
-    const handle_change = async (query: string) => {
-        await search(query)
-        setQuery(query)
-    }
+        fetchResults().catch((e) =>
+            console.error('Error in fetchResults:', e, 'Query:', query)
+        )
+    }, [query, search])
 
     return (
         <div className="relative h-full w-full">
@@ -77,13 +86,18 @@ export default function SearchBar() {
                     <span className="text-xs">⌘</span>K
                 </kbd>
             </div>
-            <CommandDialog open={open} onOpenChange={setOpen}>
+            <CommandDialog open={open} onOpenChange={setOpen} shouldFilter={false}>
                 <CommandInput
                     placeholder="Search"
                     value={query}
-                    onValueChange={handle_change}
+                    onValueChange={(value) => setQuery(value)}
                 />
-                <SearchResults artistHits={artistHits} commissionHits={commissionHits} />
+                <CommandList>
+                    <SearchResults
+                        artistHits={artistHits}
+                        commissionHits={commissionHits}
+                    />
+                </CommandList>
             </CommandDialog>
         </div>
     )
@@ -93,16 +107,12 @@ function SearchResults(props: {
     artistHits: ArtistIndex[]
     commissionHits: CommissionIndex[]
 }) {
-    if (props.artistHits.length === 0 || props.commissionHits.length === 0) {
-        return (
-            <CommandList>
-                <CommandEmpty>No Results Found</CommandEmpty>
-            </CommandList>
-        )
+    if (props.artistHits.length === 0 && props.commissionHits.length === 0) {
+        return <CommandEmpty>No Results Found</CommandEmpty>
     }
 
     return (
-        <CommandList>
+        <>
             <CommandGroup heading="Artists">
                 {props.artistHits.map((artist) => (
                     <ArtistHit key={artist.objectID} hit={artist} />
@@ -114,7 +124,7 @@ function SearchResults(props: {
                     <CommissionHit key={commission.objectID} hit={commission} />
                 ))}
             </CommandGroup>
-        </CommandList>
+        </>
     )
 }
 
