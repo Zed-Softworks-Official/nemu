@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { SearchIcon } from 'lucide-react'
 
 import debounce from 'lodash.debounce'
@@ -40,30 +40,36 @@ export default function SearchBar() {
         return () => document.removeEventListener('keydown', down)
     }, [])
 
-    const search = debounce(async (query: string) => {
-        if (query.length > 0) {
-            const artists = await artist_index.search(query, {
-                hitsPerPage: 5
-            })
+    const search = useMemo(
+        () =>
+            debounce(async (query: string) => {
+                if (query.length > 0) {
+                    const artists = await artist_index.search(query, {
+                        hitsPerPage: 5
+                    })
 
-            const commissions = await commission_index.search(query, {
-                hitsPerPage: 5
-            })
+                    const commissions = await commission_index.search(query, {
+                        hitsPerPage: 5
+                    })
 
-            setArtistHits(artists.hits as unknown as ArtistIndex[])
-            setCommissionHits(commissions.hits as unknown as CommissionIndex[])
-        } else {
-            setArtistHits([])
-            setCommissionHits([])
-        }
-    }, 500)
+                    setArtistHits(artists.hits as unknown as ArtistIndex[])
+                    setCommissionHits(commissions.hits as unknown as CommissionIndex[])
+                } else {
+                    setArtistHits([])
+                    setCommissionHits([])
+                }
+            }, 500),
+        []
+    )
 
     useEffect(() => {
         const fetchResults = async () => {
             await search(query)
         }
 
-        fetchResults().catch((e) => console.error('Error in fetchResults:', e, 'Query:', query))
+        fetchResults().catch((e) =>
+            console.error('Error in fetchResults:', e, 'Query:', query)
+        )
     }, [query, search])
 
     return (
