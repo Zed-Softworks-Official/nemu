@@ -63,7 +63,7 @@ export default function SearchBar() {
             await search(query)
         }
 
-        fetchResults().catch((e) => console.error(e))
+        fetchResults().catch((e) => console.error('Error in fetchResults:', e, 'Query:', query))
     }, [query, search])
 
     return (
