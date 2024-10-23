@@ -1,8 +1,14 @@
 'use client'
 
-import { type Dispatch, type SetStateAction, useState, useCallback } from 'react'
+import {
+    type Dispatch,
+    type SetStateAction,
+    useState,
+    useCallback,
+    useEffect
+} from 'react'
 import type { InferSelectModel } from 'drizzle-orm'
-import { Edit, Save, Trash2 } from 'lucide-react'
+import { Edit, PlusCircle, Save, Trash2 } from 'lucide-react'
 
 import { type InvoiceItem, InvoiceStatus } from '~/core/structures'
 import type { invoice_items, invoices } from '~/server/db/schema'
@@ -22,7 +28,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card'
 import { Button } from '~/components/ui/button'
 import {
     AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
     AlertDialogContent,
+    AlertDialogFooter,
     AlertDialogHeader,
     AlertDialogTitle
 } from '~/components/ui/alert-dialog'
@@ -67,9 +76,17 @@ function InvoiceEditor(props: InvoiceProps) {
                                 status={props.invoice.status as InvoiceStatus}
                             />
                         </div>
-                        <div>
-                            <Button>
+                        <div className="flex items-center gap-3">
+                            <Button variant={'outline'}>
                                 <Save className="h-5 w-5" />
+                            </Button>
+                            <Button
+                                onClick={() => {
+                                    setSelectedInvoiceItem(undefined)
+                                    setDialogOpen(true)
+                                }}
+                            >
+                                <PlusCircle className="h-5 w-5" />
                             </Button>
                         </div>
                     </CardTitle>
@@ -133,7 +150,7 @@ function InvoiceEditor(props: InvoiceProps) {
                 open={dialogOpen}
                 setOpen={setDialogOpen}
                 invoice_item={selectedInvoiceItem}
-                update_func={() => console.log('updated')}
+                setInvoiceItems={setInvoiceItems}
             />
         </>
     )
@@ -143,7 +160,7 @@ function InvoiceModal(props: {
     invoice_item: InvoiceItem | undefined
     open: boolean
     setOpen: Dispatch<SetStateAction<boolean>>
-    update_func: () => void
+    setInvoiceItems: Dispatch<SetStateAction<InvoiceItem[]>>
 }) {
     const [invoiceItem, setInvoiceItem] = useState<InvoiceItem | undefined>(
         props.invoice_item
@@ -158,12 +175,17 @@ function InvoiceModal(props: {
         }
     }, [])
 
+    useEffect(() => {
+        setInvoiceItem(props.invoice_item)
+    }, [props.invoice_item])
+
     return (
         <AlertDialog open={props.open}>
             <AlertDialogContent className="bg-base-200">
                 <AlertDialogHeader>
                     <AlertDialogTitle>
-                        {invoiceItem !== undefined ? 'Edit' : 'Create'} Invoice Item
+                        {props.invoice_item !== undefined ? 'Edit' : 'Create'} Invoice
+                        Item
                     </AlertDialogTitle>
                 </AlertDialogHeader>
                 <div className="form-control gap-3">
@@ -172,7 +194,7 @@ function InvoiceModal(props: {
                         placeholder="Item Name"
                         defaultValue={invoiceItem?.name}
                         onChange={(e) => {
-                            if (!invoiceItem) {
+                            if (!props.invoice_item) {
                                 init_new_item()
                             }
 
@@ -189,7 +211,7 @@ function InvoiceModal(props: {
                         placeholder="Item Price"
                         defaultValue={invoiceItem?.price}
                         onChange={(e) => {
-                            if (!invoiceItem) {
+                            if (!props.invoice_item) {
                                 init_new_item()
                             }
 
@@ -208,7 +230,7 @@ function InvoiceModal(props: {
                         placeholder="Item Quantity"
                         defaultValue={invoiceItem?.quantity}
                         onChange={(e) => {
-                            if (!invoiceItem) {
+                            if (!props.invoice_item) {
                                 init_new_item()
                             }
 
@@ -221,17 +243,45 @@ function InvoiceModal(props: {
                         inputMode="numeric"
                     />
                 </div>
-                <div className="flex justify-end">
-                    <Button
+                <AlertDialogFooter>
+                    <AlertDialogCancel onClick={() => props.setOpen(false)}>
+                        Cancel
+                    </AlertDialogCancel>
+                    <AlertDialogAction
                         onClick={() => {
                             props.setOpen(false)
-                            props.update_func()
+
+                            // If the invoice item is defined then we're updating the item with the
+                            // same id inside of the invoice_items array, otherwise we're adding
+                            // the new invoiceItem to the invoice_items array
+                            if (props.invoice_item) {
+                                props.setInvoiceItems((prev) => {
+                                    const new_items = [...prev]
+                                    const index = new_items.findIndex(
+                                        (item) => item.id === props.invoice_item!.id
+                                    )
+
+                                    if (index === -1) {
+                                        throw new Error('Invoice item not found!')
+                                    }
+
+                                    new_items[index] = invoiceItem!
+
+                                    return new_items
+                                })
+                            } else {
+                                props.setInvoiceItems((prev) => {
+                                    const new_items = [...prev]
+                                    new_items.push(invoiceItem!)
+
+                                    return new_items
+                                })
+                            }
                         }}
-                        className="btn-wide"
                     >
-                        {invoiceItem !== undefined ? 'Update' : 'Create'}
-                    </Button>
-                </div>
+                        {props.invoice_item !== undefined ? 'Update' : 'Add'}
+                    </AlertDialogAction>
+                </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
     )
