@@ -27,16 +27,24 @@ import {
     TableHeader,
     TableRow
 } from '~/components/ui/table'
-import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card'
+import {
+    Card,
+    CardContent,
+    CardFooter,
+    CardHeader,
+    CardTitle
+} from '~/components/ui/card'
 import { Button } from '~/components/ui/button'
 import {
     AlertDialog,
     AlertDialogAction,
     AlertDialogCancel,
     AlertDialogContent,
+    AlertDialogDescription,
     AlertDialogFooter,
     AlertDialogHeader,
-    AlertDialogTitle
+    AlertDialogTitle,
+    AlertDialogTrigger
 } from '~/components/ui/alert-dialog'
 import { Input } from '~/components/ui/input'
 import { Label } from '~/components/ui/label'
@@ -176,6 +184,12 @@ function InvoiceEditor(props: InvoiceProps) {
                             </TableRow>
                         </TableFooter>
                     </Table>
+                    <CardFooter className="flex w-full justify-end pt-5">
+                        <InvoiceSendButton
+                            invoice_id={props.invoice!.id}
+                            invoice_items={invoiceItems}
+                        />
+                    </CardFooter>
                 </CardContent>
             </Card>
             <InvoiceModal
@@ -313,6 +327,29 @@ function InvoiceModal(props: {
                     >
                         {props.invoice_item !== undefined ? 'Update' : 'Add'}
                     </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+    )
+}
+
+function InvoiceSendButton(props: { invoice_id: string; invoice_items: InvoiceItem[] }) {
+    return (
+        <AlertDialog>
+            <AlertDialogTrigger asChild>
+                <Button variant={'outline'}>Send</Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        This will send the invoice to the commisioner to request payment.
+                        There is no way to cancel this process.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogAction>Send</AlertDialogAction>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>

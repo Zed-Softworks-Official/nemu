@@ -9,6 +9,12 @@ import { type InvoiceItem, UserRole } from '~/core/structures'
 import { db } from '~/server/db'
 import { invoice_items, invoices, stripe_customer_ids } from '~/server/db/schema'
 
+/**
+ * Saves the invoice items to the database and updates the invoice total
+ *
+ * @param {string} invoice_id - The id of the invoice to save
+ * @param {InvoiceItem[]} items - The items to save to the invoice
+ */
 export async function save_invoice(invoice_id: string, items: InvoiceItem[]) {
     // Auth Check
     if (!(await check_auth_and_invoice(invoice_id))) {
@@ -44,6 +50,11 @@ export async function save_invoice(invoice_id: string, items: InvoiceItem[]) {
     return { success: true }
 }
 
+/**
+ * Sends the invoice to the commissioner to request payment
+ *
+ * @param {string} invoice_id - The id of the invoice to send
+ */
 export async function send_invoice(invoice_id: string) {
     // Auth Check
     if (!(await check_auth_and_invoice(invoice_id))) {
@@ -53,6 +64,11 @@ export async function send_invoice(invoice_id: string) {
     return { success: true }
 }
 
+/**
+ * Checks if the user is logged in, if they are an artist, and if the invoice exists
+ *
+ * @param {string} invoice_id
+ */
 async function check_auth_and_invoice(invoice_id: string) {
     // Get Auth data
     const auth_data = auth()
