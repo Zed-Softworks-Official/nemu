@@ -9,9 +9,12 @@ import {
 } from 'react'
 import type { InferSelectModel } from 'drizzle-orm'
 import { Edit, PlusCircle, Save, Trash2 } from 'lucide-react'
+import { createId } from '@paralleldrive/cuid2'
+
+import { save_invoice } from '~/server/actions/invoice'
+import type { invoice_items, invoices } from '~/server/db/schema'
 
 import { type InvoiceItem, InvoiceStatus } from '~/core/structures'
-import type { invoice_items, invoices } from '~/server/db/schema'
 import { format_to_currency } from '~/lib/utils'
 
 import { Badge } from '~/components/ui/badge'
@@ -37,27 +40,30 @@ import {
 } from '~/components/ui/alert-dialog'
 import { Input } from '~/components/ui/input'
 import { Label } from '~/components/ui/label'
-import { createId } from '@paralleldrive/cuid2'
+import { toast } from 'sonner'
 
 type InvoiceProps = {
-    invoice: InferSelectModel<typeof invoices> & {
-        invoice_items: InferSelectModel<typeof invoice_items>[]
-    }
+    invoice:
+        | (InferSelectModel<typeof invoices> & {
+              invoice_items: InferSelectModel<typeof invoice_items>[]
+          })
+        | undefined
 }
 
-export default function InvoiceDisplay(props: InvoiceProps | undefined) {
+export default function InvoiceDisplay(props: InvoiceProps) {
     if (!props) return null
 
     return <InvoiceEditor invoice={props.invoice} />
 }
 
 function InvoiceEditor(props: InvoiceProps) {
+    const [saving, setSaving] = useState(false)
     const [selectedInvoiceItem, setSelectedInvoiceItem] = useState<
         InvoiceItem | undefined
     >(undefined)
     const [dialogOpen, setDialogOpen] = useState(false)
     const [invoiceItems, setInvoiceItems] = useState<InvoiceItem[]>(
-        props.invoice?.invoice_items.map((item) => ({
+        props.invoice!.invoice_items.map((item) => ({
             id: item.id,
             name: item.name,
             price: Number(item.price / 100),
@@ -73,11 +79,35 @@ function InvoiceEditor(props: InvoiceProps) {
                         <div className="flex items-center gap-3">
                             Invoice
                             <InvoiceStatusBadge
-                                status={props.invoice.status as InvoiceStatus}
+                                status={props.invoice!.status as InvoiceStatus}
                             />
                         </div>
                         <div className="flex items-center gap-3">
-                            <Button variant={'outline'}>
+                            <Button
+                                variant={'outline'}
+                                disabled={saving}
+                                onClick={async () => {
+                                    setSaving(true)
+
+                                    const toast_id = toast.loading('Saving Invoice')
+                                    const response = await save_invoice(
+                                        props.invoice!.id,
+                                        invoiceItems
+                                    )
+
+                                    if (response.success) {
+                                        toast.success('Invoice Saved!', {
+                                            id: toast_id
+                                        })
+                                    } else {
+                                        toast.error('Failed to save invoice!', {
+                                            id: toast_id
+                                        })
+                                    }
+
+                                    setSaving(false)
+                                }}
+                            >
                                 <Save className="h-5 w-5" />
                             </Button>
                             <Button
@@ -107,7 +137,9 @@ function InvoiceEditor(props: InvoiceProps) {
                                 <TableRow key={item.id}>
                                     <TableCell>{index + 1}</TableCell>
                                     <TableCell>{item.name}</TableCell>
-                                    <TableCell>{item.price}</TableCell>
+                                    <TableCell>
+                                        {format_to_currency(item.price)}
+                                    </TableCell>
                                     <TableCell>{item.quantity}</TableCell>
                                     <TableCell className="flex items-center gap-3">
                                         <Button
@@ -139,7 +171,7 @@ function InvoiceEditor(props: InvoiceProps) {
                             <TableRow>
                                 <TableCell colSpan={4}>Total</TableCell>
                                 <TableCell>
-                                    {format_to_currency(props.invoice.total)}
+                                    {format_to_currency(props.invoice!.total)}
                                 </TableCell>
                             </TableRow>
                         </TableFooter>
