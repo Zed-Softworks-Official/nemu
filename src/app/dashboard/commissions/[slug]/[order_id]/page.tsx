@@ -15,7 +15,7 @@ import DataTable from '~/components/data-table'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Suspense } from 'react'
 import Loading from '~/components/ui/loading'
-import InvoiceEditor from '~/components/dashboard/invoice-editor'
+import InvoiceView from '~/components/dashboard/invoice'
 
 import {
     Card,
@@ -27,8 +27,6 @@ import {
 import { Badge } from '~/components/ui/badge'
 import DeliverForm from '~/components/dashboard/deliver-form'
 import { get_request_details } from '~/server/db/query'
-import type { InferSelectModel } from 'drizzle-orm'
-import type { invoice_items, invoices } from '~/server/db/schema'
 
 export default function CommissionDetailsPage({
     params
@@ -125,7 +123,7 @@ async function PageContent(props: { slug: string; order_id: string }) {
                 <TabsContent value="invoice">
                     <div className="flex flex-col gap-5 p-5">
                         <Suspense fallback={<Loading />}>
-                            <InvoiceDisplay invoice={request_data.invoice} />
+                            <InvoiceView invoice={request_data.invoice} />
                         </Suspense>
                     </div>
                 </TabsContent>
@@ -196,16 +194,4 @@ function DownloadsDisplay(props: {
             <>Download has been submitted!</>
         </div>
     )
-}
-
-async function InvoiceDisplay(props: {
-    invoice?: InferSelectModel<typeof invoices> & {
-        invoice_items: InferSelectModel<typeof invoice_items>[]
-    }
-}) {
-    if (!props.invoice) {
-        return null
-    }
-
-    return <InvoiceEditor invoice={props.invoice} />
 }
