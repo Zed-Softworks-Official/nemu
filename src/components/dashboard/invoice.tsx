@@ -213,7 +213,7 @@ function InvoiceModal(props: {
                     <Label className="label">Name:</Label>
                     <Input
                         placeholder="Item Name"
-                        value={invoiceItem?.name}
+                        value={invoiceItem?.name ?? ''}
                         onChange={(e) =>
                             setInvoiceItem({
                                 ...(invoiceItem ?? init_new_item()),
@@ -226,7 +226,7 @@ function InvoiceModal(props: {
                     <Label className="label">Price:</Label>
                     <Input
                         placeholder="Item Price"
-                        value={invoiceItem?.price}
+                        value={invoiceItem?.price ?? 0}
                         onChange={(e) =>
                             setInvoiceItem({
                                 ...(invoiceItem ?? init_new_item()),
@@ -241,7 +241,7 @@ function InvoiceModal(props: {
                     <Label className="label">Quantity:</Label>
                     <Input
                         placeholder="Item Quantity"
-                        value={invoiceItem?.quantity}
+                        value={invoiceItem?.quantity ?? 1}
                         onChange={(e) =>
                             setInvoiceItem({
                                 ...(invoiceItem ?? init_new_item()),
@@ -338,7 +338,7 @@ function InvoiceActionButtons(props: {
                             })
                         }
                     } catch (e) {
-                        toast.error('An error occured while saving the invoice', {
+                        toast.error('An error occurred while saving the invoice', {
                             id: toast_id
                         })
                     } finally {
@@ -365,11 +365,11 @@ function InvoiceSendButton(props: { invoice_id: string; sent: boolean }) {
 
     return (
         <AlertDialog>
-            <AlertDialogTrigger asChild>
-                <Button variant={'outline'} disabled={sending || props.sent}>
-                    Send
-                </Button>
-            </AlertDialogTrigger>
+            {!(sending || props.sent) && (
+                <AlertDialogTrigger asChild>
+                    <Button variant={'outline'}>Send</Button>
+                </AlertDialogTrigger>
+            )}
             <AlertDialogContent>
                 <AlertDialogHeader>
                     <AlertDialogTitle>Are you sure?</AlertDialogTitle>
@@ -397,9 +397,12 @@ function InvoiceSendButton(props: { invoice_id: string; sent: boolean }) {
                                     })
                                 }
                             } catch (e) {
-                                toast.error('Failed to send invoice!', {
-                                    id: toast_id
-                                })
+                                toast.error(
+                                    'An error occurred while sending the invoice',
+                                    {
+                                        id: toast_id
+                                    }
+                                )
                             } finally {
                                 setSending(false)
                             }

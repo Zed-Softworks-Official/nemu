@@ -25,27 +25,42 @@ export async function save_invoice(invoice_id: string, items: InvoiceItem[]) {
     }
 
     // Delete the invoice items
-    await db.delete(invoice_items).where(eq(invoice_items.invoice_id, invoice_id))
+    try {
+        await db.delete(invoice_items).where(eq(invoice_items.invoice_id, invoice_id))
+    } catch (e) {
+        console.log('Failed to delete invoice items: ', e)
+        return { success: false }
+    }
 
     // Update the invoice items
     let total_cost = 0
     for (const item of items) {
-        await db.insert(invoice_items).values({
-            id: item.id ?? createId(),
-            invoice_id,
-            name: item.name,
-            price: item.price * 100,
-            quantity: item.quantity
-        })
+        try {
+            await db.insert(invoice_items).values({
+                id: item.id ?? createId(),
+                invoice_id,
+                name: item.name,
+                price: item.price * 100,
+                quantity: item.quantity
+            })
 
-        total_cost += item.price * item.quantity
+            total_cost += item.price * item.quantity
+        } catch (e) {
+            console.log('Failed to insert invoice item: ', e)
+            return { success: false }
+        }
     }
 
     // Update the invoice total
-    await db
-        .update(invoices)
-        .set({ total: total_cost })
-        .where(eq(invoices.id, invoice_id))
+    try {
+        await db
+            .update(invoices)
+            .set({ total: total_cost })
+            .where(eq(invoices.id, invoice_id))
+    } catch (e) {
+        console.log('Failed to update invoice total: ', e)
+        return { success: false }
+    }
 
     // Invalidate cache
     revalidateTag('commission_requests')
@@ -175,9 +190,15 @@ async function check_auth_and_invoice(invoice_id: string): CheckAuthReturnType {
     }
 
     // Check if the invoice exists
-    const invoice = await db.query.invoices.findFirst({
-        where: eq(invoices.id, invoice_id)
-    })
+    let invoice
+    try {
+        invoice = await db.query.invoices.findFirst({
+            where: eq(invoices.id, invoice_id)
+        })
+    } catch (e) {
+        console.log('Failed to retrieve invoice: ', e)
+        return { success: false }
+    }
 
     if (!invoice) {
         console.log('Invoice not found')
@@ -185,12 +206,18 @@ async function check_auth_and_invoice(invoice_id: string): CheckAuthReturnType {
     }
 
     // Check if the user and artist have a stripe account linked
-    const stripe_account = await db.query.stripe_customer_ids.findFirst({
-        where: and(
-            eq(stripe_customer_ids.user_id, invoice.user_id),
-            eq(stripe_customer_ids.artist_id, invoice.artist_id)
-        )
-    })
+    let stripe_account
+    try {
+        stripe_account = await db.query.stripe_customer_ids.findFirst({
+            where: and(
+                eq(stripe_customer_ids.user_id, invoice.user_id),
+                eq(stripe_customer_ids.artist_id, invoice.artist_id)
+            )
+        })
+    } catch (e) {
+        console.log('Failed to retrieve stripe account: ', e)
+        return { success: false }
+    }
 
     if (!stripe_account) {
         console.log('Stripe account not found')
