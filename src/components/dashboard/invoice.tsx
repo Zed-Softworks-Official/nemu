@@ -9,9 +9,11 @@ import {
 } from 'react'
 import type { InferSelectModel } from 'drizzle-orm'
 import { Edit, PlusCircle, Save, Trash2 } from 'lucide-react'
-import { createId } from '@paralleldrive/cuid2'
 
-import { save_invoice } from '~/server/actions/invoice'
+import { createId } from '@paralleldrive/cuid2'
+import { toast } from 'sonner'
+
+import { save_invoice, send_invoice } from '~/server/actions/invoice'
 import type { invoice_items, invoices } from '~/server/db/schema'
 
 import { type InvoiceItem, InvoiceStatus } from '~/core/structures'
@@ -48,7 +50,6 @@ import {
 } from '~/components/ui/alert-dialog'
 import { Input } from '~/components/ui/input'
 import { Label } from '~/components/ui/label'
-import { toast } from 'sonner'
 
 type InvoiceProps = {
     invoice:
@@ -187,7 +188,7 @@ function InvoiceEditor(props: InvoiceProps) {
                     <CardFooter className="flex w-full justify-end pt-5">
                         <InvoiceSendButton
                             invoice_id={props.invoice!.id}
-                            invoice_items={invoiceItems}
+                            sent={props.invoice!.sent}
                         />
                     </CardFooter>
                 </CardContent>
@@ -333,11 +334,15 @@ function InvoiceModal(props: {
     )
 }
 
-function InvoiceSendButton(props: { invoice_id: string; invoice_items: InvoiceItem[] }) {
+function InvoiceSendButton(props: { invoice_id: string; sent: boolean }) {
+    const [sending, setSending] = useState(false)
+
     return (
         <AlertDialog>
             <AlertDialogTrigger asChild>
-                <Button variant={'outline'}>Send</Button>
+                <Button variant={'outline'} disabled={sending || props.sent}>
+                    Send
+                </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
                 <AlertDialogHeader>
@@ -348,7 +353,29 @@ function InvoiceSendButton(props: { invoice_id: string; invoice_items: InvoiceIt
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                    <AlertDialogAction>Send</AlertDialogAction>
+                    <AlertDialogAction
+                        onClick={async () => {
+                            setSending(true)
+
+                            const toast_id = toast.loading('Sending Invoice')
+
+                            const response = await send_invoice(props.invoice_id)
+
+                            if (response.success) {
+                                toast.success('Invoice Sent!', {
+                                    id: toast_id
+                                })
+                            } else {
+                                toast.error('Failed to send invoice!', {
+                                    id: toast_id
+                                })
+                            }
+
+                            setSending(false)
+                        }}
+                    >
+                        Send
+                    </AlertDialogAction>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
                 </AlertDialogFooter>
             </AlertDialogContent>
