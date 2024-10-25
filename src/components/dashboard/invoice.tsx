@@ -14,7 +14,7 @@ import { createId } from '@paralleldrive/cuid2'
 import { toast } from 'sonner'
 
 import { save_invoice, send_invoice } from '~/server/actions/invoice'
-import type { invoice_items, invoices } from '~/server/db/schema'
+import { invoice_items, invoices } from '~/server/db/schema'
 
 import { type InvoiceItem, InvoiceStatus } from '~/core/structures'
 import { format_to_currency } from '~/lib/utils'
@@ -66,7 +66,6 @@ export default function InvoiceDisplay(props: InvoiceProps) {
 }
 
 function InvoiceEditor(props: InvoiceProps) {
-    const [saving, setSaving] = useState(false)
     const [selectedInvoiceItem, setSelectedInvoiceItem] = useState<
         InvoiceItem | undefined
     >(undefined)
@@ -91,43 +90,13 @@ function InvoiceEditor(props: InvoiceProps) {
                                 status={props.invoice!.status as InvoiceStatus}
                             />
                         </div>
-                        <div className="flex items-center gap-3">
-                            <Button
-                                variant={'outline'}
-                                disabled={saving}
-                                onClick={async () => {
-                                    setSaving(true)
-
-                                    const toast_id = toast.loading('Saving Invoice')
-                                    const response = await save_invoice(
-                                        props.invoice!.id,
-                                        invoiceItems
-                                    )
-
-                                    if (response.success) {
-                                        toast.success('Invoice Saved!', {
-                                            id: toast_id
-                                        })
-                                    } else {
-                                        toast.error('Failed to save invoice!', {
-                                            id: toast_id
-                                        })
-                                    }
-
-                                    setSaving(false)
-                                }}
-                            >
-                                <Save className="h-5 w-5" />
-                            </Button>
-                            <Button
-                                onClick={() => {
-                                    setSelectedInvoiceItem(undefined)
-                                    setDialogOpen(true)
-                                }}
-                            >
-                                <PlusCircle className="h-5 w-5" />
-                            </Button>
-                        </div>
+                        <InvoiceActionButtons
+                            invoice_id={props.invoice!.id}
+                            invoice_items={invoiceItems}
+                            setSelectedInvoiceItem={setSelectedInvoiceItem}
+                            setDialogOpen={setDialogOpen}
+                            disabled={props.invoice!.sent}
+                        />
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -138,7 +107,7 @@ function InvoiceEditor(props: InvoiceProps) {
                                 <TableHead>Name</TableHead>
                                 <TableHead>Price</TableHead>
                                 <TableHead>Quantity</TableHead>
-                                <TableHead>Actions</TableHead>
+                                {!props.invoice!.sent && <TableHead>Actions</TableHead>}
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -150,35 +119,40 @@ function InvoiceEditor(props: InvoiceProps) {
                                         {format_to_currency(item.price)}
                                     </TableCell>
                                     <TableCell>{item.quantity}</TableCell>
-                                    <TableCell className="flex items-center gap-3">
-                                        <Button
-                                            variant={'outline'}
-                                            onClick={() => {
-                                                setSelectedInvoiceItem(item)
-                                                setDialogOpen(true)
-                                            }}
-                                        >
-                                            <Edit className="h-5 w-5" />
-                                        </Button>
-                                        <Button
-                                            variant={'destructive'}
-                                            onClick={() => {
-                                                setInvoiceItems((prev) =>
-                                                    prev.filter(
-                                                        (value) => value.id !== item.id
+                                    {!props.invoice!.sent && (
+                                        <TableCell className="flex items-center gap-3">
+                                            <Button
+                                                variant={'outline'}
+                                                onClick={() => {
+                                                    setSelectedInvoiceItem(item)
+                                                    setDialogOpen(true)
+                                                }}
+                                            >
+                                                <Edit className="h-5 w-5" />
+                                            </Button>
+                                            <Button
+                                                variant={'destructive'}
+                                                onClick={() => {
+                                                    setInvoiceItems((prev) =>
+                                                        prev.filter(
+                                                            (value) =>
+                                                                value.id !== item.id
+                                                        )
                                                     )
-                                                )
-                                            }}
-                                        >
-                                            <Trash2 className="h-5 w-5" />
-                                        </Button>
-                                    </TableCell>
+                                                }}
+                                            >
+                                                <Trash2 className="h-5 w-5" />
+                                            </Button>
+                                        </TableCell>
+                                    )}
                                 </TableRow>
                             ))}
                         </TableBody>
                         <TableFooter>
                             <TableRow>
-                                <TableCell colSpan={4}>Total</TableCell>
+                                <TableCell colSpan={props.invoice!.sent ? 3 : 4}>
+                                    Total
+                                </TableCell>
                                 <TableCell>
                                     {format_to_currency(props.invoice!.total)}
                                 </TableCell>
@@ -331,6 +305,60 @@ function InvoiceModal(props: {
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
+    )
+}
+
+function InvoiceActionButtons(props: {
+    invoice_id: string
+    invoice_items: InvoiceItem[]
+    setSelectedInvoiceItem: Dispatch<SetStateAction<InvoiceItem | undefined>>
+    setDialogOpen: Dispatch<SetStateAction<boolean>>
+    disabled?: boolean
+}) {
+    const [saving, setSaving] = useState(false)
+
+    if (props.disabled) {
+        return null
+    }
+
+    return (
+        <div className="flex items-center gap-3">
+            <Button
+                variant={'outline'}
+                disabled={saving}
+                onClick={async () => {
+                    setSaving(true)
+
+                    const toast_id = toast.loading('Saving Invoice')
+                    const response = await save_invoice(
+                        props.invoice_id,
+                        props.invoice_items
+                    )
+
+                    if (response.success) {
+                        toast.success('Invoice Saved!', {
+                            id: toast_id
+                        })
+                    } else {
+                        toast.error('Failed to save invoice!', {
+                            id: toast_id
+                        })
+                    }
+
+                    setSaving(false)
+                }}
+            >
+                <Save className="h-5 w-5" />
+            </Button>
+            <Button
+                onClick={() => {
+                    props.setSelectedInvoiceItem(undefined)
+                    props.setDialogOpen(true)
+                }}
+            >
+                <PlusCircle className="h-5 w-5" />
+            </Button>
+        </div>
     )
 }
 
