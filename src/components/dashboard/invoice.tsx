@@ -14,7 +14,7 @@ import { createId } from '@paralleldrive/cuid2'
 import { toast } from 'sonner'
 
 import { save_invoice, send_invoice } from '~/server/actions/invoice'
-import { invoice_items, invoices } from '~/server/db/schema'
+import type { invoice_items, invoices } from '~/server/db/schema'
 
 import { type InvoiceItem, InvoiceStatus } from '~/core/structures'
 import { format_to_currency } from '~/lib/utils'
@@ -183,10 +183,6 @@ function InvoiceModal(props: {
     setOpen: Dispatch<SetStateAction<boolean>>
     setInvoiceItems: Dispatch<SetStateAction<InvoiceItem[]>>
 }) {
-    const [invoiceItem, setInvoiceItem] = useState<InvoiceItem | undefined>(
-        props.invoice_item
-    )
-
     const init_new_item = useCallback(() => {
         return {
             id: createId(),
@@ -195,6 +191,10 @@ function InvoiceModal(props: {
             quantity: 1
         }
     }, [])
+
+    const [invoiceItem, setInvoiceItem] = useState<InvoiceItem | undefined>(
+        props.invoice_item ?? init_new_item()
+    )
 
     useEffect(() => {
         setInvoiceItem(props.invoice_item)
@@ -214,16 +214,12 @@ function InvoiceModal(props: {
                     <Input
                         placeholder="Item Name"
                         defaultValue={invoiceItem?.name}
-                        onChange={(e) => {
-                            if (!props.invoice_item) {
-                                init_new_item()
-                            }
-
+                        onChange={(e) =>
                             setInvoiceItem({
-                                ...invoiceItem!,
+                                ...(invoiceItem ?? init_new_item()),
                                 name: e.currentTarget.value
                             })
-                        }}
+                        }
                     />
                 </div>
                 <div className="form-control gap-3">
@@ -231,16 +227,12 @@ function InvoiceModal(props: {
                     <Input
                         placeholder="Item Price"
                         defaultValue={invoiceItem?.price}
-                        onChange={(e) => {
-                            if (!props.invoice_item) {
-                                init_new_item()
-                            }
-
+                        onChange={(e) =>
                             setInvoiceItem({
-                                ...invoiceItem!,
+                                ...(invoiceItem ?? init_new_item()),
                                 price: Number(e.currentTarget.value)
                             })
-                        }}
+                        }
                         type="number"
                         inputMode="numeric"
                     />
@@ -250,16 +242,12 @@ function InvoiceModal(props: {
                     <Input
                         placeholder="Item Quantity"
                         defaultValue={invoiceItem?.quantity}
-                        onChange={(e) => {
-                            if (!props.invoice_item) {
-                                init_new_item()
-                            }
-
+                        onChange={(e) =>
                             setInvoiceItem({
-                                ...invoiceItem!,
+                                ...(invoiceItem ?? init_new_item()),
                                 quantity: Number(e.currentTarget.value)
                             })
-                        }}
+                        }
                         type="number"
                         inputMode="numeric"
                     />
