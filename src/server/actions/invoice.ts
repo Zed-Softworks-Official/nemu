@@ -1,7 +1,7 @@
 'use server'
 
 import { auth, clerkClient } from '@clerk/nextjs/server'
-import { eq, and, InferSelectModel } from 'drizzle-orm'
+import { eq, and, type InferSelectModel } from 'drizzle-orm'
 import { revalidateTag } from 'next/cache'
 import { createId } from '@paralleldrive/cuid2'
 
@@ -28,7 +28,7 @@ export async function save_invoice(invoice_id: string, items: InvoiceItem[]) {
     try {
         await db.delete(invoice_items).where(eq(invoice_items.invoice_id, invoice_id))
     } catch (e) {
-        console.log('Failed to delete invoice items: ', e)
+        console.error('Failed to delete invoice items: ', e)
         return { success: false }
     }
 
@@ -46,7 +46,7 @@ export async function save_invoice(invoice_id: string, items: InvoiceItem[]) {
 
             total_cost += item.price * item.quantity
         } catch (e) {
-            console.log('Failed to insert invoice item: ', e)
+            console.error('Failed to insert invoice item: ', e)
             return { success: false }
         }
     }
@@ -58,7 +58,7 @@ export async function save_invoice(invoice_id: string, items: InvoiceItem[]) {
             .set({ total: total_cost })
             .where(eq(invoices.id, invoice_id))
     } catch (e) {
-        console.log('Failed to update invoice total: ', e)
+        console.error('Failed to update invoice total: ', e)
         return { success: false }
     }
 
@@ -77,7 +77,7 @@ export async function send_invoice(invoice_id: string) {
     // Auth Check
     const auth_check = await check_auth_and_invoice(invoice_id)
     if (!auth_check.success) {
-        console.log('Auth Check Failed')
+        console.error('Auth Check Failed')
         return { success: false }
     }
 
@@ -96,7 +96,7 @@ export async function send_invoice(invoice_id: string) {
     })
 
     if (!invoice) {
-        console.log('Invoice not found')
+        console.error('Invoice not found')
         return { success: false }
     }
 
@@ -132,19 +132,24 @@ export async function send_invoice(invoice_id: string) {
     }
 
     if (!finalized_invoice) {
-        console.log('Failed to finalize invoice')
+        console.error('Failed to finalize invoice')
         return { success: false }
     }
 
     // Update the invoice status flags
-    await db
-        .update(invoices)
-        .set({
-            status: InvoiceStatus.Pending,
-            sent: true,
-            hosted_url: finalized_invoice.hosted_invoice_url
-        })
-        .where(eq(invoices.id, invoice_id))
+    try {
+        await db
+            .update(invoices)
+            .set({
+                status: InvoiceStatus.Pending,
+                sent: true,
+                hosted_url: finalized_invoice.hosted_invoice_url
+            })
+            .where(eq(invoices.id, invoice_id))
+    } catch (e) {
+        console.error('Failed to update invoice status: ', e)
+        return { success: false }
+    }
 
     // Notify the user that the invoice has been sent
     await knock.workflows.trigger(KnockWorkflows.InvoiceSent, {
@@ -178,14 +183,15 @@ async function check_auth_and_invoice(invoice_id: string): CheckAuthReturnType {
 
     // Check if the user is logged in
     if (!auth_data.userId) {
-        console.log('User not logged in')
+        console.error('User not logged in')
         return { success: false }
     }
 
     // Check if the user is an artist
     const user = await clerkClient().users.getUser(auth_data.userId)
-    if ((user.publicMetadata.role as UserRole) !== UserRole.Artist) {
-        console.log('User is not an artist')
+    const user_role = user.publicMetadata.role as UserRole | undefined
+    if (user_role !== UserRole.Artist) {
+        console.error('User is not an artist')
         return { success: false }
     }
 
@@ -196,12 +202,12 @@ async function check_auth_and_invoice(invoice_id: string): CheckAuthReturnType {
             where: eq(invoices.id, invoice_id)
         })
     } catch (e) {
-        console.log('Failed to retrieve invoice: ', e)
+        console.error('Failed to retrieve invoice: ', e)
         return { success: false }
     }
 
     if (!invoice) {
-        console.log('Invoice not found')
+        console.error('Invoice not found')
         return { success: false }
     }
 
@@ -215,12 +221,12 @@ async function check_auth_and_invoice(invoice_id: string): CheckAuthReturnType {
             )
         })
     } catch (e) {
-        console.log('Failed to retrieve stripe account: ', e)
+        console.error('Failed to retrieve stripe account: ', e)
         return { success: false }
     }
 
     if (!stripe_account) {
-        console.log('Stripe account not found')
+        console.error('Stripe account not found')
         return { success: false }
     }
 

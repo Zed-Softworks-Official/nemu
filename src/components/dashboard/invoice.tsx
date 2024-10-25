@@ -197,8 +197,8 @@ function InvoiceModal(props: {
     )
 
     useEffect(() => {
-        setInvoiceItem(props.invoice_item)
-    }, [props.invoice_item])
+        setInvoiceItem(props.invoice_item ?? init_new_item())
+    }, [props.invoice_item, init_new_item])
 
     return (
         <AlertDialog open={props.open}>
