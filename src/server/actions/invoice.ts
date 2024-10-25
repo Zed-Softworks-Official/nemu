@@ -151,6 +151,11 @@ export async function send_invoice(invoice_id: string) {
         return { success: false }
     }
 
+    if (!invoice.artist || !invoice.request) {
+        console.error('Invoice artist or request is undefined')
+        return { success: false }
+    }
+
     // Notify the user that the invoice has been sent
     await knock.workflows.trigger(KnockWorkflows.InvoiceSent, {
         recipients: [invoice.user_id],
