@@ -151,8 +151,8 @@ export async function send_invoice(invoice_id: string) {
         return { success: false }
     }
 
-    if (!invoice.artist || !invoice.request) {
-        console.error('Invoice artist or request is undefined')
+    if (!invoice.artist || !invoice.request || !invoice.request.commission) {
+        console.error('Invoice artist, request, or commission is undefined')
         return { success: false }
     }
 
