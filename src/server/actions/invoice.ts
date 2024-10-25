@@ -86,24 +86,35 @@ export async function send_invoice(invoice_id: string) {
     }
 
     // Create/Update the invoice on stripe
-    await StripeUpdateInvoice(
-        auth_check.stripe_account.customer_id,
-        auth_check.stripe_account.stripe_account,
-        invoice.stripe_id,
-        invoice.invoice_items.map((item) => ({
-            id: item.id,
-            name: item.name,
-            price: Number(item.price),
-            quantity: item.quantity
-        })),
-        invoice.artist.supporter
-    )
+    try {
+        await StripeUpdateInvoice(
+            auth_check.stripe_account.customer_id,
+            auth_check.stripe_account.stripe_account,
+            invoice.stripe_id,
+            invoice.invoice_items.map((item) => ({
+                id: item.id,
+                name: item.name,
+                price: Number(item.price),
+                quantity: item.quantity
+            })),
+            invoice.artist.supporter
+        )
+    } catch (e) {
+        console.error('Failed to update invoice on stripe:', e)
+        return { success: false }
+    }
 
     // Finalize the invoice and send it to the user
-    const finalized_invoice = await StripeFinalizeInvoice(
-        invoice.stripe_id,
-        auth_check.stripe_account.stripe_account
-    )
+    let finalized_invoice
+    try {
+        finalized_invoice = await StripeFinalizeInvoice(
+            invoice.stripe_id,
+            auth_check.stripe_account.stripe_account
+        )
+    } catch (e) {
+        console.error('Failed to finalize invoice:', e)
+        return { success: false }
+    }
 
     if (!finalized_invoice) {
         console.log('Failed to finalize invoice')

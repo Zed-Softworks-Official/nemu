@@ -60,7 +60,7 @@ type InvoiceProps = {
 }
 
 export default function InvoiceDisplay(props: InvoiceProps) {
-    if (!props) return null
+    if (!props.invoice) return null
 
     return <InvoiceEditor invoice={props.invoice} />
 }
@@ -71,12 +71,12 @@ function InvoiceEditor(props: InvoiceProps) {
     >(undefined)
     const [dialogOpen, setDialogOpen] = useState(false)
     const [invoiceItems, setInvoiceItems] = useState<InvoiceItem[]>(
-        props.invoice!.invoice_items.map((item) => ({
+        props.invoice?.invoice_items.map((item) => ({
             id: item.id,
             name: item.name,
             price: Number(item.price / 100),
             quantity: item.quantity
-        }))
+        })) ?? []
     )
 
     return (
@@ -213,7 +213,7 @@ function InvoiceModal(props: {
                     <Label className="label">Name:</Label>
                     <Input
                         placeholder="Item Name"
-                        defaultValue={invoiceItem?.name}
+                        value={invoiceItem?.name}
                         onChange={(e) =>
                             setInvoiceItem({
                                 ...(invoiceItem ?? init_new_item()),
@@ -226,7 +226,7 @@ function InvoiceModal(props: {
                     <Label className="label">Price:</Label>
                     <Input
                         placeholder="Item Price"
-                        defaultValue={invoiceItem?.price}
+                        value={invoiceItem?.price}
                         onChange={(e) =>
                             setInvoiceItem({
                                 ...(invoiceItem ?? init_new_item()),
@@ -241,7 +241,7 @@ function InvoiceModal(props: {
                     <Label className="label">Quantity:</Label>
                     <Input
                         placeholder="Item Quantity"
-                        defaultValue={invoiceItem?.quantity}
+                        value={invoiceItem?.quantity}
                         onChange={(e) =>
                             setInvoiceItem({
                                 ...(invoiceItem ?? init_new_item()),
@@ -267,14 +267,18 @@ function InvoiceModal(props: {
                                 props.setInvoiceItems((prev) => {
                                     const new_items = [...prev]
                                     const index = new_items.findIndex(
-                                        (item) => item.id === props.invoice_item!.id
+                                        (item) => item.id === props.invoice_item?.id
                                     )
 
                                     if (index === -1) {
                                         throw new Error('Invoice item not found!')
                                     }
 
-                                    new_items[index] = invoiceItem!
+                                    if (!invoiceItem) {
+                                        return new_items
+                                    }
+
+                                    new_items[index] = invoiceItem
 
                                     return new_items
                                 })
@@ -318,22 +322,28 @@ function InvoiceActionButtons(props: {
                     setSaving(true)
 
                     const toast_id = toast.loading('Saving Invoice')
-                    const response = await save_invoice(
-                        props.invoice_id,
-                        props.invoice_items
-                    )
+                    try {
+                        const response = await save_invoice(
+                            props.invoice_id,
+                            props.invoice_items
+                        )
 
-                    if (response.success) {
-                        toast.success('Invoice Saved!', {
+                        if (response.success) {
+                            toast.success('Invoice Saved!', {
+                                id: toast_id
+                            })
+                        } else {
+                            toast.error('Failed to save invoice!', {
+                                id: toast_id
+                            })
+                        }
+                    } catch (e) {
+                        toast.error('An error occured while saving the invoice', {
                             id: toast_id
                         })
-                    } else {
-                        toast.error('Failed to save invoice!', {
-                            id: toast_id
-                        })
+                    } finally {
+                        setSaving(false)
                     }
-
-                    setSaving(false)
                 }}
             >
                 <Save className="h-5 w-5" />
@@ -364,7 +374,7 @@ function InvoiceSendButton(props: { invoice_id: string; sent: boolean }) {
                 <AlertDialogHeader>
                     <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                     <AlertDialogDescription>
-                        This will send the invoice to the commisioner to request payment.
+                        This will send the invoice to the commissioner to request payment.
                         There is no way to cancel this process.
                     </AlertDialogDescription>
                 </AlertDialogHeader>
@@ -374,20 +384,25 @@ function InvoiceSendButton(props: { invoice_id: string; sent: boolean }) {
                             setSending(true)
 
                             const toast_id = toast.loading('Sending Invoice')
+                            try {
+                                const response = await send_invoice(props.invoice_id)
 
-                            const response = await send_invoice(props.invoice_id)
-
-                            if (response.success) {
-                                toast.success('Invoice Sent!', {
-                                    id: toast_id
-                                })
-                            } else {
+                                if (response.success) {
+                                    toast.success('Invoice Sent!', {
+                                        id: toast_id
+                                    })
+                                } else {
+                                    toast.error('Failed to send invoice!', {
+                                        id: toast_id
+                                    })
+                                }
+                            } catch (e) {
                                 toast.error('Failed to send invoice!', {
                                     id: toast_id
                                 })
+                            } finally {
+                                setSending(false)
                             }
-
-                            setSending(false)
                         }}
                     >
                         Send
