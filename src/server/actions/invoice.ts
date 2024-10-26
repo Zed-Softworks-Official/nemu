@@ -184,7 +184,7 @@ type CheckAuthReturnType = Promise<
  */
 async function check_auth_and_invoice(invoice_id: string): CheckAuthReturnType {
     // Get Auth data
-    const auth_data = auth()
+    const auth_data = await auth()
 
     // Check if the user is logged in
     if (!auth_data.userId) {

@@ -20,7 +20,7 @@ export async function supporter_annual() {
 
 async function generate_url(term: 'monthly' | 'annual') {
     // Check if the user is logged in
-    const auth_data = auth()
+    const auth_data = await auth()
     if (!auth_data.userId) {
         return {
             redirect_url: env.BASE_URL + '/u/login'

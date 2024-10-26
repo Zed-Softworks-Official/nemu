@@ -36,7 +36,7 @@ export const nemuFileRouter = {
      * Handles Artist Header Upload
      */
     headerPhotoUploader: f({ image: { maxFileCount: 1, maxFileSize: '4MB' } })
-        .middleware(({ req }) => auth(req, true))
+        .middleware(async ({ req }) => await auth(req, true))
         .onUploadComplete(async ({ metadata, file }) => {
             const artist = await db.query.artists.findFirst({
                 where: eq(artists.id, metadata.user.privateMetadata.artist_id as string)
@@ -76,7 +76,7 @@ export const nemuFileRouter = {
      * Handles uploading portfolio photos
      */
     portfolioUploader: f({ image: { maxFileCount: 1, maxFileSize: '4MB' } })
-        .middleware(({ req }) => auth(req, true))
+        .middleware(async ({ req }) => await auth(req, true))
         .onUploadComplete(async () => {
             console.log('Portfolio Upload Complete')
         }),
@@ -85,7 +85,7 @@ export const nemuFileRouter = {
      * Handles uploading commission images
      */
     commissionImageUploader: f({ image: { maxFileCount: 5, maxFileSize: '4MB' } })
-        .middleware(({ req }) => auth(req, true))
+        .middleware(async ({ req }) => await auth(req, true))
         .onUploadComplete(async () => {
             console.log('Commission Image Upload Complete')
         }),
@@ -97,7 +97,7 @@ export const nemuFileRouter = {
         image: { maxFileCount: 1, maxFileSize: '16MB' },
         'application/zip': { maxFileCount: 1, maxFileSize: '16MB' }
     })
-        .middleware(({ req }) => auth(req, true))
+        .middleware(async ({ req }) => await auth(req, true))
         .onUploadComplete(async () => {
             console.log('Commission Download Upload Complete')
         })

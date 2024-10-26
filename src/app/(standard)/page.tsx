@@ -35,12 +35,13 @@ type RandomPortfolioReturnType = {
 const get_random_artists = unstable_cache(
     async () => {
         const artists = await db.query.artists.findMany()
+        const clerk_client = await clerkClient()
 
         const result: RandomArtistReturnType[] = []
         for (const artist of artists) {
             result.push({
                 ...artist,
-                user: await clerkClient().users.getUser(artist.user_id)
+                user: await clerk_client.users.getUser(artist.user_id)
             })
         }
 

@@ -155,7 +155,7 @@ export async function verify_artist(prev_state: unknown, form_data: FormData) {
                     return { success: false, error: 'Artist code does not exist' }
                 }
 
-                const user = auth()
+                const user = await auth()
 
                 if (!user.userId) {
                     return { success: false, error: 'User not found' }
@@ -183,7 +183,7 @@ export async function verify_artist(prev_state: unknown, form_data: FormData) {
                 // Create the artist verification object in the db
                 await db.insert(artist_verifications).values({
                     id: createId(),
-                    user_id: auth().userId!,
+                    user_id: (await auth()).userId!,
                     requested_handle: validateFields.data.requested_handle,
                     location: validateFields.data.location,
                     twitter: validateFields.data.twitter,
@@ -192,7 +192,7 @@ export async function verify_artist(prev_state: unknown, form_data: FormData) {
 
                 // Notify the user of the request
                 await knock.workflows.trigger(KnockWorkflows.VerificationPending, {
-                    recipients: [auth().userId!]
+                    recipients: [(await auth()).userId!]
                 })
             }
             break
