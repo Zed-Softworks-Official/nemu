@@ -107,7 +107,6 @@ export const commissionRouter = createTRPCRouter({
                 }
 
                 // Update the database with the relavent information that has been updated
-
                 await ctx.db
                     .update(commissions)
                     .set({

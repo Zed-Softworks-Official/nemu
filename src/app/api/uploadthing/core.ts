@@ -14,12 +14,13 @@ const f = createUploadthing()
 
 const auth = async (req: NextRequest, check_artist = false) => {
     const auth = getAuth(req)
+    const clerk_client = await clerkClient()
 
     if (!auth.userId) {
         throw new UploadThingError('Unauthorized')
     }
 
-    const user = await clerkClient().users.getUser(auth.userId)
+    const user = await clerk_client.users.getUser(auth.userId)
     if (check_artist) {
         if (!user.privateMetadata.artist_id) {
             throw new UploadThingError('Unauthorized')
