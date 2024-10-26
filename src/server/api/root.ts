@@ -7,9 +7,7 @@ import { verificationRouter } from '~/server/api/routers/verification'
 import { formRouter } from '~/server/api/routers/form'
 import { requestRouter } from '~/server/api/routers/requests'
 import { kanbanRouter } from '~/server/api/routers/kanban'
-import { algoliaRouter } from '~/server/api/routers/algolia'
 import { downloadsRouter } from '~/server/api/routers/downloads'
-import { artistRouter } from './routers/artists'
 
 /**
  * This is the primary router for your server.
@@ -17,7 +15,6 @@ import { artistRouter } from './routers/artists'
  * All routers added in /api/routers should be manually added here.
  */
 export const appRouter = createTRPCRouter({
-    artist: artistRouter,
     verification: verificationRouter,
     commission: commissionRouter,
     requests: requestRouter,
@@ -25,7 +22,6 @@ export const appRouter = createTRPCRouter({
     stripe: stripeRouter,
     kanban: kanbanRouter,
     user: userRouter,
-    algolia: algoliaRouter,
     downloads: downloadsRouter
 })
 
