@@ -75,6 +75,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                         baseTheme: dark
                     }}
                     publishableKey={env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+                    dynamic
                 >
                     <PosthogProvider>
                         <ThemeProvider

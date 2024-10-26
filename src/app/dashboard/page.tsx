@@ -1,5 +1,6 @@
 import { clerkClient, currentUser } from '@clerk/nextjs/server'
 import { and, desc, eq, gte } from 'drizzle-orm'
+import { DollarSign, Palette, ShoppingCart } from 'lucide-react'
 import { unstable_cache } from 'next/cache'
 import { Suspense } from 'react'
 import SalesChart from '~/components/dashboard/sales-chart'
@@ -41,6 +42,8 @@ type RecentSales = {
 
 const get_recent_requests = unstable_cache(
     async (artist_id: string) => {
+        const clerk_client = await clerkClient()
+
         const db_requests = await db
             .select()
             .from(commissions)
@@ -62,7 +65,7 @@ const get_recent_requests = unstable_cache(
             result.push({
                 commission_title: recent.commission.title,
                 requester_username: (
-                    await clerkClient().users.getUser(recent.request?.user_id)
+                    await clerk_client.users.getUser(recent.request?.user_id)
                 ).username!,
                 created_at: recent.request.created_at.toLocaleDateString()
             })
@@ -78,6 +81,7 @@ const get_recent_requests = unstable_cache(
 
 const get_recent_invoices = unstable_cache(
     async (artist_id: string) => {
+        const clerk_client = await clerkClient()
         const db_invoices = await db.query.invoices.findMany({
             where: eq(invoices.artist_id, artist_id),
             orderBy: (invoice, { desc }) => [desc(invoice.created_at)],
@@ -100,7 +104,7 @@ const get_recent_invoices = unstable_cache(
             result.push({
                 status: invoice.status as InvoiceStatus,
                 created_at: invoice.created_at.toLocaleDateString(),
-                requester_username: (await clerkClient().users.getUser(invoice.user_id))
+                requester_username: (await clerk_client.users.getUser(invoice.user_id))
                     .username!,
                 commission_title: invoice.request.commission.title
             })
@@ -261,10 +265,38 @@ const get_recent_sales = unstable_cache(
 
 export default function DashboardHome() {
     return (
-        <main className="flex flex-col gap-5">
+        <main className="flex flex-col space-y-6 p-8">
             <h1 className="text-3xl font-bold">Home</h1>
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                <Card>
+
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                <StatsCard
+                    title="Total Sales"
+                    icon={<DollarSign className="h-4 w-4 text-base-content/80" />}
+                    value={'$57.60'}
+                    change={'+5.00%'}
+                />
+                <StatsCard
+                    title="Active Commissions"
+                    icon={<Palette className="h-4 w-4 text-base-content/80" />}
+                    value={'$57.60'}
+                    change={'+5.00%'}
+                />
+                <StatsCard
+                    title="New Requests"
+                    icon={<ShoppingCart className="h-4 w-4 text-base-content/80" />}
+                    value={'$57.60'}
+                    change={'+5.00%'}
+                />
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
+                <Card className="col-span-4">
+                    <CardHeader>
+                        <CardTitle>Last Month&apos;s Sales</CardTitle>
+                    </CardHeader>
+                    <CardContent className="pl-2">Sales chart goes here</CardContent>
+                </Card>
+                <Card className="col-span-3">
                     <CardHeader>
                         <CardTitle>Recent Invoices</CardTitle>
                     </CardHeader>
@@ -272,26 +304,49 @@ export default function DashboardHome() {
                         <RecentInvoices />
                     </Suspense>
                 </Card>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-2">
                 <Card>
                     <CardHeader>
                         <CardTitle>Recent Requests</CardTitle>
                     </CardHeader>
-                    <Suspense fallback={<Loading />}>
-                        <RecentRequests />
-                    </Suspense>
+                    <CardContent>
+                        <Suspense fallback={<Loading />}>
+                            <RecentRequests />
+                        </Suspense>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Recent Sales</CardTitle>
+                    </CardHeader>
+                    <CardContent>Data table goes here</CardContent>
                 </Card>
             </div>
-            <Card>
-                <CardHeader>
-                    <CardTitle>Overview</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <Suspense fallback={<Loading />}>
-                        <TotalSales />
-                    </Suspense>
-                </CardContent>
-            </Card>
         </main>
+    )
+}
+
+function StatsCard(props: {
+    title: string
+    icon: React.ReactNode
+    value: string
+    change: string
+}) {
+    return (
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{props.title}</CardTitle>
+                {props.icon}
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">{props.value}</div>
+                <p className="text-xs text-base-content/80">
+                    {props.change} from last month
+                </p>
+            </CardContent>
+        </Card>
     )
 }
 
@@ -381,36 +436,5 @@ async function TotalSales() {
         return <NemuImage src={'/nemu/sad.png'} alt="Sad" width={200} height={200} />
     }
 
-    return (
-        <div className="grid h-full w-full grid-cols-1 gap-5 sm:grid-cols-3">
-            <div className="col-span-2 w-full">
-                <SalesChart sales_data={recent_sales.sales_data} />
-            </div>
-            <div className="stats stats-vertical">
-                <div className="stat">
-                    <div className="stat-title">Total Revenue</div>
-                    <div className="stat-value">{recent_sales.total_revenue.count}</div>
-                    <div className="stat-desc">
-                        {recent_sales.total_revenue.change} from last month
-                    </div>
-                </div>
-
-                <div className="stat">
-                    <div className="stat-title">Sales</div>
-                    <div className="stat-value">{recent_sales.total_sales.count}</div>
-                    <div className="stat-desc">
-                        {recent_sales.total_sales.change} from last month
-                    </div>
-                </div>
-
-                <div className="stat">
-                    <div className="stat-title">Total Requests</div>
-                    <div className="stat-value">{recent_sales.total_requests.count}</div>
-                    <div className="stat-desc">
-                        {recent_sales.total_requests.change} from last month
-                    </div>
-                </div>
-            </div>
-        </div>
-    )
+    return <SalesChart sales_data={recent_sales.sales_data} />
 }

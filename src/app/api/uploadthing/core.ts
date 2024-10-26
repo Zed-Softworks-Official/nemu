@@ -66,7 +66,7 @@ export const nemuFileRouter = {
                 objectID: artist.id,
                 handle: artist.handle,
                 about: artist.about,
-                image_url: (await clerkClient().users.getUser(artist.user_id)).imageUrl
+                image_url: metadata.user.imageUrl
             })
 
             // Invalidate cache

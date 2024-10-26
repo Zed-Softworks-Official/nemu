@@ -30,8 +30,9 @@ type AuthObject = ReturnType<typeof getAuth>
  * @see https://trpc.io/docs/server/context
  */
 export const createTRPCContext = async (opts: { headers: Headers; auth: AuthObject }) => {
+    const clerk_client = await clerkClient()
     const user = opts.auth.userId
-        ? await clerkClient().users.getUser(opts.auth.userId)
+        ? await clerk_client.users.getUser(opts.auth.userId)
         : undefined
 
     return {

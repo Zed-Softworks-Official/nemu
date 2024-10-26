@@ -1,7 +1,6 @@
 import { createCallerFactory, createTRPCRouter } from '~/server/api/trpc'
 
 import { userRouter } from '~/server/api/routers/user'
-import { commissionRouter } from '~/server/api/routers/commission'
 import { stripeRouter } from '~/server/api/routers/stripe'
 import { verificationRouter } from '~/server/api/routers/verification'
 import { formRouter } from '~/server/api/routers/form'
@@ -16,7 +15,6 @@ import { downloadsRouter } from '~/server/api/routers/downloads'
  */
 export const appRouter = createTRPCRouter({
     verification: verificationRouter,
-    commission: commissionRouter,
     requests: requestRouter,
     form: formRouter,
     stripe: stripeRouter,
