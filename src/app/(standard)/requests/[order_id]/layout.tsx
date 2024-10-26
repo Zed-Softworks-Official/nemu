@@ -1,12 +1,17 @@
 import RequestSidenavLink from '~/components/requests/request-sidenav-link'
 
-export default function Layout({
-    children,
-    params
-}: {
-    children: React.ReactNode
-    params: { order_id: string }
-}) {
+export default async function Layout(
+    props: {
+        children: React.ReactNode
+        params: Promise<{ order_id: string }>
+    }
+) {
+    const params = await props.params;
+
+    const {
+        children
+    } = props;
+
     return (
         <main className="flex min-h-screen flex-1 flex-col gap-5 bg-base-100 p-5 md:gap-8 md:p-10">
             <div className="mx-auto grid w-full max-w-6xl gap-2">

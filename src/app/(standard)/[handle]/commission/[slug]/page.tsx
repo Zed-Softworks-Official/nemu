@@ -5,9 +5,10 @@ import CommissionDisplay from '~/components/displays/commission/display'
 import Loading from '~/components/ui/loading'
 import { get_commission } from '~/server/db/query'
 
-type Props = { params: { handle: string; slug: string } }
+type Props = { params: Promise<{ handle: string; slug: string }> }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata(props: Props): Promise<Metadata> {
+    const params = await props.params;
     const handle = params.handle.substring(3, params.handle.length + 1)
     const commission = await get_commission(handle, params.slug)
 
@@ -35,7 +36,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     }
 }
 
-export default function CommissionsPage({ params }: Props) {
+export default async function CommissionsPage(props: Props) {
+    const params = await props.params;
     const handle = params.handle.substring(3, params.handle.length + 1)
 
     return (

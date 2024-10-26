@@ -9,11 +9,12 @@ import { InvoiceStatus } from '~/core/structures'
 import { format_to_currency } from '~/lib/utils'
 import { get_request_details } from '~/server/db/query'
 
-export default function RequestInvoicesPage({
-    params
-}: {
-    params: { order_id: string }
-}) {
+export default async function RequestInvoicesPage(
+    props: {
+        params: Promise<{ order_id: string }>
+    }
+) {
+    const params = await props.params;
     return (
         <Card>
             <CardHeader>

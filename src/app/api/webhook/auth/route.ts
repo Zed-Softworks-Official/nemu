@@ -18,7 +18,7 @@ import { knock } from '~/server/knock'
  */
 export async function POST(req: Request) {
     // Get the headers
-    const headersPayload = headers()
+    const headersPayload = await headers()
     const svix_id = headersPayload.get('svix-id')
     const svix_timestamp = headersPayload.get('svix-timestamp')
     const svix_signature = headersPayload.get('svix-signature')

@@ -14,7 +14,8 @@ import { Suspense } from 'react'
 import Loading from '~/components/ui/loading'
 import { get_request_details } from '~/server/db/query'
 
-export default function RequestDetailsPage({ params }: { params: { order_id: string } }) {
+export default async function RequestDetailsPage(props: { params: Promise<{ order_id: string }> }) {
+    const params = await props.params;
     return (
         <Suspense fallback={<Loading />}>
             <PageContent order_id={params.order_id} />

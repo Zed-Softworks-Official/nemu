@@ -14,7 +14,7 @@ export default function SocialsList(props: {
     const [currentUrl, setCurrentUrl] = useState('')
 
     return (
-        <div className="flex w-full flex-col gap-5">
+        (<div className="flex w-full flex-col gap-5">
             <h2 className="label">Socials:</h2>
             {socials.map((account, i) => (
                 <div
@@ -78,6 +78,6 @@ export default function SocialsList(props: {
                     <PlusCircleIcon className="h-6 w-6" />
                 </Button>
             </div>
-        </div>
-    )
+        </div>)
+    );
 }

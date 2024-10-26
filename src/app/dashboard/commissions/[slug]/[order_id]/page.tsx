@@ -28,11 +28,12 @@ import { Badge } from '~/components/ui/badge'
 import DeliverForm from '~/components/dashboard/deliver-form'
 import { get_request_details } from '~/server/db/query'
 
-export default function CommissionDetailsPage({
-    params
-}: {
-    params: { slug: string; order_id: string }
-}) {
+export default async function CommissionDetailsPage(
+    props: {
+        params: Promise<{ slug: string; order_id: string }>
+    }
+) {
+    const params = await props.params;
     return (
         <Suspense fallback={<Loading />}>
             <PageContent slug={params.slug} order_id={params.order_id} />

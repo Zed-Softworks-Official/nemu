@@ -98,7 +98,8 @@ const get_commission_requests = unstable_cache(
     }
 )
 
-export default function CommissionDetailPage({ params }: { params: { slug: string } }) {
+export default async function CommissionDetailPage(props: { params: Promise<{ slug: string }> }) {
+    const params = await props.params;
     return (
         <Suspense fallback={<Loading />}>
             <RequestsList slug={params.slug} />

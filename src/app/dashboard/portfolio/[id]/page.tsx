@@ -42,7 +42,8 @@ const get_portfolio_item = unstable_cache(
     }
 )
 
-export default function PortfolioItemEditPage({ params }: { params: { id: string } }) {
+export default async function PortfolioItemEditPage(props: { params: Promise<{ id: string }> }) {
+    const params = await props.params;
     return (
         <DashboardContainer title="Edit Portfolio Item">
             <UploadThingProvider endpoint="portfolioUploader">

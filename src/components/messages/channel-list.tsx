@@ -51,7 +51,7 @@ function CustomChannelList() {
     }
 
     return (
-        <div className="join-item flex h-full w-14 flex-col gap-5 bg-base-300 p-5 md:w-60 xl:w-96">
+        (<div className="join-item flex h-full w-14 flex-col gap-5 bg-base-300 p-5 md:w-60 xl:w-96">
             <div className="flex flex-col">
                 <h2 className="card-title">Channels</h2>
                 <div className="divider"></div>
@@ -103,8 +103,8 @@ function CustomChannelList() {
                     </Card>
                 )
             })}
-        </div>
-    )
+        </div>)
+    );
 }
 
 export default function ChannelList({

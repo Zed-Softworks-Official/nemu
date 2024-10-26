@@ -16,9 +16,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 import { SocialAgent } from '~/core/structures'
 import { get_artist_data } from '~/server/db/query'
 
-type Props = { params: { handle: string } }
+type Props = { params: Promise<{ handle: string }> }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata(props: Props): Promise<Metadata> {
+    const params = await props.params;
     const handle = params.handle.substring(3, params.handle.length + 1)
     const artist = await get_artist_data(handle)
 
@@ -42,7 +43,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     }
 }
 
-export default function ArtistPage({ params }: Props) {
+export default async function ArtistPage(props: Props) {
+    const params = await props.params;
     return (
         <Suspense fallback={<Loading />}>
             <PageContent params={params} />

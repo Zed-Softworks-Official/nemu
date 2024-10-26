@@ -50,7 +50,8 @@ async function get_edit_data(user: User, slug: string) {
     } satisfies ClientCommissionItemEditable
 }
 
-export default function UpdateCommissionPage({ params }: { params: { slug: string } }) {
+export default async function UpdateCommissionPage(props: { params: Promise<{ slug: string }> }) {
+    const params = await props.params;
     return (
         <Suspense fallback={<Loading />}>
             <PageContent slug={params.slug} />

@@ -8,7 +8,8 @@ import DashboardContainer from '~/components/ui/dashboard-container'
 import Loading from '~/components/ui/loading'
 import { get_form } from '~/server/db/query'
 
-export default function FormBuilderPage({ params }: { params: { id: string } }) {
+export default async function FormBuilderPage(props: { params: Promise<{ id: string }> }) {
+    const params = await props.params;
     return (
         <DashboardContainer title="Edit Form">
             <Suspense fallback={<Loading />}>
