@@ -6,7 +6,6 @@ import { verificationRouter } from '~/server/api/routers/verification'
 import { formRouter } from '~/server/api/routers/form'
 import { requestRouter } from '~/server/api/routers/requests'
 import { kanbanRouter } from '~/server/api/routers/kanban'
-import { downloadsRouter } from '~/server/api/routers/downloads'
 
 /**
  * This is the primary router for your server.
@@ -19,8 +18,7 @@ export const appRouter = createTRPCRouter({
     form: formRouter,
     stripe: stripeRouter,
     kanban: kanbanRouter,
-    user: userRouter,
-    downloads: downloadsRouter
+    user: userRouter
 })
 
 // export type definition of API
