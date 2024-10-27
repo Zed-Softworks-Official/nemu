@@ -1,8 +1,6 @@
 import { createCallerFactory, createTRPCRouter } from '~/server/api/trpc'
 
-import { stripeRouter } from '~/server/api/routers/stripe'
 import { requestRouter } from '~/server/api/routers/requests'
-import { kanbanRouter } from '~/server/api/routers/kanban'
 
 /**
  * This is the primary router for your server.
@@ -10,9 +8,7 @@ import { kanbanRouter } from '~/server/api/routers/kanban'
  * All routers added in /api/routers should be manually added here.
  */
 export const appRouter = createTRPCRouter({
-    requests: requestRouter,
-    stripe: stripeRouter,
-    kanban: kanbanRouter
+    requests: requestRouter
 })
 
 // export type definition of API
