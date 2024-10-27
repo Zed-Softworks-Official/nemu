@@ -8,7 +8,7 @@ import { set_index, update_index } from '~/core/search'
 
 import {
     type CommissionAvailability,
-    NemuEditImageData,
+    type NemuEditImageData,
     type NemuImageData,
     UserRole
 } from '~/core/structures'
