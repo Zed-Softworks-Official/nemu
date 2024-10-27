@@ -1,7 +1,6 @@
 import { createCallerFactory, createTRPCRouter } from '~/server/api/trpc'
 
 import { stripeRouter } from '~/server/api/routers/stripe'
-import { formRouter } from '~/server/api/routers/form'
 import { requestRouter } from '~/server/api/routers/requests'
 import { kanbanRouter } from '~/server/api/routers/kanban'
 
@@ -12,7 +11,6 @@ import { kanbanRouter } from '~/server/api/routers/kanban'
  */
 export const appRouter = createTRPCRouter({
     requests: requestRouter,
-    form: formRouter,
     stripe: stripeRouter,
     kanban: kanbanRouter
 })
