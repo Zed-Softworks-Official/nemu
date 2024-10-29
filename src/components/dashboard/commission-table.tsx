@@ -11,8 +11,8 @@ import {
     TableHeader,
     TableRow
 } from '~/components/ui/table'
-import { Badge } from '../ui/badge'
-import { Button } from '../ui/button'
+import { Badge } from '~/components/ui/badge'
+import { Button } from '~/components/ui/button'
 import { Eye } from 'lucide-react'
 import Link from 'next/link'
 
@@ -22,7 +22,35 @@ export default function CommissionTable(props: { commissions: ClientCommissionIt
     >(props.commissions)
 
     return (
-        <div className="mb-4 flex space-x-4">
+        <div className="mb-4 flex flex-col space-x-4">
+            <div className="mb-4 flex items-center gap-2 space-x-4">
+                <Button
+                    variant={'outline'}
+                    onClick={() => setFilteredCommissions(props.commissions)}
+                >
+                    All
+                </Button>
+                <Button
+                    variant={'outline'}
+                    onClick={() =>
+                        setFilteredCommissions(
+                            props.commissions.filter((c) => c.published)
+                        )
+                    }
+                >
+                    Published
+                </Button>
+                <Button
+                    variant={'outline'}
+                    onClick={() =>
+                        setFilteredCommissions(
+                            props.commissions.filter((c) => !c.published)
+                        )
+                    }
+                >
+                    Unpublished
+                </Button>
+            </div>
             <Table className="w-full">
                 <TableHeader>
                     <TableRow>

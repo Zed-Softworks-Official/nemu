@@ -265,7 +265,7 @@ const get_recent_sales = unstable_cache(
 
 export default function DashboardHome() {
     return (
-        <main className="container mx-auto flex flex-col gap-5 py-10">
+        <main className="container mx-auto flex flex-col gap-5 px-5 py-10">
             <h1 className="text-3xl font-bold">Home</h1>
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
