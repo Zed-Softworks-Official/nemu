@@ -9,7 +9,6 @@ import {
     ImageIcon,
     Layers,
     Mail,
-    PanelLeftIcon,
     User,
     CogIcon,
     ChevronUp
@@ -18,7 +17,7 @@ import {
 import { currentUser } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
 
-import Logo from '~/components/ui/logo'
+import Logo, { IconLogo } from '~/components/ui/logo'
 import {
     SidebarProvider,
     Sidebar,
@@ -41,6 +40,7 @@ import {
 } from '~/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
 import { get_dashboard_links } from '~/server/actions/stripe'
+import DashboardBreadcrumbs from '~/components/dashboard/header-breadcrumbs'
 
 export const metadata = {
     title: 'Nemu | Artist Dashboard'
@@ -48,7 +48,7 @@ export const metadata = {
 
 const sidebar_items = [
     {
-        title: 'Dashboard',
+        title: 'Home',
         href: '/dashboard',
         icon: <Home className="h-6 w-6" />
     },
@@ -78,8 +78,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     return (
         <SidebarProvider>
             <DashboardSidebar />
-            <main>
-                <SidebarTrigger />
+            <main className="w-full">
+                <div className="flex flex-row items-center gap-5 pl-4">
+                    <SidebarTrigger />
+                    <DashboardBreadcrumbs />
+                </div>
+                {children}
             </main>
         </SidebarProvider>
     )
@@ -87,9 +91,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
 function DashboardSidebar() {
     return (
-        <Sidebar>
+        <Sidebar collapsible="icon">
             <SidebarHeader className="flex items-center gap-2">
-                <Logo />
+                <div className="group-data-[collapsible=icon]:hidden">
+                    <Logo />
+                </div>
+                <div className="group-data-[state=expanded]:hidden">
+                    <IconLogo />
+                </div>
             </SidebarHeader>
             <SidebarContent>
                 <SidebarGroup>
@@ -187,152 +196,18 @@ async function SidebarSettingsContent() {
             </SidebarMenuItem>
             <SidebarMenuItem>
                 <SidebarMenuButton asChild>
-                    <Link href={'/artists/supporter'}>
+                    <Link
+                        href={
+                            dashboard_links.checkout_portal
+                                ? dashboard_links.checkout_portal
+                                : '/artists/supporter'
+                        }
+                    >
                         <BadgeDollarSign className="h-6 w-6" />
-                        Become a Supporter
+                        Supporter
                     </Link>
                 </SidebarMenuButton>
             </SidebarMenuItem>
         </SidebarMenu>
     )
 }
-
-// async function SidebarContent() {
-//     const clerk_user = await currentUser()
-
-//     if (!clerk_user) {
-//         return redirect('/u/login')
-//     }
-
-//     const artist = await db.query.artists.findFirst({
-//         where: eq(artists.id, clerk_user.publicMetadata.artist_id as string)
-//     })
-
-//     if (!artist) {
-//         return redirect('/u/login')
-//     }
-
-//     const dashboard_links = await api.stripe.get_dashboard_links()
-
-//     if (!dashboard_links) {
-//         return redirect('/u/login')
-//     }
-
-//     return (
-//         <>
-//             <nav className="flex flex-col items-center gap-4 px-2 sm:py-5">
-//                 <SidebarItem
-//                     icon={<HomeIcon className="h-6 w-6" />}
-//                     title="Home"
-//                     href="/dashboard"
-//                     // path="home"
-//                 />
-//                 <SidebarItem
-//                     icon={<LayersIcon className="h-6 w-6" />}
-//                     title="Commissions"
-//                     href="/dashboard/commissions"
-//                 />
-//                 <SidebarItem
-//                     icon={<ImageIcon className="h-6 w-6" />}
-//                     title="Portfolio"
-//                     href="/dashboard/portfolio"
-//                 />
-//                 <SidebarItem
-//                     icon={<ClipboardListIcon className="h-6 w-6" />}
-//                     title="Forms"
-//                     href="/dashboard/forms"
-//                 />
-//                 <SidebarItem
-//                     icon={<MailIcon className="h-6 w-6" />}
-//                     title="Messages"
-//                     href="/dashboard/messages"
-//                 />
-//             </nav>
-//             <nav className="mt-auto flex flex-col items-center gap-4 px-2 sm:py-5">
-//                 <SidebarItem
-//                     icon={<BrushIcon className="h-6 w-6" />}
-//                     title="My Page"
-//                     href={`/@${artist.handle}`}
-//                 />
-//                 <SidebarItem
-//                     icon={<HandCoinsIcon className="h-6 w-6" />}
-//                     title={
-//                         dashboard_links.managment.type === 'onboarding'
-//                             ? 'Complete Onboarding'
-//                             : 'Payout'
-//                     }
-//                     href={dashboard_links.managment.url}
-//                 />
-//                 <SidebarItem
-//                     icon={<BadgeDollarSign className="h-6 w-6" />}
-//                     title="Supporter"
-//                     href={
-//                         dashboard_links.checkout_portal
-//                             ? dashboard_links.checkout_portal
-//                             : '/artists/supporter'
-//                     }
-//                 />
-//                 <Tooltip>
-//                     <TooltipTrigger asChild>
-//                         <DropdownMenu>
-//                             <DropdownMenuTrigger asChild>
-//                                 <Avatar>
-//                                     <AvatarImage src={clerk_user.imageUrl} alt="Avatar" />
-//                                     <AvatarFallback>
-//                                         <UserIcon className="h-6 w-6" />
-//                                     </AvatarFallback>
-//                                 </Avatar>
-//                             </DropdownMenuTrigger>
-//                             <DropdownMenuContent side="right" sideOffset={5}>
-//                                 <DropdownMenuItem>
-//                                     <Link
-//                                         href={'/u/account'}
-//                                         className="flex flex-row items-center gap-3"
-//                                     >
-//                                         <UserIcon className="h-6 w-6" />
-//                                         Account Settings
-//                                     </Link>
-//                                 </DropdownMenuItem>
-//                                 <DropdownMenuItem>
-//                                     <Link
-//                                         href={'/dashboard/settings'}
-//                                         className="flex flex-row items-center gap-3"
-//                                     >
-//                                         <CogIcon className="h-6 w-6" />
-//                                         Artist Settings
-//                                     </Link>
-//                                 </DropdownMenuItem>
-//                             </DropdownMenuContent>
-//                         </DropdownMenu>
-//                     </TooltipTrigger>
-//                     <TooltipContent side="right" sideOffset={5}>
-//                         Account
-//                     </TooltipContent>
-//                 </Tooltip>
-//             </nav>
-//         </>
-//     )
-// }
-
-// function SidebarItem({
-//     title,
-//     href,
-//     icon
-// }: {
-//     title: string
-//     href: string
-//     icon: React.ReactNode
-// }) {
-//     return (
-//         <Tooltip>
-//             <TooltipTrigger asChild>
-//                 <Link href={href} className={'btn btn-ghost'}>
-//                     {icon}
-//                 </Link>
-//             </TooltipTrigger>
-//             <TooltipContent side="right" sideOffset={5}>
-//                 {title}
-//             </TooltipContent>
-//         </Tooltip>
-//     )
-// }

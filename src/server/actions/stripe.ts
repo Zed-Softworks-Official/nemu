@@ -13,7 +13,7 @@ import {
     StripeCreateSupporterBilling,
     StripeGetAccount
 } from '~/core/payments'
-import { StripeDashboardData } from '~/core/structures'
+import { type StripeDashboardData } from '~/core/structures'
 
 // TODO: Fix this because this seems bad
 export async function set_customer_id(artist_id: string) {
