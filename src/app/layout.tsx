@@ -11,7 +11,6 @@ import { extractRouterConfig } from 'uploadthing/server'
 import { ClerkProvider } from '@clerk/nextjs'
 import { dark } from '@clerk/themes'
 
-import { TRPCReactProvider } from '~/trpc/react'
 import { ThemeProvider } from '~/components/theme-provider'
 import { nemuFileRouter } from '~/app/api/uploadthing/core'
 import { TooltipProvider } from '~/components/ui/tooltip'
@@ -84,9 +83,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                             enableSystem
                             disableTransitionOnChange
                         >
-                            <TooltipProvider>
-                                <TRPCReactProvider>{children}</TRPCReactProvider>
-                            </TooltipProvider>
+                            <TooltipProvider>{children}</TooltipProvider>
                             <Toaster position="bottom-right" richColors />
                         </ThemeProvider>
                     </PosthogProvider>
