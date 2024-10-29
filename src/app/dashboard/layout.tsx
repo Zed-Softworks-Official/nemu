@@ -41,10 +41,23 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
 import { get_dashboard_links } from '~/server/actions/stripe'
 import DashboardBreadcrumbs from '~/components/dashboard/header-breadcrumbs'
+import { unstable_cache } from 'next/cache'
 
 export const metadata = {
     title: 'Nemu | Artist Dashboard'
 }
+
+const fetch_dashboard_links = unstable_cache(
+    async (user_id: string | undefined) => {
+        if (!user_id) {
+            return undefined
+        }
+
+        return await get_dashboard_links(user_id)
+    },
+    ['dashboard_links'],
+    { tags: ['dashboard_links'], revalidate: 3600 }
+)
 
 const sidebar_items = [
     {
@@ -177,8 +190,8 @@ async function SidebarUserdropdown() {
 }
 
 async function SidebarSettingsContent() {
-    // TODO: Use caching for these links
-    const dashboard_links = await get_dashboard_links()
+    const current_user = await currentUser()
+    const dashboard_links = await fetch_dashboard_links(current_user?.id)
 
     if (!dashboard_links) {
         return null

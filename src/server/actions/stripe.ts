@@ -96,15 +96,12 @@ export async function set_customer_id(artist_id: string) {
     }
 }
 
-export async function get_dashboard_links() {
-    const auth_data = await verify_auth()
-    if (!auth_data) return undefined
-
+export async function get_dashboard_links(user_id: string) {
     // Get the artist from the db
     let artist
     try {
         artist = await db.query.artists.findFirst({
-            where: eq(artists.user_id, auth_data.user.id)
+            where: eq(artists.user_id, user_id)
         })
     } catch (e) {
         console.error('Failed to get artist: ', e)

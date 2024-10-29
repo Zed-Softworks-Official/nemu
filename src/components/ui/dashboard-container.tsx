@@ -14,15 +14,15 @@ export default function DashboardContainer({
     children: React.ReactNode
 }) {
     return (
-        <div className="bg-base-300 w-full p-10 rounded-xl shadow-xl flex flex-col ">
-            <div className="flex justify-between items-center">
-                <h1 className="font-bold text-2xl">{title}</h1>
+        <div className="mx-5 flex w-full flex-col rounded-xl p-10">
+            <div className="flex items-center justify-between">
+                <h1 className="text-2xl font-bold">{title}</h1>
                 {addButtonUrl && (
                     <Link
                         href={addButtonUrl}
                         className="btn btn-square btn-primary text-base-content"
                     >
-                        <PlusCircleIcon className="w-6 h-6" />
+                        <PlusCircleIcon className="h-6 w-6" />
                     </Link>
                 )}
             </div>
