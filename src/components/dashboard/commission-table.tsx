@@ -1,6 +1,8 @@
 'use client'
 
+import Link from 'next/link'
 import { useState } from 'react'
+import { Eye } from 'lucide-react'
 
 import type { ClientCommissionItem } from '~/core/structures'
 import {
@@ -13,8 +15,6 @@ import {
 } from '~/components/ui/table'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
-import { Eye } from 'lucide-react'
-import Link from 'next/link'
 
 export default function CommissionTable(props: { commissions: ClientCommissionItem[] }) {
     const [filteredCommissions, setFilteredCommissions] = useState<
@@ -23,14 +23,16 @@ export default function CommissionTable(props: { commissions: ClientCommissionIt
 
     return (
         <div className="mb-4 flex flex-col space-x-4">
-            <div className="mb-4 flex items-center gap-2 space-x-4">
+            <div className="mb-4 flex items-center gap-2">
                 <Button
+                    size="sm"
                     variant={'outline'}
                     onClick={() => setFilteredCommissions(props.commissions)}
                 >
                     All
                 </Button>
                 <Button
+                    size="sm"
                     variant={'outline'}
                     onClick={() =>
                         setFilteredCommissions(
@@ -41,6 +43,7 @@ export default function CommissionTable(props: { commissions: ClientCommissionIt
                     Published
                 </Button>
                 <Button
+                    size="sm"
                     variant={'outline'}
                     onClick={() =>
                         setFilteredCommissions(

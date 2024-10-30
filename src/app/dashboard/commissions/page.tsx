@@ -41,7 +41,7 @@ export default function CommissionsDashboardPage() {
                         <Paintbrush className="text-muted-foreground h-4 w-4" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">12</div>
+                        <div className="text-2xl font-bold">0</div>
                     </CardContent>
                 </Card>
                 <Card>
@@ -50,7 +50,7 @@ export default function CommissionsDashboardPage() {
                         <Paintbrush className="text-muted-foreground h-4 w-4" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">8</div>
+                        <div className="text-2xl font-bold">0</div>
                     </CardContent>
                 </Card>
                 <Card>
@@ -61,7 +61,7 @@ export default function CommissionsDashboardPage() {
                         <Paintbrush className="text-muted-foreground h-4 w-4" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">42</div>
+                        <div className="text-2xl font-bold">0</div>
                     </CardContent>
                 </Card>
                 <Card>
@@ -72,7 +72,7 @@ export default function CommissionsDashboardPage() {
                         <Paintbrush className="text-muted-foreground h-4 w-4" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">23</div>
+                        <div className="text-2xl font-bold">0</div>
                     </CardContent>
                 </Card>
             </div>
