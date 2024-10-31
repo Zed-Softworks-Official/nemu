@@ -12,7 +12,7 @@ import { type InferSelectModel } from 'drizzle-orm'
 import { toast } from 'sonner'
 
 import { CommissionAvailability } from '~/core/structures'
-import type { forms } from '~/server/db/schema'
+import type { commissions, forms } from '~/server/db/schema'
 
 import { Form, FormField, FormItem, FormLabel, FormMessage } from '~/components/ui/form'
 import { Input } from '~/components/ui/input'
@@ -43,6 +43,9 @@ const commissionSchema = z.object({
 
 type CommissionSchemaType = z.infer<typeof commissionSchema>
 
+/**
+ * Commission Create Form Component
+ */
 export function CommissionCreateForm(props: { forms: InferSelectModel<typeof forms>[] }) {
     const { images, uploadImages, isUploading } = useUploadThingContext()
 
@@ -298,6 +301,19 @@ export function CommissionCreateForm(props: { forms: InferSelectModel<typeof for
     )
 }
 
+/**
+ * Commission Update Form Component
+ */
+export function CommissionUpdateForm(props: {
+    form: InferSelectModel<typeof forms>
+    commission: InferSelectModel<typeof commissions>
+}) {
+    return <></>
+}
+
+/**
+ * Submit Button Component
+ */
 function SubmitButton(props: { is_uploading: boolean }) {
     const { pending } = useFormStatus()
 

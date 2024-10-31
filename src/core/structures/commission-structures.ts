@@ -50,7 +50,10 @@ export type CommissionOrders = {
  * Client Side Commission Request Data, It basically contains all of same stuff as the prisma request
  */
 export type ClientRequestData = InferSelectModel<typeof requests> & {
-    user: User
+    user: {
+        id: string
+        username: string
+    }
     commission?: InferSelectModel<typeof commissions> & {
         artist?: InferSelectModel<typeof artists>
     }
