@@ -1,9 +1,5 @@
 'use client'
 
-export default function CommissionCreateEditForm() {
-    return <></>
-}
-
 // /**
 //  * Create a type from the zod schema
 //  */
