@@ -9,6 +9,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { CheckCircle2Icon, XCircleIcon, CircleDollarSignIcon } from 'lucide-react'
 import { type InferSelectModel } from 'drizzle-orm'
+import { toast } from 'sonner'
 
 import { CommissionAvailability } from '~/core/structures'
 import type { forms } from '~/server/db/schema'
@@ -28,6 +29,8 @@ import { Button } from '~/components/ui/button'
 import NemuUploadThing from '~/components/files/nemu-uploadthing'
 import { useUploadThingContext } from '~/components/files/uploadthing-context'
 
+import { set_commission } from '~/server/actions/commission'
+
 const commissionSchema = z.object({
     title: z.string().min(2).max(64),
     description: z.string(),
@@ -41,17 +44,71 @@ const commissionSchema = z.object({
 type CommissionSchemaType = z.infer<typeof commissionSchema>
 
 export function CommissionCreateForm(props: { forms: InferSelectModel<typeof forms>[] }) {
-    const { uploadImages, isUploading } = useUploadThingContext()
+    const { images, uploadImages, isUploading } = useUploadThingContext()
 
     const form = useForm<CommissionSchemaType>({
         resolver: zodResolver(commissionSchema),
         mode: 'onSubmit'
     })
 
-    const process_form = useCallback(async (values: CommissionSchemaType) => {
+    const process_form = async (values: CommissionSchemaType) => {
+        const toast_id = toast.loading('Uploading Images')
+
+        // Check if we have images to upload
+        if (images.length === 0) {
+            toast.error('Images are required!', {
+                id: toast_id
+            })
+
+            return
+        }
+
         // Upload Images
+        const res = await uploadImages()
+
+        if (!res) {
+            toast.error('Failed to upload images!', {
+                id: toast_id
+            })
+
+            return
+        }
+
+        // Format images response to be commission creation
+        const uploaded_images = res.map((file) => ({
+            url: file.url,
+            ut_key: file.key
+        }))
+
+        // Update toast
+        toast.loading('Creating Commission', {
+            id: toast_id
+        })
+
         // Create Commission
-    }, [])
+        const commission_res = await set_commission({
+            title: values.title,
+            description: values.description,
+            price: values.price,
+            availability: values.commission_availability as CommissionAvailability,
+            images: uploaded_images,
+            form_id: values.form_id,
+            max_commissions_until_waitlist: values.max_commissions_until_waitlist,
+            max_commissions_until_closed: values.max_commissions_until_closed
+        })
+
+        if (!commission_res.success) {
+            toast.error('Failed to create commission!', {
+                id: toast_id
+            })
+
+            return
+        }
+
+        toast.success('Commission Created!', {
+            id: toast_id
+        })
+    }
 
     return (
         <Form {...form}>
@@ -69,6 +126,7 @@ export function CommissionCreateForm(props: { forms: InferSelectModel<typeof for
                                 placeholder="My Commission"
                                 {...field}
                                 className="bg-base-200"
+                                onChange={(e) => field.onChange(e.currentTarget.value)}
                             />
                             <FormMessage />
                         </FormItem>
