@@ -1,7 +1,10 @@
 'use client'
 
+import { useState } from 'react'
+import Link from 'next/link'
 import { MoreHorizontal } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
+import { toast } from 'sonner'
 
 import { type ClientRequestData, RequestStatus } from '~/core/structures'
 
@@ -11,10 +14,11 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
-    DropdownMenuLabel,
     DropdownMenuTrigger
 } from '~/components/ui/dropdown-menu'
 import { Button } from '~/components/ui/button'
+
+import { determine_request } from '~/server/actions/requests'
 
 export default function CommissionRequestTable(props: { requests: ClientRequestData[] }) {
     const columns: ColumnDef<ClientRequestData>[] = [
@@ -46,6 +50,7 @@ export default function CommissionRequestTable(props: { requests: ClientRequestD
             id: 'Actions',
             cell: ({ row }) => {
                 const status: RequestStatus = row.getValue('status')
+                const request_id: string = row.getValue('id')
 
                 return (
                     <DropdownMenu>
@@ -56,19 +61,10 @@ export default function CommissionRequestTable(props: { requests: ClientRequestD
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            {status === RequestStatus.Accepted ||
-                                (status === RequestStatus.Rejected && (
-                                    <>
-                                        <DropdownMenuItem>
-                                            Accept Request
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem>
-                                            Decline Request
-                                        </DropdownMenuItem>
-                                    </>
-                                ))}
-                            <DropdownMenuItem>View Request</DropdownMenuItem>
+                            <CommissionViewRequest
+                                request_id={request_id}
+                                status={status}
+                            />
                         </DropdownMenuContent>
                     </DropdownMenu>
                 )
@@ -77,4 +73,18 @@ export default function CommissionRequestTable(props: { requests: ClientRequestD
     ]
 
     return <DataTable columns={columns} data={props.requests} />
+}
+
+function CommissionViewRequest(props: { request_id: string; status: RequestStatus }) {
+    const [open, setOpen] = useState(false)
+
+    if (props.status === RequestStatus.Accepted) {
+        return (
+            <DropdownMenuItem asChild>
+                <Link href={'/'}>View Request</Link>
+            </DropdownMenuItem>
+        )
+    }
+
+    return <DropdownMenuItem>View Request</DropdownMenuItem>
 }
