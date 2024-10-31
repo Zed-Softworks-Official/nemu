@@ -2,7 +2,7 @@
 
 import { SaveIcon, PlusCircleIcon } from 'lucide-react'
 import { useEffect, useState, type Dispatch, type SetStateAction } from 'react'
-import { useFormStatus } from 'react-dom';
+import { useFormStatus } from 'react-dom'
 import { toast } from 'sonner'
 
 import { type SocialAccount, SocialAgent } from '~/core/structures'
@@ -27,7 +27,7 @@ export default function ClientSettingsForm(props: {
     }
 }) {
     const [fieldChanged, setFieldChanged] = useState<boolean>(false)
-    const [state, formAction] = useActionState(update_artist_settings, { success: false })
+    const [state, formAction] = useFormStatus(update_artist_settings, { success: false })
 
     useEffect(() => {
         if (state.success) {
@@ -115,7 +115,7 @@ function SocialsList(props: {
     const [currentUrl, setCurrentUrl] = useState('')
 
     return (
-        (<div className="form-control rounded-xl bg-base-300 p-5 shadow-lg">
+        <div className="form-control rounded-xl bg-base-300 p-5 shadow-lg">
             <div className="flex flex-row items-center justify-between">
                 <Label className="label">Socials:</Label>
             </div>
@@ -171,8 +171,8 @@ function SocialsList(props: {
                     </Button>
                 </div>
             </div>
-        </div>)
-    );
+        </div>
+    )
 }
 
 function SocialInput(props: {

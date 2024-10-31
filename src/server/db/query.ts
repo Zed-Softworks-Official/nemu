@@ -207,6 +207,7 @@ export const get_request_list = unstable_cache(
 //////////////////////////////////////////////////////////
 export const get_request_details = unstable_cache(
     async (order_id: string) => {
+        const clerk_client = await clerkClient()
         const request = await db.query.requests.findFirst({
             where: eq(requests.order_id, order_id),
             with: {
@@ -251,9 +252,13 @@ export const get_request_details = unstable_cache(
             }
         }
 
+        const user = await clerk_client.users.getUser(request.user_id)
         const result: ClientRequestData = {
             ...request,
-            user: await clerkClient().users.getUser(request.user_id),
+            user: {
+                id: request.user_id,
+                username: user.username ?? 'User'
+            },
             delivery: delivery,
             invoice: request.invoice ?? undefined,
             kanban: request.kanban ?? undefined

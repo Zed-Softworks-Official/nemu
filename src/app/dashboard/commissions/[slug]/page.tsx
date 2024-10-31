@@ -2,7 +2,7 @@ import { unstable_cache } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { Suspense } from 'react'
 
-import { EyeIcon, PencilIcon } from 'lucide-react'
+import { PencilIcon } from 'lucide-react'
 // import CommissionPublishButton from '~/components/dashboard/commission-publish'
 import {
     type ClientCommissionItem,

@@ -31,6 +31,7 @@ import {
 import { Card, CardDescription, CardHeader, CardTitle } from '~/components/ui/card'
 
 import { determine_request } from '~/server/actions/requests'
+import { usePathname } from 'next/navigation'
 
 export default function CommissionRequestTable(props: { requests: ClientRequestData[] }) {
     const [open, setOpen] = useState(false)
@@ -106,10 +107,14 @@ function CommissionViewRequest(props: {
     setCurrentRequest: (request: ClientRequestData) => void
     setOpen: Dispatch<SetStateAction<boolean>>
 }) {
+    const pathname = usePathname()
+
     if (props.status === RequestStatus.Accepted) {
         return (
             <DropdownMenuItem asChild>
-                <Link href={'/'}>View Request</Link>
+                <Link href={`${pathname}/${props.request_data.order_id}`}>
+                    View Request
+                </Link>
             </DropdownMenuItem>
         )
     }
