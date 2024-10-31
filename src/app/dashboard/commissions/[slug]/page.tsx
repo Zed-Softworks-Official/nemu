@@ -92,7 +92,7 @@ const get_commission_requests = unstable_cache(
 
 export default function CommissionDetailPage(props: { params: { slug: string } }) {
     return (
-        <div className="container mx-auto flex flex-col gap-5">
+        <div className="container mx-auto flex flex-col gap-5 px-5">
             <div className="flex flex-row items-center justify-between">
                 <h1 className="text-3xl font-bold">Commission Title</h1>
                 <div className="flex gap-2">
