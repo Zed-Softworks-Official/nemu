@@ -1,8 +1,7 @@
 import { Suspense } from 'react'
-import dynamic from 'next/dynamic'
 import { notFound } from 'next/navigation'
 
-import type { KanbanContainerData, KanbanTask } from '~/core/structures'
+import type { KanbanContainerData, KanbanTask, RequestContent } from '~/core/structures'
 import Kanban from '~/components/kanban/kanban'
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
@@ -16,25 +15,64 @@ export default function CommissionDetailsPage(props: {
 }) {
     return (
         <div className="container mx-auto flex flex-col gap-5 px-5">
-            <div className="flex flex-col justify-center gap-4">
-                <h1 className="text-3xl font-bold">
-                    Request for {props.params.order_id}
-                </h1>
-                <h2 className="text-lg italic text-base-content/80">
-                    Commissioned on date
-                </h2>
-            </div>
+            <Suspense fallback={<Loading />}>
+                <RequestHeader order_id={props.params.order_id} />
+            </Suspense>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Order Details</CardTitle>
-                </CardHeader>
-                <CardContent>Details about the order</CardContent>
-            </Card>
+            <Suspense fallback={<Loading />}>
+                <CommissionDetails order_id={props.params.order_id} />
+            </Suspense>
             <Suspense fallback={<Loading />}>
                 <CommissionTabs order_id={props.params.order_id} />
             </Suspense>
         </div>
+    )
+}
+
+async function RequestHeader(props: { order_id: string }) {
+    const request_data = await get_request_details(props.order_id)
+
+    if (!request_data) {
+        return notFound()
+    }
+
+    return (
+        <div className="flex flex-col justify-center gap-4">
+            <h1 className="text-3xl font-bold">
+                Request for {request_data.user.username}
+            </h1>
+            <h2 className="text-lg italic text-base-content/80">
+                Commissioned on {new Date(request_data.created_at).toLocaleDateString()}
+            </h2>
+        </div>
+    )
+}
+
+async function CommissionDetails(props: { order_id: string }) {
+    const request_data = await get_request_details(props.order_id)
+
+    if (!request_data) {
+        return notFound()
+    }
+
+    const request_content = request_data.content as RequestContent
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Order Details</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-5">
+                {Object.keys(request_content).map((key) => (
+                    <div key={key} className="border-b-2 border-base-content/[0.1] pb-2">
+                        <h3 className="text-lg font-bold">
+                            {request_content[key]?.label}
+                        </h3>
+                        <p>{request_content[key]?.value}</p>
+                    </div>
+                ))}
+            </CardContent>
+        </Card>
     )
 }
 
@@ -55,12 +93,12 @@ async function CommissionTabs(props: { order_id: string }) {
             </TabsList>
             <TabsContent value="kanban">
                 <Suspense fallback={<Loading />}>
-                    <KanbanView
-                        containers={
+                    <Kanban
+                        kanban_id={request_data.kanban.id}
+                        kanban_containers={
                             request_data.kanban.containers as KanbanContainerData[]
                         }
-                        tasks={request_data.kanban.tasks as KanbanTask[]}
-                        id={request_data.kanban?.id}
+                        kanban_tasks={request_data.kanban.tasks as KanbanTask[]}
                     />
                 </Suspense>
             </TabsContent>
@@ -68,20 +106,6 @@ async function CommissionTabs(props: { order_id: string }) {
             <TabsContent value="invoice">invoice</TabsContent>
             <TabsContent value="delivery">delivery</TabsContent>
         </Tabs>
-    )
-}
-
-async function KanbanView(props: {
-    containers: KanbanContainerData[]
-    tasks: KanbanTask[]
-    id: string
-}) {
-    return (
-        <Kanban
-            kanban_id={props.id}
-            kanban_containers={props.containers}
-            kanban_tasks={props.tasks}
-        />
     )
 }
 

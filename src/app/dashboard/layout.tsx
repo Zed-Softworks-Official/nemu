@@ -2,7 +2,6 @@ import Link from 'next/link'
 import { Suspense } from 'react'
 import {
     BadgeDollarSign,
-    BrushIcon,
     ClipboardList,
     HandCoins,
     Home,
@@ -10,7 +9,6 @@ import {
     Layers,
     Mail,
     User,
-    CogIcon,
     ChevronUp
 } from 'lucide-react'
 
@@ -42,6 +40,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
 import { get_dashboard_links } from '~/server/actions/stripe'
 import DashboardBreadcrumbs from '~/components/dashboard/header-breadcrumbs'
 import { unstable_cache } from 'next/cache'
+import { Separator } from '~/components/ui/separator'
 
 export const metadata = {
     title: 'Nemu | Artist Dashboard'
@@ -92,10 +91,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <SidebarProvider>
             <DashboardSidebar />
             <main className="w-full">
-                <div className="flex flex-row items-center gap-5 pl-4">
+                <header className="mb-5 flex h-10 shrink-0 items-center gap-2 px-4">
                     <SidebarTrigger />
+                    <Separator orientation="vertical" className="h-1/2" />
                     <DashboardBreadcrumbs />
-                </div>
+                </header>
                 {children}
             </main>
         </SidebarProvider>

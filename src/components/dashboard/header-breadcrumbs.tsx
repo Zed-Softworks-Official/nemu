@@ -15,7 +15,7 @@ export default function DashboardBreadcrumbs() {
     const pathname = usePathname().split('/')
 
     return (
-        <Breadcrumb className="hidden md:flex">
+        <Breadcrumb className="hidden pl-4 md:flex">
             <BreadcrumbList>
                 {pathname.map((item, index) => (
                     <DrashboardBreadcrumbItem
