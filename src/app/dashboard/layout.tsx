@@ -90,13 +90,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     return (
         <SidebarProvider>
             <DashboardSidebar />
-            <main className="w-full">
-                <header className="mb-5 flex h-10 shrink-0 items-center gap-2 px-4">
+            <main className="flex min-h-screen w-full flex-col bg-base-200">
+                <header className="my-3 flex h-10 shrink-0 items-center gap-2">
                     <SidebarTrigger />
                     <Separator orientation="vertical" className="h-1/2" />
                     <DashboardBreadcrumbs />
                 </header>
-                {children}
+                <div className="mb-3 mr-3 flex-grow rounded-xl bg-base-100">
+                    {children}
+                </div>
             </main>
         </SidebarProvider>
     )
