@@ -2,6 +2,7 @@
 
 import { auth, clerkClient } from '@clerk/nextjs/server'
 import { eq, type InferSelectModel } from 'drizzle-orm'
+import { revalidateTag } from 'next/cache'
 
 import { type KanbanContainerData, type KanbanTask, UserRole } from '~/core/structures'
 
@@ -107,6 +108,9 @@ export async function update_kanban(
         console.error('Failed to update kanban: ', e)
         return { success: false }
     }
+
+    // Invalidate cache
+    revalidateTag('commission_requests')
 
     return { success: true }
 }

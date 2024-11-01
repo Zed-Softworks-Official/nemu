@@ -267,7 +267,7 @@ export const get_request_details = unstable_cache(
         return result
     },
     ['commission_requests'],
-    { tags: ['commission_requests'] }
+    { tags: ['commission_requests'], revalidate: 3600 }
 )
 
 //////////////////////////////////////////////////////////

@@ -21,6 +21,7 @@ import { PlusCircleIcon, SaveIcon } from 'lucide-react'
 import { Button } from '~/components/ui/button'
 import Masonry, { ResponsiveMasonry } from 'react-responsive-masonry'
 import { toast } from 'sonner'
+import { update_kanban } from '~/server/actions/kanban'
 
 export default function Kanban({
     header,
@@ -33,7 +34,7 @@ export default function Kanban({
     kanban_containers: KanbanContainerData[]
     kanban_tasks: KanbanTask[]
 }) {
-    const [toastId, setToastId] = useState<string | number | undefined>()
+    const [pending, setPending] = useState(false)
     const [containers, setContainers] = useState<KanbanContainerData[]>(kanban_containers)
     const [tasks, setTasks] = useState<KanbanTask[]>(kanban_tasks)
 
@@ -46,26 +47,6 @@ export default function Kanban({
         () => containers.map((container) => container.id),
         [containers]
     )
-
-    // const mutation = api.kanban.set_kanban.useMutation({
-    //     onMutate: () => {
-    //         setToastId(toast.loading('Saving Kanban'))
-    //     },
-    //     onSuccess: () => {
-    //         if (!toastId) return
-
-    //         toast.success('Kanban Saved!', {
-    //             id: toastId
-    //         })
-    //     },
-    //     onError: (e) => {
-    //         if (!toastId) return
-
-    //         toast.error(e.message, {
-    //             id: toastId
-    //         })
-    //     }
-    // })
 
     const sesnors = useSensors(
         useSensor(PointerSensor, {
@@ -80,11 +61,28 @@ export default function Kanban({
         tasks: KanbanTask[]
     }) {
         if (kanban_id) {
-            // mutation.mutate({
-            //     kanban_id,
-            //     containers: JSON.stringify(data.containers),
-            //     tasks: JSON.stringify(data.tasks)
-            // })
+            setPending(true)
+            const toast_id = toast.loading('Saving Kanban')
+
+            const res = await update_kanban(
+                kanban_id,
+                JSON.stringify(data.containers),
+                JSON.stringify(data.tasks)
+            )
+
+            if (!res.success) {
+                toast.error('Failed to save kanban', {
+                    id: toast_id
+                })
+                setPending(false)
+
+                return
+            }
+
+            toast.success('Kanban Saved!', {
+                id: toast_id
+            })
+            setPending(false)
         }
     }
 
@@ -244,7 +242,7 @@ export default function Kanban({
                                 disabled={false}
                                 onMouseDown={() => SaveKanban({ containers, tasks })}
                             >
-                                {/* {mutation.isPending ? (
+                                {pending ? (
                                     <>
                                         <span className="loading loading-spinner"></span>
                                         <p>Saving</p>
@@ -254,7 +252,7 @@ export default function Kanban({
                                         <SaveIcon className="h-6 w-6" />
                                         <p>Save</p>
                                     </>
-                                )} */}
+                                )}
                             </Button>
                             <Button onMouseDown={() => CreateNewContainer()}>
                                 <PlusCircleIcon className="h-6 w-6" />

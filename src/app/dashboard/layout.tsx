@@ -96,7 +96,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     <Separator orientation="vertical" className="h-1/2" />
                     <DashboardBreadcrumbs />
                 </header>
-                <div className="mb-3 mr-3 flex-grow rounded-xl bg-base-100">
+                <div className="mb-3 mr-3 flex-grow rounded-xl bg-base-100 py-5">
                     {children}
                 </div>
             </main>
