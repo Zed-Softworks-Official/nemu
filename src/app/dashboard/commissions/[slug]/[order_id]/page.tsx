@@ -14,20 +14,22 @@ import { get_request_details } from '~/server/db/query'
 import InvoiceDisplay from '~/components/dashboard/invoice'
 import DownloadsDropzone from '~/components/dashboard/downloads-dropzone'
 
-export default function CommissionDetailsPage(props: {
-    params: { slug: string; order_id: string }
+export default async function CommissionDetailsPage(props: {
+    params: Promise<{ slug: string; order_id: string }>
 }) {
+    const params = await props.params
+
     return (
         <div className="container mx-auto flex flex-col gap-5 px-5">
             <Suspense fallback={<Loading />}>
-                <RequestHeader order_id={props.params.order_id} />
+                <RequestHeader order_id={params.order_id} />
             </Suspense>
 
             <Suspense fallback={<Loading />}>
-                <CommissionDetails order_id={props.params.order_id} />
+                <CommissionDetails order_id={params.order_id} />
             </Suspense>
             <Suspense fallback={<Loading />}>
-                <CommissionTabs order_id={props.params.order_id} />
+                <CommissionTabs order_id={params.order_id} />
             </Suspense>
         </div>
     )

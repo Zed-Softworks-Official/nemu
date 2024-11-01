@@ -49,17 +49,17 @@ export default function KanbanContainerComponent({
     if (isDragging) {
         return (
             <div
-                className="card shadow-xl bg-base-300 opacity-60"
+                className="card bg-base-300 opacity-60 shadow-xl"
                 ref={setNodeRef}
                 style={style}
             >
                 <div
-                    className="bg-base-200 text-md cursor-grab p-5 rounded-t-xl flex flex-row items-center justify-between gap-5"
+                    className="text-md flex cursor-grab flex-row items-center justify-between gap-5 rounded-t-xl bg-base-200 p-5"
                     {...listeners}
                     {...attributes}
                 >
-                    <div className="flex flex-row gap-5 items-center">
-                        <div className="bg-base-300 p-5 rounded-xl card-title">
+                    <div className="flex flex-row items-center gap-5">
+                        <div className="card-title rounded-xl bg-base-300 p-5">
                             {tasks.length}
                         </div>
                         <h2 className="card-title cursor-pointer">
@@ -68,15 +68,15 @@ export default function KanbanContainerComponent({
                     </div>
                     <div className="flex gap-5">
                         <button type="button" className="btn btn-primary">
-                            <PlusCircleIcon className="w-6 h-6" />
+                            <PlusCircleIcon className="h-6 w-6" />
                         </button>
                         <button type="button" className="btn btn-outline">
-                            <Trash2Icon className="w-6 h-6" />
+                            <Trash2Icon className="h-6 w-6" />
                         </button>
                     </div>
                 </div>
                 <div className="card-body">
-                    <div className="flex flex-col flex-grow gap-5">
+                    <div className="flex flex-grow flex-col gap-5">
                         {tasks.map((task) => (
                             <KanbanItemComponent
                                 key={task.id}
@@ -92,14 +92,14 @@ export default function KanbanContainerComponent({
     }
 
     return (
-        <div className="card shadow-xl bg-base-300" ref={setNodeRef} style={style}>
+        <div className="card bg-base-300 shadow-xl" ref={setNodeRef} style={style}>
             <div
-                className="bg-base-200 text-md cursor-grab p-5 rounded-t-xl flex flex-row items-center justify-between gap-5"
+                className="text-md flex cursor-grab flex-row items-center justify-between gap-5 rounded-t-xl bg-base-200 p-5"
                 {...listeners}
                 {...attributes}
             >
-                <div className="flex flex-row gap-5 items-center">
-                    <div className="bg-base-300 p-5 rounded-xl card-title">
+                <div className="flex flex-row items-center gap-5">
+                    <div className="card-title rounded-xl bg-base-300 p-5">
                         {tasks.length}
                     </div>
                     {!editMode ? (
@@ -133,29 +133,27 @@ export default function KanbanContainerComponent({
 
                 <div className="flex gap-5">
                     <Button onMouseDown={() => CreateTask(container_data.id)}>
-                        <PlusCircleIcon className="w-6 h-6" />
+                        <PlusCircleIcon className="h-6 w-6" />
                     </Button>
                     <Button
                         variant={'outline'}
                         onMouseDown={() => DeleteContainer(container_data.id)}
                     >
-                        <Trash2Icon className="w-6 h-6" />
+                        <Trash2Icon className="h-6 w-6" />
                     </Button>
                 </div>
             </div>
-            <div className="card-body">
-                <div className="flex flex-col flex-grow gap-5">
-                    <SortableContext items={taskIds}>
-                        {tasks.map((task) => (
-                            <KanbanItemComponent
-                                key={task.id}
-                                item_data={task}
-                                DeleteTask={DeleteTask}
-                                UpdateTask={UpdateTask}
-                            />
-                        ))}
-                    </SortableContext>
-                </div>
+            <div className="card-body grid auto-rows-min gap-4">
+                <SortableContext items={taskIds}>
+                    {tasks.map((task) => (
+                        <KanbanItemComponent
+                            key={task.id}
+                            item_data={task}
+                            DeleteTask={DeleteTask}
+                            UpdateTask={UpdateTask}
+                        />
+                    ))}
+                </SortableContext>
             </div>
         </div>
     )

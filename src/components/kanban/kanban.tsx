@@ -19,7 +19,6 @@ import KanbanItemComponent from '~/components/kanban/kanban-task'
 
 import { PlusCircleIcon, SaveIcon } from 'lucide-react'
 import { Button } from '~/components/ui/button'
-import Masonry, { ResponsiveMasonry } from 'react-responsive-masonry'
 import { toast } from 'sonner'
 import { update_kanban } from '~/server/actions/kanban'
 
@@ -263,26 +262,22 @@ export default function Kanban({
                     <div className="divider"></div>
 
                     <SortableContext items={containerIds}>
-                        <ResponsiveMasonry
-                            columnsCountBreakPoints={{ 350: 1, 750: 2, 900: 3 }}
-                        >
-                            <Masonry gutter="1.25rem">
-                                {containers.map((container) => (
-                                    <KanbanContainerComponent
-                                        key={container.id}
-                                        container_data={container}
-                                        tasks={tasks.filter(
-                                            (task) => task.container_id === container.id
-                                        )}
-                                        DeleteContainer={DeleteContainer}
-                                        UpdateContainer={UpdateContainer}
-                                        CreateTask={CreateTask}
-                                        DeleteTask={DeleteTask}
-                                        UpdateTask={UpdateTask}
-                                    />
-                                ))}
-                            </Masonry>
-                        </ResponsiveMasonry>
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                            {containers.map((container) => (
+                                <KanbanContainerComponent
+                                    key={container.id}
+                                    container_data={container}
+                                    tasks={tasks.filter(
+                                        (task) => task.container_id === container.id
+                                    )}
+                                    DeleteContainer={DeleteContainer}
+                                    UpdateContainer={UpdateContainer}
+                                    CreateTask={CreateTask}
+                                    DeleteTask={DeleteTask}
+                                    UpdateTask={UpdateTask}
+                                />
+                            ))}
+                        </div>
                     </SortableContext>
                 </div>
             </div>
