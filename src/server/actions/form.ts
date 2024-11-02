@@ -8,7 +8,7 @@ import { revalidateTag } from 'next/cache'
 import { db } from '~/server/db'
 import { forms } from '~/server/db/schema'
 
-export async function set_form(name: string, description: string) {
+export async function set_form(name: string, description?: string) {
     const auth_data = await auth()
     if (!auth_data.userId) {
         return { success: false }

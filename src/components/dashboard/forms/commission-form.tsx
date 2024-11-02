@@ -312,8 +312,7 @@ export function CommissionUpdateForm(props: {
     forms: InferSelectModel<typeof forms>[]
     commission_data: ClientCommissionItemEditable
 }) {
-    const { images, uploadImages, isUploading, editData, setEditData } =
-        useUploadThingContext()
+    const { images, uploadImages, isUploading, setEditData } = useUploadThingContext()
 
     const form = useForm<CommissionSchemaType>({
         resolver: zodResolver(commissionSchema),
