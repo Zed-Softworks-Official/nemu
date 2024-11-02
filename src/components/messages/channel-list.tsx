@@ -22,7 +22,7 @@ import Loading from '~/components/ui/loading'
 
 export function ChannelList(props: {
     hide?: boolean
-    setCurrentChannel: Dispatch<SetStateAction<GroupChannel | null>>
+    setCurrentChannel: Dispatch<SetStateAction<string | undefined>>
 }) {
     const query = useMemo(() => {
         return {
@@ -36,7 +36,7 @@ export function ChannelList(props: {
 
     return (
         <GroupChannelListProvider
-            onChannelSelect={(channel) => props.setCurrentChannel(channel)}
+            onChannelSelect={(channel) => props.setCurrentChannel(channel?.url)}
             onChannelCreated={() => null}
             channelListQueryParams={query}
         >

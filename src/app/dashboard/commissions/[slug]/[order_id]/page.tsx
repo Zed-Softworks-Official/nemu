@@ -1,5 +1,6 @@
 import { Suspense } from 'react'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
+import { currentUser } from '@clerk/nextjs/server'
 
 import type { KanbanContainerData, KanbanTask, RequestContent } from '~/core/structures'
 import Kanban from '~/components/kanban/kanban'
@@ -10,7 +11,7 @@ import Loading from '~/components/ui/loading'
 
 import { get_request_details } from '~/server/db/query'
 
-// import MessagesClient from '~/components/messages/messages'
+import MessagesClient from '~/components/messages/messages'
 import InvoiceDisplay from '~/components/dashboard/invoice'
 import DownloadsDropzone from '~/components/dashboard/downloads-dropzone'
 
@@ -83,6 +84,12 @@ async function CommissionDetails(props: { order_id: string }) {
 }
 
 async function CommissionTabs(props: { order_id: string }) {
+    const user = await currentUser()
+
+    if (!user) {
+        return redirect('/u/login')
+    }
+
     const request_data = await get_request_details(props.order_id)
 
     if (!request_data?.kanban) {
@@ -109,9 +116,11 @@ async function CommissionTabs(props: { order_id: string }) {
                 </Suspense>
             </TabsContent>
             <TabsContent value="messages">
-                {/* <MessagesClient
+                <MessagesClient
                     channel_url={request_data.sendbird_channel_url ?? undefined}
-                /> */}
+                    hide={true}
+                    user_id={user?.id}
+                />
             </TabsContent>
             <TabsContent value="invoice">
                 <InvoiceDisplay invoice={request_data.invoice} />

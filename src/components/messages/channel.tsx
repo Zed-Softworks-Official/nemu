@@ -37,19 +37,20 @@ import type { KanbanMessagesDataType } from '~/core/structures'
 import { RadioGroup, RadioGroupItem } from '~/components/ui/radio-group'
 import { Label } from '~/components/ui/label'
 
-export function Channel(props: { channel: GroupChannel | null }) {
-    if (!props.channel) {
+export function Channel(props: { channel_url: string | undefined }) {
+    if (!props.channel_url) {
         return null
     }
 
     return (
-        <GroupChannelProvider channelUrl={props.channel.url}>
+        <GroupChannelProvider channelUrl={props.channel_url}>
             <CustomChannel />
         </GroupChannelProvider>
     )
 }
 
 function CustomChannel() {
+    const [metadata, setMetadata] = useState<Record<string, string>>({})
     const [messageContent, setMessageContent] = useState('')
     const [kanbanOpen, setKanbanOpen] = useState(false)
     const [kanbanContainers, setKanbanContainers] = useState<
@@ -62,7 +63,8 @@ function CustomChannel() {
 
     const currentUser = useUser()
 
-    const { messages, sendUserMessage, channelUrl } = useGroupChannelContext()
+    const { currentChannel, messages, sendUserMessage, channelUrl } =
+        useGroupChannelContext()
 
     useEffect(() => {
         get_kanban_messages(channelUrl)
@@ -74,14 +76,24 @@ function CustomChannel() {
             .catch(() => {
                 toast.error('Failed to get kanban messages')
             })
-    }, [channelUrl])
+
+        setMetadata(JSON.parse(currentChannel?.data ?? '{}') as Record<string, string>)
+    }, [channelUrl, currentChannel])
+
+    const otherUser = currentChannel?.members.filter(
+        (member) => member.userId !== currentUser.user?.id
+    )[0]
 
     return (
         <div className="flex flex-1 flex-col">
             <header className="p-4">
                 <div className="flex flex-col">
-                    <h2 className="text-xl font-bold">Other Username</h2>
-                    <span className="text-md text-base-content/60">Commission Title</span>
+                    <h2 className="text-xl font-bold">
+                        {otherUser?.nickname ?? 'Other User'}
+                    </h2>
+                    <span className="text-md text-base-content/60">
+                        {metadata.commission_title ?? 'Commission Title'}
+                    </span>
                 </div>
             </header>
             <Separator />
