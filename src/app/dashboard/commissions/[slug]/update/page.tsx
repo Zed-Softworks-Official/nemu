@@ -2,9 +2,8 @@ import { currentUser, type User } from '@clerk/nextjs/server'
 import { eq } from 'drizzle-orm'
 import { notFound, redirect } from 'next/navigation'
 import { Suspense } from 'react'
-import { toast } from 'sonner'
 
-import CommissionCreateEditForm from '~/components/dashboard/forms/commission-create-edit'
+import { CommissionUpdateForm } from '~/components/dashboard/forms/commission-form'
 import UploadThingProvider from '~/components/files/uploadthing-context'
 import DashboardContainer from '~/components/ui/dashboard-container'
 import Loading from '~/components/ui/loading'
@@ -35,7 +34,7 @@ async function get_edit_data(user: User, slug: string) {
         id: commission.id,
         title: commission.title,
         description: commission.description,
-        price: Number(commission.price),
+        price: commission.price,
 
         form_id: commission.form_id,
 
@@ -50,42 +49,38 @@ async function get_edit_data(user: User, slug: string) {
     } satisfies ClientCommissionItemEditable
 }
 
-export default async function UpdateCommissionPage(props: { params: Promise<{ slug: string }> }) {
-    const params = await props.params;
+export default async function UpdateCommissionPage(props: {
+    params: Promise<{ slug: string }>
+}) {
+    const params = await props.params
+
     return (
         <Suspense fallback={<Loading />}>
-            <PageContent slug={params.slug} />
+            <UpdateForm slug={params.slug} />
         </Suspense>
     )
 }
 
-async function PageContent(props: { slug: string }) {
+async function UpdateForm(props: { slug: string }) {
     const user = await currentUser()
 
     if (!user) {
         return redirect('/u/login')
     }
 
-    const edit_data = await get_edit_data(user, props.slug)
+    const commission_data = await get_edit_data(user, props.slug)
     const forms = await get_form_list(user.privateMetadata.artist_id as string)
 
-    if (!edit_data) {
+    if (!commission_data || !forms) {
         return notFound()
     }
 
-    if (!forms) {
-        toast.info('No forms found, please create a form first!')
-        return redirect('/dashboard/forms/create')
-    }
-
     return (
-        <DashboardContainer title={`Update ${edit_data?.title}`}>
-            <UploadThingProvider
-                endpoint="commissionImageUploader"
-                edit_previews={edit_data?.images}
-            >
-                <CommissionCreateEditForm forms={forms} edit_data={edit_data} />
-            </UploadThingProvider>
-        </DashboardContainer>
+        <UploadThingProvider
+            endpoint="commissionImageUploader"
+            edit_previews={commission_data.images}
+        >
+            <CommissionUpdateForm forms={forms} commission_data={commission_data} />
+        </UploadThingProvider>
     )
 }

@@ -1,17 +1,17 @@
+import Link from 'next/link'
 import { unstable_cache } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { Suspense } from 'react'
 
 import { PencilIcon } from 'lucide-react'
-// import CommissionPublishButton from '~/components/dashboard/commission-publish'
+import { clerkClient, currentUser } from '@clerk/nextjs/server'
+
 import {
     type ClientCommissionItem,
     type ClientRequestData,
     type CommissionAvailability,
     type NemuImageData
 } from '~/core/structures'
-import { clerkClient, currentUser } from '@clerk/nextjs/server'
-import { Button } from '~/components/ui/button'
 
 import { db } from '~/server/db'
 import { artists, commissions } from '~/server/db/schema'
@@ -20,6 +20,8 @@ import { get_blur_data } from '~/lib/blur_data'
 import { format_to_currency } from '~/lib/utils'
 import Loading from '~/components/ui/loading'
 import CommissionRequestTable from '~/components/dashboard/commission-request-table'
+
+import CommissionPublishButton from '~/components/dashboard/commission-publish'
 
 const get_commission_requests = unstable_cache(
     async (slug: string, handle: string) => {
@@ -90,25 +92,49 @@ const get_commission_requests = unstable_cache(
     }
 )
 
-export default function CommissionDetailPage(props: { params: { slug: string } }) {
+export default async function CommissionDetailPage(props: {
+    params: Promise<{ slug: string }>
+}) {
+    const params = await props.params
+
     return (
         <div className="container mx-auto flex flex-col gap-5 px-5">
             <div className="flex flex-row items-center justify-between">
                 <h1 className="text-3xl font-bold">Commission Title</h1>
                 <div className="flex gap-2">
-                    <Button variant="outline" className="btn-outline">
+                    <Link
+                        className="btn btn-outline"
+                        href={`/dashboard/commissions/${params.slug}/update`}
+                    >
                         <PencilIcon className="h-6 w-6" />
                         Edit Commission
-                    </Button>
-                    {/* TODO: Add Published Buton */}
+                    </Link>
+                    <Suspense fallback={<div className="skeleton h-10 w-16"></div>}>
+                        <PublishButton slug={params.slug} />
+                    </Suspense>
                 </div>
             </div>
 
             <Suspense fallback={<Loading />}>
-                <RequestList slug={props.params.slug} />
+                <RequestList slug={params.slug} />
             </Suspense>
         </div>
     )
+}
+
+async function PublishButton(props: { slug: string }) {
+    const clerk_user = await currentUser()
+
+    if (!clerk_user) {
+        return redirect('/u/login')
+    }
+
+    const commission = await get_commission_requests(
+        props.slug,
+        clerk_user.publicMetadata.handle as string
+    )
+
+    return <CommissionPublishButton id={commission.id} published={commission.published} />
 }
 
 async function RequestList(props: { slug: string }) {
@@ -118,14 +144,14 @@ async function RequestList(props: { slug: string }) {
         return redirect('/u/login')
     }
 
-    const commissions = await get_commission_requests(
+    const commission = await get_commission_requests(
         props.slug,
         clerk_user.publicMetadata.handle as string
     )
 
-    if (!commissions?.requests) {
+    if (!commission?.requests) {
         return null
     }
 
-    return <CommissionRequestTable requests={commissions.requests} />
+    return <CommissionRequestTable requests={commission.requests} />
 }

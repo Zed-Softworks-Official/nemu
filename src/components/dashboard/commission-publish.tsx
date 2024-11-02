@@ -3,57 +3,51 @@
 import { EyeIcon, EyeOffIcon } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { Button } from '~/components/ui/button'
 
-export default function CommissionPublishButton({
-    id,
-    published
-}: {
+import { Button } from '~/components/ui/button'
+import { update_commission } from '~/server/actions/commission'
+
+export default function CommissionPublishButton(props: {
     id: string
     published: boolean
 }) {
-    const [toastId, setToastId] = useState<string | number | undefined>()
-    const [currentlyPublished, setCurrentlyPublished] = useState(published)
-
-    const mutation = api.commission.set_commission.useMutation({
-        onMutate: (opts) => {
-            if (opts.type === 'update') {
-                setCurrentlyPublished(opts.data.published!)
-
-                setToastId(toast.loading('Updating commission'))
-            }
-        },
-        onSuccess: () => {
-            if (!toastId) return
-
-            toast.success('Commission updated!', {
-                id: toastId
-            })
-        },
-        onError: (e) => {
-            if (!toastId) return
-
-            toast.error(e.message, {
-                id: toastId
-            })
-        }
-    })
+    const [pending, setPending] = useState(false)
+    const [currentlyPublished, setCurrentlyPublished] = useState(props.published)
 
     return (
         <Button
             variant={!currentlyPublished ? 'default' : 'destructive'}
-            disabled={mutation.isPending}
-            onMouseDown={() => {
-                mutation.mutate({
-                    type: 'update',
-                    commission_id: id,
+            disabled={pending}
+            onClick={async () => {
+                const new_state = !currentlyPublished
+                setPending(true)
+
+                const toast_id = toast.loading('Updating commission')
+
+                toast.success('Commission Updated!', {
+                    id: toast_id
+                })
+
+                const res = await update_commission({
+                    commission_id: props.id,
                     data: {
-                        published: !currentlyPublished
+                        published: new_state
                     }
                 })
+
+                if (!res.success) {
+                    toast.error('Failed to update commission', {
+                        id: toast_id
+                    })
+                    setPending(false)
+                    return
+                }
+
+                setCurrentlyPublished(new_state)
+                setPending(false)
             }}
         >
-            <ButtonText published={currentlyPublished} isLoading={mutation.isPending} />
+            <ButtonText published={currentlyPublished} isLoading={pending} />
         </Button>
     )
 }

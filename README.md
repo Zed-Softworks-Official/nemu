@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://nemu.art">
-    <img src="https://raw.githubusercontent.com/Zed-Softworks-Official/nemu/refs/heads/master/public/logos/icon.png?token=GHSAT0AAAAAACZJ6TEECWLHTOXBY5MCBS5IZZF4MUQ" height="96">
+    <img src="https://nemu.art/logos/icon.png" height="96">
   </a>
 </p>
 
