@@ -4,7 +4,12 @@ import { auth, clerkClient } from '@clerk/nextjs/server'
 import { eq, type InferSelectModel } from 'drizzle-orm'
 import { revalidateTag } from 'next/cache'
 
-import { type KanbanContainerData, type KanbanTask, UserRole } from '~/core/structures'
+import {
+    type KanbanContainerData,
+    type KanbanTask,
+    UserRole,
+    type KanbanMessagesDataType
+} from '~/core/structures'
 
 import { db } from '~/server/db'
 import { kanbans, requests } from '~/server/db/schema'
@@ -43,7 +48,9 @@ export async function get_kanban(kanban_id: string): KanbanReturnType {
     return { success: true, kanban }
 }
 
-export async function get_kanban_messages(sendbird_channel_url: string) {
+export async function get_kanban_messages(
+    sendbird_channel_url: string
+): Promise<KanbanMessagesDataType | undefined> {
     // Check if the user is logged in
     const auth_data = await auth()
     if (!auth_data.userId) {
@@ -64,12 +71,12 @@ export async function get_kanban_messages(sendbird_channel_url: string) {
         return undefined
     }
 
-    if (!request?.kanban) {
+    if (!request?.kanban?.id) {
         return undefined
     }
 
     return {
-        id: request.kanban_id,
+        id: request.kanban.id,
         containers: request.kanban.containers as KanbanContainerData[],
         tasks: request.kanban.tasks as KanbanTask[]
     }

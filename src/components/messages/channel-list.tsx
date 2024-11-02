@@ -1,132 +1,111 @@
 'use client'
 
+import { redirect } from 'next/navigation'
 import {
-    useChannelListContext,
-    ChannelListProvider
-} from '@sendbird/uikit-react/ChannelList/context'
-import type { BaseMessage } from '@sendbird/chat/message'
+    type Dispatch,
+    type SetStateAction,
+    useMemo,
+    type MouseEventHandler
+} from 'react'
 
-import Loading from '~/components/ui/loading'
-import { useMemo } from 'react'
-import { TriangleAlertIcon } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card'
+import {
+    useGroupChannelListContext,
+    GroupChannelListProvider
+} from '@sendbird/uikit-react/GroupChannelList/context'
+import type { GroupChannel } from '@sendbird/chat/groupChannel'
+
+import { useUser } from '@clerk/nextjs'
+
+import { Separator } from '~/components/ui/separator'
 import { cn } from '~/lib/utils'
-import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
-import { Badge } from '~/components/ui/badge'
-import { useMessagesContext } from '~/components/messages/messages-context'
-import type { SendbirdMetadata } from '~/server/sendbird'
+import Loading from '~/components/ui/loading'
 
-function CustomChannelList() {
-    const { allChannels, loading, initialized } = useChannelListContext()
-    const { currentChannel, setCurrentChannel, session, setOtherUser, setMetadata } =
-        useMessagesContext()
-
-    if (!initialized) {
-        return (
-            <div className="flex h-full w-full max-w-96 flex-col items-center justify-center gap-5 bg-base-200 p-5">
-                <TriangleAlertIcon className="h-10 w-10" />
-                <h2 className="card-title">Something went wrong!</h2>
-            </div>
-        )
-    }
-
-    if (loading) {
-        return (
-            <div className="flex h-full w-full max-w-96 flex-col items-center justify-center gap-5 bg-base-200 p-5">
-                <Loading />
-            </div>
-        )
-    }
-
-    function GetLastMessage(last_message: BaseMessage) {
-        if (last_message.isUserMessage()) {
-            return last_message.message
-        }
-
-        if (last_message.isFileMessage()) {
-            return 'Sent a file'
-        }
-
-        return 'Error Parsing Message'
-    }
-
-    return (
-        (<div className="join-item flex h-full w-14 flex-col gap-5 bg-base-300 p-5 md:w-60 xl:w-96">
-            <div className="flex flex-col">
-                <h2 className="card-title">Channels</h2>
-                <div className="divider"></div>
-            </div>
-            {allChannels.map((channel) => {
-                const metadata = JSON.parse(
-                    channel.data.replace(/'/g, '"')
-                ) as unknown as SendbirdMetadata
-
-                const other_user = channel.members.filter(
-                    (member) => member.userId !== session?.user?.id
-                )[0]
-
-                return (
-                    <Card
-                        key={channel.url}
-                        className={cn(
-                            'w-full cursor-pointer bg-base-200 transition-all duration-200 ease-in-out hover:bg-primary active:scale-95',
-                            currentChannel === channel.url && 'bg-primary'
-                        )}
-                        onMouseDown={() => {
-                            setCurrentChannel(channel.url)
-                            setOtherUser(other_user)
-                            setMetadata(metadata)
-                        }}
-                    >
-                        <CardHeader>
-                            <div className="flex flex-row items-center gap-5">
-                                <Avatar>
-                                    <AvatarImage
-                                        src={other_user?.profileUrl}
-                                        alt="Channel Image"
-                                    />
-                                    <AvatarFallback></AvatarFallback>
-                                </Avatar>
-                                <div className="flex flex-col gap-3">
-                                    <CardTitle>{other_user?.nickname}</CardTitle>
-                                    <Badge className="badge-sm">
-                                        {metadata.commission_title}
-                                    </Badge>
-                                </div>
-                            </div>
-                        </CardHeader>
-                        <CardContent>
-                            {channel.lastMessage
-                                ? GetLastMessage(channel.lastMessage)
-                                : 'No messages'}
-                        </CardContent>
-                    </Card>
-                )
-            })}
-        </div>)
-    );
-}
-
-export default function ChannelList({
-    hide_channel_list
-}: {
-    hide_channel_list?: boolean
+export function ChannelList(props: {
+    hide?: boolean
+    setCurrentChannel: Dispatch<SetStateAction<GroupChannel | null>>
 }) {
     const query = useMemo(() => {
         return {
-            channelListQuery: {
-                includeEmpty: true
-            }
+            includeEmpty: true
         }
     }, [])
 
-    if (hide_channel_list) {
+    if (props.hide) {
         return null
     }
 
     return (
-        <ChannelListProvider queries={query} isTypingIndicatorEnabled={true}>
+        <GroupChannelListProvider
+            onChannelSelect={(channel) => props.setCurrentChannel(channel)}
+            onChannelCreated={() => null}
+            channelListQueryParams={query}
+        >
             <CustomChannelList />
-        </ChannelListProvider>
+        </GroupChannelListProvider>
+    )
+}
+
+function CustomChannelList() {
+    const groupChannelContext = useGroupChannelListContext()
+    const clerk = useUser()
+
+    if (!clerk.isLoaded) {
+        return <Loading />
+    }
+
+    if (!clerk.user) {
+        return redirect('/u/login')
+    }
+
+    return (
+        <div className="flex h-full w-full min-w-72 flex-col gap-5 border-r border-base-content/[0.1] border-r-base-content/[0.1] p-5">
+            <div className="flex w-full flex-col gap-3">
+                <h1 className="text-xl font-bold">Channels</h1>
+                <Separator />
+            </div>
+            {groupChannelContext.groupChannels.map((channel) => (
+                <CustomChannelPreview
+                    key={channel.url}
+                    currentUserId={clerk.user.id}
+                    onClick={() => {
+                        groupChannelContext.onChannelSelect(channel)
+                    }}
+                    channel={channel}
+                    active={channel.url === groupChannelContext.selectedChannelUrl}
+                />
+            ))}
+        </div>
+    )
+}
+
+function CustomChannelPreview(props: {
+    active?: boolean
+    channel: GroupChannel
+    currentUserId: string
+    onClick: MouseEventHandler<HTMLDivElement> | undefined
+}) {
+    const otherUser = props.channel.members.filter(
+        (member) => member.userId !== props.currentUserId
+    )[0]
+
+    if (!otherUser) {
+        return null
+    }
+
+    return (
+        <div
+            className={cn(
+                'h-fit w-full cursor-pointer rounded-xl p-10 transition-all duration-300 ease-in-out hover:bg-primary',
+                props.active ? 'bg-primary' : 'bg-base-200'
+            )}
+            onClick={props.onClick}
+        >
+            <div className="flex flex-col gap-2">
+                <h2 className="text-lg font-bold">{otherUser.nickname}</h2>
+                <p className="text-sm text-base-content/60">
+                    {props.channel.lastMessage?.message ?? 'No messages'}
+                </p>
+            </div>
+        </div>
     )
 }
