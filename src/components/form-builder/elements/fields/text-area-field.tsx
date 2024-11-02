@@ -83,7 +83,7 @@ function DesignerComponent({
     const { label, required, placeholder, helperText, rows } = element.extra_attributes
 
     return (
-        <div className="card bg-base-100 shadow-xl w-full">
+        <div className="card w-full bg-base-100 shadow-xl">
             <div className="card-body">
                 <label className="text-sm text-base-content/80">Text Area Field</label>
                 <h2 className="card-title">
@@ -92,7 +92,7 @@ function DesignerComponent({
                 </h2>
                 <Textarea
                     placeholder={placeholder}
-                    rows={rows as number ?? 6}
+                    rows={(rows as number) ?? 6}
                     className="resize-none bg-base-300"
                     disabled
                 />
@@ -124,7 +124,7 @@ function FormComponent({
     }, [isInvalid])
 
     return (
-        <div className="card bg-base-300 w-full">
+        <div className="card w-full bg-base-300">
             <div className="card-body">
                 <h2 className={cn(error && 'text-error', 'card-title')}>
                     {label}
@@ -132,7 +132,7 @@ function FormComponent({
                 </h2>
                 <Textarea
                     className="resize-none"
-                    rows={rows as number ?? 6}
+                    rows={(rows as number) ?? 6}
                     placeholder={placeholder}
                     onChange={(e) => setValue(e.currentTarget.validationMessage)}
                     onBlur={(e) => {
@@ -197,7 +197,7 @@ function PropertiesComponent({
             onSubmit={(e) => {
                 e.preventDefault()
             }}
-            className="flex flex-col w-full space-y-3"
+            className="flex w-full flex-col space-y-3"
         >
             <DesignerInputField
                 label="Label"
@@ -221,10 +221,10 @@ function PropertiesComponent({
             <DesignerInputField
                 label="Helper Text"
                 description={
-                    <p className="text-base-content/80">
+                    <div className="text-base-content/80">
                         Add a bit more detail to the field. <br />
                         This will be displayed below the field.
-                    </p>
+                    </div>
                 }
                 {...form.register('helperText')}
             />
@@ -244,9 +244,9 @@ function PropertiesComponent({
                 label="Required"
                 type="checkbox"
                 description={
-                    <p className="text-base-content/80">
+                    <div className="text-base-content/80">
                         This will determine whether this is a required field.
-                    </p>
+                    </div>
                 }
                 {...form.register('required')}
             />

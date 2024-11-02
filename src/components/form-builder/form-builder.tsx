@@ -1,5 +1,6 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import {
     DndContext,
     MouseSensor,
@@ -8,7 +9,6 @@ import {
     useSensors
 } from '@dnd-kit/core'
 
-import Designer from '~/components/form-builder/designer/designer'
 import SaveButton from '~/components/form-builder/nav/save-button'
 
 import PreviewButton from '~/components/form-builder/nav/preview-button'
@@ -19,11 +19,11 @@ import type { InferSelectModel } from 'drizzle-orm'
 import type { forms } from '~/server/db/schema'
 import { notFound } from 'next/navigation'
 
-export default function FormBuilder({
-    form
-}: {
-    form: InferSelectModel<typeof forms> 
-}) {
+const Designer = dynamic(() => import('~/components/form-builder/designer/designer'), {
+    ssr: false
+})
+
+export default function FormBuilder({ form }: { form: InferSelectModel<typeof forms> }) {
     const mouseSensor = useSensor(MouseSensor, {
         activationConstraint: {
             distance: 10
@@ -45,8 +45,8 @@ export default function FormBuilder({
 
     return (
         <DndContext sensors={sensors}>
-            <main className="flex flex-col w-full min-h-[90rem]">
-                <nav className="flex justify-between p-4 gap-3 items-center">
+            <main className="flex min-h-[90rem] w-full flex-col">
+                <nav className="flex items-center justify-between gap-3 p-4">
                     <div>
                         <h2 className="card-title">Form: {form?.name}</h2>
                         <p>Description: {form?.description}</p>
@@ -56,7 +56,7 @@ export default function FormBuilder({
                         <SaveButton form_id={form?.id} />
                     </div>
                 </nav>
-                <div className="flex w-full flex-grow items-center justify-center relative overflow-y-auto h-[200px] bg-base-100 bg-[url(/bg/graph-paper.svg)] rounded-xl">
+                <div className="relative flex h-[200px] w-full flex-grow items-center justify-center overflow-y-auto rounded-xl bg-base-100 bg-[url(/bg/graph-paper.svg)]">
                     <Designer />
                 </div>
             </main>

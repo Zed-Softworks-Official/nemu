@@ -18,11 +18,7 @@ import {
     DesignerInputField
 } from '~/components/form-builder/elements/input-field'
 import { ListIcon, PlusCircleIcon, XCircleIcon } from 'lucide-react'
-import {
-    Select,
-    SelectTrigger,
-    SelectValue
-} from '~/components/ui/select'
+import { Select, SelectTrigger, SelectValue } from '~/components/ui/select'
 import { cn } from '~/lib/utils'
 
 const type: ElementsType = 'SelectField'
@@ -86,7 +82,7 @@ function DesignerComponent({
     const { label, required, placeholder, helperText } = element.extra_attributes
 
     return (
-        <div className="card bg-base-100 shadow-xl w-full">
+        <div className="card w-full bg-base-100 shadow-xl">
             <div className="card-body">
                 <label className="text-sm text-base-content/80">Select Field</label>
                 <h2 className="card-title">
@@ -126,7 +122,7 @@ function FormComponent({
     }, [isInvalid])
 
     return (
-        <div className="card bg-base-300 w-full">
+        <div className="card w-full bg-base-300">
             <div className="card-body">
                 <h2 className={cn(error && 'text-error', 'card-title')}>
                     {label}
@@ -221,7 +217,7 @@ function PropertiesComponent({
             onSubmit={(e) => {
                 e.preventDefault()
             }}
-            className="flex flex-col w-full space-y-3"
+            className="flex w-full flex-col space-y-3"
         >
             <DesignerInputField
                 label="Label"
@@ -236,9 +232,9 @@ function PropertiesComponent({
             <DesignerInputField
                 label="Placeholder"
                 description={
-                    <p className="text-base-content/80">
+                    <div className="text-base-content/80">
                         This will be the placeholder of the field.
-                    </p>
+                    </div>
                 }
                 {...form.register('placeholder')}
             />
@@ -247,8 +243,8 @@ function PropertiesComponent({
                 control={form.control}
                 render={({ field }) => (
                     <>
-                        <div className="mb-5 flex gap-5 flex-col">
-                            <div className="flex justify-between items-center">
+                        <div className="mb-5 flex flex-col gap-5">
+                            <div className="flex items-center justify-between">
                                 <label htmlFor="Options" className="block">
                                     Options:
                                 </label>
@@ -263,7 +259,7 @@ function PropertiesComponent({
                                         )
                                     }}
                                 >
-                                    <PlusCircleIcon className="w-6 h-6" />
+                                    <PlusCircleIcon className="h-6 w-6" />
                                     Add
                                 </button>
                             </div>
@@ -275,7 +271,7 @@ function PropertiesComponent({
                                     >
                                         <div className="join">
                                             <input
-                                                className="input w-full join-item"
+                                                className="input join-item w-full"
                                                 placeholder="Add an option"
                                                 value={option}
                                                 onChange={(e) => {
@@ -295,16 +291,16 @@ function PropertiesComponent({
                                                     field.onChange(newOptions)
                                                 }}
                                             >
-                                                <XCircleIcon className="w-6 h-6" />
+                                                <XCircleIcon className="h-6 w-6" />
                                             </button>
                                         </div>
                                     </div>
                                 ))}
                         </div>
                         <p className="text-base-content/80">
-                            <p className="text-base-content/80">
+                            <div className="text-base-content/80">
                                 This will be the placeholder of the field.
-                            </p>
+                            </div>
                         </p>
                         <div className="divider"></div>
                     </>
@@ -324,9 +320,9 @@ function PropertiesComponent({
                 label="Required"
                 type="checkbox"
                 description={
-                    <p className="text-base-content/80">
+                    <div className="text-base-content/80">
                         This will determine whether this is a required field.
-                    </p>
+                    </div>
                 }
                 {...form.register('required')}
             />

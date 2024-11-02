@@ -61,7 +61,7 @@ function DesignerComponent({
     const { text } = element.extra_attributes
 
     return (
-        <div className="card bg-base-100 shadow-xl w-full">
+        <div className="card w-full bg-base-100 shadow-xl">
             <div className="card-body">
                 <label className="text-sm text-base-content/80">Paragraph Field</label>
                 <h2 className="card-title">{text}</h2>
@@ -75,7 +75,7 @@ function FormComponent({ elementInstance }: { elementInstance: FormElementInstan
     const { text } = element.extra_attributes
 
     return (
-        <div className="card w-full -mt-14">
+        <div className="card -mt-14 w-full">
             <div className="card-body w-full">
                 <p className="text-base-content">{text}</p>
             </div>
@@ -117,15 +117,15 @@ function PropertiesComponent({
             onSubmit={(e) => {
                 e.preventDefault()
             }}
-            className="flex flex-col w-full space-y-3"
+            className="flex w-full flex-col space-y-3"
         >
             <DesignerTextAreaField
                 label="Text"
                 description={
-                    <p className="text-base-content/80">
+                    <div className="text-base-content/80">
                         Create a paragraph to determine what you need from the
                         commissioner!
-                    </p>
+                    </div>
                 }
                 {...form.register('text')}
             />
