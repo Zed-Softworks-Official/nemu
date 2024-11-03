@@ -1,16 +1,17 @@
 'use client'
 
+import { useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
+import { toast } from 'sonner'
 import { z } from 'zod'
 
 import { Form, FormField, FormItem, FormLabel } from '~/components/ui/form'
 import { Input } from '~/components/ui/input'
 import { Button } from '~/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card'
-import { api } from '~/trpc/react'
-import { toast } from 'sonner'
-import { useState } from 'react'
+
+import { set_artist_code } from '~/server/actions/verification'
 
 const artistGenerationSchema = z.object({
     quantity: z.number().min(1).max(100).default(1)
@@ -19,7 +20,7 @@ const artistGenerationSchema = z.object({
 type ArtistGenerationSchemaType = z.infer<typeof artistGenerationSchema>
 
 export default function GenerateArtistCode() {
-    const [toastId, setToastId] = useState<string | number | undefined>(undefined)
+    const [pending, setPending] = useState(false)
     const [generatedCodes, setGeneratedCodes] = useState<string[]>([])
 
     const form = useForm<ArtistGenerationSchemaType>({
@@ -30,30 +31,24 @@ export default function GenerateArtistCode() {
         }
     })
 
-    const mutation = api.verification.set_artist_code.useMutation({
-        onMutate: () => {
-            setToastId(toast.loading('Generating Artist Codes'))
-        },
-        onSuccess: (res) => {
-            if (!toastId) return
-
-            toast.success('Artist Codes Generated!', {
-                id: toastId
-            })
-
-            setGeneratedCodes(res)
-        },
-        onError: (e) => {
-            if (!toastId) return
-
-            toast.error(e.message, {
-                id: toastId
-            })
-        }
-    })
-
     async function ProcessForm(values: ArtistGenerationSchemaType) {
-        mutation.mutate(values.quantity)
+        setPending(true)
+
+        const toast_id = toast.loading('Generating Artist Codes')
+
+        const res = await set_artist_code(values.quantity)
+
+        if (!res.success) {
+            toast.error('Failed to generate artist codes', {
+                id: toast_id
+            })
+
+            setPending(false)
+            return
+        }
+
+        setGeneratedCodes(res.codes)
+        setPending(false)
     }
 
     return (
@@ -90,11 +85,7 @@ export default function GenerateArtistCode() {
                         )}
                     />
                     <div className="flex justify-end">
-                        <Button
-                            type="submit"
-                            className="btn-wide"
-                            disabled={mutation.isPending}
-                        >
+                        <Button type="submit" className="btn-wide" disabled={pending}>
                             Generate
                         </Button>
                     </div>

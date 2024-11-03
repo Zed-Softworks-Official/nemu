@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { unstable_cache } from 'next/cache'
-import { redirect } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { Suspense } from 'react'
 
 import { PencilIcon } from 'lucide-react'
@@ -133,6 +133,10 @@ async function PublishButton(props: { slug: string }) {
         props.slug,
         clerk_user.publicMetadata.handle as string
     )
+
+    if (!commission?.id) {
+        return notFound()
+    }
 
     return <CommissionPublishButton id={commission.id} published={commission.published} />
 }

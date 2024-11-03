@@ -14,7 +14,7 @@ import '@knocklabs/react/dist/index.css'
 
 export default function NotificationPopover(props: { user_id: string }) {
     const [isVisible, setIsVisiable] = useState(false)
-    const notifButtonRef = useRef(null)
+    const notifButtonRef = useRef<HTMLButtonElement>(null!)
 
     return (
         <KnockProvider

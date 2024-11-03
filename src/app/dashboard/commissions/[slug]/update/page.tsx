@@ -5,7 +5,6 @@ import { Suspense } from 'react'
 
 import { CommissionUpdateForm } from '~/components/dashboard/forms/commission-form'
 import UploadThingProvider from '~/components/files/uploadthing-context'
-import DashboardContainer from '~/components/ui/dashboard-container'
 import Loading from '~/components/ui/loading'
 import type {
     ClientCommissionItemEditable,

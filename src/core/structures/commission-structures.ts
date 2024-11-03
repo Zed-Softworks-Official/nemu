@@ -1,4 +1,3 @@
-import type { User } from '@clerk/nextjs/server'
 import type { InferSelectModel } from 'drizzle-orm'
 import type {
     NemuImageData,

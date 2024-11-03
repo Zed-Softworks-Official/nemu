@@ -19,15 +19,16 @@ import { get_artist_data } from '~/server/db/query'
 type Props = { params: Promise<{ handle: string }> }
 
 export async function generateMetadata(props: Props): Promise<Metadata> {
-    const params = await props.params;
+    const params = await props.params
     const handle = params.handle.substring(3, params.handle.length + 1)
     const artist = await get_artist_data(handle)
+    const clerk_client = await clerkClient()
 
     if (!artist) {
         return {}
     }
 
-    const image = (await clerkClient().users.getUser(artist.user_id)).imageUrl
+    const image = (await clerk_client.users.getUser(artist.user_id)).imageUrl
 
     return {
         title: `Nemu | @${artist.handle}`,
@@ -44,16 +45,17 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
 }
 
 export default async function ArtistPage(props: Props) {
-    const params = await props.params;
+    const params = await props.params
+
     return (
         <Suspense fallback={<Loading />}>
-            <PageContent params={params} />
+            <PageContent handle={params.handle} />
         </Suspense>
     )
 }
 
-async function PageContent({ params }: Props) {
-    const handle = params.handle.substring(3, params.handle.length + 1)
+async function PageContent(props: { handle: string }) {
+    const handle = props.handle.substring(3, props.handle.length + 1)
     const artist_data = await get_artist_data(handle)
 
     if (!artist_data) {

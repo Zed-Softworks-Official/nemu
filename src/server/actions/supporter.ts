@@ -27,8 +27,10 @@ async function generate_url(term: 'monthly' | 'annual') {
         }
     }
 
+    const clerk_client = await clerkClient()
+
     // Check if the user is an artist
-    const user = await clerkClient().users.getUser(auth_data.userId)
+    const user = await clerk_client.users.getUser(auth_data.userId)
     if (user.publicMetadata.role !== UserRole.Artist) {
         return {
             redirect_url: env.BASE_URL + '/u/login'

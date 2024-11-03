@@ -17,6 +17,8 @@ import { knock } from '~/server/knock'
  * Handles Clerk Webhook Events
  */
 export async function POST(req: Request) {
+    const clerk_client = await clerkClient()
+
     // Get the headers
     const headersPayload = await headers()
     const svix_id = headersPayload.get('svix-id')
@@ -56,7 +58,7 @@ export async function POST(req: Request) {
             {
                 // Add a username to the user if it doesn't exist
                 if (!event.data.username && event.data.first_name) {
-                    await clerkClient().users.updateUser(event.data.id, {
+                    await clerk_client.users.updateUser(event.data.id, {
                         username: event.data.first_name
                     })
                 }
@@ -64,12 +66,12 @@ export async function POST(req: Request) {
                 if (!event.data.username && event.data.email_addresses.length > 0) {
                     const email = event.data.email_addresses[0]?.email_address
 
-                    await clerkClient().users.updateUser(event.data.id, {
+                    await clerk_client.users.updateUser(event.data.id, {
                         username: email?.substring(0, email.indexOf('@'))
                     })
                 }
 
-                await clerkClient().users.updateUserMetadata(event.data.id, {
+                await clerk_client.users.updateUserMetadata(event.data.id, {
                     publicMetadata: {
                         role: UserRole.Standard
                     }
@@ -95,7 +97,7 @@ export async function POST(req: Request) {
             {
                 // Update the users profile photo if it's changed inside of
                 if (
-                    (await clerkClient().users.getUser(event.data.id)).privateMetadata
+                    (await clerk_client.users.getUser(event.data.id)).privateMetadata
                         .role !== UserRole.Artist
                 ) {
                     return new Response('User not an artist', { status: 200 })

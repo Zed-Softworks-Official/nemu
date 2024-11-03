@@ -2,7 +2,7 @@
 
 import { SaveIcon, PlusCircleIcon } from 'lucide-react'
 import { useEffect, useState, type Dispatch, type SetStateAction } from 'react'
-import { useFormStatus } from 'react-dom'
+import { useFormState, useFormStatus } from 'react-dom'
 import { toast } from 'sonner'
 
 import { type SocialAccount, SocialAgent } from '~/core/structures'
@@ -27,7 +27,7 @@ export default function ClientSettingsForm(props: {
     }
 }) {
     const [fieldChanged, setFieldChanged] = useState<boolean>(false)
-    const [state, formAction] = useFormStatus(update_artist_settings, { success: false })
+    const [state, formAction] = useFormState(update_artist_settings, { success: false })
 
     useEffect(() => {
         if (state.success) {

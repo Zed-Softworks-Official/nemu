@@ -15,6 +15,7 @@ import { revalidateTag } from 'next/cache'
 import { knock, KnockWorkflows } from '~/server/knock'
 
 export async function POST(req: Request) {
+    const clerk_client = await clerkClient()
     const sig = req.headers.get('stripe-signature')
 
     if (!req.body || !sig) {
@@ -79,7 +80,7 @@ export async function POST(req: Request) {
                     data: {
                         commission_title: db_invoice?.request.commission.title,
                         request_username: (
-                            await clerkClient().users.getUser(db_invoice.user_id)
+                            await clerk_client.users.getUser(db_invoice.user_id)
                         ).username
                     }
                 })

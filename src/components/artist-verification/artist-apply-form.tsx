@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useFormState } from 'react-dom'
 import { useRouter } from 'next/navigation'
 
 import { verify_artist } from '~/server/actions/verification'
@@ -19,7 +20,7 @@ export default function ArtistApplyForm() {
     const [verificationMethod, setVerificationMethod] = useState<
         VerificationMethod | undefined
     >(undefined)
-    const [state, formAction] = useActionState(verify_artist, {
+    const [state, formAction] = useFormState(verify_artist, {
         success: false,
         route: '/artists/further-steps'
     })

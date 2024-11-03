@@ -2,13 +2,9 @@ import { currentUser } from '@clerk/nextjs/server'
 import Link from 'next/link'
 import { Suspense } from 'react'
 
-import { db } from '~/server/db'
-import { artists } from '~/server/db/schema'
-import { eq } from 'drizzle-orm'
-import { api } from '~/trpc/server'
-
 import NemuImage from '~/components/nemu-image'
 import Loading from '~/components/ui/loading'
+import { get_dashboard_links } from '~/server/actions/stripe'
 
 export default function ArtistApplySuccessPage() {
     return (
@@ -51,15 +47,9 @@ async function ArtistOnboardingButton() {
         return null
     }
 
-    const artist = await db.query.artists.findFirst({
-        where: eq(artists.user_id, user.id)
-    })
-
-    if (!artist) {
-        return null
-    }
-
-    const dashboard_links = await api.stripe.get_dashboard_links()
+    const dashboard_links = await get_dashboard_links(
+        user.privateMetadata.artist_id as string
+    )
 
     return (
         <Link
