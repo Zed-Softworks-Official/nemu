@@ -21,6 +21,7 @@ type FeaturedArtist = {
 const get_featured_artists = unstable_cache(
     async () => {
         const result: FeaturedArtist[] = []
+        const clerk_client = await clerkClient()
 
         const blinkyblonk = await db.query.artists.findFirst({
             where: eq(artists.handle, 'blinkeyblonk')
@@ -32,7 +33,7 @@ const get_featured_artists = unstable_cache(
 
         result.push({
             handle: blinkyblonk.handle,
-            profile_photo: (await clerkClient().users.getUser(blinkyblonk.user_id))
+            profile_photo: (await clerk_client.users.getUser(blinkyblonk.user_id))
                 .imageUrl,
             header_photo: blinkyblonk.header_photo,
             about: blinkyblonk.about

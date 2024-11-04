@@ -2,7 +2,7 @@
 
 import { SaveIcon, PlusCircleIcon } from 'lucide-react'
 import { useEffect, useState, type Dispatch, type SetStateAction } from 'react'
-import { useFormStatus, useFormState } from 'react-dom'
+import { useFormState, useFormStatus } from 'react-dom'
 import { toast } from 'sonner'
 
 import { type SocialAccount, SocialAgent } from '~/core/structures'

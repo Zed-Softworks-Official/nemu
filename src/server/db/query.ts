@@ -26,6 +26,7 @@ type ArtistData = InferSelectModel<typeof artists> & {
 
 export const get_artist_data = unstable_cache(
     async (handle: string) => {
+        const clerk_client = await clerkClient()
         const artist = await db.query.artists.findFirst({
             where: eq(artists.handle, handle)
         })
@@ -40,7 +41,7 @@ export const get_artist_data = unstable_cache(
 
         const result: ArtistData = {
             ...artist,
-            user: await clerkClient().users.getUser(artist.user_id),
+            user: await clerk_client.users.getUser(artist.user_id),
             header: {
                 url: header_photo,
                 blur_data: await get_blur_data(header_photo)
@@ -161,6 +162,7 @@ export const get_commission_list = unstable_cache(
 //////////////////////////////////////////////////////////
 export const get_request_list = unstable_cache(
     async (user_id: string) => {
+        const clerk_client = await clerkClient()
         const db_requests = await db.query.requests.findMany({
             where: eq(requests.user_id, user_id),
             with: {
@@ -179,6 +181,8 @@ export const get_request_list = unstable_cache(
         // Format for client
         const result: ClientRequestData[] = []
         for (const request of db_requests) {
+            const user = await clerk_client.users.getUser(request.user_id)
+
             result.push({
                 ...request,
                 commission: {
@@ -192,7 +196,10 @@ export const get_request_list = unstable_cache(
                         }
                     ]
                 },
-                user: await clerkClient().users.getUser(request.user_id)
+                user: {
+                    id: request.user_id,
+                    username: user.username ?? 'User'
+                }
             })
         }
 
@@ -207,6 +214,7 @@ export const get_request_list = unstable_cache(
 //////////////////////////////////////////////////////////
 export const get_request_details = unstable_cache(
     async (order_id: string) => {
+        const clerk_client = await clerkClient()
         const request = await db.query.requests.findFirst({
             where: eq(requests.order_id, order_id),
             with: {
@@ -251,9 +259,13 @@ export const get_request_details = unstable_cache(
             }
         }
 
+        const user = await clerk_client.users.getUser(request.user_id)
         const result: ClientRequestData = {
             ...request,
-            user: await clerkClient().users.getUser(request.user_id),
+            user: {
+                id: request.user_id,
+                username: user.username ?? 'User'
+            },
             delivery: delivery,
             invoice: request.invoice ?? undefined,
             kanban: request.kanban ?? undefined
@@ -262,7 +274,7 @@ export const get_request_details = unstable_cache(
         return result
     },
     ['commission_requests'],
-    { tags: ['commission_requests'] }
+    { tags: ['commission_requests'], revalidate: 3600 }
 )
 
 //////////////////////////////////////////////////////////
@@ -284,7 +296,8 @@ export const get_form_list = unstable_cache(
     },
     ['forms'],
     {
-        tags: ['forms_list']
+        tags: ['forms_list'],
+        revalidate: 3600
     }
 )
 

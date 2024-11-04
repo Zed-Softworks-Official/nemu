@@ -15,12 +15,12 @@ export const DesignerInputField = forwardRef<HTMLInputElement, InputProps>(
         return (
             <>
                 <div className="mb-5">
-                    <label htmlFor={label} className="block mb-5">
+                    <label htmlFor={label} className="mb-5 block">
                         {label}:
                     </label>
                     <input type={type} ref={ref} {...props} className="input w-full" />
                 </div>
-                <p className="text-base-content/80">{description}</p>
+                <div className="text-base-content/80">{description}</div>
                 <div className="divider"></div>
             </>
         )
@@ -33,7 +33,7 @@ export const DesignerRangeField = forwardRef<HTMLInputElement, InputProps>(
         return (
             <>
                 <div className="mb-5">
-                    <label htmlFor={label} className="block mb-5">
+                    <label htmlFor={label} className="mb-5 block">
                         {label}:
                     </label>
                     <input
@@ -43,7 +43,7 @@ export const DesignerRangeField = forwardRef<HTMLInputElement, InputProps>(
                         className="range range-primary"
                     />
                 </div>
-                <p className="text-base-content/80">{description}</p>
+                <div className="text-base-content/80">{description}</div>
                 <div className="divider"></div>
             </>
         )
@@ -66,7 +66,7 @@ export const DesignerCheckboxField = forwardRef<HTMLInputElement, InputProps>(
                         />
                     </label>
                 </div>
-                <p className="text-base-content/80">{description}</p>
+                <div className="text-base-content/80">{description}</div>
                 <div className="divider"></div>
             </>
         )
@@ -79,16 +79,16 @@ export const DesignerTextAreaField = forwardRef<HTMLTextAreaElement, TextAreaInp
         return (
             <>
                 <div className="mb-5">
-                    <label htmlFor={label} className="block mb-5">
+                    <label htmlFor={label} className="mb-5 block">
                         {label}:
                     </label>
                     <textarea
                         ref={ref}
                         {...props}
-                        className="textarea w-full h-36"
+                        className="textarea h-36 w-full"
                     ></textarea>
                 </div>
-                <p className="text-base-content/80">{description}</p>
+                <div className="text-base-content/80">{description}</div>
                 <div className="divider"></div>
             </>
         )

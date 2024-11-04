@@ -30,7 +30,8 @@ type CreatePortfolioDataType = z.infer<typeof create_portfolio_data>
  */
 export async function set_portfolio_item(data: CreatePortfolioDataType) {
     // Check if the user is logged in
-    const auth_data = auth()
+    const auth_data = await auth()
+    const clerk_client = await clerkClient()
 
     if (!auth_data.userId) {
         console.error('User not signed in')
@@ -39,8 +40,8 @@ export async function set_portfolio_item(data: CreatePortfolioDataType) {
     }
 
     // Get artist id
-    const artist_id = (await clerkClient().users.getUser(auth_data.userId))
-        .privateMetadata.artist_id as string
+    const artist_id = (await clerk_client.users.getUser(auth_data.userId)).privateMetadata
+        .artist_id as string
 
     if (!artist_id) {
         console.error('User is not an artist')
@@ -79,7 +80,7 @@ export async function set_portfolio_item(data: CreatePortfolioDataType) {
  */
 export async function delete_portfolio_item(item_id: string) {
     // Check if user is logged in
-    const auth_data = auth()
+    const auth_data = await auth()
     if (!auth_data.userId) {
         console.error('User not signed in')
 
@@ -120,7 +121,7 @@ export async function delete_portfolio_item(item_id: string) {
  */
 export async function update_portfolio_item(id: string, new_title: string) {
     // Check if the user is logged in
-    const auth_data = auth()
+    const auth_data = await auth()
     if (!auth_data.userId) {
         console.error('User not signed in')
 

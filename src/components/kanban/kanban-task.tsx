@@ -46,10 +46,10 @@ export default function KanbanItemComponent({
             <div
                 ref={setNodeRef}
                 style={style}
-                className="card shadow-xl bg-base-100 opacity-60 border-2 border-primary"
+                className="card border-2 border-primary bg-base-100 opacity-60 shadow-xl"
             >
                 <div className="card-body">
-                    <div className="flex justify-between items-center w-full h-6 max-h-full"></div>
+                    <div className="flex h-6 max-h-full w-full items-center justify-between"></div>
                 </div>
             </div>
         )
@@ -58,16 +58,16 @@ export default function KanbanItemComponent({
     if (editMode) {
         return (
             <div
-                className="card shadow-xl bg-base-100 cursor-grab hover:ring-inset hover:ring-primary hover:ring-2"
+                className="card cursor-grab break-inside-avoid bg-base-100 shadow-xl hover:ring-2 hover:ring-inset hover:ring-primary"
                 ref={setNodeRef}
                 style={style}
                 {...attributes}
                 {...listeners}
             >
                 <div className="card-body">
-                    <div className="flex justify-between items-center w-full h-6">
+                    <div className="flex h-6 w-full items-center justify-between">
                         <textarea
-                            className="textarea textarea-primary resize-none w-full focus:outline-none"
+                            className="textarea textarea-primary w-full resize-none focus:outline-none"
                             defaultValue={item_data.content}
                             placeholder="Type something here"
                             autoFocus
@@ -101,7 +101,7 @@ export default function KanbanItemComponent({
                     ToggleEditMode()
                 }}
                 className={cn(
-                    'card shadow-xl bg-base-100 hover:ring-inset hover:ring-primary hover:ring-2 cursor-grab'
+                    'card cursor-grab break-inside-avoid bg-base-100 shadow-xl hover:ring-2 hover:ring-inset hover:ring-primary'
                 )}
                 ref={setNodeRef}
                 style={style}
@@ -109,14 +109,14 @@ export default function KanbanItemComponent({
                 {...listeners}
             >
                 <div className="card-body">
-                    <div className="flex justify-between items-center w-full h-6 max-h-full">
+                    <div className="flex h-6 max-h-full w-full items-center justify-between">
                         <p className="w-full whitespace-pre-wrap">{item_data.content}</p>
                         {mouseIsOver && (
                             <Button
                                 variant={'ghost'}
                                 onMouseDown={() => DeleteTask(item_data.id)}
                             >
-                                <Trash2Icon className="w-6 h-6" />
+                                <Trash2Icon className="h-6 w-6" />
                             </Button>
                         )}
                     </div>

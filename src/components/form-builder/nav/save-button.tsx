@@ -2,44 +2,42 @@
 
 import { SaveIcon } from 'lucide-react'
 
-import { api } from '~/trpc/react'
-
 import { Button } from '~/components/ui/button'
 import { useDesigner } from '~/components/form-builder/designer/designer-context'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
-export default function SaveButton({ form_id }: { form_id: string }) {
-    const [toastId, setToastId] = useState<string | number | undefined>(undefined)
-    const { elements } = useDesigner()
+import { set_form_content } from '~/server/actions/form'
 
-    const mutation = api.form.set_form_content.useMutation({
-        onMutate: () => {
-            setToastId(toast.loading('Creating forms'))
-        },
-        onSuccess: () => {
-            toast.success('Form Saved!', {
-                id: toastId
-            })
-        },
-        onError: (e) => {
-            toast.error(e.message, {
-                id: toastId
-            })
-        }
-    })
+export default function SaveButton({ form_id }: { form_id: string }) {
+    const [pending, setPending] = useState(false)
+    const { elements } = useDesigner()
 
     return (
         <Button
-            onMouseDown={() => {
-                mutation.mutate({
-                    form_id,
-                    content: JSON.stringify(elements)
+            onClick={async () => {
+                setPending(true)
+                const toast_id = toast.loading('Saving form')
+
+                const res = await set_form_content(form_id, JSON.stringify(elements))
+
+                if (!res.success) {
+                    toast.error('Failed to save form', {
+                        id: toast_id
+                    })
+                    setPending(false)
+                    return
+                }
+
+                toast.success('Form saved!', {
+                    id: toast_id
                 })
+
+                setPending(false)
             }}
-            disabled={mutation.isPending}
+            disabled={pending}
         >
-            {mutation.isPending ? (
+            {pending ? (
                 <span className="loading loading-spinner"></span>
             ) : (
                 <SaveIcon className="h-6 w-6" />

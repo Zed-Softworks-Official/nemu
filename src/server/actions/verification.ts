@@ -12,7 +12,7 @@ import { StripeCreateAccount } from '~/core/payments'
 import { createId } from '@paralleldrive/cuid2'
 import { db } from '~/server/db'
 import { artist_codes, artist_verifications, artists, users } from '~/server/db/schema'
-import { eq } from 'drizzle-orm'
+import { eq, or } from 'drizzle-orm'
 
 import * as sendbird from '~/server/sendbird'
 import { set_index } from '~/core/search'
@@ -23,6 +23,7 @@ import { knock, KnockWorkflows } from '~/server/knock'
 
 async function create_artist(input: VerificationDataType, user_id: string) {
     const social_accounts: SocialAccount[] = []
+    const clerk_client = await clerkClient()
 
     if (input.twitter) {
         social_accounts.push({
@@ -48,7 +49,7 @@ async function create_artist(input: VerificationDataType, user_id: string) {
     }
 
     // Get the user's profile url
-    const profile_url = (await clerkClient().users.getUser(user_id)).imageUrl
+    const profile_url = (await clerk_client.users.getUser(user_id)).imageUrl
 
     // Create Stripe Account for artist
     const generated_stripe_account = await StripeCreateAccount()
@@ -95,7 +96,7 @@ async function create_artist(input: VerificationDataType, user_id: string) {
         .where(eq(users.clerk_id, user.clerk_id))
 
     // Update the user in clerk
-    await clerkClient().users.updateUserMetadata(user.clerk_id, {
+    await clerk_client.users.updateUserMetadata(user.clerk_id, {
         publicMetadata: {
             handle: artist.handle,
             role: UserRole.Artist,
@@ -155,7 +156,7 @@ export async function verify_artist(prev_state: unknown, form_data: FormData) {
                     return { success: false, error: 'Artist code does not exist' }
                 }
 
-                const user = auth()
+                const user = await auth()
 
                 if (!user.userId) {
                     return { success: false, error: 'User not found' }
@@ -183,7 +184,7 @@ export async function verify_artist(prev_state: unknown, form_data: FormData) {
                 // Create the artist verification object in the db
                 await db.insert(artist_verifications).values({
                     id: createId(),
-                    user_id: auth().userId!,
+                    user_id: (await auth()).userId!,
                     requested_handle: validateFields.data.requested_handle,
                     location: validateFields.data.location,
                     twitter: validateFields.data.twitter,
@@ -192,7 +193,7 @@ export async function verify_artist(prev_state: unknown, form_data: FormData) {
 
                 // Notify the user of the request
                 await knock.workflows.trigger(KnockWorkflows.VerificationPending, {
-                    recipients: [auth().userId!]
+                    recipients: [(await auth()).userId!]
                 })
             }
             break
@@ -205,4 +206,108 @@ export async function verify_artist(prev_state: unknown, form_data: FormData) {
                 ? '/artists/apply/further-steps'
                 : '/artists/apply/success'
     }
+}
+
+export async function handle_exists(handle: string) {
+    const auth_data = await auth()
+    if (!auth_data.userId) {
+        console.error('User not logged in')
+        return { success: false }
+    }
+
+    // Check if the handle has already been taken by another artist
+    // also check if the handle has been taken by an upcoming artist
+    try {
+        const results = await db
+            .select({
+                artistHandle: artists.handle,
+                verificationHandle: artist_verifications.requested_handle
+            })
+            .from(artists)
+            .fullJoin(
+                artist_verifications,
+                eq(artists.handle, artist_verifications.requested_handle)
+            )
+            .where(
+                or(
+                    eq(artists.handle, handle),
+                    eq(artist_verifications.requested_handle, handle)
+                )
+            )
+
+        if (results.length > 0) {
+            return { success: true, exists: true }
+        }
+    } catch (e) {
+        console.error('Failed to check for handle: ', e)
+        return { success: false }
+    }
+
+    return { success: true, exists: false }
+}
+
+export async function get_artist_code(code: string) {
+    // Check if the user is logged in
+    const auth_data = await auth()
+    if (!auth_data.userId) {
+        console.error('User not logged in')
+        return { success: false }
+    }
+
+    const result = await db.query.artist_codes.findFirst({
+        where: eq(artist_codes.code, code)
+    })
+
+    if (!result) {
+        return { success: false }
+    }
+
+    return { success: true }
+}
+
+type SetArtistCodeReturnType = Promise<
+    { success: false } | { success: true; codes: string[] }
+>
+
+export async function set_artist_code(amount: number): SetArtistCodeReturnType {
+    // Check if the user is logged in
+    const auth_data = await auth()
+    if (!auth_data.userId) {
+        console.error('User not logged in')
+        return { success: false }
+    }
+
+    // Check if the user is an admin
+    const clerk_client = await clerkClient()
+    const user = await clerk_client.users.getUser(auth_data.userId)
+    if (user.publicMetadata.role !== UserRole.Admin) {
+        console.error('User is not an admin')
+        return { success: false }
+    }
+
+    // Check if the amount is greater than 0
+    if (amount <= 0) {
+        console.error('Amount must be greater than 0')
+        return { success: false }
+    }
+
+    // Check if the amount is less than or equal to 100
+    if (amount > 100) {
+        console.error('Amount must be less than or equal to 100')
+        return { success: false }
+    }
+
+    // Create the new artist codes
+    const result: string[] = []
+    for (let i = 0; i < amount; i++) {
+        const new_code = 'NEMU-' + crypto.randomUUID()
+        await db.insert(artist_codes).values({
+            id: createId(),
+            code: new_code
+        })
+
+        result.push(new_code)
+    }
+
+    return { success: true, codes: result }
 }

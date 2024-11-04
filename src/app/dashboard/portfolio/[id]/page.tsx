@@ -6,7 +6,6 @@ import { Suspense } from 'react'
 
 import { PortfolioUpdateForm } from '~/components/dashboard/forms/portfolio-form'
 import UploadThingProvider from '~/components/files/uploadthing-context'
-import DashboardContainer from '~/components/ui/dashboard-container'
 import Loading from '~/components/ui/loading'
 
 import type { ClientPortfolioItem } from '~/core/structures'
@@ -42,15 +41,22 @@ const get_portfolio_item = unstable_cache(
     }
 )
 
-export default function PortfolioItemEditPage({ params }: { params: { id: string } }) {
+export default async function PortfolioItemEditPage(props: {
+    params: Promise<{ id: string }>
+}) {
+    const params = await props.params
     return (
-        <DashboardContainer title="Edit Portfolio Item">
+        <div className="container mx-auto mt-3 p-10">
+            <div className="flex flex-col gap-3">
+                <h1 className="text-2xl font-bold">Edit Portfolio Item</h1>
+            </div>
+
             <UploadThingProvider endpoint="portfolioUploader">
                 <Suspense fallback={<Loading />}>
                     <PageContent item_id={params.id} />
                 </Suspense>
             </UploadThingProvider>
-        </DashboardContainer>
+        </div>
     )
 }
 

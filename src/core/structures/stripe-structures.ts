@@ -1,5 +1,3 @@
-import type { RouterInput } from '~/core/structures'
-
 export enum PurchaseType {
     ArtistCorner = 'artist_corner',
     CommissionInvoice = 'commission_invoice',
@@ -43,8 +41,6 @@ export type StripeProductCheckoutData = CheckoutData & {
     artist_id: string
     supporter: boolean
 }
-
-export type StripeGetClientSecretInput = RouterInput['stripe']['get_client_secret']
 
 export type StripeDashboardData = {
     managment: {

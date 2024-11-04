@@ -14,12 +14,13 @@ const f = createUploadthing()
 
 const auth = async (req: NextRequest, check_artist = false) => {
     const auth = getAuth(req)
+    const clerk_client = await clerkClient()
 
     if (!auth.userId) {
         throw new UploadThingError('Unauthorized')
     }
 
-    const user = await clerkClient().users.getUser(auth.userId)
+    const user = await clerk_client.users.getUser(auth.userId)
     if (check_artist) {
         if (!user.privateMetadata.artist_id) {
             throw new UploadThingError('Unauthorized')
@@ -36,7 +37,7 @@ export const nemuFileRouter = {
      * Handles Artist Header Upload
      */
     headerPhotoUploader: f({ image: { maxFileCount: 1, maxFileSize: '4MB' } })
-        .middleware(({ req }) => auth(req, true))
+        .middleware(async ({ req }) => await auth(req, true))
         .onUploadComplete(async ({ metadata, file }) => {
             const artist = await db.query.artists.findFirst({
                 where: eq(artists.id, metadata.user.privateMetadata.artist_id as string)
@@ -65,7 +66,7 @@ export const nemuFileRouter = {
                 objectID: artist.id,
                 handle: artist.handle,
                 about: artist.about,
-                image_url: (await clerkClient().users.getUser(artist.user_id)).imageUrl
+                image_url: metadata.user.imageUrl
             })
 
             // Invalidate cache
@@ -76,7 +77,7 @@ export const nemuFileRouter = {
      * Handles uploading portfolio photos
      */
     portfolioUploader: f({ image: { maxFileCount: 1, maxFileSize: '4MB' } })
-        .middleware(({ req }) => auth(req, true))
+        .middleware(async ({ req }) => await auth(req, true))
         .onUploadComplete(async () => {
             console.log('Portfolio Upload Complete')
         }),
@@ -85,7 +86,7 @@ export const nemuFileRouter = {
      * Handles uploading commission images
      */
     commissionImageUploader: f({ image: { maxFileCount: 5, maxFileSize: '4MB' } })
-        .middleware(({ req }) => auth(req, true))
+        .middleware(async ({ req }) => await auth(req, true))
         .onUploadComplete(async () => {
             console.log('Commission Image Upload Complete')
         }),
@@ -97,7 +98,7 @@ export const nemuFileRouter = {
         image: { maxFileCount: 1, maxFileSize: '16MB' },
         'application/zip': { maxFileCount: 1, maxFileSize: '16MB' }
     })
-        .middleware(({ req }) => auth(req, true))
+        .middleware(async ({ req }) => await auth(req, true))
         .onUploadComplete(async () => {
             console.log('Commission Download Upload Complete')
         })

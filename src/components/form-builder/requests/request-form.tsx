@@ -10,11 +10,12 @@ import {
     FormElements
 } from '~/components/form-builder/elements/form-elements'
 
-import { api } from '~/trpc/react'
 import { Button } from '~/components/ui/button'
 import { toast } from 'sonner'
 import type { InferSelectModel } from 'drizzle-orm'
+
 import type { forms } from '~/server/db/schema'
+import { set_request } from '~/server/actions/requests'
 
 interface FormDataType {
     value: string
@@ -32,18 +33,6 @@ export default function RequestSubmitForm({
     user_requested: boolean
     commission_id: string
 }) {
-    // Mutation to submit the form
-    const mutation = api.requests.set_request.useMutation({
-        onSuccess: () => {
-            toast.success('Commission Request Submitted!')
-
-            setSubmitted(true)
-        },
-        onError: () => {
-            toast.error('Commission request could not be submitted!')
-        }
-    })
-
     // Form values and errors
     const formValues = useRef<Record<string, string>>({})
     const formErrors = useRef<Record<string, boolean>>({})
@@ -65,6 +54,7 @@ export default function RequestSubmitForm({
     // Handles the form submission to the server
     async function submitForm() {
         setPending(true)
+        const toast_id = toast.loading('Submitting Commission Request')
 
         const validForm = validateForm()
         if (!validForm) {
@@ -87,13 +77,28 @@ export default function RequestSubmitForm({
             }
         }
 
-        mutation.mutate({
-            form_id: form_data.id,
+        const res = await set_request(
+            form_data.id,
             commission_id,
-            content: JSON.stringify(newFormData)
+            JSON.stringify(newFormData)
+        )
+
+        if (!res.success) {
+            toast.error('Commission request could not be submitted!', {
+                id: toast_id
+            })
+
+            setPending(false)
+            setFormData(newFormData)
+
+            return
+        }
+
+        toast.success('Commission Request Submitted!', {
+            id: toast_id
         })
 
-        setFormData(newFormData)
+        setSubmitted(true)
     }
 
     // Validate the form

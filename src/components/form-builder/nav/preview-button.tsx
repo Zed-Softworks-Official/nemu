@@ -16,24 +16,6 @@ import {
 export default function PreviewButton() {
 
     return (
-        <AlertDialog>
-            <AlertDialogTrigger className="btn btn-primary">
-                <EyeIcon className="w-6 h-6 text-white" />
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                        This action cannot be undone. This will permanently delete your
-                        account and remove your data from our servers.
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction>Continue</AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
         // <>
         //     <button
         //         type="button"
@@ -58,11 +40,28 @@ export default function PreviewButton() {
         //             </div>
         //             {elements.map(element => {
         //                 const FormComponent = FormElements[element.type].form_component
-
         //                 return <FormComponent key={element.id} elementInstance={element} />
         //             })}
         //         </div>
         //     </Modal>
         // </>
-    )
+        (<AlertDialog>
+            <AlertDialogTrigger className="btn btn-primary">
+                <EyeIcon className="w-6 h-6 text-white" />
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        This action cannot be undone. This will permanently delete your
+                        account and remove your data from our servers.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction>Continue</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>)
+    );
 }

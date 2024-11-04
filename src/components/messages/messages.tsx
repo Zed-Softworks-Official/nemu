@@ -1,40 +1,35 @@
 'use client'
 
-import { useUser } from '@clerk/nextjs'
-import SendbirdProvider from '@sendbird/uikit-react/SendbirdProvider'
+import dynamic from 'next/dynamic'
+import { useState } from 'react'
 
-import Channel from '~/components/messages/channel'
-import ChannelList from '~/components/messages/channel-list'
+import { env } from '~/env'
 
-import { MessagesProvider } from '~/components/messages/messages-context'
-import Loading from '~/components/ui/loading'
+import { ChannelList } from '~/components/messages/channel-list'
+import { Channel } from '~/components/messages/channel'
+
+const SendbirdProvider = dynamic(() => import('@sendbird/uikit-react/SendbirdProvider'), {
+    ssr: false
+})
 
 export default function MessagesClient(props: {
-    hide_channel_list?: boolean
+    user_id: string
+    hide?: boolean
     channel_url?: string
 }) {
-    const session = useUser()
-
-    if (!session.isLoaded || !session.user) {
-        return <Loading />
-    }
+    const [currentChannelUrl, setCurrentChannelUrl] = useState<string | undefined>(
+        props.channel_url ?? undefined
+    )
 
     return (
-        <div className="flex h-full max-h-[40rem] w-full flex-row overflow-hidden rounded-xl bg-base-300 shadow-xl">
+        <div className="flex h-full w-full flex-row overflow-hidden">
             <SendbirdProvider
-                appId="AE781B27-397F-4722-9EC3-13E39266C944"
-                userId={session.user.id}
-                theme="dark"
-                uikitOptions={{
-                    groupChannel: {
-                        enableVoiceMessage: false
-                    }
-                }}
+                appId={env.NEXT_PUBLIC_SENDBIRD_APP_ID}
+                userId={props.user_id}
+                uikitOptions={{ groupChannel: { enableVoiceMessage: false } }}
             >
-                <MessagesProvider channel_url={props.channel_url} session={session}>
-                    <ChannelList hide_channel_list={props.hide_channel_list} />
-                    <Channel />
-                </MessagesProvider>
+                <ChannelList hide={props.hide} setCurrentChannel={setCurrentChannelUrl} />
+                <Channel channel_url={currentChannelUrl} />
             </SendbirdProvider>
         </div>
     )

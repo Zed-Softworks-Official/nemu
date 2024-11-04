@@ -184,7 +184,8 @@ type CheckAuthReturnType = Promise<
  */
 async function check_auth_and_invoice(invoice_id: string): CheckAuthReturnType {
     // Get Auth data
-    const auth_data = auth()
+    const auth_data = await auth()
+    const clerk_client = await clerkClient()
 
     // Check if the user is logged in
     if (!auth_data.userId) {
@@ -193,7 +194,7 @@ async function check_auth_and_invoice(invoice_id: string): CheckAuthReturnType {
     }
 
     // Check if the user is an artist
-    const user = await clerkClient().users.getUser(auth_data.userId)
+    const user = await clerk_client.users.getUser(auth_data.userId)
     const user_role = user.publicMetadata.role as UserRole | undefined
     if (user_role !== UserRole.Artist) {
         console.error('User is not an artist')

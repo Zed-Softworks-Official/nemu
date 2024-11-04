@@ -23,3 +23,16 @@ export type KanbanContainerData = {
     id: UniqueIdentifier
     title: string
 }
+
+/**
+ * Data for kanban tasks
+ *
+ * @prop {string} id - The id for the task
+ * @prop {KanbanContainerData[]} container_id - The id of the container that the task belongs to
+ * @prop {KanbanTask[]} content - The content of the task
+ */
+export type KanbanMessagesDataType = {
+    id: string
+    containers: KanbanContainerData[]
+    tasks: KanbanTask[]
+}

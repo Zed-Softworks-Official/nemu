@@ -31,11 +31,11 @@ export default function Logo() {
     )
 }
 
-export function DashboardLogo() {
+export function IconLogo() {
     return (
         <Link
             href="/"
-            className="flex h-10 w-10 cursor-pointer flex-row transition-all duration-200 ease-in-out hover:scale-110 items-center justify-center"
+            className="flex h-8 w-8 cursor-pointer flex-row items-center justify-center transition-all duration-200 ease-in-out hover:scale-110"
         >
             <NemuImage
                 src={'/logos/icon.png'}

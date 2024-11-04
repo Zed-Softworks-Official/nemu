@@ -80,7 +80,7 @@ function DesignerComponent({
     const { label, required, placeholder, helperText } = element.extra_attributes
 
     return (
-        <div className="card bg-base-100 shadow-xl w-full">
+        <div className="card w-full bg-base-100 shadow-xl">
             <div className="card-body">
                 <label className="text-sm text-base-content/80">Text Field</label>
                 <h2 className="card-title">
@@ -88,7 +88,7 @@ function DesignerComponent({
                     {required && '*'}
                 </h2>
                 <Input disabled readOnly placeholder={placeholder} />
-                {helperText && <p className="text-base-content/80">{helperText}</p>}
+                {helperText && <div className="text-base-content/80">{helperText}</div>}
             </div>
         </div>
     )
@@ -116,7 +116,7 @@ function FormComponent({
     }, [isInvalid])
 
     return (
-        <div className="card bg-base-300 shadow-xl w-full">
+        <div className="card w-full bg-base-300 shadow-xl">
             <div className="card-body">
                 <h2 className={cn(error && 'text-error', 'card-title')}>
                     {label}
@@ -140,9 +140,9 @@ function FormComponent({
                     }}
                 />
                 {helperText && (
-                    <p className={cn(error ? 'text-error/80' : 'text-base-content/80')}>
+                    <div className={cn(error ? 'text-error/80' : 'text-base-content/80')}>
                         {helperText}
-                    </p>
+                    </div>
                 )}
             </div>
         </div>
@@ -186,34 +186,34 @@ function PropertiesComponent({
             onSubmit={(e) => {
                 e.preventDefault()
             }}
-            className="flex flex-col w-full space-y-3"
+            className="flex w-full flex-col space-y-3"
         >
             <DesignerInputField
                 label="Label"
                 description={
-                    <p className="text-base-content/80">
+                    <div className="text-base-content/80">
                         The label of the field. <br /> This will be displayed about the
                         field.
-                    </p>
+                    </div>
                 }
                 {...form.register('label')}
             />
             <DesignerInputField
                 label="Placeholder"
                 description={
-                    <p className="text-base-content/80">
+                    <div className="text-base-content/80">
                         This will be the placeholder of the field.
-                    </p>
+                    </div>
                 }
                 {...form.register('placeholder')}
             />
             <DesignerInputField
                 label="Helper Text"
                 description={
-                    <p className="text-base-content/80">
+                    <div className="text-base-content/80">
                         Add a bit more detail to the field. <br />
                         This will be displayed below the field.
-                    </p>
+                    </div>
                 }
                 {...form.register('helperText')}
             />
@@ -221,9 +221,9 @@ function PropertiesComponent({
                 label="Required"
                 type="checkbox"
                 description={
-                    <p className="text-base-content/80">
+                    <div className="text-base-content/80">
                         This will determine whether this is a required field.
-                    </p>
+                    </div>
                 }
                 {...form.register('required')}
             />

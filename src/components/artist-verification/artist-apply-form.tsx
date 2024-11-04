@@ -1,7 +1,7 @@
 'use client'
 
-import { useFormState } from 'react-dom'
 import { useEffect, useState } from 'react'
+import { useFormState } from 'react-dom'
 import { useRouter } from 'next/navigation'
 
 import { verify_artist } from '~/server/actions/verification'

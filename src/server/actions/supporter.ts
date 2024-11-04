@@ -20,15 +20,17 @@ export async function supporter_annual() {
 
 async function generate_url(term: 'monthly' | 'annual') {
     // Check if the user is logged in
-    const auth_data = auth()
+    const auth_data = await auth()
     if (!auth_data.userId) {
         return {
             redirect_url: env.BASE_URL + '/u/login'
         }
     }
 
+    const clerk_client = await clerkClient()
+
     // Check if the user is an artist
-    const user = await clerkClient().users.getUser(auth_data.userId)
+    const user = await clerk_client.users.getUser(auth_data.userId)
     if (user.publicMetadata.role !== UserRole.Artist) {
         return {
             redirect_url: env.BASE_URL + '/u/login'

@@ -20,7 +20,7 @@ const artist_settings_schema = z.object({
 
 export async function update_artist_settings(prev_state: unknown, form_data: FormData) {
     // Check if the user is logged in
-    const auth_data = auth()
+    const auth_data = await auth()
 
     if (!auth_data.userId) {
         return { success: false }

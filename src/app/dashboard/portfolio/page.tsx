@@ -1,9 +1,6 @@
 import NemuImage from '~/components/nemu-image'
-import DashboardContainer from '~/components/ui/dashboard-container'
 
 import Link from 'next/link'
-import EmptyState from '~/components/ui/empty-state'
-import { ImagePlusIcon } from 'lucide-react'
 import Masonry from '~/components/ui/masonry'
 import { currentUser } from '@clerk/nextjs/server'
 import { Suspense } from 'react'
@@ -14,7 +11,6 @@ import { eq } from 'drizzle-orm'
 import { portfolios } from '~/server/db/schema'
 import { get_blur_data } from '~/lib/blur_data'
 import type { ClientPortfolioItem } from '~/core/structures'
-import { is_onboarding_complete } from '~/server/db/query'
 
 const get_portfolio_list = unstable_cache(
     async (artist_id: string) => {
@@ -59,27 +55,8 @@ async function PageContent() {
         user!.privateMetadata.artist_id as string
     )
 
-    const artist_onboarding_complete = await is_onboarding_complete(
-        user!.publicMetadata.artist_id as string
-    )
-
-    if (portfolio_items.length === 0) {
-        return (
-            <DashboardContainer title="Portfolio" contentClassName="h-full">
-                <EmptyState
-                    create_url="/dashboard/portfolio/create"
-                    icon={<ImagePlusIcon className="h-10 w-10" />}
-                    heading="No Portfolio Items"
-                    description="Get started by creating a protfolio item"
-                    button_text="Create Portfolio Item"
-                    disabled={artist_onboarding_complete}
-                />
-            </DashboardContainer>
-        )
-    }
-
     return (
-        <DashboardContainer title="Portfolio" addButtonUrl="/dashboard/portfolio/create">
+        <div className="container mx-auto mt-3 p-10">
             <Masonry columns={'4'}>
                 {portfolio_items.map((item) => (
                     <div
@@ -98,6 +75,6 @@ async function PageContent() {
                     </div>
                 ))}
             </Masonry>
-        </DashboardContainer>
+        </div>
     )
 }

@@ -3,18 +3,21 @@ import { Suspense } from 'react'
 
 import { DesignerProvider } from '~/components/form-builder/designer/designer-context'
 import type { FormElementInstance } from '~/components/form-builder/elements/form-elements'
-import FormBuilder from '~/components/form-builder/form-builder'
-import DashboardContainer from '~/components/ui/dashboard-container'
 import Loading from '~/components/ui/loading'
 import { get_form } from '~/server/db/query'
+import FormBuilder from '~/components/form-builder/form-builder'
 
-export default function FormBuilderPage({ params }: { params: { id: string } }) {
+export default async function FormBuilderPage(props: {
+    params: Promise<{ id: string }>
+}) {
+    const params = await props.params
+
     return (
-        <DashboardContainer title="Edit Form">
+        <div className="container mx-auto p-10">
             <Suspense fallback={<Loading />}>
                 <PageContent id={params.id} />
             </Suspense>
-        </DashboardContainer>
+        </div>
     )
 }
 

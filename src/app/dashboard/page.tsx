@@ -1,13 +1,17 @@
 import { clerkClient, currentUser } from '@clerk/nextjs/server'
+import { type ColumnDef } from '@tanstack/react-table'
 import { and, desc, eq, gte } from 'drizzle-orm'
+import { DollarSign, Palette, ShoppingCart } from 'lucide-react'
 import { unstable_cache } from 'next/cache'
+import { notFound, redirect } from 'next/navigation'
 import { Suspense } from 'react'
+
 import SalesChart from '~/components/dashboard/sales-chart'
 import DataTable from '~/components/data-table'
 import NemuImage from '~/components/nemu-image'
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card'
 import Loading from '~/components/ui/loading'
-import type { InvoiceStatus, SalesData } from '~/core/structures'
+import { InvoiceStatus, type SalesData } from '~/core/structures'
 import { calculate_percentage_change, format_to_currency } from '~/lib/utils'
 
 import { db } from '~/server/db'
@@ -33,6 +37,12 @@ type RecentInvoices = {
 }
 
 type RecentSales = {
+    commission_title: string
+    requester_username: string
+    price: string
+}
+
+type RecentSalesData = {
     sales_data: SalesData[]
     total_revenue: SalesStat
     total_sales: SalesStat
@@ -41,6 +51,8 @@ type RecentSales = {
 
 const get_recent_requests = unstable_cache(
     async (artist_id: string) => {
+        const clerk_client = await clerkClient()
+
         const db_requests = await db
             .select()
             .from(commissions)
@@ -62,7 +74,7 @@ const get_recent_requests = unstable_cache(
             result.push({
                 commission_title: recent.commission.title,
                 requester_username: (
-                    await clerkClient().users.getUser(recent.request?.user_id)
+                    await clerk_client.users.getUser(recent.request?.user_id)
                 ).username!,
                 created_at: recent.request.created_at.toLocaleDateString()
             })
@@ -72,12 +84,14 @@ const get_recent_requests = unstable_cache(
     },
     ['recent_commissions'],
     {
-        tags: ['commission_requests']
+        tags: ['commission_requests'],
+        revalidate: 3600
     }
 )
 
 const get_recent_invoices = unstable_cache(
     async (artist_id: string) => {
+        const clerk_client = await clerkClient()
         const db_invoices = await db.query.invoices.findMany({
             where: eq(invoices.artist_id, artist_id),
             orderBy: (invoice, { desc }) => [desc(invoice.created_at)],
@@ -100,7 +114,7 @@ const get_recent_invoices = unstable_cache(
             result.push({
                 status: invoice.status as InvoiceStatus,
                 created_at: invoice.created_at.toLocaleDateString(),
-                requester_username: (await clerkClient().users.getUser(invoice.user_id))
+                requester_username: (await clerk_client.users.getUser(invoice.user_id))
                     .username!,
                 commission_title: invoice.request.commission.title
             })
@@ -110,11 +124,52 @@ const get_recent_invoices = unstable_cache(
     },
     ['recent_invoices'],
     {
-        tags: ['recent_invoices']
+        tags: ['recent_invoices'],
+        revalidate: 3600
     }
 )
 
 const get_recent_sales = unstable_cache(
+    async (artist_id: string) => {
+        const clerk_client = await clerkClient()
+        const db_invoices = await db.query.invoices.findMany({
+            where: and(
+                eq(invoices.artist_id, artist_id),
+                eq(invoices.status, InvoiceStatus.Paid)
+            ),
+            orderBy: (invoice, { desc }) => [desc(invoice.created_at)],
+            limit: 10,
+            with: {
+                request: {
+                    with: {
+                        commission: true
+                    }
+                }
+            }
+        })
+
+        const result: RecentSales[] = []
+
+        for (const invoice of db_invoices) {
+            result.push({
+                commission_title: invoice.request.commission.title,
+                requester_username:
+                    (await clerk_client.users.getUser(invoice.user_id)).username ??
+                    'User',
+                price: format_to_currency(invoice.total)
+            })
+        }
+
+        return result
+    },
+    ['total_sales'],
+    {
+        tags: ['total_sales'],
+        revalidate: 3600
+    }
+)
+
+const get_recent_data = unstable_cache(
     async (artist_id: string) => {
         // Get the artist from the db
         const artist = await db.query.artists.findFirst({
@@ -223,7 +278,7 @@ const get_recent_sales = unstable_cache(
         }
 
         // Construct the recent sales data
-        const result: RecentSales = {
+        const result: RecentSalesData = {
             sales_data: Object.entries(sales_data).map(([key, value]) => ({
                 month: key,
                 total_sales: value.total_sales
@@ -255,16 +310,34 @@ const get_recent_sales = unstable_cache(
     },
     ['total_sales'],
     {
-        tags: ['total_sales']
+        tags: ['total_sales'],
+        revalidate: 3600
     }
 )
 
 export default function DashboardHome() {
     return (
-        <main className="flex flex-col gap-5">
+        <main className="container mx-auto flex flex-col gap-5 px-5">
             <h1 className="text-3xl font-bold">Home</h1>
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                <Card>
+
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                <Suspense fallback={<Loading />}>
+                    <CommissionStats />
+                </Suspense>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
+                <Card className="col-span-4">
+                    <CardHeader>
+                        <CardTitle>Last 6 Months Sales</CardTitle>
+                    </CardHeader>
+                    <CardContent className="pl-2">
+                        <Suspense fallback={<Loading />}>
+                            <TotalSales />
+                        </Suspense>
+                    </CardContent>
+                </Card>
+                <Card className="col-span-3">
                     <CardHeader>
                         <CardTitle>Recent Invoices</CardTitle>
                     </CardHeader>
@@ -272,33 +345,129 @@ export default function DashboardHome() {
                         <RecentInvoices />
                     </Suspense>
                 </Card>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-2">
                 <Card>
                     <CardHeader>
                         <CardTitle>Recent Requests</CardTitle>
                     </CardHeader>
-                    <Suspense fallback={<Loading />}>
-                        <RecentRequests />
-                    </Suspense>
+                    <CardContent>
+                        <Suspense fallback={<Loading />}>
+                            <RecentRequests />
+                        </Suspense>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Recent Sales</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <Suspense fallback={<Loading />}>
+                            <RecentSales />
+                        </Suspense>
+                    </CardContent>
                 </Card>
             </div>
-            <Card>
-                <CardHeader>
-                    <CardTitle>Overview</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <Suspense fallback={<Loading />}>
-                        <TotalSales />
-                    </Suspense>
-                </CardContent>
-            </Card>
         </main>
     )
 }
 
+async function CommissionStats() {
+    const user = await currentUser()
+
+    if (!user) {
+        return redirect('/u/login')
+    }
+
+    const recent_sales = await get_recent_data(user.privateMetadata.artist_id as string)
+
+    if (!recent_sales) {
+        return notFound()
+    }
+
+    return (
+        <>
+            <StatsCard
+                title="Total Sales"
+                icon={<DollarSign className="h-4 w-4 text-base-content/80" />}
+                value={recent_sales.total_sales.count.toString()}
+                change={recent_sales.total_sales.change}
+            />
+            <StatsCard
+                title="Total Revenue"
+                icon={<Palette className="h-4 w-4 text-base-content/80" />}
+                value={recent_sales.total_revenue.count.toString()}
+                change={recent_sales.total_revenue.change}
+            />
+            <StatsCard
+                title="New Requests"
+                icon={<ShoppingCart className="h-4 w-4 text-base-content/80" />}
+                value={recent_sales.total_requests.count.toString()}
+                change={recent_sales.total_requests.change}
+            />
+        </>
+    )
+}
+
+function StatsCard(props: {
+    title: string
+    icon: React.ReactNode
+    value: string
+    change: string
+}) {
+    return (
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{props.title}</CardTitle>
+                {props.icon}
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">{props.value}</div>
+                <p className="text-xs text-base-content/80">
+                    {props.change} from last month
+                </p>
+            </CardContent>
+        </Card>
+    )
+}
+
+async function RecentSales() {
+    const user = await currentUser()
+
+    if (!user) {
+        return redirect('/u/login')
+    }
+
+    const recent_sales = await get_recent_sales(user.privateMetadata.artist_id as string)
+
+    const columns: ColumnDef<RecentSales>[] = [
+        {
+            accessorKey: 'commission_title',
+            header: 'Commission Title'
+        },
+        {
+            accessorKey: 'requester_username',
+            header: 'Requester Username'
+        },
+        {
+            accessorKey: 'price',
+            header: 'Price'
+        }
+    ]
+
+    return <DataTable columns={columns} data={recent_sales} />
+}
+
 async function RecentRequests() {
     const user = await currentUser()
+
+    if (!user) {
+        return redirect('/u/login')
+    }
+
     const recent_requests = await get_recent_requests(
-        user!.privateMetadata.artist_id as string
+        user.privateMetadata.artist_id as string
     )
 
     if (recent_requests.length === 0) {
@@ -375,42 +544,15 @@ async function RecentInvoices() {
 
 async function TotalSales() {
     const user = await currentUser()
-    const recent_sales = await get_recent_sales(user!.privateMetadata.artist_id as string)
+    if (!user) {
+        return redirect('/u/login')
+    }
+
+    const recent_sales = await get_recent_data(user.privateMetadata.artist_id as string)
 
     if (!recent_sales) {
         return <NemuImage src={'/nemu/sad.png'} alt="Sad" width={200} height={200} />
     }
 
-    return (
-        <div className="grid h-full w-full grid-cols-1 gap-5 sm:grid-cols-3">
-            <div className="col-span-2 w-full">
-                <SalesChart sales_data={recent_sales.sales_data} />
-            </div>
-            <div className="stats stats-vertical">
-                <div className="stat">
-                    <div className="stat-title">Total Revenue</div>
-                    <div className="stat-value">{recent_sales.total_revenue.count}</div>
-                    <div className="stat-desc">
-                        {recent_sales.total_revenue.change} from last month
-                    </div>
-                </div>
-
-                <div className="stat">
-                    <div className="stat-title">Sales</div>
-                    <div className="stat-value">{recent_sales.total_sales.count}</div>
-                    <div className="stat-desc">
-                        {recent_sales.total_sales.change} from last month
-                    </div>
-                </div>
-
-                <div className="stat">
-                    <div className="stat-title">Total Requests</div>
-                    <div className="stat-value">{recent_sales.total_requests.count}</div>
-                    <div className="stat-desc">
-                        {recent_sales.total_requests.change} from last month
-                    </div>
-                </div>
-            </div>
-        </div>
-    )
+    return <SalesChart sales_data={recent_sales.sales_data} />
 }
