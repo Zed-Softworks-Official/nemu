@@ -20,6 +20,7 @@ import { verify_clerk_auth } from './auth'
 
 import { type VerificationDataType, verification_data } from '~/core/structures'
 import { knock, KnockWorkflows } from '~/server/knock'
+import { revalidateTag } from 'next/cache'
 
 async function create_artist(input: VerificationDataType, user_id: string) {
     const social_accounts: SocialAccount[] = []
@@ -246,25 +247,6 @@ export async function handle_exists(handle: string) {
     return { success: true, exists: false }
 }
 
-export async function get_artist_code(code: string) {
-    // Check if the user is logged in
-    const auth_data = await auth()
-    if (!auth_data.userId) {
-        console.error('User not logged in')
-        return { success: false }
-    }
-
-    const result = await db.query.artist_codes.findFirst({
-        where: eq(artist_codes.code, code)
-    })
-
-    if (!result) {
-        return { success: false }
-    }
-
-    return { success: true }
-}
-
 type SetArtistCodeReturnType = Promise<
     { success: false } | { success: true; codes: string[] }
 >
@@ -308,6 +290,8 @@ export async function set_artist_code(amount: number): SetArtistCodeReturnType {
 
         result.push(new_code)
     }
+
+    revalidateTag('artist_codes')
 
     return { success: true, codes: result }
 }

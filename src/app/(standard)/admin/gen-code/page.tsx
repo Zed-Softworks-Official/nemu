@@ -31,7 +31,8 @@ const get_artist_codes = unstable_cache(
     },
     ['artist_codes'],
     {
-        tags: ['artist_codes']
+        tags: ['artist_codes'],
+        revalidate: 3600
     }
 )
 

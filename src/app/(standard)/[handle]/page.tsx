@@ -21,13 +21,14 @@ type Props = { params: Promise<{ handle: string }> }
 export async function generateMetadata(props: Props): Promise<Metadata> {
     const params = await props.params
     const handle = params.handle.substring(3, params.handle.length + 1)
+
     const artist = await get_artist_data(handle)
-    const clerk_client = await clerkClient()
 
     if (!artist) {
         return {}
     }
 
+    const clerk_client = await clerkClient()
     const image = (await clerk_client.users.getUser(artist.user_id)).imageUrl
 
     return {
