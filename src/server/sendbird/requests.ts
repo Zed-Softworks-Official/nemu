@@ -16,7 +16,8 @@ export async function sendbird_create_request(
         headers: {
             'Content-Type': 'application/json',
             'Api-Token': `${env.SENDBIRD_API_TOKEN}`
-        }
+        },
+        body: JSON.stringify(endpoint_data)
     })
 
     return (await responst.json()) as unknown
