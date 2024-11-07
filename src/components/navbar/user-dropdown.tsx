@@ -86,6 +86,7 @@ async function UserDropdownContent(props: { user: User }) {
                 <>
                     <DropdownMenuItem>
                         <Link
+                            prefetch={true}
                             href={`/@${props.user.publicMetadata.handle as string}`}
                             className="flex w-full items-center gap-3"
                         >
@@ -95,6 +96,7 @@ async function UserDropdownContent(props: { user: User }) {
                     </DropdownMenuItem>
                     <DropdownMenuItem>
                         <Link
+                            prefetch={true}
                             href={`/dashboard`}
                             className="flex w-full items-center gap-3"
                         >
@@ -104,6 +106,7 @@ async function UserDropdownContent(props: { user: User }) {
                     </DropdownMenuItem>
                     <DropdownMenuItem>
                         <Link
+                            prefetch={true}
                             href={`/dashboard/settings`}
                             className="flex w-full items-center gap-3"
                         >
@@ -117,6 +120,7 @@ async function UserDropdownContent(props: { user: User }) {
                 <>
                     <DropdownMenuItem>
                         <Link
+                            prefetch={true}
                             href={'/admin/gen-code'}
                             className="flex w-full items-center gap-3"
                         >
@@ -127,21 +131,33 @@ async function UserDropdownContent(props: { user: User }) {
                 </>
             )}
             <DropdownMenuItem>
-                <Link href={'/requests'} className="flex w-full items-center gap-3">
+                <Link
+                    prefetch={true}
+                    href={'/requests'}
+                    className="flex w-full items-center gap-3"
+                >
                     <TruckIcon className="h-6 w-6" />
                     Requests
                 </Link>
             </DropdownMenuItem>
             {current_user?.has_sendbird_account && (
                 <DropdownMenuItem>
-                    <Link href={messages_url} className="flex w-full items-center gap-3">
+                    <Link
+                        prefetch={true}
+                        href={messages_url}
+                        className="flex w-full items-center gap-3"
+                    >
                         <MailIcon className="h-6 w-6" />
                         Messages
                     </Link>
                 </DropdownMenuItem>
             )}
             <DropdownMenuItem>
-                <Link href={'/u/account'} className="flex w-full items-center gap-3">
+                <Link
+                    prefetch={true}
+                    href={'/u/account'}
+                    className="flex w-full items-center gap-3"
+                >
                     <Settings2Icon className="h-6 w-6" />
                     Account
                 </Link>

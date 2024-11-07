@@ -148,7 +148,7 @@ async function ArtistsList() {
     return (
         <div className="grid auto-rows-auto grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {artists.map((artist) => (
-                <Link href={`/@${artist.handle}`} key={artist.id}>
+                <Link prefetch={true} href={`/@${artist.handle}`} key={artist.id}>
                     <Card className="animate-pop-in transition-all duration-150 ease-in-out hover:scale-105">
                         <NemuImage
                             src={artist.header_photo}
@@ -189,6 +189,7 @@ async function CommissionsList() {
 
                 return (
                     <Link
+                        prefetch={true}
                         key={commission.id}
                         href={`/@${commission.artist_handle}/commission/${commission.slug}`}
                     >

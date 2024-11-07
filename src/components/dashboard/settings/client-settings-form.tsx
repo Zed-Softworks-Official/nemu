@@ -7,7 +7,6 @@ import { toast } from 'sonner'
 
 import { type SocialAccount, SocialAgent } from '~/core/structures'
 
-import { Card, CardHeader, CardTitle, CardContent } from '~/components/ui/card'
 import { Textarea } from '~/components/ui/textarea'
 import { Input } from '~/components/ui/input'
 import { Label } from '~/components/ui/label'
@@ -16,6 +15,7 @@ import { Button } from '~/components/ui/button'
 import SelectCountries from '~/components/ui/select-countries'
 import UpdateHeaderDropzone from '~/components/dashboard/settings/update-header'
 import { update_artist_settings } from '~/server/actions/artist-settings'
+import { Separator } from '~/components/ui/separator'
 
 export default function ClientSettingsForm(props: {
     artist_data: {
@@ -42,67 +42,67 @@ export default function ClientSettingsForm(props: {
     }, [state])
 
     return (
-        <form action={formAction} className="flex flex-col gap-5">
-            <Card>
-                <CardHeader className="flex flex-col items-center justify-between sm:flex-row">
-                    <CardTitle>Artist Settings</CardTitle>
-                    <SubmitButton fieldChanged={fieldChanged} />
-                </CardHeader>
-                <CardContent className="container mx-auto max-w-6xl">
-                    <div className="form-control">
-                        <Label className="label">Header Photo</Label>
-                        <UpdateHeaderDropzone />
-                    </div>
-                    <div className="divider"></div>
-                    <div className="form-control">
-                        <Label className="label">About:</Label>
-                        <Textarea
-                            name="about"
-                            defaultValue={props.artist_data?.about}
-                            placeholder="About"
-                            rows={8}
-                            className="resize-none"
-                            onChange={() => setFieldChanged(true)}
-                        />
-                    </div>
-                    <div className="divider"></div>
-                    <div className="form-control">
-                        <Label className="label">Terms &amp; Conditions:</Label>
-                        <Textarea
-                            name="terms"
-                            defaultValue={props.artist_data?.terms}
-                            placeholder="Terms &amp; Conditions"
-                            rows={8}
-                            className="resize-none"
-                            onChange={() => setFieldChanged(true)}
-                        />
-                    </div>
-                    <div className="divider"></div>
-                    <div className="form-control">
-                        <Label className="label">Location:</Label>
-                        <SelectCountries
-                            name="location"
-                            defaultValue={props.artist_data?.location}
-                            onValueChange={() => setFieldChanged(true)}
-                        />
-                    </div>
-                    <div className="divider"></div>
-                    <div className="form-control">
-                        <Label className="label">Tip Jar URL:</Label>
-                        <Input
-                            placeholder="Tip Jar URL"
-                            name="tip_jar_url"
-                            defaultValue={props.artist_data?.tip_jar_url}
-                            onChange={() => setFieldChanged(true)}
-                        />
-                    </div>
-                    <div className="divider"></div>
-                    <SocialsList
-                        socials={props.artist_data?.socials}
-                        onFieldChange={setFieldChanged}
+        <form action={formAction} className="container mx-auto flex flex-col gap-5">
+            <div className="flex items-center justify-between">
+                <h1 className="text-2xl font-bold">Artist Settings</h1>
+                <SubmitButton fieldChanged={fieldChanged} />
+            </div>
+            <Separator />
+            <div>
+                <div className="form-control">
+                    <Label className="label">Header Photo</Label>
+                    <UpdateHeaderDropzone />
+                </div>
+                <div className="divider"></div>
+                <div className="form-control">
+                    <Label className="label">About:</Label>
+                    <Textarea
+                        name="about"
+                        defaultValue={props.artist_data?.about}
+                        placeholder="About"
+                        rows={8}
+                        className="resize-none bg-base-200"
+                        onChange={() => setFieldChanged(true)}
                     />
-                </CardContent>
-            </Card>
+                </div>
+                <div className="divider"></div>
+                <div className="form-control">
+                    <Label className="label">Terms &amp; Conditions:</Label>
+                    <Textarea
+                        name="terms"
+                        defaultValue={props.artist_data?.terms}
+                        placeholder="Terms &amp; Conditions"
+                        rows={8}
+                        className="resize-none bg-base-200"
+                        onChange={() => setFieldChanged(true)}
+                    />
+                </div>
+                <div className="divider"></div>
+                <div className="form-control">
+                    <Label className="label">Location:</Label>
+                    <SelectCountries
+                        name="location"
+                        defaultValue={props.artist_data?.location}
+                        onValueChange={() => setFieldChanged(true)}
+                    />
+                </div>
+                <div className="divider"></div>
+                <div className="form-control">
+                    <Label className="label">Tip Jar URL:</Label>
+                    <Input
+                        placeholder="Tip Jar URL"
+                        name="tip_jar_url"
+                        className="bg-base-200"
+                        defaultValue={props.artist_data?.tip_jar_url}
+                        onChange={() => setFieldChanged(true)}
+                    />
+                </div>
+                <div className="divider"></div>
+                <SocialsList
+                    socials={props.artist_data?.socials}
+                    onFieldChange={setFieldChanged}
+                />
+            </div>
         </form>
     )
 }
