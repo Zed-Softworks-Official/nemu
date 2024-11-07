@@ -123,7 +123,7 @@ function DashboardSidebar() {
                             {sidebar_items.map((item) => (
                                 <SidebarMenuItem key={item.title}>
                                     <SidebarMenuButton asChild>
-                                        <Link href={item.href}>
+                                        <Link prefetch={true} href={item.href}>
                                             {item.icon}
                                             {item.title}
                                         </Link>
@@ -178,11 +178,15 @@ async function SidebarUserdropdown() {
                         side="top"
                         className="w-[--radix-popper-anchor-width]"
                     >
-                        <DropdownMenuItem>
-                            <span>My Page</span>
+                        <DropdownMenuItem asChild>
+                            <Link prefetch={true} href={`/@${clerk_user.username}`}>
+                                My Page
+                            </Link>
                         </DropdownMenuItem>
-                        <DropdownMenuItem>
-                            <span>Artist Settings</span>
+                        <DropdownMenuItem asChild>
+                            <Link prefetch={true} href={'/dashboard/settings'}>
+                                Artist Settings
+                            </Link>
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>

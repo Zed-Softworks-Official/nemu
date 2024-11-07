@@ -12,7 +12,7 @@ import {
 export default function SelectCountries(props: SelectPrimitive.SelectProps) {
     return (
         <Select {...props}>
-            <SelectTrigger className="w-full">
+            <SelectTrigger className="w-full bg-base-200">
                 <SelectValue placeholder="Select your location" />
             </SelectTrigger>
             <SelectContent>

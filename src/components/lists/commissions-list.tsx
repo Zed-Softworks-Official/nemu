@@ -61,6 +61,7 @@ export default async function CommissionsList({
                             <div className="flex items-end justify-between">
                                 <Price value={commission.price} />
                                 <Link
+                                    prefetch={true}
                                     className="btn btn-primary text-white"
                                     href={`/@${handle}/commission/${commission.slug}`}
                                     scroll={false}
