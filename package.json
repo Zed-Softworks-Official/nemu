@@ -53,7 +53,7 @@
         "@trpc/next": "11.0.0-rc.417",
         "@trpc/react-query": "11.0.0-rc.417",
         "@trpc/server": "11.0.0-rc.417",
-        "@uploadthing/react": "^7.1.0",
+        "@uploadthing/react": "^7.1.1",
         "algoliasearch": "^4.24.0",
         "class-variance-authority": "^0.7.0",
         "clsx": "^2.1.1",
@@ -88,7 +88,7 @@
         "swiper": "^11.1.14",
         "tailwind-merge": "^2.5.4",
         "tailwindcss-animate": "^1.0.7",
-        "uploadthing": "^7.2.0",
+        "uploadthing": "^7.3.0",
         "uuid": "^10.0.0",
         "uuidv4": "^6.2.13",
         "zod": "^3.23.8"
