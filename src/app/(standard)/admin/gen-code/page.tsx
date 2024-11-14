@@ -38,7 +38,7 @@ const get_artist_codes = unstable_cache(
 
 export default function GenerateCodePage() {
     return (
-        <div className="container mx-auto flex max-w-6xl flex-col gap-5">
+        <div className="container mx-auto flex flex-col gap-5">
             <GenerateAristCode />
             <Suspense fallback={<Loading />}>
                 <CurrentArtistCodes />
