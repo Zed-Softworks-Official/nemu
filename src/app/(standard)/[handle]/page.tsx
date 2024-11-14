@@ -19,7 +19,7 @@ import {
     get_commission_list,
     get_portfolio_list
 } from '~/server/db/query'
-import { SocialAgent } from '~/types/enum'
+import { SocialAgent } from '~/core/structures'
 
 type Props = { params: Promise<{ handle: string }> }
 
@@ -79,7 +79,7 @@ async function ArtistPageContent(props: { handle: string }) {
                         className="mx-auto h-96 w-full overflow-hidden rounded-xl object-cover"
                     />
                 </AspectRatio>
-                <div className="bg-background-tertiary/70 mx-auto my-28 w-full rounded-xl px-10 py-14 shadow-lg backdrop-blur-xl sm:max-w-[85%] lg:-my-20 lg:py-14 xl:-my-28">
+                <div className="mx-auto my-28 w-full rounded-xl bg-background-tertiary/70 px-10 py-14 shadow-lg backdrop-blur-xl sm:max-w-[85%] lg:-my-20 lg:py-14 xl:-my-28">
                     <div className="flex flex-col items-center justify-between gap-5 lg:flex-row lg:gap-0">
                         <div className="flex items-center justify-start">
                             <div className="avatar relative">
@@ -125,7 +125,7 @@ async function ArtistPageContent(props: { handle: string }) {
 
             {/* Content Body */}
             <div className="flex flex-col gap-10 lg:mt-36 lg:flex-row">
-                <div className="bg-background-secondary h-fit w-full rounded-xl p-10 text-center lg:w-1/3">
+                <div className="h-fit w-full rounded-xl bg-background-secondary p-10 text-center lg:w-1/3">
                     <div className="flex flex-col justify-center gap-5">
                         <div className="flex flex-col">
                             <h2 className="mb-5 font-bold uppercase">About</h2>
@@ -144,7 +144,7 @@ async function ArtistPageContent(props: { handle: string }) {
                                         variant={'ghost'}
                                         key={social.agent}
                                         className={
-                                            'hover:bg-background-tertiary h-12 w-12 rounded-full'
+                                            'h-12 w-12 rounded-full hover:bg-background-tertiary'
                                         }
                                     >
                                         <Link href={social.url} target="_blank">
@@ -157,7 +157,7 @@ async function ArtistPageContent(props: { handle: string }) {
                     </div>
                 </div>
                 <div className="mx-auto flex w-full flex-row gap-10">
-                    <div className="bg-background-secondary flex h-full w-full flex-col rounded-xl p-10">
+                    <div className="flex h-full w-full flex-col rounded-xl bg-background-secondary p-10">
                         <TabsContent value="commissions">
                             <h2 className="mb-5 font-bold uppercase">Commissions</h2>
                             <Separator className="mb-5 bg-foreground/[0.1]" />
@@ -228,7 +228,8 @@ async function CommissionsList(props: { artist_id: string; handle: string }) {
                                 </div>
                                 <Button size="lg" asChild>
                                     <Link
-                                        href={`/@${props.handle}/commissions/${commission.id}`}
+                                        prefetch={true}
+                                        href={`/@${props.handle}/commission/${commission.slug}`}
                                     >
                                         <Eye className="h-6 w-6" />
                                         View

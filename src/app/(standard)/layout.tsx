@@ -30,7 +30,7 @@ import { db } from '~/server/db'
 import { eq } from 'drizzle-orm'
 import { users } from '~/server/db/schema'
 import Link from 'next/link'
-import { UserRole } from '~/types/enum'
+import { UserRole } from '~/core/structures'
 import { Button } from '~/components/ui/button'
 import NemuImage from '~/components/nemu-image'
 

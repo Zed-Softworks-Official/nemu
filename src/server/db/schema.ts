@@ -15,16 +15,15 @@ import {
 } from 'drizzle-orm/mysql-core'
 
 import {
-    customJson,
     UserRoleEnum,
     InvoiceStatusEnum,
     RequestStatusEnum,
-    CommissionAvailabilityEnum
-} from '~/types/db'
+    CommissionAvailabilityEnum,
+    customJson
+} from './types'
 
-import { UserRole } from '~/types/enum'
-import type { SocialAccount } from '~/types/artist'
-import type { NemuImageData } from '~/types/image'
+import { type SocialAccount, type NemuImageData, UserRole } from '~/core/structures'
+
 /**
  * This is an example of how to use the multi-project schema feature of Drizzle ORM. Use the same
  * database instance for multiple projects.

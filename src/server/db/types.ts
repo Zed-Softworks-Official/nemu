@@ -5,7 +5,7 @@ import {
     RequestStatus,
     SocialAgent,
     UserRole
-} from '~/types/enum'
+} from '~/core/structures'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const enum_to_mysql_enum = (m_Enum: any) =>
