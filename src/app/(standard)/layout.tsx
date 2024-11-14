@@ -32,6 +32,7 @@ import { users } from '~/server/db/schema'
 import Link from 'next/link'
 import { UserRole } from '~/types/enum'
 import { Button } from '~/components/ui/button'
+import NemuImage from '~/components/nemu-image'
 
 const get_user_profile = unstable_cache(async (user_id?: string) => {
     if (!user_id) return undefined
@@ -43,9 +44,11 @@ const get_user_profile = unstable_cache(async (user_id?: string) => {
 
 export default function StandarLayout(props: { children: React.ReactNode }) {
     return (
-        <main className="container mx-auto min-h-screen w-full">
-            <Navbar />
-            <div className="py-5">{props.children}</div>
+        <main>
+            <div className="container mx-auto min-h-screen w-full">
+                <Navbar />
+                <div className="py-5">{props.children}</div>
+            </div>
             <Footer />
         </main>
     )
@@ -75,7 +78,71 @@ function Navbar() {
 }
 
 function Footer() {
-    return <footer>Footer</footer>
+    return (
+        <footer className="bg-background-secondary p-10">
+            <div className="container mx-auto grid gap-3 sm:grid-cols-3">
+                <div className="flex h-full flex-col justify-between">
+                    <NemuImage
+                        src={'/zed-logo.svg'}
+                        alt="Zed Softworks Logo"
+                        width={50}
+                        height={50}
+                    />
+                    <p className="text-sm text-muted-foreground">
+                        Copyright &copy; {new Date().getFullYear()}{' '}
+                        <Link
+                            href={'https://zedsoftworks.dev'}
+                            target="_blank"
+                            className="hover:underline"
+                        >
+                            Zed Softworks LLC
+                        </Link>
+                        . All rights reserved.
+                    </p>
+                </div>
+                <div className="flex flex-col gap-2">
+                    <h2 className="text-lg font-semibold uppercase text-muted-foreground/60">
+                        Artists
+                    </h2>
+                    <Link
+                        href={'/artists/apply'}
+                        className="text-muted-foreground hover:underline"
+                    >
+                        Become an Artist
+                    </Link>
+                    <Link
+                        href={'/artists/supporter'}
+                        className="text-muted-foreground hover:underline"
+                    >
+                        Become a Supporter
+                    </Link>
+                </div>
+                <div className="flex flex-col gap-2">
+                    <h2 className="text-lg font-semibold uppercase text-muted-foreground/60">
+                        Company
+                    </h2>
+                    <Link
+                        href={'/roadmap'}
+                        className="text-muted-foreground hover:underline"
+                    >
+                        Roadmap
+                    </Link>
+                    <Link
+                        href={'/terms'}
+                        className="text-muted-foreground hover:underline"
+                    >
+                        Terms of Service
+                    </Link>
+                    <Link
+                        href={'/privacy'}
+                        className="text-muted-foreground hover:underline"
+                    >
+                        Privacy Policy
+                    </Link>
+                </div>
+            </div>
+        </footer>
+    )
 }
 
 async function UserDropdown() {
