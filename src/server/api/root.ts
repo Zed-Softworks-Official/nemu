@@ -1,5 +1,7 @@
 import { createCallerFactory, createTRPCRouter } from '~/server/api/trpc'
+
 import { artist_verification_router } from './routers/artist-verification'
+import { supporter_router } from './routers/supporter'
 
 /**
  * This is the primary router for your server.
@@ -7,7 +9,8 @@ import { artist_verification_router } from './routers/artist-verification'
  * All routers added in /api/routers should be manually added here.
  */
 export const appRouter = createTRPCRouter({
-    artist_verification: artist_verification_router
+    artist_verification: artist_verification_router,
+    supporter: supporter_router
 })
 
 // export type definition of API
