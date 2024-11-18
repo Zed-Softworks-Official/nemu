@@ -38,3 +38,15 @@ export function get_availability_badge_data(
             return ['destructive', 'Closed']
     }
 }
+
+export function calculate_percentage_change(current: number, previous: number) {
+    if (current === previous && current === 0 && previous === 0) {
+        return '0%'
+    }
+
+    return (
+        new Intl.NumberFormat('en-US', { signDisplay: 'exceptZero' }).format(
+            (current - previous) / current
+        ) + '%'
+    )
+}
