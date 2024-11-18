@@ -35,10 +35,10 @@ export default async function Layout(props: {
                             Delivery
                         </RequestSidenavLink>
                         <RequestSidenavLink
-                            href={`/requests/${params.order_id}/invoices`}
-                            path="invoices"
+                            href={`/requests/${params.order_id}/invoice`}
+                            path="invoice"
                         >
-                            Invoices
+                            Invoice
                         </RequestSidenavLink>
                     </nav>
                     {children}

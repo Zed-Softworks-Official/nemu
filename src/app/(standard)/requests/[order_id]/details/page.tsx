@@ -1,10 +1,10 @@
 import { HydrateClient } from '~/trpc/server'
-import RequestTable from './request-table'
+import Details from './details'
 
-export default function RequestsPage() {
+export default function DetailsPage() {
     return (
         <HydrateClient>
-            <RequestTable />
+            <Details />
         </HydrateClient>
     )
 }

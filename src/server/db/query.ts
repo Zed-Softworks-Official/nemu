@@ -1,7 +1,7 @@
 import { unstable_cache } from 'next/cache'
 import { and, eq, type InferSelectModel } from 'drizzle-orm'
 
-import { artists, commissions, portfolios, requests } from './schema'
+import { artists, commissions, type downloads, portfolios, requests } from './schema'
 import { db } from '.'
 import { env } from '~/env'
 import { clerkClient } from '@clerk/nextjs/server'
@@ -136,53 +136,4 @@ export const get_commission = unstable_cache(
     },
     ['commission'],
     { tags: ['commission'] }
-)
-
-//////////////////////////////////////////////////////////
-// Request List
-//////////////////////////////////////////////////////////
-export const get_request_list_cache = unstable_cache(
-    async (user_id: string) => {
-        const clerk_client = await clerkClient()
-        const db_requests = await db.query.requests.findMany({
-            where: eq(requests.user_id, user_id),
-            with: {
-                commission: {
-                    with: {
-                        artist: true
-                    }
-                }
-            }
-        })
-
-        if (!db_requests) {
-            return []
-        }
-
-        // Format for client
-        const result: ClientRequestData[] = []
-        for (const request of db_requests) {
-            const user = await clerk_client.users.getUser(request.user_id)
-
-            result.push({
-                ...request,
-                commission: {
-                    ...request.commission,
-                    images: [
-                        {
-                            url: request.commission.images[0]!.url
-                        }
-                    ]
-                },
-                user: {
-                    id: request.user_id,
-                    username: user.username ?? 'User'
-                }
-            })
-        }
-
-        return result
-    },
-    ['request_list'],
-    { tags: ['commission_requests'], revalidate: 3600 }
 )
