@@ -7,6 +7,7 @@ import { kanban_router } from './routers/kanban'
 import { request_router } from './routers/request'
 import { commission_router } from './routers/commission'
 import { artist_router } from './routers/artist'
+import { request_form_router } from './routers/request-form'
 /**
  * This is the primary router for your server.
  *
@@ -19,7 +20,8 @@ export const appRouter = createTRPCRouter({
     stripe: stripe_router,
     kanban: kanban_router,
     request: request_router,
-    commission: commission_router
+    commission: commission_router,
+    request_form: request_form_router
 })
 
 // export type definition of API

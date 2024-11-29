@@ -1,10 +1,14 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
-import { CircleDollarSign } from 'lucide-react'
+import { CircleDollarSign, XCircle } from 'lucide-react'
+import Link from 'next/link'
 import { useForm } from 'react-hook-form'
+import { toast } from 'sonner'
 import { z } from 'zod'
+import { UploadDropzone } from '~/components/files/uploadthing'
 import { useUploadThingContext } from '~/components/files/uploadthing-context'
+import { Button } from '~/components/ui/button'
 import { Form, FormField, FormItem, FormLabel, FormMessage } from '~/components/ui/form'
 import { Input } from '~/components/ui/input'
 import {
@@ -15,6 +19,7 @@ import {
     SelectValue
 } from '~/components/ui/select'
 import { Separator } from '~/components/ui/separator'
+import { Skeleton } from '~/components/ui/skeleton'
 import { Textarea } from '~/components/ui/textarea'
 
 import { CommissionAvailability } from '~/core/structures'
@@ -43,11 +48,63 @@ export function CreateForm() {
         mode: 'onSubmit'
     })
 
+    const { data: forms, isLoading: formsLoading } =
+        api.request_form.get_forms_list.useQuery()
     const createCommission = api.commission.set_commission.useMutation()
+
+    const process_form = async (values: CommissionSchemaType) => {
+        const toast_id = toast.loading('Uploading Images')
+
+        // Check if we have images to upload
+        if (images.length === 0) {
+            toast.error('No images to upload', { id: toast_id })
+            return
+        }
+
+        // Upload the images
+        const res = await uploadImages()
+
+        if (!res) {
+            toast.error('Failed to upload images', { id: toast_id })
+            return
+        }
+
+        // Format the images response to for the commission
+        const uploaded_images = res.map((image) => ({
+            url: image.url,
+            ut_key: image.key
+        }))
+
+        // Update the toast
+        toast.loading('Creating Commission', { id: toast_id })
+
+        // Create the commission
+        await createCommission.mutateAsync(
+            {
+                title: values.title,
+                description: values.description,
+                form_id: values.form_id,
+                price: values.price,
+                max_commissions_until_waitlist: values.max_commissions_until_waitlist,
+                max_commissions_until_closed: values.max_commissions_until_closed,
+                images: uploaded_images,
+                availability: values.commission_availability,
+                published: false
+            },
+            {
+                onSuccess: () => {
+                    toast.success('Commission Created')
+                }
+            }
+        )
+    }
 
     return (
         <Form {...form}>
-            <form className="mx-auto flex max-w-xl flex-col gap-5">
+            <form
+                className="mx-auto flex max-w-xl flex-col gap-5"
+                onSubmit={form.handleSubmit(process_form)}
+            >
                 <h1 className="text-2xl font-bold">Create Commission</h1>
                 <Separator />
                 <FormField
@@ -118,22 +175,125 @@ export function CreateForm() {
                     render={({ field }) => (
                         <FormItem className="form-control">
                             <FormLabel className="label">User Form:</FormLabel>
+                            {formsLoading ? (
+                                <div className="space-y-2">
+                                    <Skeleton className="h-10 w-full" />
+                                </div>
+                            ) : (
+                                <Select onValueChange={field.onChange}>
+                                    <SelectTrigger className="bg-background-secondary">
+                                        <SelectValue placeholder="Select User Form" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {forms?.map((form) => (
+                                            <SelectItem key={form.id} value={form.id}>
+                                                {form.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            )}
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="commission_availability"
+                    render={({ field }) => (
+                        <FormItem className="form-control">
+                            <FormLabel className="label">Availability:</FormLabel>
                             <Select onValueChange={field.onChange}>
                                 <SelectTrigger className="bg-background-secondary">
-                                    <SelectValue placeholder="Select User Form" />
+                                    <SelectValue placeholder="Select Availability" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {props.forms.map((form) => (
-                                        <SelectItem key={form.id} value={form.id}>
-                                            {form.name}
-                                        </SelectItem>
-                                    ))}
+                                    <SelectItem value={CommissionAvailability.Open}>
+                                        Open
+                                    </SelectItem>
+                                    <SelectItem value={CommissionAvailability.Waitlist}>
+                                        Waitlist
+                                    </SelectItem>
+                                    <SelectItem value={CommissionAvailability.Closed}>
+                                        Closed
+                                    </SelectItem>
                                 </SelectContent>
                             </Select>
                             <FormMessage />
                         </FormItem>
                     )}
                 />
+                <FormField
+                    control={form.control}
+                    name="max_commissions_until_waitlist"
+                    render={({ field }) => (
+                        <FormItem className="form-control">
+                            <FormLabel className="label">
+                                Commissions Until Auto Waitlist:
+                            </FormLabel>
+                            <Input
+                                placeholder="0"
+                                type="number"
+                                inputMode="numeric"
+                                className="bg-background-secondary"
+                                ref={field.ref}
+                                defaultValue={field.value}
+                                disabled={field.disabled}
+                                onChange={(e) =>
+                                    field.onChange(e.currentTarget.valueAsNumber)
+                                }
+                            />
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="max_commissions_until_closed"
+                    render={({ field }) => (
+                        <FormItem className="form-control">
+                            <FormLabel className="label">
+                                Commissions Until Auto Close:
+                            </FormLabel>
+                            <Input
+                                placeholder="0"
+                                type="number"
+                                inputMode="numeric"
+                                className="bg-background-secondary"
+                                ref={field.ref}
+                                disabled={field.disabled}
+                                defaultValue={field.value}
+                                onChange={(e) =>
+                                    field.onChange(e.currentTarget.valueAsNumber)
+                                }
+                            />
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <Separator />
+                <UploadDropzone endpoint="commissionImageUploader" />
+                <Separator />
+                <p className="text-muted-foreground">
+                    <i>
+                        Note: Commissions will need to be published. Make sure you have
+                        created the commission form for users to fill out upon a request.
+                    </i>
+                </p>
+                <div className="flex items-center justify-between">
+                    <Button asChild variant={'outline'}>
+                        <Link href={'/dashboard/commissions'}>
+                            <XCircle className="h-6 w-6" />
+                            Cancel
+                        </Link>
+                    </Button>
+                    <Button
+                        type="submit"
+                        disabled={isUploading || createCommission.isPending}
+                    >
+                        Create Commission
+                    </Button>
+                </div>
             </form>
         </Form>
     )
