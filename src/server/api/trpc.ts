@@ -12,6 +12,8 @@ import superjson from 'superjson'
 import { ZodError } from 'zod'
 
 import { db } from '~/server/db'
+import { artists } from '../db/schema'
+import { eq } from 'drizzle-orm'
 
 /**
  * 1. CONTEXT
@@ -108,6 +110,12 @@ const timingMiddleware = t.middleware(async ({ next, path }) => {
  */
 export const publicProcedure = t.procedure.use(timingMiddleware)
 
+/**
+ * Protected (authenticated) procedure
+ *
+ * This is the base procedure for queries and mutations that require authentication. It verifies
+ * that the user is logged in before proceeding. If not, it throws an unauthorized error.
+ */
 export const protectedProcedure = t.procedure
     .use(timingMiddleware)
     .use(async ({ next, ctx }) => {
@@ -125,3 +133,35 @@ export const protectedProcedure = t.procedure
             }
         })
     })
+
+/**
+ * Artist procedure
+ *
+ * This procedure extends the protected procedure to verify that the authenticated user
+ * is also an artist in the system. It queries the database to find the artist record
+ * and adds the artist's information to the context. If no artist is found, it throws
+ * an unauthorized error.
+ */
+export const artistProcedure = protectedProcedure.use(async ({ next, ctx }) => {
+    const artist = await ctx.db.query.artists.findFirst({
+        where: eq(artists.user_id, ctx.auth.userId)
+    })
+
+    if (!artist) {
+        throw new TRPCError({
+            code: 'UNAUTHORIZED',
+            message: 'Artist not found'
+        })
+    }
+
+    return next({
+        ctx: {
+            ...ctx,
+            artist: {
+                id: artist.id,
+                handle: artist.handle,
+                supporter: artist.supporter
+            }
+        }
+    })
+})

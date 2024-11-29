@@ -1,3 +1,5 @@
+import 'server-only'
+
 import { algoliasearch } from 'algoliasearch'
 import type { ArtistIndex, CommissionIndex } from '~/core/structures'
 import { env } from '~/env'

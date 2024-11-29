@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
-import { CommissionAvailability } from '~/core/structures'
+import { CommissionAvailability, type NemuImageData } from '~/core/structures'
 
 export function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs))
@@ -49,4 +49,23 @@ export function calculate_percentage_change(current: number, previous: number) {
             (current - previous) / current
         ) + '%'
     )
+}
+
+/**
+ * Converts a list of images to a list of NemuImageData
+ *
+ * @param {string[]} images - The images to convert
+ * @returns {NemuImageData[]} - The converted images
+ */
+export async function convert_images_to_nemu_images(images: NemuImageData[]) {
+    // Format for client
+    const result: NemuImageData[] = []
+
+    for (const image of images) {
+        result.push({
+            url: image.url
+        })
+    }
+
+    return result
 }

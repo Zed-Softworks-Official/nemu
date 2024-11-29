@@ -5,17 +5,21 @@ import { supporter_router } from './routers/supporter'
 import { stripe_router } from './routers/stripe'
 import { kanban_router } from './routers/kanban'
 import { request_router } from './routers/request'
+import { commission_router } from './routers/commission'
+import { artist_router } from './routers/artist'
 /**
  * This is the primary router for your server.
  *
  * All routers added in /api/routers should be manually added here.
  */
 export const appRouter = createTRPCRouter({
+    artist: artist_router,
     artist_verification: artist_verification_router,
     supporter: supporter_router,
     stripe: stripe_router,
     kanban: kanban_router,
-    request: request_router
+    request: request_router,
+    commission: commission_router
 })
 
 // export type definition of API

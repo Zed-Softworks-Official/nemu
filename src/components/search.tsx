@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { SearchIcon } from 'lucide-react'
 
 import debounce from 'lodash.debounce'
-import type { ArtistIndex, CommissionIndex } from '~/types/search'
+import type { ArtistIndex, CommissionIndex } from '~/core/structures'
 import { client } from '~/server/algolia'
 
 import {
@@ -89,14 +89,14 @@ export default function SearchBar() {
     return (
         <div className="relative h-full w-full">
             <div
-                className="bg-background-secondary hidden h-16 w-full flex-row items-center justify-between rounded-xl p-5 sm:flex"
+                className="hidden h-16 w-full flex-row items-center justify-between rounded-xl bg-background-secondary p-5 sm:flex"
                 onClick={() => setOpen(true)}
             >
                 <div className="flex flex-row items-center gap-5">
                     <SearchIcon className="h-6 w-6" />
                     <span className="text-muted-foreground">Search</span>
                 </div>
-                <kbd className="bg-background-tertiary pointer-events-none inline-flex h-6 select-none items-center gap-1 rounded px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+                <kbd className="pointer-events-none inline-flex h-6 select-none items-center gap-1 rounded bg-background-tertiary px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
                     <span className="text-xs">⌘</span>K
                 </kbd>
             </div>

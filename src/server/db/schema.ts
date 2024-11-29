@@ -7,22 +7,23 @@ import {
     text,
     boolean,
     index,
-    mysqlTableCreator,
+    pgTableCreator,
     timestamp,
     varchar,
     json,
-    int
-} from 'drizzle-orm/mysql-core'
+    integer,
+    customType,
+    pgEnum
+} from 'drizzle-orm/pg-core'
 
 import {
-    UserRoleEnum,
-    InvoiceStatusEnum,
-    RequestStatusEnum,
-    CommissionAvailabilityEnum,
-    customJson
-} from './types'
-
-import { type SocialAccount, type NemuImageData, UserRole } from '~/core/structures'
+    type SocialAccount,
+    type NemuImageData,
+    UserRole,
+    CommissionAvailability,
+    InvoiceStatus,
+    RequestStatus
+} from '~/core/structures'
 
 /**
  * This is an example of how to use the multi-project schema feature of Drizzle ORM. Use the same
@@ -30,7 +31,48 @@ import { type SocialAccount, type NemuImageData, UserRole } from '~/core/structu
  *
  * @see https://orm.drizzle.team/docs/goodies#multi-project-schema
  */
-export const createTable = mysqlTableCreator((name) => `nemu_${name}`)
+export const createTable = pgTableCreator((name) => `nemu_${name}`)
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const enum_to_pg_enum = (m_Enum: any) =>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
+    Object.values(m_Enum).map((value: any) => `${value}`) as [string, ...string[]]
+
+/**
+ * Creates a custom json schema type
+ *
+ * @param name - name of the coloumn
+ * @returns
+ */
+export const customJson = <TData>(name: string) =>
+    customType<{ data: TData; driverData: string }>({
+        dataType: () => 'json',
+        toDriver: (value: TData) => JSON.stringify(value)
+        // fromDriver: (value: string) => JSON.parse(value) as TData
+    })(name)
+
+/**
+ * An Enumeration for the user roles
+ */
+export const UserRoleEnum = pgEnum('role', enum_to_pg_enum(UserRole))
+
+/**
+ * Enumeration for the different invoice statuses
+ */
+export const InvoiceStatusEnum = pgEnum('invoice_status', enum_to_pg_enum(InvoiceStatus))
+
+/**
+ * An Enumeration for the Request Status
+ */
+export const RequestStatusEnum = pgEnum('request_status', enum_to_pg_enum(RequestStatus))
+
+/**
+ * An Enumeration for the Commission Availability
+ */
+export const CommissionAvailabilityEnum = pgEnum(
+    'availability',
+    enum_to_pg_enum(CommissionAvailability)
+)
 
 //////////////////////////////////////////////////////////
 // Tables
@@ -147,7 +189,7 @@ export const artists = createTable('artist', {
     automated_message_enabled: boolean('automated_message_enabled').default(false),
     automated_message: text('automated_message'),
 
-    socials: customJson<SocialAccount>('socials').$type<SocialAccount[]>().notNull()
+    socials: json('socials').$type<SocialAccount[]>().notNull()
 })
 
 /**
@@ -231,31 +273,31 @@ export const products = createTable('product', {
 export const commissions = createTable('commission', {
     id: varchar('id', { length: 128 }).primaryKey(),
     artist_id: text('artist_id').notNull(),
-    price: int('price').notNull(),
+    price: integer('price').notNull(),
     rating: decimal('rating', { precision: 2, scale: 1 }).notNull(),
 
     form_id: text('form_id').notNull(),
 
     title: text('title').notNull(),
     description: text('description').notNull(),
-    images: customJson<NemuImageData>('images').$type<NemuImageData[]>().notNull(),
+    images: json('images').$type<NemuImageData[]>().notNull(),
     availability: CommissionAvailabilityEnum('availability').notNull(),
     slug: text('slug').notNull(),
 
     published: boolean('published').default(false).notNull(),
     created_at: timestamp('created_at').defaultNow().notNull(),
 
-    max_commissions_until_waitlist: int('max_commissions_until_waitlist')
+    max_commissions_until_waitlist: integer('max_commissions_until_waitlist')
         .default(0)
         .notNull(),
-    max_commissions_until_closed: int('max_commissions_until_closed')
+    max_commissions_until_closed: integer('max_commissions_until_closed')
         .default(0)
         .notNull(),
 
-    total_requests: int('total_requests').default(0).notNull(),
-    new_requests: int('new_requests').default(0).notNull(),
-    accepted_requests: int('accepted_requests').default(0).notNull(),
-    rejected_requests: int('rejected_requests').default(0).notNull(),
+    total_requests: integer('total_requests').default(0).notNull(),
+    new_requests: integer('new_requests').default(0).notNull(),
+    accepted_requests: integer('accepted_requests').default(0).notNull(),
+    rejected_requests: integer('rejected_requests').default(0).notNull(),
 
     rush_orders_allowed: boolean('rush_orders_allowed').default(false),
     rush_charge: decimal('rush_charge', { precision: 3, scale: 2 }).default('0.00'),
@@ -278,7 +320,7 @@ export const invoices = createTable('invoice', {
 
     customer_id: text('customer_id').notNull(),
     stripe_account: text('stripe_account').notNull(),
-    total: int('total').notNull(),
+    total: integer('total').notNull(),
 
     user_id: text('user_id').notNull(),
     artist_id: text('artist_id').notNull(),
@@ -295,8 +337,8 @@ export const invoice_items = createTable('invoice_item', {
     invoice_id: text('invoice_id').notNull(),
 
     name: text('name').notNull(),
-    price: int('price').notNull(),
-    quantity: int('quantity').notNull(),
+    price: integer('price').notNull(),
+    quantity: integer('quantity').notNull(),
 
     created_at: timestamp('created_at').defaultNow().notNull()
 })
