@@ -111,7 +111,7 @@ export function CreateForm() {
     return (
         <Form {...form}>
             <form
-                className="mx-auto flex max-w-xl flex-col gap-5"
+                className="container mx-auto flex max-w-xl flex-col gap-5"
                 onSubmit={form.handleSubmit(process_form)}
             >
                 <h1 className="text-2xl font-bold">Create Commission</h1>

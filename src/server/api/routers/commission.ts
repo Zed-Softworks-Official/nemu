@@ -7,6 +7,8 @@ import { createId } from '@paralleldrive/cuid2'
 import { artists, commissions } from '~/server/db/schema'
 import { type ClientCommissionItem, CommissionAvailability } from '~/core/structures'
 import { convert_images_to_nemu_images, format_to_currency } from '~/lib/utils'
+import { utapi } from '~/server/uploadthing'
+import { update_index } from '~/server/algolia/collections'
 
 export const commission_router = createTRPCRouter({
     set_commission: artistProcedure
@@ -70,6 +72,85 @@ export const commission_router = createTRPCRouter({
             })
         }),
 
+    update_commission: artistProcedure
+        .input(
+            z.object({
+                id: z.string(),
+                data: z.object({
+                    title: z.string().optional(),
+                    description: z.string().optional(),
+                    price: z.number().optional(),
+                    availability: z.nativeEnum(CommissionAvailability).optional(),
+                    images: z
+                        .array(
+                            z.object({
+                                action: z
+                                    .literal('create')
+                                    .or(z.literal('update'))
+                                    .or(z.literal('delete')),
+                                image_data: z.object({
+                                    url: z.string(),
+                                    ut_key: z.string().optional(),
+                                    file_data: z.instanceof(File).optional()
+                                })
+                            })
+                        )
+                        .optional(),
+                    deleted_images: z.array(z.string()).optional(),
+                    form_id: z.string().optional(),
+                    max_commissions_until_waitlist: z.number().optional(),
+                    max_commissions_until_closed: z.number().optional(),
+                    published: z.boolean().optional()
+                })
+            })
+        )
+        .mutation(async ({ ctx, input }) => {
+            // Delete the images from uploadthing
+            let deleted_iamges_promise: Promise<{
+                readonly success: boolean
+                readonly deletedCount: number
+            }> | null = null
+
+            if (input.data.deleted_images) {
+                deleted_iamges_promise = utapi.deleteFiles(input.data.deleted_images)
+            }
+
+            // Update the database with the relavent information that has been changed
+            const updated_commission_promise = ctx.db
+                .update(commissions)
+                .set({
+                    title: input.data.title,
+                    description: input.data.description,
+                    price: input.data.price,
+                    availability: input.data.availability,
+                    form_id: input.data.form_id,
+                    max_commissions_until_waitlist:
+                        input.data.max_commissions_until_waitlist,
+                    max_commissions_until_closed: input.data.max_commissions_until_closed,
+                    published: input.data.published
+                })
+                .where(eq(commissions.id, input.id))
+                .returning()
+
+            // Wait for all promises to resolve
+            const [, updated_commission] = await Promise.all([
+                deleted_iamges_promise,
+                updated_commission_promise
+            ])
+
+            // Update algolia
+            await update_index('commissions', {
+                objectID: input.id,
+                title: updated_commission[0]!.title,
+                price: format_to_currency(updated_commission[0]!.price / 100),
+                description: updated_commission[0]!.description,
+                featured_image: updated_commission[0]!.images[0]!.url,
+                slug: updated_commission[0]!.slug,
+                artist_handle: ctx.artist.handle,
+                published: updated_commission[0]!.published
+            })
+        }),
+
     get_commission: publicProcedure
         .input(
             z.object({
@@ -82,10 +163,10 @@ export const commission_router = createTRPCRouter({
                 where: eq(artists.handle, input.handle),
                 with: {
                     commissions: {
-                        where: and(
-                            eq(commissions.slug, input.slug),
-                            eq(commissions.artist_id, artists.id)
-                        )
+                        where: eq(commissions.slug, input.slug),
+                        with: {
+                            requests: true
+                        }
                     }
                 }
             })
@@ -116,7 +197,14 @@ export const commission_router = createTRPCRouter({
                     handle: data.handle,
                     supporter: data.supporter,
                     terms: data.terms
-                }
+                },
+                requests: data.commissions[0].requests.map((request) => ({
+                    ...request,
+                    user: {
+                        id: request.user_id,
+                        username: request.user_id
+                    }
+                }))
             }
 
             return result
