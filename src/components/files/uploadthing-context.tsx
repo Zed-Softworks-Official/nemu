@@ -9,6 +9,8 @@ import {
     useState
 } from 'react'
 
+import { generatePermittedFileTypes } from 'uploadthing/client'
+
 import { type EndpointHelper, useUploadThing } from '~/components/files/uploadthing'
 import { type NemuFileRouterType } from '~/app/api/uploadthing/core'
 import { type ClientUploadedFileData } from 'uploadthing/types'
@@ -64,7 +66,7 @@ export default function UploadThingProvider({
         }
     })
 
-    const fileTypes = routeConfig ? Object.keys(routeConfig) : []
+    const fileTypes = generatePermittedFileTypes(routeConfig).fileTypes
 
     useEffect(() => {
         return () => {

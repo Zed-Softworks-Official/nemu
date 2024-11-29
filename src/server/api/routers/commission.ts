@@ -36,54 +36,38 @@ export const commission_router = createTRPCRouter({
                 .replaceAll(' ', '-')
 
             // Check if it already exists for the artist
-            let slug_exists
-            try {
-                slug_exists = await ctx.db.query.commissions.findFirst({
-                    where: and(
-                        eq(commissions.artist_id, ctx.artist.id),
-                        eq(commissions.slug, slug)
-                    )
-                })
-
-                if (slug_exists === undefined) {
-                    console.error('An error occurred while checking for slug existence')
-                    return { success: false }
-                }
-            } catch (e) {
-                console.error('Failed to check for slug existence: ', e)
-                return { success: false }
-            }
+            const slug_exists = await ctx.db.query.commissions.findFirst({
+                where: and(
+                    eq(commissions.artist_id, ctx.artist.id),
+                    eq(commissions.slug, slug)
+                )
+            })
 
             if (slug_exists) {
-                console.error('Slug already exists')
-                return { success: false }
+                throw new TRPCError({
+                    code: 'BAD_REQUEST',
+                    message: 'Slug already exists'
+                })
             }
 
             // Create database object
             const commission_id = createId()
 
-            try {
-                await ctx.db.insert(commissions).values({
-                    id: commission_id,
-                    artist_id: ctx.artist.id,
-                    title: input.title,
-                    description: input.description,
-                    price: input.price,
-                    images: input.images,
-                    availability: input.availability,
-                    slug: slug,
-                    max_commissions_until_waitlist: input.max_commissions_until_waitlist,
-                    max_commissions_until_closed: input.max_commissions_until_closed,
-                    published: input.published ?? false,
-                    form_id: input.form_id,
-                    rating: '5.00'
-                })
-            } catch (e) {
-                console.error('Failed to create commission: ', e)
-                return { success: false }
-            }
-
-            return { success: true }
+            await ctx.db.insert(commissions).values({
+                id: commission_id,
+                artist_id: ctx.artist.id,
+                title: input.title,
+                description: input.description,
+                price: input.price,
+                images: input.images,
+                availability: input.availability,
+                slug: slug,
+                max_commissions_until_waitlist: input.max_commissions_until_waitlist,
+                max_commissions_until_closed: input.max_commissions_until_closed,
+                published: input.published ?? false,
+                form_id: input.form_id,
+                rating: '5.00'
+            })
         }),
 
     get_commission: publicProcedure
@@ -138,7 +122,7 @@ export const commission_router = createTRPCRouter({
             return result
         }),
 
-    get_commission_list_by_id: artistProcedure.query(async ({ ctx }) => {
+    get_commission_list: artistProcedure.query(async ({ ctx }) => {
         const artist = await ctx.db.query.artists.findFirst({
             where: eq(artists.id, ctx.artist.id),
             with: {

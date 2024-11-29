@@ -1,4 +1,4 @@
-import { artistProcedure, createTRPCRouter } from '../trpc'
+import { artistProcedure, createTRPCRouter, protectedProcedure } from '../trpc'
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { createId } from '@paralleldrive/cuid2'
@@ -19,6 +19,34 @@ export const request_form_router = createTRPCRouter({
                 name: input.name,
                 description: input.description,
                 artist_id: ctx.artist.id
+            })
+        }),
+
+    set_form_content: artistProcedure
+        .input(
+            z.object({
+                id: z.string(),
+                content: z.string()
+            })
+        )
+        .mutation(async ({ ctx, input }) => {
+            await ctx.db
+                .update(forms)
+                .set({
+                    content: input.content
+                })
+                .where(eq(forms.id, input.id))
+        }),
+
+    get_form_by_id: protectedProcedure
+        .input(
+            z.object({
+                id: z.string()
+            })
+        )
+        .query(async ({ ctx, input }) => {
+            return await ctx.db.query.forms.findFirst({
+                where: eq(forms.id, input.id)
             })
         }),
 

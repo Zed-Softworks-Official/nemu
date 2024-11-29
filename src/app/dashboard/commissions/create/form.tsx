@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
-import { UploadDropzone } from '~/components/files/uploadthing'
+import NemuUploadThing from '~/components/files/nemu-uploadthing'
 import { useUploadThingContext } from '~/components/files/uploadthing-context'
 import { Button } from '~/components/ui/button'
 import { Form, FormField, FormItem, FormLabel, FormMessage } from '~/components/ui/form'
@@ -45,7 +45,16 @@ export function CreateForm() {
     const { images, uploadImages, isUploading } = useUploadThingContext()
     const form = useForm<CommissionSchemaType>({
         resolver: zodResolver(commissionSchema),
-        mode: 'onSubmit'
+        mode: 'onSubmit',
+        defaultValues: {
+            title: '',
+            description: '',
+            form_id: '',
+            price: 0,
+            max_commissions_until_waitlist: 0,
+            max_commissions_until_closed: 0,
+            commission_availability: CommissionAvailability.Open
+        }
     })
 
     const { data: forms, isLoading: formsLoading } =
@@ -93,7 +102,7 @@ export function CreateForm() {
             },
             {
                 onSuccess: () => {
-                    toast.success('Commission Created')
+                    toast.success('Commission Created', { id: toast_id })
                 }
             }
         )
@@ -134,6 +143,7 @@ export function CreateForm() {
                                 {...field}
                                 className="resize-none bg-background-secondary"
                                 rows={8}
+                                onChange={(e) => field.onChange(e.currentTarget.value)}
                             />
                             <FormMessage />
                         </FormItem>
@@ -158,9 +168,11 @@ export function CreateForm() {
                                     disabled={field.disabled}
                                     defaultValue={field.value ?? ''}
                                     onChange={(e) => {
-                                        field.onChange(
-                                            parseFloat(e.currentTarget.value) * 100
-                                        )
+                                        if (e.currentTarget.value !== '') {
+                                            field.onChange(
+                                                parseFloat(e.currentTarget.value) * 100
+                                            )
+                                        }
                                     }}
                                 />
                             </div>
@@ -239,9 +251,11 @@ export function CreateForm() {
                                 ref={field.ref}
                                 defaultValue={field.value}
                                 disabled={field.disabled}
-                                onChange={(e) =>
-                                    field.onChange(e.currentTarget.valueAsNumber)
-                                }
+                                onChange={(e) => {
+                                    if (e.currentTarget.valueAsNumber) {
+                                        field.onChange(e.currentTarget.valueAsNumber)
+                                    }
+                                }}
                             />
                             <FormMessage />
                         </FormItem>
@@ -263,16 +277,18 @@ export function CreateForm() {
                                 ref={field.ref}
                                 disabled={field.disabled}
                                 defaultValue={field.value}
-                                onChange={(e) =>
-                                    field.onChange(e.currentTarget.valueAsNumber)
-                                }
+                                onChange={(e) => {
+                                    if (e.currentTarget.valueAsNumber) {
+                                        field.onChange(e.currentTarget.valueAsNumber)
+                                    }
+                                }}
                             />
                             <FormMessage />
                         </FormItem>
                     )}
                 />
                 <Separator />
-                <UploadDropzone endpoint="commissionImageUploader" />
+                <NemuUploadThing />
                 <Separator />
                 <p className="text-muted-foreground">
                     <i>

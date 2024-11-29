@@ -44,10 +44,8 @@ export default function RequestFormsList() {
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent>
-                            <DropdownMenuItem>
-                                <Link href={`/dashboard/request-forms/${form.id}`}>
-                                    Edit
-                                </Link>
+                            <DropdownMenuItem asChild>
+                                <Link href={`/dashboard/forms/${form.id}`}>Edit</Link>
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>

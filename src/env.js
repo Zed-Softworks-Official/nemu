@@ -34,7 +34,7 @@ export const env = createEnv({
         SENDBIRD_APP_ID: z.string(),
         SENDBIRD_API_TOKEN: z.string(),
 
-        UPLOADTHING_SECRET: z.string(),
+        UPLOADTHING_TOKEN: z.string(),
 
         SENTRY_AUTH_TOKEN: z.string()
     },
@@ -96,7 +96,7 @@ export const env = createEnv({
         SENDBIRD_APP_ID: process.env.SENDBIRD_APP_ID,
 
         NEXT_PUBLIC_UPLOADTHING_APP_ID: process.env.NEXT_PUBLIC_UPLOADTHING_APP_ID,
-        UPLOADTHING_SECRET: process.env.UPLOADTHING_SECRET,
+        UPLOADTHING_TOKEN: process.env.UPLOADTHING_TOKEN,
 
         NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
         NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,

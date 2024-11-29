@@ -27,7 +27,7 @@ import {
 import type { ClientCommissionItem } from '~/core/structures'
 
 export function CommissionList() {
-    const { data, isLoading } = api.commission.get_commission_list_by_id.useQuery()
+    const { data, isLoading } = api.commission.get_commission_list.useQuery()
 
     if (isLoading) return <Loading />
 
@@ -59,10 +59,6 @@ function CommissionTable(props: { commissions: ClientCommissionItem[] }) {
         {
             accessorKey: 'price',
             header: 'Price'
-        },
-        {
-            accessorKey: 'rating',
-            header: 'Rating'
         },
         {
             accessorKey: 'published',
