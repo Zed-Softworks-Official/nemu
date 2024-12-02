@@ -3,6 +3,8 @@
 import { Eye, Save } from 'lucide-react'
 import { type InferSelectModel } from 'drizzle-orm'
 import { notFound } from 'next/navigation'
+import { toast } from 'sonner'
+import { useEffect } from 'react'
 
 import {
     DndContext,
@@ -14,9 +16,29 @@ import {
 
 import { type forms } from '~/server/db/schema'
 import { Button } from '~/components/ui/button'
-import { Designer, DragOverlayWrapper } from './designer'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogTitle,
+    DialogTrigger
+} from '~/components/ui/dialog'
+
+import { Designer, DragOverlayWrapper } from './designer/designer'
+import { Separator } from '~/components/ui/separator'
+import { useDesigner } from './designer/designer-context'
+import { type FormElementInstance, FormElements } from './elements/form-elements'
+import { api } from '~/trpc/react'
 
 export function FormBuilder(props: { form: InferSelectModel<typeof forms> }) {
+    const { set_elements } = useDesigner()
+
+    useEffect(() => {
+        if (!props.form.content) return
+
+        set_elements(props.form.content as FormElementInstance[])
+    }, [props.form.content, set_elements])
+
     const mouseSensor = useSensor(MouseSensor, {
         activationConstraint: {
             distance: 10
@@ -46,7 +68,7 @@ export function FormBuilder(props: { form: InferSelectModel<typeof forms> }) {
                     </h2>
                     <div className="flex items-center gap-2">
                         <PreviewButton />
-                        <SaveButton />
+                        <SaveButton form_id={props.form.id} />
                     </div>
                 </div>
                 <div className="relative mt-5 flex h-screen w-full flex-grow items-center justify-center overflow-y-auto rounded-xl bg-accent bg-[url(/bg/paper.svg)] dark:bg-[url(/bg/paper-dark.svg)]">
@@ -59,16 +81,71 @@ export function FormBuilder(props: { form: InferSelectModel<typeof forms> }) {
 }
 
 function PreviewButton() {
+    const { elements } = useDesigner()
+
     return (
-        <Button variant={'outline'}>
-            <Eye className="h-6 w-6" /> Preview
-        </Button>
+        <Dialog>
+            <DialogTrigger asChild>
+                <Button variant={'outline'}>
+                    <Eye className="h-6 w-6" /> Preview
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <div className="flex flex-col gap-2 p-4">
+                    <div className="flex flex-col gap-2">
+                        <DialogTitle>Form Preview</DialogTitle>
+                        <DialogDescription>
+                            This is how your form will look like to your users
+                        </DialogDescription>
+                    </div>
+                    <Separator />
+                    <div className="flex flex-col gap-5">
+                        {elements.map((element) => {
+                            const FormElement = FormElements[element.type].form_component
+
+                            return (
+                                <FormElement
+                                    key={element.id}
+                                    element_instance={element}
+                                />
+                            )
+                        })}
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
     )
 }
 
-function SaveButton() {
+function SaveButton(props: { form_id: string }) {
+    const { elements } = useDesigner()
+
+    const saveForm = api.request_form.set_form_content.useMutation({
+        onMutate: () => {
+            const toast_id = toast.loading('Saving form')
+            return { toast_id }
+        },
+        onSuccess: (_, __, { toast_id }) => {
+            toast.success('Form saved', {
+                id: toast_id
+            })
+        },
+        onError: (_, __, context) => {
+            if (!context?.toast_id) return
+
+            toast.error('Failed to save form', {
+                id: context.toast_id
+            })
+        }
+    })
+
     return (
-        <Button>
+        <Button
+            disabled={saveForm.isPending}
+            onClick={() =>
+                saveForm.mutate({ id: props.form_id, content: JSON.stringify(elements) })
+            }
+        >
             <Save className="h-6 w-6" /> Save
         </Button>
     )

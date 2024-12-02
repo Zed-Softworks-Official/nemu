@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { createId } from '@paralleldrive/cuid2'
 
 import { forms } from '~/server/db/schema'
+import { type FormElementInstance } from '~/components/form-builder/form-elements'
 
 export const request_form_router = createTRPCRouter({
     set_form: artistProcedure
@@ -33,7 +34,7 @@ export const request_form_router = createTRPCRouter({
             await ctx.db
                 .update(forms)
                 .set({
-                    content: input.content
+                    content: JSON.parse(input.content) as FormElementInstance[]
                 })
                 .where(eq(forms.id, input.id))
         }),

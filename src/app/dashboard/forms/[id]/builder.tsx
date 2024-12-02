@@ -1,7 +1,7 @@
 'use client'
 
 import { notFound } from 'next/navigation'
-import DesignerProvider from '~/components/form-builder/designer-context'
+import DesignerProvider from '~/components/form-builder/designer/designer-context'
 import { FormBuilder } from '~/components/form-builder/form-builder'
 // import { type FormElementInstance } from '~/components/form-builder/form-elements'
 

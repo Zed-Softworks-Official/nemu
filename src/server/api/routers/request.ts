@@ -7,6 +7,16 @@ import { type downloads, requests } from '~/server/db/schema'
 import type { ClientRequestData } from '~/core/structures'
 
 export const request_router = createTRPCRouter({
+    set_request: protectedProcedure
+        .input(
+            z.object({
+                commission_id: z.string()
+            })
+        )
+        .mutation(async ({ ctx, input }) => {
+            return null
+        }),
+
     get_request_list: protectedProcedure.query(async ({ ctx }) => {
         const clerk_client = await clerkClient()
         const db_requests = await ctx.db.query.requests.findMany({
@@ -66,11 +76,7 @@ export const request_router = createTRPCRouter({
                         }
                     },
                     download: true,
-                    invoice: {
-                        with: {
-                            invoice_items: true
-                        }
-                    },
+                    invoice: true,
                     kanban: true
                 }
             })
@@ -104,7 +110,7 @@ export const request_router = createTRPCRouter({
                     id: request.user_id,
                     username: user.username ?? 'User'
                 },
-                delivery: delivery,
+                delivery,
                 invoice: request.invoice ?? undefined,
                 kanban: request.kanban ?? undefined
             }

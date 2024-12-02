@@ -15,6 +15,7 @@ import {
     customType,
     pgEnum
 } from 'drizzle-orm/pg-core'
+import { type FormElementInstance } from '~/components/form-builder/form-elements'
 
 import {
     type SocialAccount,
@@ -22,7 +23,8 @@ import {
     UserRole,
     CommissionAvailability,
     InvoiceStatus,
-    RequestStatus
+    RequestStatus,
+    type InvoiceItem
 } from '~/core/structures'
 
 /**
@@ -129,41 +131,6 @@ export const downloads = createTable('download', {
 })
 
 /**
- * Reviews
- *
- * Table for storing the reviews a user has created on certain products
- * and/or commissions
- */
-export const reviews = createTable('review', {
-    id: varchar('id', { length: 128 }).primaryKey(),
-    user_id: text('user_id').notNull(),
-    rating: decimal('rating', { precision: 2, scale: 1 }).notNull(),
-    content: varchar('content', { length: 256 }).notNull(),
-    created_at: timestamp('created_at').defaultNow().notNull(),
-    delivered: boolean('delivered').default(false),
-
-    commission_id: text('commission_id'),
-    product_id: text('product_id'),
-    request_id: varchar('request_id', { length: 128 })
-})
-
-/**
- * Favorites
- *
- * Table for storing the favorites a user has created on certain products
- * and/or commissions
- */
-export const favorites = createTable('favorite', {
-    id: varchar('id', { length: 128 }).primaryKey(),
-    user_id: text('user_id').notNull(),
-    artist_id: text('artist_id').notNull(),
-    created_at: timestamp('created_at').defaultNow().notNull(),
-
-    commission_id: text('commission_id'),
-    product_id: text('product_id')
-})
-
-/**
  * Artist
  *
  * Holds all the information for the artist
@@ -245,27 +212,6 @@ export const portfolios = createTable('portfolio', {
 })
 
 /**
- * Artist Corner
- *
- * Holds all information for a product on the artist's corner
- */
-export const products = createTable('product', {
-    id: varchar('id', { length: 128 }).primaryKey(),
-    artist_id: text('artist_id').notNull(),
-
-    title: text('title').notNull(),
-    description: text('description'),
-    price: decimal('price', { precision: 2, scale: 2 }).notNull(),
-    images: json('images').$type<string[]>(),
-    ut_keys: json('ut_keys').$type<string[]>(),
-    downloadable_asset: varchar('downloadable_asset', { length: 256 }),
-    slug: text('slug'),
-
-    published: boolean('published').default(true),
-    created_at: timestamp('created_at').defaultNow().notNull()
-})
-
-/**
  * Commissions
  *
  * Holds all information for a commission
@@ -315,6 +261,8 @@ export const invoices = createTable('invoice', {
     hosted_url: text('hosted_url'),
     status: InvoiceStatusEnum('status').notNull(),
 
+    items: json('items').$type<InvoiceItem[]>().notNull(),
+
     stripe_id: text('stripe_id').notNull(),
     created_at: timestamp('created_at').defaultNow().notNull(),
 
@@ -325,22 +273,6 @@ export const invoices = createTable('invoice', {
     user_id: text('user_id').notNull(),
     artist_id: text('artist_id').notNull(),
     request_id: text('request_id').notNull()
-})
-
-/**
- * Invoice Item
- *
- * Holds all information for an invoice item
- */
-export const invoice_items = createTable('invoice_item', {
-    id: varchar('id', { length: 128 }).primaryKey(),
-    invoice_id: text('invoice_id').notNull(),
-
-    name: text('name').notNull(),
-    price: integer('price').notNull(),
-    quantity: integer('quantity').notNull(),
-
-    created_at: timestamp('created_at').defaultNow().notNull()
 })
 
 /**
@@ -378,9 +310,7 @@ export const requests = createTable('request', {
     kanban_id: text('kanban_id'),
     download_id: text('download_id'),
 
-    sendbird_channel_url: text('sendbird_channel_url'),
-
-    content: json('content').notNull()
+    content: json('content').$type<FormElementInstance[]>().notNull()
 })
 
 /**
@@ -412,8 +342,6 @@ export const userRelations = relations(users, ({ one, many }) => ({
     }),
     requests: many(requests),
     downloads: many(downloads),
-    reviews: many(reviews),
-    favorites: many(favorites),
     customer_ids: many(stripe_customer_ids)
 }))
 
@@ -436,16 +364,6 @@ export const downloadRelations = relations(downloads, ({ one }) => ({
 }))
 
 /**
- * Favorite Relations
- */
-export const favoriteRelations = relations(favorites, ({ one }) => ({
-    user: one(users, {
-        fields: [favorites.user_id],
-        references: [users.clerk_id]
-    })
-}))
-
-/**
  * Customer Id Relations
  */
 export const customerIdRelations = relations(stripe_customer_ids, ({ one }) => ({
@@ -460,28 +378,6 @@ export const customerIdRelations = relations(stripe_customer_ids, ({ one }) => (
 }))
 
 /**
- * Review Relations
- */
-export const reviewRelations = relations(reviews, ({ one }) => ({
-    user: one(users, {
-        fields: [reviews.user_id],
-        references: [users.clerk_id]
-    }),
-    commission: one(commissions, {
-        fields: [reviews.commission_id],
-        references: [commissions.id]
-    }),
-    product: one(products, {
-        fields: [reviews.product_id],
-        references: [products.id]
-    }),
-    request: one(requests, {
-        fields: [reviews.request_id],
-        references: [requests.id]
-    })
-}))
-
-/**
  * Artist Relations
  */
 export const artistRelations = relations(artists, ({ one, many }) => ({
@@ -490,22 +386,10 @@ export const artistRelations = relations(artists, ({ one, many }) => ({
         references: [users.clerk_id]
     }),
     commissions: many(commissions),
-    products: many(products),
     portfolio: many(portfolios),
     forms: many(forms),
     customer_ids: many(stripe_customer_ids),
     invoices: many(invoices)
-}))
-
-/**
- * Product Relations
- */
-export const productRelations = relations(products, ({ one, many }) => ({
-    artist: one(artists, {
-        fields: [products.artist_id],
-        references: [artists.id]
-    }),
-    reviews: many(reviews)
 }))
 
 /**
@@ -534,14 +418,13 @@ export const commissionRelations = relations(commissions, ({ one, many }) => ({
         fields: [commissions.form_id],
         references: [forms.id]
     }),
-    reviews: many(reviews),
     requests: many(requests)
 }))
 
 /**
  * Invoice Relations
  */
-export const invoiceRelations = relations(invoices, ({ one, many }) => ({
+export const invoiceRelations = relations(invoices, ({ one }) => ({
     artist: one(artists, {
         fields: [invoices.artist_id],
         references: [artists.id]
@@ -553,17 +436,6 @@ export const invoiceRelations = relations(invoices, ({ one, many }) => ({
     user: one(users, {
         fields: [invoices.user_id],
         references: [users.clerk_id]
-    }),
-    invoice_items: many(invoice_items)
-}))
-
-/**
- * Invoice Item Relations
- */
-export const invoiceItemsRelations = relations(invoice_items, ({ one }) => ({
-    invoice: one(invoices, {
-        fields: [invoice_items.invoice_id],
-        references: [invoices.id]
     })
 }))
 

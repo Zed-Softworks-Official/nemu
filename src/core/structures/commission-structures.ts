@@ -9,7 +9,6 @@ import type {
     artists,
     commissions,
     downloads,
-    invoice_items,
     invoices,
     kanbans,
     requests
@@ -60,9 +59,7 @@ export type ClientRequestData = InferSelectModel<typeof requests> & {
         blur_data?: string
         file_type: 'image' | 'zip'
     }
-    invoice?: InferSelectModel<typeof invoices> & {
-        invoice_items: InferSelectModel<typeof invoice_items>[]
-    }
+    invoice?: InferSelectModel<typeof invoices>
     kanban?: InferSelectModel<typeof kanbans>
 }
 

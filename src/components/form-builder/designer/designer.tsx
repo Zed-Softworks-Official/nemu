@@ -13,7 +13,7 @@ import {
     type FormElement,
     type FormElementInstance,
     FormElements
-} from './form-elements'
+} from '~/components/form-builder/elements/form-elements'
 
 import { Button } from '~/components/ui/button'
 import { cn } from '~/lib/utils'
@@ -21,10 +21,10 @@ import { useState } from 'react'
 import { useDesigner } from './designer-context'
 import { createId } from '@paralleldrive/cuid2'
 import { Trash2, X } from 'lucide-react'
-import { Separator } from '../ui/separator'
+import { Separator } from '../../ui/separator'
 
 export function Designer() {
-    const { elements, add_element, set_selected_element } = useDesigner()
+    const { elements, add_element, remove_element, set_selected_element } = useDesigner()
 
     const droppable = useDroppable({
         id: 'designer-drop-area',
@@ -35,17 +35,109 @@ export function Designer() {
 
     useDndMonitor({
         onDragEnd: (event) => {
+            // Extract active (element being dragged) and over (element being dropped on) from the drag end event
+            // These are provided by dnd-kit to help us handle drag and drop interactions
             const { active, over } = event
+            // Return early if either active or over is missing since we can't process an incomplete drag operation
             if (!over || !active) return
 
-            const is_designer_button_element = active.data.current
+            // Check if we're dragging a designer button element (from sidebar)
+            // This indicates a new element is being added rather than reordering existing ones
+            const isDesignerButtonElement = active.data.current
                 ?.is_designer_button_element as boolean
 
-            if (is_designer_button_element) {
-                const type = active.data.current?.type as ElementType
-                const new_element = FormElements[type].construct(createId())
+            // Check if we're dropping over the main designer area
+            // This is important for handling drops into an empty form
+            const isDroppingOverDesignerDropArea = over.data?.current
+                ?.is_designer_drop_area as boolean
 
-                add_element(0, new_element)
+            // Handle dropping a new element into the empty designer area
+            // This creates and adds a new element at the end of the form when dropping on empty space
+            if (isDesignerButtonElement && isDroppingOverDesignerDropArea) {
+                const type = active.data.current?.type as ElementType
+                const newElement = FormElements[type].construct(createId())
+
+                add_element(elements.length, newElement)
+            }
+
+            // Check if dropping over top or bottom half of an existing element
+            // This split allows us to provide more precise control over element placement
+            const isDroppingOverTopHalf = over.data?.current?.is_top_half as boolean
+            const isDroppingOverBottomHalf = over.data?.current?.is_bottom_half as boolean
+
+            // Handle dropping a new element between existing elements
+            // This creates a new element and places it either above or below an existing element
+            if (
+                isDesignerButtonElement &&
+                (isDroppingOverTopHalf || isDroppingOverBottomHalf)
+            ) {
+                const type = active.data.current?.type as ElementType
+                const newElement = FormElements[type].construct(createId())
+
+                // Find the index of the element we're dropping over
+                // This helps us determine where to insert the new element
+                const overElementIndex = elements.findIndex(
+                    (element) => element.id === over.data?.current?.element_id
+                )
+
+                if (overElementIndex === -1) {
+                    throw new Error('Element not found!')
+                }
+
+                // Calculate insertion index based on whether dropping on top or bottom half
+                // If dropping on top half, insert at the element's index
+                // If dropping on bottom half, insert after the element
+                let index = overElementIndex // Assume top half
+                if (isDroppingOverBottomHalf) {
+                    index = overElementIndex + 1
+                }
+
+                add_element(index, newElement)
+            }
+
+            // Handle reordering existing elements
+            // This moves elements around within the form rather than creating new ones
+            const isDesignerElement = active.data.current?.is_designer_element as boolean
+            if (
+                isDesignerElement &&
+                (isDroppingOverTopHalf || isDroppingOverBottomHalf)
+            ) {
+                const activeId = active.data.current?.element_id as string
+                const overId = over.data?.current?.element_id as string
+
+                // Don't do anything if dropping element onto itself
+                // This prevents unnecessary state updates and potential issues
+                if (activeId === overId) return
+
+                // Find indices of both elements to determine the move operation
+                const activeElementIndex = elements.findIndex(
+                    (element) => element.id === activeId
+                )
+                const overElementIndex = elements.findIndex(
+                    (element) => element.id === overId
+                )
+
+                if (activeElementIndex === -1 || overElementIndex === -1) {
+                    throw new Error('Element not found!')
+                }
+
+                // Create copy of element being moved to preserve its properties
+                const activeElement = {
+                    ...elements[activeElementIndex]
+                }
+
+                // Remove element from old position first to prevent duplicates
+                remove_element(activeId)
+
+                // Calculate new insertion index based on drop position
+                // This ensures the element is placed exactly where the user intended
+                let index = overElementIndex // Assume top half
+                if (isDroppingOverBottomHalf) {
+                    index = overElementIndex + 1
+                }
+
+                // Add element at new position to complete the reorder
+                add_element(index, activeElement as FormElementInstance)
             }
         }
     })

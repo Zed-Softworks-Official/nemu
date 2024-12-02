@@ -7,10 +7,11 @@ import {
     useContext,
     useState
 } from 'react'
-import type { FormElementInstance } from './form-elements'
+import type { FormElementInstance } from '~/components/form-builder/elements/form-elements'
 
 type DesignerContextType = {
     elements: FormElementInstance[]
+    set_elements: Dispatch<SetStateAction<FormElementInstance[]>>
 
     add_element: (index: number, element: FormElementInstance) => void
     update_element: (id: string, element: FormElementInstance) => void
@@ -44,6 +45,7 @@ export default function DesignerProvider(props: { children: React.ReactNode }) {
         <DesignerContext.Provider
             value={{
                 elements,
+                set_elements: setElements,
                 add_element,
                 remove_element,
                 update_element,

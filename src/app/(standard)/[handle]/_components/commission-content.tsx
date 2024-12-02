@@ -14,11 +14,11 @@ import { Checkbox } from '~/components/ui/checkbox'
 import { useState } from 'react'
 import { Button } from '~/components/ui/button'
 import { ClipboardListIcon } from 'lucide-react'
-import RequestSubmitForm from '~/components/form-builder/requests/request-form'
 import type { InferSelectModel } from 'drizzle-orm'
 import type { ClientCommissionItem } from '~/core/structures'
 import type { forms } from '~/server/db/schema'
 import { get_availability_badge_data } from '~/lib/utils'
+import { RequestForm } from '~/components/form-builder/request-form'
 
 export default function CommissionContent(props: {
     commission: ClientCommissionItem
@@ -30,12 +30,11 @@ export default function CommissionContent(props: {
 
     const [variant, text] = get_availability_badge_data(props.commission.availability)
 
-    if (showForm && props.user_requested !== undefined) {
+    if (showForm && props.user_requested !== undefined && props.commission.id) {
         return (
-            <RequestSubmitForm
-                commission_id={props.commission.id ?? ''}
+            <RequestForm
+                commission_id={props.commission.id}
                 form_data={props.form_data}
-                setShowForm={setShowForm}
                 user_requested={props.user_requested}
             />
         )
@@ -61,12 +60,6 @@ export default function CommissionContent(props: {
                                 @{props.commission.artist?.handle}
                             </Link>
                         </p>
-                        {/* <div className="flex items-center gap-2">
-                                <RatingView rating={commission?.rating!} />
-                                <span className="text-sm text-base-content/60">
-                                    ({commission.rating.toPrecision(2)})
-                                </span>
-                            </div> */}
                     </div>
                     <ShareButton />
                 </div>

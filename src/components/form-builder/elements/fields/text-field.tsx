@@ -1,7 +1,7 @@
 'use client'
 
 import { z } from 'zod'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Type } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -18,13 +18,15 @@ import {
     FormMessage
 } from '~/components/ui/form'
 
-import { useDesigner } from '~/components/form-builder/designer-context'
+import { useDesigner } from '~/components/form-builder/designer/designer-context'
 import type {
     ElementType,
     FormElement,
-    FormElementInstance
-} from '~/components/form-builder/form-elements'
+    FormElementInstance,
+    SubmitValueFunction
+} from '~/components/form-builder/elements/form-elements'
 import { Switch } from '~/components/ui/switch'
+import { cn } from '~/lib/utils'
 
 const type: ElementType = 'TextField'
 const metadata = {
@@ -48,8 +50,18 @@ export const TextFieldFormElement: FormElement = {
     },
 
     designer_component: DesignerComponent,
-    form_component: () => <div>Form Component</div>,
-    properties_component: PropertiesComponent
+    form_component: FormComponent,
+    properties_component: PropertiesComponent,
+
+    validate: (form_element: FormElementInstance, current_value: string) => {
+        const element = form_element as CustomInstance
+
+        if (element.metadata.required) {
+            return current_value.length > 0
+        }
+
+        return true
+    }
 }
 
 type CustomInstance = FormElementInstance & {
@@ -74,6 +86,57 @@ function DesignerComponent(props: { element_instance: FormElementInstance }) {
             />
             {helper_text && (
                 <p className="text-sm text-muted-foreground">{helper_text}</p>
+            )}
+        </div>
+    )
+}
+
+function FormComponent(props: {
+    element_instance: FormElementInstance
+    submit_value?: SubmitValueFunction
+    is_invalid?: boolean
+    default_value?: string
+}) {
+    const element = props.element_instance as CustomInstance
+    const { label, required, placeholder, helper_text } = element.metadata
+
+    const [value, setValue] = useState(props.default_value ?? '')
+    const [error, setError] = useState(false)
+
+    useEffect(() => {
+        setError(props.is_invalid === true)
+    }, [props.is_invalid])
+
+    return (
+        <div className="flex w-full flex-col gap-2">
+            <Label className={cn(error && 'text-destructive')}>
+                {label}
+                {required && '*'}
+            </Label>
+            <Input
+                placeholder={placeholder}
+                className={cn('bg-background-secondary', error && 'border-destructive')}
+                value={value}
+                onChange={(e) => setValue(e.currentTarget.value)}
+                onBlur={() => {
+                    if (!props.submit_value) return
+
+                    const valid = TextFieldFormElement.validate(element, value)
+                    setError(!valid)
+                    if (!valid) return
+
+                    props.submit_value(element.id, value)
+                }}
+            />
+            {helper_text && (
+                <p
+                    className={cn(
+                        'text-sm text-muted-foreground',
+                        error && 'text-destructive'
+                    )}
+                >
+                    {helper_text}
+                </p>
             )}
         </div>
     )
@@ -133,7 +196,11 @@ function PropertiesComponent(props: { element_instance: FormElementInstance }) {
                                 <Input
                                     {...field}
                                     className="bg-background"
-                                    onKeyDown={(e) => e.currentTarget.blur()}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.currentTarget.blur()
+                                        }
+                                    }}
                                 />
                             </FormControl>
                             <FormDescription>
@@ -154,7 +221,11 @@ function PropertiesComponent(props: { element_instance: FormElementInstance }) {
                                 <Input
                                     {...field}
                                     className="bg-background"
-                                    onKeyDown={(e) => e.currentTarget.blur()}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.currentTarget.blur()
+                                        }
+                                    }}
                                 />
                             </FormControl>
                             <FormDescription>
@@ -175,7 +246,11 @@ function PropertiesComponent(props: { element_instance: FormElementInstance }) {
                                 <Input
                                     {...field}
                                     className="bg-background"
-                                    onKeyDown={(e) => e.currentTarget.blur()}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.currentTarget.blur()
+                                        }
+                                    }}
                                 />
                             </FormControl>
                             <FormDescription>
