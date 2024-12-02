@@ -10,11 +10,12 @@ export const request_router = createTRPCRouter({
     set_request: protectedProcedure
         .input(
             z.object({
-                commission_id: z.string()
+                commission_id: z.string(),
+                form_data: z.string()
             })
         )
         .mutation(async ({ ctx, input }) => {
-            return null
+            console.log(input)
         }),
 
     get_request_list: protectedProcedure.query(async ({ ctx }) => {

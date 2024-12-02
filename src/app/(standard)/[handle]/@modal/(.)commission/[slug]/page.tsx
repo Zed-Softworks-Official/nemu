@@ -1,8 +1,5 @@
-import { Suspense } from 'react'
-import Loading from '~/components/ui/loading'
 import ParallelModal from '~/components/ui/parallel-modal'
-import CommissionDisplay from '~/app/(standard)/[handle]/_components/commission-display'
-import { get_commission } from '~/server/db/query'
+import { CommissionView } from '~/app/(standard)/[handle]/commission-view'
 
 export default async function CommissionModal(props: {
     params: Promise<{ handle: string; slug: string }>
@@ -12,15 +9,7 @@ export default async function CommissionModal(props: {
 
     return (
         <ParallelModal>
-            <Suspense fallback={<Loading />}>
-                <CommissionContent handle={handle} slug={params.slug} />
-            </Suspense>
+            <CommissionView handle={handle} slug={params.slug} />
         </ParallelModal>
     )
-}
-
-async function CommissionContent(props: { handle: string; slug: string }) {
-    const commission = await get_commission(props.handle, props.slug)
-
-    return <CommissionDisplay commission={commission} />
 }

@@ -9,6 +9,7 @@ import type {
     artists,
     commissions,
     downloads,
+    forms,
     invoices,
     kanbans,
     requests
@@ -99,9 +100,7 @@ export type ClientCommissionItem = {
     }
 
     // Form Data
-    form?: {
-        content: string
-    }
+    form?: InferSelectModel<typeof forms>
 
     // Review Data
     reviews?: {

@@ -165,7 +165,8 @@ export const commission_router = createTRPCRouter({
                     commissions: {
                         where: eq(commissions.slug, input.slug),
                         with: {
-                            requests: true
+                            requests: true,
+                            form: true
                         }
                     }
                 }
@@ -204,7 +205,8 @@ export const commission_router = createTRPCRouter({
                         id: request.user_id,
                         username: request.user_id
                     }
-                }))
+                })),
+                form: data.commissions[0].form
             }
 
             return result

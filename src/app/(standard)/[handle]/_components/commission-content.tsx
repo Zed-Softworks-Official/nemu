@@ -19,6 +19,7 @@ import type { ClientCommissionItem } from '~/core/structures'
 import type { forms } from '~/server/db/schema'
 import { get_availability_badge_data } from '~/lib/utils'
 import { RequestForm } from '~/components/form-builder/request-form'
+import { Separator } from '~/components/ui/separator'
 
 export default function CommissionContent(props: {
     commission: ClientCommissionItem
@@ -34,6 +35,7 @@ export default function CommissionContent(props: {
         return (
             <RequestForm
                 commission_id={props.commission.id}
+                set_show_form={setShowForm}
                 form_data={props.form_data}
                 user_requested={props.user_requested}
             />
@@ -51,7 +53,7 @@ export default function CommissionContent(props: {
                                 {text}
                             </Badge>
                         </h2>
-                        <p className="text-base-content/60 mb-4">
+                        <p className="mb-4 text-muted-foreground">
                             By{' '}
                             <Link
                                 href={`/@${props.commission.artist?.handle}`}
@@ -63,13 +65,13 @@ export default function CommissionContent(props: {
                     </div>
                     <ShareButton />
                 </div>
-                <div className="divider"></div>
+                <Separator />
                 <div className="h-full">
                     <p>{props.commission.description}</p>
                 </div>
-                <div className="divider"></div>
+                <Separator />
                 <Accordion type="single" collapsible className="w-full">
-                    <AccordionItem value="item-1">
+                    <AccordionItem value="terms">
                         <AccordionTrigger>Terms & Conditions</AccordionTrigger>
                         <AccordionContent>
                             {props.commission.artist?.terms}
@@ -88,7 +90,7 @@ export default function CommissionContent(props: {
                         Accept Terms & Conditions
                     </label>
                 </div>
-                <div className="divider"></div>
+                <Separator />
                 <div className="flex w-full flex-col items-end gap-5">
                     <div className="flex w-full justify-between">
                         <Price value={props.commission.price} />

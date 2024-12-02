@@ -70,6 +70,28 @@ export function RequestForm(props: {
         console.log(form_values.current)
     }
 
+    if (submit_request.isSuccess) {
+        return (
+            <div className="mx-auto h-full max-w-xl">
+                <div className="flex h-full w-full flex-col items-center justify-center gap-5 p-5 text-center">
+                    <NemuImage
+                        src={'/nemu/success.png'}
+                        alt="Nemu Excited"
+                        width={200}
+                        height={200}
+                        priority
+                    />
+                    <h2 className="text-2xl font-bold">Things are happening!</h2>
+                    <p className="italic text-muted-foreground">
+                        You&apos;ll receive a notification from the artist about wether
+                        your commission has been accepted or rejected. Until then, hold on
+                        tight!
+                    </p>
+                </div>
+            </div>
+        )
+    }
+
     return (
         <div className="flex h-full w-full flex-col gap-4 rounded-xl p-5">
             <Button variant={'outline'} onClick={() => props.set_show_form(false)}>
