@@ -27,6 +27,20 @@ export function RequestForm(props: {
             const toast_id = toast.loading('Submitting Request')
 
             return { toast_id }
+        },
+        onSuccess: (_, __, { toast_id }) => {
+            toast.success('Request Submitted', {
+                id: toast_id
+            })
+        },
+        onError: (error, _, context) => {
+            if (context?.toast_id) {
+                return
+            }
+
+            toast.error(error.message, {
+                id: context?.toast_id
+            })
         }
     })
 

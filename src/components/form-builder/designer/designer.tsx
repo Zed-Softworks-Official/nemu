@@ -314,9 +314,29 @@ function PropertiesFormSidebar() {
 function FormElementSidebar() {
     return (
         <aside className="flex h-full w-[400px] max-w-[400px] flex-grow flex-col gap-2 overflow-y-auto border-l-2 border-muted bg-background-secondary p-4">
-            <h2 className="text-lg font-medium">Elements</h2>
+            <h2 className="place-self-start text-lg font-medium text-muted-foreground">
+                Layout Elements
+            </h2>
             <Separator className="my-2" />
-            <SidebarButtonElement form_element={FormElements.TextField} />
+            <div className="grid grid-cols-1 place-items-center gap-2 md:grid-cols-2">
+                <SidebarButtonElement form_element={FormElements.TitleField} />
+                <SidebarButtonElement form_element={FormElements.SubtitleField} />
+                <SidebarButtonElement form_element={FormElements.ParagraphField} />
+                <SidebarButtonElement form_element={FormElements.SeparatorField} />
+                <SidebarButtonElement form_element={FormElements.SpacerField} />
+            </div>
+            <h2 className="place-self-start text-lg font-medium text-muted-foreground">
+                Field Elements
+            </h2>
+            <Separator className="my-2" />
+            <div className="grid grid-cols-1 place-items-center gap-2 md:grid-cols-2">
+                <SidebarButtonElement form_element={FormElements.TextField} />
+                <SidebarButtonElement form_element={FormElements.NumberField} />
+                <SidebarButtonElement form_element={FormElements.TextareaField} />
+                <SidebarButtonElement form_element={FormElements.DateField} />
+                <SidebarButtonElement form_element={FormElements.SelectField} />
+                <SidebarButtonElement form_element={FormElements.CheckboxField} />
+            </div>
         </aside>
     )
 }
@@ -342,7 +362,7 @@ function SidebarButtonElement(props: { form_element: FormElement }) {
             {...draggable.listeners}
             {...draggable.attributes}
         >
-            <Icon className="h-8 w-8 cursor-grab" />
+            <Icon className="!h-6 !w-6 cursor-grab" />
             <p className="text-xs">{label}</p>
         </Button>
     )

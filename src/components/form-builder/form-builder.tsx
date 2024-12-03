@@ -31,13 +31,14 @@ import { type FormElementInstance, FormElements } from './elements/form-elements
 import { api } from '~/trpc/react'
 
 export function FormBuilder(props: { form: InferSelectModel<typeof forms> }) {
-    const { set_elements } = useDesigner()
+    const { set_elements, set_selected_element } = useDesigner()
 
     useEffect(() => {
         if (!props.form.content) return
 
         set_elements(props.form.content as FormElementInstance[])
-    }, [props.form.content, set_elements])
+        set_selected_element(null)
+    }, [props.form.content, set_elements, set_selected_element])
 
     const mouseSensor = useSensor(MouseSensor, {
         activationConstraint: {
