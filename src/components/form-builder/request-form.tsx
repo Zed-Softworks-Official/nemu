@@ -108,10 +108,12 @@ export function RequestForm(props: {
 
     return (
         <div className="flex h-full w-full flex-col gap-4 rounded-xl p-5">
-            <Button variant={'outline'} onClick={() => props.set_show_form(false)}>
-                <ArrowLeftCircle className="h-6 w-6" />
-                Back
-            </Button>
+            <div>
+                <Button variant={'outline'} onClick={() => props.set_show_form(false)}>
+                    <ArrowLeftCircle className="h-6 w-6" />
+                    Back
+                </Button>
+            </div>
             <div className="flex flex-col items-center justify-center gap-3">
                 <NemuImage
                     src={'/nemu/fillout.png'}

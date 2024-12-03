@@ -126,7 +126,7 @@ function FormComponent(props: {
                     <Button
                         variant={'outline'}
                         className={cn(
-                            'w-[280px] justify-start text-left font-normal',
+                            'w-[280px] justify-start border-background-tertiary bg-background-secondary text-left font-normal',
                             !date && 'text-muted-foreground',
                             error && 'border-destructive'
                         )}
