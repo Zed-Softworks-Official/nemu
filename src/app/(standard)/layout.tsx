@@ -165,10 +165,7 @@ async function UserDropdown() {
                     show={user_profile?.role === UserRole.Artist}
                 />
                 <AdminSection show={user_profile?.role === UserRole.Admin} />
-                <GeneralSection
-                    is_artist={user_profile?.role === UserRole.Artist}
-                    has_sendbird_account={user_profile?.has_sendbird_account ?? false}
-                />
+                <GeneralSection is_artist={user_profile?.role === UserRole.Artist} />
             </DropdownMenuContent>
         </DropdownMenu>
     )
@@ -227,7 +224,7 @@ function AdminSection(props: { show?: boolean }) {
     )
 }
 
-function GeneralSection(props: { is_artist: boolean; has_sendbird_account: boolean }) {
+function GeneralSection(props: { is_artist: boolean }) {
     return (
         <DropdownMenuGroup>
             <DropdownMenuLabel>General</DropdownMenuLabel>
@@ -241,18 +238,16 @@ function GeneralSection(props: { is_artist: boolean; has_sendbird_account: boole
                     Requests
                 </Link>
             </DropdownMenuItem>
-            {props.has_sendbird_account && (
-                <DropdownMenuItem asChild>
-                    <Link
-                        prefetch={true}
-                        href={props.is_artist ? '/dashboard/messages' : '/messages'}
-                        className="flex w-full items-center gap-3"
-                    >
-                        <Mail className="h-6 w-6" />
-                        Messages
-                    </Link>
-                </DropdownMenuItem>
-            )}
+            <DropdownMenuItem asChild>
+                <Link
+                    prefetch={true}
+                    href={props.is_artist ? '/dashboard/messages' : '/messages'}
+                    className="flex w-full items-center gap-3"
+                >
+                    <Mail className="h-6 w-6" />
+                    Messages
+                </Link>
+            </DropdownMenuItem>
             <DropdownMenuItem asChild>
                 <Link
                     prefetch={true}

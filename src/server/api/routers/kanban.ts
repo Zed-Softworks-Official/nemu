@@ -11,14 +11,14 @@ export const kanban_router = createTRPCRouter({
     get_kanban_messages: protectedProcedure
         .input(
             z.object({
-                sendbird_channel_url: z.string()
+                order_id: z.string()
             })
         )
         .query(async ({ ctx, input }) => {
             let request
             try {
                 request = await ctx.db.query.requests.findFirst({
-                    where: eq(requests.kanban_id, input.sendbird_channel_url),
+                    where: eq(requests.order_id, input.order_id),
                     with: {
                         kanban: true
                     }

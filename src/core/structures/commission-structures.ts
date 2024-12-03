@@ -2,7 +2,6 @@ import type { InferSelectModel } from 'drizzle-orm'
 import type {
     NemuImageData,
     KanbanContainerData,
-    KanbanTask,
     ImageEditorData
 } from '~/core/structures'
 import type {
@@ -141,12 +140,4 @@ export enum RequestStatus {
     Rejected = 'rejected',
     Delivered = 'delivered',
     Waitlist = 'waitlist'
-}
-
-/**
- * Kanban Message Data for commissions
- */
-export type KanbanSendbirdData = {
-    containers: KanbanContainerData[]
-    tasks: KanbanTask[]
 }

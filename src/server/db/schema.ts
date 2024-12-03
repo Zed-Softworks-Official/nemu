@@ -15,7 +15,7 @@ import {
     customType,
     pgEnum
 } from 'drizzle-orm/pg-core'
-import { type FormElementInstance } from '~/components/form-builder/form-elements'
+import { type FormElementInstance } from '~/components/form-builder/elements/form-elements'
 
 import {
     type SocialAccount,
@@ -90,7 +90,6 @@ export const users = createTable('user', {
     clerk_id: varchar('clerk_id', { length: 256 }).primaryKey(),
     role: UserRoleEnum('role').default(UserRole.Standard),
 
-    has_sendbird_account: boolean('has_sendbird_account').default(false),
     artist_id: varchar('artist_id', { length: 128 })
 })
 

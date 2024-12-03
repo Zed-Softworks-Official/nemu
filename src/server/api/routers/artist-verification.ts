@@ -18,7 +18,6 @@ import { db } from '~/server/db'
 import { eq } from 'drizzle-orm'
 import { StripeCreateAccount } from '~/core/payments'
 
-import * as sendbird from '~/server/sendbird'
 import { set_index } from '~/server/algolia/collections'
 import { knock } from '~/server/knock'
 import { KnockWorkflows } from '~/server/knock'
@@ -184,9 +183,6 @@ async function create_artist(input: VerificationDataType, user_id: string) {
         throw new Error('User could not be found!')
     }
 
-    // Get the user's profile url
-    const profile_url = (await clerk_client.users.getUser(user_id)).imageUrl
-
     // Create Stripe Account for artist
     const generated_stripe_account = await StripeCreateAccount()
 
@@ -211,22 +207,11 @@ async function create_artist(input: VerificationDataType, user_id: string) {
         throw new Error('Artist could not be created!')
     }
 
-    // Check if the user already has a sendbird account
-    if (!user.has_sendbird_account) {
-        // Create Sendbird user
-        await sendbird.create_user({
-            user_id: user.clerk_id,
-            nickname: artist.handle,
-            profile_url: profile_url
-        })
-    }
-
     // Update the user in the database
     const db_promise = db
         .update(users)
         .set({
             role: UserRole.Artist,
-            has_sendbird_account: true,
             artist_id: artist.id
         })
         .where(eq(users.clerk_id, user.clerk_id))

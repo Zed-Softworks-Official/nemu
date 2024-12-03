@@ -2,7 +2,6 @@ import { currentUser } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
 import { Suspense } from 'react'
 
-import MessagesClient from '~/components/messages/messages'
 import Loading from '~/components/ui/loading'
 
 export default function MessagesPage() {
@@ -20,5 +19,5 @@ async function DisplayClient() {
         return redirect('/u/login')
     }
 
-    return <MessagesClient user_id={user.id} />
+    return <div>Messages</div>
 }

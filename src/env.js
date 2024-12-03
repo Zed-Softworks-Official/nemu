@@ -31,9 +31,6 @@ export const env = createEnv({
         ALGOLIA_APP_ID: z.string(),
         ALGOLIA_API_KEY: z.string(),
 
-        SENDBIRD_APP_ID: z.string(),
-        SENDBIRD_API_TOKEN: z.string(),
-
         UPLOADTHING_TOKEN: z.string(),
 
         SENTRY_AUTH_TOKEN: z.string()
@@ -52,8 +49,6 @@ export const env = createEnv({
 
         NEXT_PUBLIC_ALGOLIA_APP_ID: z.string(),
         NEXT_PUBLIC_ALGOLIA_SEARCH_API_KEY: z.string(),
-
-        NEXT_PUBLIC_SENDBIRD_APP_ID: z.string(),
 
         NEXT_PUBLIC_UPLOADTHING_APP_ID: z.string(),
 
@@ -90,10 +85,6 @@ export const env = createEnv({
         NEXT_PUBLIC_ALGOLIA_APP_ID: process.env.NEXT_PUBLIC_ALGOLIA_APP_ID,
         NEXT_PUBLIC_ALGOLIA_SEARCH_API_KEY:
             process.env.NEXT_PUBLIC_ALGOLIA_SEARCH_API_KEY,
-
-        NEXT_PUBLIC_SENDBIRD_APP_ID: process.env.NEXT_PUBLIC_SENDBIRD_APP_ID,
-        SENDBIRD_API_TOKEN: process.env.SENDBIRD_API_TOKEN,
-        SENDBIRD_APP_ID: process.env.SENDBIRD_APP_ID,
 
         NEXT_PUBLIC_UPLOADTHING_APP_ID: process.env.NEXT_PUBLIC_UPLOADTHING_APP_ID,
         UPLOADTHING_TOKEN: process.env.UPLOADTHING_TOKEN,
