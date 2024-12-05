@@ -31,6 +31,9 @@ export const env = createEnv({
         ALGOLIA_APP_ID: z.string(),
         ALGOLIA_API_KEY: z.string(),
 
+        UPSTASH_REDIS_REST_URL: z.string(),
+        UPSTASH_REDIS_REST_TOKEN: z.string(),
+
         UPLOADTHING_TOKEN: z.string(),
 
         SENTRY_AUTH_TOKEN: z.string()
@@ -85,6 +88,9 @@ export const env = createEnv({
         NEXT_PUBLIC_ALGOLIA_APP_ID: process.env.NEXT_PUBLIC_ALGOLIA_APP_ID,
         NEXT_PUBLIC_ALGOLIA_SEARCH_API_KEY:
             process.env.NEXT_PUBLIC_ALGOLIA_SEARCH_API_KEY,
+
+        UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
+        UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
 
         NEXT_PUBLIC_UPLOADTHING_APP_ID: process.env.NEXT_PUBLIC_UPLOADTHING_APP_ID,
         UPLOADTHING_TOKEN: process.env.UPLOADTHING_TOKEN,

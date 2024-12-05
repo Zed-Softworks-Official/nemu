@@ -7,6 +7,7 @@ export * from '~/core/structures/artist-structures'
 export * from '~/core/structures/form-structures'
 export * from '~/core/structures/image-structures'
 export * from '~/core/structures/search-structures'
+export * from '~/core/structures/message-structures'
 
 export type SalesData = {
     month: string

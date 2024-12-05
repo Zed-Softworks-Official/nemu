@@ -24,7 +24,8 @@ import {
     CommissionAvailability,
     InvoiceStatus,
     RequestStatus,
-    type InvoiceItem
+    type InvoiceItem,
+    type Message
 } from '~/core/structures'
 
 /**
@@ -327,6 +328,18 @@ export const kanbans = createTable('kanban', {
     created_at: timestamp('created_at').defaultNow().notNull()
 })
 
+export const chats = createTable('chats', {
+    id: varchar('id', { length: 128 }).primaryKey(),
+
+    request_id: varchar('request_id', { length: 128 }).notNull(),
+    commission_id: varchar('commission_id', { length: 128 }).notNull(),
+    user_id: varchar('user_id', { length: 128 }).notNull(),
+    artist_id: varchar('artist_id', { length: 128 }).notNull(),
+
+    messages: json('messages').$type<Message[]>().notNull(),
+    created_at: timestamp('created_at').defaultNow().notNull()
+})
+
 //////////////////////////////////////////////////////////
 // Relations
 //////////////////////////////////////////////////////////
@@ -341,7 +354,8 @@ export const userRelations = relations(users, ({ one, many }) => ({
     }),
     requests: many(requests),
     downloads: many(downloads),
-    customer_ids: many(stripe_customer_ids)
+    customer_ids: many(stripe_customer_ids),
+    chats: many(chats)
 }))
 
 /**
@@ -388,7 +402,8 @@ export const artistRelations = relations(artists, ({ one, many }) => ({
     portfolio: many(portfolios),
     forms: many(forms),
     customer_ids: many(stripe_customer_ids),
-    invoices: many(invoices)
+    invoices: many(invoices),
+    chats: many(chats)
 }))
 
 /**
@@ -417,7 +432,8 @@ export const commissionRelations = relations(commissions, ({ one, many }) => ({
         fields: [commissions.form_id],
         references: [forms.id]
     }),
-    requests: many(requests)
+    requests: many(requests),
+    chats: many(chats)
 }))
 
 /**
@@ -477,6 +493,10 @@ export const requestRelations = relations(requests, ({ one }) => ({
     download: one(downloads, {
         fields: [requests.download_id],
         references: [downloads.id]
+    }),
+    chat: one(chats, {
+        fields: [requests.id],
+        references: [chats.request_id]
     })
 }))
 

@@ -1,23 +1,5 @@
-import { currentUser } from '@clerk/nextjs/server'
-import { redirect } from 'next/navigation'
-import { Suspense } from 'react'
-
-import Loading from '~/components/ui/loading'
+import { MessagesClient } from '~/components/messages/messages-client'
 
 export default function MessagesPage() {
-    return (
-        <Suspense fallback={<Loading />}>
-            <DisplayClient />
-        </Suspense>
-    )
-}
-
-async function DisplayClient() {
-    const user = await currentUser()
-
-    if (!user) {
-        return redirect('/u/login')
-    }
-
-    return <div>Messages</div>
+    return <MessagesClient />
 }
