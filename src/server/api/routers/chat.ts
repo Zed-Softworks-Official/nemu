@@ -53,25 +53,39 @@ export const chat_router = createTRPCRouter({
                 chat_id: z.string()
             })
         )
-        .query(async ({ ctx, input }) => {
+        .mutation(async ({ ctx, input }) => {
+            const clerk_client = await clerkClient()
             const redis_key = get_redis_key('chats', input.chat_id)
             const chat: Chat | null = await redis.json.get(redis_key)
 
             if (!chat) {
-                return new TRPCError({
+                throw new TRPCError({
                     code: 'INTERNAL_SERVER_ERROR',
                     message: 'Chat not found'
                 })
             }
 
             if (!chat.users.find((user) => user.user_id === ctx.auth.userId)) {
-                return new TRPCError({
+                throw new TRPCError({
                     code: 'INTERNAL_SERVER_ERROR',
                     message: 'User not found in chat'
                 })
             }
 
-            return chat
+            return {
+                ...chat,
+                users: await Promise.all(
+                    chat.users.map(async (user) => {
+                        const user_data = await clerk_client.users.getUser(user.user_id)
+
+                        return {
+                            user_id: user.user_id,
+                            username: user_data.username,
+                            profile_image: user_data.imageUrl
+                        }
+                    })
+                )
+            }
         }),
 
     send_message: protectedProcedure
@@ -87,14 +101,14 @@ export const chat_router = createTRPCRouter({
             const chat: Chat | null = await redis.json.get(redis_key)
 
             if (!chat) {
-                return new TRPCError({
+                throw new TRPCError({
                     code: 'INTERNAL_SERVER_ERROR',
                     message: 'Chat not found'
                 })
             }
 
             if (!chat.users.find((user) => user.user_id === ctx.auth.userId)) {
-                return new TRPCError({
+                throw new TRPCError({
                     code: 'INTERNAL_SERVER_ERROR',
                     message: 'User not found in chat'
                 })
@@ -116,7 +130,5 @@ export const chat_router = createTRPCRouter({
             }
 
             await redis.json.arrappend(redis_key, '$.messages', message)
-
-            return null
         })
 })

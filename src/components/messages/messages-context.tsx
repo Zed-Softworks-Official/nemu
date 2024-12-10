@@ -9,13 +9,20 @@ import {
     useEffect,
     useState
 } from 'react'
+import { toast } from 'sonner'
 
-import { type Message } from '~/core/structures'
+import { type Sender, type Message } from '~/core/structures'
+import { api } from '~/trpc/react'
+
+type ChatUser = Sender & {
+    profile_image: string
+}
 
 type MessagesContextType = {
     current_user_id: string | undefined
-    chat_partner: string
-    set_chat_partner: Dispatch<SetStateAction<string>>
+    chat_partner: ChatUser | undefined
+    commission_title: string | undefined
+    set_chat_partner: Dispatch<SetStateAction<ChatUser | undefined>>
 
     current_chat_id?: string
     set_current_chat_id: Dispatch<SetStateAction<string | undefined>>
@@ -25,6 +32,8 @@ type MessagesContextType = {
 
     unseen_messages: Message[]
     set_unseen_messages: Dispatch<SetStateAction<Message[]>>
+
+    is_loading: boolean
 }
 
 const MessagesContext = createContext<MessagesContextType | null>(null)
@@ -35,17 +44,39 @@ export function MessagesProvider(props: {
 }) {
     const { user } = useUser()
 
+    const [commissionTitle, setCommissionTitle] = useState<string | undefined>(undefined)
+    const [isLoading, setIsLoading] = useState(false)
     const [currentChatId, setCurrentChatId] = useState<string | undefined>(
         props.current_order_id
     )
     const [messages, setMessages] = useState<Message[]>([])
     const [unseenMessages, setUnseenMessages] = useState<Message[]>([])
-    const [chatPartner, setChatPartner] = useState<string>('')
+    const [chatPartner, setChatPartner] = useState<ChatUser | undefined>(undefined)
+
+    const chatQuery = api.chat.get_chat.useMutation({
+        onError: (e) => {
+            setIsLoading(true)
+            toast.error(e.message)
+        },
+        onSuccess: (data) => {
+            if (!user?.id) return
+
+            setMessages(data.messages)
+            setChatPartner(
+                data.users.find(
+                    (chat_people) => chat_people.user_id !== user?.id
+                ) as ChatUser
+            )
+            setCommissionTitle(data.commission_title)
+            setIsLoading(false)
+        }
+    })
 
     useEffect(() => {
         if (currentChatId) {
-            console.log('currentOrderId', currentChatId)
+            chatQuery.mutate({ chat_id: currentChatId })
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentChatId])
 
     return (
@@ -59,7 +90,9 @@ export function MessagesProvider(props: {
                 unseen_messages: unseenMessages,
                 set_unseen_messages: setUnseenMessages,
                 chat_partner: chatPartner,
-                set_chat_partner: setChatPartner
+                set_chat_partner: setChatPartner,
+                is_loading: isLoading,
+                commission_title: commissionTitle
             }}
         >
             {props.children}

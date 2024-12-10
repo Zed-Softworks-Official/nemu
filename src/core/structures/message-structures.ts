@@ -15,6 +15,7 @@ export type Message = {
 
 export type Chat = {
     id: string
+    commission_title: string
 
     messages: Message[]
     users: Sender[]

@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react'
 import { MoreVerticalIcon, Send } from 'lucide-react'
 import Link from 'next/link'
+import Image from 'next/image'
 
 import { cn } from '~/lib/utils'
 
@@ -35,14 +36,48 @@ export function MessagesClient(props: { list_hidden?: boolean }) {
                     </div>
                 )}
                 <div className="flex h-full w-full flex-grow rounded-xl rounded-l-none bg-background-secondary p-10">
-                    <div className="flex h-full w-full flex-col">
-                        <MessagesHeader />
-                        <MessagesContent />
-                        <MessagesInput />
-                    </div>
+                    <MessageClientBody />
                 </div>
             </div>
         </MessagesProvider>
+    )
+}
+
+function MessageClientBody() {
+    const { current_chat_id, is_loading } = useMessages()
+
+    if (!current_chat_id || current_chat_id === '') {
+        return (
+            <div className="flex h-full w-full flex-col items-center justify-center">
+                <Image
+                    src={'/nemu/sad.png'}
+                    alt="Sad Nemu"
+                    width={200}
+                    height={200}
+                    className="mb-10"
+                />
+                <h1 className="text-xl font-bold">No Commission Selected</h1>
+                <p className="text-sm text-muted-foreground">
+                    Select a commission to start chatting with the artist
+                </p>
+            </div>
+        )
+    }
+
+    if (is_loading) {
+        return (
+            <div className="flex h-full w-full flex-col items-center justify-center">
+                <Loading />
+            </div>
+        )
+    }
+
+    return (
+        <div className="flex h-full w-full flex-col">
+            <MessagesHeader />
+            <MessagesContent />
+            <MessagesInput />
+        </div>
     )
 }
 
@@ -101,7 +136,7 @@ function MessagesInput() {
                     rows={1}
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    placeholder={`Message ${chat_partner}`}
+                    placeholder={`Message ${chat_partner?.username}`}
                     className="rouned-lg block w-full resize-none border-0 bg-transparent outline-none sm:p-1.5 sm:text-sm sm:leading-6"
                 />
                 <div
@@ -172,22 +207,29 @@ function ChannelList() {
 }
 
 function MessagesHeader() {
+    const { chat_partner, commission_title } = useMessages()
+
     return (
         <div>
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-5">
                     <Avatar>
-                        <AvatarImage src="https://cdn.bsky.app/img/avatar/plain/did:plc:n32jyuweechdnkfnkwnyndep/bafkreigj7z7odl4zz66piwbo32vz7d735cy623vfnu2qwwzkyu5qwqregm@jpeg" />
-                        <AvatarFallback>JS</AvatarFallback>
+                        <AvatarImage src={chat_partner?.profile_image} />
+                        <AvatarFallback>
+                            {chat_partner?.username?.at(0) ?? 'N'}
+                        </AvatarFallback>
                     </Avatar>
                     <div className="flex flex-col">
                         <h1 className="text-lg font-bold">
-                            <Link href={'/@JackSchitt404'} className="hover:underline">
-                                @JackSchitt404
+                            <Link
+                                href={`/@${chat_partner?.username}`}
+                                className="hover:underline"
+                            >
+                                {chat_partner?.username}
                             </Link>
                         </h1>
                         <h2 className="text-md text-muted-foreground">
-                            Commission Title
+                            {commission_title ?? 'No Commission Title'}
                         </h2>
                     </div>
                 </div>

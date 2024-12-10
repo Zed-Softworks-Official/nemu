@@ -331,6 +331,7 @@ export const request_router = createTRPCRouter({
                     .where(eq(requests.id, request.id)),
                 redis.json.set(chat_values.message_redis_key, '$', {
                     id: request.order_id,
+                    commission_title: request.commission.title,
                     messages: [],
                     users: [
                         {
