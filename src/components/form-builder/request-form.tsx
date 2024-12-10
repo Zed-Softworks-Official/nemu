@@ -71,19 +71,35 @@ export function RequestForm(props: {
     }, [])
 
     const handle_submit = () => {
+        if (!props.form_data?.content) {
+            toast.error('Form data not found')
+            return
+        }
+
         form_errors.current = {}
-        const valid_form = validate_form(
-            props.form_data?.content as FormElementInstance[]
-        )
+        const valid_form = validate_form(props.form_data?.content)
 
         if (!valid_form) {
             toast.error('Please fill out all required fields')
             return
         }
 
+        // Create a mapping of form field IDs to their labels
+        const form_data = props.form_data?.content
+        const labeled_form_values = Object.entries(form_values.current).reduce(
+            (acc, [id, value]) => {
+                const field = form_data.find((element) => element.id === id)
+                return {
+                    ...acc,
+                    [(field?.metadata?.label as string) ?? id]: value
+                }
+            },
+            {}
+        )
+
         submit_request.mutate({
             commission_id: props.commission_id,
-            form_data: JSON.stringify(form_values.current)
+            form_data: JSON.stringify(labeled_form_values)
         })
     }
 
@@ -131,7 +147,7 @@ export function RequestForm(props: {
                 </p>
                 <Separator />
             </div>
-            {(props.form_data?.content as FormElementInstance[]).map((element) => {
+            {(props.form_data?.content ?? []).map((element) => {
                 const FormComponent = FormElements[element.type].form_component
 
                 return (

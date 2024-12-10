@@ -19,14 +19,15 @@ import {
     InvoiceStatus,
     type KanbanContainerData,
     RequestStatus,
-    type ClientRequestData
+    type ClientRequestData,
+    type Chat
 } from '~/core/structures'
 import type { FormElementInstance } from '~/components/form-builder/elements/form-elements'
 import { TRPCError } from '@trpc/server'
 import { knock, KnockWorkflows } from '~/server/knock'
 import { env } from '~/env'
 import { StripeCreateCustomer, StripeCreateInvoice } from '~/core/payments'
-import { get_redis_key } from '~/server/redis'
+import { get_redis_key, redis } from '~/server/redis'
 
 export const request_router = createTRPCRouter({
     set_form: artistProcedure
@@ -116,7 +117,7 @@ export const request_router = createTRPCRouter({
                 user_id: ctx.auth.userId,
                 commission_id: input.commission_id,
                 status: waitlist ? RequestStatus.Waitlist : RequestStatus.Pending,
-                content: JSON.parse(input.form_data) as FormElementInstance[],
+                content: JSON.parse(input.form_data) as Record<string, string>,
                 order_id: createId()
             })
 
@@ -165,7 +166,7 @@ export const request_router = createTRPCRouter({
             })
 
             if (!request) {
-                return new TRPCError({
+                throw new TRPCError({
                     code: 'NOT_FOUND',
                     message: 'Request not found'
                 })
@@ -178,18 +179,18 @@ export const request_router = createTRPCRouter({
                 )
             })
 
-            if (!customer_id) {
-                const clerk_client = await clerkClient()
-                const user = await clerk_client.users.getUser(ctx.auth.userId)
+            const clerk_client = await clerkClient()
+            const request_user = await clerk_client.users.getUser(request.user_id)
 
+            if (!customer_id) {
                 const customer = await StripeCreateCustomer(
-                    user.id,
-                    user.username ?? user.id,
-                    user.emailAddresses[0]!.emailAddress
+                    request.commission.artist.stripe_account,
+                    request_user.username ?? request_user.id,
+                    request_user.emailAddresses[0]!.emailAddress
                 )
 
                 if (!customer) {
-                    return new TRPCError({
+                    throw new TRPCError({
                         code: 'INTERNAL_SERVER_ERROR',
                         message: 'Failed to create Stripe customer'
                     })
@@ -200,7 +201,7 @@ export const request_router = createTRPCRouter({
                         .insert(stripe_customer_ids)
                         .values({
                             id: createId(),
-                            user_id: user.id,
+                            user_id: request_user.id,
                             artist_id: request.commission.artist_id,
                             customer_id: customer.id,
                             stripe_account: request.commission.artist.stripe_account
@@ -209,7 +210,7 @@ export const request_router = createTRPCRouter({
                 ).at(0)
 
                 if (!customer_id) {
-                    return new TRPCError({
+                    throw new TRPCError({
                         code: 'INTERNAL_SERVER_ERROR',
                         message: 'Failed to create Stripe customer'
                     })
@@ -246,16 +247,16 @@ export const request_router = createTRPCRouter({
             }
 
             const invoice_id = createId()
-            const stripe_draft = await StripeCreateInvoice(customer_id.customer_id, {
+            const stripe_draft = await StripeCreateInvoice(customer_id.stripe_account, {
                 customer_id: customer_id.customer_id,
-                user_id: ctx.auth.userId,
+                user_id: request.user_id,
                 commission_id: request.commission_id,
                 order_id: request.order_id,
                 invoice_id
             })
 
             if (!stripe_draft) {
-                return new TRPCError({
+                throw new TRPCError({
                     code: 'INTERNAL_SERVER_ERROR',
                     message: 'Failed to create Stripe invoice'
                 })
@@ -287,7 +288,7 @@ export const request_router = createTRPCRouter({
             const chat_values = {
                 id: chat_primary_key,
                 artist_id: request.commission.artist_id,
-                user_id: ctx.auth.userId,
+                user_id: request.user_id,
                 request_id: request.id,
                 commission_id: request.commission_id,
                 message_redis_key: get_redis_key('chats', request.order_id)
@@ -327,7 +328,21 @@ export const request_router = createTRPCRouter({
                 ctx.db
                     .update(requests)
                     .set(request_values)
-                    .where(eq(requests.id, request.id))
+                    .where(eq(requests.id, request.id)),
+                redis.json.set(chat_values.message_redis_key, '$', {
+                    id: request.order_id,
+                    messages: [],
+                    users: [
+                        {
+                            user_id: request.user_id,
+                            username: request_user.username ?? request.user_id
+                        },
+                        {
+                            user_id: request.commission.artist.user_id,
+                            username: request.commission.artist.handle
+                        }
+                    ]
+                } satisfies Chat)
             ])
         }),
 

@@ -33,6 +33,7 @@ import Link from 'next/link'
 import { UserRole } from '~/core/structures'
 import { Button } from '~/components/ui/button'
 import NemuImage from '~/components/nemu-image'
+import { Notifications } from '~/components/notifications'
 
 const get_user_profile = unstable_cache(async (user_id?: string) => {
     if (!user_id) return undefined
@@ -66,6 +67,7 @@ function Navbar() {
                     </Suspense>
                 </SignedIn>
                 <SignedOut>
+                    <Notifications />
                     <Button className="h-12 rounded-full" variant={'ghost'} asChild>
                         <Link prefetch={true} href={'/u/login'}>
                             <User className="h-12 w-12" />

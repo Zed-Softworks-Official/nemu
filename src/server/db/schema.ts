@@ -287,7 +287,7 @@ export const forms = createTable('form', {
     name: text('name').notNull(),
     description: text('description'),
     created_at: timestamp('created_at').defaultNow().notNull(),
-    content: json('content').default([])
+    content: json('content').$type<FormElementInstance[]>().default([])
 })
 
 /**
@@ -309,7 +309,7 @@ export const requests = createTable('request', {
     kanban_id: text('kanban_id'),
     download_id: text('download_id'),
 
-    content: json('content').$type<FormElementInstance[]>().notNull()
+    content: json('content').$type<Record<string, string>>().notNull()
 })
 
 /**

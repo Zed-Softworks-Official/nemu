@@ -1,12 +1,19 @@
 'use client'
 
 import { type ColumnDef } from '@tanstack/react-table'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, MoreHorizontal } from 'lucide-react'
+import Link from 'next/link'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { DataTable } from '~/components/data-table'
 
 import { Button } from '~/components/ui/button'
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger
+} from '~/components/ui/dropdown-menu'
 import { type ClientRequestData } from '~/core/structures'
 import { api } from '~/trpc/react'
 
@@ -60,13 +67,16 @@ export function PublishButton(props: { id: string; published: boolean }) {
     )
 }
 
-export function RequestList(props: { requests: ClientRequestData[] | undefined }) {
+export function RequestList(props: {
+    requests: ClientRequestData[] | undefined
+    slug: string
+}) {
     if (!props.requests) return null
 
     const columns: ColumnDef<ClientRequestData>[] = [
         {
             header: 'Username',
-            accessorKey: 'user_id'
+            accessorKey: 'user.username'
         },
         {
             header: 'Date',
@@ -78,8 +88,27 @@ export function RequestList(props: { requests: ClientRequestData[] | undefined }
         },
         {
             id: 'actions',
-            cell: () => {
-                return <>Hello, World!</>
+            cell: (data) => {
+                const request = data.row.original
+
+                return (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant={'ghost'}>
+                                <MoreHorizontal className="h-6 w-6" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                            <DropdownMenuItem asChild>
+                                <Link
+                                    href={`/dashboard/commissions/${props.slug}/${request.order_id}`}
+                                >
+                                    View Request
+                                </Link>
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                )
             }
         }
     ]

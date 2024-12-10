@@ -9,6 +9,7 @@ import { type ClientCommissionItem, CommissionAvailability } from '~/core/struct
 import { convert_images_to_nemu_images, format_to_currency } from '~/lib/utils'
 import { utapi } from '~/server/uploadthing'
 import { update_index } from '~/server/algolia/collections'
+import { clerkClient } from '@clerk/nextjs/server'
 
 export const commission_router = createTRPCRouter({
     set_commission: artistProcedure
@@ -159,6 +160,7 @@ export const commission_router = createTRPCRouter({
             })
         )
         .query(async ({ input, ctx }) => {
+            const clerk_client = await clerkClient()
             const data = await ctx.db.query.artists.findFirst({
                 where: eq(artists.handle, input.handle),
                 with: {
@@ -199,13 +201,18 @@ export const commission_router = createTRPCRouter({
                     supporter: data.supporter,
                     terms: data.terms
                 },
-                requests: data.commissions[0].requests.map((request) => ({
-                    ...request,
-                    user: {
-                        id: request.user_id,
-                        username: request.user_id
-                    }
-                })),
+                requests: await Promise.all(
+                    data.commissions[0].requests.map(async (request) => {
+                        const user = await clerk_client.users.getUser(request.user_id)
+                        return {
+                            ...request,
+                            user: {
+                                id: request.user_id,
+                                username: user.username ?? 'Unknown User'
+                            }
+                        }
+                    })
+                ),
                 form: data.commissions[0].form
             }
 
