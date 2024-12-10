@@ -7,7 +7,6 @@ import { kanban_router } from './routers/kanban'
 import { request_router } from './routers/request'
 import { commission_router } from './routers/commission'
 import { artist_router } from './routers/artist'
-import { request_form_router } from './routers/request-form'
 import { chat_router } from './routers/chat'
 
 /**
@@ -23,7 +22,6 @@ export const appRouter = createTRPCRouter({
     kanban: kanban_router,
     request: request_router,
     commission: commission_router,
-    request_form: request_form_router,
     chat: chat_router
 })
 

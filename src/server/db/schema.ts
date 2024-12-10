@@ -24,8 +24,7 @@ import {
     CommissionAvailability,
     InvoiceStatus,
     RequestStatus,
-    type InvoiceItem,
-    type Message
+    type InvoiceItem
 } from '~/core/structures'
 
 /**
@@ -336,13 +335,35 @@ export const chats = createTable('chats', {
     user_id: varchar('user_id', { length: 128 }).notNull(),
     artist_id: varchar('artist_id', { length: 128 }).notNull(),
 
-    messages: json('messages').$type<Message[]>().notNull(),
+    message_redis_key: text('message_redis_key').notNull(),
     created_at: timestamp('created_at').defaultNow().notNull()
 })
 
 //////////////////////////////////////////////////////////
 // Relations
 //////////////////////////////////////////////////////////
+
+/**
+ * Chat Relations
+ */
+export const chatRelations = relations(chats, ({ one }) => ({
+    commission: one(commissions, {
+        fields: [chats.commission_id],
+        references: [commissions.id]
+    }),
+    artist: one(artists, {
+        fields: [chats.artist_id],
+        references: [artists.id]
+    }),
+    request: one(requests, {
+        fields: [chats.request_id],
+        references: [requests.id]
+    }),
+    user: one(users, {
+        fields: [chats.user_id],
+        references: [users.clerk_id]
+    })
+}))
 
 /**
  * User Relations

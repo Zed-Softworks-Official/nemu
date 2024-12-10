@@ -59,7 +59,7 @@ export function RequestForm(props: {
             }
         }
 
-        if (Object.keys(form_errors.current).length === 0) {
+        if (Object.keys(form_errors.current).length !== 0) {
             return false
         }
 
@@ -81,7 +81,10 @@ export function RequestForm(props: {
             return
         }
 
-        console.log(form_values.current)
+        submit_request.mutate({
+            commission_id: props.commission_id,
+            form_data: JSON.stringify(form_values.current)
+        })
     }
 
     if (submit_request.isSuccess) {
@@ -89,7 +92,7 @@ export function RequestForm(props: {
             <div className="mx-auto h-full max-w-xl">
                 <div className="flex h-full w-full flex-col items-center justify-center gap-5 p-5 text-center">
                     <NemuImage
-                        src={'/nemu/success.png'}
+                        src={'/nemu/sparkles.png'}
                         alt="Nemu Excited"
                         width={200}
                         height={200}

@@ -12,3 +12,10 @@ export type Message = {
     timestamp: number
     reply_to?: Message
 }
+
+export type Chat = {
+    id: string
+
+    messages: Message[]
+    users: Sender[]
+}

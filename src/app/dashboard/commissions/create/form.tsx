@@ -57,8 +57,7 @@ export function CreateForm() {
         }
     })
 
-    const { data: forms, isLoading: formsLoading } =
-        api.request_form.get_forms_list.useQuery()
+    const { data: forms, isLoading: formsLoading } = api.request.get_forms_list.useQuery()
     const createCommission = api.commission.set_commission.useMutation()
 
     const process_form = async (values: CommissionSchemaType) => {

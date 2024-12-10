@@ -9,7 +9,7 @@ import Loading from '~/components/ui/loading'
 import { api } from '~/trpc/react'
 
 export function FormBuilderElement(props: { id: string }) {
-    const { data: form, isLoading } = api.request_form.get_form_by_id.useQuery({
+    const { data: form, isLoading } = api.request.get_form_by_id.useQuery({
         id: props.id
     })
 

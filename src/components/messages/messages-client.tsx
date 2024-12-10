@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
-import { MoreVerticalIcon, Paperclip, Send } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { MoreVerticalIcon, Send } from 'lucide-react'
 import Link from 'next/link'
 
 import { cn } from '~/lib/utils'
@@ -15,10 +15,13 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger
 } from '~/components/ui/dropdown-menu'
-import { Input } from '~/components/ui/input'
+import TextareaAutosize from 'react-textarea-autosize'
+import Loading from '~/components/ui/loading'
 
 import { type Message } from '~/core/structures'
 import { MessagesProvider, useMessages } from './messages-context'
+import { api } from '~/trpc/react'
+import { toast } from 'sonner'
 
 export function MessagesClient(props: { list_hidden?: boolean }) {
     return (
@@ -44,62 +47,126 @@ export function MessagesClient(props: { list_hidden?: boolean }) {
 }
 
 function MessagesContent() {
-    const { messages } = useMessages()
-    const messagesEndRef = useRef<HTMLDivElement>(null)
-
-    useEffect(() => {
-        // Directly set scrollTop to the maximum value
-        const container = messagesEndRef.current?.parentElement
-        if (container) {
-            container.scrollTop = container.scrollHeight
-        }
-    }, [])
+    const { messages, current_user_id } = useMessages()
+    const scrollDownRef = useRef<HTMLDivElement | null>(null)
 
     return (
-        <div className="flex w-full flex-grow flex-col justify-end gap-5 overflow-y-auto">
-            <div className="flex flex-col gap-5 overflow-y-auto">
-                {messages.map((message, index) => (
-                    <Message message={message} key={index} />
-                ))}
-                <div ref={messagesEndRef} />
-            </div>
+        <div className="flex h-full flex-1 flex-col-reverse gap-4 overflow-y-auto p-3">
+            <div ref={scrollDownRef}></div>
+            {messages.map((message, index) => (
+                <Message
+                    message={message}
+                    current_user_id={current_user_id}
+                    index={index}
+                    key={message.id}
+                />
+            ))}
         </div>
     )
 }
 
 function MessagesInput() {
+    const { chat_partner, current_chat_id } = useMessages()
+
+    const [input, setInput] = useState('')
+    const textareaRef = useRef<HTMLTextAreaElement | null>(null)
+
+    const sendMessage = api.chat.send_message.useMutation({
+        onError: (e) => {
+            toast.error(e.message)
+        },
+        onSuccess: () => {
+            setInput('')
+            textareaRef.current?.focus()
+        }
+    })
+
     return (
-        <div className="flex flex-col">
-            <Separator className="my-5" />
-            <div className="flex w-full justify-between gap-5">
-                <Input
-                    placeholder="Send a message"
-                    className="w-full bg-background-tertiary"
+        <div className="mb-2 border-t px-4 pt-4 sm:mb-0">
+            <div className="relative flex-1 overflow-hidden rounded-lg bg-background-tertiary shadow-sm ring-1 ring-background-tertiary focus-within:ring-2 focus-within:ring-primary">
+                <TextareaAutosize
+                    ref={textareaRef}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault()
+                            if (!current_chat_id) return
+
+                            sendMessage.mutate({
+                                chat_id: current_chat_id,
+                                text: input,
+                                type: 'text'
+                            })
+                        }
+                    }}
+                    rows={1}
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    placeholder={`Message ${chat_partner}`}
+                    className="rouned-lg block w-full resize-none border-0 bg-transparent outline-none sm:p-1.5 sm:text-sm sm:leading-6"
                 />
-                <Button variant={'ghost'}>
-                    <Paperclip className="h-6 w-6" />
-                </Button>
-                <Button>
-                    <Send className="h-6 w-6" />
-                </Button>
+                <div
+                    onClick={() => textareaRef.current?.focus()}
+                    className="py-2"
+                    aria-hidden="true"
+                >
+                    <div className="py-px">
+                        <div className="h-9"></div>
+                    </div>
+                </div>
+                <div className="absolute bottom-0 right-0 flex justify-between py-2 pl-3 pr-2">
+                    <div className="flex-shrink-0">
+                        <Button
+                            variant={'ghost'}
+                            size={'icon'}
+                            onClick={() => {
+                                if (!current_chat_id) return
+
+                                sendMessage.mutate({
+                                    chat_id: current_chat_id,
+                                    text: input,
+                                    type: 'text'
+                                })
+                            }}
+                        >
+                            <Send className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </div>
             </div>
         </div>
     )
 }
 
 function ChannelList() {
+    const { data: chats, isLoading } = api.chat.get_chats.useQuery()
+    const { set_current_chat_id: set_current_order_id } = useMessages()
+
+    if (isLoading) {
+        return <Loading />
+    }
+
     return (
         <div className="flex flex-col gap-5">
-            <div className="flex cursor-pointer items-center gap-2 rounded-xl bg-background p-5 transition-colors duration-200 ease-in-out hover:bg-primary">
-                <Avatar>
-                    <AvatarImage src="https://cdn.bsky.app/img/avatar/plain/did:plc:n32jyuweechdnkfnkwnyndep/bafkreigj7z7odl4zz66piwbo32vz7d735cy623vfnu2qwwzkyu5qwqregm@jpeg" />
-                    <AvatarFallback>JS</AvatarFallback>
-                </Avatar>
-                <div className="flex flex-col gap-1">
-                    <h1 className="text-lg font-bold">@JackSchitt404</h1>
-                    <h2 className="text-md text-muted-foreground">Commission Title</h2>
+            {chats?.map((chat) => (
+                <div
+                    key={chat.id}
+                    className="flex cursor-pointer items-center gap-2 rounded-xl bg-background p-5 transition-colors duration-200 ease-in-out hover:bg-primary"
+                    onClick={() => set_current_order_id(chat.request.order_id)}
+                >
+                    <Avatar>
+                        <AvatarImage src={chat.other_user.profile_image} />
+                        <AvatarFallback>
+                            {chat.other_user.username?.at(0) ?? 'N'}
+                        </AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col gap-1">
+                        <h1 className="text-lg font-bold">{chat.other_user.username}</h1>
+                        <h2 className="text-md text-muted-foreground">
+                            {chat.commission.title ?? 'No Commission Title'}
+                        </h2>
+                    </div>
                 </div>
-            </div>
+            ))}
         </div>
     )
 }
@@ -133,7 +200,6 @@ function MessagesHeader() {
                     <DropdownMenuContent>
                         <DropdownMenuItem>View Commission</DropdownMenuItem>
                         <DropdownMenuItem>View Request</DropdownMenuItem>
-                        <DropdownMenuItem>View Attachments</DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
             </div>
@@ -142,38 +208,39 @@ function MessagesHeader() {
     )
 }
 
-function Message(props: { message: Message }) {
+function Message(props: {
+    message: Message
+    current_user_id: string | undefined
+    index: number
+}) {
+    const { messages } = useMessages()
+
+    const is_current_user = props.message.sender.user_id === props.current_user_id
+    const concurrent_message =
+        messages[props.index - 1]?.sender.user_id === props.message.sender.user_id
+
     return (
-        <div
-            className={cn(
-                'flex items-center gap-2',
-                props.message.sender.user_id === 'vercel' && 'justify-end',
-                props.message.sender.user_id === 'JackSchitt404' && 'justify-start'
-            )}
-        >
-            {props.message.sender.user_id === 'JackSchitt404' && (
-                <Avatar>
-                    <AvatarImage src="https://cdn.bsky.app/img/avatar/plain/did:plc:n32jyuweechdnkfnkwnyndep/bafkreigj7z7odl4zz66piwbo32vz7d735cy623vfnu2qwwzkyu5qwqregm@jpeg" />
-                    <AvatarFallback>JS</AvatarFallback>
-                </Avatar>
-            )}
+        <div className={cn('flex items-end', { 'justify-end': is_current_user })}>
             <div
-                className={cn(
-                    'flex max-w-[30%] rounded-xl px-5 py-2',
-                    props.message.sender.user_id === 'vercel' &&
-                        'rounded-br-none bg-primary',
-                    props.message.sender.user_id === 'JackSchitt404' &&
-                        'rounded-bl-none bg-background-secondary'
-                )}
+                className={cn('mx-2 flex max-w-xs flex-col space-y-2 text-base', {
+                    'order-1 items-end': is_current_user,
+                    'order-2 items-start': !is_current_user
+                })}
             >
-                <p>{props.message.content}</p>
+                <span
+                    className={cn('inline-block rounded-lg px-4 py-2', {
+                        'bg-primary text-foreground': is_current_user,
+                        'bg-background-secondary': !is_current_user,
+                        'rounded-br-none': !concurrent_message && is_current_user,
+                        'rounded-bl-none': !concurrent_message && !is_current_user
+                    })}
+                >
+                    {props.message.content}{' '}
+                    <span className="ml-2 text-xs text-muted-foreground">
+                        {props.message.timestamp}
+                    </span>
+                </span>
             </div>
-            {props.message.sender.user_id === 'vercel' && (
-                <Avatar>
-                    <AvatarImage src="https://github.com/kzolt.png" />
-                    <AvatarFallback>JS</AvatarFallback>
-                </Avatar>
-            )}
         </div>
     )
 }

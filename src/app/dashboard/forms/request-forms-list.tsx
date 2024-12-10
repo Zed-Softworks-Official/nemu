@@ -16,7 +16,7 @@ import { api } from '~/trpc/react'
 import { DataTable } from '~/components/data-table'
 
 export default function RequestFormsList() {
-    const { data: forms, isLoading } = api.request_form.get_forms_list.useQuery()
+    const { data: forms, isLoading } = api.request.get_forms_list.useQuery()
 
     if (isLoading) return <Loading />
 
