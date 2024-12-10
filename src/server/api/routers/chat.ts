@@ -8,6 +8,8 @@ import { get_redis_key, redis } from '~/server/redis'
 import type { Chat, Message } from '~/core/structures'
 import { TRPCError } from '@trpc/server'
 import { createId } from '@paralleldrive/cuid2'
+import { pusher_server } from '~/server/pusher'
+import { to_pusher_key } from '~/lib/utils'
 
 export const chat_router = createTRPCRouter({
     get_chats: protectedProcedure.query(async ({ ctx }) => {
@@ -128,6 +130,12 @@ export const chat_router = createTRPCRouter({
                 content: input.text,
                 timestamp: Date.now()
             }
+
+            pusher_server.trigger(
+                to_pusher_key(`${input.chat_id}:messages`),
+                'message',
+                message
+            )
 
             await redis.json.arrappend(redis_key, '$.messages', message)
         })

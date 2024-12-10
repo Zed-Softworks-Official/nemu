@@ -61,7 +61,7 @@ export function MessagesProvider(props: {
         onSuccess: (data) => {
             if (!user?.id) return
 
-            setMessages(data.messages)
+            setMessages(data.messages.reverse())
             setChatPartner(
                 data.users.find(
                     (chat_people) => chat_people.user_id !== user?.id

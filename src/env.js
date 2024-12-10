@@ -36,7 +36,10 @@ export const env = createEnv({
 
         UPLOADTHING_TOKEN: z.string(),
 
-        SENTRY_AUTH_TOKEN: z.string()
+        SENTRY_AUTH_TOKEN: z.string(),
+
+        PUSHER_APP_ID: z.string(),
+        PUSHER_SECRET: z.string()
     },
 
     /**
@@ -56,7 +59,10 @@ export const env = createEnv({
         NEXT_PUBLIC_UPLOADTHING_APP_ID: z.string(),
 
         NEXT_PUBLIC_POSTHOG_KEY: z.string(),
-        NEXT_PUBLIC_POSTHOG_HOST: z.string()
+        NEXT_PUBLIC_POSTHOG_HOST: z.string(),
+
+        NEXT_PUBLIC_PUSHER_KEY: z.string(),
+        NEXT_PUBLIC_PUSHER_CLUSTER: z.string()
         // NEXT_PUBLIC_CLIENTVAR: z.string(),
     },
 
@@ -98,7 +104,12 @@ export const env = createEnv({
         NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
         NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
 
-        SENTRY_AUTH_TOKEN: process.env.SENTRY_AUTH_TOKEN
+        SENTRY_AUTH_TOKEN: process.env.SENTRY_AUTH_TOKEN,
+
+        PUSHER_APP_ID: process.env.PUSHER_APP_ID,
+        PUSHER_SECRET: process.env.PUSHER_SECRET,
+        NEXT_PUBLIC_PUSHER_KEY: process.env.NEXT_PUBLIC_PUSHER_KEY,
+        NEXT_PUBLIC_PUSHER_CLUSTER: process.env.NEXT_PUBLIC_PUSHER_CLUSTER
     },
     /**
      * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

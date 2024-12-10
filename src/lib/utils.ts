@@ -69,3 +69,5 @@ export async function convert_images_to_nemu_images(images: NemuImageData[]) {
 
     return result
 }
+
+export const to_pusher_key = (key: string) => key.replace(/:/g, '__')

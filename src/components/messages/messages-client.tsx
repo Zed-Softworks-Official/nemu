@@ -23,6 +23,9 @@ import { type Message } from '~/core/structures'
 import { MessagesProvider, useMessages } from './messages-context'
 import { api } from '~/trpc/react'
 import { toast } from 'sonner'
+import { format } from 'date-fns'
+import { useUser } from '@clerk/nextjs'
+import { usePusher } from '~/hooks/use-pusher'
 
 export function MessagesClient(props: { list_hidden?: boolean }) {
     return (
@@ -82,8 +85,16 @@ function MessageClientBody() {
 }
 
 function MessagesContent() {
-    const { messages, current_user_id } = useMessages()
+    const { messages, set_messages, current_user_id, current_chat_id } = useMessages()
     const scrollDownRef = useRef<HTMLDivElement | null>(null)
+
+    usePusher({
+        key: `${current_chat_id}:messages`,
+        event_name: 'message',
+        callback: (data: unknown) => {
+            set_messages((prev) => [data as Message, ...prev])
+        }
+    })
 
     return (
         <div className="flex h-full flex-1 flex-col-reverse gap-4 overflow-y-auto p-3">
@@ -124,7 +135,8 @@ function MessagesInput() {
                     onKeyDown={(e) => {
                         if (e.key === 'Enter' && !e.shiftKey) {
                             e.preventDefault()
-                            if (!current_chat_id) return
+                            if (!current_chat_id || sendMessage.isPending || !input)
+                                return
 
                             sendMessage.mutate({
                                 chat_id: current_chat_id,
@@ -151,10 +163,12 @@ function MessagesInput() {
                 <div className="absolute bottom-0 right-0 flex justify-between py-2 pl-3 pr-2">
                     <div className="flex-shrink-0">
                         <Button
+                            disabled={!current_chat_id || sendMessage.isPending}
                             variant={'ghost'}
                             size={'icon'}
                             onClick={() => {
-                                if (!current_chat_id) return
+                                if (!current_chat_id || sendMessage.isPending || !input)
+                                    return
 
                                 sendMessage.mutate({
                                     chat_id: current_chat_id,
@@ -255,11 +269,15 @@ function Message(props: {
     current_user_id: string | undefined
     index: number
 }) {
-    const { messages } = useMessages()
+    const { messages, chat_partner } = useMessages()
+    const { user } = useUser()
 
     const is_current_user = props.message.sender.user_id === props.current_user_id
     const concurrent_message =
         messages[props.index - 1]?.sender.user_id === props.message.sender.user_id
+
+    const formatTimestamp = (timestamp: number) => format(timestamp, 'HH:mm')
+    const image_url = is_current_user ? user?.imageUrl : chat_partner?.profile_image
 
     return (
         <div className={cn('flex items-end', { 'justify-end': is_current_user })}>
@@ -279,10 +297,22 @@ function Message(props: {
                 >
                     {props.message.content}{' '}
                     <span className="ml-2 text-xs text-muted-foreground">
-                        {props.message.timestamp}
+                        {formatTimestamp(props.message.timestamp)}
                     </span>
                 </span>
             </div>
+            <Avatar
+                className={cn('h-10 w-10', {
+                    'order-1': is_current_user,
+                    'order-2': !is_current_user,
+                    invisible: concurrent_message
+                })}
+            >
+                <AvatarImage src={image_url} />
+                <AvatarFallback>
+                    {props.message.sender.username?.at(0) ?? 'N'}
+                </AvatarFallback>
+            </Avatar>
         </div>
     )
 }
