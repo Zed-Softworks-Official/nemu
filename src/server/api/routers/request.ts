@@ -288,7 +288,7 @@ export const request_router = createTRPCRouter({
             const chat_values = {
                 id: chat_primary_key,
                 artist_id: request.commission.artist_id,
-                user_id: request.user_id,
+                user_ids: [request.user_id, request.commission.artist.user_id],
                 request_id: request.id,
                 commission_id: request.commission_id,
                 message_redis_key: get_redis_key('chats', request.order_id)

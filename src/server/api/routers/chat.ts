@@ -1,20 +1,21 @@
-import { eq } from 'drizzle-orm'
+import { arrayContains, eq } from 'drizzle-orm'
 
 import { createTRPCRouter, protectedProcedure } from '~/server/api/trpc'
-import { chats } from '~/server/db/schema'
+import { createId } from '@paralleldrive/cuid2'
+import { TRPCError } from '@trpc/server'
 import { z } from 'zod'
 import { clerkClient } from '@clerk/nextjs/server'
+
+import { chats } from '~/server/db/schema'
 import { get_redis_key, redis } from '~/server/redis'
 import type { Chat, Message } from '~/core/structures'
-import { TRPCError } from '@trpc/server'
-import { createId } from '@paralleldrive/cuid2'
 import { pusher_server } from '~/server/pusher'
 import { to_pusher_key } from '~/lib/utils'
 
 export const chat_router = createTRPCRouter({
-    get_chats: protectedProcedure.query(async ({ ctx }) => {
+    get_chats: protectedProcedure.query(async ({ ctx, input }) => {
         const all_chats = await ctx.db.query.chats.findMany({
-            where: eq(chats.user_id, ctx.auth.userId),
+            where: arrayContains(chats.user_ids, [ctx.auth.userId]),
             with: {
                 commission: true,
                 artist: true,
@@ -24,23 +25,38 @@ export const chat_router = createTRPCRouter({
 
         const result = await Promise.all(
             all_chats.map(async (chat) => {
-                const is_artist = chat.artist.user_id === ctx.auth.userId
-
                 const clerk_client = await clerkClient()
-                const user_promise = clerk_client.users.getUser(chat.user_id)
-                const artist_promise = clerk_client.users.getUser(chat.artist.user_id)
+                const primary_user_promise = clerk_client.users.getUser(chat.user_ids[0]!)
+                const secondary_user_promise = clerk_client.users.getUser(
+                    chat.user_ids[1]!
+                )
 
-                const [user, artist] = await Promise.all([user_promise, artist_promise])
+                const [primary_user, secondary_user] = await Promise.all([
+                    primary_user_promise,
+                    secondary_user_promise
+                ])
 
                 return {
                     ...chat,
                     current_user: {
-                        username: is_artist ? artist.username : user.username,
-                        profile_image: is_artist ? artist.imageUrl : user.imageUrl
+                        username:
+                            ctx.auth.userId == chat.user_ids[0]
+                                ? primary_user.username
+                                : secondary_user.username,
+                        profile_image:
+                            ctx.auth.userId == chat.user_ids[0]
+                                ? primary_user.imageUrl
+                                : secondary_user.imageUrl
                     },
                     other_user: {
-                        username: is_artist ? user.username : artist.username,
-                        profile_image: is_artist ? user.imageUrl : artist.imageUrl
+                        username:
+                            ctx.auth.userId == chat.user_ids[0]
+                                ? secondary_user.username
+                                : primary_user.username,
+                        profile_image:
+                            ctx.auth.userId == chat.user_ids[0]
+                                ? secondary_user.imageUrl
+                                : primary_user.imageUrl
                     }
                 }
             })

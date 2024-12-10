@@ -290,7 +290,7 @@ function Message(props: {
                 <span
                     className={cn('inline-block rounded-lg px-4 py-2', {
                         'bg-primary text-foreground': is_current_user,
-                        'bg-background-secondary': !is_current_user,
+                        'bg-background-tertiary': !is_current_user,
                         'rounded-br-none': !concurrent_message && is_current_user,
                         'rounded-bl-none': !concurrent_message && !is_current_user
                     })}
@@ -304,7 +304,6 @@ function Message(props: {
             <Avatar
                 className={cn('h-10 w-10', {
                     'order-1': is_current_user,
-                    'order-2': !is_current_user,
                     invisible: concurrent_message
                 })}
             >

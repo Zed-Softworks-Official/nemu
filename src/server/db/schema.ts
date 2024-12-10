@@ -332,8 +332,9 @@ export const chats = createTable('chats', {
 
     request_id: varchar('request_id', { length: 128 }).notNull(),
     commission_id: varchar('commission_id', { length: 128 }).notNull(),
-    user_id: varchar('user_id', { length: 128 }).notNull(),
     artist_id: varchar('artist_id', { length: 128 }).notNull(),
+
+    user_ids: varchar('user_ids', { length: 128 }).array().notNull(),
 
     message_redis_key: text('message_redis_key').notNull(),
     created_at: timestamp('created_at').defaultNow().notNull()
@@ -346,7 +347,7 @@ export const chats = createTable('chats', {
 /**
  * Chat Relations
  */
-export const chatRelations = relations(chats, ({ one }) => ({
+export const chatRelations = relations(chats, ({ one, many }) => ({
     commission: one(commissions, {
         fields: [chats.commission_id],
         references: [commissions.id]
@@ -359,10 +360,7 @@ export const chatRelations = relations(chats, ({ one }) => ({
         fields: [chats.request_id],
         references: [requests.id]
     }),
-    user: one(users, {
-        fields: [chats.user_id],
-        references: [users.clerk_id]
-    })
+    users: many(users)
 }))
 
 /**
