@@ -3,7 +3,7 @@
 import { useState } from 'react'
 
 import NemuImage from '~/components/nemu-image'
-import type { ClientNemuImageData } from '~/core/structures'
+import type { ClientNemuImageData } from '~/lib/structures'
 
 import { Swiper, SwiperSlide } from 'swiper/react'
 import { Navigation, FreeMode, Thumbs } from 'swiper/modules'

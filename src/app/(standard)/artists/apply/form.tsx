@@ -5,7 +5,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel } from '~/components/
 import { RadioGroup, RadioGroupItem } from '~/components/ui/radio-group'
 import { allCountries } from 'country-region-data'
 import { Label } from '~/components/ui/label'
-import { VerificationMethod } from '~/core/structures'
+import { VerificationMethod } from '~/lib/structures'
 
 import { toast } from 'sonner'
 import { z } from 'zod'

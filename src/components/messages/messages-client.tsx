@@ -19,7 +19,7 @@ import {
 import TextareaAutosize from 'react-textarea-autosize'
 import Loading from '~/components/ui/loading'
 
-import { type Message } from '~/core/structures'
+import { type Message } from '~/lib/structures'
 import { MessagesProvider, useMessages } from './messages-context'
 import { api } from '~/trpc/react'
 import { toast } from 'sonner'

@@ -27,7 +27,7 @@ import {
     CommissionAvailability,
     type ImageEditorData,
     type NemuEditImageData
-} from '~/core/structures'
+} from '~/lib/structures'
 
 import { api } from '~/trpc/react'
 

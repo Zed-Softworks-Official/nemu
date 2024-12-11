@@ -1,5 +1,5 @@
 import { stripe } from '~/server/stripe'
-import { PurchaseType } from '~/core/structures'
+import { PurchaseType } from '~/lib/structures'
 import { env } from '~/env'
 
 /**

@@ -9,8 +9,8 @@ import {
     StripeCreateAccountLink,
     StripeCreateLoginLink,
     StripeCreateSupporterBilling
-} from '~/core/payments'
-import { type StripeDashboardData } from '~/core/structures'
+} from '~/lib/payments'
+import { type StripeDashboardData } from '~/lib/structures'
 
 export async function get_dashboard_links(user_id: string) {
     // Get the artist from the db

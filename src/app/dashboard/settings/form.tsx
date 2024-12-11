@@ -16,7 +16,7 @@ import {
     FormLabel,
     FormMessage
 } from '~/components/ui/form'
-import { SocialAgent } from '~/core/structures'
+import { SocialAgent } from '~/lib/structures'
 import { Textarea } from '~/components/ui/textarea'
 import {
     Select,

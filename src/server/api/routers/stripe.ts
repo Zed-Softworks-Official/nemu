@@ -3,14 +3,14 @@ import { eq } from 'drizzle-orm'
 import { createTRPCRouter, protectedProcedure } from '../trpc'
 import { artists } from '~/server/db/schema'
 
-import type { StripeDashboardData } from '~/core/structures'
+import type { StripeDashboardData } from '~/lib/structures'
 
 import {
     StripeGetAccount,
     StripeCreateAccountLink,
     StripeCreateLoginLink,
     StripeCreateSupporterBilling
-} from '~/core/payments'
+} from '~/lib/payments'
 
 export const stripe_router = createTRPCRouter({
     get_dashboard_links: protectedProcedure.query(async ({ ctx }) => {

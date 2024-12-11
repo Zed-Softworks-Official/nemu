@@ -6,7 +6,7 @@ import type { ColumnDef } from '@tanstack/react-table'
 import Loading from '~/components/ui/loading'
 import { DataTable } from '~/components/data-table'
 
-import { InvoiceStatus } from '~/core/structures'
+import { InvoiceStatus } from '~/lib/structures'
 import { api } from '~/trpc/react'
 
 import { format_to_currency } from '~/lib/utils'

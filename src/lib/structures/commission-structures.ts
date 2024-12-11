@@ -3,7 +3,7 @@ import type {
     KanbanContainerData,
     ImageEditorData,
     ClientNemuImageData
-} from '~/core/structures'
+} from '~/lib/structures'
 import type {
     artists,
     commissions,

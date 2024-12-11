@@ -14,7 +14,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger
 } from '~/components/ui/dropdown-menu'
-import { type ClientRequestData } from '~/core/structures'
+import { type ClientRequestData } from '~/lib/structures'
 import { api } from '~/trpc/react'
 
 export function PublishButton(props: { id: string; published: boolean }) {

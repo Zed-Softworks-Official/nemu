@@ -9,7 +9,7 @@ import { ClipboardListIcon } from 'lucide-react'
 import { api } from '~/trpc/react'
 import { type forms } from '~/server/db/schema'
 import { get_availability_badge_data } from '~/lib/utils'
-import { type ClientCommissionItem } from '~/core/structures'
+import { type ClientCommissionItem } from '~/lib/structures'
 
 import Loading from '~/components/ui/loading'
 import ImageViewer from '~/components/ui/image-viewer'

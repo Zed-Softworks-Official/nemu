@@ -8,7 +8,7 @@ import { clerkClient } from '@clerk/nextjs/server'
 
 import { chats } from '~/server/db/schema'
 import { get_redis_key, redis } from '~/server/redis'
-import type { Chat, Message } from '~/core/structures'
+import type { Chat, Message } from '~/lib/structures'
 import { pusher_server } from '~/server/pusher'
 import { to_pusher_key } from '~/lib/utils'
 

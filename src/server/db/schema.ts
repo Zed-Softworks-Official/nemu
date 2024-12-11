@@ -24,7 +24,7 @@ import {
     InvoiceStatus,
     RequestStatus,
     type InvoiceItem
-} from '~/core/structures'
+} from '~/lib/structures'
 
 /**
  * This is an example of how to use the multi-project schema feature of Drizzle ORM. Use the same

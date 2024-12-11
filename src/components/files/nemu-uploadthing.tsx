@@ -20,7 +20,7 @@ import { useDropzone } from '@uploadthing/react'
 
 import { useNemuUploadThing } from '~/components/files/uploadthing-context'
 
-import type { ImageEditorData } from '~/core/structures'
+import type { ImageEditorData } from '~/lib/structures'
 
 import { Progress } from '~/components/ui/progress'
 import { toast } from 'sonner'

@@ -2,7 +2,7 @@ import { clerkClient } from '@clerk/nextjs/server'
 import { TRPCError } from '@trpc/server'
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
-import { SocialAgent } from '~/core/structures'
+import { SocialAgent } from '~/lib/structures'
 import { get_image_url } from '~/lib/utils'
 
 import { artistProcedure, createTRPCRouter, publicProcedure } from '~/server/api/trpc'

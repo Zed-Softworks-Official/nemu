@@ -3,7 +3,7 @@ import { createTRPCRouter, protectedProcedure } from '../trpc'
 import { eq } from 'drizzle-orm'
 import { artists } from '~/server/db/schema'
 import { TRPCError } from '@trpc/server'
-import { StripeCreateCustomerZed, StripeCreateSupporterCheckout } from '~/core/payments'
+import { StripeCreateCustomerZed, StripeCreateSupporterCheckout } from '~/lib/payments'
 import { clerkClient } from '@clerk/nextjs/server'
 
 export const supporter_router = createTRPCRouter({

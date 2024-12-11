@@ -3,7 +3,7 @@ import { z } from 'zod'
 
 import { artistProcedure, createTRPCRouter, publicProcedure } from '~/server/api/trpc'
 import { portfolios } from '~/server/db/schema'
-import type { ClientPortfolioItem } from '~/core/structures'
+import type { ClientPortfolioItem } from '~/lib/structures'
 import { createId } from '@paralleldrive/cuid2'
 
 import { get_image_url } from '~/lib/utils'

@@ -3,11 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { clerkClient } from '@clerk/nextjs/server'
 
 import { env } from '~/env'
-import {
-    InvoiceStatus,
-    PurchaseType,
-    type StripePaymentMetadata
-} from '~/core/structures'
+import { InvoiceStatus, PurchaseType, type StripePaymentMetadata } from '~/lib/structures'
 import { db } from '~/server/db'
 import { artists, invoices } from '~/server/db/schema'
 import { eq } from 'drizzle-orm'

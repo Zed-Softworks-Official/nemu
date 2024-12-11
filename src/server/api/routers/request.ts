@@ -21,12 +21,12 @@ import {
     RequestStatus,
     type ClientRequestData,
     type Chat
-} from '~/core/structures'
+} from '~/lib/structures'
 import type { FormElementInstance } from '~/components/form-builder/elements/form-elements'
 import { TRPCError } from '@trpc/server'
 import { knock, KnockWorkflows } from '~/server/knock'
 import { env } from '~/env'
-import { StripeCreateCustomer, StripeCreateInvoice } from '~/core/payments'
+import { StripeCreateCustomer, StripeCreateInvoice } from '~/lib/payments'
 import { get_redis_key, redis } from '~/server/redis'
 import { get_image_url } from '~/lib/utils'
 

@@ -4,7 +4,7 @@ import {
     type ClientNemuImageData,
     CommissionAvailability,
     type NemuImageData
-} from '~/core/structures'
+} from '~/lib/structures'
 import { env } from '~/env'
 
 export function cn(...inputs: ClassValue[]) {

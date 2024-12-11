@@ -14,7 +14,7 @@ import { generatePermittedFileTypes } from 'uploadthing/client'
 import { type EndpointHelper, useUploadThing } from '~/components/files/uploadthing'
 import { type NemuFileRouterType } from '~/app/api/uploadthing/core'
 import { type ClientUploadedFileData } from 'uploadthing/types'
-import { type ImageEditorData } from '~/core/structures'
+import { type ImageEditorData } from '~/lib/structures'
 
 type EditorState = {
     create: ImageEditorData[]

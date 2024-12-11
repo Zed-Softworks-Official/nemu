@@ -5,8 +5,8 @@ import {
     type StripePaymentMetadata,
     PurchaseType,
     type StripeProductCheckoutData
-} from '~/core/structures'
-import { calculate_application_fee } from '~/core/payments'
+} from '~/lib/structures'
+import { calculate_application_fee } from '~/lib/payments'
 
 export async function StripeCreateProductPaymentIntent(
     checkout_data: StripeProductCheckoutData

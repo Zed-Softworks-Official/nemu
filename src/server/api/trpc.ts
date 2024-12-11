@@ -14,7 +14,7 @@ import { ZodError } from 'zod'
 import { db } from '~/server/db'
 import { artists, users } from '../db/schema'
 import { eq } from 'drizzle-orm'
-import { UserRole } from '~/core/structures'
+import { UserRole } from '~/lib/structures'
 
 /**
  * 1. CONTEXT

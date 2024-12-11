@@ -9,7 +9,7 @@ import {
     type ClientCommissionItem,
     type ClientCommissionItemEditable,
     CommissionAvailability
-} from '~/core/structures'
+} from '~/lib/structures'
 import {
     convert_images_to_nemu_images,
     format_to_currency,

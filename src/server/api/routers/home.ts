@@ -2,7 +2,7 @@ import { eq, sql } from 'drizzle-orm'
 
 import { createTRPCRouter, publicProcedure } from '../trpc'
 import { get_redis_key, redis } from '~/server/redis'
-import type { CommissionAvailability } from '~/core/structures'
+import type { CommissionAvailability } from '~/lib/structures'
 import { format_to_currency, get_image_url } from '~/lib/utils'
 import { commissions } from '~/server/db/schema'
 

@@ -1,6 +1,6 @@
 'use client'
 
-import type { KanbanContainerData, KanbanTask } from '~/core/structures'
+import type { KanbanContainerData, KanbanTask } from '~/lib/structures'
 import type { UniqueIdentifier } from '@dnd-kit/core'
 import { SortableContext, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -54,12 +54,12 @@ export default function KanbanContainerComponent({
                 style={style}
             >
                 <div
-                    className="text-md flex cursor-grab flex-row items-center justify-between gap-5 rounded-t-xl bg-base-200 p-5"
+                    className="text-md bg-base-200 flex cursor-grab flex-row items-center justify-between gap-5 rounded-t-xl p-5"
                     {...listeners}
                     {...attributes}
                 >
                     <div className="flex flex-row items-center gap-5">
-                        <div className="card-title rounded-xl bg-base-300 p-5">
+                        <div className="card-title bg-base-300 rounded-xl p-5">
                             {tasks.length}
                         </div>
                         <h2 className="card-title cursor-pointer">
@@ -94,12 +94,12 @@ export default function KanbanContainerComponent({
     return (
         <div className="card bg-base-300 shadow-xl" ref={setNodeRef} style={style}>
             <div
-                className="text-md flex cursor-grab flex-row items-center justify-between gap-5 rounded-t-xl bg-base-200 p-5"
+                className="text-md bg-base-200 flex cursor-grab flex-row items-center justify-between gap-5 rounded-t-xl p-5"
                 {...listeners}
                 {...attributes}
             >
                 <div className="flex flex-row items-center gap-5">
-                    <div className="card-title rounded-xl bg-base-300 p-5">
+                    <div className="card-title bg-base-300 rounded-xl p-5">
                         {tasks.length}
                     </div>
                     {!editMode ? (

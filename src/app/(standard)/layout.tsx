@@ -30,7 +30,7 @@ import { db } from '~/server/db'
 import { eq } from 'drizzle-orm'
 import { users } from '~/server/db/schema'
 import Link from 'next/link'
-import { UserRole } from '~/core/structures'
+import { UserRole } from '~/lib/structures'
 import { Button } from '~/components/ui/button'
 import NemuImage from '~/components/nemu-image'
 import { Notifications } from '~/components/notifications'
@@ -57,17 +57,19 @@ export default function StandarLayout(props: { children: React.ReactNode }) {
 
 function Navbar() {
     return (
-        <header className="flex w-full items-center justify-between gap-5 py-5">
+        <header className="flex w-full items-center justify-between gap-5 px-10 py-5 sm:px-0">
             <FullLogo />
             <SearchBar />
             <nav>
                 <SignedIn>
-                    <Suspense fallback={<div>Loading...</div>}>
-                        <UserDropdown />
-                    </Suspense>
+                    <div className="flex items-center gap-5">
+                        <Notifications />
+                        <Suspense fallback={<div>Loading...</div>}>
+                            <UserDropdown />
+                        </Suspense>
+                    </div>
                 </SignedIn>
                 <SignedOut>
-                    <Notifications />
                     <Button className="h-12 rounded-full" variant={'ghost'} asChild>
                         <Link prefetch={true} href={'/u/login'}>
                             <User className="h-12 w-12" />

@@ -14,7 +14,7 @@ import {
 import { DataTable } from '~/components/data-table'
 import Loading from '~/components/ui/loading'
 
-import type { RequestContent } from '~/core/structures'
+import type { RequestContent } from '~/lib/structures'
 import { type ColumnDef } from '@tanstack/react-table'
 
 export default function Details() {

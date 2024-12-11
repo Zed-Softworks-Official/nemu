@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState } from 'react'
 import KanbanContainerComponent from '~/components/kanban/kanban-container'
-import type { KanbanContainerData, KanbanTask } from '~/core/structures'
+import type { KanbanContainerData, KanbanTask } from '~/lib/structures'
 import {
     DndContext,
     type DragEndEvent,

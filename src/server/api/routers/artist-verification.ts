@@ -10,13 +10,13 @@ import {
     UserRole,
     type VerificationDataType,
     VerificationMethod
-} from '~/core/structures'
+} from '~/lib/structures'
 
 import { artist_codes, artist_verifications, artists, users } from '~/server/db/schema'
 import { TRPCError } from '@trpc/server'
 import { db } from '~/server/db'
 import { eq } from 'drizzle-orm'
-import { StripeCreateAccount } from '~/core/payments'
+import { StripeCreateAccount } from '~/lib/payments'
 
 import { set_index } from '~/server/algolia/collections'
 import { knock } from '~/server/knock'

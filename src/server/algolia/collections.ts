@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { algoliasearch } from 'algoliasearch'
-import type { ArtistIndex, CommissionIndex } from '~/core/structures'
+import type { ArtistIndex, CommissionIndex } from '~/lib/structures'
 import { env } from '~/env'
 
 type SearchType = 'artists' | 'commissions'

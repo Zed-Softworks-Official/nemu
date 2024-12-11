@@ -1,11 +1,11 @@
 'use client'
 
 import type { ColumnDef } from '@tanstack/react-table'
-import { RequestStatus } from '~/core/structures'
+import { RequestStatus } from '~/lib/structures'
 import Link from 'next/link'
 import { DataTable } from '~/components/data-table'
 import NemuImage from '~/components/nemu-image'
-import type { ClientRequestData } from '~/core/structures'
+import type { ClientRequestData } from '~/lib/structures'
 import { EyeIcon } from 'lucide-react'
 import { Button } from '~/components/ui/button'
 import { api } from '~/trpc/react'

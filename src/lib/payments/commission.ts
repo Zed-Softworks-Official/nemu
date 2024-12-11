@@ -3,7 +3,7 @@ import {
     type InvoiceItem,
     PurchaseType,
     type StripePaymentMetadata
-} from '~/core/structures'
+} from '~/lib/structures'
 import type Stripe from 'stripe'
 import { calculate_application_fee } from '.'
 

@@ -11,7 +11,7 @@ import { DataTable } from '~/components/data-table'
 import NemuImage from '~/components/nemu-image'
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card'
 import Loading from '~/components/ui/loading'
-import { InvoiceStatus, type SalesData } from '~/core/structures'
+import { InvoiceStatus, type SalesData } from '~/lib/structures'
 import { calculate_percentage_change, format_to_currency } from '~/lib/utils'
 
 import { db } from '~/server/db'

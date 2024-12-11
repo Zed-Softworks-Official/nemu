@@ -1,4 +1,4 @@
-import type { ClientNemuImageData } from '~/core/structures'
+import type { ClientNemuImageData } from '~/lib/structures'
 
 /**
  * Client Side Portfolio Item, It basically contains all of same stuff as the prisma item

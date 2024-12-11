@@ -1,6 +1,6 @@
 'use client'
 
-import type { KanbanTask } from '~/core/structures'
+import type { KanbanTask } from '~/lib/structures'
 import type { UniqueIdentifier } from '@dnd-kit/core'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -46,7 +46,7 @@ export default function KanbanItemComponent({
             <div
                 ref={setNodeRef}
                 style={style}
-                className="card border-2 border-primary bg-base-100 opacity-60 shadow-xl"
+                className="card bg-base-100 border-2 border-primary opacity-60 shadow-xl"
             >
                 <div className="card-body">
                     <div className="flex h-6 max-h-full w-full items-center justify-between"></div>
@@ -58,7 +58,7 @@ export default function KanbanItemComponent({
     if (editMode) {
         return (
             <div
-                className="card cursor-grab break-inside-avoid bg-base-100 shadow-xl hover:ring-2 hover:ring-inset hover:ring-primary"
+                className="card bg-base-100 cursor-grab break-inside-avoid shadow-xl hover:ring-2 hover:ring-inset hover:ring-primary"
                 ref={setNodeRef}
                 style={style}
                 {...attributes}
@@ -101,7 +101,7 @@ export default function KanbanItemComponent({
                     ToggleEditMode()
                 }}
                 className={cn(
-                    'card cursor-grab break-inside-avoid bg-base-100 shadow-xl hover:ring-2 hover:ring-inset hover:ring-primary'
+                    'card bg-base-100 cursor-grab break-inside-avoid shadow-xl hover:ring-2 hover:ring-inset hover:ring-primary'
                 )}
                 ref={setNodeRef}
                 style={style}

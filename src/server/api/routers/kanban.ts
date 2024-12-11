@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { artistProcedure, createTRPCRouter, protectedProcedure } from '../trpc'
 import { eq } from 'drizzle-orm'
 import { kanbans, requests } from '~/server/db/schema'
-import { type KanbanContainerData, type KanbanTask } from '~/core/structures'
+import { type KanbanContainerData, type KanbanTask } from '~/lib/structures'
 import { db } from '~/server/db'
 import { TRPCError } from '@trpc/server'
 

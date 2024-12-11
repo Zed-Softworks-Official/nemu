@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { SearchIcon } from 'lucide-react'
 
 import debounce from 'lodash.debounce'
-import type { ArtistIndex, CommissionIndex } from '~/core/structures'
+import type { ArtistIndex, CommissionIndex } from '~/lib/structures'
 import { client } from '~/server/algolia'
 
 import {
@@ -20,6 +20,7 @@ import {
 
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
 import NemuImage from '~/components/nemu-image'
+import { Button } from './ui/button'
 
 export default function SearchBar() {
     const [open, setOpen] = useState(false)
@@ -99,6 +100,15 @@ export default function SearchBar() {
                 <kbd className="pointer-events-none inline-flex h-6 select-none items-center gap-1 rounded bg-background-tertiary px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
                     <span className="text-xs">⌘</span>K
                 </kbd>
+            </div>
+            <div className="flex w-full items-center justify-center sm:hidden">
+                <Button
+                    size={'lg'}
+                    className="w-15 h-10 bg-background-secondary hover:bg-background-tertiary"
+                    onClick={() => setOpen(true)}
+                >
+                    <SearchIcon className="!h-5 !w-5" />
+                </Button>
             </div>
             <CommandDialog open={open} onOpenChange={setOpen}>
                 <CommandInput

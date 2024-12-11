@@ -11,7 +11,7 @@ import {
 } from 'react'
 import { toast } from 'sonner'
 
-import { type Sender, type Message } from '~/core/structures'
+import { type Sender, type Message } from '~/lib/structures'
 import { api } from '~/trpc/react'
 
 type ChatUser = Sender & {

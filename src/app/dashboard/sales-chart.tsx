@@ -1,7 +1,7 @@
 'use client'
 
 import { Bar, BarChart, XAxis, YAxis } from 'recharts'
-import { type SalesData } from '~/core/structures'
+import { type SalesData } from '~/lib/structures'
 import { type ChartConfig, ChartContainer } from '~/components/ui/chart'
 
 const chartConfig = {
