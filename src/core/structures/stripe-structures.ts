@@ -24,7 +24,7 @@ export type StripePaymentMetadata = {
     commission_id?: string
     invoice_id?: string
     order_id?: string
-    artist_id?: string
+    artist_id: string
     product_id?: string
 }
 

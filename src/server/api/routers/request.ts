@@ -253,7 +253,8 @@ export const request_router = createTRPCRouter({
                 user_id: request.user_id,
                 commission_id: request.commission_id,
                 order_id: request.order_id,
-                invoice_id
+                invoice_id,
+                artist_id: request.commission.artist_id
             })
 
             if (!stripe_draft) {

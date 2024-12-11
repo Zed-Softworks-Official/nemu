@@ -22,6 +22,7 @@ export async function StripeCreateInvoice(
         order_id: string
         commission_id: string
         invoice_id: string
+        artist_id: string
     }
 ) {
     const metadata: StripePaymentMetadata = {
@@ -29,7 +30,8 @@ export async function StripeCreateInvoice(
         user_id: opts.user_id,
         commission_id: opts.commission_id,
         order_id: opts.order_id,
-        invoice_id: opts.invoice_id
+        invoice_id: opts.invoice_id,
+        artist_id: opts.artist_id
     }
 
     return await stripe.invoices.create(
