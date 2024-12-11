@@ -6,7 +6,7 @@ import { SocialAgent } from '~/core/structures'
 import { get_image_url } from '~/lib/utils'
 
 import { artistProcedure, createTRPCRouter, publicProcedure } from '~/server/api/trpc'
-import { artists } from '~/server/db/schema'
+import { artists, commissions } from '~/server/db/schema'
 import { utapi } from '~/server/uploadthing'
 
 export const artist_router = createTRPCRouter({
@@ -21,7 +21,9 @@ export const artist_router = createTRPCRouter({
             const artist_promise = ctx.db.query.artists.findFirst({
                 where: eq(artists.handle, input.handle),
                 with: {
-                    commissions: true,
+                    commissions: {
+                        where: eq(commissions.published, true)
+                    },
                     portfolio: true,
                     forms: true
                 }
@@ -47,7 +49,7 @@ export const artist_router = createTRPCRouter({
                 }
             }))
 
-            const commissions = artist.commissions.map((commission) => ({
+            const commission_list = artist.commissions.map((commission) => ({
                 ...commission,
                 images: commission.images.map((image) => ({
                     url: get_image_url(image.ut_key ?? '')
@@ -58,7 +60,7 @@ export const artist_router = createTRPCRouter({
                 ...artist,
                 header_photo: get_image_url(artist.header_photo),
                 portfolio: portfolio_items,
-                commissions: commissions,
+                commissions: commission_list,
                 user: {
                     username: user.username,
                     profile_picture: user.imageUrl

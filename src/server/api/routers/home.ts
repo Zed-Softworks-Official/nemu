@@ -11,6 +11,7 @@ type RandomCommissions = {
     title: string
     description: string
     featured_image: string
+    slug: string
     availability: CommissionAvailability
     price: string
     artist: {

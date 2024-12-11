@@ -48,7 +48,9 @@ export default async function HomePage() {
                         key={commission.id}
                         className="mb-4 break-inside-avoid rounded-lg border bg-card p-4 shadow-sm"
                     >
-                        <Link href={`/artists/${commission.artist.handle}/commissions`}>
+                        <Link
+                            href={`/@${commission.artist.handle}/commission/${commission.slug}`}
+                        >
                             <div className="aspect-square w-full overflow-hidden rounded-md">
                                 <NemuImage
                                     src={commission.featured_image}

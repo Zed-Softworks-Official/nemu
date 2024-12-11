@@ -68,5 +68,7 @@ export default withSentryConfig(config, {
 
     sourcemaps: {
         deleteSourcemapsAfterUpload: true
-    }
+    },
+
+    debug: false
 })
