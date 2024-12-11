@@ -27,9 +27,12 @@ import { format } from 'date-fns'
 import { useUser } from '@clerk/nextjs'
 import { usePusher } from '~/hooks/use-pusher'
 
-export function MessagesClient(props: { list_hidden?: boolean }) {
+export function MessagesClient(props: {
+    list_hidden?: boolean
+    current_order_id?: string
+}) {
     return (
-        <MessagesProvider>
+        <MessagesProvider current_order_id={props.current_order_id}>
             <div className="mx-auto flex h-[80vh] w-full rounded-xl bg-background-tertiary shadow-xl">
                 {!props.list_hidden && (
                     <div className="flex w-full max-w-[400px] flex-col p-10">

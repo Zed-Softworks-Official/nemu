@@ -45,7 +45,7 @@ export default function Details() {
             header: 'Response'
         }
     ]
-    const request_details = request.content as RequestContent
+    const request_details = request.content as unknown as RequestContent
 
     return (
         <div className="flex flex-col gap-5">

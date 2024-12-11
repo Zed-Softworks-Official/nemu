@@ -72,7 +72,7 @@ export default function UploadThingProvider({
         return () => {
             for (const preview of images) {
                 if (preview.data.action === 'create') {
-                    URL.revokeObjectURL(preview.data.image_data.url)
+                    URL.revokeObjectURL(preview.data.image_data.url ?? '')
                 }
             }
         }
