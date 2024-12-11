@@ -2,10 +2,12 @@ import { clerkClient } from '@clerk/nextjs/server'
 import { TRPCError } from '@trpc/server'
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
+import { SocialAgent } from '~/core/structures'
 import { get_image_url } from '~/lib/utils'
 
-import { createTRPCRouter, publicProcedure } from '~/server/api/trpc'
+import { artistProcedure, createTRPCRouter, publicProcedure } from '~/server/api/trpc'
 import { artists } from '~/server/db/schema'
+import { utapi } from '~/server/uploadthing'
 
 export const artist_router = createTRPCRouter({
     get_artist_data: publicProcedure
@@ -62,5 +64,51 @@ export const artist_router = createTRPCRouter({
                     profile_picture: user.imageUrl
                 }
             }
+        }),
+
+    get_artist_settings: artistProcedure.query(async ({ ctx }) => {
+        return {
+            about: ctx.artist.about,
+            location: ctx.artist.location,
+            terms: ctx.artist.terms,
+            tip_jar_url: ctx.artist.tip_jar_url,
+            socials: ctx.artist.socials
+        }
+    }),
+
+    set_artist_settings: artistProcedure
+        .input(
+            z.object({
+                about: z.string().optional(),
+                location: z.string().optional(),
+                terms: z.string().optional(),
+                tip_jar_url: z.string().url().nullable(),
+                socials: z
+                    .array(
+                        z.object({
+                            url: z.string().url(),
+                            agent: z.nativeEnum(SocialAgent)
+                        })
+                    )
+                    .optional(),
+                header_image_key: z.string().optional()
+            })
+        )
+        .mutation(async ({ ctx, input }) => {
+            if (input.header_image_key) {
+                await utapi.deleteFiles(ctx.artist.header_photo)
+            }
+
+            await ctx.db
+                .update(artists)
+                .set({
+                    about: input.about,
+                    location: input.location,
+                    terms: input.terms,
+                    tip_jar_url: input.tip_jar_url,
+                    socials: input.socials,
+                    header_photo: input.header_image_key
+                })
+                .where(eq(artists.id, ctx.artist.id))
         })
 })

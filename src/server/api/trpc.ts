@@ -158,9 +158,7 @@ export const artistProcedure = protectedProcedure.use(async ({ next, ctx }) => {
         ctx: {
             ...ctx,
             artist: {
-                id: artist.id,
-                handle: artist.handle,
-                supporter: artist.supporter
+                ...artist
             }
         }
     })
