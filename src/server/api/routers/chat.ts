@@ -1,4 +1,4 @@
-import { arrayContains, eq } from 'drizzle-orm'
+import { arrayContains } from 'drizzle-orm'
 
 import { createTRPCRouter, protectedProcedure } from '~/server/api/trpc'
 import { createId } from '@paralleldrive/cuid2'
@@ -13,7 +13,7 @@ import { pusher_server } from '~/server/pusher'
 import { to_pusher_key } from '~/lib/utils'
 
 export const chat_router = createTRPCRouter({
-    get_chats: protectedProcedure.query(async ({ ctx, input }) => {
+    get_chats: protectedProcedure.query(async ({ ctx }) => {
         const all_chats = await ctx.db.query.chats.findMany({
             where: arrayContains(chats.user_ids, [ctx.auth.userId]),
             with: {
@@ -147,7 +147,7 @@ export const chat_router = createTRPCRouter({
                 timestamp: Date.now()
             }
 
-            pusher_server.trigger(
+            await pusher_server.trigger(
                 to_pusher_key(`${input.chat_id}:messages`),
                 'message',
                 message

@@ -58,7 +58,7 @@ export default function Invoice(props: { order_id: string }) {
             </div>
             <DataTable
                 columns={columns}
-                data={request.invoice.invoice_items.map((item, index) => ({
+                data={request.invoice.items.map((item, index) => ({
                     item_number: index + 1,
                     name: item.name,
                     price: format_to_currency(Number(item.price / 100)),

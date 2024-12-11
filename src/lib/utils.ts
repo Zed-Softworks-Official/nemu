@@ -1,7 +1,7 @@
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import {
-    ClientNemuImageData,
+    type ClientNemuImageData,
     CommissionAvailability,
     type NemuImageData
 } from '~/core/structures'

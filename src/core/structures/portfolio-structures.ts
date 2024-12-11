@@ -1,4 +1,4 @@
-import type { NemuImageData } from '~/core/structures'
+import type { ClientNemuImageData } from '~/core/structures'
 
 /**
  * Client Side Portfolio Item, It basically contains all of same stuff as the prisma item
@@ -7,5 +7,5 @@ import type { NemuImageData } from '~/core/structures'
 export type ClientPortfolioItem = {
     id: string
     title: string
-    image: NemuImageData
+    image: ClientNemuImageData
 }

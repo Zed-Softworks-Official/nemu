@@ -27,7 +27,7 @@ import {
 import { Designer, DragOverlayWrapper } from './designer/designer'
 import { Separator } from '~/components/ui/separator'
 import { useDesigner } from './designer/designer-context'
-import { type FormElementInstance, FormElements } from './elements/form-elements'
+import { FormElements } from './elements/form-elements'
 import { api } from '~/trpc/react'
 
 export function FormBuilder(props: { form: InferSelectModel<typeof forms> }) {
@@ -36,7 +36,7 @@ export function FormBuilder(props: { form: InferSelectModel<typeof forms> }) {
     useEffect(() => {
         if (!props.form.content) return
 
-        set_elements(props.form.content as FormElementInstance[])
+        set_elements(props.form.content)
         set_selected_element(null)
     }, [props.form.content, set_elements, set_selected_element])
 

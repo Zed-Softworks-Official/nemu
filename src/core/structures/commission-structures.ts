@@ -52,8 +52,9 @@ export type ClientRequestData = InferSelectModel<typeof requests> & {
         id: string
         username: string
     }
-    commission?: InferSelectModel<typeof commissions> & {
+    commission?: Omit<InferSelectModel<typeof commissions>, 'images'> & {
         artist?: InferSelectModel<typeof artists>
+        images: ClientNemuImageData[]
     }
     delivery?: InferSelectModel<typeof downloads> & {
         blur_data?: string

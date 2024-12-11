@@ -88,8 +88,7 @@ export const portfolio_router = createTRPCRouter({
             return {
                 ...portfolio,
                 image: {
-                    url: get_image_url(portfolio.ut_key),
-                    ut_key: portfolio.ut_key
+                    url: get_image_url(portfolio.ut_key)
                 }
             } satisfies ClientPortfolioItem
         }),
@@ -108,8 +107,7 @@ export const portfolio_router = createTRPCRouter({
             const result: ClientPortfolioItem[] = portfolio_items.map((item) => ({
                 ...item,
                 image: {
-                    url: get_image_url(item.ut_key),
-                    ut_key: item.ut_key
+                    url: get_image_url(item.ut_key)
                 }
             }))
 
