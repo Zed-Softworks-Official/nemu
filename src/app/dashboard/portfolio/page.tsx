@@ -1,80 +1,34 @@
-import NemuImage from '~/components/nemu-image'
-
-import Link from 'next/link'
-import Masonry from '~/components/ui/masonry'
+import { RedirectToSignIn } from '@clerk/nextjs'
 import { currentUser } from '@clerk/nextjs/server'
-import { Suspense } from 'react'
-import Loading from '~/components/ui/loading'
-import { unstable_cache } from 'next/cache'
-import { db } from '~/server/db'
-import { eq } from 'drizzle-orm'
-import { portfolios } from '~/server/db/schema'
-import { get_blur_data } from '~/lib/blur_data'
-import type { ClientPortfolioItem } from '~/core/structures'
 
-const get_portfolio_list = unstable_cache(
-    async (artist_id: string) => {
-        const portfolio_items = await db.query.portfolios.findMany({
-            where: eq(portfolios.artist_id, artist_id)
-        })
+import { PortfolioList } from './list'
+import { Plus } from 'lucide-react'
+import { Button } from '~/components/ui/button'
+import Link from 'next/link'
 
-        if (!portfolio_items) {
-            return []
-        }
-
-        const result: ClientPortfolioItem[] = []
-        for (const portfolio of portfolio_items) {
-            result.push({
-                ...portfolio,
-                image: {
-                    url: portfolio.image_url,
-                    blur_data: await get_blur_data(portfolio.image_url)
-                }
-            })
-        }
-
-        return result
-    },
-    ['portfolio_list'],
-    {
-        tags: ['portfolio', 'portfolio_list']
-    }
-)
-
-export default function PortfolioDashboardPage() {
-    return (
-        <Suspense fallback={<Loading />}>
-            <PageContent />
-        </Suspense>
-    )
-}
-
-async function PageContent() {
+export default async function DashboardPortfolioPage() {
     const user = await currentUser()
-    const portfolio_items = await get_portfolio_list(
-        user!.privateMetadata.artist_id as string
-    )
+
+    if (!user) {
+        return <RedirectToSignIn />
+    }
 
     return (
-        <div className="container mx-auto mt-3 p-10">
-            <Masonry columns={'4'}>
-                {portfolio_items.map((item) => (
-                    <div
-                        key={item.id}
-                        className="animate-pop-in transition-all duration-200 ease-in-out active:scale-95"
+        <div className="container mx-auto px-5 py-10">
+            <div className="mb-6 flex items-center justify-between">
+                <h1 className="text-3xl font-bold">My Portfolio</h1>
+                <Button asChild>
+                    <Link
+                        href="/dashboard/portfolio/create"
+                        className="btn btn-primary text-base-content"
                     >
-                        <Link href={`/dashboard/portfolio/${item.id}`}>
-                            <NemuImage
-                                src={item.image.url}
-                                alt="image"
-                                width={500}
-                                height={500}
-                                className="h-full w-full rounded-xl"
-                            />
-                        </Link>
-                    </div>
-                ))}
-            </Masonry>
+                        <Plus className="h-6 w-6" />
+                        New Item
+                    </Link>
+                </Button>
+            </div>
+
+            <PortfolioList artist_id={user.privateMetadata.artist_id as string} />
         </div>
     )
 }

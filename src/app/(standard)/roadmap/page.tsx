@@ -1,6 +1,5 @@
 import { CalendarIcon, CheckCircleIcon, ClockIcon } from 'lucide-react'
-import { Badge } from '~/components/ui/badge'
-import RoadmapBubble from '~/components/ui/roadmap-bubble'
+import { Separator } from '~/components/ui/separator'
 
 enum FeatureStatus {
     InProgress,
@@ -62,28 +61,27 @@ const features: Feature[] = [
 export default function RoadmapPage() {
     return (
         <div className="flex min-h-[100dvh] flex-col">
-            <section className="w-full pt-12 md:pt-24 lg:pt-32">
-                <div className="container space-y-10 px-4 md:px-6 xl:space-y-16">
-                    <div className="mx-auto grid max-w-[1300px] gap-4 px-4 sm:px-6 md:grid-cols-2 md:gap-16 md:px-10">
+            <section className="w-full lg:pb-12">
+                <div className="container space-y-10 xl:space-y-16">
+                    <div className="mx-auto grid gap-4 md:grid-cols-2 md:gap-16">
                         <div>
                             <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl lg:leading-loose xl:text-[3.4rem] 2xl:text-[3.75rem]">
                                 Roadmap for Nemu
                             </h1>
-                            <p className="mx-auto max-w-[700px] text-base-content/80 md:text-xl">
+                            <p className="mx-auto text-muted-foreground md:text-xl">
                                 Discover our planned features and milestones for the
                                 future of our marketplace.
                             </p>
                         </div>
                     </div>
                 </div>
-                <div className="divider"></div>
             </section>
+            <Separator />
             <main className="flex-1">
-                <section className="w-full py-12 md:py-24 lg:py-32">
+                <section className="w-full py-12">
                     <div className="container px-4 md:px-6">
                         <div className="grid gap-10 sm:px-10 md:grid-cols-1 md:gap-16">
                             <div className="space-y-4">
-                                <Badge className="badge-lg rounded-xl">Roadmap</Badge>
                                 <div className="grid gap-6">
                                     {features.map((feature) => (
                                         <FeatureCard
@@ -103,9 +101,8 @@ export default function RoadmapPage() {
 
 function FeatureCard(props: { feature: Feature }) {
     return (
-        <div className="grid grid-cols-[40px_1fr] items-start gap-4">
-            <RoadmapBubble />
-            <div>
+        <div className="grid items-start gap-4">
+            <div className="w-full">
                 <h3 className="text-lg font-bold">{props.feature.title}</h3>
                 <p className="text-base-content/80">{props.feature.description}</p>
                 <FeatureStatusBadge status={props.feature.status} />{' '}
@@ -118,14 +115,14 @@ function FeatureStatusBadge(props: { status: FeatureStatus }) {
     switch (props.status) {
         case FeatureStatus.InProgress:
             return (
-                <div className="inline-flex items-center gap-2 text-sm font-medium text-warning">
+                <div className="inline-flex items-center gap-2 text-sm font-medium text-yellow-400">
                     <ClockIcon className="h-4 w-4" />
                     In Progress
                 </div>
             )
         case FeatureStatus.Completed:
             return (
-                <div className="inline-flex items-center gap-2 text-sm font-medium text-success">
+                <div className="inline-flex items-center gap-2 text-sm font-medium text-green-400">
                     <CheckCircleIcon className="h-4 w-4" />
                     Completed
                 </div>

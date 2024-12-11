@@ -1,53 +1,51 @@
 'use client'
 
-import type {
-    ElementsType,
-    FormElement,
-    FormElementInstance,
-    SubmitFunction
-} from '~/components/form-builder/elements/form-elements'
-
+import { z } from 'zod'
+import { useEffect, useState } from 'react'
+import { Type } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 
-import * as z from 'zod'
-import { useEffect, useState } from 'react'
-import { useDesigner } from '~/components/form-builder/designer/designer-context'
-import {
-    DesignerCheckboxField,
-    DesignerInputField
-} from '~/components/form-builder/elements/input-field'
-import { RectangleEllipsisIcon } from 'lucide-react'
+import { Label } from '~/components/ui/label'
 import { Input } from '~/components/ui/input'
+import {
+    Form,
+    FormControl,
+    FormDescription,
+    FormField,
+    FormItem,
+    FormLabel,
+    FormMessage
+} from '~/components/ui/form'
+
+import { useDesigner } from '~/components/form-builder/designer/designer-context'
+import type {
+    ElementType,
+    FormElement,
+    FormElementInstance,
+    SubmitValueFunction
+} from '~/components/form-builder/elements/form-elements'
+import { Switch } from '~/components/ui/switch'
 import { cn } from '~/lib/utils'
 
-const type: ElementsType = 'TextField'
-
-const extra_attributes = {
+const type: ElementType = 'TextField'
+const metadata = {
     label: 'Text Field',
-    helperText: 'Helper Text',
-    required: false,
-    placeholder: 'Value here...'
+    helper_text: 'This is a text field',
+    placeholder: 'Enter text here',
+    required: false
 }
 
-const propertiesSchema = z.object({
-    label: z.string().min(2).max(50),
-    helperText: z.string().max(200),
-    required: z.boolean().default(false),
-    placeholder: z.string().max(50)
-})
-
 export const TextFieldFormElement: FormElement = {
-    type,
+    type: type,
 
     construct: (id: string) => ({
         id,
         type,
-        extra_attributes
+        metadata
     }),
-
-    designer_btn_element: {
-        icon: RectangleEllipsisIcon,
+    designer_button: {
+        icon: Type,
         label: 'Text Field'
     },
 
@@ -55,10 +53,11 @@ export const TextFieldFormElement: FormElement = {
     form_component: FormComponent,
     properties_component: PropertiesComponent,
 
-    validate: (formElement: FormElementInstance, currentValue: string): boolean => {
-        const element = formElement as CustomInstance
-        if (element.extra_attributes.required) {
-            return currentValue.length > 0
+    validate: (form_element: FormElementInstance, current_value: string) => {
+        const element = form_element as CustomInstance
+
+        if (element.metadata.required) {
+            return current_value.length > 0
         }
 
         return true
@@ -66,167 +65,223 @@ export const TextFieldFormElement: FormElement = {
 }
 
 type CustomInstance = FormElementInstance & {
-    extra_attributes: typeof extra_attributes
+    metadata: typeof metadata
 }
 
-type PropertiesFormSchemaType = z.infer<typeof propertiesSchema>
-
-function DesignerComponent({
-    elementInstance
-}: {
-    elementInstance: FormElementInstance
-}) {
-    const element = elementInstance as CustomInstance
-    const { label, required, placeholder, helperText } = element.extra_attributes
+function DesignerComponent(props: { element_instance: FormElementInstance }) {
+    const element = props.element_instance as CustomInstance
+    const { label, required, placeholder, helper_text } = element.metadata
 
     return (
-        <div className="card w-full bg-base-100 shadow-xl">
-            <div className="card-body">
-                <label className="text-sm text-base-content/80">Text Field</label>
-                <h2 className="card-title">
-                    {label}
-                    {required && '*'}
-                </h2>
-                <Input disabled readOnly placeholder={placeholder} />
-                {helperText && <div className="text-base-content/80">{helperText}</div>}
-            </div>
+        <div className="flex w-full flex-col gap-2">
+            <Label>
+                {label}
+                {required && '*'}
+            </Label>
+            <Input
+                readOnly
+                disabled
+                placeholder={placeholder}
+                className="bg-background-secondary"
+            />
+            {helper_text && (
+                <p className="text-sm text-muted-foreground">{helper_text}</p>
+            )}
         </div>
     )
 }
 
-function FormComponent({
-    elementInstance,
-    submitValue,
-    isInvalid,
-    defaultValue
-}: {
-    elementInstance: FormElementInstance
-    submitValue?: SubmitFunction
-    isInvalid?: boolean
-    defaultValue?: string
+function FormComponent(props: {
+    element_instance: FormElementInstance
+    submit_value?: SubmitValueFunction
+    is_invalid?: boolean
+    default_value?: string
 }) {
-    const element = elementInstance as CustomInstance
-    const { label, required, placeholder, helperText } = element.extra_attributes
+    const element = props.element_instance as CustomInstance
+    const { label, required, placeholder, helper_text } = element.metadata
 
-    const [value, setValue] = useState(defaultValue ?? '')
+    const [value, setValue] = useState(props.default_value ?? '')
     const [error, setError] = useState(false)
 
     useEffect(() => {
-        setError(isInvalid === true)
-    }, [isInvalid])
+        setError(props.is_invalid === true)
+    }, [props.is_invalid])
 
     return (
-        <div className="card w-full bg-base-300 shadow-xl">
-            <div className="card-body">
-                <h2 className={cn(error && 'text-error', 'card-title')}>
-                    {label}
-                    {required && '*'}
-                </h2>
-                <Input
-                    placeholder={placeholder}
-                    defaultValue={value}
-                    onChange={(e) => setValue(e.target.validationMessage)}
-                    onBlur={(e) => {
-                        if (!submitValue) return
+        <div className="flex w-full flex-col gap-2">
+            <Label className={cn(error && 'text-destructive')}>
+                {label}
+                {required && '*'}
+            </Label>
+            <Input
+                placeholder={placeholder}
+                className={cn('bg-background-secondary', error && 'border-destructive')}
+                value={value}
+                onChange={(e) => setValue(e.currentTarget.value)}
+                onBlur={() => {
+                    if (!props.submit_value) return
 
-                        const valid = TextFieldFormElement.validate(
-                            element,
-                            e.currentTarget.value
-                        )
-                        setError(!valid)
-                        if (!valid) return
+                    const valid = TextFieldFormElement.validate(element, value)
+                    setError(!valid)
+                    if (!valid) return
 
-                        submitValue(element.id, e.currentTarget.value)
-                    }}
-                />
-                {helperText && (
-                    <div className={cn(error ? 'text-error/80' : 'text-base-content/80')}>
-                        {helperText}
-                    </div>
-                )}
-            </div>
+                    props.submit_value(element.id, value)
+                }}
+            />
+            {helper_text && (
+                <p
+                    className={cn(
+                        'text-sm text-muted-foreground',
+                        error && 'text-destructive'
+                    )}
+                >
+                    {helper_text}
+                </p>
+            )}
         </div>
     )
 }
 
-function PropertiesComponent({
-    elementInstance
-}: {
-    elementInstance: FormElementInstance
-}) {
-    const element = elementInstance as CustomInstance
-    const { updateElement } = useDesigner()
+const properties_schema = z.object({
+    label: z.string().min(2).max(50),
+    helper_text: z.string().min(2).max(50),
+    placeholder: z.string().min(2).max(50),
+    required: z.boolean().default(false)
+})
+
+type PropertiesFormSchemaType = z.infer<typeof properties_schema>
+
+function PropertiesComponent(props: { element_instance: FormElementInstance }) {
+    const { update_element } = useDesigner()
+
+    const element = props.element_instance as CustomInstance
+    const { label, required, placeholder, helper_text } = element.metadata
+
     const form = useForm<PropertiesFormSchemaType>({
-        resolver: zodResolver(propertiesSchema),
+        resolver: zodResolver(properties_schema),
         mode: 'onBlur',
         defaultValues: {
-            label: element.extra_attributes.label,
-            helperText: element.extra_attributes.helperText,
-            required: element.extra_attributes.required,
-            placeholder: element.extra_attributes.placeholder
+            label,
+            required,
+            placeholder,
+            helper_text
         }
     })
 
     useEffect(() => {
-        form.reset(element.extra_attributes)
+        form.reset(element.metadata)
     }, [element, form])
 
-    function applyChanges(values: PropertiesFormSchemaType) {
-        updateElement(element.id, {
+    function process_form(values: PropertiesFormSchemaType) {
+        update_element(element.id, {
             ...element,
-            extra_attributes: {
-                ...values
-            }
+            metadata: values
         })
     }
 
     return (
-        <form
-            onBlur={form.handleSubmit(applyChanges)}
-            onSubmit={(e) => {
-                e.preventDefault()
-            }}
-            className="flex w-full flex-col space-y-3"
-        >
-            <DesignerInputField
-                label="Label"
-                description={
-                    <div className="text-base-content/80">
-                        The label of the field. <br /> This will be displayed about the
-                        field.
-                    </div>
-                }
-                {...form.register('label')}
-            />
-            <DesignerInputField
-                label="Placeholder"
-                description={
-                    <div className="text-base-content/80">
-                        This will be the placeholder of the field.
-                    </div>
-                }
-                {...form.register('placeholder')}
-            />
-            <DesignerInputField
-                label="Helper Text"
-                description={
-                    <div className="text-base-content/80">
-                        Add a bit more detail to the field. <br />
-                        This will be displayed below the field.
-                    </div>
-                }
-                {...form.register('helperText')}
-            />
-            <DesignerCheckboxField
-                label="Required"
-                type="checkbox"
-                description={
-                    <div className="text-base-content/80">
-                        This will determine whether this is a required field.
-                    </div>
-                }
-                {...form.register('required')}
-            />
-        </form>
+        <Form {...form}>
+            <form
+                onBlur={form.handleSubmit(process_form)}
+                className="space-y-3"
+                onSubmit={(e) => e.preventDefault()}
+            >
+                <FormField
+                    control={form.control}
+                    name="label"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Label</FormLabel>
+                            <FormControl>
+                                <Input
+                                    {...field}
+                                    className="bg-background"
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.currentTarget.blur()
+                                        }
+                                    }}
+                                />
+                            </FormControl>
+                            <FormDescription>
+                                The label of the field. <br /> It will be displayed above
+                                the field.
+                            </FormDescription>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="helper_text"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Helper Text</FormLabel>
+                            <FormControl>
+                                <Input
+                                    {...field}
+                                    className="bg-background"
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.currentTarget.blur()
+                                        }
+                                    }}
+                                />
+                            </FormControl>
+                            <FormDescription>
+                                Helper text for the field. <br /> It will be displayed
+                                below the field.
+                            </FormDescription>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="placeholder"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Placeholder</FormLabel>
+                            <FormControl>
+                                <Input
+                                    {...field}
+                                    className="bg-background"
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.currentTarget.blur()
+                                        }
+                                    }}
+                                />
+                            </FormControl>
+                            <FormDescription>
+                                The placeholder text. <br /> It will be displayed inside
+                                the field when empty.
+                            </FormDescription>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="required"
+                    render={({ field }) => (
+                        <FormItem className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
+                            <div className="space-y-0.5">
+                                <FormLabel>Required</FormLabel>
+                                <FormDescription>
+                                    Whether the field is required or not.
+                                </FormDescription>
+                            </div>
+                            <FormControl>
+                                <Switch
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                />
+                            </FormControl>
+                        </FormItem>
+                    )}
+                />
+            </form>
+        </Form>
     )
 }

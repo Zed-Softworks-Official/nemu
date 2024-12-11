@@ -1,39 +1,35 @@
-import { currentUser } from '@clerk/nextjs/server'
 import Link from 'next/link'
 import { Suspense } from 'react'
 
 import NemuImage from '~/components/nemu-image'
+import { Button } from '~/components/ui/button'
 import Loading from '~/components/ui/loading'
-import { get_dashboard_links } from '~/server/actions/stripe'
+import { api } from '~/trpc/server'
 
 export default function ArtistApplySuccessPage() {
     return (
-        <div className="card bg-base-300 py-24 shadow-xl sm:py-32">
-            <div className="card-body">
-                <div className="mx-auto max-w-7xl px-6 lg:px-8">
-                    <div className="mx-auto flex max-w-2xl flex-col items-center justify-center gap-5 sm:text-center">
-                        <NemuImage
-                            src={'/nemu/sparkles.png'}
-                            alt="Nemu Excited"
-                            width={200}
-                            height={200}
-                            priority
-                        />
-                        <h2 className="text-3xl font-bold tracking-tight text-base-content sm:text-4xl">
-                            Welcome to Nemu!
-                        </h2>
-                        <p className="mt-6 text-lg leading-8 text-base-content/80">
-                            We&apos;re so excited to have you on board! Make sure to
-                            complete the onboarding process so you can start selling your
-                            art!
-                        </p>
-                        <div className="divider"></div>
-                        <div className="flex w-full items-center justify-center gap-5">
-                            <Suspense fallback={<Loading />}>
-                                <ArtistOnboardingButton />
-                            </Suspense>
-                        </div>
-                    </div>
+        <div className="mx-auto flex max-w-2xl flex-col items-center gap-8 px-4 py-12">
+            <div className="flex flex-col items-center justify-center space-y-6">
+                <NemuImage
+                    src={'/nemu/sparkles.png'}
+                    alt="Nemu Excited"
+                    width={400}
+                    height={400}
+                    className="w-64 object-cover"
+                />
+                <div>
+                    <h2 className="text-center text-3xl font-bold tracking-tight text-foreground">
+                        Welcome to Nemu!
+                    </h2>
+                    <p className="mt-2 text-center text-sm text-muted-foreground">
+                        We&apos;re so excited to have you on board! Make sure to complete
+                        the onboarding process so you can start selling your art!
+                    </p>
+                </div>
+                <div className="flex w-full items-center justify-center">
+                    <Suspense fallback={<Loading />}>
+                        <ArtistOnboardingButton />
+                    </Suspense>
                 </div>
             </div>
         </div>
@@ -41,23 +37,13 @@ export default function ArtistApplySuccessPage() {
 }
 
 async function ArtistOnboardingButton() {
-    const user = await currentUser()
-
-    if (!user) {
-        return null
-    }
-
-    const dashboard_links = await get_dashboard_links(
-        user.privateMetadata.artist_id as string
-    )
+    const dashboard_links = await api.stripe.get_dashboard_links()
 
     return (
-        <Link
-            target="_blank"
-            href={dashboard_links?.managment.url ?? '/dashboard'}
-            className="btn btn-primary btn-wide mt-10 text-white"
-        >
-            Complete Onboarding
-        </Link>
+        <Button asChild size={'lg'}>
+            <Link target="_blank" href={dashboard_links?.managment.url ?? '/dashboard'}>
+                Complete Onboarding
+            </Link>
+        </Button>
     )
 }

@@ -1,11 +1,12 @@
-import { type ClassValue, clsx } from 'clsx'
+import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
+import {
+    type ClientNemuImageData,
+    CommissionAvailability,
+    type NemuImageData
+} from '~/core/structures'
+import { env } from '~/env'
 
-import { CommissionAvailability } from '~/core/structures'
-
-/**
- * Merges classnames
- */
 export function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs))
 }
@@ -32,12 +33,12 @@ export function format_to_currency(number: number) {
  */
 export function get_availability_badge_data(
     availability: CommissionAvailability
-): [variant: 'success' | 'warning' | 'destructive', text: string] {
+): [variant: 'default' | 'secondary' | 'destructive', text: string] {
     switch (availability) {
         case CommissionAvailability.Open:
-            return ['success', 'Open']
+            return ['default', 'Open']
         case CommissionAvailability.Waitlist:
-            return ['warning', 'Waitlist']
+            return ['secondary', 'Waitlist']
         case CommissionAvailability.Closed:
             return ['destructive', 'Closed']
     }
@@ -53,4 +54,29 @@ export function calculate_percentage_change(current: number, previous: number) {
             (current - previous) / current
         ) + '%'
     )
+}
+
+/**
+ * Converts a list of images to a list of NemuImageData
+ *
+ * @param {string[]} images - The images to convert
+ * @returns {NemuImageData[]} - The converted images
+ */
+export async function convert_images_to_nemu_images(images: NemuImageData[]) {
+    // Format for client
+    const result: ClientNemuImageData[] = []
+
+    for (const image of images) {
+        result.push({
+            url: get_image_url(image.ut_key)
+        })
+    }
+
+    return result
+}
+
+export const to_pusher_key = (key: string) => key.replace(/:/g, '__')
+
+export function get_image_url(ut_key: string) {
+    return `https://utfs.io/a/${env.NEXT_PUBLIC_UPLOADTHING_APP_ID}/${ut_key}`
 }

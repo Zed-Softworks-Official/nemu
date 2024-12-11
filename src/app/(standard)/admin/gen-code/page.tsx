@@ -3,8 +3,9 @@ import { db } from '~/server/db'
 import { Suspense } from 'react'
 
 import Loading from '~/components/ui/loading'
-import DataTable from '~/components/data-table'
-import GenerateAristCode from '~/components/artist-verification/generate-artist-code'
+import { DataTable } from '~/components/data-table'
+import GenerateAristCode from './generate'
+import { Separator } from '~/components/ui/separator'
 
 type ArtistCode = {
     code: string
@@ -54,7 +55,7 @@ async function CurrentArtistCodes() {
         <div>
             <div className="divider"></div>
             <h1 className="text-3xl font-bold">Current Artist Codes</h1>
-            <div className="divider"></div>
+            <Separator />
             <div className="flex flex-col gap-5">
                 <DataTable
                     columns={[

@@ -1,79 +1,70 @@
-import { TextFieldFormElement } from '~/components/form-builder/elements/fields/text-field'
-import { TitleFieldFormElement } from '~/components/form-builder/elements/fields/title-field'
-import { SubTitleFieldFormElement } from '~/components/form-builder/elements/fields/subtitle-field'
-import { ParagraphFieldFormElement } from '~/components/form-builder/elements/fields/paragraph-field'
-import { DividerFieldFormElement } from '~/components/form-builder/elements/fields/divider-field'
-import { SpacerFieldFormElement } from '~/components/form-builder/elements/fields/spacer-field'
-import { NumberFieldFormElement } from '~/components/form-builder/elements/fields/number-field'
-import { TextAreaFieldFormElement } from '~/components/form-builder/elements/fields/text-area-field'
-// import { DateFieldFormElement } from '~/components/form-builder/elements/fields/date-field'
-import { SelectFieldFormElement } from '~/components/form-builder/elements/fields/select-field'
-import { CheckboxFieldFormElement } from '~/components/form-builder/elements/fields/checkbox-field'
+import { TextFieldFormElement } from './fields/text-field'
+import { TitleFieldFormElement } from './fields/title-field'
+import { SubtitleFieldFormElement } from './fields/subtitle-field'
+import { ParagraphFieldFormElement } from './fields/paragraph-field'
+import { SeparatorFieldFormElement } from './fields/separator-field'
+import { SpacerFieldFormElement } from './fields/spacer-field'
+import { NumberFieldFormElement } from './fields/number-field'
+import { TextareaFieldFormElement } from './fields/textarea-field'
+import { DateFieldFormElement } from './fields/date-field'
+import { SelectFieldFormElement } from './fields/select-field'
+import { CheckboxFieldFormElement } from './fields/checkbox-field'
 
-export type ElementsType =
+export type ElementType =
     | 'TextField'
     | 'TitleField'
-    | 'SubTitleField'
+    | 'SubtitleField'
     | 'ParagraphField'
-    | 'DividerField'
+    | 'SeparatorField'
     | 'SpacerField'
     | 'NumberField'
-    | 'TextAreaField'
-    // | 'DateField'
+    | 'TextareaField'
+    | 'DateField'
     | 'SelectField'
     | 'CheckboxField'
 
-export type SubmitFunction = (key: string, value: string) => void
+export type SubmitValueFunction = (key: string, value: string) => void
 
 export type FormElement = {
-    type: ElementsType
+    type: ElementType
 
     construct: (id: string) => FormElementInstance
 
-    designer_btn_element: {
+    designer_button: {
         icon: React.ElementType
         label: string
     }
 
-    designer_component: React.FC<{
-        elementInstance: FormElementInstance
-    }>
-
+    designer_component: React.FC<{ element_instance: FormElementInstance }>
     form_component: React.FC<{
-        elementInstance: FormElementInstance
-        submitValue?: SubmitFunction
-        isInvalid?: boolean
-        defaultValue?: string
+        element_instance: FormElementInstance
+        submit_value?: SubmitValueFunction
+        is_invalid?: boolean
+        default_value?: string
     }>
+    properties_component: React.FC<{ element_instance: FormElementInstance }>
 
-    properties_component: React.FC<{
-        elementInstance: FormElementInstance
-    }>
-
-    validate: (formElement: FormElementInstance, currentValue: string) => boolean
-}
-
-type FormElementsType = {
-    [key in ElementsType]: FormElement
+    validate: (form_element: FormElementInstance, current_value: string) => boolean
 }
 
 export type FormElementInstance = {
     id: string
-    type: ElementsType
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    extra_attributes?: Record<string, any>
+    type: ElementType
+    metadata?: Record<string, unknown>
 }
+
+type FormElementsType = Record<ElementType, FormElement>
 
 export const FormElements: FormElementsType = {
     TextField: TextFieldFormElement,
     TitleField: TitleFieldFormElement,
-    SubTitleField: SubTitleFieldFormElement,
+    SubtitleField: SubtitleFieldFormElement,
     ParagraphField: ParagraphFieldFormElement,
-    DividerField: DividerFieldFormElement,
+    SeparatorField: SeparatorFieldFormElement,
     SpacerField: SpacerFieldFormElement,
     NumberField: NumberFieldFormElement,
-    TextAreaField: TextAreaFieldFormElement,
-    // DateField: DateFieldFormElement,
+    TextareaField: TextareaFieldFormElement,
+    DateField: DateFieldFormElement,
     SelectField: SelectFieldFormElement,
     CheckboxField: CheckboxFieldFormElement
 }

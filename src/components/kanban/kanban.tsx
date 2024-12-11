@@ -20,7 +20,7 @@ import KanbanItemComponent from '~/components/kanban/kanban-task'
 import { PlusCircleIcon, SaveIcon } from 'lucide-react'
 import { Button } from '~/components/ui/button'
 import { toast } from 'sonner'
-import { update_kanban } from '~/server/actions/kanban'
+import { api } from '~/trpc/react'
 
 export default function Kanban({
     header,
@@ -33,7 +33,6 @@ export default function Kanban({
     kanban_containers: KanbanContainerData[]
     kanban_tasks: KanbanTask[]
 }) {
-    const [pending, setPending] = useState(false)
     const [containers, setContainers] = useState<KanbanContainerData[]>(kanban_containers)
     const [tasks, setTasks] = useState<KanbanTask[]>(kanban_tasks)
 
@@ -41,6 +40,24 @@ export default function Kanban({
         null
     )
     const [activeTask, setActiveTask] = useState<KanbanTask | null>(null)
+
+    const updateKanban = api.kanban.update_kanban.useMutation({
+        onMutate: () => {
+            const toast_id = toast.loading('Saving Kanban')
+
+            return { toast_id }
+        },
+        onSuccess: (_, __, ctx) => {
+            toast.success('Kanban Saved!', {
+                id: ctx.toast_id
+            })
+        },
+        onError: (_, __, ctx) => {
+            toast.error('Failed to save kanban', {
+                id: ctx?.toast_id
+            })
+        }
+    })
 
     const containerIds = useMemo(
         () => containers.map((container) => container.id),
@@ -60,28 +77,11 @@ export default function Kanban({
         tasks: KanbanTask[]
     }) {
         if (kanban_id) {
-            setPending(true)
-            const toast_id = toast.loading('Saving Kanban')
-
-            const res = await update_kanban(
+            updateKanban.mutate({
                 kanban_id,
-                JSON.stringify(data.containers),
-                JSON.stringify(data.tasks)
-            )
-
-            if (!res.success) {
-                toast.error('Failed to save kanban', {
-                    id: toast_id
-                })
-                setPending(false)
-
-                return
-            }
-
-            toast.success('Kanban Saved!', {
-                id: toast_id
+                containers: JSON.stringify(data.containers),
+                tasks: JSON.stringify(data.tasks)
             })
-            setPending(false)
         }
     }
 
@@ -237,11 +237,10 @@ export default function Kanban({
 
                         <div className="flex items-center gap-5">
                             <Button
-                                variant={'dark'}
                                 disabled={false}
-                                onMouseDown={() => SaveKanban({ containers, tasks })}
+                                onClick={() => SaveKanban({ containers, tasks })}
                             >
-                                {pending ? (
+                                {updateKanban.isPending ? (
                                     <>
                                         <span className="loading loading-spinner"></span>
                                         <p>Saving</p>

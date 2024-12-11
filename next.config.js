@@ -2,82 +2,53 @@
  * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially useful
  * for Docker builds.
  */
-await import('./src/env.js')
+import './src/env.js'
+
+import { withSentryConfig } from '@sentry/nextjs'
 
 /** @type {import("next").NextConfig} */
-const coreConfig = {
+const config = {
     images: {
         remotePatterns: [
             {
                 protocol: 'https',
                 hostname: 'utfs.io',
-                port: '',
-                pathname: '/**'
-            },
-            {
-                protocol: 'https',
-                hostname: 'file-us-1.sendbird.com',
-                port: '',
-                pathname: '/**'
+                pathname: '/a/74fsewdwmb/**',
+                search: ''
             },
             {
                 protocol: 'https',
                 hostname: 'img.clerk.com',
-                port: '',
-                pathname: '/**'
-            },
-            {
-                protocol: 'https',
-                hostname: 'nemu.art',
-                port: '',
-                pathname: '/**'
+                pathname: '/**',
+                search: ''
             }
         ]
-    },
-    logging: {
-        fetches: {
-            fullUrl: true
-        }
-    },
-    async rewrites() {
-        return [
-            {
-                source: '/ingest/static/:path*',
-                destination: 'https://us-assets.i.posthog.com/static/:path*'
-            },
-            {
-                source: '/ingest/:path*',
-                destination: 'https://us.i.posthog.com/:path*'
-            }
-        ]
-    },
-    // This is required to support PostHog trailing slash API requests
-    skipTrailingSlashRedirect: true
+    }
 }
 
-import withPlaiceholder from '@plaiceholder/next'
-
-const coreConfigWithPlaiceholder = withPlaiceholder(coreConfig)
-
-import { withSentryConfig } from '@sentry/nextjs'
-
-const config = withSentryConfig(coreConfigWithPlaiceholder, {
+// Injected content via Sentry wizard below
+export default withSentryConfig(config, {
     // For all available options, see:
     // https://github.com/getsentry/sentry-webpack-plugin#options
 
-    // Suppresses source map uploading logs during build
-    silent: true,
     org: 'zed-softworks-llc',
     project: 'nemu',
+
+    // Only print logs for uploading source maps in CI
+    silent: !process.env.CI,
+
     // For all available options, see:
     // https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/
 
     // Upload a larger set of source maps for prettier stack traces (increases build time)
     widenClientFileUpload: true,
 
-    // Transpiles SDK to be compatible with IE11 (increases bundle size)
+    // Automatically annotate React components to show their full name in breadcrumbs and session replay
+    reactComponentAnnotation: {
+        enabled: true
+    },
 
-    // Uncomment to route browser requests to Sentry through a Next.js rewrite to circumvent ad-blockers.
+    // Route browser requests to Sentry through a Next.js rewrite to circumvent ad-blockers.
     // This can increase your server load as well as your hosting bill.
     // Note: Check that the configured route will not match with your Next.js middleware, otherwise reporting of client-
     // side errors will fail.
@@ -89,11 +60,13 @@ const config = withSentryConfig(coreConfigWithPlaiceholder, {
     // Automatically tree-shake Sentry logger statements to reduce bundle size
     disableLogger: true,
 
-    // Enables automatic instrumentation of Vercel Cron Monitors.
+    // Enables automatic instrumentation of Vercel Cron Monitors. (Does not yet work with App Router route handlers.)
     // See the following for more information:
     // https://docs.sentry.io/product/crons/
     // https://vercel.com/docs/cron-jobs
-    automaticVercelMonitors: true
-})
+    automaticVercelMonitors: true,
 
-export default config
+    sourcemaps: {
+        deleteSourcemapsAfterUpload: true
+    }
+})

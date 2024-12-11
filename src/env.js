@@ -7,24 +7,36 @@ export const env = createEnv({
      * isn't built with invalid env vars.
      */
     server: {
+        DATABASE_URL: z
+            .string()
+            .url()
+            .refine(
+                (str) => !str.includes('YOUR_MYSQL_URL_HERE'),
+                'You forgot to change the default URL'
+            ),
         BASE_URL: z.string().url(),
-        CLERK_WEBHOOK_SECRET: z.string(),
-        CLERK_SECRET_KEY: z.string(),
         NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+
+        CLERK_SECRET_KEY: z.string(),
+        CLERK_WEBHOOK_SECRET: z.string(),
+
+        KNOCK_API_KEY: z.string(),
+
         STRIPE_API_KEY: z.string(),
-        STRIPE_WEHBOOK_SECRET: z.string(),
+        STRIPE_WEBHOOK_SECRET: z.string(),
+
         ALGOLIA_APP_ID: z.string(),
         ALGOLIA_API_KEY: z.string(),
-        SENDBIRD_APP_ID: z.string(),
-        SENDBIRD_API_TOKEN: z.string(),
-        UPLOADTHING_APP_ID: z.string(),
+
+        UPSTASH_REDIS_REST_URL: z.string(),
+        UPSTASH_REDIS_REST_TOKEN: z.string(),
+
         UPLOADTHING_TOKEN: z.string(),
+
         SENTRY_AUTH_TOKEN: z.string(),
-        DATABASE_URL: z.string(),
-        DATABASE_HOST: z.string(),
-        DATABASE_USERNAME: z.string(),
-        DATABASE_PASSWORD: z.string(),
-        KNOCK_API_KEY: z.string()
+
+        PUSHER_APP_ID: z.string(),
+        PUSHER_SECRET: z.string()
     },
 
     /**
@@ -34,13 +46,21 @@ export const env = createEnv({
      */
     client: {
         NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: z.string(),
-        NEXT_PUBLIC_ALGOLIA_APP_ID: z.string(),
-        NEXT_PUBLIC_ALGOLIA_SEARCH_API_KEY: z.string(),
-        NEXT_PUBLIC_POSTHOG_KEY: z.string(),
-        NEXT_PUBLIC_POSTHOG_HOST: z.string(),
+
         NEXT_PUBLIC_KNOCK_PUBLIC_API_KEY: z.string(),
         NEXT_PUBLIC_KNOCK_FEED_ID: z.string(),
-        NEXT_PUBLIC_SENDBIRD_APP_ID: z.string()
+
+        NEXT_PUBLIC_ALGOLIA_APP_ID: z.string(),
+        NEXT_PUBLIC_ALGOLIA_SEARCH_API_KEY: z.string(),
+
+        NEXT_PUBLIC_UPLOADTHING_APP_ID: z.string(),
+
+        NEXT_PUBLIC_POSTHOG_KEY: z.string(),
+        NEXT_PUBLIC_POSTHOG_HOST: z.string(),
+
+        NEXT_PUBLIC_PUSHER_KEY: z.string(),
+        NEXT_PUBLIC_PUSHER_CLUSTER: z.string()
+        // NEXT_PUBLIC_CLIENTVAR: z.string(),
     },
 
     /**
@@ -48,37 +68,42 @@ export const env = createEnv({
      * middlewares) or client-side so we need to destruct manually.
      */
     runtimeEnv: {
-        // Server
         BASE_URL: process.env.BASE_URL,
-        CLERK_WEBHOOK_SECRET: process.env.CLERK_WEBHOOK_SECRET,
-        CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY,
+        DATABASE_URL: process.env.DATABASE_URL,
         NODE_ENV: process.env.NODE_ENV,
+
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
+        CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY,
+        CLERK_WEBHOOK_SECRET: process.env.CLERK_WEBHOOK_SECRET,
+
+        KNOCK_API_KEY: process.env.KNOCK_API_KEY,
+        NEXT_PUBLIC_KNOCK_PUBLIC_API_KEY: process.env.NEXT_PUBLIC_KNOCK_PUBLIC_API_KEY,
+        NEXT_PUBLIC_KNOCK_FEED_ID: process.env.NEXT_PUBLIC_KNOCK_FEED_ID,
+
         STRIPE_API_KEY: process.env.STRIPE_API_KEY,
-        STRIPE_WEHBOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
+        STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
+
         ALGOLIA_APP_ID: process.env.ALGOLIA_APP_ID,
         ALGOLIA_API_KEY: process.env.ALGOLIA_API_KEY,
-        SENDBIRD_APP_ID: process.env.SENDBIRD_APP_ID,
-        SENDBIRD_API_TOKEN: process.env.SENDBIRD_API_TOKEN,
-        UPLOADTHING_APP_ID: process.env.UPLOADTHING_APP_ID,
-        UPLOADTHING_TOKEN: process.env.UPLOADTHING_TOKEN,
-        SENTRY_AUTH_TOKEN: process.env.SENTRY_AUTH_TOKEN,
-        KNOCK_API_KEY: process.env.KNOCK_API_KEY,
-
-        DATABASE_URL: process.env.DATABASE_URL,
-        DATABASE_HOST: process.env.DATABASE_HOST,
-        DATABASE_USERNAME: process.env.DATABASE_USERNAME,
-        DATABASE_PASSWORD: process.env.DATABASE_PASSWORD,
-
-        // Client
-        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
         NEXT_PUBLIC_ALGOLIA_APP_ID: process.env.NEXT_PUBLIC_ALGOLIA_APP_ID,
         NEXT_PUBLIC_ALGOLIA_SEARCH_API_KEY:
             process.env.NEXT_PUBLIC_ALGOLIA_SEARCH_API_KEY,
+
+        UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
+        UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
+
+        NEXT_PUBLIC_UPLOADTHING_APP_ID: process.env.NEXT_PUBLIC_UPLOADTHING_APP_ID,
+        UPLOADTHING_TOKEN: process.env.UPLOADTHING_TOKEN,
+
         NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
         NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
-        NEXT_PUBLIC_KNOCK_PUBLIC_API_KEY: process.env.NEXT_PUBLIC_KNOCK_PUBLIC_API_KEY,
-        NEXT_PUBLIC_KNOCK_FEED_ID: process.env.NEXT_PUBLIC_KNOCK_FEED_ID,
-        NEXT_PUBLIC_SENDBIRD_APP_ID: process.env.NEXT_PUBLIC_SENDBIRD_APP_ID
+
+        SENTRY_AUTH_TOKEN: process.env.SENTRY_AUTH_TOKEN,
+
+        PUSHER_APP_ID: process.env.PUSHER_APP_ID,
+        PUSHER_SECRET: process.env.PUSHER_SECRET,
+        NEXT_PUBLIC_PUSHER_KEY: process.env.NEXT_PUBLIC_PUSHER_KEY,
+        NEXT_PUBLIC_PUSHER_CLUSTER: process.env.NEXT_PUBLIC_PUSHER_CLUSTER
     },
     /**
      * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

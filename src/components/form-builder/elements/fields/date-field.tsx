@@ -1,232 +1,286 @@
-// 'use client'
+'use client'
 
-// import {
-//     ElementsType,
-//     FormElement,
-//     FormElementInstance,
-//     SubmitFunction
-// } from '~/components/form-builder/elements/form-elements'
+import { z } from 'zod'
+import { useEffect, useState } from 'react'
+import { CalendarIcon } from 'lucide-react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { format } from 'date-fns'
 
-// import { useForm } from 'react-hook-form'
-// import { zodResolver } from '@hookform/resolvers/zod'
+import { Label } from '~/components/ui/label'
+import { Input } from '~/components/ui/input'
+import {
+    Form,
+    FormControl,
+    FormDescription,
+    FormField,
+    FormItem,
+    FormLabel,
+    FormMessage
+} from '~/components/ui/form'
 
-// import * as z from 'zod'
-// import { Fragment, useEffect, useState } from 'react'
-// import { useDesigner } from '~/components/form-builder/designer/designer-context'
-// import { DesignerCheckboxField, DesignerInputField } from '~/components/form-builder/elements/input-field'
-// // import { Popover, Transition } from '@headlessui/react'
-// // import { format } from 'date-fns'
-// import { CalendarIcon } from 'lucide-react'
+import { useDesigner } from '~/components/form-builder/designer/designer-context'
+import type {
+    ElementType,
+    FormElement,
+    FormElementInstance,
+    SubmitValueFunction
+} from '~/components/form-builder/elements/form-elements'
+import { Switch } from '~/components/ui/switch'
+import { cn } from '~/lib/utils'
+import { Popover, PopoverContent, PopoverTrigger } from '~/components/ui/popover'
+import { Button } from '~/components/ui/button'
+import { Calendar } from '~/components/ui/calendar'
 
-// const type: ElementsType = 'DateField'
+const type: ElementType = 'DateField'
+const metadata = {
+    label: 'Date Field',
+    helper_text: 'Pick a date',
+    required: false
+}
 
-// const extra_attributes = {
-//     label: 'Date Field',
-//     helperText: 'Pick a date',
-//     required: false
-// }
+export const DateFieldFormElement: FormElement = {
+    type: type,
 
-// const propertiesSchema = z.object({
-//     label: z.string().min(2).max(50),
-//     helperText: z.string().max(200),
-//     required: z.boolean().default(false)
-// })
+    construct: (id: string) => ({
+        id,
+        type,
+        metadata
+    }),
+    designer_button: {
+        icon: CalendarIcon,
+        label: 'Date Field'
+    },
 
-// export const DateFieldFormElement: FormElement = {
-//     type,
+    designer_component: DesignerComponent,
+    form_component: FormComponent,
+    properties_component: PropertiesComponent,
 
-//     construct: (id: string) => ({
-//         id,
-//         type,
-//         extra_attributes
-//     }),
+    validate: (form_element: FormElementInstance, current_value: string) => {
+        const element = form_element as CustomInstance
 
-//     designer_btn_element: {
-//         icon: CalendarIcon,
-//         label: 'Date Field'
-//     },
+        if (element.metadata.required) {
+            return current_value.length > 0
+        }
 
-//     designer_component: DesignerComponent,
-//     form_component: FormComponent,
-//     properties_component: PropertiesComponent,
+        return true
+    }
+}
 
-//     validate: (formElement: FormElementInstance, currentValue: string): boolean => {
-//         const element = formElement as CustomInstance
-//         if (element.extra_attributes.required) {
-//             return currentValue.length > 0
-//         }
+type CustomInstance = FormElementInstance & {
+    metadata: typeof metadata
+}
 
-//         return true
-//     }
-// }
+function DesignerComponent(props: { element_instance: FormElementInstance }) {
+    const element = props.element_instance as CustomInstance
+    const { label, required, helper_text } = element.metadata
 
-// type CustomInstance = FormElementInstance & {
-//     extra_attributes: typeof extra_attributes
-// }
+    return (
+        <div className="flex w-full flex-col gap-2">
+            <Label>
+                {label}
+                {required && '*'}
+            </Label>
+            <Button
+                disabled
+                variant={'outline'}
+                className="w-full justify-start text-left font-normal text-muted-foreground"
+            >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                Pick a Date
+            </Button>
+            {helper_text && (
+                <p className="text-sm text-muted-foreground">{helper_text}</p>
+            )}
+        </div>
+    )
+}
 
-// type PropertiesFormSchemaType = z.infer<typeof propertiesSchema>
+function FormComponent(props: {
+    element_instance: FormElementInstance
+    submit_value?: SubmitValueFunction
+    is_invalid?: boolean
+    default_value?: string
+}) {
+    const element = props.element_instance as CustomInstance
+    const { label, required, helper_text } = element.metadata
 
-// function DesignerComponent({
-//     elementInstance
-// }: {
-//     elementInstance: FormElementInstance
-// }) {
-//     const element = elementInstance as CustomInstance
-//     const { label, required, placeholder, helperText } = element.extra_attributes
+    const [date, setDate] = useState<Date | undefined>(
+        props.default_value ? new Date(props.default_value) : undefined
+    )
 
-//     return (
-//         <div className="card bg-base-100 shadow-xl w-full">
-//             <div className="card-body">
-//                 <label className="text-sm text-base-content/80">Text Field</label>
-//                 <h2 className="card-title">
-//                     {label}
-//                     {required && '*'}
-//                 </h2>
-//                 <button type="button" className="btn btn-outline">
-//                     <CalendarIcon className="w-6 h-6" />
-//                     Pick a date
-//                 </button>
-//                 {helperText && <p className="text-base-content/80">{helperText}</p>}
-//             </div>
-//         </div>
-//     )
-// }
+    const [error, setError] = useState(false)
 
-// function FormComponent({
-//     elementInstance,
-//     submitValue,
-//     isInvalid,
-//     defaultValue
-// }: {
-//     elementInstance: FormElementInstance
-//     submitValue?: SubmitFunction
-//     isInvalid?: boolean
-//     defaultValue?: string
-// }) {
-//     const element = elementInstance as CustomInstance
-//     const { label, required, helperText } = element.extra_attributes
+    useEffect(() => {
+        setError(props.is_invalid === true)
+    }, [props.is_invalid])
 
-//     const [date, setDate] = useState<Date | undefined>(
-//         defaultValue ? new Date(defaultValue) : undefined
-//     )
-//     const [error, setError] = useState(false)
+    return (
+        <div className="flex w-full flex-col gap-2">
+            <Label className={cn(error && 'text-destructive')}>
+                {label}
+                {required && '*'}
+            </Label>
+            <Popover>
+                <PopoverTrigger asChild>
+                    <Button
+                        variant={'outline'}
+                        className={cn(
+                            'w-[280px] justify-start border-background-tertiary bg-background-secondary text-left font-normal',
+                            !date && 'text-muted-foreground',
+                            error && 'border-destructive'
+                        )}
+                    >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {date ? format(date, 'PPP') : <span>Pick a date</span>}
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                    <Calendar
+                        mode="single"
+                        selected={date}
+                        onSelect={(date) => {
+                            setDate(date)
 
-//     useEffect(() => {
-//         setError(isInvalid === true)
-//     }, [isInvalid])
+                            if (!props.submit_value) return
+                            const value = date?.toUTCString() ?? ''
+                            const valid = DateFieldFormElement.validate(element, value)
+                            setError(!valid)
+                            if (!valid) return
 
-//     return (
-//         <div className="card bg-base-300 w-full">
-//             <div className="card-body">
-//                 <h2 className={ClassNames(error && 'text-error', 'card-title')}>
-//                     {label}
-//                     {required && '*'}
-//                 </h2>
-//                 <Popover>
-//                     <Popover.Button className={'btn btn-outline w-full'}>
-//                         <CalendarIcon className="w-6 h-6" />
-//                         {date ? format(date, 'PPP') : 'Pick a date'}
-//                     </Popover.Button>
-//                     <Transition
-//                         as={Fragment}
-//                         enter="transition ease-out duration-200"
-//                         enterFrom="opacity-0 translate-y-1"
-//                         enterTo="opacity-100 translate-y-0"
-//                         leave="transition ease-in duration-150"
-//                         leaveFrom="opacity-100 translate-y-0"
-//                         leaveTo="opacity-0 translate-y-1"
-//                     >
-//                         <Popover.Panel className={'absolute z-10'}>
-//                             <div className="card bg-base-200">
-//                                 <div className="card-body">
-//                                     <h1>Date Picker</h1>
-//                                 </div>
-//                             </div>
-//                         </Popover.Panel>
-//                     </Transition>
-//                 </Popover>
-//                 {helperText && (
-//                     <p
-//                         className={ClassNames(
-//                             error ? 'text-error/80' : 'text-base-content/80'
-//                         )}
-//                     >
-//                         {helperText}
-//                     </p>
-//                 )}
-//             </div>
-//         </div>
-//     )
-// }
+                            props.submit_value(element.id, value)
+                        }}
+                        initialFocus
+                    />
+                </PopoverContent>
+            </Popover>
+            {helper_text && (
+                <p
+                    className={cn(
+                        'text-sm text-muted-foreground',
+                        error && 'text-destructive'
+                    )}
+                >
+                    {helper_text}
+                </p>
+            )}
+        </div>
+    )
+}
 
-// function PropertiesComponent({
-//     elementInstance
-// }: {
-//     elementInstance: FormElementInstance
-// }) {
-//     const element = elementInstance as CustomInstance
-//     const { updateElement } = useDesigner() as DesignerContextType
-//     const form = useForm<PropertiesFormSchemaType>({
-//         resolver: zodResolver(propertiesSchema),
-//         mode: 'onBlur',
-//         defaultValues: {
-//             label: element.extra_attributes.label,
-//             helperText: element.extra_attributes.helperText,
-//             required: element.extra_attributes.required
-//         }
-//     })
+const properties_schema = z.object({
+    label: z.string().min(2).max(50),
+    helper_text: z.string().min(2).max(50),
+    required: z.boolean().default(false)
+})
 
-//     useEffect(() => {
-//         form.reset(element.extra_attributes)
-//     }, [element, form])
+type PropertiesFormSchemaType = z.infer<typeof properties_schema>
 
-//     function applyChanges(values: PropertiesFormSchemaType) {
-//         updateElement(element.id, {
-//             ...element,
-//             extra_attributes: {
-//                 ...values
-//             }
-//         })
-//     }
+function PropertiesComponent(props: { element_instance: FormElementInstance }) {
+    const { update_element } = useDesigner()
 
-//     return (
-//         <form
-//             onBlur={form.handleSubmit(applyChanges)}
-//             onSubmit={(e) => {
-//                 e.preventDefault()
-//             }}
-//             className="flex flex-col w-full space-y-3"
-//         >
-//             <DesignerInputField
-//                 label="Label"
-//                 description={
-//                     <p className="text-base-content/80">
-//                         The label of the field. <br /> This will be displayed about the
-//                         field.
-//                     </p>
-//                 }
-//                 {...form.register('label')}
-//             />
-//             <DesignerInputField
-//                 label="Helper Text"
-//                 description={
-//                     <p className="text-base-content/80">
-//                         Add a bit more detail to the field. <br />
-//                         This will be displayed below the field.
-//                     </p>
-//                 }
-//                 {...form.register('helperText')}
-//             />
-//             <DesignerCheckboxField
-//                 label="Required"
-//                 type="checkbox"
-//                 description={
-//                     <p className="text-base-content/80">
-//                         This will determine whether this is a required field.
-//                     </p>
-//                 }
-//                 {...form.register('required')}
-//             />
-//         </form>
-//     )
-// }
+    const element = props.element_instance as CustomInstance
+    const { label, required, helper_text } = element.metadata
+
+    const form = useForm<PropertiesFormSchemaType>({
+        resolver: zodResolver(properties_schema),
+        mode: 'onBlur',
+        defaultValues: {
+            label,
+            required,
+            helper_text
+        }
+    })
+
+    useEffect(() => {
+        form.reset(element.metadata)
+    }, [element, form])
+
+    function process_form(values: PropertiesFormSchemaType) {
+        update_element(element.id, {
+            ...element,
+            metadata: values
+        })
+    }
+
+    return (
+        <Form {...form}>
+            <form
+                onBlur={form.handleSubmit(process_form)}
+                className="space-y-3"
+                onSubmit={(e) => e.preventDefault()}
+            >
+                <FormField
+                    control={form.control}
+                    name="label"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Label</FormLabel>
+                            <FormControl>
+                                <Input
+                                    {...field}
+                                    className="bg-background"
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.currentTarget.blur()
+                                        }
+                                    }}
+                                />
+                            </FormControl>
+                            <FormDescription>
+                                The label of the field. <br /> It will be displayed above
+                                the field.
+                            </FormDescription>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="helper_text"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Helper Text</FormLabel>
+                            <FormControl>
+                                <Input
+                                    {...field}
+                                    className="bg-background"
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.currentTarget.blur()
+                                        }
+                                    }}
+                                />
+                            </FormControl>
+                            <FormDescription>
+                                Helper text for the field. <br /> It will be displayed
+                                below the field.
+                            </FormDescription>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="required"
+                    render={({ field }) => (
+                        <FormItem className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
+                            <div className="space-y-0.5">
+                                <FormLabel>Required</FormLabel>
+                                <FormDescription>
+                                    Whether the field is required or not.
+                                </FormDescription>
+                            </div>
+                            <FormControl>
+                                <Switch
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                />
+                            </FormControl>
+                        </FormItem>
+                    )}
+                />
+            </form>
+        </Form>
+    )
+}

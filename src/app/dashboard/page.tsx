@@ -6,8 +6,8 @@ import { unstable_cache } from 'next/cache'
 import { notFound, redirect } from 'next/navigation'
 import { Suspense } from 'react'
 
-import SalesChart from '~/components/dashboard/sales-chart'
-import DataTable from '~/components/data-table'
+import { SalesChart } from './sales-chart'
+import { DataTable } from '~/components/data-table'
 import NemuImage from '~/components/nemu-image'
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card'
 import Loading from '~/components/ui/loading'
@@ -390,19 +390,19 @@ async function CommissionStats() {
         <>
             <StatsCard
                 title="Total Sales"
-                icon={<DollarSign className="h-4 w-4 text-base-content/80" />}
+                icon={<DollarSign className="text-base-content/80 h-4 w-4" />}
                 value={recent_sales.total_sales.count.toString()}
                 change={recent_sales.total_sales.change}
             />
             <StatsCard
                 title="Total Revenue"
-                icon={<Palette className="h-4 w-4 text-base-content/80" />}
+                icon={<Palette className="text-base-content/80 h-4 w-4" />}
                 value={recent_sales.total_revenue.count.toString()}
                 change={recent_sales.total_revenue.change}
             />
             <StatsCard
                 title="New Requests"
-                icon={<ShoppingCart className="h-4 w-4 text-base-content/80" />}
+                icon={<ShoppingCart className="text-base-content/80 h-4 w-4" />}
                 value={recent_sales.total_requests.count.toString()}
                 change={recent_sales.total_requests.change}
             />
@@ -424,7 +424,7 @@ function StatsCard(props: {
             </CardHeader>
             <CardContent>
                 <div className="text-2xl font-bold">{props.value}</div>
-                <p className="text-xs text-base-content/80">
+                <p className="text-base-content/80 text-xs">
                     {props.change} from last month
                 </p>
             </CardContent>

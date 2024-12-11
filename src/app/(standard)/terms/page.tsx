@@ -8,7 +8,7 @@ export default function TermsPage() {
                     Terms of Service
                 </h1>
                 <div>
-                    <p className="italic text-base-content/60">Zed Softworks LLC</p>
+                    <p className="text-base-content/60 italic">Zed Softworks LLC</p>
                     <p className="text-base-content/60">Last updated: June 24, 2024</p>
                 </div>
 

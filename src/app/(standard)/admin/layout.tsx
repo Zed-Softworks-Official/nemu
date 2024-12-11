@@ -3,7 +3,7 @@ import { currentUser } from '@clerk/nextjs/server'
 
 import { UserRole } from '~/core/structures'
 
-export default async function Layout({ children }: { children: React.ReactNode }) {
+export default async function AdminLayout(props: { children: React.ReactNode }) {
     const user = await currentUser()
 
     if (!user) {
@@ -14,5 +14,5 @@ export default async function Layout({ children }: { children: React.ReactNode }
         return redirect('/')
     }
 
-    return <>{children}</>
+    return <>{props.children}</>
 }

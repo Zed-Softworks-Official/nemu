@@ -1,12 +1,13 @@
 'use client'
 
+import { useMemo } from 'react'
 import { useTheme } from 'next-themes'
 import Link from 'next/link'
-import { useMemo } from 'react'
+
 import NemuImage from '~/components/nemu-image'
 import { Badge } from '~/components/ui/badge'
 
-export default function Logo() {
+export function FullLogo() {
     const { resolvedTheme } = useTheme()
 
     const src = useMemo(() => {
@@ -26,7 +27,7 @@ export default function Logo() {
             className="group flex shrink-0 cursor-pointer flex-row transition-all duration-200 ease-in-out hover:scale-110"
         >
             <NemuImage src={src} alt="Nemu Logo" width={138} height={54} priority />
-            <Badge className="badge-sm">Beta</Badge>
+            <Badge className="h-5 rounded-full">Beta</Badge>
         </Link>
     )
 }

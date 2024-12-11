@@ -1,12 +1,11 @@
 import UploadThingProvider from '~/components/files/uploadthing-context'
+import { CreateForm } from '../form'
 
-import { PortfolioCreateForm } from '~/components/dashboard/forms/portfolio-form'
-
-export default function CreatePortfolioPage() {
+export default function DashboardPortfolioCreatePage() {
     return (
-        <div className="container mx-auto mt-3 p-10">
+        <div className="container mx-auto">
             <UploadThingProvider endpoint="portfolioUploader">
-                <PortfolioCreateForm />
+                <CreateForm />
             </UploadThingProvider>
         </div>
     )

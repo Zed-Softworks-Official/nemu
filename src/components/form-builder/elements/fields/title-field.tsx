@@ -1,42 +1,46 @@
 'use client'
 
+import { z } from 'zod'
+import { useEffect } from 'react'
+import { Heading1 } from 'lucide-react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+
+import { Label } from '~/components/ui/label'
+import { Input } from '~/components/ui/input'
+import {
+    Form,
+    FormControl,
+    FormDescription,
+    FormField,
+    FormItem,
+    FormLabel,
+    FormMessage
+} from '~/components/ui/form'
+
+import { useDesigner } from '~/components/form-builder/designer/designer-context'
 import type {
-    ElementsType,
+    ElementType,
     FormElement,
     FormElementInstance
 } from '~/components/form-builder/elements/form-elements'
 
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-
-import * as z from 'zod'
-import { useEffect } from 'react'
-import { useDesigner } from '~/components/form-builder/designer/designer-context'
-import { DesignerInputField } from '~/components/form-builder/elements/input-field'
-import { Heading1Icon } from 'lucide-react'
-
-const type: ElementsType = 'TitleField'
-
-const extra_attributes = {
+const type: ElementType = 'TitleField'
+const metadata = {
     title: 'Title Field'
 }
 
-const propertiesSchema = z.object({
-    title: z.string().min(2).max(50)
-})
-
 export const TitleFieldFormElement: FormElement = {
-    type,
+    type: type,
 
     construct: (id: string) => ({
         id,
         type,
-        extra_attributes
+        metadata
     }),
-
-    designer_btn_element: {
-        icon: Heading1Icon,
-        label: 'Title'
+    designer_button: {
+        icon: Heading1,
+        label: 'Title Field'
     },
 
     designer_component: DesignerComponent,
@@ -47,81 +51,92 @@ export const TitleFieldFormElement: FormElement = {
 }
 
 type CustomInstance = FormElementInstance & {
-    extra_attributes: typeof extra_attributes
+    metadata: typeof metadata
 }
 
-type PropertiesFormSchemaType = z.infer<typeof propertiesSchema>
-
-function DesignerComponent({
-    elementInstance
-}: {
-    elementInstance: FormElementInstance
-}) {
-    const element = elementInstance as CustomInstance
-    const { title } = element.extra_attributes
+function DesignerComponent(props: { element_instance: FormElementInstance }) {
+    const element = props.element_instance as CustomInstance
+    const { title } = element.metadata
 
     return (
-        <div className="card bg-base-100 shadow-xl w-full">
-            <div className="card-body">
-                <label className="text-sm text-base-content/80">Title Field</label>
-                <h2 className="card-title">{title}</h2>
-            </div>
+        <div className="flex w-full flex-col gap-2">
+            <Label className="text-muted-foreground">Title Field</Label>
+            <p className="text-xl">{title}</p>
         </div>
     )
 }
 
-function FormComponent({ elementInstance }: { elementInstance: FormElementInstance }) {
-    const element = elementInstance as CustomInstance
-    const { title } = element.extra_attributes
+function FormComponent(props: { element_instance: FormElementInstance }) {
+    const element = props.element_instance as CustomInstance
+    const { title } = element.metadata
 
-    return <div className="divider card-title text-3xl card-body">{title}</div>
+    return <p className="text-xl">{title}</p>
 }
 
-function PropertiesComponent({
-    elementInstance
-}: {
-    elementInstance: FormElementInstance
-}) {
-    const element = elementInstance as CustomInstance
-    const { updateElement } = useDesigner()
+const properties_schema = z.object({
+    title: z.string().min(2).max(50)
+})
+
+type PropertiesFormSchemaType = z.infer<typeof properties_schema>
+
+function PropertiesComponent(props: { element_instance: FormElementInstance }) {
+    const { update_element } = useDesigner()
+
+    const element = props.element_instance as CustomInstance
+    const { title } = element.metadata
+
     const form = useForm<PropertiesFormSchemaType>({
-        resolver: zodResolver(propertiesSchema),
+        resolver: zodResolver(properties_schema),
         mode: 'onBlur',
         defaultValues: {
-            title: element.extra_attributes.title
+            title: title ?? ''
         }
     })
 
     useEffect(() => {
-        form.reset(element.extra_attributes)
+        form.reset(element.metadata)
     }, [element, form])
 
-    function applyChanges(values: PropertiesFormSchemaType) {
-        updateElement(element.id, {
+    function process_form(values: PropertiesFormSchemaType) {
+        update_element(element.id, {
             ...element,
-            extra_attributes: {
-                ...values
-            }
+            metadata: values
         })
     }
 
     return (
-        <form
-            onBlur={form.handleSubmit(applyChanges)}
-            onSubmit={(e) => {
-                e.preventDefault()
-            }}
-            className="flex flex-col w-full space-y-3"
-        >
-            <DesignerInputField
-                label="Title"
-                description={
-                    <p className="text-base-content/80">
-                        This will create a new section with the given title.
-                    </p>
-                }
-                {...form.register('title')}
-            />
-        </form>
+        <Form {...form}>
+            <form
+                onBlur={form.handleSubmit(process_form)}
+                className="space-y-3"
+                onSubmit={(e) => e.preventDefault()}
+            >
+                <FormField
+                    control={form.control}
+                    name="title"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Title</FormLabel>
+                            <FormControl>
+                                <Input
+                                    {...field}
+                                    className="bg-background"
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.currentTarget.blur()
+                                        }
+                                    }}
+                                />
+                            </FormControl>
+                            <FormDescription>
+                                Add a title to organize and structure your form. <br />
+                                Use this to create clear sections and headings
+                            </FormDescription>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            </form>
+        </Form>
     )
 }

@@ -1,72 +1,69 @@
 'use client'
 
-import { type Dispatch, type SetStateAction, createContext, useContext, useState } from 'react'
+import {
+    createContext,
+    type Dispatch,
+    type SetStateAction,
+    useContext,
+    useState
+} from 'react'
 import type { FormElementInstance } from '~/components/form-builder/elements/form-elements'
 
 type DesignerContextType = {
     elements: FormElementInstance[]
-    setElements: Dispatch<SetStateAction<FormElementInstance[]>>
-    addElement: (index: number, element: FormElementInstance) => void
-    removeElement: (id: string) => void
+    set_elements: Dispatch<SetStateAction<FormElementInstance[]>>
 
-    selectedElement: FormElementInstance | null
-    setSelectedElement: Dispatch<SetStateAction<FormElementInstance | null>>
+    add_element: (index: number, element: FormElementInstance) => void
+    update_element: (id: string, element: FormElementInstance) => void
+    remove_element: (id: string) => void
 
-    updateElement: (id: string, element: FormElementInstance) => void
+    selected_element: FormElementInstance | null
+    set_selected_element: Dispatch<SetStateAction<FormElementInstance | null>>
 }
 
 const DesignerContext = createContext<DesignerContextType | null>(null)
 
-export function DesignerProvider({
-    initial_elements,
-    children
-}: {
-    initial_elements: FormElementInstance[]
-    children: React.ReactNode
-}) {
-    const [elements, setElements] = useState<FormElementInstance[]>(initial_elements)
+export default function DesignerProvider(props: { children: React.ReactNode }) {
+    const [elements, setElements] = useState<FormElementInstance[]>([])
     const [selectedElement, setSelectedElement] = useState<FormElementInstance | null>(
         null
     )
 
-    const addElement = (index: number, element: FormElementInstance) => {
-        setElements((prev) => {
-            const newElements = [...prev]
-            newElements.splice(index, 0, element)
-
-            return newElements
-        })
+    const add_element = (index: number, element: FormElementInstance) => {
+        setElements((prev) => [...prev.slice(0, index), element, ...prev.slice(index)])
     }
 
-    const removeElement = (id: string) => {
+    const remove_element = (id: string) => {
         setElements((prev) => prev.filter((element) => element.id !== id))
     }
 
-    const updateElement = (id: string, element: FormElementInstance) => {
-        setElements((prev) => {
-            const newElements = [...prev]
-            const index = newElements.findIndex((element) => element.id === id)
-
-            newElements[index] = element
-            return newElements
-        })
+    const update_element = (id: string, element: FormElementInstance) => {
+        setElements((prev) => prev.map((e) => (e.id === id ? element : e)))
     }
 
     return (
         <DesignerContext.Provider
             value={{
                 elements,
-                setElements,
-                addElement,
-                removeElement,
-                selectedElement,
-                setSelectedElement,
-                updateElement
+                set_elements: setElements,
+                add_element,
+                remove_element,
+                update_element,
+                selected_element: selectedElement,
+                set_selected_element: setSelectedElement
             }}
         >
-            {children}
+            {props.children}
         </DesignerContext.Provider>
     )
 }
 
-export const useDesigner = () => useContext(DesignerContext)!
+export const useDesigner = () => {
+    const context = useContext(DesignerContext)
+
+    if (!context) {
+        throw new Error('useDesigner must be used within a DesignerProvider')
+    }
+
+    return context
+}

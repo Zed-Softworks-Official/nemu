@@ -1,10 +1,10 @@
 import { currentUser } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
 import { Suspense } from 'react'
-import MessagesClient from '~/components/messages/messages'
+import { MessagesClient } from '~/components/messages/messages-client'
 import Loading from '~/components/ui/loading'
 
-export default async function RequestMessagesPage(props: {
+export default async function MessagesPage(props: {
     params: Promise<{ order_id: string }>
 }) {
     const params = await props.params
@@ -23,5 +23,5 @@ async function DisplayClient(props: { order_id: string }) {
         return redirect('/u/login')
     }
 
-    return <MessagesClient hide={true} channel_url={props.order_id} user_id={user.id} />
+    return <MessagesClient list_hidden={true} current_order_id={props.order_id} />
 }

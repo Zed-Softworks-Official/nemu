@@ -1,15 +1,14 @@
 import type { InferSelectModel } from 'drizzle-orm'
 import type {
-    NemuImageData,
     KanbanContainerData,
-    KanbanTask,
-    ImageEditorData
+    ImageEditorData,
+    ClientNemuImageData
 } from '~/core/structures'
 import type {
     artists,
     commissions,
     downloads,
-    invoice_items,
+    forms,
     invoices,
     kanbans,
     requests
@@ -53,16 +52,15 @@ export type ClientRequestData = InferSelectModel<typeof requests> & {
         id: string
         username: string
     }
-    commission?: InferSelectModel<typeof commissions> & {
+    commission?: Omit<InferSelectModel<typeof commissions>, 'images'> & {
         artist?: InferSelectModel<typeof artists>
+        images: ClientNemuImageData[]
     }
     delivery?: InferSelectModel<typeof downloads> & {
         blur_data?: string
         file_type: 'image' | 'zip'
     }
-    invoice?: InferSelectModel<typeof invoices> & {
-        invoice_items: InferSelectModel<typeof invoice_items>[]
-    }
+    invoice?: InferSelectModel<typeof invoices>
     kanban?: InferSelectModel<typeof kanbans>
 }
 
@@ -78,7 +76,7 @@ export type ClientCommissionItem = {
     price: string
     raw_price?: number
 
-    images: NemuImageData[]
+    images: ClientNemuImageData[]
     rating: number
 
     availability: CommissionAvailability
@@ -102,9 +100,7 @@ export type ClientCommissionItem = {
     }
 
     // Form Data
-    form?: {
-        content: string
-    }
+    form?: InferSelectModel<typeof forms>
 
     // Review Data
     reviews?: {
@@ -126,12 +122,12 @@ export type ClientCommissionItemEditable = {
     slug: string
     published: boolean
 
-    price: number
+    price: string
 
     max_commissions_until_waitlist: number
     max_commissions_until_closed: number
 
-    form_id: string
+    form_name: string
 
     images: ImageEditorData[]
 }
@@ -145,12 +141,4 @@ export enum RequestStatus {
     Rejected = 'rejected',
     Delivered = 'delivered',
     Waitlist = 'waitlist'
-}
-
-/**
- * Kanban Message Data for commissions
- */
-export type KanbanSendbirdData = {
-    containers: KanbanContainerData[]
-    tasks: KanbanTask[]
 }

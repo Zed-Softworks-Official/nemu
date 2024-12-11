@@ -1,42 +1,42 @@
 import { CheckCircleIcon } from 'lucide-react'
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
-import SupporterButton from '~/components/supporter-button'
+import SupporterButton from './supporter-button'
+import { Separator } from '~/components/ui/separator'
 
 const includedFeatures = ['0% Platform Fees', 'Fund Nemu Development', 'More Coming Soon']
 
 export default function GetSupporterPage() {
     return (
-        <div className="card bg-base-300 py-24 shadow-xl sm:py-32">
+        <div className="py-24 sm:py-32">
             <div className="card-body">
                 <div className="mx-auto max-w-7xl px-6 lg:px-8">
                     <div className="mx-auto max-w-2xl sm:text-center">
-                        <h2 className="text-3xl font-bold tracking-tight text-base-content sm:text-4xl">
+                        <h2 className="text-base-content text-3xl font-bold tracking-tight sm:text-4xl">
                             Become A Supporter
                         </h2>
-                        <p className="mt-6 text-lg leading-8 text-base-content/80">
+                        <p className="mt-6 text-lg leading-8 text-muted-foreground">
                             As a supporter, you&apos;ll be able to reduce Nemu&apos;s
                             platform fees to 0%. Becoming a supporter is a fantastic way
                             to help fund the development of Nemu.
                         </p>
                     </div>
-                    <div className="mx-auto mt-16 max-w-2xl rounded-3xl ring-1 ring-base-100 sm:mt-20 lg:mx-0 lg:flex lg:max-w-none">
+                    <div className="mx-auto mt-16 max-w-2xl rounded-3xl ring-1 ring-background-tertiary sm:mt-20 lg:mx-0 lg:flex lg:max-w-none">
                         <div className="p-8 sm:p-10 lg:flex-auto">
-                            <h3 className="text-2xl font-bold tracking-tight text-base-content">
+                            <h3 className="text-base-content text-2xl font-bold tracking-tight">
                                 Supporter Membership
                             </h3>
-                            <p className="mt-6 text-base leading-7 text-base-content/80">
+                            <p className="text-base-content/80 mt-6 text-base leading-7">
                                 As of now, supporters only reduce the platform fees to 0%
                                 and help fund the development of Nemu. We&apos;re working
                                 on adding more features to the supporter membership, so
                                 stay tuned!
                             </p>
-                            <div className="divider text-primary">
-                                What&apos;s included
-                            </div>
+                            <Separator className="my-5" />
+                            <div className="text-primary">What&apos;s included</div>
                             <ul
                                 role="list"
-                                className="mt-8 grid grid-cols-1 gap-4 text-sm leading-6 text-base-content/80 sm:grid-cols-2 sm:gap-6"
+                                className="mt-8 grid grid-cols-1 gap-4 text-sm leading-6 text-muted-foreground sm:grid-cols-2 sm:gap-6"
                             >
                                 {includedFeatures.map((feature) => (
                                     <li key={feature} className="flex gap-x-3">
@@ -50,7 +50,7 @@ export default function GetSupporterPage() {
                             </ul>
                         </div>
                         <div className="-mt-2 p-2 lg:mt-0 lg:w-full lg:max-w-md lg:flex-shrink-0">
-                            <div className="rounded-2xl bg-base-200 py-10 text-center ring-1 ring-inset ring-gray-900/5 lg:flex lg:flex-col lg:justify-center lg:py-16">
+                            <div className="rounded-2xl bg-background-secondary py-10 text-center ring-1 ring-inset ring-gray-900/5 lg:flex lg:flex-col lg:justify-center lg:py-16">
                                 <div className="mx-auto max-w-xs px-8">
                                     <Tabs defaultValue="monthly">
                                         <TabsList className="mb-6">
@@ -62,31 +62,31 @@ export default function GetSupporterPage() {
                                             </TabsTrigger>
                                         </TabsList>
                                         <TabsContent value="monthly">
-                                            <p className="mt-6 flex items-baseline justify-center gap-x-2">
-                                                <span className="text-5xl font-bold tracking-tight text-base-content">
+                                            <p className="my-6 flex items-baseline justify-center gap-x-2">
+                                                <span className="text-5xl font-bold tracking-tight text-foreground">
                                                     $6
                                                 </span>
-                                                <span className="text-sm font-semibold leading-6 tracking-wide text-base-content/60">
+                                                <span className="text-sm font-semibold leading-6 tracking-wide text-muted-foreground">
                                                     /month
                                                 </span>
                                             </p>
                                             <SupporterButton term="monthly" />
-                                            <p className="mt-6 text-xs leading-5 text-base-content/60">
+                                            <p className="mt-6 text-xs leading-5 text-muted-foreground/60">
                                                 Invoices and receipts available for easy
                                                 company reimbursement
                                             </p>
                                         </TabsContent>
                                         <TabsContent value="annual">
-                                            <p className="mt-6 flex items-baseline justify-center gap-x-2">
-                                                <span className="text-5xl font-bold tracking-tight text-base-content">
+                                            <p className="my-6 flex items-baseline justify-center gap-x-2">
+                                                <span className="text-base-content text-5xl font-bold tracking-tight">
                                                     $57.60
                                                 </span>
-                                                <span className="text-sm font-semibold leading-6 tracking-wide text-base-content/60">
+                                                <span className="text-sm font-semibold leading-6 tracking-wide text-muted-foreground">
                                                     /year
                                                 </span>
                                             </p>
                                             <SupporterButton term="annual" />
-                                            <p className="mt-6 text-xs leading-5 text-base-content/60">
+                                            <p className="mt-6 text-xs leading-5 text-muted-foreground/60">
                                                 Invoices and receipts available for easy
                                                 company reimbursement
                                             </p>

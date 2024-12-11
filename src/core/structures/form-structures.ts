@@ -1,4 +1,3 @@
-
 export type ClientForm = {
     id: string
     name: string
@@ -6,4 +5,4 @@ export type ClientForm = {
     content?: string
 }
 
-export type RequestContent = Record<string, { value: string, label: string }>
+export type RequestContent = Record<string, { value: string; label: string }>

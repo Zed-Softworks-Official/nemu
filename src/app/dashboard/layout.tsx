@@ -14,8 +14,9 @@ import {
 
 import { currentUser } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
+import { unstable_cache } from 'next/cache'
 
-import Logo, { IconLogo } from '~/components/ui/logo'
+import { FullLogo, IconLogo } from '~/components/ui/logo'
 import {
     SidebarProvider,
     Sidebar,
@@ -38,8 +39,7 @@ import {
 } from '~/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
 import { get_dashboard_links } from '~/server/actions/stripe'
-import DashboardBreadcrumbs from '~/components/dashboard/header-breadcrumbs'
-import { unstable_cache } from 'next/cache'
+import { DashboardBreadcrumbs } from './breadcrumbs'
 import { Separator } from '~/components/ui/separator'
 
 export const metadata = {
@@ -90,13 +90,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     return (
         <SidebarProvider>
             <DashboardSidebar />
-            <main className="flex min-h-screen w-full flex-col bg-base-200">
+            <main className="flex min-h-screen w-full flex-col bg-background-secondary">
                 <header className="my-3 flex h-10 shrink-0 items-center gap-2">
                     <SidebarTrigger />
                     <Separator orientation="vertical" className="h-1/2" />
                     <DashboardBreadcrumbs />
                 </header>
-                <div className="mb-3 mr-3 flex-grow rounded-xl bg-base-100 py-5">
+                <div className="mb-3 mr-3 flex-grow rounded-xl bg-background py-5">
                     {children}
                 </div>
             </main>
@@ -109,7 +109,7 @@ function DashboardSidebar() {
         <Sidebar collapsible="icon">
             <SidebarHeader className="flex items-center gap-2">
                 <div className="group-data-[collapsible=icon]:hidden">
-                    <Logo />
+                    <FullLogo />
                 </div>
                 <div className="group-data-[state=expanded]:hidden">
                     <IconLogo />
@@ -165,7 +165,11 @@ async function SidebarUserdropdown() {
                     <DropdownMenuTrigger asChild>
                         <SidebarMenuButton>
                             <Avatar className="h-8 w-8">
-                                <AvatarImage src={clerk_user.imageUrl} alt="Avatar" />
+                                <AvatarImage
+                                    src={clerk_user.imageUrl}
+                                    alt="Avatar"
+                                    className="h-full w-full"
+                                />
                                 <AvatarFallback>
                                     <User className="h-6 w-6" />
                                 </AvatarFallback>
@@ -179,7 +183,10 @@ async function SidebarUserdropdown() {
                         className="w-[--radix-popper-anchor-width]"
                     >
                         <DropdownMenuItem asChild>
-                            <Link prefetch={true} href={`/@${clerk_user.username}`}>
+                            <Link
+                                prefetch={true}
+                                href={`/@${clerk_user.privateMetadata.handle as string}`}
+                            >
                                 My Page
                             </Link>
                         </DropdownMenuItem>
