@@ -1,6 +1,7 @@
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import { CommissionAvailability, type NemuImageData } from '~/core/structures'
+import { env } from '~/env'
 
 export function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs))
@@ -71,3 +72,7 @@ export async function convert_images_to_nemu_images(images: NemuImageData[]) {
 }
 
 export const to_pusher_key = (key: string) => key.replace(/:/g, '__')
+
+export function get_image_url(ut_key: string) {
+    return `https://utfs.io/a/${env.NEXT_PUBLIC_UPLOADTHING_APP_ID}/${ut_key}`
+}

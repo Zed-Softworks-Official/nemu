@@ -1,5 +1,5 @@
 import UploadThingProvider from '~/components/files/uploadthing-context'
-import { CreateForm } from './form'
+import { CreateForm } from '../form'
 
 export default function CreateCommissionPage() {
     return (

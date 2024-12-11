@@ -11,12 +11,14 @@ const config = {
             {
                 protocol: 'https',
                 hostname: 'utfs.io',
-                pathname: '/f/**'
+                pathname: '/a/74fsewdwmb/**',
+                search: ''
             },
             {
                 protocol: 'https',
                 hostname: 'img.clerk.com',
-                pathname: '/**'
+                pathname: '/**',
+                search: ''
             }
         ]
     }

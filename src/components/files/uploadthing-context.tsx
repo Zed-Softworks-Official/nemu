@@ -106,4 +106,12 @@ export default function UploadThingProvider({
     )
 }
 
-export const useUploadThingContext = () => useContext(UploadThingContext)!
+export function useNemuUploadThing() {
+    const context = useContext(UploadThingContext)
+
+    if (!context) {
+        throw new Error('useUploadThingContext must be used within a UploadThingProvider')
+    }
+
+    return context
+}

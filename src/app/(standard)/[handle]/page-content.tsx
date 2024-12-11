@@ -305,7 +305,7 @@ function PortfolioList(props: { handle: string }) {
                 <div key={portfolio.id} className="relative overflow-hidden rounded-lg">
                     <AspectRatio ratio={1}>
                         <NemuImage
-                            src={portfolio.image_url}
+                            src={portfolio.image.url}
                             alt={portfolio.title}
                             fill
                             className="object-cover transition-transform duration-300 hover:scale-110"

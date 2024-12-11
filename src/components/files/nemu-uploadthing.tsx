@@ -18,7 +18,7 @@ import { Trash2Icon, UploadCloudIcon } from 'lucide-react'
 import { generateClientDropzoneAccept } from 'uploadthing/client'
 import { useDropzone } from '@uploadthing/react'
 
-import { useUploadThingContext } from '~/components/files/uploadthing-context'
+import { useNemuUploadThing } from '~/components/files/uploadthing-context'
 
 import type { ImageEditorData } from '~/core/structures'
 
@@ -36,7 +36,7 @@ import {
 import { Button } from '../ui/button'
 
 export default function NemuUploadThing() {
-    const { images, setImages } = useUploadThingContext()
+    const { images, setImages } = useNemuUploadThing()
 
     const [activeFile, setActiveFile] = useState<ImageEditorData | null>(null)
     const [currentImages, setCurrentImages] = useState<ImageEditorData[]>(images)
@@ -107,7 +107,7 @@ export default function NemuUploadThing() {
 }
 
 function NemuUploadProgress() {
-    const { uploadProgress, isUploading } = useUploadThingContext()
+    const { uploadProgress, isUploading } = useNemuUploadThing()
 
     if (!isUploading) return null
 
@@ -116,14 +116,17 @@ function NemuUploadProgress() {
 
 function NemuUploadDropzone(props: {
     className?: string
+    limit?: number
     setCurrentImages: (currentImages: ImageEditorData[]) => void
 }) {
-    const { images, setImages, fileTypes } = useUploadThingContext()
+    const { images, setImages, fileTypes } = useNemuUploadThing()
 
     const onDrop = useCallback(
         (acceptedFiles: File[]) => {
             // Check if we have too many images
-            if (images.length + acceptedFiles.length > 6) {
+            const limit = props.limit ?? 6
+
+            if (images.length + acceptedFiles.length > limit) {
                 toast.error('Too many images!')
                 return
             }
@@ -280,5 +283,27 @@ function NemuPreviewItem(props: {
                 </ContextMenuItem>
             </ContextMenuContent>
         </ContextMenu>
+    )
+}
+
+export function NemuSingleDropzone() {
+    const { images, setImages } = useNemuUploadThing()
+
+    return (
+        <div className="flex flex-col gap-5">
+            <NemuUploadProgress />
+            <NemuUploadDropzone setCurrentImages={setImages} limit={1} />
+            {images.length > 0 && (
+                <div className="flex h-full w-full">
+                    <NemuImage
+                        src={images[0]?.data.image_data.url ?? '/profile.png'}
+                        alt="Image Preview"
+                        width={200}
+                        height={200}
+                        className="h-full w-full rounded-xl"
+                    />
+                </div>
+            )}
+        </div>
     )
 }

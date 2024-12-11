@@ -8,6 +8,7 @@ import { request_router } from './routers/request'
 import { commission_router } from './routers/commission'
 import { artist_router } from './routers/artist'
 import { chat_router } from './routers/chat'
+import { portfolio_router } from './routers/portfolio'
 
 /**
  * This is the primary router for your server.
@@ -22,7 +23,8 @@ export const appRouter = createTRPCRouter({
     kanban: kanban_router,
     request: request_router,
     commission: commission_router,
-    chat: chat_router
+    chat: chat_router,
+    portfolio: portfolio_router
 })
 
 // export type definition of API

@@ -165,7 +165,11 @@ async function SidebarUserdropdown() {
                     <DropdownMenuTrigger asChild>
                         <SidebarMenuButton>
                             <Avatar className="h-8 w-8">
-                                <AvatarImage src={clerk_user.imageUrl} alt="Avatar" />
+                                <AvatarImage
+                                    src={clerk_user.imageUrl}
+                                    alt="Avatar"
+                                    className="h-full w-full"
+                                />
                                 <AvatarFallback>
                                     <User className="h-6 w-6" />
                                 </AvatarFallback>

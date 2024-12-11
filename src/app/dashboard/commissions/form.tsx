@@ -7,7 +7,7 @@ import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import NemuUploadThing from '~/components/files/nemu-uploadthing'
-import { useUploadThingContext } from '~/components/files/uploadthing-context'
+import { useNemuUploadThing } from '~/components/files/uploadthing-context'
 import { Button } from '~/components/ui/button'
 import { Form, FormField, FormItem, FormLabel, FormMessage } from '~/components/ui/form'
 import { Input } from '~/components/ui/input'
@@ -42,7 +42,7 @@ const commissionSchema = z.object({
 type CommissionSchemaType = z.infer<typeof commissionSchema>
 
 export function CreateForm() {
-    const { images, uploadImages, isUploading } = useUploadThingContext()
+    const { images, uploadImages, isUploading } = useNemuUploadThing()
     const form = useForm<CommissionSchemaType>({
         resolver: zodResolver(commissionSchema),
         mode: 'onSubmit',

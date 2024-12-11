@@ -1,4 +1,4 @@
-import type { UniqueIdentifier } from "@dnd-kit/core"
+import type { UniqueIdentifier } from '@dnd-kit/core'
 
 /**
  * Contains the url for the image as well as the blur data for the placeholder

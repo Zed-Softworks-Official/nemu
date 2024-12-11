@@ -8,5 +8,4 @@ export type ClientPortfolioItem = {
     id: string
     title: string
     image: NemuImageData
-    utKey?: string
 }
