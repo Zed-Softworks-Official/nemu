@@ -34,6 +34,7 @@ import {
     ContextMenuTrigger
 } from '~/components/ui/context-menu'
 import { Button } from '../ui/button'
+import Image from 'next/image'
 
 export default function NemuUploadThing() {
     const { images, setImages } = useNemuUploadThing()
@@ -52,8 +53,9 @@ export default function NemuUploadThing() {
     function OnDelete(index: number) {
         if (currentImages.length !== 0) {
             setCurrentImages((prev) => {
-                prev[index]!.data.action = 'delete'
-                return prev
+                const newImages = [...prev]
+                newImages[index]!.data.action = 'delete'
+                return newImages
             })
         }
     }
@@ -259,7 +261,6 @@ function NemuPreviewItem(props: {
                 <div
                     className={cn(
                         isDragging && 'opacity-50',
-
                         'relative w-32 cursor-grab transition-all duration-200 ease-in-out hover:scale-110'
                     )}
                     ref={setNodeRef}
@@ -267,8 +268,10 @@ function NemuPreviewItem(props: {
                     {...listeners}
                     {...attributes}
                 >
-                    <NemuImage
-                        src={props.preview.data.image_data.url}
+                    <Image
+                        src={
+                            props.preview.data.image_data.url ?? '/nemu/not-like-this.png'
+                        }
                         alt="Image Preview"
                         className="h-fit w-full rounded-xl"
                         width={200}
@@ -277,8 +280,8 @@ function NemuPreviewItem(props: {
                 </div>
             </ContextMenuTrigger>
             <ContextMenuContent>
-                <ContextMenuItem onMouseDown={() => props.onDelete(props.index)}>
-                    <Trash2Icon className="h-6 w-6" />
+                <ContextMenuItem onClick={() => props.onDelete(props.index)}>
+                    <Trash2Icon className="mr-2 h-4 w-4" />
                     Delete
                 </ContextMenuItem>
             </ContextMenuContent>

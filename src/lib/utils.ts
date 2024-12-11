@@ -1,6 +1,10 @@
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
-import { CommissionAvailability, type NemuImageData } from '~/core/structures'
+import {
+    ClientNemuImageData,
+    CommissionAvailability,
+    type NemuImageData
+} from '~/core/structures'
 import { env } from '~/env'
 
 export function cn(...inputs: ClassValue[]) {
@@ -60,11 +64,11 @@ export function calculate_percentage_change(current: number, previous: number) {
  */
 export async function convert_images_to_nemu_images(images: NemuImageData[]) {
     // Format for client
-    const result: NemuImageData[] = []
+    const result: ClientNemuImageData[] = []
 
     for (const image of images) {
         result.push({
-            url: image.url
+            url: get_image_url(image.ut_key)
         })
     }
 

@@ -1,8 +1,8 @@
 import type { InferSelectModel } from 'drizzle-orm'
 import type {
-    NemuImageData,
     KanbanContainerData,
-    ImageEditorData
+    ImageEditorData,
+    ClientNemuImageData
 } from '~/core/structures'
 import type {
     artists,
@@ -75,7 +75,7 @@ export type ClientCommissionItem = {
     price: string
     raw_price?: number
 
-    images: NemuImageData[]
+    images: ClientNemuImageData[]
     rating: number
 
     availability: CommissionAvailability
@@ -121,12 +121,12 @@ export type ClientCommissionItemEditable = {
     slug: string
     published: boolean
 
-    price: number
+    price: string
 
     max_commissions_until_waitlist: number
     max_commissions_until_closed: number
 
-    form_id: string
+    form_name: string
 
     images: ImageEditorData[]
 }

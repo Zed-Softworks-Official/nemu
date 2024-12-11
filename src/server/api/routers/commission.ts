@@ -5,8 +5,16 @@ import { z } from 'zod'
 import { createId } from '@paralleldrive/cuid2'
 
 import { artists, commissions } from '~/server/db/schema'
-import { type ClientCommissionItem, CommissionAvailability } from '~/core/structures'
-import { convert_images_to_nemu_images, format_to_currency } from '~/lib/utils'
+import {
+    type ClientCommissionItem,
+    type ClientCommissionItemEditable,
+    CommissionAvailability
+} from '~/core/structures'
+import {
+    convert_images_to_nemu_images,
+    format_to_currency,
+    get_image_url
+} from '~/lib/utils'
 import { utapi } from '~/server/uploadthing'
 import { update_index } from '~/server/algolia/collections'
 import { clerkClient } from '@clerk/nextjs/server'
@@ -21,7 +29,6 @@ export const commission_router = createTRPCRouter({
                 availability: z.nativeEnum(CommissionAvailability),
                 images: z.array(
                     z.object({
-                        url: z.string(),
                         ut_key: z.string()
                     })
                 ),
@@ -82,23 +89,8 @@ export const commission_router = createTRPCRouter({
                     description: z.string().optional(),
                     price: z.number().optional(),
                     availability: z.nativeEnum(CommissionAvailability).optional(),
-                    images: z
-                        .array(
-                            z.object({
-                                action: z
-                                    .literal('create')
-                                    .or(z.literal('update'))
-                                    .or(z.literal('delete')),
-                                image_data: z.object({
-                                    url: z.string(),
-                                    ut_key: z.string().optional(),
-                                    file_data: z.instanceof(File).optional()
-                                })
-                            })
-                        )
-                        .optional(),
+                    images: z.array(z.string()).optional(),
                     deleted_images: z.array(z.string()).optional(),
-                    form_id: z.string().optional(),
                     max_commissions_until_waitlist: z.number().optional(),
                     max_commissions_until_closed: z.number().optional(),
                     published: z.boolean().optional()
@@ -124,10 +116,12 @@ export const commission_router = createTRPCRouter({
                     description: input.data.description,
                     price: input.data.price,
                     availability: input.data.availability,
-                    form_id: input.data.form_id,
                     max_commissions_until_waitlist:
                         input.data.max_commissions_until_waitlist,
                     max_commissions_until_closed: input.data.max_commissions_until_closed,
+                    images: input.data.images?.map((image) => ({
+                        ut_key: image
+                    })),
                     published: input.data.published
                 })
                 .where(eq(commissions.id, input.id))
@@ -145,7 +139,7 @@ export const commission_router = createTRPCRouter({
                 title: updated_commission[0]!.title,
                 price: format_to_currency(updated_commission[0]!.price / 100),
                 description: updated_commission[0]!.description,
-                featured_image: updated_commission[0]!.images[0]!.url,
+                featured_image: updated_commission[0]!.images[0]!.ut_key,
                 slug: updated_commission[0]!.slug,
                 artist_handle: ctx.artist.handle,
                 published: updated_commission[0]!.published
@@ -219,6 +213,60 @@ export const commission_router = createTRPCRouter({
             return result
         }),
 
+    get_commission_for_editing: artistProcedure
+        .input(
+            z.object({
+                slug: z.string()
+            })
+        )
+        .query(async ({ ctx, input }) => {
+            const commission = await ctx.db.query.commissions.findFirst({
+                where: and(
+                    eq(commissions.slug, input.slug),
+                    eq(commissions.artist_id, ctx.artist.id)
+                ),
+                with: {
+                    form: true
+                }
+            })
+
+            if (!commission) {
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Commission not found'
+                })
+            }
+
+            const result: ClientCommissionItemEditable = {
+                id: commission.id,
+                title: commission.title,
+                description: commission.description,
+                price: (commission.price / 100).toFixed(2),
+
+                form_name: commission.form.name,
+
+                availability: commission.availability as CommissionAvailability,
+                slug: commission.slug,
+                published: commission.published,
+
+                images: commission.images.map((image) => ({
+                    id: createId(),
+                    data: {
+                        action: 'update',
+                        image_data: {
+                            url: get_image_url(image.ut_key ?? ''),
+                            ut_key: image.ut_key
+                        }
+                    }
+                })),
+
+                max_commissions_until_closed: commission.max_commissions_until_closed,
+                max_commissions_until_waitlist: commission.max_commissions_until_waitlist
+            }
+
+            return result
+        }),
+
     get_commission_list: artistProcedure.query(async ({ ctx }) => {
         const artist = await ctx.db.query.artists.findFirst({
             where: eq(artists.id, ctx.artist.id),
@@ -249,7 +297,7 @@ export const commission_router = createTRPCRouter({
                 published: commission.published,
                 images: [
                     {
-                        url: commission.images[0]!.url
+                        url: get_image_url(commission.images[0]!.ut_key)
                     }
                 ],
                 slug: commission.slug,

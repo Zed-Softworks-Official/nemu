@@ -183,7 +183,10 @@ async function SidebarUserdropdown() {
                         className="w-[--radix-popper-anchor-width]"
                     >
                         <DropdownMenuItem asChild>
-                            <Link prefetch={true} href={`/@${clerk_user.username}`}>
+                            <Link
+                                prefetch={true}
+                                href={`/@${clerk_user.privateMetadata.handle as string}`}
+                            >
                                 My Page
                             </Link>
                         </DropdownMenuItem>

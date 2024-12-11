@@ -19,7 +19,6 @@ import { type FormElementInstance } from '~/components/form-builder/elements/for
 
 import {
     type SocialAccount,
-    type NemuImageData,
     UserRole,
     CommissionAvailability,
     InvoiceStatus,
@@ -223,7 +222,14 @@ export const commissions = createTable('commission', {
 
     title: text('title').notNull(),
     description: text('description').notNull(),
-    images: json('images').$type<NemuImageData[]>().notNull(),
+    images: json('images')
+        .$type<
+            {
+                ut_key: string
+                blur_data?: string
+            }[]
+        >()
+        .notNull(),
     availability: CommissionAvailabilityEnum('availability').notNull(),
     slug: text('slug').notNull(),
 
