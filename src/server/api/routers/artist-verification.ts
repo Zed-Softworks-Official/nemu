@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { createTRPCRouter, protectedProcedure } from '../trpc'
+import { adminProcedure, createTRPCRouter, protectedProcedure } from '../trpc'
 import { clerkClient } from '@clerk/nextjs/server'
 import { revalidateTag } from 'next/cache'
 import { createId } from '@paralleldrive/cuid2'
@@ -56,6 +56,10 @@ export const artist_verification_router = createTRPCRouter({
 
             return { success: true, codes: result }
         }),
+
+    get_artist_codes: adminProcedure.query(async ({ ctx }) => {
+        return await ctx.db.query.artist_codes.findMany()
+    }),
 
     verify_artist: protectedProcedure
         .input(

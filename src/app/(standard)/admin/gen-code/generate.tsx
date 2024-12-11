@@ -20,6 +20,8 @@ const schema = z.object({
 type SchemaType = z.infer<typeof schema>
 
 export default function GenerateAristCode() {
+    const utils = api.useUtils()
+
     const [toastId, setToastId] = useState<string | number | null>(null)
     const [generatedCodes, setGeneratedCodes] = useState<string[]>([])
 
@@ -34,6 +36,8 @@ export default function GenerateAristCode() {
             toast.success('Codes generated successfully', {
                 id: toastId
             })
+
+            void utils.artist_verification.get_artist_codes.invalidate()
         },
         onError: (error) => {
             if (!toastId) return

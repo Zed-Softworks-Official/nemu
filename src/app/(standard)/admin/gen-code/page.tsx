@@ -1,55 +1,19 @@
-import { unstable_cache } from 'next/cache'
-import { db } from '~/server/db'
-import { Suspense } from 'react'
-
-import Loading from '~/components/ui/loading'
 import { DataTable } from '~/components/data-table'
 import GenerateAristCode from './generate'
 import { Separator } from '~/components/ui/separator'
-
-type ArtistCode = {
-    code: string
-    created_at: string
-}
-
-const get_artist_codes = unstable_cache(
-    async () => {
-        const artist_codes = await db.query.artist_codes.findMany()
-
-        if (!artist_codes) {
-            return []
-        }
-
-        const result: ArtistCode[] = []
-        for (const code of artist_codes) {
-            result.push({
-                code: code.code,
-                created_at: code.created_at.toLocaleDateString()
-            })
-        }
-
-        return result
-    },
-    ['artist_codes'],
-    {
-        tags: ['artist_codes'],
-        revalidate: 3600
-    }
-)
+import { api } from '~/trpc/server'
 
 export default function GenerateCodePage() {
     return (
         <div className="container mx-auto flex flex-col gap-5">
             <GenerateAristCode />
-            <Suspense fallback={<Loading />}>
-                <CurrentArtistCodes />
-            </Suspense>
+            <CurrentArtistCodes />
         </div>
     )
 }
 
 async function CurrentArtistCodes() {
-    const artist_codes = await get_artist_codes()
+    const artist_codes = await api.artist_verification.get_artist_codes()
 
     return (
         <div>

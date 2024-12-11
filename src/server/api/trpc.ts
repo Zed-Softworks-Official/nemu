@@ -12,8 +12,9 @@ import superjson from 'superjson'
 import { ZodError } from 'zod'
 
 import { db } from '~/server/db'
-import { artists } from '../db/schema'
+import { artists, users } from '../db/schema'
 import { eq } from 'drizzle-orm'
+import { UserRole } from '~/core/structures'
 
 /**
  * 1. CONTEXT
@@ -159,6 +160,36 @@ export const artistProcedure = protectedProcedure.use(async ({ next, ctx }) => {
             ...ctx,
             artist: {
                 ...artist
+            }
+        }
+    })
+})
+
+/**
+ * Admin procedure
+ *
+ * This procedure extends the protected procedure to verify that the authenticated user
+ * is an admin in the system. It queries the database to find the user record and checks
+ * their role. If the user is not found or does not have the admin role, it throws an
+ * unauthorized error.
+ */
+export const adminProcedure = protectedProcedure.use(async ({ next, ctx }) => {
+    const user = await ctx.db.query.users.findFirst({
+        where: eq(users.clerk_id, ctx.auth.userId)
+    })
+
+    if (user?.role !== UserRole.Admin) {
+        throw new TRPCError({
+            code: 'UNAUTHORIZED',
+            message: 'User is not an admin'
+        })
+    }
+
+    return next({
+        ctx: {
+            ...ctx,
+            user: {
+                ...user
             }
         }
     })
