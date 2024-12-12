@@ -1,7 +1,14 @@
 'use client'
 
 import { Input } from '~/components/ui/input'
-import { Form, FormControl, FormField, FormItem, FormLabel } from '~/components/ui/form'
+import {
+    Form,
+    FormControl,
+    FormField,
+    FormItem,
+    FormLabel,
+    FormMessage
+} from '~/components/ui/form'
 import { RadioGroup, RadioGroupItem } from '~/components/ui/radio-group'
 import { allCountries } from 'country-region-data'
 import { Label } from '~/components/ui/label'
@@ -21,7 +28,6 @@ import {
 import { Separator } from '~/components/ui/separator'
 import { Button } from '~/components/ui/button'
 import { api } from '~/trpc/react'
-import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 const schema = z.object({
@@ -36,38 +42,50 @@ const schema = z.object({
 type SchemaType = z.infer<typeof schema>
 
 export default function ArtistApplyForm() {
-    const [toastId, setToastId] = useState<string | number | null>(null)
     const router = useRouter()
 
-    const mutation = api.artist_verification.verify_artist.useMutation({
+    const verifyArtist = api.artist_verification.verify_artist.useMutation({
         onMutate: () => {
-            setToastId(toast.loading('Submitting your application'))
-        },
-        onSuccess: (res) => {
-            if (!toastId) return
+            const toast_id = toast.loading('Submitting your application')
 
+            return { toast_id }
+        },
+        onSuccess: (res, _, context) => {
             toast.success('Application submitted successfully!', {
-                id: toastId
+                id: context.toast_id
             })
 
             router.push(res.route)
         },
-        onError: () => {
-            if (!toastId) return
-
-            toast.error('Something went wrong', {
-                id: toastId
+        onError: (e, __, context) => {
+            toast.error(e.message, {
+                id: context?.toast_id
             })
         }
     })
 
     const form = useForm<SchemaType>({
         resolver: zodResolver(schema),
-        mode: 'onSubmit'
+        mode: 'onSubmit',
+        defaultValues: {
+            requested_handle: '',
+            twitter: '',
+            website: '',
+            location: '',
+            artist_code: ''
+        }
     })
 
     async function process_form(data: SchemaType) {
-        console.log(data)
+        verifyArtist.mutate({
+            requested_handle: data.requested_handle,
+            method: data.method,
+            artist_code:
+                data.method === VerificationMethod.Code ? data.artist_code : undefined,
+            location: data.location,
+            twitter: data.twitter,
+            website: data.website
+        })
     }
 
     return (
@@ -82,11 +100,14 @@ export default function ArtistApplyForm() {
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel>Requested Handle:</FormLabel>
-                            <Input
-                                {...field}
-                                placeholder="@handle"
-                                className="bg-background"
-                            />
+                            <FormControl>
+                                <Input
+                                    {...field}
+                                    placeholder="@handle"
+                                    className="bg-background"
+                                />
+                            </FormControl>
+                            <FormMessage />
                         </FormItem>
                     )}
                 />
@@ -96,11 +117,14 @@ export default function ArtistApplyForm() {
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel>Twitter URL:</FormLabel>
-                            <Input
-                                {...field}
-                                placeholder="https://twitter.com/username"
-                                className="bg-background"
-                            />
+                            <FormControl>
+                                <Input
+                                    {...field}
+                                    placeholder="https://twitter.com/username"
+                                    className="bg-background"
+                                />
+                            </FormControl>
+                            <FormMessage />
                         </FormItem>
                     )}
                 />
@@ -110,11 +134,14 @@ export default function ArtistApplyForm() {
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel>Website URL:</FormLabel>
-                            <Input
-                                {...field}
-                                placeholder="https://myawesome.portfolio"
-                                className="bg-background"
-                            />
+                            <FormControl>
+                                <Input
+                                    {...field}
+                                    placeholder="https://myawesome.portfolio"
+                                    className="bg-background"
+                                />
+                            </FormControl>
+                            <FormMessage />
                         </FormItem>
                     )}
                 />
@@ -124,23 +151,29 @@ export default function ArtistApplyForm() {
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel>Location:</FormLabel>
-                            <Select
-                                defaultValue={field.value}
-                                onValueChange={field.onChange}
-                            >
-                                <FormControl>
-                                    <SelectTrigger className="bg-background">
-                                        <SelectValue placeholder="Select a country" />
-                                    </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                    {allCountries.map((country) => (
-                                        <SelectItem key={country[1]} value={country[1]}>
-                                            {country[0]}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <FormControl>
+                                <Select
+                                    defaultValue={field.value}
+                                    onValueChange={field.onChange}
+                                >
+                                    <FormControl>
+                                        <SelectTrigger className="bg-background">
+                                            <SelectValue placeholder="Select a country" />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        {allCountries.map((country) => (
+                                            <SelectItem
+                                                key={country[1]}
+                                                value={country[0]}
+                                            >
+                                                {country[0]}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </FormControl>
+                            <FormMessage />
                         </FormItem>
                     )}
                 />
@@ -151,26 +184,29 @@ export default function ArtistApplyForm() {
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel>Verification Method</FormLabel>
-                            <RadioGroup name="method" onValueChange={field.onChange}>
-                                <div className="flex items-center gap-2">
-                                    <RadioGroupItem
-                                        value={VerificationMethod.Code}
-                                        id={VerificationMethod.Code}
-                                    />
-                                    <Label htmlFor={VerificationMethod.Code}>
-                                        Artist Code
-                                    </Label>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <RadioGroupItem
-                                        value={VerificationMethod.Twitter}
-                                        id={VerificationMethod.Twitter}
-                                    />
-                                    <Label htmlFor={VerificationMethod.Twitter}>
-                                        Twitter
-                                    </Label>
-                                </div>
-                            </RadioGroup>
+                            <FormControl>
+                                <RadioGroup name="method" onValueChange={field.onChange}>
+                                    <div className="flex items-center gap-2">
+                                        <RadioGroupItem
+                                            value={VerificationMethod.Code}
+                                            id={VerificationMethod.Code}
+                                        />
+                                        <Label htmlFor={VerificationMethod.Code}>
+                                            Artist Code
+                                        </Label>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <RadioGroupItem
+                                            value={VerificationMethod.Twitter}
+                                            id={VerificationMethod.Twitter}
+                                        />
+                                        <Label htmlFor={VerificationMethod.Twitter}>
+                                            Twitter
+                                        </Label>
+                                    </div>
+                                </RadioGroup>
+                            </FormControl>
+                            <FormMessage />
                         </FormItem>
                     )}
                 />
@@ -183,11 +219,14 @@ export default function ArtistApplyForm() {
                             render={({ field }) => (
                                 <FormItem className="w-full">
                                     <FormLabel>Artist Code:</FormLabel>
-                                    <Input
-                                        {...field}
-                                        placeholder="NEMU-XXXX-XXX-XXXX"
-                                        className="bg-background"
-                                    />
+                                    <FormControl>
+                                        <Input
+                                            {...field}
+                                            placeholder="NEMU-XXXX-XXX-XXXX"
+                                            className="bg-background"
+                                        />
+                                    </FormControl>
+                                    <FormMessage />
                                 </FormItem>
                             )}
                         />
@@ -196,7 +235,9 @@ export default function ArtistApplyForm() {
                 <Separator />
                 <Button
                     type="submit"
-                    disabled={form.watch('method') === undefined || mutation.isPending}
+                    disabled={
+                        form.watch('method') === undefined || verifyArtist.isPending
+                    }
                 >
                     Submit
                 </Button>
