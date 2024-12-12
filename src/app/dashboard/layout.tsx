@@ -185,7 +185,7 @@ async function SidebarUserdropdown() {
                         <DropdownMenuItem asChild>
                             <Link
                                 prefetch={true}
-                                href={`/@${clerk_user.privateMetadata.handle as string}`}
+                                href={`/@${clerk_user.publicMetadata.handle as string}`}
                             >
                                 My Page
                             </Link>
