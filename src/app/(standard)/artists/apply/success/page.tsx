@@ -4,6 +4,7 @@ import { Suspense } from 'react'
 import NemuImage from '~/components/nemu-image'
 import { Button } from '~/components/ui/button'
 import Loading from '~/components/ui/loading'
+
 import { api } from '~/trpc/server'
 
 export default function ArtistApplySuccessPage() {

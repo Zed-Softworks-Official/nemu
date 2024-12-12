@@ -25,25 +25,17 @@ import {
     DropdownMenuTrigger
 } from '~/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
-import { unstable_cache } from 'next/cache'
-import { db } from '~/server/db'
-import { eq } from 'drizzle-orm'
-import { users } from '~/server/db/schema'
 import Link from 'next/link'
 import { UserRole } from '~/lib/structures'
 import { Button } from '~/components/ui/button'
 import NemuImage from '~/components/nemu-image'
 import { Notifications } from '~/components/notifications'
+import { api } from '~/trpc/server'
 
-const get_user_profile = unstable_cache(async (user_id?: string) => {
-    if (!user_id) return undefined
-
-    return await db.query.users.findFirst({
-        where: eq(users.clerk_id, user_id)
-    })
-})
-
-export default function StandarLayout(props: { children: React.ReactNode }) {
+export default function StandarLayout(props: {
+    children: React.ReactNode
+    modal: React.ReactNode
+}) {
     return (
         <main>
             <div className="container mx-auto min-h-screen w-full">
@@ -51,6 +43,7 @@ export default function StandarLayout(props: { children: React.ReactNode }) {
                 <div className="py-5">{props.children}</div>
             </div>
             <Footer />
+            {props.modal}
         </main>
     )
 }
@@ -151,7 +144,9 @@ function Footer() {
 
 async function UserDropdown() {
     const current_user = await currentUser()
-    const user_profile = await get_user_profile(current_user?.id)
+    const user_profile = await api.home.get_user_profile({
+        user_id: current_user?.id
+    })
 
     return (
         <DropdownMenu>

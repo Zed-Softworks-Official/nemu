@@ -1,10 +1,11 @@
 import { eq, sql } from 'drizzle-orm'
+import { z } from 'zod'
 
 import { createTRPCRouter, publicProcedure } from '../trpc'
 import { get_redis_key, redis } from '~/server/redis'
 import type { CommissionAvailability } from '~/lib/structures'
 import { format_to_currency, get_image_url } from '~/lib/utils'
-import { commissions } from '~/server/db/schema'
+import { commissions, users } from '~/server/db/schema'
 
 type RandomCommissions = {
     id: string
@@ -55,5 +56,23 @@ export const home_router = createTRPCRouter({
         })
 
         return random_commissions
-    })
+    }),
+
+    get_user_profile: publicProcedure
+        .input(
+            z.object({
+                user_id: z.string().optional()
+            })
+        )
+        .query(async ({ ctx, input }) => {
+            if (!input.user_id) {
+                return null
+            }
+
+            const user_profile = await ctx.db.query.users.findFirst({
+                where: eq(users.clerk_id, input.user_id)
+            })
+
+            return user_profile
+        })
 })
