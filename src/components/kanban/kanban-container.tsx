@@ -92,7 +92,11 @@ export default function KanbanContainerComponent({
     }
 
     return (
-        <div className="card bg-base-300 shadow-xl" ref={setNodeRef} style={style}>
+        <div
+            className="rounded-xl bg-background-secondary shadow-xl"
+            ref={setNodeRef}
+            style={style}
+        >
             <div
                 className="text-md bg-base-200 flex cursor-grab flex-row items-center justify-between gap-5 rounded-t-xl p-5"
                 {...listeners}

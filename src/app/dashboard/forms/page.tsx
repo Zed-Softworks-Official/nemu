@@ -11,7 +11,7 @@ export default function RequestFormsPage() {
                 <h1 className="text-3xl font-bold">My Forms</h1>
                 <Button asChild>
                     <Link
-                        href="/dashboard/request-forms/create"
+                        href="/dashboard/forms/create"
                         className="btn btn-primary text-base-content"
                     >
                         <Plus className="h-6 w-6" />

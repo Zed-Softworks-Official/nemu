@@ -41,7 +41,14 @@ export function MessagesClient(props: {
                         <ChannelList />
                     </div>
                 )}
-                <div className="flex h-full w-full flex-grow rounded-xl rounded-l-none bg-background-secondary p-10">
+                <div
+                    className={cn(
+                        'flex h-full w-full flex-grow rounded-xl bg-background-secondary p-10',
+                        {
+                            'rounded-l-none': !props.list_hidden
+                        }
+                    )}
+                >
                     <MessageClientBody />
                 </div>
             </div>

@@ -226,7 +226,7 @@ export default function Kanban({
             onDragEnd={OnDragEnd}
             onDragOver={OnDragOver}
         >
-            <div className="card bg-base-100">
+            <div className="rounded-xl bg-background-secondary p-5">
                 <div className="card-body gap-5">
                     <div className="flex items-center justify-between">
                         {header ? (
