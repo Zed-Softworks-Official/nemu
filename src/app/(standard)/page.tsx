@@ -49,6 +49,8 @@ export default async function HomePage() {
                         className="mb-4 break-inside-avoid rounded-lg border bg-card p-4 shadow-sm"
                     >
                         <Link
+                            prefetch={true}
+                            scroll={false}
                             href={`/@${commission.artist.handle}/commission/${commission.slug}`}
                         >
                             <div className="aspect-square w-full overflow-hidden rounded-md">

@@ -277,6 +277,7 @@ function CommissionsList(props: { handle: string }) {
                                 <Button size="lg" asChild>
                                     <Link
                                         prefetch={true}
+                                        scroll={false}
                                         href={`/@${props.handle}/commission/${commission.slug}`}
                                     >
                                         <Eye className="h-6 w-6" />

@@ -13,6 +13,8 @@ export function useParallelModal(dialogRef: React.RefObject<ElementRef<'dialog'>
     }, [router])
 
     useEffect(() => {
+        if (!pathname) return
+
         // Close modal when navigating to a non-commission page
         if (!pathname.includes('/commission/')) {
             setOpen(false)
@@ -24,6 +26,8 @@ export function useParallelModal(dialogRef: React.RefObject<ElementRef<'dialog'>
     }, [pathname])
 
     useEffect(() => {
+        if (!dialogRef.current) return
+
         if (!dialogRef.current?.open) {
             setOpen(true)
         }
