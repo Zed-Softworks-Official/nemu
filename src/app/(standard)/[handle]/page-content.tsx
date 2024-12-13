@@ -255,7 +255,13 @@ function CommissionsList(props: { handle: string }) {
                                 <Badge>{commission.availability}</Badge>
                             </div>
                             <p className="mb-4 text-muted-foreground">
-                                {commission.description}
+                                {commission.description.substring(
+                                    0,
+                                    commission.description.length >= 250
+                                        ? 250
+                                        : commission.description.length
+                                )}
+                                ...
                             </p>
                             <div className="flex items-center justify-between">
                                 <div className="flex flex-col">

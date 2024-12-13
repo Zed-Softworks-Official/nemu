@@ -43,7 +43,7 @@ export function CommissionView(props: { handle: string; slug: string }) {
     }
 
     return (
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+        <div className="grid h-full grid-cols-1 gap-5 md:grid-cols-3">
             <ImageViewer images={commission.images} />
             <div className="col-span-2 rounded-xl bg-background shadow-xl">
                 <CommissionContent
@@ -89,13 +89,20 @@ function CommissionContent(props: {
                             </Badge>
                         </h2>
                         <p className="mb-4 text-muted-foreground">
-                            By{' '}
-                            <Link
-                                href={`/@${props.commission.artist?.handle}`}
-                                className="link-hover link"
+                            By
+                            <Button
+                                variant={'link'}
+                                asChild
+                                className="ml-0 pl-2 text-muted-foreground hover:text-foreground"
                             >
-                                @{props.commission.artist?.handle}
-                            </Link>
+                                <Link
+                                    prefetch={true}
+                                    replace={true}
+                                    href={`/@${props.commission.artist?.handle}`}
+                                >
+                                    @{props.commission.artist?.handle}
+                                </Link>
+                            </Button>
                         </p>
                     </div>
                     <ShareButton />
