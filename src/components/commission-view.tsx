@@ -43,9 +43,9 @@ export function CommissionView(props: { handle: string; slug: string }) {
     }
 
     return (
-        <div className="grid h-full grid-cols-1 gap-5 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
             <ImageViewer images={commission.images} />
-            <div className="col-span-2 rounded-xl bg-background shadow-xl">
+            <div className="col-span-2 h-full overflow-y-auto rounded-xl bg-background shadow-xl">
                 <CommissionContent
                     commission={commission}
                     form_data={commission.form}
@@ -68,17 +68,19 @@ function CommissionContent(props: {
 
     if (showForm && props.user_requested !== undefined && props.commission.id) {
         return (
-            <RequestForm
-                commission_id={props.commission.id}
-                set_show_form={setShowForm}
-                form_data={props.form_data}
-                user_requested={props.user_requested}
-            />
+            <div className="flex h-full max-h-fit flex-1 flex-grow-0 overflow-y-auto">
+                <RequestForm
+                    commission_id={props.commission.id}
+                    set_show_form={setShowForm}
+                    form_data={props.form_data}
+                    user_requested={props.user_requested}
+                />
+            </div>
         )
     }
 
     return (
-        <>
+        <div className="flex h-full max-h-fit flex-1 flex-grow-0 overflow-y-auto">
             <div className="flex flex-col gap-5 p-5">
                 <div className="flex flex-row justify-between">
                     <div>
@@ -153,6 +155,6 @@ function CommissionContent(props: {
                     </div>
                 </div>
             </div>
-        </>
+        </div>
     )
 }

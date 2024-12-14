@@ -7,7 +7,7 @@ import type { UniqueIdentifier } from '@dnd-kit/core'
  * @prop {UniqueIdentifier} container_id - The id of the container that the task belongs to
  * @prop {string} content - The content of the task
  */
-export type KanbanTask = {
+export type KanbanTaskData = {
     id: UniqueIdentifier
     container_id: UniqueIdentifier
     content: string
@@ -34,5 +34,5 @@ export type KanbanContainerData = {
 export type KanbanMessagesDataType = {
     id: string
     containers: KanbanContainerData[]
-    tasks: KanbanTask[]
+    tasks: KanbanTaskData[]
 }

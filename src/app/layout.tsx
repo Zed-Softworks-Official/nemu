@@ -9,7 +9,7 @@ import { ClerkProvider } from '@clerk/nextjs'
 import { dark } from '@clerk/themes'
 
 import { TRPCReactProvider } from '~/trpc/react'
-import { ThemeProvider } from '~/components/theme-provider'
+import { ThemeProvider } from '~/components/themes/theme-provider'
 import { env } from '~/env'
 import { Toaster } from '~/components/ui/sonner'
 

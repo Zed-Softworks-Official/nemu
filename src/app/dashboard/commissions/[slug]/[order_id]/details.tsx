@@ -7,7 +7,7 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 
 import { DataTable } from '~/components/data-table'
-import { MessagesClient } from '~/components/messages/messages-client'
+// import { MessagesClient } from '~/components/messages/messages-client'
 import {
     AlertDialog,
     AlertDialogAction,
@@ -32,6 +32,7 @@ import { Skeleton } from '~/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 
 import { api } from '~/trpc/react'
+// import { Kanban } from './kanban'
 
 export function CommissionHeader(props: { order_id: string }) {
     const { data: request, isLoading } = api.request.get_request_by_id.useQuery({
@@ -200,11 +201,10 @@ export function CommissionDetailsTabs(props: { order_id: string }) {
                 <TabsTrigger value="messages">Messages</TabsTrigger>
                 <TabsTrigger value="delivery">Delivery</TabsTrigger>
             </TabsList>
-            <TabsContent value="kanban">
-                <>WIP</>
-            </TabsContent>
+            <TabsContent value="kanban">{/* <Kanban /> */}</TabsContent>
             <TabsContent value="messages">
-                <MessagesClient current_order_id={props.order_id} list_hidden />
+                <>Messages Client</>
+                {/* <MessagesClient current_order_id={props.order_id} list_hidden /> */}
             </TabsContent>
             <TabsContent value="delivery">
                 <>WIP</>
