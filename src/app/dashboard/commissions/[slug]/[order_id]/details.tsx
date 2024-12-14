@@ -7,7 +7,8 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 
 import { DataTable } from '~/components/data-table'
-// import { MessagesClient } from '~/components/messages/messages-client'
+import { useOrder } from '~/components/order-provider'
+
 import {
     AlertDialog,
     AlertDialogAction,
@@ -27,39 +28,28 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger
 } from '~/components/ui/dropdown-menu'
-import Loading from '~/components/ui/loading'
-import { Skeleton } from '~/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 
 import { api } from '~/trpc/react'
-// import { Kanban } from './kanban'
 
-export function CommissionHeader(props: { order_id: string }) {
-    const { data: request, isLoading } = api.request.get_request_by_id.useQuery({
-        order_id: props.order_id
-    })
-
-    if (isLoading) {
-        return <Skeleton className="h-10 w-full" />
-    }
+export function CommissionHeader() {
+    const { request_data } = useOrder()
 
     return (
         <div className="flex flex-col gap-2">
             <h1 className="text-2xl font-bold">
-                {request?.user.username} | {request?.commission?.title}
+                {request_data?.user.username} | {request_data?.commission?.title}
             </h1>
             <span className="text-sm text-muted-foreground">
-                {request?.created_at?.toLocaleDateString()}
+                {request_data?.created_at?.toLocaleDateString()}
             </span>
         </div>
     )
 }
 
-export function CommissionDetails(props: { order_id: string }) {
+export function CommissionDetails() {
     const [acceptDialogStatus, setAcceptDialogStatus] = useState(true)
-    const { data: request, isLoading } = api.request.get_request_by_id.useQuery({
-        order_id: props.order_id
-    })
+    const { request_data } = useOrder()
 
     const determineRequest = api.request.determine_request.useMutation({
         onMutate: (input) => {
@@ -81,11 +71,7 @@ export function CommissionDetails(props: { order_id: string }) {
         }
     })
 
-    if (isLoading) {
-        return <Skeleton className="h-10 w-full" />
-    }
-
-    if (!request?.content) {
+    if (!request_data?.content) {
         return notFound()
     }
 
@@ -110,7 +96,7 @@ export function CommissionDetails(props: { order_id: string }) {
             <Card>
                 <CardHeader className="flex w-full flex-row items-center justify-between">
                     <CardTitle>Request Details</CardTitle>
-                    {request?.status === 'pending' && (
+                    {request_data?.status === 'pending' && (
                         <div className="flex flex-col gap-2 sm:flex-row">
                             <DropdownMenu>
                                 <DropdownMenuTrigger
@@ -146,10 +132,12 @@ export function CommissionDetails(props: { order_id: string }) {
                 <CardContent>
                     <DataTable
                         columns={columns}
-                        data={Object.entries(request?.content).map(([key, value]) => ({
-                            key,
-                            value
-                        }))}
+                        data={Object.entries(request_data?.content).map(
+                            ([key, value]) => ({
+                                key,
+                                value
+                            })
+                        )}
                     />
                 </CardContent>
             </Card>
@@ -168,7 +156,7 @@ export function CommissionDetails(props: { order_id: string }) {
                     <AlertDialogAction
                         onClick={() => {
                             determineRequest.mutate({
-                                request_id: request.id,
+                                request_id: request_data.id,
                                 accepted: acceptDialogStatus
                             })
                         }}
@@ -181,16 +169,10 @@ export function CommissionDetails(props: { order_id: string }) {
     )
 }
 
-export function CommissionDetailsTabs(props: { order_id: string }) {
-    const { data: request, isLoading } = api.request.get_request_by_id.useQuery({
-        order_id: props.order_id
-    })
+export function CommissionDetailsTabs() {
+    const { request_data } = useOrder()
 
-    if (isLoading) {
-        return <Loading />
-    }
-
-    if (request?.status === 'pending') {
+    if (request_data?.status === 'pending') {
         return null
     }
 
@@ -201,7 +183,9 @@ export function CommissionDetailsTabs(props: { order_id: string }) {
                 <TabsTrigger value="messages">Messages</TabsTrigger>
                 <TabsTrigger value="delivery">Delivery</TabsTrigger>
             </TabsList>
-            <TabsContent value="kanban">{/* <Kanban /> */}</TabsContent>
+            <TabsContent value="kanban">
+                <>Kanban</>
+            </TabsContent>
             <TabsContent value="messages">
                 <>Messages Client</>
                 {/* <MessagesClient current_order_id={props.order_id} list_hidden /> */}

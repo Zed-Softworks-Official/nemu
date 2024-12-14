@@ -1,5 +1,6 @@
 import { Separator } from '~/components/ui/separator'
 import { CommissionDetails, CommissionDetailsTabs, CommissionHeader } from './details'
+import { OrderProvider } from '~/components/order-provider'
 
 export default async function CommissionRequestOrderPage(props: {
     params: Promise<{ slug: string; order_id: string }>
@@ -7,14 +8,16 @@ export default async function CommissionRequestOrderPage(props: {
     const params = await props.params
 
     return (
-        <div className="container mx-auto">
-            <CommissionHeader order_id={params.order_id} />
-            <Separator className="my-5" />
+        <OrderProvider order_id={params.order_id}>
+            <div className="container mx-auto">
+                <CommissionHeader />
+                <Separator className="my-5" />
 
-            <CommissionDetails order_id={params.order_id} />
-            <div className="mt-5 flex flex-col gap-5">
-                <CommissionDetailsTabs order_id={params.order_id} />
+                <CommissionDetails />
+                <div className="mt-5 flex flex-col gap-5">
+                    <CommissionDetailsTabs />
+                </div>
             </div>
-        </div>
+        </OrderProvider>
     )
 }
