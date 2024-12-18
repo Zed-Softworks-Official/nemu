@@ -24,6 +24,8 @@ type OrderContextType = {
     tasks?: KanbanTaskData[]
     set_tasks: Dispatch<SetStateAction<KanbanTaskData[]>>
 
+    kanban_id: string
+
     request_data: RouterOutputs['request']['get_request_by_id']
 }
 
@@ -33,6 +35,8 @@ export function OrderProvider(props: { children: React.ReactNode; order_id: stri
     const [orderId, setOrderId] = useState(props.order_id)
     const [containers, setContainers] = useState<KanbanContainerData[]>([])
     const [tasks, setTasks] = useState<KanbanTaskData[]>([])
+
+    const [kanbanId, setKanbanId] = useState('')
 
     const { data: request_data, isLoading } = api.request.get_request_by_id.useQuery({
         order_id: props.order_id
@@ -44,6 +48,7 @@ export function OrderProvider(props: { children: React.ReactNode; order_id: stri
                 (request_data.kanban?.containers as KanbanContainerData[]) ?? []
             )
             setTasks((request_data.kanban?.tasks as KanbanTaskData[]) ?? [])
+            setKanbanId(request_data.kanban?.id ?? '')
         }
     }, [request_data])
 
@@ -60,7 +65,8 @@ export function OrderProvider(props: { children: React.ReactNode; order_id: stri
                 containers,
                 set_containers: setContainers,
                 tasks,
-                set_tasks: setTasks
+                set_tasks: setTasks,
+                kanban_id: kanbanId
             }}
         >
             {props.children}

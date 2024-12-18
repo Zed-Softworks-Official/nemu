@@ -31,6 +31,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 
 import { api } from '~/trpc/react'
+import { Kanban } from './kanban'
 
 export function CommissionHeader() {
     const { request_data } = useOrder()
@@ -184,7 +185,7 @@ export function CommissionDetailsTabs() {
                 <TabsTrigger value="delivery">Delivery</TabsTrigger>
             </TabsList>
             <TabsContent value="kanban">
-                <>Kanban</>
+                <Kanban />
             </TabsContent>
             <TabsContent value="messages">
                 <>Messages Client</>

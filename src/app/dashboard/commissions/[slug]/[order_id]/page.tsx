@@ -9,7 +9,7 @@ export default async function CommissionRequestOrderPage(props: {
 
     return (
         <OrderProvider order_id={params.order_id}>
-            <div className="container mx-auto">
+            <div className="container mx-auto px-5">
                 <CommissionHeader />
                 <Separator className="my-5" />
 

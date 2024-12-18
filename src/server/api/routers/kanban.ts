@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { artistProcedure, createTRPCRouter, protectedProcedure } from '../trpc'
 import { eq } from 'drizzle-orm'
 import { kanbans, requests } from '~/server/db/schema'
-import { type KanbanContainerData, type KanbanTask } from '~/lib/structures'
+import { type KanbanContainerData, type KanbanTaskData } from '~/lib/structures'
 import { db } from '~/server/db'
 import { TRPCError } from '@trpc/server'
 
@@ -31,7 +31,7 @@ export const kanban_router = createTRPCRouter({
             return {
                 id: request.kanban.id,
                 containers: request.kanban.containers as KanbanContainerData[],
-                tasks: request.kanban.tasks as KanbanTask[]
+                tasks: request.kanban.tasks as KanbanTaskData[]
             }
         }),
 
@@ -56,8 +56,8 @@ export const kanban_router = createTRPCRouter({
             }
 
             // Add Item to kanban
-            const prev_tasks: KanbanTask[] = kanban.tasks
-                ? (kanban.tasks as KanbanTask[])
+            const prev_tasks: KanbanTaskData[] = kanban.tasks
+                ? (kanban.tasks as KanbanTaskData[])
                 : []
 
             await db
