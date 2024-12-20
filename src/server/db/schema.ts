@@ -1,7 +1,7 @@
 // Example model schema from the Drizzle docs
 // https://orm.drizzle.team/docs/sql-schema-declaration
 
-import { relations } from 'drizzle-orm'
+import { relations, sql } from 'drizzle-orm'
 import {
     decimal,
     text,
@@ -23,7 +23,8 @@ import {
     CommissionAvailability,
     InvoiceStatus,
     RequestStatus,
-    type InvoiceItem
+    type InvoiceItem,
+    DownloadType
 } from '~/lib/structures'
 
 /**
@@ -75,6 +76,8 @@ export const CommissionAvailabilityEnum = pgEnum(
     enum_to_pg_enum(CommissionAvailability)
 )
 
+export const DownloadTypeEnum = pgEnum('download_type', enum_to_pg_enum(DownloadType))
+
 //////////////////////////////////////////////////////////
 // Tables
 //////////////////////////////////////////////////////////
@@ -109,23 +112,31 @@ export const stripe_customer_ids = createTable('stripe_customer_ids', {
 })
 
 /**
- * Downloads
+ * Delivery
  *
- * Table for storing the downloads a user has on their account,
+ * Table for storing the delivery a user has on their account,
  * whether it's through purchasing products or through the commissions
  */
-export const downloads = createTable('download', {
+export const delivery = createTable('delivery', {
     id: varchar('id', { length: 128 }).primaryKey(),
+
     user_id: text('user_id').notNull(),
-
-    url: text('url').notNull(),
-    ut_key: text('ut_key'),
-
-    created_at: timestamp('created_at').defaultNow().notNull(),
-
     artist_id: text('artist_id').notNull(),
-    // product_id: text('product_id'),
-    request_id: text('request_id')
+
+    request_id: text('request_id'),
+    product_id: text('product_id'),
+
+    ut_key: text('ut_key').notNull(),
+    type: DownloadTypeEnum('download_type').$type<DownloadType>().notNull(),
+    created_at: timestamp('created_at').defaultNow().notNull(),
+    updated_at: timestamp('updated_at')
+        .$onUpdate(() => new Date())
+        .defaultNow()
+        .notNull(),
+    version: integer('version')
+        .default(1)
+        .$onUpdate(() => sql`version + 1`)
+        .notNull()
 })
 
 /**
@@ -311,7 +322,7 @@ export const requests = createTable('request', {
     order_id: text('order_id').notNull(),
     invoice_id: text('invoice_id'),
     kanban_id: text('kanban_id'),
-    download_id: text('download_id'),
+    delivery_id: text('delivery_id'),
 
     content: json('content').$type<Record<string, string>>().notNull()
 })
@@ -376,7 +387,7 @@ export const userRelations = relations(users, ({ one, many }) => ({
         references: [artists.user_id]
     }),
     requests: many(requests),
-    downloads: many(downloads),
+    deliveries: many(delivery),
     customer_ids: many(stripe_customer_ids),
     chats: many(chats)
 }))
@@ -384,17 +395,17 @@ export const userRelations = relations(users, ({ one, many }) => ({
 /**
  * Download Relations
  */
-export const downloadRelations = relations(downloads, ({ one }) => ({
+export const deliveryRelations = relations(delivery, ({ one }) => ({
     user: one(users, {
-        fields: [downloads.user_id],
+        fields: [delivery.user_id],
         references: [users.clerk_id]
     }),
     artist: one(artists, {
-        fields: [downloads.artist_id],
+        fields: [delivery.artist_id],
         references: [artists.id]
     }),
     request: one(requests, {
-        fields: [downloads.request_id],
+        fields: [delivery.request_id],
         references: [requests.id]
     })
 }))
@@ -513,9 +524,9 @@ export const requestRelations = relations(requests, ({ one }) => ({
         fields: [requests.kanban_id],
         references: [kanbans.id]
     }),
-    download: one(downloads, {
-        fields: [requests.download_id],
-        references: [downloads.id]
+    delivery: one(delivery, {
+        fields: [requests.delivery_id],
+        references: [delivery.id]
     }),
     chat: one(chats, {
         fields: [requests.id],

@@ -1,14 +1,13 @@
 import { clerkClient } from '@clerk/nextjs/server'
 import { createId } from '@paralleldrive/cuid2'
 import { z } from 'zod'
-import { and, eq, sql, type InferSelectModel } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 
 import { artistProcedure, createTRPCRouter, protectedProcedure } from '../trpc'
 
 import {
     chats,
     commissions,
-    type downloads,
     forms,
     invoices,
     kanbans,
@@ -407,7 +406,7 @@ export const request_router = createTRPCRouter({
                             artist: true
                         }
                     },
-                    download: true,
+                    delivery: true,
                     invoice: true,
                     kanban: true
                 }
@@ -415,24 +414,6 @@ export const request_router = createTRPCRouter({
 
             if (!request) {
                 return undefined
-            }
-
-            let delivery:
-                | (InferSelectModel<typeof downloads> & {
-                      blur_data?: string
-                      file_type: 'image' | 'zip'
-                  })
-                | undefined = undefined
-
-            if (request.download) {
-                const file_type: 'image' | 'zip' = request.download.url.includes('.zip')
-                    ? 'zip'
-                    : 'image'
-
-                delivery = {
-                    ...request.download,
-                    file_type
-                }
             }
 
             const user = await clerk_client.users.getUser(request.user_id)
@@ -448,7 +429,7 @@ export const request_router = createTRPCRouter({
                     id: request.user_id,
                     username: user.username ?? 'User'
                 },
-                delivery,
+                delivery: request.delivery ?? undefined,
                 invoice: request.invoice ?? undefined,
                 kanban: request.kanban ?? undefined
             }

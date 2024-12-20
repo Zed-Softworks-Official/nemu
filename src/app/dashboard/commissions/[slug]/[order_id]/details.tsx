@@ -21,7 +21,13 @@ import {
     AlertDialogDescription
 } from '~/components/ui/alert-dialog'
 import { Button } from '~/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card'
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle
+} from '~/components/ui/card'
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -32,6 +38,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 
 import { api } from '~/trpc/react'
 import { Kanban } from './kanban'
+
+import { UploadDropzone } from '~/components/files/uploadthing'
+// import { MessagesClient } from '~/components/messages/messages-client'
 
 export function CommissionHeader() {
     const { request_data } = useOrder()
@@ -188,12 +197,46 @@ export function CommissionDetailsTabs() {
                 <Kanban />
             </TabsContent>
             <TabsContent value="messages">
-                <>Messages Client</>
-                {/* <MessagesClient current_order_id={props.order_id} list_hidden /> */}
+                {/* <MessagesClient current_order_id={request_data?.order_id} list_hidden /> */}
             </TabsContent>
             <TabsContent value="delivery">
-                <>WIP</>
+                <Delivery />
             </TabsContent>
         </Tabs>
+    )
+}
+
+function Delivery() {
+    const { request_data } = useOrder()
+    const utils = api.useUtils()
+
+    if (!request_data?.id) return null
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Delivery</CardTitle>
+                {request_data?.delivery && (
+                    <CardDescription className="flex flex-col gap-2">
+                        <p>
+                            Delivery Date:{' '}
+                            {request_data.delivery?.updated_at.toLocaleDateString()}
+                        </p>
+                        <p>Version: {request_data.delivery?.version}</p>
+                    </CardDescription>
+                )}
+            </CardHeader>
+            <CardContent>
+                <UploadDropzone
+                    endpoint="commissionDownloadUploader"
+                    input={{ order_id: request_data.order_id }}
+                    onClientUploadComplete={() => {
+                        toast.success('Delivery Uploaded')
+
+                        void utils.request.get_request_by_id.invalidate()
+                    }}
+                />
+            </CardContent>
+        </Card>
     )
 }

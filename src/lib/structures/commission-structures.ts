@@ -7,7 +7,7 @@ import type {
 import type {
     artists,
     commissions,
-    downloads,
+    delivery,
     forms,
     invoices,
     kanbans,
@@ -56,10 +56,7 @@ export type ClientRequestData = InferSelectModel<typeof requests> & {
         artist?: InferSelectModel<typeof artists>
         images: ClientNemuImageData[]
     }
-    delivery?: InferSelectModel<typeof downloads> & {
-        blur_data?: string
-        file_type: 'image' | 'zip'
-    }
+    delivery?: InferSelectModel<typeof delivery>
     invoice?: InferSelectModel<typeof invoices>
     kanban?: InferSelectModel<typeof kanbans>
 }
@@ -141,4 +138,9 @@ export enum RequestStatus {
     Rejected = 'rejected',
     Delivered = 'delivered',
     Waitlist = 'waitlist'
+}
+
+export enum DownloadType {
+    Image = 'image',
+    Archive = 'archive'
 }
