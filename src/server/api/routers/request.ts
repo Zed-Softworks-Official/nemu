@@ -29,7 +29,7 @@ import { knock, KnockWorkflows } from '~/server/knock'
 import { env } from '~/env'
 import { StripeCreateCustomer, StripeCreateInvoice } from '~/lib/payments'
 import { get_redis_key, redis } from '~/server/redis'
-import { get_image_url } from '~/lib/utils'
+import { get_ut_url } from '~/lib/utils'
 import { utapi } from '~/server/uploadthing'
 
 export const request_router = createTRPCRouter({
@@ -379,7 +379,7 @@ export const request_router = createTRPCRouter({
                     ...request.commission,
                     images: [
                         {
-                            url: get_image_url(request.commission.images[0]?.ut_key ?? '')
+                            url: get_ut_url(request.commission.images[0]?.ut_key ?? '')
                         }
                     ]
                 },
@@ -425,7 +425,7 @@ export const request_router = createTRPCRouter({
                 commission: {
                     ...request.commission,
                     images: request.commission.images.map((image) => ({
-                        url: get_image_url(image.ut_key)
+                        url: get_ut_url(image.ut_key)
                     }))
                 },
                 user: {

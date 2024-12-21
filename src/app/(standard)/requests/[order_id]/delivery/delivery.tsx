@@ -1,8 +1,18 @@
 'use client'
 
+import { DownloadIcon } from 'lucide-react'
 import NemuImage from '~/components/nemu-image'
-import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card'
+import { Button } from '~/components/ui/button'
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle
+} from '~/components/ui/card'
 import Loading from '~/components/ui/loading'
+import { get_ut_url } from '~/lib/utils'
+
 import { api } from '~/trpc/react'
 
 export default function Delivery(props: { order_id: string }) {
@@ -11,7 +21,11 @@ export default function Delivery(props: { order_id: string }) {
     })
 
     if (isLoading) {
-        return <Loading />
+        return (
+            <div className="flex h-full w-full items-center justify-center">
+                <Loading />
+            </div>
+        )
     }
 
     if (!request?.delivery) {
@@ -34,9 +48,35 @@ export default function Delivery(props: { order_id: string }) {
         <main className="flex flex-col gap-5">
             <Card>
                 <CardHeader>
-                    <CardTitle>Downloads</CardTitle>
+                    <CardTitle>Delivery</CardTitle>
+                    <CardDescription>
+                        <p>Download files here.</p>
+                        <p>{request.delivery.updated_at.toLocaleDateString()}</p>
+                    </CardDescription>
                 </CardHeader>
-                <CardContent>{JSON.stringify(request.delivery)}</CardContent>
+                <CardContent>
+                    <div className="flex flex-col items-center justify-center">
+                        <Button
+                            size={'lg'}
+                            onClick={() => {
+                                const download_url = get_ut_url(
+                                    request.delivery?.ut_key ?? 'Unknown'
+                                )
+
+                                // Create an anchor element and trigger download
+                                const link = document.createElement('a')
+                                link.href = download_url
+                                link.download = `delivery-${request.commission?.title}-${request.delivery?.version}` // Set filename
+                                document.body.appendChild(link)
+                                link.click()
+                                document.body.removeChild(link)
+                            }}
+                        >
+                            <DownloadIcon className="h-10 w-10" />
+                            Download
+                        </Button>
+                    </div>
+                </CardContent>
             </Card>
         </main>
     )

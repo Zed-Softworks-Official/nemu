@@ -13,7 +13,7 @@ import {
 import {
     convert_images_to_nemu_images,
     format_to_currency,
-    get_image_url
+    get_ut_url
 } from '~/lib/utils'
 import { utapi } from '~/server/uploadthing'
 import { update_index } from '~/server/algolia/collections'
@@ -254,7 +254,7 @@ export const commission_router = createTRPCRouter({
                     data: {
                         action: 'update',
                         image_data: {
-                            url: get_image_url(image.ut_key ?? ''),
+                            url: get_ut_url(image.ut_key ?? ''),
                             ut_key: image.ut_key
                         }
                     }
@@ -297,7 +297,7 @@ export const commission_router = createTRPCRouter({
                 published: commission.published,
                 images: [
                     {
-                        url: get_image_url(commission.images[0]!.ut_key)
+                        url: get_ut_url(commission.images[0]!.ut_key)
                     }
                 ],
                 slug: commission.slug,

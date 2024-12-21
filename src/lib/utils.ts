@@ -68,7 +68,7 @@ export async function convert_images_to_nemu_images(images: NemuImageData[]) {
 
     for (const image of images) {
         result.push({
-            url: get_image_url(image.ut_key)
+            url: get_ut_url(image.ut_key)
         })
     }
 
@@ -77,6 +77,6 @@ export async function convert_images_to_nemu_images(images: NemuImageData[]) {
 
 export const to_pusher_key = (key: string) => key.replace(/:/g, '__')
 
-export function get_image_url(ut_key: string) {
+export function get_ut_url(ut_key: string) {
     return `https://utfs.io/a/${env.NEXT_PUBLIC_UPLOADTHING_APP_ID}/${ut_key}`
 }

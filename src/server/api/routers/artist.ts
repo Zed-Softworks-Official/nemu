@@ -3,7 +3,7 @@ import { TRPCError } from '@trpc/server'
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { SocialAgent } from '~/lib/structures'
-import { get_image_url } from '~/lib/utils'
+import { get_ut_url } from '~/lib/utils'
 
 import { artistProcedure, createTRPCRouter, publicProcedure } from '~/server/api/trpc'
 import { artists, commissions } from '~/server/db/schema'
@@ -45,20 +45,20 @@ export const artist_router = createTRPCRouter({
             const portfolio_items = artist.portfolio.map((portfolio) => ({
                 ...portfolio,
                 image: {
-                    url: get_image_url(portfolio.ut_key)
+                    url: get_ut_url(portfolio.ut_key)
                 }
             }))
 
             const commission_list = artist.commissions.map((commission) => ({
                 ...commission,
                 images: commission.images.map((image) => ({
-                    url: get_image_url(image.ut_key ?? '')
+                    url: get_ut_url(image.ut_key ?? '')
                 }))
             }))
 
             return {
                 ...artist,
-                header_photo: get_image_url(artist.header_photo),
+                header_photo: get_ut_url(artist.header_photo),
                 portfolio: portfolio_items,
                 commissions: commission_list,
                 user: {

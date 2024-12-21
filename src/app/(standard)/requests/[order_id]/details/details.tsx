@@ -16,6 +16,7 @@ import Loading from '~/components/ui/loading'
 
 import type { RequestContent } from '~/lib/structures'
 import { type ColumnDef } from '@tanstack/react-table'
+import { Separator } from '~/components/ui/separator'
 
 export default function Details() {
     const params = useParams()
@@ -62,7 +63,7 @@ export default function Details() {
                         </Link>
                     </CardDescription>
                 </CardHeader>
-                <div className="divider"></div>
+                <Separator />
                 <CardContent>
                     <div className="flex flex-col gap-5">
                         <DataTable

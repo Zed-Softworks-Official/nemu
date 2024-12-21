@@ -6,7 +6,7 @@ import { portfolios } from '~/server/db/schema'
 import type { ClientPortfolioItem } from '~/lib/structures'
 import { createId } from '@paralleldrive/cuid2'
 
-import { get_image_url } from '~/lib/utils'
+import { get_ut_url } from '~/lib/utils'
 import { TRPCError } from '@trpc/server'
 import { utapi } from '~/server/uploadthing'
 
@@ -88,7 +88,7 @@ export const portfolio_router = createTRPCRouter({
             return {
                 ...portfolio,
                 image: {
-                    url: get_image_url(portfolio.ut_key)
+                    url: get_ut_url(portfolio.ut_key)
                 }
             } satisfies ClientPortfolioItem
         }),
@@ -107,7 +107,7 @@ export const portfolio_router = createTRPCRouter({
             const result: ClientPortfolioItem[] = portfolio_items.map((item) => ({
                 ...item,
                 image: {
-                    url: get_image_url(item.ut_key)
+                    url: get_ut_url(item.ut_key)
                 }
             }))
 

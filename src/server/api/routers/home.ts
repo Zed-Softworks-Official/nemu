@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { createTRPCRouter, publicProcedure } from '../trpc'
 import { get_redis_key, redis } from '~/server/redis'
 import type { CommissionAvailability } from '~/lib/structures'
-import { format_to_currency, get_image_url } from '~/lib/utils'
+import { format_to_currency, get_ut_url } from '~/lib/utils'
 import { commissions, users } from '~/server/db/schema'
 
 type RandomCommissions = {
@@ -44,7 +44,7 @@ export const home_router = createTRPCRouter({
             description: commission.description,
             slug: commission.slug,
             availability: commission.availability as CommissionAvailability,
-            featured_image: get_image_url(commission.images[0]?.ut_key ?? ''),
+            featured_image: get_ut_url(commission.images[0]?.ut_key ?? ''),
             price: format_to_currency(commission.price / 100),
             artist: {
                 handle: commission.artist.handle
