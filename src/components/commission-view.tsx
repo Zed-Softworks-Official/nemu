@@ -35,7 +35,11 @@ export function CommissionView(props: { handle: string; slug: string }) {
     })
 
     if (isLoading) {
-        return <Loading />
+        return (
+            <div className="flex h-full w-full items-center justify-center">
+                <Loading />
+            </div>
+        )
     }
 
     if (!commission?.form) {
