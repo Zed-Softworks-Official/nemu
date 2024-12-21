@@ -29,7 +29,13 @@ import type { ClientCommissionItem } from '~/lib/structures'
 export function CommissionList() {
     const { data, isLoading } = api.commission.get_commission_list.useQuery()
 
-    if (isLoading) return <Loading />
+    if (isLoading) {
+        return (
+            <div className="flex h-full w-full items-center justify-center">
+                <Loading />
+            </div>
+        )
+    }
 
     return (
         <Card className="mt-6">

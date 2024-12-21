@@ -208,7 +208,32 @@ export function CommissionDetailsTabs() {
 
 function Delivery() {
     const { request_data } = useOrder()
+
     const utils = api.useUtils()
+    const requestFailed = api.request.request_failed.useMutation()
+    const createDelivery = api.request.update_request_delivery.useMutation({
+        onMutate: () => {
+            const toast_id = toast.loading('Uploading Delivery')
+
+            return { toast_id }
+        },
+        onError: (err, data, context) => {
+            requestFailed.mutate({
+                file_key: data.file_key
+            })
+
+            toast.error(err.message, {
+                id: context?.toast_id
+            })
+        },
+        onSuccess: (_, __, context) => {
+            toast.success('Delivery Uploaded', {
+                id: context?.toast_id
+            })
+
+            void utils.request.get_request_by_id.invalidate()
+        }
+    })
 
     if (!request_data?.id) return null
 
@@ -229,11 +254,18 @@ function Delivery() {
             <CardContent>
                 <UploadDropzone
                     endpoint="commissionDownloadUploader"
-                    input={{ order_id: request_data.order_id }}
-                    onClientUploadComplete={() => {
-                        toast.success('Delivery Uploaded')
+                    onClientUploadComplete={(res) => {
+                        if (!res[0]) {
+                            toast.error('No file uploaded')
 
-                        void utils.request.get_request_by_id.invalidate()
+                            return
+                        }
+
+                        createDelivery.mutate({
+                            order_id: request_data.order_id,
+                            file_key: res[0].key,
+                            file_type: res[0].type
+                        })
                     }}
                 />
             </CardContent>

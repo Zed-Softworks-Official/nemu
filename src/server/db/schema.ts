@@ -525,8 +525,8 @@ export const requestRelations = relations(requests, ({ one }) => ({
         references: [kanbans.id]
     }),
     delivery: one(delivery, {
-        fields: [requests.delivery_id],
-        references: [delivery.id]
+        fields: [requests.id],
+        references: [delivery.request_id]
     }),
     chat: one(chats, {
         fields: [requests.id],

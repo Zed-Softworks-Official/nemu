@@ -8,6 +8,7 @@ import { artistProcedure, createTRPCRouter, protectedProcedure } from '../trpc'
 import {
     chats,
     commissions,
+    delivery,
     forms,
     invoices,
     kanbans,
@@ -19,7 +20,8 @@ import {
     type KanbanContainerData,
     RequestStatus,
     type ClientRequestData,
-    type Chat
+    type Chat,
+    DownloadType
 } from '~/lib/structures'
 import type { FormElementInstance } from '~/components/form-builder/elements/form-elements'
 import { TRPCError } from '@trpc/server'
@@ -28,6 +30,7 @@ import { env } from '~/env'
 import { StripeCreateCustomer, StripeCreateInvoice } from '~/lib/payments'
 import { get_redis_key, redis } from '~/server/redis'
 import { get_image_url } from '~/lib/utils'
+import { utapi } from '~/server/uploadthing'
 
 export const request_router = createTRPCRouter({
     set_form: artistProcedure
@@ -435,5 +438,69 @@ export const request_router = createTRPCRouter({
             }
 
             return result
+        }),
+
+    update_request_delivery: artistProcedure
+        .input(
+            z.object({
+                order_id: z.string(),
+                file_key: z.string(),
+                file_type: z.string()
+            })
+        )
+        .mutation(async ({ ctx, input }) => {
+            const data = await ctx.db.query.requests.findFirst({
+                where: eq(requests.order_id, input.order_id),
+                with: {
+                    delivery: true
+                }
+            })
+
+            if (!data) {
+                throw new TRPCError({
+                    code: 'NOT_FOUND',
+                    message: 'Request not found'
+                })
+            }
+
+            if (!data?.delivery) {
+                await ctx.db.insert(delivery).values({
+                    id: createId(),
+                    artist_id: ctx.artist.id,
+                    request_id: data.id,
+                    user_id: data.user_id,
+                    type:
+                        input.file_type === 'application/zip'
+                            ? DownloadType.Archive
+                            : DownloadType.Image,
+                    ut_key: input.file_key
+                })
+
+                return
+            }
+
+            const delete_promise = utapi.deleteFiles([data.delivery.ut_key])
+            const update_promise = ctx.db
+                .update(delivery)
+                .set({
+                    ut_key: input.file_key,
+                    type:
+                        input.file_type === 'application/zip'
+                            ? DownloadType.Archive
+                            : DownloadType.Image
+                })
+                .where(eq(delivery.id, data.delivery.id))
+
+            await Promise.all([delete_promise, update_promise])
+        }),
+
+    request_failed: artistProcedure
+        .input(
+            z.object({
+                file_key: z.string()
+            })
+        )
+        .mutation(async ({ input }) => {
+            await utapi.deleteFiles([input.file_key])
         })
 })
