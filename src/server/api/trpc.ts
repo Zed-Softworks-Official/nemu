@@ -12,6 +12,7 @@ import superjson from 'superjson'
 import { ZodError } from 'zod'
 
 import { db } from '~/server/db'
+import { redis } from '~/server/redis'
 import { artists, users } from '../db/schema'
 import { eq } from 'drizzle-orm'
 import { UserRole } from '~/lib/structures'
@@ -34,6 +35,7 @@ export const createTRPCContext = async (opts: { headers: Headers }) => {
     return {
         db,
         auth: auth_data,
+        redis,
         ...opts
     }
 }

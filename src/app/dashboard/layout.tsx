@@ -13,8 +13,7 @@ import {
 } from 'lucide-react'
 
 import { currentUser } from '@clerk/nextjs/server'
-import { redirect } from 'next/navigation'
-import { unstable_cache } from 'next/cache'
+import { RedirectToSignIn } from '@clerk/nextjs'
 
 import { FullLogo, IconLogo } from '~/components/ui/logo'
 import {
@@ -38,25 +37,13 @@ import {
     DropdownMenuItem
 } from '~/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
-import { get_dashboard_links } from '~/server/actions/stripe'
 import { DashboardBreadcrumbs } from './breadcrumbs'
 import { Separator } from '~/components/ui/separator'
+import { api } from '~/trpc/server'
 
 export const metadata = {
     title: 'Nemu | Artist Dashboard'
 }
-
-const fetch_dashboard_links = unstable_cache(
-    async (user_id: string | undefined) => {
-        if (!user_id) {
-            return undefined
-        }
-
-        return await get_dashboard_links(user_id)
-    },
-    ['dashboard_links'],
-    { tags: ['dashboard_links'], revalidate: 3600 }
-)
 
 const sidebar_items = [
     {
@@ -153,9 +140,7 @@ async function SidebarUserdropdown() {
     const clerk_user = await currentUser()
 
     if (!clerk_user) {
-        redirect('/u/login')
-
-        return null
+        return <RedirectToSignIn redirectUrl={'/u/login'} />
     }
 
     return (
@@ -203,8 +188,7 @@ async function SidebarUserdropdown() {
 }
 
 async function SidebarSettingsContent() {
-    const current_user = await currentUser()
-    const dashboard_links = await fetch_dashboard_links(current_user?.id)
+    const dashboard_links = await api.stripe.get_dashboard_links()
 
     if (!dashboard_links) {
         return null

@@ -1,7 +1,4 @@
-import { eq } from 'drizzle-orm'
-
-import { createTRPCRouter, protectedProcedure } from '../trpc'
-import { artists } from '~/server/db/schema'
+import { artistProcedure, createTRPCRouter } from '../trpc'
 
 import type { StripeDashboardData } from '~/lib/structures'
 
@@ -11,23 +8,15 @@ import {
     StripeCreateLoginLink,
     StripeCreateSupporterBilling
 } from '~/lib/payments'
+import { get_redis_key } from '~/server/redis'
 
 export const stripe_router = createTRPCRouter({
-    get_dashboard_links: protectedProcedure.query(async ({ ctx }) => {
-        // Get the artist from the db
-        let artist
-        try {
-            artist = await ctx.db.query.artists.findFirst({
-                where: eq(artists.user_id, ctx.auth.userId)
-            })
-        } catch (e) {
-            console.error('Failed to get artist: ', e)
-            return undefined
-        }
+    get_dashboard_links: artistProcedure.query(async ({ ctx }) => {
+        const redis_key = get_redis_key('dashboard_links', ctx.artist.id)
+        const cached_data = await ctx.redis.get(redis_key)
 
-        if (!artist) {
-            console.error('Artist not found')
-            return undefined
+        if (cached_data) {
+            return cached_data as StripeDashboardData
         }
 
         const result: StripeDashboardData = {
@@ -38,8 +27,7 @@ export const stripe_router = createTRPCRouter({
             checkout_portal: ''
         }
 
-        // Get the stripe account if they have one
-        const stripe_account = await StripeGetAccount(artist.stripe_account)
+        const stripe_account = await StripeGetAccount(ctx.artist.stripe_account)
 
         // If the user has not completed the onboarding, return an onboarding url
         // else return the stripe connect url
@@ -55,13 +43,17 @@ export const stripe_router = createTRPCRouter({
             }
         }
 
-        if (artist.zed_customer_id) {
+        if (ctx.artist.zed_customer_id) {
             const portal_url = (
-                await StripeCreateSupporterBilling(artist.zed_customer_id)
+                await StripeCreateSupporterBilling(ctx.artist.zed_customer_id)
             ).url
 
             result.checkout_portal = portal_url
         }
+
+        await ctx.redis.set(redis_key, result, {
+            ex: 3600
+        })
 
         return result
     })

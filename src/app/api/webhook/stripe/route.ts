@@ -8,6 +8,7 @@ import { db } from '~/server/db'
 import { artists, invoices } from '~/server/db/schema'
 import { eq } from 'drizzle-orm'
 import { knock, KnockWorkflows } from '~/server/knock'
+import { get_redis_key, redis } from '~/server/redis'
 
 export async function POST(req: NextRequest) {
     const clerk_client_promise = clerkClient()
@@ -112,6 +113,40 @@ export async function POST(req: NextRequest) {
                         supporter: false
                     })
                     .where(eq(artists.zed_customer_id, subscription.customer as string))
+            }
+            break
+        case 'account.updated':
+            {
+                const account = evt.data.object
+
+                // Only proceed if this is an onboarding completion
+                if (!account.charges_enabled || !account.details_submitted) {
+                    return NextResponse.json({ handled: true })
+                }
+
+                const artist = await db.query.artists.findFirst({
+                    where: eq(artists.stripe_account, account.id)
+                })
+
+                if (!artist) {
+                    return NextResponse.json(
+                        { error: 'Artist not found' },
+                        { status: 404 }
+                    )
+                }
+
+                const db_promise = db
+                    .update(artists)
+                    .set({
+                        onboarded: true
+                    })
+                    .where(eq(artists.id, artist.id))
+
+                const redis_promise = redis.del(
+                    get_redis_key('dashboard_links', artist.id)
+                )
+
+                await Promise.all([db_promise, redis_promise])
             }
             break
     }

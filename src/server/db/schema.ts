@@ -148,6 +148,7 @@ export const artists = createTable('artist', {
     id: varchar('id', { length: 128 }).primaryKey(),
     user_id: text('user_id').notNull(),
     stripe_account: text('stripe_account').notNull(),
+    onboarded: boolean('onboarded').default(false).notNull(),
 
     created_at: timestamp('created_at').defaultNow().notNull(),
 
