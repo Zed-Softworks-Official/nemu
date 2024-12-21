@@ -38,10 +38,6 @@ export const nemuFileRouter = {
         .middleware(async ({ req }) => await validate_auth(req, true))
         .onUploadComplete(async () => {
             console.log('Header Photo Upload Complete')
-
-            return {
-                message: 'Header Photo Upload Complete'
-            }
         }),
 
     /**
@@ -51,10 +47,6 @@ export const nemuFileRouter = {
         .middleware(async ({ req }) => await validate_auth(req, true))
         .onUploadComplete(async () => {
             console.log('Portfolio Upload Complete')
-
-            return {
-                message: 'Portfolio Upload Complete'
-            }
         }),
 
     /**
@@ -64,10 +56,6 @@ export const nemuFileRouter = {
         .middleware(async ({ req }) => await validate_auth(req, true))
         .onUploadComplete(async () => {
             console.log('Commission Image Upload Complete')
-
-            return {
-                message: 'Commission Image Upload Complete'
-            }
         }),
 
     /**
@@ -80,10 +68,6 @@ export const nemuFileRouter = {
         .middleware(async ({ req }) => await validate_auth(req, true))
         .onUploadComplete(() => {
             console.log('Delivery Upload Complete')
-
-            return {
-                message: 'Delivery Upload Complete'
-            }
         })
 } satisfies FileRouter
 
