@@ -43,6 +43,7 @@ export type StripeProductCheckoutData = CheckoutData & {
 }
 
 export type StripeDashboardData = {
+    onboarded: boolean
     managment: {
         type: 'dashboard' | 'onboarding'
         url: string

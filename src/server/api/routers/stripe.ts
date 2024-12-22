@@ -20,6 +20,7 @@ export const stripe_router = createTRPCRouter({
         }
 
         const result: StripeDashboardData = {
+            onboarded: false,
             managment: {
                 type: 'dashboard',
                 url: ''
@@ -37,6 +38,7 @@ export const stripe_router = createTRPCRouter({
                 url: (await StripeCreateAccountLink(stripe_account.id)).url
             }
         } else {
+            result.onboarded = true
             result.managment = {
                 type: 'dashboard',
                 url: (await StripeCreateLoginLink(stripe_account.id)).url

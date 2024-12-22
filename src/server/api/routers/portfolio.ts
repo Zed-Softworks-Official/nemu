@@ -93,24 +93,18 @@ export const portfolio_router = createTRPCRouter({
             } satisfies ClientPortfolioItem
         }),
 
-    get_portfolio_list: publicProcedure
-        .input(
-            z.object({
-                artist_id: z.string()
-            })
-        )
-        .query(async ({ ctx, input }) => {
-            const portfolio_items = await ctx.db.query.portfolios.findMany({
-                where: eq(portfolios.artist_id, input.artist_id)
-            })
-
-            const result: ClientPortfolioItem[] = portfolio_items.map((item) => ({
-                ...item,
-                image: {
-                    url: get_ut_url(item.ut_key)
-                }
-            }))
-
-            return result
+    get_portfolio_list: artistProcedure.query(async ({ ctx }) => {
+        const portfolio_items = await ctx.db.query.portfolios.findMany({
+            where: eq(portfolios.artist_id, ctx.artist.id)
         })
+
+        const result: ClientPortfolioItem[] = portfolio_items.map((item) => ({
+            ...item,
+            image: {
+                url: get_ut_url(item.ut_key)
+            }
+        }))
+
+        return result
+    })
 })

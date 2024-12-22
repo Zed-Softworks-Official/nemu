@@ -3,6 +3,8 @@ import { Slot } from '@radix-ui/react-slot'
 import { cva, type VariantProps } from 'class-variance-authority'
 
 import { cn } from '~/lib/utils'
+import { PlusIcon } from 'lucide-react'
+import Link from 'next/link'
 
 const buttonVariants = cva(
     'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
@@ -52,5 +54,26 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     }
 )
 Button.displayName = 'Button'
+
+export function DashboardCreateButton(props: {
+    onboarded: boolean
+    text: string
+    href: string
+}) {
+    if (!props.onboarded) {
+        return (
+            <Button disabled>
+                <PlusIcon className="h-4 w-4" />
+                {props.text}
+            </Button>
+        )
+    }
+
+    return (
+        <Button asChild>
+            <Link href={props.href}>{props.text}</Link>
+        </Button>
+    )
+}
 
 export { Button, buttonVariants }

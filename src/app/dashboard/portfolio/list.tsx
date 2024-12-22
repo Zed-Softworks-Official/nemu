@@ -5,10 +5,8 @@ import NemuImage from '~/components/nemu-image'
 import Loading from '~/components/ui/loading'
 import { api } from '~/trpc/react'
 
-export function PortfolioList(props: { artist_id: string }) {
-    const { data, isLoading } = api.portfolio.get_portfolio_list.useQuery({
-        artist_id: props.artist_id
-    })
+export function PortfolioList() {
+    const { data, isLoading } = api.portfolio.get_portfolio_list.useQuery()
 
     if (isLoading) {
         return <Loading />
