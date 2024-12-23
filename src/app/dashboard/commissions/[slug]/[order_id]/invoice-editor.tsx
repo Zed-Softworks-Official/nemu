@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
-import { MoreVertical, PencilIcon, Plus, Save, Send } from 'lucide-react'
+import { MoreVertical, PencilIcon, Plus, Save, Send, Trash2 } from 'lucide-react'
 
 import { z } from 'zod'
 import { useForm } from 'react-hook-form'
@@ -343,6 +343,17 @@ function InvoiceForm(props: {
                                 />
                             </FormControl>
                         </FormItem>
+                        <Button
+                            variant={'destructive'}
+                            size={'icon'}
+                            onClick={() => {
+                                const newItems = [...props.items]
+                                newItems.splice(index, 1)
+                                props.setItems(newItems)
+                            }}
+                        >
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
                     </div>
                 ))}
             </form>
