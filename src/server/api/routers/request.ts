@@ -527,7 +527,11 @@ export const request_router = createTRPCRouter({
             await ctx.db
                 .update(invoices)
                 .set({
-                    items: input.items
+                    items: input.items,
+                    total: input.items.reduce(
+                        (acc, item) => acc + item.price * item.quantity,
+                        0
+                    )
                 })
                 .where(eq(invoices.id, input.invoice_id))
         }),
