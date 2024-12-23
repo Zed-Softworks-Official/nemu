@@ -27,7 +27,12 @@ import type { FormElementInstance } from '~/components/form-builder/elements/for
 import { TRPCError } from '@trpc/server'
 import { knock, KnockWorkflows } from '~/server/knock'
 import { env } from '~/env'
-import { StripeCreateCustomer, StripeCreateInvoice } from '~/lib/payments'
+import {
+    StripeCreateCustomer,
+    StripeCreateInvoice,
+    StripeFinalizeInvoice,
+    StripeUpdateInvoice
+} from '~/lib/payments'
 import { get_redis_key, redis } from '~/server/redis'
 import { get_ut_url } from '~/lib/utils'
 import { utapi } from '~/server/uploadthing'
@@ -396,7 +401,8 @@ export const request_router = createTRPCRouter({
     get_request_by_id: protectedProcedure
         .input(
             z.object({
-                order_id: z.string()
+                order_id: z.string(),
+                requester: z.literal('user').or(z.literal('artist'))
             })
         )
         .query(async ({ ctx, input }) => {
@@ -416,6 +422,15 @@ export const request_router = createTRPCRouter({
             })
 
             if (!request) {
+                return undefined
+            }
+
+            if (input.requester === 'user' && request.user_id !== ctx.auth.userId) {
+                return undefined
+            } else if (
+                input.requester === 'artist' &&
+                request.commission.artist.user_id !== ctx.auth.userId
+            ) {
                 return undefined
             }
 
@@ -492,6 +507,93 @@ export const request_router = createTRPCRouter({
                 .where(eq(delivery.id, data.delivery.id))
 
             await Promise.all([delete_promise, update_promise])
+        }),
+
+    update_invoice_items: artistProcedure
+        .input(
+            z.object({
+                invoice_id: z.string(),
+                items: z.array(
+                    z.object({
+                        id: z.string(),
+                        name: z.string(),
+                        price: z.number(),
+                        quantity: z.number()
+                    })
+                )
+            })
+        )
+        .mutation(async ({ ctx, input }) => {
+            await ctx.db
+                .update(invoices)
+                .set({
+                    items: input.items
+                })
+                .where(eq(invoices.id, input.invoice_id))
+        }),
+
+    send_invoice: artistProcedure
+        .input(
+            z.object({
+                invoice_id: z.string()
+            })
+        )
+        .mutation(async ({ ctx, input }) => {
+            const invoice = await ctx.db.query.invoices.findFirst({
+                where: eq(invoices.id, input.invoice_id),
+                with: {
+                    request: {
+                        with: {
+                            commission: true
+                        }
+                    }
+                }
+            })
+
+            if (!invoice) {
+                throw new TRPCError({
+                    code: 'NOT_FOUND',
+                    message: 'Invoice not found!'
+                })
+            }
+
+            await StripeUpdateInvoice(
+                invoice.customer_id,
+                invoice.stripe_account,
+                invoice.stripe_id,
+                invoice.items,
+                ctx.artist.supporter
+            )
+
+            const finalized_invoice = await StripeFinalizeInvoice(
+                invoice.stripe_id,
+                invoice.stripe_account
+            )
+
+            if (!finalized_invoice) {
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Failed to finalize invoice'
+                })
+            }
+
+            await ctx.db
+                .update(invoices)
+                .set({
+                    status: InvoiceStatus.Pending,
+                    sent: true,
+                    hosted_url: finalized_invoice.hosted_invoice_url
+                })
+                .where(eq(invoices.id, input.invoice_id))
+
+            await knock.workflows.trigger(KnockWorkflows.InvoiceSent, {
+                recipients: [invoice.request.user_id],
+                data: {
+                    commission_title: invoice.request.commission.title,
+                    artist_handle: ctx.artist.handle,
+                    invoice_url: `${env.BASE_URL}/requests/${invoice.request.order_id}/invoice`
+                }
+            })
         }),
 
     request_failed: artistProcedure

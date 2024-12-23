@@ -21,7 +21,7 @@ import { Button } from '~/components/ui/button'
 import { Separator } from '~/components/ui/separator'
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card'
 
-import { useOrder } from '~/components/order-provider'
+import { useDashboardOrder } from '~/components/orders/dashboard-order'
 
 import type {
     KanbanContainerData,
@@ -37,7 +37,8 @@ export function Kanban() {
     )
     const [activeTask, setActiveTask] = useState<KanbanTaskData | null>(null)
 
-    const { containers, tasks, set_containers, set_tasks, kanban_id } = useOrder()
+    const { containers, tasks, set_containers, set_tasks, kanban_id } =
+        useDashboardOrder()
     const saveKanban = api.kanban.update_kanban.useMutation({
         onMutate: () => {
             const toast_id = toast.loading('Saving Kanban...')

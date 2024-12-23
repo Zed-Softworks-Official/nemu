@@ -14,7 +14,7 @@ import { api, type RouterOutputs } from '~/trpc/react'
 
 import Loading from '~/components/ui/loading'
 
-type OrderContextType = {
+type DashboardOrderContextType = {
     order_id: string
     set_order_id: Dispatch<SetStateAction<string>>
 
@@ -29,9 +29,12 @@ type OrderContextType = {
     request_data: RouterOutputs['request']['get_request_by_id']
 }
 
-const OrderContext = createContext<OrderContextType | null>(null)
+const DashboardOrderContext = createContext<DashboardOrderContextType | null>(null)
 
-export function OrderProvider(props: { children: React.ReactNode; order_id: string }) {
+export function DashboardOrderProvider(props: {
+    children: React.ReactNode
+    order_id: string
+}) {
     const [orderId, setOrderId] = useState(props.order_id)
     const [containers, setContainers] = useState<KanbanContainerData[]>([])
     const [tasks, setTasks] = useState<KanbanTaskData[]>([])
@@ -39,7 +42,8 @@ export function OrderProvider(props: { children: React.ReactNode; order_id: stri
     const [kanbanId, setKanbanId] = useState('')
 
     const { data: request_data, isLoading } = api.request.get_request_by_id.useQuery({
-        order_id: props.order_id
+        order_id: props.order_id,
+        requester: 'artist'
     })
 
     useEffect(() => {
@@ -57,7 +61,7 @@ export function OrderProvider(props: { children: React.ReactNode; order_id: stri
     }
 
     return (
-        <OrderContext.Provider
+        <DashboardOrderContext.Provider
             value={{
                 order_id: orderId,
                 set_order_id: setOrderId,
@@ -70,12 +74,12 @@ export function OrderProvider(props: { children: React.ReactNode; order_id: stri
             }}
         >
             {props.children}
-        </OrderContext.Provider>
+        </DashboardOrderContext.Provider>
     )
 }
 
-export function useOrder() {
-    const context = useContext(OrderContext)
+export function useDashboardOrder() {
+    const context = useContext(DashboardOrderContext)
 
     if (!context) {
         throw new Error('useOrder must be used within a OrderProvider')

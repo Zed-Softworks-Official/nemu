@@ -3,26 +3,19 @@
 import Link from 'next/link'
 import type { ColumnDef } from '@tanstack/react-table'
 
-import Loading from '~/components/ui/loading'
 import { DataTable } from '~/components/data-table'
 
 import { InvoiceStatus } from '~/lib/structures'
-import { api } from '~/trpc/react'
 
 import { format_to_currency } from '~/lib/utils'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
+import { useOrder } from '~/components/orders/standard-order'
 
-export default function Invoice(props: { order_id: string }) {
-    const { data: request, isLoading } = api.request.get_request_by_id.useQuery({
-        order_id: props.order_id
-    })
+export default function Invoice() {
+    const { request_data } = useOrder()
 
-    if (isLoading) {
-        return <Loading />
-    }
-
-    if (!request?.invoice) {
+    if (!request_data?.invoice) {
         return <div>No invoice found</div>
     }
 
@@ -54,11 +47,13 @@ export default function Invoice(props: { order_id: string }) {
         <div className="flex flex-col gap-5">
             <div className="flex flex-row gap-3">
                 <span className="text-sm">Invoice Status</span>
-                <InvoiceStatusBadge status={request.invoice.status as InvoiceStatus} />
+                <InvoiceStatusBadge
+                    status={request_data.invoice.status as InvoiceStatus}
+                />
             </div>
             <DataTable
                 columns={columns}
-                data={request.invoice.items.map((item, index) => ({
+                data={request_data.invoice?.items.map((item, index) => ({
                     item_number: index + 1,
                     name: item.name,
                     price: format_to_currency(Number(item.price / 100)),
@@ -70,13 +65,13 @@ export default function Invoice(props: { order_id: string }) {
                     <div className="flex flex-col gap-1">
                         <div className="text-xl text-muted-foreground">Total</div>
                         <div className="text-lg font-bold">
-                            {format_to_currency(Number(request.invoice.total))}
+                            {format_to_currency(Number(request_data.invoice.total))}
                         </div>
-                        {request.invoice.sent && request.invoice.hosted_url && (
+                        {request_data.invoice.sent && request_data.invoice.hosted_url && (
                             <div className="pt-4">
                                 <Button asChild>
                                     <Link
-                                        href={request.invoice.hosted_url}
+                                        href={request_data.invoice.hosted_url}
                                         target="_blank"
                                     >
                                         View Invoice

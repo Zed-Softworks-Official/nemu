@@ -7,7 +7,7 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 
 import { DataTable } from '~/components/data-table'
-import { useOrder } from '~/components/order-provider'
+import { useDashboardOrder } from '~/components/orders/dashboard-order'
 
 import {
     AlertDialog,
@@ -40,10 +40,11 @@ import { api } from '~/trpc/react'
 import { Kanban } from './kanban'
 
 import { UploadDropzone } from '~/components/files/uploadthing'
+import { InvoiceEditor } from './invoice-editor'
 // import { MessagesClient } from '~/components/messages/messages-client'
 
 export function CommissionHeader() {
-    const { request_data } = useOrder()
+    const { request_data } = useDashboardOrder()
 
     return (
         <div className="flex flex-col gap-2">
@@ -59,7 +60,7 @@ export function CommissionHeader() {
 
 export function CommissionDetails() {
     const [acceptDialogStatus, setAcceptDialogStatus] = useState(true)
-    const { request_data } = useOrder()
+    const { request_data } = useDashboardOrder()
 
     const determineRequest = api.request.determine_request.useMutation({
         onMutate: (input) => {
@@ -180,7 +181,7 @@ export function CommissionDetails() {
 }
 
 export function CommissionDetailsTabs() {
-    const { request_data } = useOrder()
+    const { request_data } = useDashboardOrder()
 
     if (request_data?.status === 'pending') {
         return null
@@ -191,6 +192,7 @@ export function CommissionDetailsTabs() {
             <TabsList>
                 <TabsTrigger value="kanban">Kanban</TabsTrigger>
                 <TabsTrigger value="messages">Messages</TabsTrigger>
+                <TabsTrigger value="invoice">Invoice</TabsTrigger>
                 <TabsTrigger value="delivery">Delivery</TabsTrigger>
             </TabsList>
             <TabsContent value="kanban">
@@ -198,6 +200,9 @@ export function CommissionDetailsTabs() {
             </TabsContent>
             <TabsContent value="messages">
                 {/* <MessagesClient current_order_id={request_data?.order_id} list_hidden /> */}
+            </TabsContent>
+            <TabsContent value="invoice">
+                <InvoiceEditor />
             </TabsContent>
             <TabsContent value="delivery">
                 <Delivery />
@@ -207,7 +212,7 @@ export function CommissionDetailsTabs() {
 }
 
 function Delivery() {
-    const { request_data } = useOrder()
+    const { request_data } = useDashboardOrder()
 
     const utils = api.useUtils()
     const requestFailed = api.request.request_failed.useMutation()
