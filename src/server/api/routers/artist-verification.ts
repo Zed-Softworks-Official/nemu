@@ -61,6 +61,10 @@ export const artist_verification_router = createTRPCRouter({
         return await ctx.db.query.artist_codes.findMany()
     }),
 
+    get_artist_verifications: adminProcedure.query(async ({ ctx }) => {
+        return await ctx.db.query.artist_verifications.findMany()
+    }),
+
     verify_artist: protectedProcedure
         .input(
             z.object({
