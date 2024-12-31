@@ -139,7 +139,7 @@ export const commission_router = createTRPCRouter({
                 title: updated_commission[0]!.title,
                 price: format_to_currency(updated_commission[0]!.price / 100),
                 description: updated_commission[0]!.description,
-                featured_image: updated_commission[0]!.images[0]!.ut_key,
+                featured_image: get_ut_url(updated_commission[0]!.images[0]!.ut_key),
                 slug: updated_commission[0]!.slug,
                 artist_handle: ctx.artist.handle,
                 published: updated_commission[0]!.published

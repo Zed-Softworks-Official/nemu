@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { SocialAgent } from '~/lib/structures'
 import { get_ut_url } from '~/lib/utils'
+import { update_index } from '~/server/algolia/collections'
 
 import { artistProcedure, createTRPCRouter, publicProcedure } from '~/server/api/trpc'
 import { artists, commissions } from '~/server/db/schema'
@@ -98,7 +99,16 @@ export const artist_router = createTRPCRouter({
         )
         .mutation(async ({ ctx, input }) => {
             if (input.header_image_key) {
-                await utapi.deleteFiles(ctx.artist.header_photo)
+                const delete_promise = utapi.deleteFiles(ctx.artist.header_photo)
+
+                const algolia_update = update_index('artists', {
+                    objectID: ctx.artist.id,
+                    handle: ctx.artist.handle,
+                    about: ctx.artist.about,
+                    image_url: get_ut_url(input.header_image_key)
+                })
+
+                await Promise.all([delete_promise, algolia_update])
             }
 
             await ctx.db

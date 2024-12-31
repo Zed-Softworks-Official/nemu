@@ -21,6 +21,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
 import NemuImage from '~/components/nemu-image'
 import { Button } from './ui/button'
+import { DialogTitle } from './ui/dialog'
 
 export default function SearchBar() {
     const [open, setOpen] = useState(false)
@@ -55,7 +56,7 @@ export default function SearchBar() {
                         ]
                     })
 
-                    const commissions = client.search({
+                    const commissions = client.searchForHits({
                         requests: [
                             {
                                 indexName: 'commissions',
@@ -67,8 +68,12 @@ export default function SearchBar() {
 
                     const res = await Promise.all([artists, commissions])
 
-                    setArtistHits(res[0].results as unknown as ArtistIndex[])
-                    setCommissionHits(res[1].results as unknown as CommissionIndex[])
+                    const artistHits = res[0].results[0]?.hits as unknown as ArtistIndex[]
+                    const commissionHits = res[1].results[0]
+                        ?.hits as unknown as CommissionIndex[]
+
+                    setArtistHits(artistHits)
+                    setCommissionHits(commissionHits)
                 } else {
                     setArtistHits([])
                     setCommissionHits([])
@@ -111,6 +116,7 @@ export default function SearchBar() {
                 </Button>
             </div>
             <CommandDialog open={open} onOpenChange={setOpen}>
+                <DialogTitle className="sr-only">Search</DialogTitle>
                 <CommandInput
                     placeholder="Search"
                     value={query}
