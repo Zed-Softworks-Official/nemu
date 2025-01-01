@@ -1,3 +1,10 @@
+import VertificationDataTable from './detail'
+
 export default function VerifyArtistPage() {
-    return <div>Verify Artist Page</div>
+    return (
+        <div className="flex flex-col gap-4">
+            <h1 className="text-2xl font-bold">Verify Artists</h1>
+            <VertificationDataTable />
+        </div>
+    )
 }

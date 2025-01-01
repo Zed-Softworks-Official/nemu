@@ -4,6 +4,7 @@ import { currentUser } from '@clerk/nextjs/server'
 import {
     BarChart,
     Brush,
+    Check,
     Code,
     CogIcon,
     LogOut,
@@ -211,11 +212,16 @@ function AdminSection(props: { show?: boolean }) {
     return (
         <DropdownMenuGroup>
             <DropdownMenuLabel>Admin</DropdownMenuLabel>
-
             <DropdownMenuItem asChild>
                 <Link href={'/admin/gen-code'} className="flex w-full items-center gap-3">
                     <Code className="h-6 w-6" />
                     Generate Artist Code
+                </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+                <Link href={'/admin/verify-artist'}>
+                    <Check className="h-6 w-6" />
+                    Verify Artist
                 </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
