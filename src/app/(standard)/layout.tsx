@@ -32,6 +32,7 @@ import { Button } from '~/components/ui/button'
 import NemuImage from '~/components/nemu-image'
 import { Notifications } from '~/components/notifications'
 import { api } from '~/trpc/server'
+import { Skeleton } from '~/components/ui/skeleton'
 
 export default function StandarLayout(props: {
     children: React.ReactNode
@@ -58,7 +59,9 @@ function Navbar() {
                 <SignedIn>
                     <div className="flex items-center gap-5">
                         <Notifications />
-                        <Suspense fallback={<div>Loading...</div>}>
+                        <Suspense
+                            fallback={<Skeleton className="h-12 w-12 rounded-full" />}
+                        >
                             <UserDropdown />
                         </Suspense>
                     </div>
@@ -104,13 +107,13 @@ function Footer() {
                     </h2>
                     <Link
                         href={'/artists/apply'}
-                        className="text-muted-foreground hover:underline"
+                        className="text-sm text-muted-foreground hover:underline"
                     >
                         Become an Artist
                     </Link>
                     <Link
                         href={'/artists/supporter'}
-                        className="text-muted-foreground hover:underline"
+                        className="text-sm text-muted-foreground hover:underline"
                     >
                         Become a Supporter
                     </Link>
@@ -121,19 +124,19 @@ function Footer() {
                     </h2>
                     <Link
                         href={'/roadmap'}
-                        className="text-muted-foreground hover:underline"
+                        className="text-sm text-muted-foreground hover:underline"
                     >
                         Roadmap
                     </Link>
                     <Link
                         href={'/terms'}
-                        className="text-muted-foreground hover:underline"
+                        className="text-sm text-muted-foreground hover:underline"
                     >
                         Terms of Service
                     </Link>
                     <Link
                         href={'/privacy'}
-                        className="text-muted-foreground hover:underline"
+                        className="text-sm text-muted-foreground hover:underline"
                     >
                         Privacy Policy
                     </Link>
