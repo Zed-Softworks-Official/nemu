@@ -40,7 +40,7 @@ export default function StandarLayout(props: {
 }) {
     return (
         <main>
-            <div className="container mx-auto min-h-screen w-full">
+            <div className="container mx-auto flex min-h-screen w-full flex-1 flex-col">
                 <Navbar />
                 <div className="py-5">{props.children}</div>
             </div>
@@ -192,7 +192,7 @@ function ArtistSection(props: { show?: boolean; handle: string }) {
             <DropdownMenuItem asChild>
                 <Link href={'/dashboard'} className="flex w-full items-center gap-3">
                     <BarChart className="h-6 w-6" />
-                    Artist&apos;s Dashboard
+                    Dashboard
                 </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
@@ -218,7 +218,7 @@ function AdminSection(props: { show?: boolean }) {
             <DropdownMenuItem asChild>
                 <Link href={'/admin/gen-code'} className="flex w-full items-center gap-3">
                     <Code className="h-6 w-6" />
-                    Generate Artist Code
+                    Artist Code
                 </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>

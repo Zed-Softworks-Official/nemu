@@ -25,8 +25,8 @@ const features: Feature[] = [
         status: FeatureStatus.InProgress
     },
     {
-        title: 'Artists Corner',
-        description: 'A place to sell ready-made art/assets',
+        title: 'Con Page (Super Secret)',
+        description: 'A page for artists to quickly sign up if they attended a con',
         status: FeatureStatus.Planned
     },
     {
@@ -35,6 +35,12 @@ const features: Feature[] = [
             'Use markdown to create descriptions for artist corner products and commissions',
         status: FeatureStatus.Planned
     },
+    {
+        title: 'Artists Corner',
+        description: 'A place to sell ready-made art/assets',
+        status: FeatureStatus.Planned
+    },
+
     {
         title: 'Embedded Donations/Tipping',
         description: 'A way to donate to artists directly from the site',
