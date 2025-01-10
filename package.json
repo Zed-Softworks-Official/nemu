@@ -74,6 +74,7 @@
     "import-in-the-middle": "^1.11.3",
     "lodash.debounce": "^4.0.8",
     "lucide-react": "^0.456.0",
+    "nanoid": "^5.0.9",
     "next": "^15.1.4",
     "next-themes": "^0.4.3",
     "nextjs-toploader": "^3.7.15",
