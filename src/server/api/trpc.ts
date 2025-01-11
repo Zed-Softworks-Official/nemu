@@ -29,12 +29,9 @@ import { UserRole } from '~/lib/structures'
  *
  * @see https://trpc.io/docs/server/context
  */
-export const createTRPCContext = async (opts: { headers: Headers }) => {
-    const auth_data = await auth()
-
+export const createTRPCContext = (opts: { headers: Headers }) => {
     return {
         db,
-        auth: auth_data,
         redis,
         ...opts
     }
@@ -122,7 +119,9 @@ export const publicProcedure = t.procedure.use(timingMiddleware)
 export const protectedProcedure = t.procedure
     .use(timingMiddleware)
     .use(async ({ next, ctx }) => {
-        if (!ctx.auth.userId) {
+        const auth_data = await auth()
+
+        if (!auth_data.userId) {
             throw new TRPCError({
                 message: 'Unauthorized',
                 code: 'UNAUTHORIZED'
@@ -132,7 +131,7 @@ export const protectedProcedure = t.procedure
         return next({
             ctx: {
                 ...ctx,
-                auth: ctx.auth
+                auth: auth_data
             }
         })
     })
