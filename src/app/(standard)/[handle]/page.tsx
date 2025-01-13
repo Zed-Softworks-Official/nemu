@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, ResolvingMetadata } from 'next'
 
 import { AspectRatio } from '~/components/ui/aspect-ratio'
 
@@ -8,7 +8,16 @@ import { ArtistBanner, ArtistHeader, ArtistBody } from './page-content'
 
 type Props = { params: Promise<{ handle: string }> }
 
-export async function generateMetadata(props: Props): Promise<Metadata> {
+export async function generateMetadata(
+    props: Props,
+    parent: ResolvingMetadata
+): Promise<Metadata> {
+    const isArtistRoute = (await parent).title?.absolute.includes('@')
+
+    if (!isArtistRoute) {
+        return {}
+    }
+
     const params = await props.params
     const handle = params.handle.substring(3, params.handle.length + 1)
 
