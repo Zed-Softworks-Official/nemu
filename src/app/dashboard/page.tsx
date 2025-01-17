@@ -4,13 +4,11 @@ import { and, desc, eq, gte } from 'drizzle-orm'
 import { DollarSign, Palette, ShoppingCart } from 'lucide-react'
 import { unstable_cache } from 'next/cache'
 import { notFound, redirect } from 'next/navigation'
-import { Suspense } from 'react'
 
 import { SalesChart } from './sales-chart'
 import { DataTable } from '~/components/data-table'
 import NemuImage from '~/components/nemu-image'
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card'
-import Loading from '~/components/ui/loading'
 import { InvoiceStatus, type SalesData } from '~/lib/structures'
 import { calculate_percentage_change, format_to_currency } from '~/lib/utils'
 
@@ -320,7 +318,11 @@ export default function DashboardHome() {
         <main className="container mx-auto flex flex-col gap-5 px-5">
             <h1 className="text-3xl font-bold">Home</h1>
 
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <div className="flex flex-1 items-center justify-center">
+                <h1 className="text-xl font-bold">Stats Coming Soon</h1>
+            </div>
+
+            {/* <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 <Suspense fallback={<Loading />}>
                     <CommissionStats />
                 </Suspense>
@@ -368,7 +370,7 @@ export default function DashboardHome() {
                         </Suspense>
                     </CardContent>
                 </Card>
-            </div>
+            </div> */}
         </main>
     )
 }

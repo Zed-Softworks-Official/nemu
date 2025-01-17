@@ -1,5 +1,5 @@
 import { DashboardCreateButton } from '~/components/ui/button'
-import { CommissionList, CommissionStats } from './commission-list'
+import { CommissionList } from './commission-list'
 import { api } from '~/trpc/server'
 
 export default async function CommissionsDashboardPage() {
@@ -15,8 +15,6 @@ export default async function CommissionsDashboardPage() {
                     href="/dashboard/commissions/create"
                 />
             </div>
-
-            <CommissionStats />
 
             <CommissionList />
         </div>

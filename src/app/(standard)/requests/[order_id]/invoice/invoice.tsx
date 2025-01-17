@@ -65,7 +65,7 @@ export default function Invoice() {
                     <div className="flex flex-col gap-1">
                         <div className="text-xl text-muted-foreground">Total</div>
                         <div className="text-lg font-bold">
-                            {format_to_currency(Number(request_data.invoice.total))}
+                            {format_to_currency(Number(request_data.invoice.total / 100))}
                         </div>
                         {request_data.invoice.sent && request_data.invoice.hosted_url && (
                             <div className="pt-4">

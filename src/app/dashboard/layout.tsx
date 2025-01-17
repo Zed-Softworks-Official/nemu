@@ -28,7 +28,8 @@ import {
     SidebarHeader,
     SidebarMenuItem,
     SidebarMenuButton,
-    SidebarGroupLabel
+    SidebarGroupLabel,
+    SidebarInset
 } from '~/components/ui/sidebar'
 import {
     DropdownMenu,
@@ -77,16 +78,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     return (
         <SidebarProvider>
             <DashboardSidebar />
-            <main className="flex min-h-screen w-full flex-col bg-background-secondary">
-                <header className="my-3 flex h-10 shrink-0 items-center gap-2">
-                    <SidebarTrigger />
-                    <Separator orientation="vertical" className="h-1/2" />
-                    <DashboardBreadcrumbs />
+            <SidebarInset className="bg-background-secondary px-4 pb-4">
+                <header className="flex h-16 shrink-0 items-center gap-2">
+                    <div className="flex items-center gap-2 px-4">
+                        <SidebarTrigger />
+                        <Separator orientation="vertical" className="ml-4 h-4" />
+                        <DashboardBreadcrumbs />
+                    </div>
                 </header>
-                <div className="mb-3 mr-3 flex-grow rounded-xl bg-background py-5">
-                    {children}
-                </div>
-            </main>
+                <div className="flex flex-1 rounded-xl bg-background p-4">{children}</div>
+            </SidebarInset>
         </SidebarProvider>
     )
 }
@@ -148,7 +149,10 @@ async function SidebarUserdropdown() {
             <SidebarMenuItem>
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <SidebarMenuButton>
+                        <SidebarMenuButton
+                            size="lg"
+                            className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                        >
                             <Avatar className="h-8 w-8">
                                 <AvatarImage
                                     src={clerk_user.imageUrl}
