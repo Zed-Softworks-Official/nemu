@@ -143,7 +143,7 @@ export const request_router = createTRPCRouter({
             const artist_notification_promise = knock.workflows.trigger(
                 KnockWorkflows.CommissionRequestArtistEnd,
                 {
-                    recipients: [commission.artist.id],
+                    recipients: [commission.artist.user_id],
                     data: {
                         commission_title: commission.title,
                         commission_requests_url: `${env.BASE_URL}/dashboard/commissions/${commission.slug}`
