@@ -27,6 +27,7 @@ import {
 import { Button } from '~/components/ui/button'
 import Price from '~/components/ui/price'
 import ShareButton from '~/components/ui/share-button'
+import { RedirectToSignIn, useUser } from '@clerk/nextjs'
 
 export function CommissionView(props: { handle: string; slug: string }) {
     const { data: commission, isLoading } = api.commission.get_commission.useQuery({
@@ -65,12 +66,18 @@ function CommissionContent(props: {
     form_data: InferSelectModel<typeof forms>
     user_requested: boolean | undefined
 }) {
+    const { user } = useUser()
+
     const [showForm, setShowForm] = useState(false)
     const [acceptedTerms, setAcceptedTerms] = useState(false)
 
     const [variant, text] = get_availability_badge_data(props.commission.availability)
 
     if (showForm && props.user_requested !== undefined && props.commission.id) {
+        if (!user) {
+            return <RedirectToSignIn />
+        }
+
         return (
             <div className="flex h-full max-h-fit flex-1 flex-grow-0 overflow-y-auto">
                 <RequestForm
