@@ -1,16 +1,20 @@
 'use client'
 
-import type { ColumnDef } from '@tanstack/react-table'
-import { RequestStatus } from '~/lib/structures'
 import Link from 'next/link'
+import { EyeIcon } from 'lucide-react'
+import type { ColumnDef } from '@tanstack/react-table'
+
 import { DataTable } from '~/components/data-table'
 import NemuImage from '~/components/nemu-image'
-import type { ClientRequestData } from '~/lib/structures'
-import { EyeIcon } from 'lucide-react'
+
+import { type ClientRequestData, RequestStatus } from '~/lib/structures'
+
 import { Button } from '~/components/ui/button'
-import { api } from '~/trpc/react'
+import { Badge, type BadgeProps } from '~/components/ui/badge'
+
 import Loading from '~/components/ui/loading'
-import { Badge } from '~/components/ui/badge'
+
+import { api } from '~/trpc/react'
 
 export default function RequestTable() {
     const { data: requests, isLoading } = api.request.get_request_list.useQuery()
@@ -73,7 +77,7 @@ export default function RequestTable() {
             cell: ({ row }) => {
                 const status = row.original.status as RequestStatus
 
-                let variant = 'default'
+                let variant: BadgeProps['variant'] = 'default'
                 switch (status) {
                     case RequestStatus.Delivered:
                         variant = 'success'
@@ -89,13 +93,13 @@ export default function RequestTable() {
                         break
                 }
 
-                return <Badge variant={variant as any}>{status}</Badge>
+                return <Badge variant={variant}>{status}</Badge>
             }
         },
         {
             id: 'actions',
             cell: ({ row }) => {
-                const status = row.original.status
+                const status = row.original.status as RequestStatus
                 const order_id = row.original.order_id
 
                 if (
