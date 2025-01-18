@@ -19,7 +19,11 @@ const TableHeader = React.forwardRef<
     HTMLTableSectionElement,
     React.HTMLAttributes<HTMLTableSectionElement>
 >(({ className, ...props }, ref) => (
-    <thead ref={ref} className={cn('[&_tr]:border-b-2', className)} {...props} />
+    <thead
+        ref={ref}
+        className={cn('bg-background-secondary [&_tr]:border-b-2', className)}
+        {...props}
+    />
 ))
 TableHeader.displayName = 'TableHeader'
 

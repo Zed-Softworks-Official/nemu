@@ -10,6 +10,7 @@ import { EyeIcon } from 'lucide-react'
 import { Button } from '~/components/ui/button'
 import { api } from '~/trpc/react'
 import Loading from '~/components/ui/loading'
+import { Badge } from '~/components/ui/badge'
 
 export default function RequestTable() {
     const { data: requests, isLoading } = api.request.get_request_list.useQuery()
@@ -68,13 +69,33 @@ export default function RequestTable() {
             }
         },
         {
-            accessorKey: 'status',
-            header: 'Status'
+            header: 'Status',
+            cell: ({ row }) => {
+                const status = row.original.status as RequestStatus
+
+                let variant = 'default'
+                switch (status) {
+                    case RequestStatus.Delivered:
+                        variant = 'success'
+                        break
+                    case RequestStatus.Pending:
+                        variant = 'warning'
+                        break
+                    case RequestStatus.Rejected:
+                        variant = 'destructive'
+                        break
+                    case RequestStatus.Waitlist:
+                        variant = 'warning'
+                        break
+                }
+
+                return <Badge variant={variant as any}>{status}</Badge>
+            }
         },
         {
             id: 'actions',
             cell: ({ row }) => {
-                const status = row.getValue('status')
+                const status = row.original.status
                 const order_id = row.original.order_id
 
                 if (

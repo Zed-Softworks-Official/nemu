@@ -1,10 +1,9 @@
-import { HydrateClient } from '~/trpc/server'
 import RequestTable from './request-table'
 
 export default function RequestsPage() {
     return (
-        <HydrateClient>
+        <div className="flex w-full flex-1 flex-col gap-4">
             <RequestTable />
-        </HydrateClient>
+        </div>
     )
 }
