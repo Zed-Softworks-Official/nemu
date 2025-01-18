@@ -41,7 +41,7 @@ import { Kanban } from './kanban'
 
 import { UploadDropzone } from '~/components/files/uploadthing'
 import { InvoiceEditor } from './invoice-editor'
-// import { MessagesClient } from '~/components/messages/messages-client'
+import { MessagesClient } from '~/components/messages/messages-client'
 
 export function CommissionHeader() {
     const { request_data } = useDashboardOrder()
@@ -199,7 +199,7 @@ export function CommissionDetailsTabs() {
                 <Kanban />
             </TabsContent>
             <TabsContent value="messages">
-                {/* <MessagesClient current_order_id={request_data?.order_id} list_hidden /> */}
+                <MessagesClient current_order_id={request_data?.order_id} list_hidden />
             </TabsContent>
             <TabsContent value="invoice">
                 <InvoiceEditor />
