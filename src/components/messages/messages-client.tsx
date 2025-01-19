@@ -101,8 +101,10 @@ function MessagesContent() {
     usePusher({
         key: `${current_chat_id}:messages`,
         event_name: 'message',
-        callback: (data: unknown) => {
-            set_messages((prev) => [data as Message, ...prev])
+        callback: (data: Message) => {
+            if (data.sender.user_id === current_user_id) return
+
+            set_messages((prev) => [data, ...prev])
         }
     })
 
@@ -122,7 +124,8 @@ function MessagesContent() {
 }
 
 function MessagesInput() {
-    const { chat_partner, current_chat_id } = useMessages()
+    const { chat_partner, current_chat_id, set_messages } = useMessages()
+    const { user } = useUser()
 
     const [input, setInput] = useState('')
     const textareaRef = useRef<HTMLTextAreaElement | null>(null)
@@ -130,12 +133,35 @@ function MessagesInput() {
     const sendMessage = api.chat.send_message.useMutation({
         onError: (e) => {
             toast.error(e.message)
-        },
-        onSuccess: () => {
-            setInput('')
-            textareaRef.current?.focus()
         }
     })
+
+    const handleSendMessage = (type: 'text' | 'image') => {
+        if (!current_chat_id || sendMessage.isPending || !input) return
+
+        set_messages((prev) => [
+            {
+                id: crypto.randomUUID(),
+                content: input,
+                sender: {
+                    user_id: user?.id ?? 'unknown',
+                    username: user?.username ?? 'unknown'
+                },
+                type: type,
+                timestamp: Date.now()
+            },
+            ...prev
+        ])
+
+        sendMessage.mutate({
+            chat_id: current_chat_id,
+            text: input,
+            type: type
+        })
+
+        setInput('')
+        textareaRef.current?.focus()
+    }
 
     return (
         <div className="mb-2 border-t px-4 pt-4 sm:mb-0">
@@ -145,14 +171,7 @@ function MessagesInput() {
                     onKeyDown={(e) => {
                         if (e.key === 'Enter' && !e.shiftKey) {
                             e.preventDefault()
-                            if (!current_chat_id || sendMessage.isPending || !input)
-                                return
-
-                            sendMessage.mutate({
-                                chat_id: current_chat_id,
-                                text: input,
-                                type: 'text'
-                            })
+                            handleSendMessage('text')
                         }
                     }}
                     rows={1}
@@ -176,16 +195,7 @@ function MessagesInput() {
                             disabled={!current_chat_id || sendMessage.isPending}
                             variant={'ghost'}
                             size={'icon'}
-                            onClick={() => {
-                                if (!current_chat_id || sendMessage.isPending || !input)
-                                    return
-
-                                sendMessage.mutate({
-                                    chat_id: current_chat_id,
-                                    text: input,
-                                    type: 'text'
-                                })
-                            }}
+                            onClick={() => handleSendMessage('text')}
                         >
                             <Send className="h-4 w-4" />
                         </Button>

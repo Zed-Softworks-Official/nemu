@@ -3,13 +3,13 @@ import { useEffect } from 'react'
 import { to_pusher_key } from '~/lib/utils'
 import { pusher_client } from '~/server/pusher/client'
 
-type PusherOpts = {
+type PusherOpts<T> = {
     key: string
     event_name: 'message'
-    callback: (data: unknown) => void
+    callback: (data: T) => void
 }
 
-export function usePusher(opts: PusherOpts) {
+export function usePusher<T>(opts: PusherOpts<T>) {
     useEffect(() => {
         pusher_client.subscribe(to_pusher_key(opts.key))
         pusher_client.bind(opts.event_name, opts.callback)
