@@ -1,5 +1,7 @@
 'use client'
 
+import { useState } from 'react'
+
 import {
     type ColumnDef,
     type SortingState,
@@ -20,17 +22,22 @@ import {
     TableHeader,
     TableRow
 } from '~/components/ui/table'
-import { Button } from './ui/button'
-import { useState } from 'react'
+import { Button } from '~/components/ui/button'
+import { Input } from '~/components/ui/input'
 
 interface DataTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[]
     data: TData[]
+    filter?: {
+        value: Extract<ColumnDef<TData, TValue>['id'], string>
+        placeholder: string
+    }
 }
 
 export function DataTable<TData, TValue>({
     columns,
-    data
+    data,
+    filter
 }: DataTableProps<TData, TValue>) {
     const [sorting, setSorting] = useState<SortingState>([])
     const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
@@ -52,6 +59,23 @@ export function DataTable<TData, TValue>({
 
     return (
         <div>
+            {filter && (
+                <div className="flex items-center py-4">
+                    <Input
+                        placeholder={`Filter ${filter.placeholder}`}
+                        value={
+                            (table.getColumn(filter.value)?.getFilterValue() as string) ??
+                            ''
+                        }
+                        onChange={(e) =>
+                            table
+                                .getColumn(filter.value)
+                                ?.setFilterValue(e.currentTarget.value)
+                        }
+                        className="max-w-sm bg-background-secondary"
+                    />
+                </div>
+            )}
             <div className="rounded-md border-2">
                 <Table>
                     <TableHeader>

@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { EyeIcon } from 'lucide-react'
+import { ArrowUpDown, EyeIcon } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
 
 import { DataTable } from '~/components/data-table'
@@ -55,10 +55,12 @@ export default function RequestTable() {
             }
         },
         {
+            id: 'title',
             accessorKey: 'commission.title',
             header: 'Title'
         },
         {
+            id: 'handle',
             accessorKey: 'commission.artist.handle',
             header: 'Artist',
             cell: ({ row }) => {
@@ -73,7 +75,34 @@ export default function RequestTable() {
             }
         },
         {
-            header: 'Status',
+            id: 'status',
+            header: ({ column }) => {
+                return (
+                    <Button
+                        variant={'ghost'}
+                        onClick={() =>
+                            column.toggleSorting(column.getIsSorted() === 'asc')
+                        }
+                    >
+                        Status
+                        <ArrowUpDown className="size-4" />
+                    </Button>
+                )
+            },
+            sortingFn: (rowA, rowB) => {
+                const statusOrder = {
+                    [RequestStatus.Accepted]: 0,
+                    [RequestStatus.Pending]: 1,
+                    [RequestStatus.Waitlist]: 2,
+                    [RequestStatus.Delivered]: 3,
+                    [RequestStatus.Rejected]: 4
+                }
+
+                const statusA = rowA.original.status as RequestStatus
+                const statusB = rowB.original.status as RequestStatus
+
+                return statusOrder[statusA] - statusOrder[statusB]
+            },
             cell: ({ row }) => {
                 const status = row.original.status as RequestStatus
 
@@ -121,7 +150,14 @@ export default function RequestTable() {
 
     return (
         <main className="flex h-full w-full flex-col p-6">
-            <DataTable columns={columns} data={requests} />
+            <DataTable
+                columns={columns}
+                data={requests}
+                filter={{
+                    value: 'title',
+                    placeholder: 'Title'
+                }}
+            />
         </main>
     )
 }
