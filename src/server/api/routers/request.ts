@@ -82,10 +82,15 @@ export const request_router = createTRPCRouter({
             })
         }),
 
-    get_forms_list: artistProcedure.query(async ({ ctx }) => {
-        return await ctx.db.query.forms.findMany({
+    get_forms_list_and_payment_method: artistProcedure.query(async ({ ctx }) => {
+        const forms_list = await ctx.db.query.forms.findMany({
             where: eq(forms.artist_id, ctx.artist.id)
         })
+
+        return {
+            forms: forms_list,
+            default_charge_method: ctx.artist.default_charge_method
+        }
     }),
 
     set_request: protectedProcedure

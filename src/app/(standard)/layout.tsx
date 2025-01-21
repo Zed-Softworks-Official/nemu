@@ -162,7 +162,7 @@ async function UserDropdown() {
                     </AvatarFallback>
                 </Avatar>
             </DropdownMenuTrigger>
-            <DropdownMenuContent>
+            <DropdownMenuContent className="min-w-[200px]" align="end">
                 <ArtistSection
                     handle={current_user?.publicMetadata.handle as string}
                     show={user_profile?.role === UserRole.Artist}

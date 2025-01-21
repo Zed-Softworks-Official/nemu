@@ -2,7 +2,7 @@ import { clerkClient } from '@clerk/nextjs/server'
 import { TRPCError } from '@trpc/server'
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
-import { SocialAgent } from '~/lib/structures'
+import { ChargeMethod, SocialAgent } from '~/lib/structures'
 import { get_ut_url } from '~/lib/utils'
 import { update_index } from '~/server/algolia/collections'
 
@@ -75,7 +75,8 @@ export const artist_router = createTRPCRouter({
             location: ctx.artist.location,
             terms: ctx.artist.terms,
             tip_jar_url: ctx.artist.tip_jar_url,
-            socials: ctx.artist.socials
+            socials: ctx.artist.socials,
+            charge_method: ctx.artist.default_charge_method
         }
     }),
 
@@ -94,7 +95,8 @@ export const artist_router = createTRPCRouter({
                         })
                     )
                     .optional(),
-                header_image_key: z.string().optional()
+                header_image_key: z.string().optional(),
+                default_charge_method: z.nativeEnum(ChargeMethod)
             })
         )
         .mutation(async ({ ctx, input }) => {
@@ -119,7 +121,8 @@ export const artist_router = createTRPCRouter({
                     terms: input.terms,
                     tip_jar_url: input.tip_jar_url,
                     socials: input.socials,
-                    header_photo: input.header_image_key
+                    header_photo: input.header_image_key,
+                    default_charge_method: input.default_charge_method
                 })
                 .where(eq(artists.id, ctx.artist.id))
         })

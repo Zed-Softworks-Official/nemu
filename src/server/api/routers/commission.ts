@@ -8,7 +8,8 @@ import { artists, commissions } from '~/server/db/schema'
 import {
     type ClientCommissionItem,
     type ClientCommissionItemEditable,
-    CommissionAvailability
+    CommissionAvailability,
+    ChargeMethod
 } from '~/lib/structures'
 import {
     convert_images_to_nemu_images,
@@ -35,7 +36,9 @@ export const commission_router = createTRPCRouter({
                 max_commissions_until_waitlist: z.number(),
                 max_commissions_until_closed: z.number(),
                 published: z.boolean(),
-                form_id: z.string()
+                form_id: z.string(),
+                charge_method: z.nativeEnum(ChargeMethod),
+                downpayment_percentage: z.number().optional()
             })
         )
         .mutation(async ({ ctx, input }) => {
@@ -76,7 +79,9 @@ export const commission_router = createTRPCRouter({
                 max_commissions_until_closed: input.max_commissions_until_closed,
                 published: input.published ?? false,
                 form_id: input.form_id,
-                rating: '5.00'
+                rating: '5.00',
+                charge_method: input.charge_method,
+                downpayment_percentage: input.downpayment_percentage
             })
         }),
 
@@ -93,7 +98,9 @@ export const commission_router = createTRPCRouter({
                     deleted_images: z.array(z.string()).optional(),
                     max_commissions_until_waitlist: z.number().optional(),
                     max_commissions_until_closed: z.number().optional(),
-                    published: z.boolean().optional()
+                    published: z.boolean().optional(),
+                    charge_method: z.nativeEnum(ChargeMethod).optional(),
+                    downpayment_percentage: z.number().optional()
                 })
             })
         )
@@ -122,7 +129,9 @@ export const commission_router = createTRPCRouter({
                     images: input.data.images?.map((image) => ({
                         ut_key: image
                     })),
-                    published: input.data.published
+                    published: input.data.published,
+                    charge_method: input.data.charge_method,
+                    downpayment_percentage: input.data.downpayment_percentage
                 })
                 .where(eq(commissions.id, input.id))
                 .returning()
@@ -186,6 +195,9 @@ export const commission_router = createTRPCRouter({
                 images: images,
                 slug: data.commissions[0].slug,
                 published: data.commissions[0].published,
+
+                charge_method: data.commissions[0].charge_method as ChargeMethod,
+                downpayment_percentage: data.commissions[0].downpayment_percentage,
 
                 id: data.commissions[0].id,
                 form_id: data.commissions[0].form_id,
@@ -260,6 +272,9 @@ export const commission_router = createTRPCRouter({
                     }
                 })),
 
+                charge_method: commission.charge_method as ChargeMethod,
+                downpayment_percentage: commission.downpayment_percentage,
+
                 max_commissions_until_closed: commission.max_commissions_until_closed,
                 max_commissions_until_waitlist: commission.max_commissions_until_waitlist
             }
@@ -306,7 +321,9 @@ export const commission_router = createTRPCRouter({
                 artist: {
                     handle: artist.handle ?? 'Nemu Jr',
                     supporter: artist.supporter
-                }
+                },
+                charge_method: commission.charge_method as ChargeMethod,
+                downpayment_percentage: commission.downpayment_percentage
             })
         }
 

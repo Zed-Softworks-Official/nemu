@@ -2,7 +2,8 @@ import type { InferSelectModel } from 'drizzle-orm'
 import type {
     KanbanContainerData,
     ImageEditorData,
-    ClientNemuImageData
+    ClientNemuImageData,
+    ChargeMethod
 } from '~/lib/structures'
 import type {
     artists,
@@ -86,6 +87,9 @@ export type ClientCommissionItem = {
     max_commissions_until_waitlist?: number
     max_commissions_until_closed?: number
 
+    charge_method: ChargeMethod
+    downpayment_percentage: number
+
     id?: string
     form_id?: string
 
@@ -125,6 +129,9 @@ export type ClientCommissionItemEditable = {
     max_commissions_until_closed: number
 
     form_name: string
+
+    charge_method: ChargeMethod
+    downpayment_percentage: number
 
     images: ImageEditorData[]
 }

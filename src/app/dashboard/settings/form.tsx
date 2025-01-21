@@ -16,7 +16,7 @@ import {
     FormLabel,
     FormMessage
 } from '~/components/ui/form'
-import { SocialAgent } from '~/lib/structures'
+import { ChargeMethod, SocialAgent } from '~/lib/structures'
 import { Textarea } from '~/components/ui/textarea'
 import {
     Select,
@@ -44,7 +44,8 @@ const schema = z.object({
             agent: z.nativeEnum(SocialAgent),
             url: z.string().url()
         })
-    )
+    ),
+    default_charge_method: z.nativeEnum(ChargeMethod)
 })
 
 type SettingsForm = z.infer<typeof schema>
@@ -64,7 +65,8 @@ export function SettingsForm() {
             location: '',
             terms: '',
             tip_jar_url: '',
-            socials: []
+            socials: [],
+            default_charge_method: ChargeMethod.InFull
         }
     })
 
@@ -199,6 +201,34 @@ export function SettingsForm() {
                                     className="resize-none bg-background-secondary"
                                     rows={6}
                                 />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="default_charge_method"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Default Charge Method:</FormLabel>
+                            <FormControl>
+                                <Select
+                                    value={field.value}
+                                    onValueChange={field.onChange}
+                                >
+                                    <SelectTrigger className="bg-background-secondary">
+                                        <SelectValue placeholder="Select a payment method" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value={ChargeMethod.InFull}>
+                                            In Full
+                                        </SelectItem>
+                                        <SelectItem value={ChargeMethod.DownPayment}>
+                                            Down Payment
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </FormControl>
                             <FormMessage />
                         </FormItem>

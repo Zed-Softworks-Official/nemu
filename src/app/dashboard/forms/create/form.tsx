@@ -63,8 +63,8 @@ export function CreateForm() {
                     control={form.control}
                     name="name"
                     render={({ field }) => (
-                        <FormItem className="form-control">
-                            <FormLabel className="label">Name:</FormLabel>
+                        <FormItem>
+                            <FormLabel>Name:</FormLabel>
                             <Input
                                 {...form.register('name')}
                                 placeholder="Your form name here"
@@ -78,8 +78,8 @@ export function CreateForm() {
                     control={form.control}
                     name="description"
                     render={({ field }) => (
-                        <FormItem className="form-control">
-                            <FormLabel className="label">Description:</FormLabel>
+                        <FormItem>
+                            <FormLabel>Description:</FormLabel>
                             <Textarea
                                 {...form.register('description')}
                                 placeholder="Something to describe the form (optional)"

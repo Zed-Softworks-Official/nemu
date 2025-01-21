@@ -5,11 +5,12 @@ import { useState } from 'react'
 import { type InferSelectModel } from 'drizzle-orm'
 import { notFound } from 'next/navigation'
 import { ClipboardListIcon } from 'lucide-react'
+import { RedirectToSignIn, useUser } from '@clerk/nextjs'
 
 import { api } from '~/trpc/react'
 import { type forms } from '~/server/db/schema'
 import { get_availability_badge_data } from '~/lib/utils'
-import { type ClientCommissionItem } from '~/lib/structures'
+import { ChargeMethod, type ClientCommissionItem } from '~/lib/structures'
 
 import Loading from '~/components/ui/loading'
 import ImageViewer from '~/components/ui/image-viewer'
@@ -27,7 +28,6 @@ import {
 import { Button } from '~/components/ui/button'
 import Price from '~/components/ui/price'
 import ShareButton from '~/components/ui/share-button'
-import { RedirectToSignIn, useUser } from '@clerk/nextjs'
 
 export function CommissionView(props: { handle: string; slug: string }) {
     const { data: commission, isLoading } = api.commission.get_commission.useQuery({
@@ -141,14 +141,17 @@ function CommissionContent(props: {
                             setAcceptedTerms(checked as boolean)
                         }
                     />
-                    <label htmlFor="accept_terms" className="label">
-                        Accept Terms & Conditions
-                    </label>
+                    <label htmlFor="accept_terms">Accept Terms & Conditions</label>
                 </div>
                 <Separator />
                 <div className="flex w-full flex-col items-end gap-5">
-                    <div className="flex w-full justify-between">
-                        <Price value={props.commission.price} />
+                    <div className="flex w-full items-center justify-between">
+                        <div className="flex flex-col items-start gap-1">
+                            <Price value={props.commission.price} />
+                            <CommissionChargeMethod
+                                charge_method={props.commission.charge_method}
+                            />
+                        </div>
                         <Button
                             size={'lg'}
                             onMouseDown={() => {
@@ -168,4 +171,20 @@ function CommissionContent(props: {
             </div>
         </div>
     )
+}
+
+function CommissionChargeMethod(props: { charge_method: ChargeMethod }) {
+    if (props.charge_method === ChargeMethod.InFull) {
+        return <span className="text-sm italic text-muted-foreground">Pay In Full</span>
+    }
+
+    if (props.charge_method === ChargeMethod.DownPayment) {
+        return (
+            <span className="text-sm italic text-muted-foreground">
+                Down Payment Required
+            </span>
+        )
+    }
+
+    return <p>Unknown</p>
 }

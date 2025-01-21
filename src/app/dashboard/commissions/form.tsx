@@ -3,6 +3,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { CircleDollarSign, XCircle } from 'lucide-react'
 import Link from 'next/link'
+import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
@@ -10,7 +11,14 @@ import { z } from 'zod'
 import NemuUploadThing from '~/components/files/nemu-uploadthing'
 import { useNemuUploadThing } from '~/components/files/uploadthing-context'
 import { Button } from '~/components/ui/button'
-import { Form, FormField, FormItem, FormLabel, FormMessage } from '~/components/ui/form'
+import {
+    Form,
+    FormControl,
+    FormField,
+    FormItem,
+    FormLabel,
+    FormMessage
+} from '~/components/ui/form'
 import { Input } from '~/components/ui/input'
 import {
     Select,
@@ -21,13 +29,15 @@ import {
 } from '~/components/ui/select'
 import { Separator } from '~/components/ui/separator'
 import { Skeleton } from '~/components/ui/skeleton'
+import { Slider } from '~/components/ui/slider'
 import { Textarea } from '~/components/ui/textarea'
 
 import {
     type ClientCommissionItemEditable,
     CommissionAvailability,
     type ImageEditorData,
-    type NemuEditImageData
+    type NemuEditImageData,
+    ChargeMethod
 } from '~/lib/structures'
 
 import { api } from '~/trpc/react'
@@ -39,7 +49,9 @@ const commissionSchema = z.object({
     price: z.string().refine((value) => !isNaN(Number(value))),
     max_commissions_until_waitlist: z.number().min(0),
     max_commissions_until_closed: z.number().min(0),
-    commission_availability: z.nativeEnum(CommissionAvailability)
+    commission_availability: z.nativeEnum(CommissionAvailability),
+    charge_method: z.nativeEnum(ChargeMethod),
+    downpayment_percentage: z.number().min(0).max(100)
 })
 
 type CommissionSchemaType = z.infer<typeof commissionSchema>
@@ -56,11 +68,14 @@ export function CreateForm() {
             price: '0',
             max_commissions_until_waitlist: 0,
             max_commissions_until_closed: 0,
-            commission_availability: CommissionAvailability.Open
+            commission_availability: CommissionAvailability.Open,
+            charge_method: ChargeMethod.InFull,
+            downpayment_percentage: 50
         }
     })
 
-    const { data: forms, isLoading: formsLoading } = api.request.get_forms_list.useQuery()
+    const { data, isLoading: formsLoading } =
+        api.request.get_forms_list_and_payment_method.useQuery()
     const createCommission = api.commission.set_commission.useMutation()
 
     const process_form = async (values: CommissionSchemaType) => {
@@ -99,7 +114,9 @@ export function CreateForm() {
                 max_commissions_until_closed: values.max_commissions_until_closed,
                 images: uploaded_images,
                 availability: values.commission_availability,
-                published: false
+                published: false,
+                charge_method: values.charge_method,
+                downpayment_percentage: values.downpayment_percentage
             },
             {
                 onError: (error) => {
@@ -113,6 +130,13 @@ export function CreateForm() {
             }
         )
     }
+
+    useEffect(() => {
+        if (data) {
+            form.setValue('charge_method', data.default_charge_method as ChargeMethod)
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [data])
 
     return (
         <Form {...form}>
@@ -142,8 +166,8 @@ export function CreateForm() {
                     control={form.control}
                     name="description"
                     render={({ field }) => (
-                        <FormItem className="form-control">
-                            <FormLabel className="label">Description:</FormLabel>
+                        <FormItem>
+                            <FormLabel>Description:</FormLabel>
                             <Textarea
                                 placeholder="Description"
                                 {...field}
@@ -159,8 +183,8 @@ export function CreateForm() {
                     control={form.control}
                     name="price"
                     render={({ field }) => (
-                        <FormItem className="form-control">
-                            <FormLabel className="label">Price:</FormLabel>
+                        <FormItem>
+                            <FormLabel>Price:</FormLabel>
                             <div className="flex">
                                 <div className="flex items-center justify-center rounded-l-md bg-background-tertiary px-5">
                                     <CircleDollarSign className="h-6 w-6" />
@@ -180,13 +204,91 @@ export function CreateForm() {
                         </FormItem>
                     )}
                 />
+                <FormField
+                    control={form.control}
+                    name="charge_method"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Payment Method:</FormLabel>
+                            <FormControl>
+                                <Select
+                                    value={field.value}
+                                    onValueChange={field.onChange}
+                                >
+                                    <SelectTrigger className="bg-background-secondary">
+                                        <SelectValue placeholder="Select Payment Method" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value={ChargeMethod.InFull}>
+                                            In Full
+                                        </SelectItem>
+                                        <SelectItem value={ChargeMethod.DownPayment}>
+                                            Down Payment
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </FormControl>
+                        </FormItem>
+                    )}
+                />
+                {form.watch('charge_method') === ChargeMethod.DownPayment && (
+                    <FormField
+                        control={form.control}
+                        name="downpayment_percentage"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Down Payment Percentage:</FormLabel>
+                                <div className="flex items-center justify-between gap-5">
+                                    <FormControl>
+                                        <Slider
+                                            value={[field.value]}
+                                            onValueChange={field.onChange}
+                                            min={0}
+                                            max={100}
+                                            step={1}
+                                        />
+                                    </FormControl>
+                                    <FormControl>
+                                        <Input
+                                            type="number"
+                                            inputMode="numeric"
+                                            className="w-[100px] bg-background-secondary"
+                                            ref={field.ref}
+                                            value={
+                                                (field.value as unknown as number[])[0] ??
+                                                field.value
+                                            }
+                                            onChange={(e) => {
+                                                if (e.currentTarget.valueAsNumber > 100) {
+                                                    toast.error(
+                                                        'Down Payment Percentage cannot be greater than 100'
+                                                    )
+                                                    field.onChange(100)
+
+                                                    return
+                                                }
+
+                                                if (e.currentTarget.valueAsNumber) {
+                                                    field.onChange(
+                                                        e.currentTarget.valueAsNumber
+                                                    )
+                                                }
+                                            }}
+                                        />
+                                    </FormControl>
+                                </div>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                )}
                 <Separator />
                 <FormField
                     control={form.control}
                     name="form_id"
                     render={({ field }) => (
-                        <FormItem className="form-control">
-                            <FormLabel className="label">User Form:</FormLabel>
+                        <FormItem>
+                            <FormLabel>User Form:</FormLabel>
                             {formsLoading ? (
                                 <div className="space-y-2">
                                     <Skeleton className="h-10 w-full" />
@@ -197,7 +299,7 @@ export function CreateForm() {
                                         <SelectValue placeholder="Select User Form" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {forms?.map((form) => (
+                                        {data?.forms.map((form) => (
                                             <SelectItem key={form.id} value={form.id}>
                                                 {form.name}
                                             </SelectItem>
@@ -213,8 +315,8 @@ export function CreateForm() {
                     control={form.control}
                     name="commission_availability"
                     render={({ field }) => (
-                        <FormItem className="form-control">
-                            <FormLabel className="label">Availability:</FormLabel>
+                        <FormItem>
+                            <FormLabel>Availability:</FormLabel>
                             <Select onValueChange={field.onChange}>
                                 <SelectTrigger className="bg-background-secondary">
                                     <SelectValue placeholder="Select Availability" />
@@ -239,10 +341,8 @@ export function CreateForm() {
                     control={form.control}
                     name="max_commissions_until_waitlist"
                     render={({ field }) => (
-                        <FormItem className="form-control">
-                            <FormLabel className="label">
-                                Commissions Until Auto Waitlist:
-                            </FormLabel>
+                        <FormItem>
+                            <FormLabel>Commissions Until Auto Waitlist:</FormLabel>
                             <Input
                                 placeholder="0"
                                 type="number"
@@ -265,10 +365,8 @@ export function CreateForm() {
                     control={form.control}
                     name="max_commissions_until_closed"
                     render={({ field }) => (
-                        <FormItem className="form-control">
-                            <FormLabel className="label">
-                                Commissions Until Auto Close:
-                            </FormLabel>
+                        <FormItem>
+                            <FormLabel>Commissions Until Auto Close:</FormLabel>
                             <Input
                                 placeholder="0"
                                 type="number"
@@ -322,7 +420,9 @@ const updateSchema = z.object({
     price: z.string().refine((value) => !isNaN(Number(value))),
     max_commissions_until_waitlist: z.number().min(0),
     max_commissions_until_closed: z.number().min(0),
-    availability: z.nativeEnum(CommissionAvailability)
+    availability: z.nativeEnum(CommissionAvailability),
+    charge_method: z.nativeEnum(ChargeMethod),
+    downpayment_percentage: z.number().min(0).max(100)
 })
 
 type UpdateSchemaType = z.infer<typeof updateSchema>
@@ -428,7 +528,9 @@ export function UpdateForm(props: { commission: ClientCommissionItemEditable }) 
                     images: images_to_update,
                     deleted_images: editor_state.delete.map(
                         (image) => image.data.image_data.ut_key ?? ''
-                    )
+                    ),
+                    charge_method: values.charge_method,
+                    downpayment_percentage: values.downpayment_percentage
                 }
             },
             {
@@ -472,8 +574,8 @@ export function UpdateForm(props: { commission: ClientCommissionItemEditable }) 
                     control={form.control}
                     name="description"
                     render={({ field }) => (
-                        <FormItem className="form-control">
-                            <FormLabel className="label">Description:</FormLabel>
+                        <FormItem>
+                            <FormLabel>Description:</FormLabel>
                             <Textarea
                                 placeholder="Description"
                                 {...field}
@@ -489,8 +591,8 @@ export function UpdateForm(props: { commission: ClientCommissionItemEditable }) 
                     control={form.control}
                     name="price"
                     render={({ field }) => (
-                        <FormItem className="form-control">
-                            <FormLabel className="label">Price:</FormLabel>
+                        <FormItem>
+                            <FormLabel>Price:</FormLabel>
                             <div className="flex">
                                 <div className="flex items-center justify-center rounded-l-md bg-background-tertiary px-5">
                                     <CircleDollarSign className="h-6 w-6" />
@@ -510,13 +612,91 @@ export function UpdateForm(props: { commission: ClientCommissionItemEditable }) 
                         </FormItem>
                     )}
                 />
+                <FormField
+                    control={form.control}
+                    name="charge_method"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Payment Method:</FormLabel>
+                            <FormControl>
+                                <Select
+                                    value={field.value}
+                                    onValueChange={field.onChange}
+                                >
+                                    <SelectTrigger className="bg-background-secondary">
+                                        <SelectValue placeholder="Select Payment Method" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value={ChargeMethod.InFull}>
+                                            In Full
+                                        </SelectItem>
+                                        <SelectItem value={ChargeMethod.DownPayment}>
+                                            Down Payment
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </FormControl>
+                        </FormItem>
+                    )}
+                />
+                {form.watch('charge_method') === ChargeMethod.DownPayment && (
+                    <FormField
+                        control={form.control}
+                        name="downpayment_percentage"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Down Payment Percentage:</FormLabel>
+                                <div className="flex items-center justify-between gap-5">
+                                    <FormControl>
+                                        <Slider
+                                            value={[field.value]}
+                                            onValueChange={field.onChange}
+                                            min={0}
+                                            max={100}
+                                            step={1}
+                                        />
+                                    </FormControl>
+                                    <FormControl>
+                                        <Input
+                                            type="number"
+                                            inputMode="numeric"
+                                            className="w-[100px] bg-background-secondary"
+                                            ref={field.ref}
+                                            value={
+                                                (field.value as unknown as number[])[0] ??
+                                                field.value
+                                            }
+                                            onChange={(e) => {
+                                                if (e.currentTarget.valueAsNumber > 100) {
+                                                    toast.error(
+                                                        'Down Payment Percentage cannot be greater than 100'
+                                                    )
+                                                    field.onChange(100)
+
+                                                    return
+                                                }
+
+                                                if (e.currentTarget.valueAsNumber) {
+                                                    field.onChange(
+                                                        e.currentTarget.valueAsNumber
+                                                    )
+                                                }
+                                            }}
+                                        />
+                                    </FormControl>
+                                </div>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                )}
                 <Separator />
                 <FormField
                     control={form.control}
                     name="form_name"
                     render={({ field }) => (
-                        <FormItem className="form-control">
-                            <FormLabel className="label">User Form:</FormLabel>
+                        <FormItem>
+                            <FormLabel>User Form:</FormLabel>
                             <Select value={field.value}>
                                 <SelectTrigger
                                     disabled
@@ -538,8 +718,8 @@ export function UpdateForm(props: { commission: ClientCommissionItemEditable }) 
                     control={form.control}
                     name="availability"
                     render={({ field }) => (
-                        <FormItem className="form-control">
-                            <FormLabel className="label">Availability:</FormLabel>
+                        <FormItem>
+                            <FormLabel>Availability:</FormLabel>
                             <Select
                                 value={field.value}
                                 onValueChange={(value) => {
@@ -573,10 +753,8 @@ export function UpdateForm(props: { commission: ClientCommissionItemEditable }) 
                     control={form.control}
                     name="max_commissions_until_waitlist"
                     render={({ field }) => (
-                        <FormItem className="form-control">
-                            <FormLabel className="label">
-                                Commissions Until Auto Waitlist:
-                            </FormLabel>
+                        <FormItem>
+                            <FormLabel>Commissions Until Auto Waitlist:</FormLabel>
                             <Input
                                 placeholder="0"
                                 type="number"
@@ -599,10 +777,8 @@ export function UpdateForm(props: { commission: ClientCommissionItemEditable }) 
                     control={form.control}
                     name="max_commissions_until_closed"
                     render={({ field }) => (
-                        <FormItem className="form-control">
-                            <FormLabel className="label">
-                                Commissions Until Auto Close:
-                            </FormLabel>
+                        <FormItem>
+                            <FormLabel>Commissions Until Auto Close:</FormLabel>
                             <Input
                                 placeholder="0"
                                 type="number"

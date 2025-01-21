@@ -51,3 +51,8 @@ export type StripeDashboardData = {
 
     checkout_portal?: string
 }
+
+export enum ChargeMethod {
+    InFull = 'in_full',
+    DownPayment = 'down_payment'
+}

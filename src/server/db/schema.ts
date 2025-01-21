@@ -24,7 +24,8 @@ import {
     InvoiceStatus,
     RequestStatus,
     type InvoiceItem,
-    DownloadType
+    DownloadType,
+    ChargeMethod
 } from '~/lib/structures'
 
 /**
@@ -77,6 +78,8 @@ export const CommissionAvailabilityEnum = pgEnum(
 )
 
 export const DownloadTypeEnum = pgEnum('download_type', enum_to_pg_enum(DownloadType))
+
+export const ChargeMethodEnum = pgEnum('charge_method', enum_to_pg_enum(ChargeMethod))
 
 //////////////////////////////////////////////////////////
 // Tables
@@ -164,6 +167,10 @@ export const artists = createTable('artist', {
 
     automated_message_enabled: boolean('automated_message_enabled').default(false),
     automated_message: text('automated_message'),
+
+    default_charge_method: ChargeMethodEnum('default_charge_method')
+        .default(ChargeMethod.InFull)
+        .notNull(),
 
     socials: json('socials').$type<SocialAccount[]>().notNull()
 })
@@ -259,6 +266,11 @@ export const commissions = createTable('commission', {
     new_requests: integer('new_requests').default(0).notNull(),
     accepted_requests: integer('accepted_requests').default(0).notNull(),
     rejected_requests: integer('rejected_requests').default(0).notNull(),
+
+    charge_method: ChargeMethodEnum('charge_method')
+        .default(ChargeMethod.InFull)
+        .notNull(),
+    downpayment_percentage: integer('downpayment_percentage').default(0).notNull(),
 
     rush_orders_allowed: boolean('rush_orders_allowed').default(false),
     rush_charge: decimal('rush_charge', { precision: 3, scale: 2 }).default('0.00'),
