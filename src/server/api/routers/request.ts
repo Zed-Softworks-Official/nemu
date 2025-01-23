@@ -479,6 +479,13 @@ export const request_router = createTRPCRouter({
                 return undefined
             }
 
+            let current_invoice_index = 0
+            for (const invoice of request.invoices) {
+                if (invoice.is_final) {
+                    current_invoice_index++
+                }
+            }
+
             const user = await clerk_client.users.getUser(request.user_id)
             const result: ClientRequestData = {
                 ...request,
@@ -494,6 +501,7 @@ export const request_router = createTRPCRouter({
                 },
                 delivery: request.delivery ?? undefined,
                 invoices: request.invoices ?? undefined,
+                current_invoice_index,
                 kanban: request.kanban ?? undefined
             }
 
@@ -581,6 +589,9 @@ export const request_router = createTRPCRouter({
                 .where(eq(invoices.id, input.invoice_id))
         }),
 
+    // TODO: Pass in InvoiceItems directly from the invoice editor, that way, when
+    // We send the invoice, we send the most recent up to date items, rather then,
+    // Possibly losing out on information if the user doesn't save before sending
     send_invoice: artistProcedure
         .input(
             z.object({
@@ -640,14 +651,6 @@ export const request_router = createTRPCRouter({
                     .where(eq(invoices.id, input.invoice_id)),
                 knock.workflows.trigger(KnockWorkflows.InvoiceSent, {
                     recipients: [invoice.request.user_id],
-                    data: {
-                        commission_title: invoice.request.commission.title,
-                        artist_handle: ctx.artist.handle,
-                        invoice_url: `${env.BASE_URL}/requests/${invoice.request.order_id}/invoice`
-                    }
-                }),
-                knock.workflows.trigger(KnockWorkflows.InvoiceSent, {
-                    recipients: [ctx.artist.user_id],
                     data: {
                         commission_title: invoice.request.commission.title,
                         artist_handle: ctx.artist.handle,

@@ -287,7 +287,7 @@ export const commissions = createTable('commission', {
 export const invoices = createTable('invoice', {
     id: varchar('id', { length: 128 }).primaryKey(),
     sent: boolean('sent').default(false).notNull(),
-    status: InvoiceStatusEnum('status').notNull(),
+    status: InvoiceStatusEnum('status').$type<InvoiceStatus>().notNull(),
     is_final: boolean('is_final').default(false).notNull(),
 
     stripe_id: varchar('stripe_id', { length: 128 }).notNull(),

@@ -59,6 +59,7 @@ export type ClientRequestData = InferSelectModel<typeof requests> & {
     }
     delivery?: InferSelectModel<typeof delivery>
     invoices?: InferSelectModel<typeof invoices>[]
+    current_invoice_index?: number
     kanban?: InferSelectModel<typeof kanbans>
 }
 

@@ -3,14 +3,14 @@
 import Link from 'next/link'
 import type { ColumnDef } from '@tanstack/react-table'
 
-import { DataTable } from '~/components/data-table'
-
 import { InvoiceStatus } from '~/lib/structures'
-
 import { format_to_currency } from '~/lib/utils'
+
+import { DataTable } from '~/components/data-table'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
 import { useOrder } from '~/components/orders/standard-order'
+import { Separator } from '~/components/ui/separator'
 
 export default function Invoice() {
     const { request_data } = useOrder()
@@ -19,72 +19,42 @@ export default function Invoice() {
         return <div>No invoice found</div>
     }
 
-    const columns: ColumnDef<{
-        item_number: number
-        name: string
-        price: string
-        quantity: number
-    }>[] = [
+    const columns: ColumnDef<(typeof request_data.invoices)[number]>[] = [
         {
-            accessorKey: 'item_number',
-            header: 'Item Number'
+            header: 'Invoice Id',
+            cell: ({ row }) => (
+                <div className="flex items-center gap-3">
+                    <span>{row.original.stripe_id}</span>
+                    <InvoiceStatusBadge status={row.original.status} />
+                </div>
+            )
         },
         {
-            accessorKey: 'name',
-            header: 'Name'
+            header: 'Price',
+            cell: ({ row }) => <span>{format_to_currency(row.original.total)}</span>
         },
         {
-            accessorKey: 'price',
-            header: 'Price'
-        },
-        {
-            accessorKey: 'quantity',
-            header: 'Quantity'
+            id: 'actions',
+            cell: ({ row }) => {
+                const invoice = row.original
+
+                return (
+                    <Button asChild variant={'outline'}>
+                        <Link href={invoice.hosted_url ?? '#'}>View Invoice</Link>
+                    </Button>
+                )
+            }
         }
     ]
 
     return (
-        <pre>{JSON.stringify(request_data.invoices, null, 2)}</pre>
-        // <div className="flex flex-col gap-5">
-        //     <div className="flex flex-row gap-3">
-        //         <span className="text-sm">Invoice Status</span>
-        //         <InvoiceStatusBadge status={request_data.invoices[0].status} />
-        //     </div>
-        //     <DataTable
-        //         columns={columns}
-        //         data={request_data.invoice?.items.map((item, index) => ({
-        //             item_number: index + 1,
-        //             name: item.name,
-        //             price: format_to_currency(Number(item.price / 100)),
-        //             quantity: item.quantity
-        //         }))}
-        //     />
-        //     <div className="flex w-full gap-2">
-        //         <div className="flex w-full justify-end">
-        //             <div className="flex flex-col gap-1">
-        //                 <div className="text-xl text-muted-foreground">Total</div>
-        //                 <div className="text-lg font-bold">
-        //                     {format_to_currency(Number(request_data.invoice.total / 100))}
-        //                 </div>
-        //                 {request_data.invoice.sent && request_data.invoice.hosted_url && (
-        //                     <div className="pt-4">
-        //                         <Button asChild>
-        //                             <Link
-        //                                 href={request_data.invoice.hosted_url}
-        //                                 target="_blank"
-        //                             >
-        //                                 View Invoice
-        //                             </Link>
-        //                         </Button>
-        //                     </div>
-        //                 )}
-        //             </div>
-        //         </div>
-        //     </div>
-        // </div>
-    )
+        <div className="flex flex-col gap-5">
+            <h1 className="text-lg font-bold">Invoices</h1>
+            <Separator />
 
-    return <div>Invoice</div>
+            <DataTable columns={columns} data={request_data.invoices} />
+        </div>
+    )
 }
 
 function InvoiceStatusBadge({ status }: { status: InvoiceStatus }) {
