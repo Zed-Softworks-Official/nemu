@@ -58,7 +58,7 @@ export type ClientRequestData = InferSelectModel<typeof requests> & {
         images: ClientNemuImageData[]
     }
     delivery?: InferSelectModel<typeof delivery>
-    invoice?: InferSelectModel<typeof invoices>
+    invoices?: InferSelectModel<typeof invoices>[]
     kanban?: InferSelectModel<typeof kanbans>
 }
 

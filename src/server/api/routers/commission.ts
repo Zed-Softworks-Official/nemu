@@ -196,7 +196,7 @@ export const commission_router = createTRPCRouter({
                 slug: data.commissions[0].slug,
                 published: data.commissions[0].published,
 
-                charge_method: data.commissions[0].charge_method as ChargeMethod,
+                charge_method: data.commissions[0].charge_method,
                 downpayment_percentage: data.commissions[0].downpayment_percentage,
 
                 id: data.commissions[0].id,
@@ -272,7 +272,7 @@ export const commission_router = createTRPCRouter({
                     }
                 })),
 
-                charge_method: commission.charge_method as ChargeMethod,
+                charge_method: commission.charge_method,
                 downpayment_percentage: commission.downpayment_percentage,
 
                 max_commissions_until_closed: commission.max_commissions_until_closed,
@@ -322,7 +322,7 @@ export const commission_router = createTRPCRouter({
                     handle: artist.handle ?? 'Nemu Jr',
                     supporter: artist.supporter
                 },
-                charge_method: commission.charge_method as ChargeMethod,
+                charge_method: commission.charge_method,
                 downpayment_percentage: commission.downpayment_percentage
             })
         }

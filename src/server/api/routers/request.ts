@@ -1,7 +1,8 @@
 import { clerkClient } from '@clerk/nextjs/server'
 import { createId } from '@paralleldrive/cuid2'
 import { z } from 'zod'
-import { and, eq, sql } from 'drizzle-orm'
+import { and, eq, type InferInsertModel, sql } from 'drizzle-orm'
+import { TRPCError } from '@trpc/server'
 
 import { artistProcedure, createTRPCRouter, protectedProcedure } from '../trpc'
 
@@ -15,24 +16,28 @@ import {
     requests,
     stripe_customer_ids
 } from '~/server/db/schema'
+
 import {
     InvoiceStatus,
     type KanbanContainerData,
     RequestStatus,
     type ClientRequestData,
     type Chat,
-    DownloadType
+    DownloadType,
+    ChargeMethod
 } from '~/lib/structures'
+
 import type { FormElementInstance } from '~/components/form-builder/elements/form-elements'
-import { TRPCError } from '@trpc/server'
 import { knock, KnockWorkflows } from '~/server/knock'
 import { env } from '~/env'
+
 import {
     StripeCreateCustomer,
     StripeCreateInvoice,
     StripeFinalizeInvoice,
     StripeUpdateInvoice
 } from '~/lib/payments'
+
 import { get_redis_key, redis } from '~/server/redis'
 import { get_ut_url } from '~/lib/utils'
 import { utapi } from '~/server/uploadthing'
@@ -259,44 +264,72 @@ export const request_router = createTRPCRouter({
                 return null
             }
 
-            const invoice_id = createId()
-            const stripe_draft = await StripeCreateInvoice(customer_id.stripe_account, {
-                customer_id: customer_id.customer_id,
-                user_id: request.user_id,
-                commission_id: request.commission_id,
-                order_id: request.order_id,
-                invoice_id,
-                artist_id: request.commission.artist_id
-            })
-
-            if (!stripe_draft) {
-                throw new TRPCError({
-                    code: 'INTERNAL_SERVER_ERROR',
-                    message: 'Failed to create Stripe invoice'
-                })
-            }
+            // TODO:
+            // Figure out what the charge method is
+            // And then create the invoice(s) accordingly
+            const is_down_payment =
+                request.commission.charge_method === ChargeMethod.DownPayment
+            const invoice_ids: string[] = is_down_payment
+                ? [createId(), createId()]
+                : [createId()]
+            const invoice_values: Omit<InferInsertModel<typeof invoices>, 'status'>[] = []
 
             const kanban_primary_key = createId()
             const chat_primary_key = createId()
 
-            const invoice_values = {
-                id: invoice_id,
-                stripe_id: stripe_draft.id,
-                customer_id: customer_id.customer_id,
-                artist_id: customer_id.artist_id,
-                stripe_account: customer_id.stripe_account,
-                user_id: ctx.auth.userId,
-                status: InvoiceStatus.Creating,
-                request_id: request.id,
-                total: request.commission.price,
-                items: [
+            for (
+                let invoice_index = 0;
+                invoice_index < invoice_ids.length;
+                invoice_index++
+            ) {
+                const invoice_id = invoice_ids[invoice_index]
+
+                if (!invoice_id) {
+                    throw new TRPCError({
+                        code: 'INTERNAL_SERVER_ERROR',
+                        message: 'Invoice ID not found'
+                    })
+                }
+
+                const stripe_draft = await StripeCreateInvoice(
+                    customer_id.stripe_account,
                     {
-                        id: createId(),
-                        name: request.commission.title,
-                        price: request.commission.price,
-                        quantity: 1
+                        customer_id: customer_id.customer_id,
+                        user_id: request.user_id,
+                        commission_id: request.commission_id,
+                        order_id: request.order_id,
+                        invoice_id,
+                        artist_id: request.commission.artist_id
                     }
-                ]
+                )
+
+                if (!stripe_draft) {
+                    throw new TRPCError({
+                        code: 'INTERNAL_SERVER_ERROR',
+                        message: 'Failed to create Stripe invoice'
+                    })
+                }
+
+                invoice_values.push({
+                    id: invoice_id,
+                    customer_id: customer_id.customer_id,
+                    artist_id: customer_id.artist_id,
+                    stripe_account: customer_id.stripe_account,
+                    user_id: customer_id.user_id,
+                    request_id: request.id,
+                    total: request.commission.price,
+                    stripe_id: stripe_draft.id,
+                    is_final: invoice_index !== 0,
+                    hosted_url: stripe_draft.hosted_invoice_url,
+                    items: [
+                        {
+                            id: createId(),
+                            name: request.commission.title,
+                            price: request.commission.price,
+                            quantity: 1
+                        }
+                    ]
+                })
             }
 
             const chat_values = {
@@ -327,16 +360,23 @@ export const request_router = createTRPCRouter({
                 id: kanban_primary_key,
                 request_id: request.id,
                 containers: kanban_containers
-            }
+            } satisfies InferInsertModel<typeof kanbans>
 
             const request_values = {
                 status: RequestStatus.Accepted,
-                invoice_id,
+                invoice_ids,
                 kanban_id: kanban_primary_key
             }
 
             await Promise.all([
-                ctx.db.insert(invoices).values(invoice_values),
+                async () => {
+                    for (const invoice_value of invoice_values) {
+                        await ctx.db.insert(invoices).values({
+                            ...invoice_value,
+                            status: InvoiceStatus.Creating
+                        })
+                    }
+                },
                 ctx.db.insert(chats).values(chat_values),
                 ctx.db.insert(kanbans).values(kanban_values),
                 ctx.db
@@ -421,7 +461,7 @@ export const request_router = createTRPCRouter({
                         }
                     },
                     delivery: true,
-                    invoice: true,
+                    invoices: true,
                     kanban: true
                 }
             })
@@ -453,7 +493,7 @@ export const request_router = createTRPCRouter({
                     username: user.username ?? 'User'
                 },
                 delivery: request.delivery ?? undefined,
-                invoice: request.invoice ?? undefined,
+                invoices: request.invoices ?? undefined,
                 kanban: request.kanban ?? undefined
             }
 
@@ -544,7 +584,8 @@ export const request_router = createTRPCRouter({
     send_invoice: artistProcedure
         .input(
             z.object({
-                invoice_id: z.string()
+                invoice_id: z.string(),
+                is_downpayment_invoice: z.boolean()
             })
         )
         .mutation(async ({ ctx, input }) => {
@@ -586,23 +627,34 @@ export const request_router = createTRPCRouter({
                 })
             }
 
-            await ctx.db
-                .update(invoices)
-                .set({
-                    status: InvoiceStatus.Pending,
-                    sent: true,
-                    hosted_url: finalized_invoice.hosted_invoice_url
+            await Promise.all([
+                ctx.db
+                    .update(invoices)
+                    .set({
+                        status: InvoiceStatus.Pending,
+                        sent: true,
+                        stripe_id: finalized_invoice.id,
+                        hosted_url: finalized_invoice.hosted_invoice_url,
+                        total: finalized_invoice.total
+                    })
+                    .where(eq(invoices.id, input.invoice_id)),
+                knock.workflows.trigger(KnockWorkflows.InvoiceSent, {
+                    recipients: [invoice.request.user_id],
+                    data: {
+                        commission_title: invoice.request.commission.title,
+                        artist_handle: ctx.artist.handle,
+                        invoice_url: `${env.BASE_URL}/requests/${invoice.request.order_id}/invoice`
+                    }
+                }),
+                knock.workflows.trigger(KnockWorkflows.InvoiceSent, {
+                    recipients: [ctx.artist.user_id],
+                    data: {
+                        commission_title: invoice.request.commission.title,
+                        artist_handle: ctx.artist.handle,
+                        invoice_url: `${env.BASE_URL}/requests/${invoice.request.order_id}/invoice`
+                    }
                 })
-                .where(eq(invoices.id, input.invoice_id))
-
-            await knock.workflows.trigger(KnockWorkflows.InvoiceSent, {
-                recipients: [invoice.request.user_id],
-                data: {
-                    commission_title: invoice.request.commission.title,
-                    artist_handle: ctx.artist.handle,
-                    invoice_url: `${env.BASE_URL}/requests/${invoice.request.order_id}/invoice`
-                }
-            })
+            ])
         }),
 
     request_failed: artistProcedure

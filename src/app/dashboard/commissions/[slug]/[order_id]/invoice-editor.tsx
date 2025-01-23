@@ -57,8 +57,8 @@ import {
 } from '~/components/ui/dropdown-menu'
 
 export function InvoiceEditor() {
-    const { request_data } = useDashboardOrder()
-    const [items, setItems] = useState<InvoiceItem[]>(request_data?.invoice?.items ?? [])
+    const { current_invoice, is_downpayment_invoice } = useDashboardOrder()
+    const [items, setItems] = useState<InvoiceItem[]>(current_invoice?.items ?? [])
 
     const updateItems = api.request.update_invoice_items.useMutation({
         onMutate: () => {
@@ -98,7 +98,7 @@ export function InvoiceEditor() {
 
     useRevalidateInvoiceItems(items, setItems)
 
-    if (!request_data?.invoice) {
+    if (!current_invoice) {
         return <div>No invoice found</div>
     }
 
@@ -133,7 +133,7 @@ export function InvoiceEditor() {
                                 disabled={updateItems.isPending}
                                 onClick={() => {
                                     updateItems.mutate({
-                                        invoice_id: request_data.invoice_id ?? 'N/A',
+                                        invoice_id: current_invoice.id,
                                         items: items.map((item) => ({
                                             id: item.id ?? createId(),
                                             name: item.name,
@@ -158,7 +158,7 @@ export function InvoiceEditor() {
                                             <Button
                                                 className="w-full justify-start"
                                                 variant={'ghost'}
-                                                disabled={request_data.invoice.sent}
+                                                disabled={current_invoice.sent}
                                             >
                                                 <PencilIcon className="h-4 w-4" />
                                                 Edit
@@ -170,7 +170,7 @@ export function InvoiceEditor() {
                                             <Button
                                                 className="w-full justify-start"
                                                 variant={'ghost'}
-                                                disabled={request_data.invoice.sent}
+                                                disabled={current_invoice.sent}
                                             >
                                                 <Send className="h-4 w-4" />
                                                 Send
@@ -235,7 +235,8 @@ export function InvoiceEditor() {
                         <AlertDialogAction
                             onClick={() => {
                                 sendInvoice.mutate({
-                                    invoice_id: request_data.invoice_id ?? 'N/A'
+                                    invoice_id: current_invoice.id,
+                                    is_downpayment_invoice
                                 })
                             }}
                         >

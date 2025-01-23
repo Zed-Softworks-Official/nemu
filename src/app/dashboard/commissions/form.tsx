@@ -133,7 +133,7 @@ export function CreateForm() {
 
     useEffect(() => {
         if (data) {
-            form.setValue('charge_method', data.default_charge_method as ChargeMethod)
+            form.setValue('charge_method', data.default_charge_method)
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [data])

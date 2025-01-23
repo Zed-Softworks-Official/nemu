@@ -16,13 +16,14 @@ import { api } from '~/trpc/react'
 import { DataTable } from '~/components/data-table'
 
 export default function RequestFormsList() {
-    const { data: forms, isLoading } = api.request.get_forms_list.useQuery()
+    const { data: forms, isLoading } =
+        api.request.get_forms_list_and_payment_method.useQuery()
 
     if (isLoading) return <Loading />
 
     if (!forms) return null
 
-    const columns: ColumnDef<(typeof forms)[number]>[] = [
+    const columns: ColumnDef<(typeof forms)['forms'][number]>[] = [
         {
             header: 'Name',
             accessorKey: 'name'
@@ -54,5 +55,5 @@ export default function RequestFormsList() {
         }
     ]
 
-    return <DataTable columns={columns} data={forms} />
+    return <DataTable columns={columns} data={forms.forms} />
 }

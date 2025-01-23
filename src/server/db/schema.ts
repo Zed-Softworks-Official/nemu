@@ -169,6 +169,7 @@ export const artists = createTable('artist', {
     automated_message: text('automated_message'),
 
     default_charge_method: ChargeMethodEnum('default_charge_method')
+        .$type<ChargeMethod>()
         .default(ChargeMethod.InFull)
         .notNull(),
 
@@ -268,6 +269,7 @@ export const commissions = createTable('commission', {
     rejected_requests: integer('rejected_requests').default(0).notNull(),
 
     charge_method: ChargeMethodEnum('charge_method')
+        .$type<ChargeMethod>()
         .default(ChargeMethod.InFull)
         .notNull(),
     downpayment_percentage: integer('downpayment_percentage').default(0).notNull(),
@@ -285,12 +287,13 @@ export const commissions = createTable('commission', {
 export const invoices = createTable('invoice', {
     id: varchar('id', { length: 128 }).primaryKey(),
     sent: boolean('sent').default(false).notNull(),
-    hosted_url: text('hosted_url'),
     status: InvoiceStatusEnum('status').notNull(),
+    is_final: boolean('is_final').default(false).notNull(),
+
+    stripe_id: varchar('stripe_id', { length: 128 }).notNull(),
+    hosted_url: text('hosted_url'),
 
     items: json('items').$type<InvoiceItem[]>().notNull(),
-
-    stripe_id: text('stripe_id').notNull(),
     created_at: timestamp('created_at').defaultNow().notNull(),
 
     customer_id: text('customer_id').notNull(),
@@ -333,7 +336,7 @@ export const requests = createTable('request', {
     commission_id: text('commission_id').notNull(),
 
     order_id: text('order_id').notNull(),
-    invoice_id: text('invoice_id'),
+    invoice_ids: text('invoice_ids').array(),
     kanban_id: text('kanban_id'),
     delivery_id: text('delivery_id'),
 
@@ -516,7 +519,7 @@ export const formRelations = relations(forms, ({ one, many }) => ({
 /**
  * Request Relations
  */
-export const requestRelations = relations(requests, ({ one }) => ({
+export const requestRelations = relations(requests, ({ one, many }) => ({
     form: one(forms, {
         fields: [requests.form_id],
         references: [forms.id]
@@ -529,10 +532,7 @@ export const requestRelations = relations(requests, ({ one }) => ({
         fields: [requests.commission_id],
         references: [commissions.id]
     }),
-    invoice: one(invoices, {
-        fields: [requests.invoice_id],
-        references: [invoices.id]
-    }),
+    invoices: many(invoices),
     kanban: one(kanbans, {
         fields: [requests.kanban_id],
         references: [kanbans.id]

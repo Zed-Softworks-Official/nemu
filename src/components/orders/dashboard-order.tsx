@@ -9,10 +9,13 @@ import {
     type SetStateAction
 } from 'react'
 
-import type { KanbanContainerData, KanbanTaskData } from '~/lib/structures'
+import { type KanbanContainerData, type KanbanTaskData } from '~/lib/structures'
+
 import { api, type RouterOutputs } from '~/trpc/react'
 
 import Loading from '~/components/ui/loading'
+import { type InferSelectModel } from 'drizzle-orm'
+import { type invoices } from '~/server/db/schema'
 
 type DashboardOrderContextType = {
     order_id: string
@@ -26,6 +29,9 @@ type DashboardOrderContextType = {
 
     kanban_id: string
 
+    is_downpayment_invoice: boolean
+    current_invoice: InferSelectModel<typeof invoices> | null
+
     request_data: RouterOutputs['request']['get_request_by_id']
 }
 
@@ -38,7 +44,10 @@ export function DashboardOrderProvider(props: {
     const [orderId, setOrderId] = useState(props.order_id)
     const [containers, setContainers] = useState<KanbanContainerData[]>([])
     const [tasks, setTasks] = useState<KanbanTaskData[]>([])
-
+    const [currentInvoice, setCurrentInvoice] = useState<InferSelectModel<
+        typeof invoices
+    > | null>(null)
+    const [isDownpaymentInvoice, setIsDownpaymentInvoice] = useState(false)
     const [kanbanId, setKanbanId] = useState('')
 
     const { data: request_data, isLoading } = api.request.get_request_by_id.useQuery({
@@ -53,6 +62,21 @@ export function DashboardOrderProvider(props: {
             )
             setTasks((request_data.kanban?.tasks as KanbanTaskData[]) ?? [])
             setKanbanId(request_data.kanban?.id ?? '')
+
+            if (!request_data.invoices) {
+                return
+            }
+
+            let current_invoice_index = 0
+            for (let i = 0; i < request_data.invoices.length; i++) {
+                if (request_data.invoices[i]?.sent === false) {
+                    setIsDownpaymentInvoice(i > 0 ? true : false)
+                    current_invoice_index = i
+                    break
+                }
+            }
+
+            setCurrentInvoice(request_data.invoices[current_invoice_index]!)
         }
     }, [request_data])
 
@@ -69,6 +93,8 @@ export function DashboardOrderProvider(props: {
                 containers,
                 set_containers: setContainers,
                 tasks,
+                is_downpayment_invoice: isDownpaymentInvoice,
+                current_invoice: currentInvoice,
                 set_tasks: setTasks,
                 kanban_id: kanbanId
             }}
