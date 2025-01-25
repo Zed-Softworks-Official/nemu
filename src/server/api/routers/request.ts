@@ -264,7 +264,6 @@ export const request_router = createTRPCRouter({
                 return null
             }
 
-            // TODO:
             // Figure out what the charge method is
             // And then create the invoice(s) accordingly
             const is_down_payment =
@@ -368,15 +367,18 @@ export const request_router = createTRPCRouter({
                 kanban_id: kanban_primary_key
             }
 
+            // TODO: Invoices aren't being created for some reason?
+            const create_invoices_promise = async () => {
+                for (const invoice_value of invoice_values) {
+                    await ctx.db.insert(invoices).values({
+                        ...invoice_value,
+                        status: InvoiceStatus.Creating
+                    })
+                }
+            }
+
             await Promise.all([
-                async () => {
-                    for (const invoice_value of invoice_values) {
-                        await ctx.db.insert(invoices).values({
-                            ...invoice_value,
-                            status: InvoiceStatus.Creating
-                        })
-                    }
-                },
+                create_invoices_promise(),
                 ctx.db.insert(chats).values(chat_values),
                 ctx.db.insert(kanbans).values(kanban_values),
                 ctx.db

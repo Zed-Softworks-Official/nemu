@@ -77,9 +77,7 @@ export async function StripeUpdateInvoice(
     }
 
     // Add invoice items
-    let total_price = 0
     for (const item of items) {
-        total_price += item.price * item.quantity
         await stripe.invoiceItems.create(
             {
                 customer: customer_id,
@@ -94,11 +92,14 @@ export async function StripeUpdateInvoice(
 
     // Add downpayment discount if there is one
     if (downpayment && downpayment.index === 0) {
-        const stripe_discount = await stripe.coupons.create({
-            percent_off: Math.abs(downpayment.percentage - 100),
-            duration: 'once',
-            max_redemptions: 1
-        })
+        const stripe_discount = await stripe.coupons.create(
+            {
+                percent_off: Math.abs(downpayment.percentage - 100),
+                duration: 'once',
+                max_redemptions: 1
+            },
+            { stripeAccount: stripe_account }
+        )
 
         await stripe.invoices.update(
             invoice_stripe_id,
@@ -138,12 +139,18 @@ export async function StripeUpdateInvoice(
         )
     }
 
+    const invoice = await stripe.invoices.retrieve(invoice_stripe_id, {
+        stripeAccount: stripe_account
+    })
+
     // Add Application fee to invoice
     if (!supporter) {
         await stripe.invoices.update(
             invoice_stripe_id,
             {
-                application_fee_amount: calculate_application_fee(total_price)
+                application_fee_amount: Math.floor(
+                    calculate_application_fee(invoice.amount_due)
+                )
             },
             { stripeAccount: stripe_account }
         )
@@ -161,6 +168,15 @@ export async function StripeFinalizeInvoice(
     invoice_stripe_id: string,
     stripe_account: string
 ) {
+    // Set the due date to 48 hours from now
+    await stripe.invoices.update(
+        invoice_stripe_id,
+        {
+            due_date: Math.floor(Date.now() / 1000) + 48 * 60 * 60
+        },
+        { stripeAccount: stripe_account }
+    )
+
     return await stripe.invoices.finalizeInvoice(invoice_stripe_id, {
         stripeAccount: stripe_account
     })

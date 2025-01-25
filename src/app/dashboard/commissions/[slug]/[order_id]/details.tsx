@@ -61,6 +61,7 @@ export function CommissionHeader() {
 export function CommissionDetails() {
     const [acceptDialogStatus, setAcceptDialogStatus] = useState(true)
     const { request_data } = useDashboardOrder()
+    const utils = api.useUtils()
 
     const determineRequest = api.request.determine_request.useMutation({
         onMutate: (input) => {
@@ -79,6 +80,8 @@ export function CommissionDetails() {
             toast.success(`${input.accepted ? 'Accepted' : 'Rejected'} request`, {
                 id: context?.toast_id
             })
+
+            void utils.request.get_form_by_id.invalidate()
         }
     })
 

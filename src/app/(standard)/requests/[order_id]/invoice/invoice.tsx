@@ -31,16 +31,20 @@ export default function Invoice() {
         },
         {
             header: 'Price',
-            cell: ({ row }) => <span>{format_to_currency(row.original.total)}</span>
+            cell: ({ row }) => <span>{format_to_currency(row.original.total / 100)}</span>
         },
         {
             id: 'actions',
             cell: ({ row }) => {
                 const invoice = row.original
 
+                if (!invoice.hosted_url) {
+                    return null
+                }
+
                 return (
                     <Button asChild variant={'outline'}>
-                        <Link href={invoice.hosted_url ?? '#'}>View Invoice</Link>
+                        <Link href={invoice.hosted_url}>View Invoice</Link>
                     </Button>
                 )
             }
