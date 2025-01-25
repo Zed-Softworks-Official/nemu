@@ -110,7 +110,7 @@ const get_recent_invoices = unstable_cache(
         const result: RecentInvoices[] = []
         for (const invoice of db_invoices) {
             result.push({
-                status: invoice.status as InvoiceStatus,
+                status: invoice.status,
                 created_at: invoice.created_at.toLocaleDateString(),
                 requester_username: (await clerk_client.users.getUser(invoice.user_id))
                     .username!,

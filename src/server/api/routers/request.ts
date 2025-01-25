@@ -623,7 +623,13 @@ export const request_router = createTRPCRouter({
                 invoice.stripe_account,
                 invoice.stripe_id,
                 invoice.items,
-                ctx.artist.supporter
+                ctx.artist.supporter,
+                invoice.request.commission.charge_method === ChargeMethod.DownPayment
+                    ? {
+                          index: invoice.is_final ? 1 : 0,
+                          percentage: invoice.request.commission.downpayment_percentage
+                      }
+                    : undefined
             )
 
             const finalized_invoice = await StripeFinalizeInvoice(

@@ -1,4 +1,4 @@
-import { RequestStatus, type SalesData } from '~/lib/structures'
+import { InvoiceStatus, RequestStatus, type SalesData } from '~/lib/structures'
 import { artistProcedure, createTRPCRouter } from '../trpc'
 import { and, desc, eq, gte } from 'drizzle-orm'
 import { commissions, invoices, requests } from '~/server/db/schema'
@@ -48,7 +48,7 @@ export const dashboard_router = createTRPCRouter({
         const invoices_promise = ctx.db.query.invoices.findMany({
             where: and(
                 eq(invoices.artist_id, ctx.artist.id),
-                eq(invoices.status, 'paid')
+                eq(invoices.status, InvoiceStatus.Paid)
             ),
             orderBy: desc(invoices.created_at),
             limit: 10,

@@ -57,7 +57,11 @@ export async function StripeUpdateInvoice(
     stripe_account: string,
     invoice_stripe_id: string,
     items: InvoiceItem[],
-    supporter: boolean
+    supporter: boolean,
+    downpayment?: {
+        index: number
+        percentage: number
+    }
 ) {
     // Clear the invoice items if any
     const line_items = await stripe.invoices.listLineItems(invoice_stripe_id, {
@@ -85,6 +89,52 @@ export async function StripeUpdateInvoice(
                 description: item.name
             },
             { stripeAccount: stripe_account }
+        )
+    }
+
+    // Add downpayment discount if there is one
+    if (downpayment && downpayment.index === 0) {
+        const stripe_discount = await stripe.coupons.create({
+            percent_off: Math.abs(downpayment.percentage - 100),
+            duration: 'once',
+            max_redemptions: 1
+        })
+
+        await stripe.invoices.update(
+            invoice_stripe_id,
+            {
+                discounts: [
+                    {
+                        coupon: stripe_discount.id
+                    }
+                ]
+            },
+            { stripeAccount: stripe_account }
+        )
+    } else if (downpayment && downpayment.index === 1) {
+        const stripe_discount = await stripe.coupons.create(
+            {
+                percent_off: downpayment.percentage,
+                duration: 'once',
+                max_redemptions: 1
+            },
+            {
+                stripeAccount: stripe_account
+            }
+        )
+
+        await stripe.invoices.update(
+            invoice_stripe_id,
+            {
+                discounts: [
+                    {
+                        coupon: stripe_discount.id
+                    }
+                ]
+            },
+            {
+                stripeAccount: stripe_account
+            }
         )
     }
 
