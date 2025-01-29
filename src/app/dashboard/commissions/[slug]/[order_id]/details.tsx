@@ -42,6 +42,9 @@ import { Kanban } from './kanban'
 import { UploadDropzone } from '~/components/files/uploadthing'
 import { InvoiceEditor } from './invoice-editor'
 import { MessagesClient } from '~/components/messages/messages-client'
+import { Label } from '~/components/ui/label'
+import { Checkbox } from '~/components/ui/checkbox'
+import { InvoiceStatus } from '~/lib/structures'
 
 export function CommissionHeader() {
     const { request_data } = useDashboardOrder()
@@ -215,6 +218,7 @@ export function CommissionDetailsTabs() {
 }
 
 function Delivery() {
+    const [isFinal, setIsFinal] = useState(false)
     const { request_data } = useDashboardOrder()
 
     const utils = api.useUtils()
@@ -245,6 +249,22 @@ function Delivery() {
 
     if (!request_data?.id) return null
 
+    if (
+        request_data?.invoices![request_data.current_invoice_index ?? 0]!.status !==
+        InvoiceStatus.Paid
+    ) {
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Delivery</CardTitle>
+                    <CardDescription>
+                        Delivery will be made available after user pays for an invoice
+                    </CardDescription>
+                </CardHeader>
+            </Card>
+        )
+    }
+
     return (
         <Card>
             <CardHeader>
@@ -260,6 +280,17 @@ function Delivery() {
                 )}
             </CardHeader>
             <CardContent>
+                <div className="flex items-center gap-2">
+                    <Checkbox
+                        value={isFinal ? 'checked' : undefined}
+                        onCheckedChange={(checked) => setIsFinal(checked ? true : false)}
+                        disabled={
+                            request_data.invoices?.length !==
+                            request_data.current_invoice_index
+                        }
+                    />
+                    <Label htmlFor="isFinal">Mark as Final</Label>
+                </div>
                 <UploadDropzone
                     endpoint="commissionDownloadUploader"
                     onClientUploadComplete={(res) => {
@@ -272,7 +303,8 @@ function Delivery() {
                         createDelivery.mutate({
                             order_id: request_data.order_id,
                             file_key: res[0].key,
-                            file_type: res[0].type
+                            file_type: res[0].type,
+                            is_final: isFinal
                         })
                     }}
                 />

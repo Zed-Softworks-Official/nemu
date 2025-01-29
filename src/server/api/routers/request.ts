@@ -28,7 +28,7 @@ import {
 } from '~/lib/structures'
 
 import type { FormElementInstance } from '~/components/form-builder/elements/form-elements'
-import { knock, KnockWorkflows } from '~/server/knock'
+import { send_notification, KnockWorkflows } from '~/server/knock'
 import { env } from '~/env'
 
 import {
@@ -139,27 +139,23 @@ export const request_router = createTRPCRouter({
                 order_id: createId()
             })
 
-            const user_notification_promise = knock.workflows.trigger(
-                KnockWorkflows.CommissionRequestUserEnd,
-                {
-                    recipients: [ctx.auth.userId],
-                    data: {
-                        commission_title: commission.title,
-                        artist_handle: commission.artist.handle
-                    }
+            const user_notification_promise = send_notification({
+                type: KnockWorkflows.CommissionRequestUserEnd,
+                recipients: [ctx.auth.userId],
+                data: {
+                    commission_title: commission.title,
+                    artist_handle: commission.artist.handle
                 }
-            )
+            })
 
-            const artist_notification_promise = knock.workflows.trigger(
-                KnockWorkflows.CommissionRequestArtistEnd,
-                {
-                    recipients: [commission.artist.user_id],
-                    data: {
-                        commission_title: commission.title,
-                        commission_requests_url: `${env.BASE_URL}/dashboard/commissions/${commission.slug}`
-                    }
+            const artist_notification_promise = send_notification({
+                type: KnockWorkflows.CommissionRequestArtistEnd,
+                recipients: [commission.artist.user_id],
+                data: {
+                    commission_title: commission.title,
+                    requests_url: `${env.BASE_URL}/dashboard/commissions/${commission.slug}`
                 }
-            )
+            })
 
             await Promise.all([user_notification_promise, artist_notification_promise])
         }),
@@ -244,7 +240,8 @@ export const request_router = createTRPCRouter({
                 })
                 .where(eq(commissions.id, request.commission_id))
 
-            await knock.workflows.trigger(KnockWorkflows.CommissionDetermineRequest, {
+            await send_notification({
+                type: KnockWorkflows.CommissionDetermineRequest,
                 recipients: [request.user_id],
                 data: {
                     commission_title: request.commission.title,
@@ -515,7 +512,8 @@ export const request_router = createTRPCRouter({
             z.object({
                 order_id: z.string(),
                 file_key: z.string(),
-                file_type: z.string()
+                file_type: z.string(),
+                is_final: z.boolean()
             })
         )
         .mutation(async ({ ctx, input }) => {
@@ -543,7 +541,8 @@ export const request_router = createTRPCRouter({
                         input.file_type === 'application/zip'
                             ? DownloadType.Archive
                             : DownloadType.Image,
-                    ut_key: input.file_key
+                    ut_key: input.file_key,
+                    is_final: input.is_final
                 })
 
                 return
@@ -657,7 +656,8 @@ export const request_router = createTRPCRouter({
                         total: finalized_invoice.total
                     })
                     .where(eq(invoices.id, input.invoice_id)),
-                knock.workflows.trigger(KnockWorkflows.InvoiceSent, {
+                send_notification({
+                    type: KnockWorkflows.InvoiceSent,
                     recipients: [invoice.request.user_id],
                     data: {
                         commission_title: invoice.request.commission.title,

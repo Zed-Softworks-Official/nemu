@@ -143,6 +143,19 @@ export async function StripeUpdateInvoice(
         stripeAccount: stripe_account
     })
 
+    // Set the collection method to send invoice so we can add a 48 hours deadline
+    // to the invoice
+    await stripe.invoices.update(
+        invoice_stripe_id,
+        {
+            collection_method: 'send_invoice',
+            due_date: Math.floor(Date.now() / 1000) + 48 * 60 * 60
+        },
+        {
+            stripeAccount: stripe_account
+        }
+    )
+
     // Add Application fee to invoice
     if (!supporter) {
         await stripe.invoices.update(

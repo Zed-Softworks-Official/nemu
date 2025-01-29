@@ -19,8 +19,7 @@ import { eq } from 'drizzle-orm'
 import { StripeCreateAccount } from '~/lib/payments'
 
 import { set_index } from '~/server/algolia/collections'
-import { knock } from '~/server/knock'
-import { KnockWorkflows } from '~/server/knock'
+import { send_notification, KnockWorkflows } from '~/server/knock'
 
 export const artist_verification_router = createTRPCRouter({
     generate_artist_code: protectedProcedure
@@ -112,15 +111,13 @@ export const artist_verification_router = createTRPCRouter({
                         )
 
                         // Notify the user that they've been approved
-                        const knock_promise = knock.workflows.trigger(
-                            KnockWorkflows.VerificationApproved,
-                            {
-                                recipients: [ctx.auth.userId],
-                                data: {
-                                    artist_handle: input.requested_handle
-                                }
+                        const knock_promise = send_notification({
+                            type: KnockWorkflows.VerificationApproved,
+                            recipients: [ctx.auth.userId],
+                            data: {
+                                artist_handle: input.requested_handle
                             }
-                        )
+                        })
 
                         // Delete artist code
                         const delete_promise = db
@@ -143,12 +140,11 @@ export const artist_verification_router = createTRPCRouter({
                         })
 
                         // Notify the user of the request
-                        const knock_promise = knock.workflows.trigger(
-                            KnockWorkflows.VerificationPending,
-                            {
-                                recipients: [ctx.auth.userId]
-                            }
-                        )
+                        const knock_promise = send_notification({
+                            type: KnockWorkflows.VerificationPending,
+                            recipients: [ctx.auth.userId],
+                            data: undefined
+                        })
 
                         await Promise.all([db_promise, knock_promise])
                     }

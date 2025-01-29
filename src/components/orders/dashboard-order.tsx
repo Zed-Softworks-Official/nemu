@@ -81,7 +81,11 @@ export function DashboardOrderProvider(props: {
     }, [request_data])
 
     if (isLoading) {
-        return <Loading />
+        return (
+            <div className="flex h-full w-full flex-1 items-center justify-center">
+                <Loading />
+            </div>
+        )
     }
 
     return (

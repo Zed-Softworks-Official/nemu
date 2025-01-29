@@ -127,6 +127,14 @@ export function InvoiceEditor() {
                             <CardDescription>
                                 Edit the invoice for this order
                             </CardDescription>
+                            {!current_invoice.is_final && (
+                                <CardDescription>
+                                    Note: This invoice will be a downpayment of the full
+                                    amount. User will{' '}
+                                    <span className="font-bold">ONLY</span> pay the
+                                    dowpyament percentage
+                                </CardDescription>
+                            )}
                         </div>
                         <div className="flex flex-row gap-2">
                             <Button

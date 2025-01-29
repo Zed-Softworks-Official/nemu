@@ -139,7 +139,9 @@ export const delivery = createTable('delivery', {
     version: integer('version')
         .default(1)
         .$onUpdate(() => sql`version + 1`)
-        .notNull()
+        .notNull(),
+
+    is_final: boolean('is_final').default(false).notNull()
 })
 
 /**

@@ -1,17 +1,20 @@
 import Stripe from 'stripe'
 import { NextResponse, type NextRequest } from 'next/server'
-import { clerkClient } from '@clerk/nextjs/server'
 
 import { env } from '~/env'
-import { InvoiceStatus, PurchaseType, type StripePaymentMetadata } from '~/lib/structures'
+import {
+    InvoiceStatus,
+    PurchaseType,
+    RequestStatus,
+    type StripePaymentMetadata
+} from '~/lib/structures'
 import { db } from '~/server/db'
-import { artists, invoices } from '~/server/db/schema'
-import { eq } from 'drizzle-orm'
-import { knock, KnockWorkflows } from '~/server/knock'
+import { artists, commissions, invoices, requests } from '~/server/db/schema'
+import { eq, sql } from 'drizzle-orm'
+import { KnockWorkflows, send_notification } from '~/server/knock'
 import { get_redis_key, redis } from '~/server/redis'
 
 export async function POST(req: NextRequest) {
-    const clerk_client_promise = clerkClient()
     const sig = req.headers.get('stripe-signature')
 
     if (!req.body || !sig) {
@@ -34,7 +37,6 @@ export async function POST(req: NextRequest) {
         )
     }
 
-    const clerk_client = await clerk_client_promise
     switch (evt.type) {
         case 'invoice.paid':
             {
@@ -81,15 +83,89 @@ export async function POST(req: NextRequest) {
                     )
                 }
 
-                await knock.workflows.trigger(KnockWorkflows.InvoicePaid, {
+                await send_notification({
+                    type: KnockWorkflows.InvoicePaid,
                     recipients: [data.artist.user_id],
                     data: {
                         commission_title: data.request.commission.title,
-                        request_username: clerk_client.users
-                            .getUser(data.user_id)
-                            .then((user) => user?.username)
+                        request_url: `${env.BASE_URL}/dashboard/commissions/${data.request.commission.slug}/${data.request.order_id}`
+                    },
+                    actor: data.user_id
+                })
+            }
+            break
+        case 'invoice.overdue':
+            {
+                const invoice = evt.data.object
+                const metadata = invoice.metadata as unknown as StripePaymentMetadata
+
+                // Mark the request as rejected
+                if (!metadata.invoice_id) {
+                    return NextResponse.json(
+                        {
+                            error: 'Missing Invoice ID'
+                        },
+                        {
+                            status: 400
+                        }
+                    )
+                }
+
+                const request_invoice = await db.query.invoices.findFirst({
+                    where: eq(invoices.id, metadata.invoice_id),
+                    with: {
+                        request: {
+                            with: {
+                                commission: true
+                            }
+                        },
+                        artist: true
                     }
                 })
+
+                if (!request_invoice) {
+                    return NextResponse.json(
+                        {
+                            error: 'Invoice not found'
+                        },
+                        {
+                            status: 404
+                        }
+                    )
+                }
+
+                const update_request = db
+                    .update(requests)
+                    .set({
+                        status: RequestStatus.Rejected
+                    })
+                    .where(eq(requests.id, request_invoice.request_id))
+
+                // TODO: Check to see if this works
+                const notification_promise = send_notification({
+                    type: KnockWorkflows.InvoiceOverdue,
+                    recipients: [request_invoice.user_id, request_invoice.artist.user_id],
+                    data: {
+                        artist_handle: request_invoice.artist.handle,
+                        commission_title: request_invoice.request.commission.title,
+                        commission_url: `${env.BASE_URL}/@${request_invoice.artist.handle}/commission/${request_invoice.request.commission.slug}`
+                    }
+                })
+
+                // Reject the request and update the commission stats
+                const update_commission = db
+                    .update(commissions)
+                    .set({
+                        accepted_requests: sql`${request_invoice.request.commission.accepted_requests} - 1`,
+                        rejected_requests: sql`${request_invoice.request.commission.rejected_requests} + 1`
+                    })
+                    .where(eq(commissions.id, request_invoice.request.commission_id))
+
+                await Promise.all([
+                    update_request,
+                    update_commission,
+                    notification_promise
+                ])
             }
             break
         case 'customer.subscription.created':
