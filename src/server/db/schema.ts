@@ -224,6 +224,7 @@ export const portfolios = createTable('portfolio', {
 
     ut_key: text('ut_key').notNull(),
     title: varchar('title', { length: 256 }).notNull(),
+    adult_content: boolean('adult_content').default(false).notNull(),
 
     created_at: timestamp('created_at').defaultNow().notNull(),
     request_id: text('request_id')
@@ -239,6 +240,7 @@ export const commissions = createTable('commission', {
     artist_id: text('artist_id').notNull(),
     price: integer('price').notNull(),
     rating: decimal('rating', { precision: 2, scale: 1 }).notNull(),
+    adult_content: boolean('adult_content').default(false).notNull(),
 
     form_id: text('form_id').notNull(),
 
