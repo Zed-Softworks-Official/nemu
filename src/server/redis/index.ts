@@ -8,6 +8,7 @@ type RedisKey =
     | 'home'
     | 'dashboard_links'
     | 'dashboard_data'
+    | 'stripe'
 
 export const redis = new Redis({
     url: env.UPSTASH_REDIS_REST_URL,

@@ -25,7 +25,6 @@ export async function StripeCreateSupporterCheckout(
         ],
         mode: 'subscription',
         customer,
-
         ui_mode: 'hosted',
         success_url: env.BASE_URL + '/artists/supporter/success',
         cancel_url: env.BASE_URL + '/artists/supporter',

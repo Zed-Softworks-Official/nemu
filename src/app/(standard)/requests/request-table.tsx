@@ -98,13 +98,13 @@ export default function RequestTable() {
                     [RequestStatus.Rejected]: 4
                 }
 
-                const statusA = rowA.original.status as RequestStatus
-                const statusB = rowB.original.status as RequestStatus
+                const statusA = rowA.original.status
+                const statusB = rowB.original.status
 
                 return statusOrder[statusA] - statusOrder[statusB]
             },
             cell: ({ row }) => {
-                const status = row.original.status as RequestStatus
+                const status = row.original.status
 
                 let variant: BadgeProps['variant'] = 'default'
                 switch (status) {
@@ -128,7 +128,7 @@ export default function RequestTable() {
         {
             id: 'actions',
             cell: ({ row }) => {
-                const status = row.original.status as RequestStatus
+                const status = row.original.status
                 const order_id = row.original.order_id
 
                 if (

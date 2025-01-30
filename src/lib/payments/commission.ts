@@ -4,40 +4,29 @@ import {
     PurchaseType,
     type StripePaymentMetadata
 } from '~/lib/structures'
-import type Stripe from 'stripe'
 import { calculate_application_fee } from '.'
 
 /**
  * Creates a new commission invoice for the given commission
  *
  * @param {string} stripe_account - The connect account id
- * @param opts - The options for the stripe invoice
- * @return {Promise<Stripe.Invoice>} - The stripe invoice object
+ * @param {string} customer_id - The customer id of the user
+ * @param {string} order_id - The order id of the commission
+ * @returns {Promise<Stripe.Invoice>} - The stripe invoice object
  */
 export async function StripeCreateInvoice(
     stripe_account: string,
-    opts: {
-        customer_id: string
-        user_id: string
-        order_id: string
-        commission_id: string
-        invoice_id: string
-        artist_id: string
-    }
+    customer_id: string,
+    order_id: string
 ) {
-    const metadata: StripePaymentMetadata = {
-        purchase_type: PurchaseType.CommissionInvoice,
-        user_id: opts.user_id,
-        commission_id: opts.commission_id,
-        order_id: opts.order_id,
-        invoice_id: opts.invoice_id,
-        artist_id: opts.artist_id
-    }
-
     return await stripe.invoices.create(
         {
-            customer: opts.customer_id,
-            metadata: metadata as unknown as Stripe.MetadataParam
+            customer: customer_id,
+            metadata: {
+                purchase_type: PurchaseType.CommissionInvoice,
+                order_id,
+                stripe_account
+            } satisfies StripePaymentMetadata
         },
         { stripeAccount: stripe_account }
     )
@@ -57,7 +46,6 @@ export async function StripeUpdateInvoice(
     stripe_account: string,
     invoice_stripe_id: string,
     items: InvoiceItem[],
-    supporter: boolean,
     downpayment?: {
         index: number
         percentage: number
@@ -138,36 +126,6 @@ export async function StripeUpdateInvoice(
             }
         )
     }
-
-    const invoice = await stripe.invoices.retrieve(invoice_stripe_id, {
-        stripeAccount: stripe_account
-    })
-
-    // Set the collection method to send invoice so we can add a 48 hours deadline
-    // to the invoice
-    await stripe.invoices.update(
-        invoice_stripe_id,
-        {
-            collection_method: 'send_invoice',
-            due_date: Math.floor(Date.now() / 1000) + 48 * 60 * 60
-        },
-        {
-            stripeAccount: stripe_account
-        }
-    )
-
-    // Add Application fee to invoice
-    if (!supporter) {
-        await stripe.invoices.update(
-            invoice_stripe_id,
-            {
-                application_fee_amount: Math.floor(
-                    calculate_application_fee(invoice.amount_due)
-                )
-            },
-            { stripeAccount: stripe_account }
-        )
-    }
 }
 
 /**
@@ -179,13 +137,25 @@ export async function StripeUpdateInvoice(
  */
 export async function StripeFinalizeInvoice(
     invoice_stripe_id: string,
-    stripe_account: string
+    stripe_account: string,
+    supporter: boolean
 ) {
+    const invoice = await stripe.invoices.retrieve(invoice_stripe_id, {
+        stripeAccount: stripe_account
+    })
+
+    // Add Application fee to invoice
+    let application_fee_amount: number | undefined
+    if (!supporter) {
+        application_fee_amount = Math.floor(calculate_application_fee(invoice.amount_due))
+    }
+
     // Set the due date to 48 hours from now
     await stripe.invoices.update(
         invoice_stripe_id,
         {
-            due_date: Math.floor(Date.now() / 1000) + 48 * 60 * 60
+            due_date: Math.floor(Date.now() / 1000) + 48 * 60 * 60,
+            application_fee_amount
         },
         { stripeAccount: stripe_account }
     )

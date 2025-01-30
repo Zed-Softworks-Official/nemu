@@ -289,14 +289,8 @@ export const request_router = createTRPCRouter({
 
                 const stripe_draft = await StripeCreateInvoice(
                     customer_id.stripe_account,
-                    {
-                        customer_id: customer_id.customer_id,
-                        user_id: request.user_id,
-                        commission_id: request.commission_id,
-                        order_id: request.order_id,
-                        invoice_id,
-                        artist_id: request.commission.artist_id
-                    }
+                    customer_id.customer_id,
+                    request.order_id
                 )
 
                 if (!stripe_draft) {
@@ -624,7 +618,6 @@ export const request_router = createTRPCRouter({
                 invoice.stripe_account,
                 invoice.stripe_id,
                 invoice.items,
-                ctx.artist.supporter,
                 invoice.request.commission.charge_method === ChargeMethod.DownPayment
                     ? {
                           index: invoice.is_final ? 1 : 0,
@@ -635,7 +628,8 @@ export const request_router = createTRPCRouter({
 
             const finalized_invoice = await StripeFinalizeInvoice(
                 invoice.stripe_id,
-                invoice.stripe_account
+                invoice.stripe_account,
+                ctx.artist.supporter
             )
 
             if (!finalized_invoice) {
