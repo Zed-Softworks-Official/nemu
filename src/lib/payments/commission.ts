@@ -154,6 +154,7 @@ export async function StripeFinalizeInvoice(
     await stripe.invoices.update(
         invoice_stripe_id,
         {
+            collection_method: 'send_invoice',
             due_date: Math.floor(Date.now() / 1000) + 48 * 60 * 60,
             application_fee_amount
         },
