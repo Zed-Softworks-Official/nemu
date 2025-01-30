@@ -1,15 +1,16 @@
 import { createCallerFactory, createTRPCRouter } from '~/server/api/trpc'
 
-import { artist_verification_router } from './routers/artist-verification'
-import { supporter_router } from './routers/supporter'
-import { stripe_router } from './routers/stripe'
-import { kanban_router } from './routers/kanban'
-import { request_router } from './routers/request'
-import { commission_router } from './routers/commission'
-import { artist_router } from './routers/artist'
-import { chat_router } from './routers/chat'
-import { portfolio_router } from './routers/portfolio'
-import { home_router } from './routers/home'
+import { artist_verification_router } from '~/server/api/routers/artist-verification'
+import { supporter_router } from '~/server/api/routers/supporter'
+import { stripe_router } from '~/server/api/routers/stripe'
+import { kanban_router } from '~/server/api/routers/kanban'
+import { request_router } from '~/server/api/routers/request'
+import { commission_router } from '~/server/api/routers/commission'
+import { artist_router } from '~/server/api/routers/artist'
+import { chat_router } from '~/server/api/routers/chat'
+import { portfolio_router } from '~/server/api/routers/portfolio'
+import { home_router } from '~/server/api/routers/home'
+import { dashboard_router } from '~/server/api/routers/dashboard'
 /**
  * This is the primary router for your server.
  *
@@ -25,7 +26,8 @@ export const appRouter = createTRPCRouter({
     commission: commission_router,
     chat: chat_router,
     portfolio: portfolio_router,
-    home: home_router
+    home: home_router,
+    dashboard: dashboard_router
 })
 
 // export type definition of API

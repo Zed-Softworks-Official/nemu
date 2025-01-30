@@ -334,7 +334,7 @@ export const requests = createTable('request', {
     user_id: text('user_id').notNull(),
     created_at: timestamp('created_at').defaultNow().notNull(),
 
-    status: RequestStatusEnum('status').notNull(),
+    status: RequestStatusEnum('status').$type<RequestStatus>().notNull(),
     commission_id: text('commission_id').notNull(),
 
     order_id: text('order_id').notNull(),
