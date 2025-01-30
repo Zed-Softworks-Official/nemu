@@ -309,7 +309,7 @@ export const request_router = createTRPCRouter({
                     request_id: request.id,
                     total: request.commission.price,
                     stripe_id: stripe_draft.id,
-                    is_final: invoice_index !== 0,
+                    is_final: invoice_index === invoice_ids.length - 1,
                     hosted_url: stripe_draft.hosted_invoice_url,
                     items: [
                         {
