@@ -1,10 +1,12 @@
 import { z } from 'zod'
-import { createTRPCRouter, protectedProcedure } from '../trpc'
 import { eq } from 'drizzle-orm'
-import { artists } from '~/server/db/schema'
-import { TRPCError } from '@trpc/server'
-import { StripeCreateCustomerZed, StripeCreateSupporterCheckout } from '~/lib/payments'
 import { clerkClient } from '@clerk/nextjs/server'
+import { TRPCError } from '@trpc/server'
+
+import { createTRPCRouter, protectedProcedure } from '~/server/api/trpc'
+import { artists } from '~/server/db/schema'
+
+import { StripeCreateCustomerZed, StripeCreateSupporterCheckout } from '~/lib/payments'
 
 export const supporter_router = createTRPCRouter({
     generate_url: protectedProcedure
@@ -14,14 +16,15 @@ export const supporter_router = createTRPCRouter({
                 where: eq(artists.user_id, ctx.auth.userId)
             })
 
-            const clerk_client = await clerkClient()
-            const user = await clerk_client.users.getUser(ctx.auth.userId)
-
             if (!artist) {
                 throw new TRPCError({
-                    code: 'NOT_FOUND'
+                    code: 'NOT_FOUND',
+                    message: 'Artist not found'
                 })
             }
+
+            const clerk_client = await clerkClient()
+            const user = await clerk_client.users.getUser(ctx.auth.userId)
 
             if (!artist.zed_customer_id) {
                 const stripe_account = await StripeCreateCustomerZed(

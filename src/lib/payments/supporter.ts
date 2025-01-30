@@ -13,13 +13,15 @@ export async function StripeCreateSupporterCheckout(
     term: 'monthly' | 'annual',
     customer: string
 ) {
+    const price_id =
+        term === 'monthly'
+            ? env.STRIPE_SUPPORTER_MONTHLY_PRICE_ID
+            : env.STRIPE_SUPPORTER_ANNUAL_PRICE_ID
+
     return await stripe.checkout.sessions.create({
         line_items: [
             {
-                price:
-                    term === 'monthly'
-                        ? 'price_1P3VzqBUuzvTmMJLlGYGW4Qb'
-                        : 'price_1P3VzqBUuzvTmMJLwJHOoLzn',
+                price: price_id,
                 quantity: 1
             }
         ],
@@ -29,8 +31,12 @@ export async function StripeCreateSupporterCheckout(
         success_url: env.BASE_URL + '/artists/supporter/success',
         cancel_url: env.BASE_URL + '/artists/supporter',
         metadata: {
-            artist_id,
             purchase_type: PurchaseType.Supporter
+        },
+        subscription_data: {
+            metadata: {
+                artist_id
+            }
         }
     })
 }

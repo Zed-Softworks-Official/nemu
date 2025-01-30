@@ -36,7 +36,10 @@ export const env = createEnv({
         SENTRY_AUTH_TOKEN: z.string(),
 
         PUSHER_APP_ID: z.string(),
-        PUSHER_SECRET: z.string()
+        PUSHER_SECRET: z.string(),
+
+        STRIPE_SUPPORTER_MONTHLY_PRICE_ID: z.string(),
+        STRIPE_SUPPORTER_ANNUAL_PRICE_ID: z.string()
     },
 
     /**
@@ -103,7 +106,10 @@ export const env = createEnv({
         PUSHER_APP_ID: process.env.PUSHER_APP_ID,
         PUSHER_SECRET: process.env.PUSHER_SECRET,
         NEXT_PUBLIC_PUSHER_KEY: process.env.NEXT_PUBLIC_PUSHER_KEY,
-        NEXT_PUBLIC_PUSHER_CLUSTER: process.env.NEXT_PUBLIC_PUSHER_CLUSTER
+        NEXT_PUBLIC_PUSHER_CLUSTER: process.env.NEXT_PUBLIC_PUSHER_CLUSTER,
+
+        STRIPE_SUPPORTER_MONTHLY_PRICE_ID: process.env.STRIPE_SUPPORTER_MONTHLY_PRICE_ID,
+        STRIPE_SUPPORTER_ANNUAL_PRICE_ID: process.env.STRIPE_SUPPORTER_ANNUAL_PRICE_ID
     },
     /**
      * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially
