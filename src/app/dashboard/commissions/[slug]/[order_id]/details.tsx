@@ -84,7 +84,7 @@ export function CommissionDetails() {
                 id: context?.toast_id
             })
 
-            void utils.request.get_form_by_id.invalidate()
+            void utils.request.get_form_by_id.refetch()
         }
     })
 
@@ -221,7 +221,6 @@ function Delivery() {
     const [isFinal, setIsFinal] = useState(false)
     const { request_data } = useDashboardOrder()
 
-    const utils = api.useUtils()
     const requestFailed = api.request.request_failed.useMutation()
     const createDelivery = api.request.update_request_delivery.useMutation({
         onMutate: () => {
@@ -242,8 +241,6 @@ function Delivery() {
             toast.success('Delivery Uploaded', {
                 id: context?.toast_id
             })
-
-            void utils.request.get_request_by_id.invalidate()
         }
     })
 

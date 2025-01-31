@@ -60,6 +60,8 @@ export function InvoiceEditor() {
     const { current_invoice, is_downpayment_invoice } = useDashboardOrder()
     const [items, setItems] = useState<InvoiceItem[]>(current_invoice?.items ?? [])
 
+    const utils = api.useUtils()
+
     const updateItems = api.request.update_invoice_items.useMutation({
         onMutate: () => {
             const toast_id = toast.loading('Updating Invoice...')
@@ -93,6 +95,8 @@ export function InvoiceEditor() {
             toast.success('Invoice sent', {
                 id: context?.toast_id
             })
+
+            void utils.request.get_request_by_id.invalidate()
         }
     })
 
