@@ -12,7 +12,7 @@ import { type StripePaymentMetadata } from '~/lib/structures'
 
 const allowed_events = [
     'invoice.paid',
-    'invoice.overdue',
+    'invoice.payment_failed',
     'customer.subscription.created',
     'customer.subscription.deleted',
     'account.updated'
