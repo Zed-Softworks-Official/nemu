@@ -26,8 +26,8 @@ export async function sync_stripe_data(
     switch (event_data.type) {
         case 'invoice.paid':
             return await invoice_paid(event_data.id, metadata.stripe_account)
-        case 'invoice.payment_failed':
-            return await invoice_payment_failed(event_data.id, metadata.stripe_account)
+        case 'invoice.overdue':
+            return await invoice_overdue(event_data.id, metadata.stripe_account)
         case 'account.updated':
             return await account_updated(metadata.stripe_account)
         default:
@@ -100,20 +100,13 @@ async function invoice_paid(invoice_id: string, stripe_account: string) {
  * @param {string} invoice_id - The invoice id
  * @param {string} stripe_account - The stripe account id
  */
-async function invoice_payment_failed(invoice_id: string, stripe_account: string) {
-    const stripe_invoice = await stripe.invoices.retrieve(invoice_id, {
-        stripeAccount: stripe_account
-    })
-
-    // Only proceed if the invoice is overdue and NOT if the payment on their card failed
-    if (!stripe_invoice.due_date || stripe_invoice.due_date * 1000 > Date.now()) {
-        return
-    }
-
+async function invoice_overdue(invoice_id: string, stripe_account: string) {
+    // Mark the invoice as uncollectible
     await stripe.invoices.markUncollectible(invoice_id, {
         stripeAccount: stripe_account
     })
 
+    // Fetch the invoice from the database
     const request_invoice = await db.query.invoices.findFirst({
         where: and(
             eq(invoices.stripe_id, invoice_id),
@@ -133,6 +126,7 @@ async function invoice_payment_failed(invoice_id: string, stripe_account: string
         throw new Error('[STRIPE HOOK] Invoice not found')
     }
 
+    // Update the request status to rejected
     const update_promise = db
         .update(requests)
         .set({
