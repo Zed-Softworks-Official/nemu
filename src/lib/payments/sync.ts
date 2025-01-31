@@ -101,11 +101,6 @@ async function invoice_paid(invoice_id: string, stripe_account: string) {
  * @param {string} stripe_account - The stripe account id
  */
 async function invoice_overdue(invoice_id: string, stripe_account: string) {
-    // Mark the invoice as uncollectible
-    await stripe.invoices.markUncollectible(invoice_id, {
-        stripeAccount: stripe_account
-    })
-
     // Fetch the invoice from the database
     const request_invoice = await db.query.invoices.findFirst({
         where: and(
