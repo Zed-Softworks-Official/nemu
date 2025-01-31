@@ -84,7 +84,7 @@ export function CommissionDetails() {
                 id: context?.toast_id
             })
 
-            void utils.request.get_form_by_id.refetch()
+            void utils.request.get_request_by_id.refetch()
         }
     })
 
