@@ -247,7 +247,7 @@ function Delivery() {
     if (!request_data?.id) return null
 
     if (
-        request_data?.invoices![request_data.current_invoice_index ?? 0]!.status !==
+        request_data?.invoices?.[request_data.current_invoice_index ?? 0]?.status !==
         InvoiceStatus.Paid
     ) {
         return (
