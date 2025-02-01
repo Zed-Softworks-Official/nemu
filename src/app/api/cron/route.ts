@@ -105,6 +105,8 @@ export const { POST } = serve(
             }
         )
 
+        if (expired_invoices.length === 0) return
+
         async function do_event_processing() {
             waitUntil(process_event(expired_invoices))
         }
