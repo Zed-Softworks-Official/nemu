@@ -101,7 +101,10 @@ async function invoice_paid(invoice_id: string, stripe_account: string) {
  * @param {string} stripe_account - The stripe account id
  */
 async function invoice_overdue(invoice_id: string, stripe_account: string) {
-    // Fetch the invoice from the database
+    await stripe.invoices.voidInvoice(invoice_id, {
+        stripeAccount: stripe_account
+    })
+
     const request_invoice = await db.query.invoices.findFirst({
         where: and(
             eq(invoices.stripe_id, invoice_id),
@@ -121,7 +124,6 @@ async function invoice_overdue(invoice_id: string, stripe_account: string) {
         throw new Error('[STRIPE HOOK] Invoice not found')
     }
 
-    // Update the request status to rejected
     const update_promise = db
         .update(requests)
         .set({
