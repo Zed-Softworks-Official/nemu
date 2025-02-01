@@ -589,7 +589,8 @@ export const request_router = createTRPCRouter({
                     type:
                         input.file_type === 'application/zip'
                             ? DownloadType.Archive
-                            : DownloadType.Image
+                            : DownloadType.Image,
+                    is_final: input.is_final
                 })
                 .where(eq(delivery.id, data.delivery.id))
 

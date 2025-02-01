@@ -220,6 +220,7 @@ export function CommissionDetailsTabs() {
 function Delivery() {
     const [isFinal, setIsFinal] = useState(false)
     const { request_data } = useDashboardOrder()
+    const utils = api.useUtils()
 
     const requestFailed = api.request.request_failed.useMutation()
     const createDelivery = api.request.update_request_delivery.useMutation({
@@ -241,10 +242,31 @@ function Delivery() {
             toast.success('Delivery Uploaded', {
                 id: context?.toast_id
             })
+
+            void utils.request.get_request_by_id.invalidate()
         }
     })
 
     if (!request_data?.id) return null
+
+    if (request_data.delivery?.is_final) {
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Delivery</CardTitle>
+                    {request_data?.delivery && (
+                        <CardDescription className="flex flex-col gap-2">
+                            <p>
+                                Delivery Date:{' '}
+                                {request_data.delivery?.updated_at.toLocaleDateString()}
+                            </p>
+                            <p>Version: {request_data.delivery?.version}</p>
+                        </CardDescription>
+                    )}
+                </CardHeader>
+            </Card>
+        )
+    }
 
     if (request_data.invoices?.[0]?.status !== InvoiceStatus.Paid) {
         return (
