@@ -246,10 +246,7 @@ function Delivery() {
 
     if (!request_data?.id) return null
 
-    if (
-        request_data?.invoices?.[request_data.current_invoice_index ?? 0]?.status !==
-        InvoiceStatus.Paid
-    ) {
+    if (request_data.invoices?.[0]?.status !== InvoiceStatus.Paid) {
         return (
             <Card>
                 <CardHeader>
@@ -285,6 +282,8 @@ function Delivery() {
                             request_data.invoices?.length !==
                             request_data.current_invoice_index
                         }
+                        name="isFinal"
+                        id="isFinal"
                     />
                     <Label htmlFor="isFinal">Mark as Final</Label>
                 </div>

@@ -155,7 +155,7 @@ export async function StripeFinalizeInvoice(
         invoice_stripe_id,
         {
             collection_method: 'send_invoice',
-            due_date: Math.floor(Date.now() / 1000) + 48 * 60 * 60,
+            days_until_due: 2,
             application_fee_amount,
             payment_settings: {
                 payment_method_types: ['card', 'link']

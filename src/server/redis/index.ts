@@ -1,4 +1,5 @@
 import { Redis } from '@upstash/redis'
+
 import { env } from '~/env'
 
 type RedisKey =
@@ -8,7 +9,7 @@ type RedisKey =
     | 'home'
     | 'dashboard_links'
     | 'dashboard_data'
-    | 'stripe'
+    | 'request_queue'
 
 export const redis = new Redis({
     url: env.UPSTASH_REDIS_REST_URL,

@@ -24,7 +24,8 @@ import {
     type ClientRequestData,
     type Chat,
     DownloadType,
-    ChargeMethod
+    ChargeMethod,
+    type RequestQueue
 } from '~/lib/structures'
 
 import type { FormElementInstance } from '~/components/form-builder/elements/form-elements'
@@ -121,22 +122,28 @@ export const request_router = createTRPCRouter({
                 })
             }
 
-            let waitlist = false
-            if (
-                commission.max_commissions_until_waitlist > 0 &&
-                commission.requests.length >= commission.max_commissions_until_waitlist
-            ) {
-                waitlist = true
+            const request_redis_key = get_redis_key('request_queue', commission.id)
+            const request_queue: RequestQueue = (await ctx.redis.json.get(
+                request_redis_key,
+                '$'
+            )) ?? {
+                requests: [],
+                waitlist: []
             }
+
+            const order_id = createId()
+            const is_waitlist =
+                commission.max_commissions_until_waitlist > 0 &&
+                request_queue.requests.length >= commission.max_commissions_until_waitlist
 
             await ctx.db.insert(requests).values({
                 id: createId(),
                 form_id: commission.form_id,
                 user_id: ctx.auth.userId,
                 commission_id: input.commission_id,
-                status: waitlist ? RequestStatus.Waitlist : RequestStatus.Pending,
+                status: is_waitlist ? RequestStatus.Waitlist : RequestStatus.Pending,
                 content: JSON.parse(input.form_data) as Record<string, string>,
-                order_id: createId()
+                order_id
             })
 
             const user_notification_promise = send_notification({
@@ -157,7 +164,18 @@ export const request_router = createTRPCRouter({
                 }
             })
 
-            await Promise.all([user_notification_promise, artist_notification_promise])
+            const path = is_waitlist ? '$.waitlist' : '$.requests'
+            const update_request_queue_promise = ctx.redis.json.arrappend(
+                request_redis_key,
+                path,
+                order_id
+            )
+
+            await Promise.all([
+                user_notification_promise,
+                artist_notification_promise,
+                update_request_queue_promise
+            ])
         }),
 
     determine_request: artistProcedure
@@ -251,6 +269,26 @@ export const request_router = createTRPCRouter({
             })
 
             if (!input.accepted) {
+                // Remove from request queue
+                const redis_key = get_redis_key('request_queue', request.commission_id)
+                const path =
+                    request.status === RequestStatus.Pending ? '$.requests' : '$.waitlist'
+                const index = await ctx.redis.json.arrindex(
+                    redis_key,
+                    path,
+                    request.order_id
+                )
+
+                if (!index[0]) {
+                    throw new TRPCError({
+                        code: 'INTERNAL_SERVER_ERROR',
+                        message: 'Request not found in request queue'
+                    })
+                }
+
+                await ctx.redis.json.arrpop(redis_key, path, index[0])
+
+                // Update request status
                 await ctx.db
                     .update(requests)
                     .set({

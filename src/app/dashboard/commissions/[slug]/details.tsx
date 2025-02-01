@@ -14,7 +14,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger
 } from '~/components/ui/dropdown-menu'
-import { type ClientRequestData } from '~/lib/structures'
+import { RequestStatus, type ClientRequestData } from '~/lib/structures'
 import { api } from '~/trpc/react'
 
 export function PublishButton(props: { id: string; published: boolean }) {
@@ -67,11 +67,8 @@ export function PublishButton(props: { id: string; published: boolean }) {
     )
 }
 
-export function RequestList(props: {
-    requests: ClientRequestData[] | undefined
-    slug: string
-}) {
-    if (!props.requests) return null
+export function RequestList(props: { requests: ClientRequestData[]; slug: string }) {
+    const [requests, setRequests] = useState(props.requests)
 
     const columns: ColumnDef<ClientRequestData>[] = [
         {
@@ -90,6 +87,8 @@ export function RequestList(props: {
             id: 'actions',
             cell: (data) => {
                 const request = data.row.original
+
+                if (request.status !== RequestStatus.Accepted) return null
 
                 return (
                     <DropdownMenu>
@@ -115,7 +114,48 @@ export function RequestList(props: {
 
     return (
         <div className="mt-5">
-            <DataTable columns={columns} data={props.requests} />
+            <div className="mb-5 flex items-center gap-2">
+                <Button variant={'outline'} onClick={() => setRequests(props.requests)}>
+                    Show All
+                </Button>
+                <Button
+                    variant={'outline'}
+                    onClick={() =>
+                        setRequests(
+                            props.requests?.filter(
+                                (request) => request.status === RequestStatus.Accepted
+                            )
+                        )
+                    }
+                >
+                    Accepted
+                </Button>
+                <Button
+                    variant={'outline'}
+                    onClick={() =>
+                        setRequests(
+                            props.requests?.filter(
+                                (request) => request.status === RequestStatus.Pending
+                            )
+                        )
+                    }
+                >
+                    Pending
+                </Button>
+                <Button
+                    variant={'outline'}
+                    onClick={() =>
+                        setRequests(
+                            props.requests?.filter(
+                                (request) => request.status === RequestStatus.Waitlist
+                            )
+                        )
+                    }
+                >
+                    Waitlisted
+                </Button>
+            </div>
+            <DataTable columns={columns} data={requests} />
         </div>
     )
 }

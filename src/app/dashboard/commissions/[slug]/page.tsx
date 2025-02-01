@@ -44,7 +44,7 @@ export default async function CommissionDetailPage(props: {
             </div>
             <Separator />
 
-            <RequestList requests={commission.requests} slug={params.slug} />
+            <RequestList requests={commission.requests ?? []} slug={params.slug} />
         </div>
     )
 }

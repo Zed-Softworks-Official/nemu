@@ -9,7 +9,8 @@ import {
     type ClientCommissionItem,
     type ClientCommissionItemEditable,
     CommissionAvailability,
-    ChargeMethod
+    ChargeMethod,
+    type RequestQueue
 } from '~/lib/structures'
 import {
     convert_images_to_nemu_images,
@@ -19,6 +20,7 @@ import {
 import { utapi } from '~/server/uploadthing'
 import { update_index } from '~/server/algolia/collections'
 import { clerkClient } from '@clerk/nextjs/server'
+import { get_redis_key } from '~/server/redis'
 
 export const commission_router = createTRPCRouter({
     set_commission: artistProcedure
@@ -83,6 +85,12 @@ export const commission_router = createTRPCRouter({
                 charge_method: input.charge_method,
                 downpayment_percentage: input.downpayment_percentage
             })
+
+            // Create request queue
+            await ctx.redis.json.set(get_redis_key('request_queue', commission_id), '$', {
+                requests: [],
+                waitlist: []
+            } satisfies RequestQueue)
         }),
 
     update_commission: artistProcedure

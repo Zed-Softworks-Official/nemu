@@ -7,7 +7,7 @@ import { env } from '~/env'
 import { stripe } from '~/server/stripe'
 
 import { tryCatch } from '~/lib/try-catch'
-import { sync_stripe_data } from '~/lib/payments/sync'
+import { sync_stripe_data } from '~/app/api/webhook/stripe/sync'
 import { type StripePaymentMetadata } from '~/lib/structures'
 
 const allowed_events = [

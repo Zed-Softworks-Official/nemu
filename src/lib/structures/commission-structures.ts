@@ -152,3 +152,14 @@ export enum DownloadType {
     Image = 'image',
     Archive = 'archive'
 }
+
+/**
+ * The request queue for a commission
+ *
+ * @prop {string[]} requests - The order ids of the requests that are pending or accepted
+ * @prop {string[]} waitlist - The order ids of the requests that are on the waitlist
+ */
+export interface RequestQueue {
+    requests: string[]
+    waitlist: string[]
+}

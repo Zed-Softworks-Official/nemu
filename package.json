@@ -93,7 +93,7 @@
     "require-in-the-middle": "^7.4.0",
     "server-only": "^0.0.1",
     "sonner": "^1.7.0",
-    "stripe": "^17.3.1",
+    "stripe": "^17.6.0",
     "superjson": "^2.2.1",
     "svix": "^1.43.0",
     "swiper": "^11.1.14",
