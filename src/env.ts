@@ -31,6 +31,9 @@ export const env = createEnv({
         UPSTASH_REDIS_REST_URL: z.string(),
         UPSTASH_REDIS_REST_TOKEN: z.string(),
 
+        QSTASH_CURRENT_SIGNING_KEY: z.string(),
+        QSTASH_NEXT_SIGNING_KEY: z.string(),
+
         UPLOADTHING_TOKEN: z.string(),
 
         SENTRY_AUTH_TOKEN: z.string(),
@@ -94,6 +97,9 @@ export const env = createEnv({
 
         UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
         UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
+
+        QSTASH_CURRENT_SIGNING_KEY: process.env.QSTASH_CURRENT_SIGNING_KEY,
+        QSTASH_NEXT_SIGNING_KEY: process.env.QSTASH_NEXT_SIGNING_KEY,
 
         NEXT_PUBLIC_UPLOADTHING_APP_ID: process.env.NEXT_PUBLIC_UPLOADTHING_APP_ID,
         UPLOADTHING_TOKEN: process.env.UPLOADTHING_TOKEN,

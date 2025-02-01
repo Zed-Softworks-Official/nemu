@@ -1,6 +1,8 @@
+import { Receiver } from '@upstash/qstash'
+import { serve } from '@upstash/workflow/nextjs'
 import { waitUntil } from '@vercel/functions'
 import { eq } from 'drizzle-orm'
-import { type NextRequest, NextResponse } from 'next/server'
+
 import { env } from '~/env'
 
 import { InvoiceStatus, RequestStatus, type StripeInvoiceData } from '~/lib/structures'
@@ -91,37 +93,32 @@ async function process_event(expired_invoices: string[]) {
     )
 }
 
-export async function POST(req: NextRequest) {
-    const signature = req.headers.get('nemu-cron-token')
+export const { POST } = serve(
+    async () => {
+        const current_time = Math.floor(Date.now() / 1000)
+        const expired_invoices = await redis.zrange<string[]>(
+            'invoices_due_cron',
+            0,
+            current_time,
+            {
+                byScore: true
+            }
+        )
 
-    if (signature) {
-        console.log('HOW?')
-        return NextResponse.json({ received: true }, { status: 401 })
-    }
-
-    const current_time = Math.floor(Date.now() / 1000)
-    const expired_invoices = await redis.zrange<string[]>(
-        'invoices_due_cron',
-        0,
-        current_time,
-        {
-            byScore: true
-        }
-    )
-
-    async function do_event_processing() {
-        if (typeof signature !== 'string') {
-            throw new Error('[CRON]: Signature is not a string???')
+        async function do_event_processing() {
+            waitUntil(process_event(expired_invoices))
         }
 
-        waitUntil(process_event(expired_invoices))
+        const { error } = await tryCatch(do_event_processing())
+
+        if (error) {
+            console.error('[CRON]: Error processing event', error)
+        }
+    },
+    {
+        receiver: new Receiver({
+            currentSigningKey: env.QSTASH_CURRENT_SIGNING_KEY,
+            nextSigningKey: env.QSTASH_NEXT_SIGNING_KEY
+        })
     }
-
-    const { error } = await tryCatch(do_event_processing())
-
-    if (error) {
-        console.error('[CRON]: Error processing event', error)
-    }
-
-    return NextResponse.json({ received: true })
-}
+)
