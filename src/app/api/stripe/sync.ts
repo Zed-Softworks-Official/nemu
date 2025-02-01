@@ -1,19 +1,15 @@
 import type Stripe from 'stripe'
 import { and, eq } from 'drizzle-orm'
 
-import { db } from '~/server/db'
-import { artists, invoices, requests } from '~/server/db/schema'
-import { KnockWorkflows, send_notification } from '~/server/knock'
-
 import { env } from '~/env'
 
-import {
-    InvoiceStatus,
-    RequestStatus,
-    type StripePaymentMetadata
-} from '~/lib/structures'
+import { db } from '~/server/db'
+import { artists, invoices } from '~/server/db/schema'
+import { KnockWorkflows, send_notification } from '~/server/knock'
 import { stripe } from '~/server/stripe'
 import { get_redis_key, redis } from '~/server/redis'
+
+import { InvoiceStatus, type StripePaymentMetadata } from '~/lib/structures'
 
 export async function sync_stripe_data(
     customer_id: string,
@@ -26,8 +22,6 @@ export async function sync_stripe_data(
     switch (event_data.type) {
         case 'invoice.paid':
             return await invoice_paid(event_data.id, metadata.stripe_account)
-        case 'invoice.overdue':
-            return await invoice_overdue(event_data.id, metadata.stripe_account)
         case 'account.updated':
             return await account_updated(metadata.stripe_account)
         default:
@@ -92,56 +86,6 @@ async function invoice_paid(invoice_id: string, stripe_account: string) {
         },
         actor: invoice.user_id
     })
-}
-
-/**
- * Handles the invoice overdue event
- *
- * @param {string} invoice_id - The invoice id
- * @param {string} stripe_account - The stripe account id
- */
-async function invoice_overdue(invoice_id: string, stripe_account: string) {
-    await stripe.invoices.voidInvoice(invoice_id, {
-        stripeAccount: stripe_account
-    })
-
-    const request_invoice = await db.query.invoices.findFirst({
-        where: and(
-            eq(invoices.stripe_id, invoice_id),
-            eq(invoices.stripe_account, stripe_account)
-        ),
-        with: {
-            request: {
-                with: {
-                    commission: true
-                }
-            },
-            artist: true
-        }
-    })
-
-    if (!request_invoice) {
-        throw new Error('[STRIPE HOOK] Invoice not found')
-    }
-
-    const update_promise = db
-        .update(requests)
-        .set({
-            status: RequestStatus.Rejected
-        })
-        .where(eq(requests.id, request_invoice.request_id))
-
-    const notification_promise = send_notification({
-        type: KnockWorkflows.InvoiceOverdue,
-        recipients: [request_invoice.artist.user_id, request_invoice.user_id],
-        data: {
-            artist_handle: request_invoice.artist.handle,
-            commission_title: request_invoice.request.commission.title,
-            commission_url: `${env.BASE_URL}/@${request_invoice.artist.handle}/commission/${request_invoice.request.commission.slug}`
-        }
-    })
-
-    await Promise.all([update_promise, notification_promise])
 }
 
 async function update_subscription(customer_id: string) {

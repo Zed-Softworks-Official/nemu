@@ -10,7 +10,7 @@ type RedisKey =
     | 'dashboard_links'
     | 'dashboard_data'
     | 'request_queue'
-    | 'invoice_webhook'
+    | 'invoices'
 
 export const redis = new Redis({
     url: env.UPSTASH_REDIS_REST_URL,

@@ -25,7 +25,8 @@ import {
     type Chat,
     DownloadType,
     ChargeMethod,
-    type RequestQueue
+    type RequestQueue,
+    type StripeInvoiceData
 } from '~/lib/structures'
 
 import type { FormElementInstance } from '~/components/form-builder/elements/form-elements'
@@ -696,7 +697,22 @@ export const request_router = createTRPCRouter({
                         artist_handle: ctx.artist.handle,
                         invoice_url: `${env.BASE_URL}/requests/${invoice.request.order_id}/invoice`
                     }
-                })
+                }),
+                ctx.redis.zadd('invoices_due_cron', {
+                    score: finalized_invoice.due_date ?? 0,
+                    member: finalized_invoice.id
+                }),
+                ctx.redis.set(get_redis_key('invoices', finalized_invoice.id), {
+                    id: finalized_invoice.id,
+                    db_id: invoice.id,
+                    stripe_account: invoice.stripe_account,
+                    customer_id: invoice.customer_id,
+                    due_date: finalized_invoice.due_date ?? 0,
+                    status: InvoiceStatus.Pending,
+                    request_id: invoice.request_id,
+                    user_id: invoice.user_id,
+                    commission_id: invoice.request.commission_id
+                } satisfies StripeInvoiceData)
             ])
         }),
 

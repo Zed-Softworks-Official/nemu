@@ -3,8 +3,10 @@ import type {
     KanbanContainerData,
     ImageEditorData,
     ClientNemuImageData,
-    ChargeMethod
+    ChargeMethod,
+    InvoiceStatus
 } from '~/lib/structures'
+
 import type {
     artists,
     commissions,
@@ -162,4 +164,16 @@ export enum DownloadType {
 export interface RequestQueue {
     requests: string[]
     waitlist: string[]
+}
+
+export interface StripeInvoiceData {
+    id: string
+    db_id: string
+    customer_id: string
+    stripe_account: string
+    due_date: number
+    status: InvoiceStatus
+    request_id: string
+    user_id: string
+    commission_id: string
 }
