@@ -47,6 +47,27 @@ async function process_event(expired_invoices: string[]) {
                 throw new Error('[CRON]: Invoice not found in request queue???')
             }
 
+            // Remove from the request queue
+            await redis.json.arrpop(
+                get_redis_key('request_queue', invoice.commission_id),
+                '$.requests',
+                invoice_index[0]
+            )
+
+            // Get the next request from the waitlist
+            const new_request = await redis.json.arrpop(
+                get_redis_key('request_queue', invoice.commission_id),
+                '$.waitlist',
+                0
+            )
+
+            // Add the new request to the requests array
+            await redis.json.arrappend(
+                get_redis_key('request_queue', invoice.commission_id),
+                '$.requests',
+                new_request
+            )
+
             return Promise.all([
                 // Void the invoice
                 stripe.invoices.voidInvoice(invoice_id, {
@@ -71,12 +92,6 @@ async function process_event(expired_invoices: string[]) {
                         status: RequestStatus.Rejected
                     })
                     .where(eq(requests.id, invoice.request_id)),
-                // Remove from the request queue
-                redis.json.arrpop(
-                    get_redis_key('request_queue', invoice.commission_id),
-                    '$.requests',
-                    invoice_index[0]
-                ),
                 // Update the invoice in the database
                 db
                     .update(invoices)
