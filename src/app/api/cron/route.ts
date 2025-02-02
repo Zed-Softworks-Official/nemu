@@ -2,6 +2,7 @@ import { Receiver } from '@upstash/qstash'
 import { serve } from '@upstash/workflow/nextjs'
 import { waitUntil } from '@vercel/functions'
 import { eq } from 'drizzle-orm'
+import { NextResponse } from 'next/server'
 
 import { env } from '~/env'
 
@@ -94,28 +95,34 @@ async function process_event(expired_invoices: string[]) {
 }
 
 export const { POST } = serve(
-    async () => {
-        const current_time = Math.floor(Date.now() / 1000)
-        const expired_invoices = await redis.zrange<string[]>(
-            'invoices_due_cron',
-            0,
-            current_time,
-            {
-                byScore: true
+    async (context) => {
+        await context.run('invoices_due_cron', async () => {
+            const current_time = Math.floor(Date.now() / 1000)
+            const expired_invoices = await redis.zrange<string[]>(
+                'invoices_due_cron',
+                0,
+                current_time,
+                {
+                    byScore: true
+                }
+            )
+
+            if (expired_invoices.length === 0) {
+                return NextResponse.json({ received: true })
             }
-        )
 
-        if (expired_invoices.length === 0) return
+            async function do_event_processing() {
+                waitUntil(process_event(expired_invoices))
+            }
 
-        async function do_event_processing() {
-            waitUntil(process_event(expired_invoices))
-        }
+            const { error } = await tryCatch(do_event_processing())
 
-        const { error } = await tryCatch(do_event_processing())
+            if (error) {
+                console.error('[CRON]: Error processing event', error)
+            }
 
-        if (error) {
-            console.error('[CRON]: Error processing event', error)
-        }
+            return NextResponse.json({ received: true })
+        })
     },
     {
         receiver: new Receiver({
