@@ -88,7 +88,12 @@ export function RequestList(props: { requests: ClientRequestData[]; slug: string
             cell: (data) => {
                 const request = data.row.original
 
-                if (request.status !== RequestStatus.Accepted) return null
+                if (
+                    request.status !== RequestStatus.Accepted &&
+                    request.status !== RequestStatus.Pending
+                ) {
+                    return null
+                }
 
                 return (
                     <DropdownMenu>

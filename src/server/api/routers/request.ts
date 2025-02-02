@@ -123,13 +123,16 @@ export const request_router = createTRPCRouter({
                 })
             }
 
-            const request_redis_key = get_redis_key('request_queue', commission.id)
-            const request_queue: RequestQueue = (await ctx.redis.json.get(
-                request_redis_key,
-                '$'
-            )) ?? {
-                requests: [],
-                waitlist: []
+            const request_redis_key = get_redis_key('request_queue', input.commission_id)
+            const request_queue = (
+                await ctx.redis.json.get<RequestQueue[] | null>(request_redis_key, '$')
+            )?.[0]
+
+            if (!request_queue) {
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Request queue not found'
+                })
             }
 
             const order_id = createId()
@@ -169,7 +172,7 @@ export const request_router = createTRPCRouter({
             const update_request_queue_promise = ctx.redis.json.arrappend(
                 request_redis_key,
                 path,
-                order_id
+                `"${order_id}"`
             )
 
             await Promise.all([
