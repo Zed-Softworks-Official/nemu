@@ -44,7 +44,9 @@ export default function Invoice() {
 
                 return (
                     <Button asChild variant={'outline'}>
-                        <Link href={invoice.hosted_url}>View Invoice</Link>
+                        <Link href={invoice.hosted_url} target="_blank">
+                            View Invoice
+                        </Link>
                     </Button>
                 )
             }
