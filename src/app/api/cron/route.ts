@@ -31,20 +31,16 @@ async function process_event(expired_invoices: string[]) {
                 return
             }
 
-            const commission = await db.query.commissions.findFirst({
+            const request_queue = await redis.json.get<RequestQueue>(
+                get_redis_key('request_queue', invoice.commission_id)
+            )
+
+            const commission_promise = db.query.commissions.findFirst({
                 where: eq(commissions.id, invoice.commission_id),
                 with: {
                     artist: true
                 }
             })
-
-            if (!commission) {
-                throw new Error('[CRON]: Commission not found???')
-            }
-
-            const request_queue = await redis.json.get<RequestQueue>(
-                get_redis_key('request_queue', invoice.commission_id)
-            )
 
             if (!request_queue) {
                 throw new Error('[CRON]: Request queue not found???')
@@ -77,6 +73,12 @@ async function process_event(expired_invoices: string[]) {
                     '$',
                     request_queue as unknown as Record<string, unknown>
                 )
+            }
+
+            const [commission] = await Promise.all([commission_promise])
+
+            if (!commission) {
+                throw new Error('[CRON]: Commission not found???')
             }
 
             return Promise.all([

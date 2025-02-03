@@ -299,7 +299,7 @@ export const request_router = createTRPCRouter({
                 data: {
                     commission_title: request.commission.title,
                     artist_handle: request.commission.artist.handle,
-                    status: input.accepted ? 'accepted' : 'rejected'
+                    status: input.accepted ? 'accept' : 'reject'
                 }
             })
 
