@@ -40,7 +40,7 @@ export const home_router = createTRPCRouter({
                         title: commission.title,
                         description: commission.description,
                         slug: commission.slug,
-                        availability: commission.availability as CommissionAvailability,
+                        availability: commission.availability,
                         featured_image: get_ut_url(commission.images[0]?.ut_key ?? ''),
                         price: format_to_currency(commission.price / 100),
                         artist: {
