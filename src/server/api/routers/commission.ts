@@ -198,7 +198,7 @@ export const commission_router = createTRPCRouter({
                 title: data.commissions[0].title,
                 description: data.commissions[0].description,
                 price: format_to_currency(Number(data.commissions[0].price / 100)),
-                availability: data.commissions[0].availability as CommissionAvailability,
+                availability: data.commissions[0].availability,
                 rating: Number(data.commissions[0].rating),
                 images: images,
                 slug: data.commissions[0].slug,
@@ -265,7 +265,7 @@ export const commission_router = createTRPCRouter({
 
                 form_name: commission.form.name,
 
-                availability: commission.availability as CommissionAvailability,
+                availability: commission.availability,
                 slug: commission.slug,
                 published: commission.published,
 
@@ -315,7 +315,7 @@ export const commission_router = createTRPCRouter({
                 title: commission.title,
                 description: commission.description,
                 price: format_to_currency(Number(commission.price / 100)),
-                availability: commission.availability as CommissionAvailability,
+                availability: commission.availability,
                 rating: Number(commission.rating),
                 published: commission.published,
                 images: [
