@@ -6,14 +6,14 @@
  * TL;DR - This is where all the tRPC server stuff is created and plugged in. The pieces you will
  * need to use are documented accordingly near the end.
  */
-import { auth } from '@clerk/nextjs/server'
+import { auth, clerkClient } from '@clerk/nextjs/server'
 import { initTRPC, TRPCError } from '@trpc/server'
 import superjson from 'superjson'
 import { ZodError } from 'zod'
 
 import { db } from '~/server/db'
 import { redis } from '~/server/redis'
-import { artists, users } from '../db/schema'
+import { artists } from '../db/schema'
 import { eq } from 'drizzle-orm'
 import { UserRole } from '~/lib/structures'
 
@@ -175,11 +175,10 @@ export const artistProcedure = protectedProcedure.use(async ({ next, ctx }) => {
  * unauthorized error.
  */
 export const adminProcedure = protectedProcedure.use(async ({ next, ctx }) => {
-    const user = await ctx.db.query.users.findFirst({
-        where: eq(users.clerk_id, ctx.auth.userId)
-    })
+    const clerk_client = await clerkClient()
+    const user = await clerk_client.users.getUser(ctx.auth.userId)
 
-    if (user?.role !== UserRole.Admin) {
+    if (user.publicMetadata.role !== UserRole.Admin) {
         throw new TRPCError({
             code: 'UNAUTHORIZED',
             message: 'User is not an admin'

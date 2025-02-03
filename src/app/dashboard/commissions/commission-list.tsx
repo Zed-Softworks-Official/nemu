@@ -1,12 +1,12 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
-import type { ColumnDef } from '@tanstack/react-table'
-import { Button } from '~/components/ui/button'
 import { Eye, MoreHorizontal, Paintbrush } from 'lucide-react'
 
 import { api } from '~/trpc/react'
+
+import { Button } from '~/components/ui/button'
+import { Badge, type BadgeProps } from '~/components/ui/badge'
 
 import {
     Card,
@@ -24,7 +24,7 @@ import {
     DropdownMenuTrigger
 } from '~/components/ui/dropdown-menu'
 
-import type { ClientCommissionItem } from '~/lib/structures'
+import { CommissionAvailability, type ClientCommissionItem } from '~/lib/structures'
 
 export function CommissionList() {
     const { data, isLoading } = api.commission.get_commission_list.useQuery()
@@ -53,87 +53,76 @@ export function CommissionList() {
 }
 
 function CommissionTable(props: { commissions: ClientCommissionItem[] }) {
-    const [filteredCommissions, setFilteredCommissions] = useState<
-        ClientCommissionItem[]
-    >(props.commissions)
-
-    const columns: ColumnDef<ClientCommissionItem>[] = [
-        {
-            accessorKey: 'title',
-            header: 'Title'
-        },
-        {
-            accessorKey: 'price',
-            header: 'Price'
-        },
-        {
-            accessorKey: 'published',
-            header: 'Published'
-        },
-        {
-            id: 'Actions',
-            cell: ({ row }) => {
-                return (
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant={'ghost'} className="h-8 w-8 p-0">
-                                <span className="sr-only">Open Menu</span>
-                                <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent
-                            side="bottom"
-                            className="w-[--radix-popper-arrow-size]"
-                        >
-                            <DropdownMenuItem asChild>
-                                <Link
-                                    href={`/dashboard/commissions/${row.original.slug}`}
-                                >
-                                    <Eye className="h-6 w-6" />
-                                    View
-                                </Link>
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                )
-            }
-        }
-    ]
-
     return (
         <div className="mb-4 flex flex-col space-x-4">
-            <div className="mb-4 flex items-center gap-2">
-                <Button
-                    size="sm"
-                    variant={'outline'}
-                    onClick={() => setFilteredCommissions(props.commissions)}
-                >
-                    All
-                </Button>
-                <Button
-                    size="sm"
-                    variant={'outline'}
-                    onClick={() =>
-                        setFilteredCommissions(
-                            props.commissions.filter((c) => c.published)
-                        )
+            <DataTable
+                columnDefs={[
+                    {
+                        field: 'title',
+                        headerName: 'Title',
+                        flex: 1
+                    },
+                    {
+                        field: 'price',
+                        headerName: 'Price'
+                    },
+                    {
+                        field: 'availability',
+                        headerName: 'Availability',
+                        cellRenderer: ({ data }: { data: ClientCommissionItem }) => {
+                            let variant: BadgeProps['variant'] = 'default'
+                            switch (data.availability) {
+                                case CommissionAvailability.Open:
+                                    variant = 'default'
+                                    break
+                                case CommissionAvailability.Closed:
+                                    variant = 'destructive'
+                                    break
+                                case CommissionAvailability.Waitlist:
+                                    variant = 'warning'
+                                    break
+                            }
+
+                            return <Badge variant={variant}>{data.availability}</Badge>
+                        }
+                    },
+                    {
+                        field: 'published',
+                        headerName: 'Published'
+                    },
+                    {
+                        flex: 1,
+                        field: 'slug',
+                        headerName: 'Actions',
+                        cellRenderer: ({ data }: { data: ClientCommissionItem }) => {
+                            return (
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant={'ghost'} className="h-8 w-8 p-0">
+                                            <span className="sr-only">Open Menu</span>
+                                            <MoreHorizontal className="h-4 w-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent
+                                        side="bottom"
+                                        className="w-[--radix-popper-arrow-size]"
+                                    >
+                                        <DropdownMenuItem asChild>
+                                            <Link
+                                                href={`/dashboard/commissions/${data.slug}`}
+                                            >
+                                                <Eye className="h-6 w-6" />
+                                                View
+                                            </Link>
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            )
+                        }
                     }
-                >
-                    Published
-                </Button>
-                <Button
-                    size="sm"
-                    variant={'outline'}
-                    onClick={() =>
-                        setFilteredCommissions(
-                            props.commissions.filter((c) => !c.published)
-                        )
-                    }
-                >
-                    Unpublished
-                </Button>
-            </div>
-            <DataTable columns={columns} data={filteredCommissions} />
+                ]}
+                rowData={props.commissions}
+            />
         </div>
     )
 }

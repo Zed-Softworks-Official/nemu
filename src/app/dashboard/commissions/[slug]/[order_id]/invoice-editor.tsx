@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import type { ColumnDef } from '@tanstack/react-table'
 import { MoreVertical, PencilIcon, Plus, Save, Send, Trash2 } from 'lucide-react'
 
 import { z } from 'zod'
@@ -55,6 +54,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger
 } from '~/components/ui/dropdown-menu'
+import { type ColDef } from 'ag-grid-community'
 
 export function InvoiceEditor() {
     const { current_invoice, is_downpayment_invoice } = useDashboardOrder()
@@ -106,18 +106,19 @@ export function InvoiceEditor() {
         return <div>No invoice found</div>
     }
 
-    const columns: ColumnDef<InvoiceItem>[] = [
+    const columns: ColDef<InvoiceItem>[] = [
         {
-            accessorKey: 'name',
-            header: 'Name'
+            field: 'name',
+            headerName: 'Name'
         },
         {
-            accessorKey: 'quantity',
-            header: 'Quantity'
+            field: 'quantity',
+            headerName: 'Quantity'
         },
         {
-            header: 'Price',
-            accessorFn: (item) => format_to_currency(item.price / 100)
+            field: 'price',
+            headerName: 'Price',
+            valueFormatter: (params) => format_to_currency(params.value / 100)
         }
     ]
 
@@ -194,7 +195,7 @@ export function InvoiceEditor() {
                         </div>
                     </CardHeader>
                     <CardContent>
-                        <DataTable columns={columns} data={items} />
+                        <DataTable columnDefs={columns} rowData={items} />
                         <div className="flex w-full items-end justify-end">
                             <h2 className="text-lg font-bold">
                                 Total:{' '}

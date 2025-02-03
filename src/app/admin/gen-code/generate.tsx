@@ -61,11 +61,8 @@ export default function GenerateAristCode() {
     }
 
     return (
-        <div className="flex flex-col gap-5">
-            <h1 className="text-3xl font-bold">Generate Artist Code</h1>
-            <h2 className="text-xl font-semibold text-muted-foreground">
-                Create a unique code artists to join
-            </h2>
+        <div className="flex flex-col gap-2">
+            <h1 className="text-xl font-bold">Generate Artist Code</h1>
             <Separator />
             <Form {...form}>
                 <form

@@ -2,7 +2,7 @@ import { clerkClient, type WebhookEvent } from '@clerk/nextjs/server'
 
 import { db } from '~/server/db'
 import { knock } from '~/server/knock'
-import { artists, users } from '~/server/db/schema'
+import { artists } from '~/server/db/schema'
 
 import { UserRole } from '~/lib/structures'
 import { eq } from 'drizzle-orm'
@@ -34,17 +34,12 @@ async function user_created(clerk_id: string, username: string, email: string) {
         }
     })
 
-    const db_insert = db.insert(users).values({
-        clerk_id,
-        role: UserRole.Standard
-    })
-
     const knock_identify = knock.users.identify(clerk_id, {
         username,
         email
     })
 
-    await Promise.all([user_update, db_insert, knock_identify])
+    await Promise.all([user_update, knock_identify])
 }
 
 async function user_updated(clerk_id: string, role: UserRole, image_url: string) {

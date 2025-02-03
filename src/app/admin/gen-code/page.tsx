@@ -5,7 +5,7 @@ import { api } from '~/trpc/server'
 
 export default function GenerateCodePage() {
     return (
-        <div className="container mx-auto flex flex-col gap-5">
+        <div className="container mx-auto flex flex-col">
             <GenerateAristCode />
             <CurrentArtistCodes />
         </div>
@@ -16,23 +16,25 @@ async function CurrentArtistCodes() {
     const artist_codes = await api.artist_verification.get_artist_codes()
 
     return (
-        <div>
-            <div className="divider"></div>
-            <h1 className="text-3xl font-bold">Current Artist Codes</h1>
+        <div className="flex flex-1 flex-col gap-2 pt-10">
+            <h1 className="text-xl font-bold">Current Artist Codes</h1>
             <Separator />
             <div className="flex flex-col gap-5">
                 <DataTable
-                    columns={[
+                    columnDefs={[
                         {
-                            accessorKey: 'code',
-                            header: 'Code'
+                            field: 'code',
+                            headerName: 'Code',
+                            flex: 1
                         },
                         {
-                            accessorKey: 'created_at',
-                            header: 'Created At'
+                            field: 'created_at',
+                            headerName: 'Created At',
+                            flex: 1,
+                            filter: true
                         }
                     ]}
-                    data={artist_codes}
+                    rowData={artist_codes}
                 />
             </div>
         </div>

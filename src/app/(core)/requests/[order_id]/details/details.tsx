@@ -12,7 +12,6 @@ import {
 } from '~/components/ui/card'
 import { DataTable } from '~/components/data-table'
 
-import { type ColumnDef } from '@tanstack/react-table'
 import { Separator } from '~/components/ui/separator'
 import { useOrder } from '~/components/orders/standard-order'
 
@@ -23,19 +22,6 @@ export default function Details() {
         return notFound()
     }
 
-    const request_columns: ColumnDef<{
-        item_label: string
-        item_value: string
-    }>[] = [
-        {
-            accessorKey: 'item_label',
-            header: 'Form Item'
-        },
-        {
-            accessorKey: 'item_value',
-            header: 'Response'
-        }
-    ]
     const request_details = request_data.content as unknown as Record<string, string>
 
     return (
@@ -57,8 +43,18 @@ export default function Details() {
                 <CardContent>
                     <div className="mt-5">
                         <DataTable
-                            columns={request_columns}
-                            data={Object.keys(request_details).map((key) => ({
+                            columnDefs={[
+                                {
+                                    field: 'item_label',
+                                    headerName: 'Form Item'
+                                },
+                                {
+                                    field: 'item_value',
+                                    headerName: 'Response',
+                                    flex: 1
+                                }
+                            ]}
+                            rowData={Object.keys(request_details).map((key) => ({
                                 item_label: key,
                                 item_value: request_details[key] ?? 'N/A'
                             }))}

@@ -86,19 +86,6 @@ export const ChargeMethodEnum = pgEnum('charge_method', enum_to_pg_enum(ChargeMe
 //////////////////////////////////////////////////////////
 
 /**
- * Users
- *
- * Holds general user information. Really only the clerk id is needed, but we also
- * store the user role for convenience
- */
-export const users = createTable('user', {
-    clerk_id: varchar('clerk_id', { length: 256 }).primaryKey(),
-    role: UserRoleEnum('role').default(UserRole.Standard),
-
-    artist_id: varchar('artist_id', { length: 128 })
-})
-
-/**
  * Stripe Customer Ids
  *
  * Holds the link between a user, artist, and both customer id and stripe account
@@ -186,7 +173,8 @@ export const artists = createTable('artist', {
 export const artist_codes = createTable('artist_code', {
     id: varchar('id', { length: 128 }).primaryKey(),
     code: varchar('code', { length: 128 }).notNull().unique(),
-    created_at: timestamp('created_at').defaultNow().notNull()
+    created_at: timestamp('created_at').defaultNow().notNull(),
+    expires_at: timestamp('expires_at')
 })
 
 /**
@@ -384,7 +372,7 @@ export const chats = createTable('chats', {
 /**
  * Chat Relations
  */
-export const chatRelations = relations(chats, ({ one, many }) => ({
+export const chatRelations = relations(chats, ({ one }) => ({
     commission: one(commissions, {
         fields: [chats.commission_id],
         references: [commissions.id]
@@ -396,32 +384,13 @@ export const chatRelations = relations(chats, ({ one, many }) => ({
     request: one(requests, {
         fields: [chats.request_id],
         references: [requests.id]
-    }),
-    users: many(users)
-}))
-
-/**
- * User Relations
- */
-export const userRelations = relations(users, ({ one, many }) => ({
-    artist: one(artists, {
-        fields: [users.clerk_id],
-        references: [artists.user_id]
-    }),
-    requests: many(requests),
-    deliveries: many(delivery),
-    customer_ids: many(stripe_customer_ids),
-    chats: many(chats)
+    })
 }))
 
 /**
  * Download Relations
  */
 export const deliveryRelations = relations(delivery, ({ one }) => ({
-    user: one(users, {
-        fields: [delivery.user_id],
-        references: [users.clerk_id]
-    }),
     artist: one(artists, {
         fields: [delivery.artist_id],
         references: [artists.id]
@@ -436,10 +405,6 @@ export const deliveryRelations = relations(delivery, ({ one }) => ({
  * Customer Id Relations
  */
 export const customerIdRelations = relations(stripe_customer_ids, ({ one }) => ({
-    user: one(users, {
-        fields: [stripe_customer_ids.user_id],
-        references: [users.clerk_id]
-    }),
     artist: one(artists, {
         fields: [stripe_customer_ids.artist_id],
         references: [artists.id]
@@ -449,11 +414,7 @@ export const customerIdRelations = relations(stripe_customer_ids, ({ one }) => (
 /**
  * Artist Relations
  */
-export const artistRelations = relations(artists, ({ one, many }) => ({
-    user: one(users, {
-        fields: [artists.user_id],
-        references: [users.clerk_id]
-    }),
+export const artistRelations = relations(artists, ({ many }) => ({
     commissions: many(commissions),
     portfolio: many(portfolios),
     forms: many(forms),
@@ -503,10 +464,6 @@ export const invoiceRelations = relations(invoices, ({ one }) => ({
     request: one(requests, {
         fields: [invoices.request_id],
         references: [requests.id]
-    }),
-    user: one(users, {
-        fields: [invoices.user_id],
-        references: [users.clerk_id]
     })
 }))
 
@@ -529,10 +486,6 @@ export const requestRelations = relations(requests, ({ one, many }) => ({
     form: one(forms, {
         fields: [requests.form_id],
         references: [forms.id]
-    }),
-    user: one(users, {
-        fields: [requests.user_id],
-        references: [users.clerk_id]
     }),
     commission: one(commissions, {
         fields: [requests.commission_id],

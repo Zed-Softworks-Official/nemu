@@ -4,9 +4,8 @@ import { currentUser } from '@clerk/nextjs/server'
 import {
     BarChart,
     Brush,
-    Check,
-    Code,
     CogIcon,
+    LayoutDashboard,
     LogOut,
     Mail,
     Settings,
@@ -31,7 +30,6 @@ import { UserRole } from '~/lib/structures'
 import { Button } from '~/components/ui/button'
 import NemuImage from '~/components/nemu-image'
 import { Notifications } from '~/components/notifications'
-import { api } from '~/trpc/server'
 import { Skeleton } from '~/components/ui/skeleton'
 
 export default function StandarLayout(props: {
@@ -148,9 +146,6 @@ function Footer() {
 
 async function UserDropdown() {
     const current_user = await currentUser()
-    const user_profile = await api.home.get_user_profile({
-        user_id: current_user?.id
-    })
 
     return (
         <DropdownMenu>
@@ -165,10 +160,14 @@ async function UserDropdown() {
             <DropdownMenuContent className="min-w-[200px]" align="end">
                 <ArtistSection
                     handle={current_user?.publicMetadata.handle as string}
-                    show={user_profile?.role === UserRole.Artist}
+                    show={current_user?.publicMetadata.role === UserRole.Artist}
                 />
-                <AdminSection show={user_profile?.role === UserRole.Admin} />
-                <GeneralSection is_artist={user_profile?.role === UserRole.Artist} />
+                <AdminSection
+                    show={current_user?.publicMetadata.role === UserRole.Admin}
+                />
+                <GeneralSection
+                    is_artist={current_user?.publicMetadata.role === UserRole.Artist}
+                />
             </DropdownMenuContent>
         </DropdownMenu>
     )
@@ -216,15 +215,9 @@ function AdminSection(props: { show?: boolean }) {
         <DropdownMenuGroup>
             <DropdownMenuLabel>Admin</DropdownMenuLabel>
             <DropdownMenuItem asChild>
-                <Link href={'/admin/gen-code'} className="flex w-full items-center gap-3">
-                    <Code className="h-6 w-6" />
-                    Artist Code
-                </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-                <Link href={'/admin/verify-artist'}>
-                    <Check className="h-6 w-6" />
-                    Verify Artist
+                <Link href={'/admin'} className="flex w-full items-center gap-3">
+                    <LayoutDashboard className="h-6 w-6" />
+                    Admin Dashboard
                 </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />

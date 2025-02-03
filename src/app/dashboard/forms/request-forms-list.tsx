@@ -1,7 +1,6 @@
 'use client'
 
 import Link from 'next/link'
-import type { ColumnDef } from '@tanstack/react-table'
 import { MoreHorizontal } from 'lucide-react'
 
 import { Button } from '~/components/ui/button'
@@ -23,37 +22,43 @@ export default function RequestFormsList() {
 
     if (!forms) return null
 
-    const columns: ColumnDef<(typeof forms)['forms'][number]>[] = [
-        {
-            header: 'Name',
-            accessorKey: 'name'
-        },
-        {
-            header: 'Description',
-            accessorKey: 'description'
-        },
-        {
-            id: 'actions',
-            cell: ({ row }) => {
-                const form = row.original
-
-                return (
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                                <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent>
-                            <DropdownMenuItem asChild>
-                                <Link href={`/dashboard/forms/${form.id}`}>Edit</Link>
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                )
-            }
-        }
-    ]
-
-    return <DataTable columns={columns} data={forms.forms} />
+    return (
+        <DataTable
+            columnDefs={[
+                {
+                    field: 'name',
+                    headerName: 'Name'
+                },
+                {
+                    field: 'description',
+                    headerName: 'Description',
+                    flex: 1
+                },
+                {
+                    headerName: 'Actions',
+                    field: 'id',
+                    flex: 1,
+                    cellRenderer: ({ data }: { data: (typeof forms.forms)[number] }) => {
+                        return (
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" className="h-8 w-8 p-0">
+                                        <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent>
+                                    <DropdownMenuItem asChild>
+                                        <Link href={`/dashboard/forms/${data.id}`}>
+                                            Edit
+                                        </Link>
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        )
+                    }
+                }
+            ]}
+            rowData={forms.forms}
+        />
+    )
 }

@@ -12,7 +12,7 @@ import {
     VerificationMethod
 } from '~/lib/structures'
 
-import { artist_codes, artist_verifications, artists, users } from '~/server/db/schema'
+import { artist_codes, artist_verifications, artists } from '~/server/db/schema'
 import { TRPCError } from '@trpc/server'
 import { db } from '~/server/db'
 import { eq } from 'drizzle-orm'
@@ -179,10 +179,7 @@ async function create_artist(input: VerificationDataType, user_id: string) {
     }
 
     // Get the user from the database
-    const user = await db.query.users.findFirst({
-        where: eq(users.clerk_id, user_id)
-    })
-
+    const user = await clerk_client.users.getUser(user_id)
     if (!user) {
         throw new Error('User could not be found!')
     }
@@ -198,7 +195,7 @@ async function create_artist(input: VerificationDataType, user_id: string) {
         id: generated_id,
         stripe_account: generated_stripe_account.id,
         location: input.location,
-        user_id: user.clerk_id,
+        user_id: user.id,
         handle: input.requested_handle,
         socials: social_accounts
     })
@@ -211,17 +208,8 @@ async function create_artist(input: VerificationDataType, user_id: string) {
         throw new Error('Artist could not be created!')
     }
 
-    // Update the user in the database
-    const db_promise = db
-        .update(users)
-        .set({
-            role: UserRole.Artist,
-            artist_id: artist.id
-        })
-        .where(eq(users.clerk_id, user.clerk_id))
-
     // Update the user in clerk
-    const clerk_promise = clerk_client.users.updateUserMetadata(user.clerk_id, {
+    const clerk_promise = clerk_client.users.updateUserMetadata(user.id, {
         publicMetadata: {
             handle: artist.handle,
             role: UserRole.Artist,
@@ -237,10 +225,10 @@ async function create_artist(input: VerificationDataType, user_id: string) {
         objectID: artist.id,
         handle: artist.handle,
         about: artist.about,
-        image_url: user.clerk_id
+        image_url: user.imageUrl
     })
 
-    await Promise.all([db_promise, clerk_promise, algolia_promise])
+    await Promise.all([clerk_promise, algolia_promise])
 
     return artist
 }

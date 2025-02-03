@@ -1,4 +1,4 @@
-import RequestTable from './request-table'
+import { RequestTable } from './request-table'
 
 export default function RequestsPage() {
     return (

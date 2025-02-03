@@ -1,6 +1,5 @@
 'use client'
 
-import type { ColumnDef } from '@tanstack/react-table'
 import { MoreVertical } from 'lucide-react'
 import { notFound } from 'next/navigation'
 import { useState } from 'react'
@@ -92,22 +91,6 @@ export function CommissionDetails() {
         return notFound()
     }
 
-    const columns: ColumnDef<{
-        key: string
-        value: string
-    }>[] = [
-        {
-            header: 'Form Element',
-            cell: ({ row }) => {
-                return <span className="font-bold">{row.original.key}</span>
-            }
-        },
-        {
-            header: 'Response',
-            accessorKey: 'value'
-        }
-    ]
-
     return (
         <AlertDialog>
             <Card>
@@ -148,8 +131,26 @@ export function CommissionDetails() {
                 </CardHeader>
                 <CardContent>
                     <DataTable
-                        columns={columns}
-                        data={Object.entries(request_data?.content).map(
+                        columnDefs={[
+                            {
+                                headerName: 'Form Element',
+                                field: 'key',
+                                cellRenderer: ({
+                                    data
+                                }: {
+                                    data: { key: string; value: string }
+                                }) => {
+                                    return <span className="font-bold">{data.key}</span>
+                                }
+                            },
+                            {
+                                headerName: 'Response',
+                                field: 'value',
+                                flex: 1,
+                                wrapText: true
+                            }
+                        ]}
+                        rowData={Object.entries(request_data?.content).map(
                             ([key, value]) => ({
                                 key,
                                 value

@@ -6,7 +6,12 @@ import { NextResponse } from 'next/server'
 
 import { env } from '~/env'
 
-import { InvoiceStatus, RequestStatus, type StripeInvoiceData } from '~/lib/structures'
+import {
+    InvoiceStatus,
+    type RequestQueue,
+    RequestStatus,
+    type StripeInvoiceData
+} from '~/lib/structures'
 import { tryCatch } from '~/lib/try-catch'
 import { db } from '~/server/db'
 import { commissions, invoices, requests } from '~/server/db/schema'
@@ -37,36 +42,42 @@ async function process_event(expired_invoices: string[]) {
                 throw new Error('[CRON]: Commission not found???')
             }
 
-            const invoice_index = await redis.json.arrindex(
-                get_redis_key('request_queue', invoice.commission_id),
-                '$.requests',
-                invoice.order_id
+            const request_queue = await redis.json.get<RequestQueue>(
+                get_redis_key('request_queue', invoice.commission_id)
             )
 
-            if (!invoice_index[0]) {
+            if (!request_queue) {
+                throw new Error('[CRON]: Request queue not found???')
+            }
+
+            const invoice_index = request_queue.requests.findIndex(
+                (request) => request === invoice.order_id
+            )
+
+            if (invoice_index === -1) {
                 throw new Error('[CRON]: Invoice not found in request queue???')
             }
 
             // Remove from the request queue
-            await redis.json.arrpop(
-                get_redis_key('request_queue', invoice.commission_id),
-                '$.requests',
-                invoice_index[0]
-            )
+            request_queue.requests.splice(invoice_index, 1)
 
             // Get the next request from the waitlist
-            const new_request = await redis.json.arrpop(
-                get_redis_key('request_queue', invoice.commission_id),
-                '$.waitlist',
-                0
-            )
+            if (request_queue.waitlist.length > 0) {
+                const new_request = request_queue.waitlist.shift()
 
-            // Add the new request to the requests array
-            await redis.json.arrappend(
-                get_redis_key('request_queue', invoice.commission_id),
-                '$.requests',
-                new_request[0]
-            )
+                if (!new_request) {
+                    throw new Error('[CRON]: No new request found in waitlist???')
+                }
+
+                // Add the new request to the requests array
+                request_queue.requests.push(new_request)
+
+                await redis.json.set(
+                    get_redis_key('request_queue', invoice.commission_id),
+                    '$',
+                    request_queue as unknown as Record<string, unknown>
+                )
+            }
 
             return Promise.all([
                 // Void the invoice

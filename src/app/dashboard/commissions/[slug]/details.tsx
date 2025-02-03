@@ -1,6 +1,5 @@
 'use client'
 
-import { type ColumnDef } from '@tanstack/react-table'
 import { Eye, EyeOff, MoreHorizontal } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
@@ -68,99 +67,61 @@ export function PublishButton(props: { id: string; published: boolean }) {
 }
 
 export function RequestList(props: { requests: ClientRequestData[]; slug: string }) {
-    const [requests, setRequests] = useState(props.requests)
-
-    const columns: ColumnDef<ClientRequestData>[] = [
-        {
-            header: 'Username',
-            accessorKey: 'user.username'
-        },
-        {
-            header: 'Date',
-            accessorFn: (row) => new Date(row.created_at).toLocaleDateString()
-        },
-        {
-            header: 'Status',
-            accessorKey: 'status'
-        },
-        {
-            id: 'actions',
-            cell: (data) => {
-                const request = data.row.original
-
-                if (
-                    request.status !== RequestStatus.Accepted &&
-                    request.status !== RequestStatus.Pending
-                ) {
-                    return null
-                }
-
-                return (
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant={'ghost'}>
-                                <MoreHorizontal className="h-6 w-6" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent>
-                            <DropdownMenuItem asChild>
-                                <Link
-                                    href={`/dashboard/commissions/${props.slug}/${request.order_id}`}
-                                >
-                                    View Request
-                                </Link>
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                )
-            }
-        }
-    ]
-
     return (
         <div className="mt-5">
-            <div className="mb-5 flex items-center gap-2">
-                <Button variant={'outline'} onClick={() => setRequests(props.requests)}>
-                    Show All
-                </Button>
-                <Button
-                    variant={'outline'}
-                    onClick={() =>
-                        setRequests(
-                            props.requests?.filter(
-                                (request) => request.status === RequestStatus.Accepted
+            <DataTable
+                columnDefs={[
+                    {
+                        headerName: 'Username',
+                        field: 'user.username'
+                    },
+                    {
+                        headerName: 'Date',
+                        field: 'created_at',
+                        cellRenderer: ({ data }: { data: ClientRequestData }) =>
+                            new Date(data.created_at).toLocaleDateString()
+                    },
+                    {
+                        headerName: 'Status',
+                        field: 'status'
+                    },
+                    {
+                        headerName: 'Actions',
+                        field: 'id',
+                        flex: 1,
+                        cellRenderer: ({ data }: { data: ClientRequestData }) => {
+                            const request = data
+
+                            if (
+                                request.status !== RequestStatus.Accepted &&
+                                request.status !== RequestStatus.Pending
+                            ) {
+                                return null
+                            }
+
+                            return (
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant={'ghost'} size={'icon'}>
+                                            <MoreHorizontal className="h-6 w-6" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent>
+                                        <DropdownMenuItem asChild>
+                                            <Link
+                                                href={`/dashboard/commissions/${props.slug}/${request.order_id}`}
+                                            >
+                                                View Request
+                                            </Link>
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                             )
-                        )
+                        }
                     }
-                >
-                    Accepted
-                </Button>
-                <Button
-                    variant={'outline'}
-                    onClick={() =>
-                        setRequests(
-                            props.requests?.filter(
-                                (request) => request.status === RequestStatus.Pending
-                            )
-                        )
-                    }
-                >
-                    Pending
-                </Button>
-                <Button
-                    variant={'outline'}
-                    onClick={() =>
-                        setRequests(
-                            props.requests?.filter(
-                                (request) => request.status === RequestStatus.Waitlist
-                            )
-                        )
-                    }
-                >
-                    Waitlisted
-                </Button>
-            </div>
-            <DataTable columns={columns} data={requests} />
+                ]}
+                rowData={props.requests}
+            />
         </div>
     )
 }
