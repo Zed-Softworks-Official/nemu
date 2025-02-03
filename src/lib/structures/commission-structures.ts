@@ -147,7 +147,8 @@ export enum RequestStatus {
     Accepted = 'accepted',
     Rejected = 'rejected',
     Delivered = 'delivered',
-    Waitlist = 'waitlist'
+    Waitlist = 'waitlist',
+    Cancelled = 'cancelled'
 }
 
 export enum DownloadType {
@@ -175,5 +176,6 @@ export interface StripeInvoiceData {
     status: InvoiceStatus
     request_id: string
     user_id: string
+    order_id: string
     commission_id: string
 }

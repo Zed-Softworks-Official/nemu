@@ -145,8 +145,7 @@ export const request_router = createTRPCRouter({
 
             const order_id = createId()
             const is_waitlist =
-                commission.max_commissions_until_waitlist > 0 &&
-                request_queue.requests.length >= commission.max_commissions_until_waitlist
+                commission.availability === CommissionAvailability.Waitlist
 
             await ctx.db.insert(requests).values({
                 id: createId(),
@@ -158,7 +157,11 @@ export const request_router = createTRPCRouter({
                 order_id
             })
 
-            if (is_waitlist && commission.availability === CommissionAvailability.Open) {
+            if (
+                request_queue.requests.length + 1 >=
+                    commission.max_commissions_until_waitlist &&
+                commission.availability === CommissionAvailability.Open
+            ) {
                 await ctx.db
                     .update(commissions)
                     .set({
@@ -166,9 +169,9 @@ export const request_router = createTRPCRouter({
                     })
                     .where(eq(commissions.id, commission.id))
             } else if (
-                is_waitlist &&
                 commission.availability === CommissionAvailability.Waitlist &&
-                request_queue.waitlist.length >= commission.max_commissions_until_closed
+                request_queue.waitlist.length + 1 + request_queue.requests.length >=
+                    commission.max_commissions_until_closed
             ) {
                 await ctx.db
                     .update(commissions)
@@ -743,7 +746,8 @@ export const request_router = createTRPCRouter({
                     status: InvoiceStatus.Pending,
                     request_id: invoice.request_id,
                     user_id: invoice.user_id,
-                    commission_id: invoice.request.commission_id
+                    commission_id: invoice.request.commission_id,
+                    order_id: invoice.request.order_id
                 } satisfies StripeInvoiceData)
             ])
         }),

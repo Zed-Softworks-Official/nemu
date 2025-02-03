@@ -40,7 +40,7 @@ async function process_event(expired_invoices: string[]) {
             const invoice_index = await redis.json.arrindex(
                 get_redis_key('request_queue', invoice.commission_id),
                 '$.requests',
-                invoice.id
+                invoice.order_id
             )
 
             if (!invoice_index[0]) {
@@ -65,7 +65,7 @@ async function process_event(expired_invoices: string[]) {
             await redis.json.arrappend(
                 get_redis_key('request_queue', invoice.commission_id),
                 '$.requests',
-                new_request
+                new_request[0]
             )
 
             return Promise.all([
@@ -89,7 +89,7 @@ async function process_event(expired_invoices: string[]) {
                 db
                     .update(requests)
                     .set({
-                        status: RequestStatus.Rejected
+                        status: RequestStatus.Cancelled
                     })
                     .where(eq(requests.id, invoice.request_id)),
                 // Update the invoice in the database

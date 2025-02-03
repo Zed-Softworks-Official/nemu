@@ -23,6 +23,7 @@ import {
     DropdownMenuTrigger
 } from './ui/dropdown-menu'
 import Link from 'next/link'
+import { cn } from '~/lib/utils'
 
 type Feed = ReturnType<typeof useNotifications>
 
@@ -92,9 +93,19 @@ function NotificationFeed() {
                         className="flex flex-col items-start gap-2"
                     >
                         {item.blocks.map((block) => (
-                            <div key={block.name}>
+                            <div
+                                key={block.name}
+                                onClick={() => {
+                                    if (item.read_at) return
+
+                                    void feed_client.markAsRead(item)
+                                }}
+                            >
                                 {(block.type === 'markdown' || block.type === 'text') && (
                                     <div
+                                        className={cn(
+                                            item.read_at && 'text-muted-foreground'
+                                        )}
                                         dangerouslySetInnerHTML={{
                                             __html: block.rendered
                                         }}
