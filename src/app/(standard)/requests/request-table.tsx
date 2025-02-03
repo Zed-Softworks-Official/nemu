@@ -95,7 +95,8 @@ export default function RequestTable() {
                     [RequestStatus.Pending]: 1,
                     [RequestStatus.Waitlist]: 2,
                     [RequestStatus.Delivered]: 3,
-                    [RequestStatus.Rejected]: 4
+                    [RequestStatus.Rejected]: 4,
+                    [RequestStatus.Cancelled]: 5
                 }
 
                 const statusA = rowA.original.status
@@ -119,6 +120,9 @@ export default function RequestTable() {
                         break
                     case RequestStatus.Waitlist:
                         variant = 'warning'
+                        break
+                    case RequestStatus.Cancelled:
+                        variant = 'destructive'
                         break
                 }
 
