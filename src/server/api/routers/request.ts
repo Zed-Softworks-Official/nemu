@@ -26,7 +26,8 @@ import {
     DownloadType,
     ChargeMethod,
     type RequestQueue,
-    type StripeInvoiceData
+    type StripeInvoiceData,
+    CommissionAvailability
 } from '~/lib/structures'
 
 import type { FormElementInstance } from '~/components/form-builder/elements/form-elements'
@@ -123,6 +124,13 @@ export const request_router = createTRPCRouter({
                 })
             }
 
+            if (commission.availability === CommissionAvailability.Closed) {
+                throw new TRPCError({
+                    code: 'BAD_REQUEST',
+                    message: 'How did you even get here?'
+                })
+            }
+
             const request_redis_key = get_redis_key('request_queue', input.commission_id)
             const request_queue = (
                 await ctx.redis.json.get<RequestQueue[] | null>(request_redis_key, '$')
@@ -149,6 +157,26 @@ export const request_router = createTRPCRouter({
                 content: JSON.parse(input.form_data) as Record<string, string>,
                 order_id
             })
+
+            if (is_waitlist && commission.availability === CommissionAvailability.Open) {
+                await ctx.db
+                    .update(commissions)
+                    .set({
+                        availability: CommissionAvailability.Waitlist
+                    })
+                    .where(eq(commissions.id, commission.id))
+            } else if (
+                is_waitlist &&
+                commission.availability === CommissionAvailability.Waitlist &&
+                request_queue.waitlist.length >= commission.max_commissions_until_closed
+            ) {
+                await ctx.db
+                    .update(commissions)
+                    .set({
+                        availability: CommissionAvailability.Closed
+                    })
+                    .where(eq(commissions.id, commission.id))
+            }
 
             const user_notification_promise = send_notification({
                 type: KnockWorkflows.CommissionRequestUserEnd,

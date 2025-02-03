@@ -10,7 +10,11 @@ import { RedirectToSignIn, useUser } from '@clerk/nextjs'
 import { api } from '~/trpc/react'
 import { type forms } from '~/server/db/schema'
 import { get_availability_badge_data } from '~/lib/utils'
-import { ChargeMethod, type ClientCommissionItem } from '~/lib/structures'
+import {
+    ChargeMethod,
+    CommissionAvailability,
+    type ClientCommissionItem
+} from '~/lib/structures'
 
 import Loading from '~/components/ui/loading'
 import ImageViewer from '~/components/ui/image-viewer'
@@ -160,7 +164,9 @@ function CommissionContent(props: {
                             disabled={
                                 !acceptedTerms ||
                                 props.user_requested === undefined ||
-                                props.user_requested
+                                props.user_requested ||
+                                props.commission.availability ===
+                                    CommissionAvailability.Closed
                             }
                         >
                             <ClipboardListIcon className="h-6 w-6" />

@@ -254,7 +254,9 @@ export const commissions = createTable('commission', {
             }[]
         >()
         .notNull(),
-    availability: CommissionAvailabilityEnum('availability').notNull(),
+    availability: CommissionAvailabilityEnum('availability')
+        .$type<CommissionAvailability>()
+        .notNull(),
     slug: text('slug').notNull(),
 
     published: boolean('published').default(false).notNull(),
