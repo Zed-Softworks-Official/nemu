@@ -113,7 +113,7 @@ async function process_event(expired_invoices: string[]) {
                     })
                     .where(eq(invoices.id, invoice.db_id)),
                 // Update the invoice in redis to reflect new state
-                redis.set(get_redis_key('invoices'), {
+                redis.set(get_redis_key('invoices', invoice.id), {
                     ...invoice,
                     status: InvoiceStatus.Cancelled
                 } satisfies StripeInvoiceData)
