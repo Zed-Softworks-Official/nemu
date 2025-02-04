@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/only-throw-error */
 
-import { auth, clerkClient } from '@clerk/nextjs/server'
+import { currentUser } from '@clerk/nextjs/server'
 import { type NextRequest } from 'next/server'
 import { UploadThingError } from 'uploadthing/server'
 import { createUploadthing, type FileRouter } from 'uploadthing/next'
@@ -8,14 +8,12 @@ import { createUploadthing, type FileRouter } from 'uploadthing/next'
 const f = createUploadthing()
 
 const validate_auth = async (req: NextRequest, check_artist = false) => {
-    const auth_data = await auth()
-    const clerk_client = await clerkClient()
+    const user = await currentUser()
 
-    if (!auth_data.userId) {
+    if (!user) {
         throw new UploadThingError('Unauthorized')
     }
 
-    const user = await clerk_client.users.getUser(auth_data.userId)
     const artist_id = user.privateMetadata.artist_id as string | undefined
 
     if (check_artist) {

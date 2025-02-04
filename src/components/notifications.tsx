@@ -52,8 +52,6 @@ function NotificationFeed() {
 
     useFetchNotifications(feed_client)
 
-    console.log(items)
-
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
