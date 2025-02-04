@@ -12,6 +12,7 @@ import { TRPCReactProvider } from '~/trpc/react'
 import { ThemeProvider } from '~/components/themes/theme-provider'
 import { env } from '~/env'
 import { Toaster } from '~/components/ui/sonner'
+import { PosthogProvider } from '~/components/posthog-provider'
 
 const nunito = Nunito({
     subsets: ['latin']
@@ -62,15 +63,17 @@ export default function RootLayout({
                     publishableKey={env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
                     dynamic
                 >
-                    <ThemeProvider
-                        attribute={'class'}
-                        defaultTheme={'dark'}
-                        enableSystem
-                        disableTransitionOnChange
-                    >
-                        <TRPCReactProvider>{children}</TRPCReactProvider>
-                        <Toaster position="bottom-right" richColors />
-                    </ThemeProvider>
+                    <PosthogProvider>
+                        <ThemeProvider
+                            attribute={'class'}
+                            defaultTheme={'dark'}
+                            enableSystem
+                            disableTransitionOnChange
+                        >
+                            <TRPCReactProvider>{children}</TRPCReactProvider>
+                            <Toaster position="bottom-right" richColors />
+                        </ThemeProvider>
+                    </PosthogProvider>
                 </ClerkProvider>
             </body>
         </html>
