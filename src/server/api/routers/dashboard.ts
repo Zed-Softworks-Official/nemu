@@ -1,4 +1,4 @@
-import { InvoiceStatus, RequestStatus, type SalesData } from '~/lib/structures'
+import { type SalesData } from '~/lib/structures'
 import { artistProcedure, createTRPCRouter } from '../trpc'
 import { and, desc, eq, gte } from 'drizzle-orm'
 import { commissions, invoices, requests } from '~/server/db/schema'
@@ -43,7 +43,7 @@ export const dashboard_router = createTRPCRouter({
                     ),
                     with: {
                         requests: {
-                            where: eq(requests.status, RequestStatus.Pending),
+                            where: eq(requests.status, 'pending'),
                             orderBy: desc(requests.created_at)
                         }
                     }
@@ -52,7 +52,7 @@ export const dashboard_router = createTRPCRouter({
                 const invoices_promise = ctx.db.query.invoices.findMany({
                     where: and(
                         eq(invoices.artist_id, ctx.artist.id),
-                        eq(invoices.status, InvoiceStatus.Paid)
+                        eq(invoices.status, 'paid')
                     ),
                     orderBy: desc(invoices.created_at),
                     limit: 10,
@@ -125,7 +125,7 @@ export const dashboard_router = createTRPCRouter({
                         requests: {
                             where: and(
                                 gte(requests.created_at, start_date),
-                                eq(requests.status, RequestStatus.Delivered)
+                                eq(requests.status, 'delivered')
                             ),
                             with: {
                                 invoices: true
@@ -159,19 +159,19 @@ export const dashboard_router = createTRPCRouter({
                         }
 
                         if (
-                            request.status === RequestStatus.Accepted &&
+                            request.status === 'accepted' &&
                             request.created_at > last_month
                         ) {
                             monthly_open_commissions += 1
                         } else if (
-                            request.status === RequestStatus.Accepted &&
+                            request.status === 'accepted' &&
                             request.created_at < last_month
                         ) {
                             previous_monthly_open_commissions += 1
                         }
 
                         if (
-                            request.status === RequestStatus.Delivered &&
+                            request.status === 'delivered' &&
                             request.created_at < last_month
                         ) {
                             previous_total_revenue += request.invoices.reduce(
@@ -179,7 +179,7 @@ export const dashboard_router = createTRPCRouter({
                                 0
                             )
                         } else if (
-                            request.status === RequestStatus.Delivered &&
+                            request.status === 'delivered' &&
                             request.created_at > last_month
                         ) {
                             total_revenue += request.invoices.reduce(

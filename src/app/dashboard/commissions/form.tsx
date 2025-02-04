@@ -34,10 +34,10 @@ import { Textarea } from '~/components/ui/textarea'
 
 import {
     type ClientCommissionItemEditable,
-    CommissionAvailability,
     type ImageEditorData,
     type NemuEditImageData,
-    ChargeMethod
+    chargeMethods,
+    commissionAvalabilities
 } from '~/lib/structures'
 
 import { api } from '~/trpc/react'
@@ -49,8 +49,8 @@ const commissionSchema = z.object({
     price: z.string().refine((value) => !isNaN(Number(value))),
     max_commissions_until_waitlist: z.number().min(0),
     max_commissions_until_closed: z.number().min(0),
-    commission_availability: z.nativeEnum(CommissionAvailability),
-    charge_method: z.nativeEnum(ChargeMethod),
+    commission_availability: z.enum(commissionAvalabilities),
+    charge_method: z.enum(chargeMethods),
     downpayment_percentage: z.number().min(0).max(100)
 })
 
@@ -68,8 +68,8 @@ export function CreateForm() {
             price: '0',
             max_commissions_until_waitlist: 0,
             max_commissions_until_closed: 0,
-            commission_availability: CommissionAvailability.Open,
-            charge_method: ChargeMethod.InFull,
+            commission_availability: 'open',
+            charge_method: 'in_full',
             downpayment_percentage: 50
         }
     })
@@ -219,10 +219,8 @@ export function CreateForm() {
                                         <SelectValue placeholder="Select Payment Method" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value={ChargeMethod.InFull}>
-                                            In Full
-                                        </SelectItem>
-                                        <SelectItem value={ChargeMethod.DownPayment}>
+                                        <SelectItem value={'in_full'}>In Full</SelectItem>
+                                        <SelectItem value={'down_payment'}>
                                             Down Payment
                                         </SelectItem>
                                     </SelectContent>
@@ -231,7 +229,7 @@ export function CreateForm() {
                         </FormItem>
                     )}
                 />
-                {form.watch('charge_method') === ChargeMethod.DownPayment && (
+                {form.watch('charge_method') === 'down_payment' && (
                     <FormField
                         control={form.control}
                         name="downpayment_percentage"
@@ -322,15 +320,10 @@ export function CreateForm() {
                                     <SelectValue placeholder="Select Availability" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value={CommissionAvailability.Open}>
-                                        Open
-                                    </SelectItem>
-                                    <SelectItem value={CommissionAvailability.Waitlist}>
-                                        Waitlist
-                                    </SelectItem>
-                                    <SelectItem value={CommissionAvailability.Closed}>
-                                        Closed
-                                    </SelectItem>
+                                    <SelectItem value={'open'}>Open</SelectItem>
+                                    <SelectItem value={'waitlist'}>Waitlist</SelectItem>
+                                    Waitlist
+                                    <SelectItem value={'closed'}>Closed</SelectItem>
                                 </SelectContent>
                             </Select>
                             <FormMessage />
@@ -420,8 +413,8 @@ const updateSchema = z.object({
     price: z.string().refine((value) => !isNaN(Number(value))),
     max_commissions_until_waitlist: z.number().min(0),
     max_commissions_until_closed: z.number().min(0),
-    availability: z.nativeEnum(CommissionAvailability),
-    charge_method: z.nativeEnum(ChargeMethod),
+    availability: z.enum(commissionAvalabilities),
+    charge_method: z.enum(chargeMethods),
     downpayment_percentage: z.number().min(0).max(100)
 })
 
@@ -627,10 +620,8 @@ export function UpdateForm(props: { commission: ClientCommissionItemEditable }) 
                                         <SelectValue placeholder="Select Payment Method" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value={ChargeMethod.InFull}>
-                                            In Full
-                                        </SelectItem>
-                                        <SelectItem value={ChargeMethod.DownPayment}>
+                                        <SelectItem value={'in_full'}>In Full</SelectItem>
+                                        <SelectItem value={'down_payment'}>
                                             Down Payment
                                         </SelectItem>
                                     </SelectContent>
@@ -639,7 +630,7 @@ export function UpdateForm(props: { commission: ClientCommissionItemEditable }) 
                         </FormItem>
                     )}
                 />
-                {form.watch('charge_method') === ChargeMethod.DownPayment && (
+                {form.watch('charge_method') === 'down_payment' && (
                     <FormField
                         control={form.control}
                         name="downpayment_percentage"
@@ -734,15 +725,9 @@ export function UpdateForm(props: { commission: ClientCommissionItemEditable }) 
                                     <SelectValue placeholder="Select Availability" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value={CommissionAvailability.Open}>
-                                        Open
-                                    </SelectItem>
-                                    <SelectItem value={CommissionAvailability.Waitlist}>
-                                        Waitlist
-                                    </SelectItem>
-                                    <SelectItem value={CommissionAvailability.Closed}>
-                                        Closed
-                                    </SelectItem>
+                                    <SelectItem value={'open'}>Open</SelectItem>
+                                    <SelectItem value={'waitlist'}>Waitlist</SelectItem>
+                                    <SelectItem value={'closed'}>Closed</SelectItem>
                                 </SelectContent>
                             </Select>
                             <FormMessage />

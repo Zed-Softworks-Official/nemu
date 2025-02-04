@@ -43,7 +43,6 @@ import { InvoiceEditor } from './invoice-editor'
 import { MessagesClient } from '~/components/messages/messages-client'
 import { Label } from '~/components/ui/label'
 import { Checkbox } from '~/components/ui/checkbox'
-import { InvoiceStatus, RequestStatus } from '~/lib/structures'
 
 export function CommissionHeader() {
     const { request_data } = useDashboardOrder()
@@ -96,7 +95,7 @@ export function CommissionDetails() {
             <Card>
                 <CardHeader className="flex w-full flex-row items-center justify-between">
                     <CardTitle>Request Details</CardTitle>
-                    {request_data?.status === RequestStatus.Pending && (
+                    {request_data?.status === 'pending' && (
                         <div className="flex flex-col gap-2 sm:flex-row">
                             <DropdownMenu>
                                 <DropdownMenuTrigger
@@ -190,7 +189,7 @@ export function CommissionDetails() {
 export function CommissionDetailsTabs() {
     const { request_data } = useDashboardOrder()
 
-    if (request_data?.status === RequestStatus.Pending) {
+    if (request_data?.status === 'pending') {
         return null
     }
 
@@ -269,7 +268,7 @@ function Delivery() {
         )
     }
 
-    if (request_data.invoices?.[0]?.status !== InvoiceStatus.Paid) {
+    if (request_data.invoices?.[0]?.status !== 'paid') {
         return (
             <Card>
                 <CardHeader>

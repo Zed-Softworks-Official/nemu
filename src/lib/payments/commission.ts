@@ -1,9 +1,5 @@
 import { stripe } from '~/server/stripe'
-import {
-    type InvoiceItem,
-    PurchaseType,
-    type StripePaymentMetadata
-} from '~/lib/structures'
+import { type InvoiceItem, type StripePaymentMetadata } from '~/lib/structures'
 import { calculate_application_fee } from '.'
 
 /**
@@ -23,7 +19,7 @@ export async function StripeCreateInvoice(
         {
             customer: customer_id,
             metadata: {
-                purchase_type: PurchaseType.CommissionInvoice,
+                purchase_type: 'commission_invoice',
                 order_id,
                 stripe_account
             } satisfies StripePaymentMetadata

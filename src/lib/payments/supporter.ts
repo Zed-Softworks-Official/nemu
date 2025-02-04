@@ -1,5 +1,4 @@
 import { stripe } from '~/server/stripe'
-import { PurchaseType } from '~/lib/structures'
 import { env } from '~/env'
 
 /**
@@ -31,7 +30,7 @@ export async function StripeCreateSupporterCheckout(
         success_url: env.BASE_URL + '/artists/supporter/success',
         cancel_url: env.BASE_URL + '/artists/supporter',
         metadata: {
-            purchase_type: PurchaseType.Supporter
+            purchase_type: 'supporter'
         },
         subscription_data: {
             metadata: {

@@ -1,30 +1,26 @@
-export enum PurchaseType {
-    ArtistCorner = 'artist_corner',
-    CommissionInvoice = 'commission_invoice',
-    Supporter = 'supporter'
-}
+export const purchaseTypes = ['artist_corner', 'commission_invoice', 'supporter'] as const
+export type PurchaseType = (typeof purchaseTypes)[number]
 
-export enum InvoiceStatus {
-    Creating = 'creating',
-    Pending = 'pending',
-    Paid = 'paid',
-    Cancelled = 'cancelled'
-}
+export const invoiceStatuses = ['creating', 'pending', 'paid', 'cancelled'] as const
+export type InvoiceStatus = (typeof invoiceStatuses)[number]
 
-export type InvoiceItem = {
+export const chargeMethods = ['in_full', 'down_payment'] as const
+export type ChargeMethod = (typeof chargeMethods)[number]
+
+export interface InvoiceItem {
     id: string | null
     name: string
     price: number
     quantity: number
 }
 
-export type StripePaymentMetadata = {
+export interface StripePaymentMetadata {
     purchase_type: PurchaseType
     stripe_account: string
     order_id: string
 }
 
-export type StripeDashboardData = {
+export interface StripeDashboardData {
     onboarded: boolean
     managment: {
         type: 'dashboard' | 'onboarding'
@@ -32,9 +28,4 @@ export type StripeDashboardData = {
     }
 
     checkout_portal?: string
-}
-
-export enum ChargeMethod {
-    InFull = 'in_full',
-    DownPayment = 'down_payment'
 }

@@ -16,7 +16,7 @@ import {
     FormLabel,
     FormMessage
 } from '~/components/ui/form'
-import { ChargeMethod, SocialAgent } from '~/lib/structures'
+import { chargeMethods, SocialAgent } from '~/lib/structures'
 import { Textarea } from '~/components/ui/textarea'
 import {
     Select,
@@ -45,7 +45,7 @@ const schema = z.object({
             url: z.string().url()
         })
     ),
-    default_charge_method: z.nativeEnum(ChargeMethod)
+    default_charge_method: z.enum(chargeMethods)
 })
 
 type SettingsForm = z.infer<typeof schema>
@@ -66,7 +66,7 @@ export function SettingsForm() {
             terms: '',
             tip_jar_url: '',
             socials: [],
-            default_charge_method: ChargeMethod.InFull
+            default_charge_method: 'in_full'
         }
     })
 
@@ -221,10 +221,8 @@ export function SettingsForm() {
                                         <SelectValue placeholder="Select a payment method" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value={ChargeMethod.InFull}>
-                                            In Full
-                                        </SelectItem>
-                                        <SelectItem value={ChargeMethod.DownPayment}>
+                                        <SelectItem value="in_full">In Full</SelectItem>
+                                        <SelectItem value="down_payment">
                                             Down Payment
                                         </SelectItem>
                                     </SelectContent>

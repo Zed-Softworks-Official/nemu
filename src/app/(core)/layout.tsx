@@ -26,11 +26,11 @@ import {
 } from '~/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
 import Link from 'next/link'
-import { UserRole } from '~/lib/structures'
 import { Button } from '~/components/ui/button'
 import NemuImage from '~/components/nemu-image'
 import { Notifications } from '~/components/notifications'
 import { Skeleton } from '~/components/ui/skeleton'
+import { type UserRole } from '~/lib/structures'
 
 export default function StandarLayout(props: {
     children: React.ReactNode
@@ -160,13 +160,15 @@ async function UserDropdown() {
             <DropdownMenuContent className="min-w-[200px]" align="end">
                 <ArtistSection
                     handle={current_user?.publicMetadata.handle as string}
-                    show={current_user?.publicMetadata.role === UserRole.Artist}
+                    show={(current_user?.publicMetadata.role as UserRole) === 'admin'}
                 />
                 <AdminSection
-                    show={current_user?.publicMetadata.role === UserRole.Admin}
+                    show={(current_user?.publicMetadata.role as UserRole) === 'admin'}
                 />
                 <GeneralSection
-                    is_artist={current_user?.publicMetadata.role === UserRole.Artist}
+                    is_artist={
+                        (current_user?.publicMetadata.role as UserRole) === 'artist'
+                    }
                 />
             </DropdownMenuContent>
         </DropdownMenu>

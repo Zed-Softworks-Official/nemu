@@ -1,16 +1,8 @@
-export enum UserRole {
-    Standard = 'standard',
-    Artist = 'artist',
-    Admin = 'admin'
-}
+export const userRoles = ['standard', 'artist', 'admin'] as const
+export type UserRole = (typeof userRoles)[number]
 
-export type PrivateUserMetadata = {
-    artist_id: string
-}
-
-export type ClientUser = {
-    id: string
-    username: string
-    email_address: string
-    image_url: string
+export interface NemuPublicUserMetadata {
+    role: UserRole
+    handle?: string
+    artist_id?: string
 }

@@ -6,10 +6,10 @@ import { createId } from '@paralleldrive/cuid2'
 
 import { artists, commissions } from '~/server/db/schema'
 import {
+    commissionAvalabilities,
+    chargeMethods,
     type ClientCommissionItem,
     type ClientCommissionItemEditable,
-    CommissionAvailability,
-    ChargeMethod,
     type RequestQueue
 } from '~/lib/structures'
 import {
@@ -29,7 +29,7 @@ export const commission_router = createTRPCRouter({
                 title: z.string(),
                 description: z.string(),
                 price: z.number(),
-                availability: z.nativeEnum(CommissionAvailability),
+                availability: z.enum(commissionAvalabilities),
                 images: z.array(
                     z.object({
                         ut_key: z.string()
@@ -39,7 +39,7 @@ export const commission_router = createTRPCRouter({
                 max_commissions_until_closed: z.number(),
                 published: z.boolean(),
                 form_id: z.string(),
-                charge_method: z.nativeEnum(ChargeMethod),
+                charge_method: z.enum(chargeMethods),
                 downpayment_percentage: z.number().optional()
             })
         )
@@ -101,13 +101,13 @@ export const commission_router = createTRPCRouter({
                     title: z.string().optional(),
                     description: z.string().optional(),
                     price: z.number().optional(),
-                    availability: z.nativeEnum(CommissionAvailability).optional(),
+                    availability: z.enum(commissionAvalabilities).optional(),
                     images: z.array(z.string()).optional(),
                     deleted_images: z.array(z.string()).optional(),
                     max_commissions_until_waitlist: z.number().optional(),
                     max_commissions_until_closed: z.number().optional(),
                     published: z.boolean().optional(),
-                    charge_method: z.nativeEnum(ChargeMethod).optional(),
+                    charge_method: z.enum(chargeMethods).optional(),
                     downpayment_percentage: z.number().optional()
                 })
             })

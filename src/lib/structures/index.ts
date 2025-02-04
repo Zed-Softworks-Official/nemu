@@ -9,7 +9,7 @@ export * from '~/lib/structures/image-structures'
 export * from '~/lib/structures/search-structures'
 export * from '~/lib/structures/message-structures'
 
-export type SalesData = {
+export interface SalesData {
     month: string
     total_sales: number
 }

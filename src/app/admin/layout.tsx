@@ -2,7 +2,6 @@ import { redirect } from 'next/navigation'
 import { currentUser } from '@clerk/nextjs/server'
 import { RedirectToSignIn } from '@clerk/nextjs'
 
-import { UserRole } from '~/lib/structures'
 import {
     Sidebar,
     SidebarContent,
@@ -41,7 +40,7 @@ export default async function AdminLayout(props: { children: React.ReactNode }) 
         return <RedirectToSignIn />
     }
 
-    if (user.publicMetadata.role !== UserRole.Admin) {
+    if (user.publicMetadata.role !== 'admin') {
         return redirect('/')
     }
 

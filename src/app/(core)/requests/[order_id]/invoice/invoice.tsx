@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 
-import { InvoiceStatus } from '~/lib/structures'
+import { type InvoiceStatus } from '~/lib/structures'
 import { format_to_currency } from '~/lib/utils'
 
 import { DataTable } from '~/components/data-table'
@@ -82,13 +82,13 @@ export default function Invoice() {
 
 function InvoiceStatusBadge({ status }: { status: InvoiceStatus }) {
     switch (status) {
-        case InvoiceStatus.Creating:
+        case 'creating':
             return <Badge variant={'default'}>Creating</Badge>
-        case InvoiceStatus.Pending:
+        case 'pending':
             return <Badge variant={'destructive'}>Unpaid</Badge>
-        case InvoiceStatus.Paid:
+        case 'paid':
             return <Badge variant={'default'}>Paid</Badge>
-        case InvoiceStatus.Cancelled:
+        case 'cancelled':
             return <Badge variant={'destructive'}>Cancelled</Badge>
     }
 }

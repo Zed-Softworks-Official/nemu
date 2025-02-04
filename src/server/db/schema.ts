@@ -19,13 +19,18 @@ import { type FormElementInstance } from '~/components/form-builder/elements/for
 
 import {
     type SocialAccount,
-    UserRole,
-    CommissionAvailability,
-    InvoiceStatus,
-    RequestStatus,
+    type InvoiceStatus,
     type InvoiceItem,
-    DownloadType,
-    ChargeMethod
+    type ChargeMethod,
+    userRoles,
+    invoiceStatuses,
+    chargeMethods,
+    requestStatuses,
+    downloadTypes,
+    type DownloadType,
+    type RequestStatus,
+    commissionAvalabilities,
+    type CommissionAvailability
 } from '~/lib/structures'
 
 /**
@@ -57,29 +62,35 @@ export const customJson = <TData>(name: string) =>
 /**
  * An Enumeration for the user roles
  */
-export const UserRoleEnum = pgEnum('role', enum_to_pg_enum(UserRole))
+export const UserRoleEnum = pgEnum('role', userRoles)
 
 /**
  * Enumeration for the different invoice statuses
  */
-export const InvoiceStatusEnum = pgEnum('invoice_status', enum_to_pg_enum(InvoiceStatus))
+export const InvoiceStatusEnum = pgEnum(
+    'invoice_status',
+    enum_to_pg_enum(invoiceStatuses)
+)
 
 /**
  * An Enumeration for the Request Status
  */
-export const RequestStatusEnum = pgEnum('request_status', enum_to_pg_enum(RequestStatus))
+export const RequestStatusEnum = pgEnum(
+    'request_status',
+    enum_to_pg_enum(requestStatuses)
+)
 
 /**
  * An Enumeration for the Commission Availability
  */
 export const CommissionAvailabilityEnum = pgEnum(
     'availability',
-    enum_to_pg_enum(CommissionAvailability)
+    enum_to_pg_enum(commissionAvalabilities)
 )
 
-export const DownloadTypeEnum = pgEnum('download_type', enum_to_pg_enum(DownloadType))
+export const DownloadTypeEnum = pgEnum('download_type', enum_to_pg_enum(downloadTypes))
 
-export const ChargeMethodEnum = pgEnum('charge_method', enum_to_pg_enum(ChargeMethod))
+export const ChargeMethodEnum = pgEnum('charge_method', enum_to_pg_enum(chargeMethods))
 
 //////////////////////////////////////////////////////////
 // Tables
@@ -161,7 +172,7 @@ export const artists = createTable('artist', {
 
     default_charge_method: ChargeMethodEnum('default_charge_method')
         .$type<ChargeMethod>()
-        .default(ChargeMethod.InFull)
+        .default('in_full')
         .notNull(),
 
     socials: json('socials').$type<SocialAccount[]>().notNull()
@@ -266,7 +277,7 @@ export const commissions = createTable('commission', {
 
     charge_method: ChargeMethodEnum('charge_method')
         .$type<ChargeMethod>()
-        .default(ChargeMethod.InFull)
+        .default('in_full')
         .notNull(),
     downpayment_percentage: integer('downpayment_percentage').default(0).notNull(),
 
