@@ -149,7 +149,9 @@ export const artists = createTable('artist', {
     location: varchar('location', { length: 256 }).notNull(),
     terms: text('terms').default('Pls Feed Nemu').notNull(),
     tip_jar_url: text('tip_jar_url'),
-    header_photo: text('header_photo').default('/curved0.jpg').notNull(),
+    header_photo: text('header_photo')
+        .default('DLbLjqbVNirZvpnl7EHDBYPmtFe4irSybTpJxdUn89oQzflX')
+        .notNull(),
 
     supporter: boolean('supporter').default(false).notNull(),
     zed_customer_id: text('zed_customer_id'),
