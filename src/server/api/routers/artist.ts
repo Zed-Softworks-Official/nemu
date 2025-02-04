@@ -2,7 +2,7 @@ import { clerkClient } from '@clerk/nextjs/server'
 import { TRPCError } from '@trpc/server'
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
-import { ChargeMethod, SocialAgent } from '~/lib/structures'
+import { chargeMethods, SocialAgent } from '~/lib/structures'
 import { get_ut_url } from '~/lib/utils'
 import { update_index } from '~/server/algolia/collections'
 
@@ -96,7 +96,7 @@ export const artist_router = createTRPCRouter({
                     )
                     .optional(),
                 header_image_key: z.string().optional(),
-                default_charge_method: z.nativeEnum(ChargeMethod)
+                default_charge_method: z.enum(chargeMethods)
             })
         )
         .mutation(async ({ ctx, input }) => {

@@ -9,11 +9,7 @@ import { KnockWorkflows, send_notification } from '~/server/knock'
 import { stripe } from '~/server/stripe'
 import { get_redis_key, redis } from '~/server/redis'
 
-import {
-    InvoiceStatus,
-    type StripeInvoiceData,
-    type StripePaymentMetadata
-} from '~/lib/structures'
+import { type StripeInvoiceData, type StripePaymentMetadata } from '~/lib/structures'
 
 export async function sync_stripe_data(
     customer_id: string,
@@ -58,7 +54,7 @@ async function invoice_paid(invoice_id: string, stripe_account: string) {
 
     await redis.set(get_redis_key('invoices', invoice_id), {
         ...invoice_data,
-        status: InvoiceStatus.Paid
+        status: 'paid'
     } satisfies StripeInvoiceData)
 
     await redis.zrem('invoices_due_cron', invoice_id)
@@ -66,7 +62,7 @@ async function invoice_paid(invoice_id: string, stripe_account: string) {
     const update_promise = db
         .update(invoices)
         .set({
-            status: InvoiceStatus.Paid
+            status: 'paid'
         })
         .where(
             and(

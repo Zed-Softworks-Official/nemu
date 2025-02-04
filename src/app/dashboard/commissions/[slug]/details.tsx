@@ -13,7 +13,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger
 } from '~/components/ui/dropdown-menu'
-import { RequestStatus, type ClientRequestData } from '~/lib/structures'
+import { type ClientRequestData } from '~/lib/structures'
 import { api } from '~/trpc/react'
 
 export function PublishButton(props: { id: string; published: boolean }) {
@@ -93,8 +93,8 @@ export function RequestList(props: { requests: ClientRequestData[]; slug: string
                             const request = data
 
                             if (
-                                request.status !== RequestStatus.Accepted &&
-                                request.status !== RequestStatus.Pending
+                                request.status !== 'accepted' &&
+                                request.status !== 'pending'
                             ) {
                                 return null
                             }

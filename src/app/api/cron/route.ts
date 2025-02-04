@@ -6,12 +6,7 @@ import { NextResponse } from 'next/server'
 
 import { env } from '~/env'
 
-import {
-    InvoiceStatus,
-    type RequestQueue,
-    RequestStatus,
-    type StripeInvoiceData
-} from '~/lib/structures'
+import { type RequestQueue, type StripeInvoiceData } from '~/lib/structures'
 import { tryCatch } from '~/lib/try-catch'
 import { db } from '~/server/db'
 import { commissions, invoices, requests } from '~/server/db/schema'
@@ -102,20 +97,20 @@ async function process_event(expired_invoices: string[]) {
                 db
                     .update(requests)
                     .set({
-                        status: RequestStatus.Cancelled
+                        status: 'cancelled'
                     })
                     .where(eq(requests.id, invoice.request_id)),
                 // Update the invoice in the database
                 db
                     .update(invoices)
                     .set({
-                        status: InvoiceStatus.Cancelled
+                        status: 'cancelled'
                     })
                     .where(eq(invoices.id, invoice.db_id)),
                 // Update the invoice in redis to reflect new state
                 redis.set(get_redis_key('invoices', invoice.id), {
                     ...invoice,
-                    status: InvoiceStatus.Cancelled
+                    status: 'cancelled'
                 } satisfies StripeInvoiceData)
             ])
         })

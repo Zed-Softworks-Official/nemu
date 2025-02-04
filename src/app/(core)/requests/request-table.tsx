@@ -4,7 +4,7 @@ import Loading from '~/components/ui/loading'
 import NemuImage from '~/components/nemu-image'
 import { api } from '~/trpc/react'
 
-import { type ClientRequestData, RequestStatus } from '~/lib/structures'
+import { type ClientRequestData } from '~/lib/structures'
 import { Button } from '~/components/ui/button'
 import Link from 'next/link'
 import { DataTable } from '~/components/data-table'
@@ -71,19 +71,19 @@ export function RequestTable() {
 
                         let variant: BadgeProps['variant'] = 'default'
                         switch (status) {
-                            case RequestStatus.Accepted:
+                            case 'accepted':
                                 variant = 'default'
                                 break
-                            case RequestStatus.Pending:
+                            case 'pending':
                                 variant = 'outline'
                                 break
-                            case RequestStatus.Rejected:
+                            case 'rejected':
                                 variant = 'destructive'
                                 break
-                            case RequestStatus.Waitlist:
+                            case 'waitlist':
                                 variant = 'warning'
                                 break
-                            case RequestStatus.Cancelled:
+                            case 'cancelled':
                                 variant = 'destructive'
                                 break
                         }
@@ -96,10 +96,7 @@ export function RequestTable() {
                     flex: 1,
                     field: 'commission',
                     cellRenderer: ({ data }: { data: ClientRequestData }) => {
-                        if (
-                            data.status === RequestStatus.Rejected ||
-                            data.status === RequestStatus.Pending
-                        ) {
+                        if (data.status === 'rejected' || data.status === 'pending') {
                             return null
                         }
 

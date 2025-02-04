@@ -24,7 +24,7 @@ import {
     DropdownMenuTrigger
 } from '~/components/ui/dropdown-menu'
 
-import { CommissionAvailability, type ClientCommissionItem } from '~/lib/structures'
+import { type ClientCommissionItem } from '~/lib/structures'
 
 export function CommissionList() {
     const { data, isLoading } = api.commission.get_commission_list.useQuery()
@@ -72,13 +72,13 @@ function CommissionTable(props: { commissions: ClientCommissionItem[] }) {
                         cellRenderer: ({ data }: { data: ClientCommissionItem }) => {
                             let variant: BadgeProps['variant'] = 'default'
                             switch (data.availability) {
-                                case CommissionAvailability.Open:
+                                case 'open':
                                     variant = 'default'
                                     break
-                                case CommissionAvailability.Closed:
+                                case 'closed':
                                     variant = 'destructive'
                                     break
-                                case CommissionAvailability.Waitlist:
+                                case 'waitlist':
                                     variant = 'warning'
                                     break
                             }

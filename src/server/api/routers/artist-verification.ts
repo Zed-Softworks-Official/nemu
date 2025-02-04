@@ -1,13 +1,13 @@
 import { z } from 'zod'
-import { adminProcedure, createTRPCRouter, protectedProcedure } from '../trpc'
+import { adminProcedure, createTRPCRouter } from '../trpc'
 import { clerkClient } from '@clerk/nextjs/server'
 import { revalidateTag } from 'next/cache'
 import { createId } from '@paralleldrive/cuid2'
 
 import {
+    type NemuPublicUserMetadata,
     type SocialAccount,
     SocialAgent,
-    UserRole,
     type VerificationDataType,
     VerificationMethod
 } from '~/lib/structures'
@@ -22,23 +22,13 @@ import { set_index } from '~/server/algolia/collections'
 import { send_notification, KnockWorkflows } from '~/server/knock'
 
 export const artist_verification_router = createTRPCRouter({
-    generate_artist_code: protectedProcedure
+    generate_artist_code: adminProcedure
         .input(
             z.object({
                 amount: z.number().min(1).max(100)
             })
         )
         .mutation(async ({ input, ctx }) => {
-            // Check if the user is an admin
-            const clerk_client = await clerkClient()
-            const user = await clerk_client.users.getUser(ctx.auth.userId)
-
-            if (user.publicMetadata.role !== UserRole.Admin) {
-                throw new TRPCError({
-                    code: 'UNAUTHORIZED'
-                })
-            }
-
             // Create the new artist codes
             const codes = Array.from({ length: input.amount }, () => ({
                 id: createId(),
@@ -64,7 +54,7 @@ export const artist_verification_router = createTRPCRouter({
         return await ctx.db.query.artist_verifications.findMany()
     }),
 
-    verify_artist: protectedProcedure
+    verify_artist: adminProcedure
         .input(
             z.object({
                 requested_handle: z.string(),
@@ -212,9 +202,9 @@ async function create_artist(input: VerificationDataType, user_id: string) {
     const clerk_promise = clerk_client.users.updateUserMetadata(user.id, {
         publicMetadata: {
             handle: artist.handle,
-            role: UserRole.Artist,
+            role: 'artist',
             artist_id: artist.id
-        },
+        } satisfies NemuPublicUserMetadata,
         privateMetadata: {
             artist_id: artist.id
         }

@@ -4,7 +4,7 @@ import { db } from '~/server/db'
 import { knock } from '~/server/knock'
 import { artists } from '~/server/db/schema'
 
-import { UserRole } from '~/lib/structures'
+import type { NemuPublicUserMetadata, UserRole } from '~/lib/structures'
 import { eq } from 'drizzle-orm'
 import { update_index } from '~/server/algolia/collections'
 
@@ -30,8 +30,8 @@ async function user_created(clerk_id: string, username: string, email: string) {
 
     const user_update = clerk_client.users.updateUserMetadata(clerk_id, {
         publicMetadata: {
-            role: UserRole.Standard
-        }
+            role: 'standard'
+        } satisfies NemuPublicUserMetadata
     })
 
     const knock_identify = knock.users.identify(clerk_id, {
@@ -43,7 +43,7 @@ async function user_created(clerk_id: string, username: string, email: string) {
 }
 
 async function user_updated(clerk_id: string, role: UserRole, image_url: string) {
-    if (role !== UserRole.Artist) return
+    if (role !== 'artist') return
 
     const artist = await db.query.artists.findFirst({
         where: eq(artists.user_id, clerk_id)

@@ -10,11 +10,7 @@ import { RedirectToSignIn, useUser } from '@clerk/nextjs'
 import { api } from '~/trpc/react'
 import { type forms } from '~/server/db/schema'
 import { get_availability_badge_data } from '~/lib/utils'
-import {
-    ChargeMethod,
-    CommissionAvailability,
-    type ClientCommissionItem
-} from '~/lib/structures'
+import { type ChargeMethod, type ClientCommissionItem } from '~/lib/structures'
 
 import Loading from '~/components/ui/loading'
 import ImageViewer from '~/components/ui/image-viewer'
@@ -165,8 +161,7 @@ function CommissionContent(props: {
                                 !acceptedTerms ||
                                 props.user_requested === undefined ||
                                 props.user_requested ||
-                                props.commission.availability ===
-                                    CommissionAvailability.Closed
+                                props.commission.availability === 'closed'
                             }
                         >
                             <ClipboardListIcon className="h-6 w-6" />
@@ -180,11 +175,11 @@ function CommissionContent(props: {
 }
 
 function CommissionChargeMethod(props: { charge_method: ChargeMethod }) {
-    if (props.charge_method === ChargeMethod.InFull) {
+    if (props.charge_method === 'in_full') {
         return <span className="text-sm italic text-muted-foreground">Pay In Full</span>
     }
 
-    if (props.charge_method === ChargeMethod.DownPayment) {
+    if (props.charge_method === 'down_payment') {
         return (
             <span className="text-sm italic text-muted-foreground">
                 Down Payment Required

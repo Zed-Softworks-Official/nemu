@@ -12,7 +12,7 @@ import { useUser } from '@clerk/nextjs'
 import { env } from '~/env'
 import { Skeleton } from '~/components/ui/skeleton'
 import { useEffect } from 'react'
-import { Button } from './ui/button'
+import { Button } from '~/components/ui/button'
 import { BellIcon } from 'lucide-react'
 import {
     DropdownMenu,
@@ -21,7 +21,7 @@ import {
     DropdownMenuItem,
     DropdownMenuLabel,
     DropdownMenuTrigger
-} from './ui/dropdown-menu'
+} from '~/components/ui/dropdown-menu'
 import Link from 'next/link'
 import { cn } from '~/lib/utils'
 

@@ -15,7 +15,7 @@ import { db } from '~/server/db'
 import { redis } from '~/server/redis'
 import { artists } from '../db/schema'
 import { eq } from 'drizzle-orm'
-import { UserRole } from '~/lib/structures'
+import { type UserRole } from '~/lib/structures'
 
 /**
  * 1. CONTEXT
@@ -178,7 +178,7 @@ export const adminProcedure = protectedProcedure.use(async ({ next, ctx }) => {
     const clerk_client = await clerkClient()
     const user = await clerk_client.users.getUser(ctx.auth.userId)
 
-    if (user.publicMetadata.role !== UserRole.Admin) {
+    if ((user.publicMetadata.role as UserRole) !== 'admin') {
         throw new TRPCError({
             code: 'UNAUTHORIZED',
             message: 'User is not an admin'

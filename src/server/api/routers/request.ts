@@ -18,16 +18,11 @@ import {
 } from '~/server/db/schema'
 
 import {
-    InvoiceStatus,
     type KanbanContainerData,
-    RequestStatus,
     type ClientRequestData,
     type Chat,
-    DownloadType,
-    ChargeMethod,
     type RequestQueue,
-    type StripeInvoiceData,
-    CommissionAvailability
+    type StripeInvoiceData
 } from '~/lib/structures'
 
 import type { FormElementInstance } from '~/components/form-builder/elements/form-elements'
@@ -124,7 +119,7 @@ export const request_router = createTRPCRouter({
                 })
             }
 
-            if (commission.availability === CommissionAvailability.Closed) {
+            if (commission.availability === 'closed') {
                 throw new TRPCError({
                     code: 'BAD_REQUEST',
                     message: 'How did you even get here?'
@@ -144,15 +139,14 @@ export const request_router = createTRPCRouter({
             }
 
             const order_id = createId()
-            const is_waitlist =
-                commission.availability === CommissionAvailability.Waitlist
+            const is_waitlist = commission.availability === 'waitlist'
 
             await ctx.db.insert(requests).values({
                 id: createId(),
                 form_id: commission.form_id,
                 user_id: ctx.auth.userId,
                 commission_id: input.commission_id,
-                status: is_waitlist ? RequestStatus.Waitlist : RequestStatus.Pending,
+                status: is_waitlist ? 'waitlist' : 'pending',
                 content: JSON.parse(input.form_data) as Record<string, string>,
                 order_id
             })
@@ -160,23 +154,23 @@ export const request_router = createTRPCRouter({
             if (
                 request_queue.requests.length + 1 >=
                     commission.max_commissions_until_waitlist &&
-                commission.availability === CommissionAvailability.Open
+                commission.availability === 'open'
             ) {
                 await ctx.db
                     .update(commissions)
                     .set({
-                        availability: CommissionAvailability.Waitlist
+                        availability: 'waitlist'
                     })
                     .where(eq(commissions.id, commission.id))
             } else if (
-                commission.availability === CommissionAvailability.Waitlist &&
+                commission.availability === 'waitlist' &&
                 request_queue.waitlist.length + 1 + request_queue.requests.length >=
                     commission.max_commissions_until_closed
             ) {
                 await ctx.db
                     .update(commissions)
                     .set({
-                        availability: CommissionAvailability.Closed
+                        availability: 'closed'
                     })
                     .where(eq(commissions.id, commission.id))
             }
@@ -306,8 +300,7 @@ export const request_router = createTRPCRouter({
             if (!input.accepted) {
                 // Remove from request queue
                 const redis_key = get_redis_key('request_queue', request.commission_id)
-                const path =
-                    request.status === RequestStatus.Pending ? '$.requests' : '$.waitlist'
+                const path = request.status === 'pending' ? '$.requests' : '$.waitlist'
                 const index = await ctx.redis.json.arrindex(
                     redis_key,
                     path,
@@ -327,7 +320,7 @@ export const request_router = createTRPCRouter({
                 await ctx.db
                     .update(requests)
                     .set({
-                        status: RequestStatus.Rejected
+                        status: 'rejected'
                     })
                     .where(eq(requests.id, request.id))
 
@@ -336,8 +329,7 @@ export const request_router = createTRPCRouter({
 
             // Figure out what the charge method is
             // And then create the invoice(s) accordingly
-            const is_down_payment =
-                request.commission.charge_method === ChargeMethod.DownPayment
+            const is_down_payment = request.commission.charge_method === 'down_payment'
             const invoice_ids: string[] = is_down_payment
                 ? [createId(), createId()]
                 : [createId()]
@@ -425,18 +417,12 @@ export const request_router = createTRPCRouter({
                 containers: kanban_containers
             } satisfies InferInsertModel<typeof kanbans>
 
-            const request_values = {
-                status: RequestStatus.Accepted,
-                invoice_ids,
-                kanban_id: kanban_primary_key
-            }
-
             // TODO: Invoices aren't being created for some reason?
             const create_invoices_promise = async () => {
                 for (const invoice_value of invoice_values) {
                     await ctx.db.insert(invoices).values({
                         ...invoice_value,
-                        status: InvoiceStatus.Creating
+                        status: 'creating'
                     })
                 }
             }
@@ -447,7 +433,11 @@ export const request_router = createTRPCRouter({
                 ctx.db.insert(kanbans).values(kanban_values),
                 ctx.db
                     .update(requests)
-                    .set(request_values)
+                    .set({
+                        kanban_id: kanban_primary_key,
+                        invoice_ids,
+                        status: 'accepted'
+                    })
                     .where(eq(requests.id, request.id)),
                 redis.json.set(chat_values.message_redis_key, '$', {
                     id: request.order_id,
@@ -604,10 +594,7 @@ export const request_router = createTRPCRouter({
                     artist_id: ctx.artist.id,
                     request_id: data.id,
                     user_id: data.user_id,
-                    type:
-                        input.file_type === 'application/zip'
-                            ? DownloadType.Archive
-                            : DownloadType.Image,
+                    type: input.file_type === 'application/zip' ? 'archive' : 'image',
                     ut_key: input.file_key,
                     is_final: input.is_final
                 })
@@ -620,10 +607,7 @@ export const request_router = createTRPCRouter({
                 .update(delivery)
                 .set({
                     ut_key: input.file_key,
-                    type:
-                        input.file_type === 'application/zip'
-                            ? DownloadType.Archive
-                            : DownloadType.Image,
+                    type: input.file_type === 'application/zip' ? 'archive' : 'image',
                     is_final: input.is_final
                 })
                 .where(eq(delivery.id, data.delivery.id))
@@ -692,7 +676,7 @@ export const request_router = createTRPCRouter({
                 invoice.stripe_account,
                 invoice.stripe_id,
                 invoice.items,
-                invoice.request.commission.charge_method === ChargeMethod.DownPayment
+                invoice.request.commission.charge_method === 'down_payment'
                     ? {
                           index: invoice.is_final ? 1 : 0,
                           percentage: invoice.request.commission.downpayment_percentage
@@ -717,7 +701,7 @@ export const request_router = createTRPCRouter({
                 ctx.db
                     .update(invoices)
                     .set({
-                        status: InvoiceStatus.Pending,
+                        status: 'pending',
                         sent: true,
                         stripe_id: finalized_invoice.id,
                         hosted_url: finalized_invoice.hosted_invoice_url,
@@ -743,7 +727,7 @@ export const request_router = createTRPCRouter({
                     stripe_account: invoice.stripe_account,
                     customer_id: invoice.customer_id,
                     due_date: finalized_invoice.due_date ?? 0,
-                    status: InvoiceStatus.Pending,
+                    status: 'pending',
                     request_id: invoice.request_id,
                     user_id: invoice.user_id,
                     commission_id: invoice.request.commission_id,

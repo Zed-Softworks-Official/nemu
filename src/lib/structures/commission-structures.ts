@@ -22,11 +22,8 @@ import type {
  *
  * Closed, Waitlist, Open
  */
-export enum CommissionAvailability {
-    Closed = 'closed',
-    Waitlist = 'waitlist',
-    Open = 'open'
-}
+export const commissionAvalabilities = ['closed', 'waitlist', 'open'] as const
+export type CommissionAvailability = (typeof commissionAvalabilities)[number]
 
 /**
  * Order Details
@@ -142,19 +139,21 @@ export type ClientCommissionItemEditable = {
 /**
  * The different states a request can be in
  */
-export enum RequestStatus {
-    Pending = 'pending',
-    Accepted = 'accepted',
-    Rejected = 'rejected',
-    Delivered = 'delivered',
-    Waitlist = 'waitlist',
-    Cancelled = 'cancelled'
-}
+export const requestStatuses = [
+    'pending',
+    'accepted',
+    'rejected',
+    'delivered',
+    'waitlist',
+    'cancelled'
+] as const
+export type RequestStatus = (typeof requestStatuses)[number]
 
-export enum DownloadType {
-    Image = 'image',
-    Archive = 'archive'
-}
+/**
+ * The different types of downloads a request can have
+ */
+export const downloadTypes = ['image', 'archive'] as const
+export type DownloadType = (typeof downloadTypes)[number]
 
 /**
  * The request queue for a commission

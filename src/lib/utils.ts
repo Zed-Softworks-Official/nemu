@@ -1,9 +1,10 @@
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
-import {
-    type ClientNemuImageData,
+
+import type {
     CommissionAvailability,
-    type NemuImageData
+    ClientNemuImageData,
+    NemuImageData
 } from '~/lib/structures'
 import { env } from '~/env'
 
@@ -35,11 +36,11 @@ export function get_availability_badge_data(
     availability: CommissionAvailability
 ): [variant: 'default' | 'secondary' | 'destructive', text: string] {
     switch (availability) {
-        case CommissionAvailability.Open:
+        case 'open':
             return ['default', 'Open']
-        case CommissionAvailability.Waitlist:
+        case 'waitlist':
             return ['secondary', 'Waitlist']
-        case CommissionAvailability.Closed:
+        case 'closed':
             return ['destructive', 'Closed']
     }
 }
