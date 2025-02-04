@@ -13,9 +13,9 @@ import {
 } from 'lucide-react'
 
 import { currentUser } from '@clerk/nextjs/server'
-import { redirect } from 'next/navigation'
+import { RedirectToSignIn } from '@clerk/nextjs'
 
-import Logo, { IconLogo } from '~/components/ui/logo'
+import { FullLogo, IconLogo } from '~/components/ui/logo'
 import {
     SidebarProvider,
     Sidebar,
@@ -28,7 +28,8 @@ import {
     SidebarHeader,
     SidebarMenuItem,
     SidebarMenuButton,
-    SidebarGroupLabel
+    SidebarGroupLabel,
+    SidebarInset
 } from '~/components/ui/sidebar'
 import {
     DropdownMenu,
@@ -37,26 +38,13 @@ import {
     DropdownMenuItem
 } from '~/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
-import { get_dashboard_links } from '~/server/actions/stripe'
-import DashboardBreadcrumbs from '~/components/dashboard/header-breadcrumbs'
-import { unstable_cache } from 'next/cache'
+import { DashboardBreadcrumbs } from './breadcrumbs'
 import { Separator } from '~/components/ui/separator'
+import { api } from '~/trpc/server'
 
 export const metadata = {
     title: 'Nemu | Artist Dashboard'
 }
-
-const fetch_dashboard_links = unstable_cache(
-    async (user_id: string | undefined) => {
-        if (!user_id) {
-            return undefined
-        }
-
-        return await get_dashboard_links(user_id)
-    },
-    ['dashboard_links'],
-    { tags: ['dashboard_links'], revalidate: 3600 }
-)
 
 const sidebar_items = [
     {
@@ -90,16 +78,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     return (
         <SidebarProvider>
             <DashboardSidebar />
-            <main className="flex min-h-screen w-full flex-col bg-base-200">
-                <header className="my-3 flex h-10 shrink-0 items-center gap-2">
-                    <SidebarTrigger />
-                    <Separator orientation="vertical" className="h-1/2" />
-                    <DashboardBreadcrumbs />
+            <SidebarInset className="bg-background-secondary px-4 pb-4">
+                <header className="flex h-16 shrink-0 items-center gap-2">
+                    <div className="flex items-center gap-2 px-4">
+                        <SidebarTrigger />
+                        <Separator orientation="vertical" className="ml-4 h-4" />
+                        <DashboardBreadcrumbs />
+                    </div>
                 </header>
-                <div className="mb-3 mr-3 flex-grow rounded-xl bg-base-100 py-5">
-                    {children}
-                </div>
-            </main>
+                <div className="flex flex-1 rounded-xl bg-background p-4">{children}</div>
+            </SidebarInset>
         </SidebarProvider>
     )
 }
@@ -109,7 +97,7 @@ function DashboardSidebar() {
         <Sidebar collapsible="icon">
             <SidebarHeader className="flex items-center gap-2">
                 <div className="group-data-[collapsible=icon]:hidden">
-                    <Logo />
+                    <FullLogo />
                 </div>
                 <div className="group-data-[state=expanded]:hidden">
                     <IconLogo />
@@ -153,9 +141,7 @@ async function SidebarUserdropdown() {
     const clerk_user = await currentUser()
 
     if (!clerk_user) {
-        redirect('/u/login')
-
-        return null
+        return <RedirectToSignIn redirectUrl={'/u/login'} />
     }
 
     return (
@@ -163,9 +149,16 @@ async function SidebarUserdropdown() {
             <SidebarMenuItem>
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <SidebarMenuButton>
+                        <SidebarMenuButton
+                            size="lg"
+                            className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                        >
                             <Avatar className="h-8 w-8">
-                                <AvatarImage src={clerk_user.imageUrl} alt="Avatar" />
+                                <AvatarImage
+                                    src={clerk_user.imageUrl}
+                                    alt="Avatar"
+                                    className="h-full w-full"
+                                />
                                 <AvatarFallback>
                                     <User className="h-6 w-6" />
                                 </AvatarFallback>
@@ -179,7 +172,10 @@ async function SidebarUserdropdown() {
                         className="w-[--radix-popper-anchor-width]"
                     >
                         <DropdownMenuItem asChild>
-                            <Link prefetch={true} href={`/@${clerk_user.username}`}>
+                            <Link
+                                prefetch={true}
+                                href={`/@${clerk_user.publicMetadata.handle as string}`}
+                            >
                                 My Page
                             </Link>
                         </DropdownMenuItem>
@@ -196,8 +192,7 @@ async function SidebarUserdropdown() {
 }
 
 async function SidebarSettingsContent() {
-    const current_user = await currentUser()
-    const dashboard_links = await fetch_dashboard_links(current_user?.id)
+    const dashboard_links = await api.stripe.get_dashboard_links()
 
     if (!dashboard_links) {
         return null

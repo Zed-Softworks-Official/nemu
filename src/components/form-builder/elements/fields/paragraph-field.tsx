@@ -1,42 +1,46 @@
 'use client'
 
-import type {
-    ElementsType,
-    FormElement,
-    FormElementInstance
-} from '~/components/form-builder/elements/form-elements'
-
+import { z } from 'zod'
+import { useEffect } from 'react'
+import { Pilcrow } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 
-import * as z from 'zod'
-import { useEffect } from 'react'
+import { Label } from '~/components/ui/label'
+import {
+    Form,
+    FormControl,
+    FormDescription,
+    FormField,
+    FormItem,
+    FormLabel,
+    FormMessage
+} from '~/components/ui/form'
+
 import { useDesigner } from '~/components/form-builder/designer/designer-context'
-import { DesignerTextAreaField } from '~/components/form-builder/elements/input-field'
-import { PilcrowIcon } from 'lucide-react'
+import type {
+    ElementType,
+    FormElement,
+    FormElementInstance
+} from '~/components/form-builder/elements/form-elements'
+import { Textarea } from '~/components/ui/textarea'
 
-const type: ElementsType = 'ParagraphField'
-
-const extra_attributes = {
-    text: 'Paragraph Field'
+const type: ElementType = 'ParagraphField'
+const metadata = {
+    text: 'Text Here'
 }
 
-const propertiesSchema = z.object({
-    text: z.string().min(2).max(500)
-})
-
 export const ParagraphFieldFormElement: FormElement = {
-    type,
+    type: type,
 
     construct: (id: string) => ({
         id,
         type,
-        extra_attributes
+        metadata
     }),
-
-    designer_btn_element: {
-        icon: PilcrowIcon,
-        label: 'Paragraph'
+    designer_button: {
+        icon: Pilcrow,
+        label: 'Paragraph Field'
     },
 
     designer_component: DesignerComponent,
@@ -47,88 +51,93 @@ export const ParagraphFieldFormElement: FormElement = {
 }
 
 type CustomInstance = FormElementInstance & {
-    extra_attributes: typeof extra_attributes
+    metadata: typeof metadata
 }
 
-type PropertiesFormSchemaType = z.infer<typeof propertiesSchema>
-
-function DesignerComponent({
-    elementInstance
-}: {
-    elementInstance: FormElementInstance
-}) {
-    const element = elementInstance as CustomInstance
-    const { text } = element.extra_attributes
+function DesignerComponent(props: { element_instance: FormElementInstance }) {
+    const element = props.element_instance as CustomInstance
+    const { text } = element.metadata
 
     return (
-        <div className="card w-full bg-base-100 shadow-xl">
-            <div className="card-body">
-                <label className="text-sm text-base-content/80">Paragraph Field</label>
-                <h2 className="card-title">{text}</h2>
-            </div>
+        <div className="flex w-full flex-col gap-2">
+            <Label className="text-muted-foreground">Paragraph Field</Label>
+            <p>{text}</p>
         </div>
     )
 }
 
-function FormComponent({ elementInstance }: { elementInstance: FormElementInstance }) {
-    const element = elementInstance as CustomInstance
-    const { text } = element.extra_attributes
+function FormComponent(props: { element_instance: FormElementInstance }) {
+    const element = props.element_instance as CustomInstance
+    const { text } = element.metadata
 
-    return (
-        <div className="card -mt-14 w-full">
-            <div className="card-body w-full">
-                <p className="text-base-content">{text}</p>
-            </div>
-        </div>
-    )
+    return <p>{text}</p>
 }
 
-function PropertiesComponent({
-    elementInstance
-}: {
-    elementInstance: FormElementInstance
-}) {
-    const element = elementInstance as CustomInstance
-    const { updateElement } = useDesigner()
+const properties_schema = z.object({
+    text: z.string().min(2).max(500)
+})
+
+type PropertiesFormSchemaType = z.infer<typeof properties_schema>
+
+function PropertiesComponent(props: { element_instance: FormElementInstance }) {
+    const { update_element } = useDesigner()
+
+    const element = props.element_instance as CustomInstance
+    const { text } = element.metadata
+
     const form = useForm<PropertiesFormSchemaType>({
-        resolver: zodResolver(propertiesSchema),
+        resolver: zodResolver(properties_schema),
         mode: 'onBlur',
         defaultValues: {
-            text: element.extra_attributes.text
+            text: text ?? ''
         }
     })
 
     useEffect(() => {
-        form.reset(element.extra_attributes)
+        form.reset(element.metadata)
     }, [element, form])
 
-    function applyChanges(values: PropertiesFormSchemaType) {
-        updateElement(element.id, {
+    function process_form(values: PropertiesFormSchemaType) {
+        update_element(element.id, {
             ...element,
-            extra_attributes: {
-                ...values
-            }
+            metadata: values
         })
     }
 
     return (
-        <form
-            onBlur={form.handleSubmit(applyChanges)}
-            onSubmit={(e) => {
-                e.preventDefault()
-            }}
-            className="flex w-full flex-col space-y-3"
-        >
-            <DesignerTextAreaField
-                label="Text"
-                description={
-                    <div className="text-base-content/80">
-                        Create a paragraph to determine what you need from the
-                        commissioner!
-                    </div>
-                }
-                {...form.register('text')}
-            />
-        </form>
+        <Form {...form}>
+            <form
+                onBlur={form.handleSubmit(process_form)}
+                className="space-y-3"
+                onSubmit={(e) => e.preventDefault()}
+            >
+                <FormField
+                    control={form.control}
+                    name="text"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Title</FormLabel>
+                            <FormControl>
+                                <Textarea
+                                    {...field}
+                                    className="bg-background"
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.currentTarget.blur()
+                                        }
+                                    }}
+                                    rows={5}
+                                ></Textarea>
+                            </FormControl>
+                            <FormDescription>
+                                Add a title to organize and structure your form. <br />
+                                Use this to create clear sections and headings
+                            </FormDescription>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            </form>
+        </Form>
     )
 }

@@ -1,46 +1,89 @@
-import { relations } from 'drizzle-orm'
+// Example model schema from the Drizzle docs
+// https://orm.drizzle.team/docs/sql-schema-declaration
 
+import { relations, sql } from 'drizzle-orm'
 import {
-    mysqlTableCreator,
-    boolean,
-    timestamp,
-    index,
     decimal,
-    json,
-    int,
+    text,
+    boolean,
+    index,
+    pgTableCreator,
+    timestamp,
     varchar,
-    text
-} from 'drizzle-orm/mysql-core'
+    json,
+    integer,
+    customType,
+    pgEnum
+} from 'drizzle-orm/pg-core'
+import { type FormElementInstance } from '~/components/form-builder/elements/form-elements'
 
 import {
-    UserRoleEnum,
-    customJson,
-    CommissionAvailabilityEnum,
-    RequestStatusEnum,
-    InvoiceStatusEnum
-} from '~/server/db/types'
+    type SocialAccount,
+    UserRole,
+    CommissionAvailability,
+    InvoiceStatus,
+    RequestStatus,
+    type InvoiceItem,
+    DownloadType,
+    ChargeMethod
+} from '~/lib/structures'
 
-import { UserRole, type NemuImageData, type SocialAccount } from '~/core/structures'
+/**
+ * This is an example of how to use the multi-project schema feature of Drizzle ORM. Use the same
+ * database instance for multiple projects.
+ *
+ * @see https://orm.drizzle.team/docs/goodies#multi-project-schema
+ */
+export const createTable = pgTableCreator((name) => `nemu_${name}`)
 
-export const createTable = mysqlTableCreator((name) => `nemu_${name}`)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const enum_to_pg_enum = (m_Enum: any) =>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
+    Object.values(m_Enum).map((value: any) => `${value}`) as [string, ...string[]]
+
+/**
+ * Creates a custom json schema type
+ *
+ * @param name - name of the coloumn
+ * @returns
+ */
+export const customJson = <TData>(name: string) =>
+    customType<{ data: TData; driverData: string }>({
+        dataType: () => 'json',
+        toDriver: (value: TData) => JSON.stringify(value)
+        // fromDriver: (value: string) => JSON.parse(value) as TData
+    })(name)
+
+/**
+ * An Enumeration for the user roles
+ */
+export const UserRoleEnum = pgEnum('role', enum_to_pg_enum(UserRole))
+
+/**
+ * Enumeration for the different invoice statuses
+ */
+export const InvoiceStatusEnum = pgEnum('invoice_status', enum_to_pg_enum(InvoiceStatus))
+
+/**
+ * An Enumeration for the Request Status
+ */
+export const RequestStatusEnum = pgEnum('request_status', enum_to_pg_enum(RequestStatus))
+
+/**
+ * An Enumeration for the Commission Availability
+ */
+export const CommissionAvailabilityEnum = pgEnum(
+    'availability',
+    enum_to_pg_enum(CommissionAvailability)
+)
+
+export const DownloadTypeEnum = pgEnum('download_type', enum_to_pg_enum(DownloadType))
+
+export const ChargeMethodEnum = pgEnum('charge_method', enum_to_pg_enum(ChargeMethod))
 
 //////////////////////////////////////////////////////////
 // Tables
 //////////////////////////////////////////////////////////
-
-/**
- * Users
- *
- * Holds general user information. Really only the clerk id is needed, but we also
- * store the user role for convenience
- */
-export const users = createTable('user', {
-    clerk_id: varchar('clerk_id', { length: 256 }).primaryKey(),
-    role: UserRoleEnum('role').default(UserRole.Standard),
-
-    has_sendbird_account: boolean('has_sendbird_account').default(false),
-    artist_id: varchar('artist_id', { length: 128 })
-})
 
 /**
  * Stripe Customer Ids
@@ -59,58 +102,33 @@ export const stripe_customer_ids = createTable('stripe_customer_ids', {
 })
 
 /**
- * Downloads
+ * Delivery
  *
- * Table for storing the downloads a user has on their account,
+ * Table for storing the delivery a user has on their account,
  * whether it's through purchasing products or through the commissions
  */
-export const downloads = createTable('download', {
+export const delivery = createTable('delivery', {
     id: varchar('id', { length: 128 }).primaryKey(),
+
     user_id: text('user_id').notNull(),
-
-    url: text('url').notNull(),
-    ut_key: text('ut_key'),
-
-    created_at: timestamp('created_at').defaultNow().notNull(),
-
     artist_id: text('artist_id').notNull(),
-    // product_id: text('product_id'),
-    request_id: text('request_id')
-})
 
-/**
- * Reviews
- *
- * Table for storing the reviews a user has created on certain products
- * and/or commissions
- */
-export const reviews = createTable('review', {
-    id: varchar('id', { length: 128 }).primaryKey(),
-    user_id: text('user_id').notNull(),
-    rating: decimal('rating', { precision: 2, scale: 1 }).notNull(),
-    content: varchar('content', { length: 256 }).notNull(),
-    created_at: timestamp('created_at').defaultNow().notNull(),
-    delivered: boolean('delivered').default(false),
-
-    commission_id: text('commission_id'),
+    request_id: text('request_id'),
     product_id: text('product_id'),
-    request_id: varchar('request_id', { length: 128 })
-})
 
-/**
- * Favorites
- *
- * Table for storing the favorites a user has created on certain products
- * and/or commissions
- */
-export const favorites = createTable('favorite', {
-    id: varchar('id', { length: 128 }).primaryKey(),
-    user_id: text('user_id').notNull(),
-    artist_id: text('artist_id').notNull(),
+    ut_key: text('ut_key').notNull(),
+    type: DownloadTypeEnum('download_type').$type<DownloadType>().notNull(),
     created_at: timestamp('created_at').defaultNow().notNull(),
+    updated_at: timestamp('updated_at')
+        .$onUpdate(() => new Date())
+        .defaultNow()
+        .notNull(),
+    version: integer('version')
+        .default(1)
+        .$onUpdate(() => sql`version + 1`)
+        .notNull(),
 
-    commission_id: text('commission_id'),
-    product_id: text('product_id')
+    is_final: boolean('is_final').default(false).notNull()
 })
 
 /**
@@ -122,6 +140,7 @@ export const artists = createTable('artist', {
     id: varchar('id', { length: 128 }).primaryKey(),
     user_id: text('user_id').notNull(),
     stripe_account: text('stripe_account').notNull(),
+    onboarded: boolean('onboarded').default(false).notNull(),
 
     created_at: timestamp('created_at').defaultNow().notNull(),
 
@@ -131,7 +150,6 @@ export const artists = createTable('artist', {
     terms: text('terms').default('Pls Feed Nemu').notNull(),
     tip_jar_url: text('tip_jar_url'),
     header_photo: text('header_photo').default('/curved0.jpg').notNull(),
-    ut_key: text('ut_key'),
 
     supporter: boolean('supporter').default(false).notNull(),
     zed_customer_id: text('zed_customer_id'),
@@ -139,7 +157,12 @@ export const artists = createTable('artist', {
     automated_message_enabled: boolean('automated_message_enabled').default(false),
     automated_message: text('automated_message'),
 
-    socials: customJson<SocialAccount>('socials').$type<SocialAccount[]>().notNull()
+    default_charge_method: ChargeMethodEnum('default_charge_method')
+        .$type<ChargeMethod>()
+        .default(ChargeMethod.InFull)
+        .notNull(),
+
+    socials: json('socials').$type<SocialAccount[]>().notNull()
 })
 
 /**
@@ -150,7 +173,8 @@ export const artists = createTable('artist', {
 export const artist_codes = createTable('artist_code', {
     id: varchar('id', { length: 128 }).primaryKey(),
     code: varchar('code', { length: 128 }).notNull().unique(),
-    created_at: timestamp('created_at').defaultNow().notNull()
+    created_at: timestamp('created_at').defaultNow().notNull(),
+    expires_at: timestamp('expires_at')
 })
 
 /**
@@ -186,33 +210,12 @@ export const portfolios = createTable('portfolio', {
     id: varchar('id', { length: 128 }).primaryKey(),
     artist_id: text('artist_id').notNull(),
 
-    image_url: text('image_url').notNull(),
     ut_key: text('ut_key').notNull(),
     title: varchar('title', { length: 256 }).notNull(),
+    adult_content: boolean('adult_content').default(false).notNull(),
 
     created_at: timestamp('created_at').defaultNow().notNull(),
     request_id: text('request_id')
-})
-
-/**
- * Artist Corner
- *
- * Holds all information for a product on the artist's corner
- */
-export const products = createTable('product', {
-    id: varchar('id', { length: 128 }).primaryKey(),
-    artist_id: text('artist_id').notNull(),
-
-    title: text('title').notNull(),
-    description: text('description'),
-    price: decimal('price', { precision: 2, scale: 2 }).notNull(),
-    images: json('images').$type<string[]>(),
-    ut_keys: json('ut_keys').$type<string[]>(),
-    downloadable_asset: varchar('downloadable_asset', { length: 256 }),
-    slug: text('slug'),
-
-    published: boolean('published').default(true),
-    created_at: timestamp('created_at').defaultNow().notNull()
 })
 
 /**
@@ -223,31 +226,47 @@ export const products = createTable('product', {
 export const commissions = createTable('commission', {
     id: varchar('id', { length: 128 }).primaryKey(),
     artist_id: text('artist_id').notNull(),
-    price: int('price').notNull(),
+    price: integer('price').notNull(),
     rating: decimal('rating', { precision: 2, scale: 1 }).notNull(),
+    adult_content: boolean('adult_content').default(false).notNull(),
 
     form_id: text('form_id').notNull(),
 
     title: text('title').notNull(),
     description: text('description').notNull(),
-    images: customJson<NemuImageData>('images').$type<NemuImageData[]>().notNull(),
-    availability: CommissionAvailabilityEnum('availability').notNull(),
+    images: json('images')
+        .$type<
+            {
+                ut_key: string
+                blur_data?: string
+            }[]
+        >()
+        .notNull(),
+    availability: CommissionAvailabilityEnum('availability')
+        .$type<CommissionAvailability>()
+        .notNull(),
     slug: text('slug').notNull(),
 
     published: boolean('published').default(false).notNull(),
     created_at: timestamp('created_at').defaultNow().notNull(),
 
-    max_commissions_until_waitlist: int('max_commissions_until_waitlist')
+    max_commissions_until_waitlist: integer('max_commissions_until_waitlist')
         .default(0)
         .notNull(),
-    max_commissions_until_closed: int('max_commissions_until_closed')
+    max_commissions_until_closed: integer('max_commissions_until_closed')
         .default(0)
         .notNull(),
 
-    total_requests: int('total_requests').default(0).notNull(),
-    new_requests: int('new_requests').default(0).notNull(),
-    accepted_requests: int('accepted_requests').default(0).notNull(),
-    rejected_requests: int('rejected_requests').default(0).notNull(),
+    total_requests: integer('total_requests').default(0).notNull(),
+    new_requests: integer('new_requests').default(0).notNull(),
+    accepted_requests: integer('accepted_requests').default(0).notNull(),
+    rejected_requests: integer('rejected_requests').default(0).notNull(),
+
+    charge_method: ChargeMethodEnum('charge_method')
+        .$type<ChargeMethod>()
+        .default(ChargeMethod.InFull)
+        .notNull(),
+    downpayment_percentage: integer('downpayment_percentage').default(0).notNull(),
 
     rush_orders_allowed: boolean('rush_orders_allowed').default(false),
     rush_charge: decimal('rush_charge', { precision: 3, scale: 2 }).default('0.00'),
@@ -262,35 +281,22 @@ export const commissions = createTable('commission', {
 export const invoices = createTable('invoice', {
     id: varchar('id', { length: 128 }).primaryKey(),
     sent: boolean('sent').default(false).notNull(),
-    hosted_url: text('hosted_url'),
-    status: InvoiceStatusEnum('status').notNull(),
+    status: InvoiceStatusEnum('status').$type<InvoiceStatus>().notNull(),
+    is_final: boolean('is_final').default(false).notNull(),
 
-    stripe_id: text('stripe_id').notNull(),
+    stripe_id: varchar('stripe_id', { length: 128 }).notNull(),
+    hosted_url: text('hosted_url'),
+
+    items: json('items').$type<InvoiceItem[]>().notNull(),
     created_at: timestamp('created_at').defaultNow().notNull(),
 
     customer_id: text('customer_id').notNull(),
     stripe_account: text('stripe_account').notNull(),
-    total: int('total').notNull(),
+    total: integer('total').notNull(),
 
     user_id: text('user_id').notNull(),
     artist_id: text('artist_id').notNull(),
     request_id: text('request_id').notNull()
-})
-
-/**
- * Invoice Item
- *
- * Holds all information for an invoice item
- */
-export const invoice_items = createTable('invoice_item', {
-    id: varchar('id', { length: 128 }).primaryKey(),
-    invoice_id: text('invoice_id').notNull(),
-
-    name: text('name').notNull(),
-    price: int('price').notNull(),
-    quantity: int('quantity').notNull(),
-
-    created_at: timestamp('created_at').defaultNow().notNull()
 })
 
 /**
@@ -306,7 +312,7 @@ export const forms = createTable('form', {
     name: text('name').notNull(),
     description: text('description'),
     created_at: timestamp('created_at').defaultNow().notNull(),
-    content: json('content').default([])
+    content: json('content').$type<FormElementInstance[]>().default([])
 })
 
 /**
@@ -320,17 +326,15 @@ export const requests = createTable('request', {
     user_id: text('user_id').notNull(),
     created_at: timestamp('created_at').defaultNow().notNull(),
 
-    status: RequestStatusEnum('status').notNull(),
+    status: RequestStatusEnum('status').$type<RequestStatus>().notNull(),
     commission_id: text('commission_id').notNull(),
 
     order_id: text('order_id').notNull(),
-    invoice_id: text('invoice_id'),
+    invoice_ids: text('invoice_ids').array(),
     kanban_id: text('kanban_id'),
-    download_id: text('download_id'),
+    delivery_id: text('delivery_id'),
 
-    sendbird_channel_url: text('sendbird_channel_url'),
-
-    content: json('content').notNull()
+    content: json('content').$type<Record<string, string>>().notNull()
 })
 
 /**
@@ -348,50 +352,52 @@ export const kanbans = createTable('kanban', {
     created_at: timestamp('created_at').defaultNow().notNull()
 })
 
+export const chats = createTable('chats', {
+    id: varchar('id', { length: 128 }).primaryKey(),
+
+    request_id: varchar('request_id', { length: 128 }).notNull(),
+    commission_id: varchar('commission_id', { length: 128 }).notNull(),
+    artist_id: varchar('artist_id', { length: 128 }).notNull(),
+
+    user_ids: varchar('user_ids', { length: 128 }).array().notNull(),
+
+    message_redis_key: text('message_redis_key').notNull(),
+    created_at: timestamp('created_at').defaultNow().notNull()
+})
+
 //////////////////////////////////////////////////////////
 // Relations
 //////////////////////////////////////////////////////////
 
 /**
- * User Relations
+ * Chat Relations
  */
-export const userRelations = relations(users, ({ one, many }) => ({
-    artist: one(artists, {
-        fields: [users.clerk_id],
-        references: [artists.user_id]
-    }),
-    requests: many(requests),
-    downloads: many(downloads),
-    reviews: many(reviews),
-    favorites: many(favorites),
-    customer_ids: many(stripe_customer_ids)
-}))
-
-/**
- * Download Relations
- */
-export const downloadRelations = relations(downloads, ({ one }) => ({
-    user: one(users, {
-        fields: [downloads.user_id],
-        references: [users.clerk_id]
+export const chatRelations = relations(chats, ({ one }) => ({
+    commission: one(commissions, {
+        fields: [chats.commission_id],
+        references: [commissions.id]
     }),
     artist: one(artists, {
-        fields: [downloads.artist_id],
+        fields: [chats.artist_id],
         references: [artists.id]
     }),
     request: one(requests, {
-        fields: [downloads.request_id],
+        fields: [chats.request_id],
         references: [requests.id]
     })
 }))
 
 /**
- * Favorite Relations
+ * Download Relations
  */
-export const favoriteRelations = relations(favorites, ({ one }) => ({
-    user: one(users, {
-        fields: [favorites.user_id],
-        references: [users.clerk_id]
+export const deliveryRelations = relations(delivery, ({ one }) => ({
+    artist: one(artists, {
+        fields: [delivery.artist_id],
+        references: [artists.id]
+    }),
+    request: one(requests, {
+        fields: [delivery.request_id],
+        references: [requests.id]
     })
 }))
 
@@ -399,10 +405,6 @@ export const favoriteRelations = relations(favorites, ({ one }) => ({
  * Customer Id Relations
  */
 export const customerIdRelations = relations(stripe_customer_ids, ({ one }) => ({
-    user: one(users, {
-        fields: [stripe_customer_ids.user_id],
-        references: [users.clerk_id]
-    }),
     artist: one(artists, {
         fields: [stripe_customer_ids.artist_id],
         references: [artists.id]
@@ -410,52 +412,15 @@ export const customerIdRelations = relations(stripe_customer_ids, ({ one }) => (
 }))
 
 /**
- * Review Relations
- */
-export const reviewRelations = relations(reviews, ({ one }) => ({
-    user: one(users, {
-        fields: [reviews.user_id],
-        references: [users.clerk_id]
-    }),
-    commission: one(commissions, {
-        fields: [reviews.commission_id],
-        references: [commissions.id]
-    }),
-    product: one(products, {
-        fields: [reviews.product_id],
-        references: [products.id]
-    }),
-    request: one(requests, {
-        fields: [reviews.request_id],
-        references: [requests.id]
-    })
-}))
-
-/**
  * Artist Relations
  */
-export const artistRelations = relations(artists, ({ one, many }) => ({
-    user: one(users, {
-        fields: [artists.user_id],
-        references: [users.clerk_id]
-    }),
+export const artistRelations = relations(artists, ({ many }) => ({
     commissions: many(commissions),
-    products: many(products),
     portfolio: many(portfolios),
     forms: many(forms),
     customer_ids: many(stripe_customer_ids),
-    invoices: many(invoices)
-}))
-
-/**
- * Product Relations
- */
-export const productRelations = relations(products, ({ one, many }) => ({
-    artist: one(artists, {
-        fields: [products.artist_id],
-        references: [artists.id]
-    }),
-    reviews: many(reviews)
+    invoices: many(invoices),
+    chats: many(chats)
 }))
 
 /**
@@ -484,14 +449,14 @@ export const commissionRelations = relations(commissions, ({ one, many }) => ({
         fields: [commissions.form_id],
         references: [forms.id]
     }),
-    reviews: many(reviews),
-    requests: many(requests)
+    requests: many(requests),
+    chats: many(chats)
 }))
 
 /**
  * Invoice Relations
  */
-export const invoiceRelations = relations(invoices, ({ one, many }) => ({
+export const invoiceRelations = relations(invoices, ({ one }) => ({
     artist: one(artists, {
         fields: [invoices.artist_id],
         references: [artists.id]
@@ -499,21 +464,6 @@ export const invoiceRelations = relations(invoices, ({ one, many }) => ({
     request: one(requests, {
         fields: [invoices.request_id],
         references: [requests.id]
-    }),
-    user: one(users, {
-        fields: [invoices.user_id],
-        references: [users.clerk_id]
-    }),
-    invoice_items: many(invoice_items)
-}))
-
-/**
- * Invoice Item Relations
- */
-export const invoiceItemsRelations = relations(invoice_items, ({ one }) => ({
-    invoice: one(invoices, {
-        fields: [invoice_items.invoice_id],
-        references: [invoices.id]
     })
 }))
 
@@ -532,30 +482,27 @@ export const formRelations = relations(forms, ({ one, many }) => ({
 /**
  * Request Relations
  */
-export const requestRelations = relations(requests, ({ one }) => ({
+export const requestRelations = relations(requests, ({ one, many }) => ({
     form: one(forms, {
         fields: [requests.form_id],
         references: [forms.id]
-    }),
-    user: one(users, {
-        fields: [requests.user_id],
-        references: [users.clerk_id]
     }),
     commission: one(commissions, {
         fields: [requests.commission_id],
         references: [commissions.id]
     }),
-    invoice: one(invoices, {
-        fields: [requests.invoice_id],
-        references: [invoices.id]
-    }),
+    invoices: many(invoices),
     kanban: one(kanbans, {
         fields: [requests.kanban_id],
         references: [kanbans.id]
     }),
-    download: one(downloads, {
-        fields: [requests.download_id],
-        references: [downloads.id]
+    delivery: one(delivery, {
+        fields: [requests.id],
+        references: [delivery.request_id]
+    }),
+    chat: one(chats, {
+        fields: [requests.id],
+        references: [chats.request_id]
     })
 }))
 

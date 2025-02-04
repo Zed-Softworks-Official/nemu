@@ -3,7 +3,7 @@
 import { useState } from 'react'
 
 import NemuImage from '~/components/nemu-image'
-import type { NemuImageData } from '~/core/structures'
+import type { ClientNemuImageData } from '~/lib/structures'
 
 import { Swiper, SwiperSlide } from 'swiper/react'
 import { Navigation, FreeMode, Thumbs } from 'swiper/modules'
@@ -14,7 +14,7 @@ import 'swiper/css/navigation'
 import 'swiper/css/free-mode'
 import 'swiper/css/thumbs'
 
-export default function ImageViewer({ images }: { images: NemuImageData[] }) {
+export default function ImageViewer({ images }: { images: ClientNemuImageData[] }) {
     const [thumbsSwiper, setThumbsSwiper] = useState<SwiperType | null>(null)
 
     return (
@@ -35,8 +35,6 @@ export default function ImageViewer({ images }: { images: NemuImageData[] }) {
                             <NemuImage
                                 src={image.url}
                                 alt="Image"
-                                placeholder="blur"
-                                blurDataURL={image.blur_data}
                                 width={800}
                                 height={800}
                                 className="block h-full w-full object-cover"
@@ -60,8 +58,6 @@ export default function ImageViewer({ images }: { images: NemuImageData[] }) {
                         <NemuImage
                             src={image.url}
                             alt="Image"
-                            placeholder="blur"
-                            blurDataURL={image.blur_data}
                             width={200}
                             height={200}
                             className="block h-fit w-fit scale-100 cursor-pointer rounded-xl object-cover transition-all duration-150 hover:scale-105"

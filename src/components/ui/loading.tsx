@@ -3,7 +3,7 @@ import NemuImage from '~/components/nemu-image'
 export default function Loading() {
     return (
         <div>
-            <div className="flex flex-col w-full h-full justify-center items-center">
+            <div className="flex h-full w-full flex-col items-center justify-center">
                 <NemuImage
                     src={'/loading.gif'}
                     alt="Loading..."

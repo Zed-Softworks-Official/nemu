@@ -76,16 +76,15 @@ const SidebarProvider = React.forwardRef<
         const open = openProp ?? _open
         const setOpen = React.useCallback(
             (value: boolean | ((value: boolean) => boolean)) => {
+                const openState = typeof value === 'function' ? value(open) : value
                 if (setOpenProp) {
-                    return setOpenProp?.(
-                        typeof value === 'function' ? value(open) : value
-                    )
+                    setOpenProp(openState)
+                } else {
+                    _setOpen(openState)
                 }
 
-                _setOpen(value)
-
                 // This sets the cookie to keep the sidebar state.
-                document.cookie = `${SIDEBAR_COOKIE_NAME}=${open}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
+                document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
             },
             [setOpenProp, open]
         )
@@ -140,7 +139,7 @@ const SidebarProvider = React.forwardRef<
                             } as React.CSSProperties
                         }
                         className={cn(
-                            'group/sidebar-wrapper flex min-h-svh w-full has-[[data-variant=inset]]:bg-base-300',
+                            'group/sidebar-wrapper flex min-h-svh w-full has-[[data-variant=inset]]:bg-sidebar',
                             className
                         )}
                         ref={ref}
@@ -180,7 +179,7 @@ const Sidebar = React.forwardRef<
             return (
                 <div
                     className={cn(
-                        'flex h-full w-[--sidebar-width] flex-col bg-base-200 text-base-content',
+                        'bg-background- flex h-full w-[--sidebar-width] flex-col text-sidebar-foreground',
                         className
                     )}
                     ref={ref}
@@ -240,14 +239,14 @@ const Sidebar = React.forwardRef<
                         // Adjust the padding for floating and inset variants.
                         variant === 'floating' || variant === 'inset'
                             ? 'p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)_+_theme(spacing.4)_+2px)]'
-                            : 'border-base-200 group-data-[collapsible=icon]:w-[--sidebar-width-icon] group-data-[side=left]:border-r group-data-[side=right]:border-l',
+                            : 'group-data-[collapsible=icon]:w-[--sidebar-width-icon] group-data-[side=right]:border-l',
                         className
                     )}
                     {...props}
                 >
                     <div
                         data-sidebar="sidebar"
-                        className="flex h-full w-full flex-col bg-base-200 group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:border-sidebar-border group-data-[variant=floating]:shadow"
+                        className="flex h-full w-full flex-col bg-sidebar group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:border-sidebar-border group-data-[variant=floating]:shadow"
                     >
                         {children}
                     </div>
@@ -269,14 +268,15 @@ const SidebarTrigger = React.forwardRef<
             ref={ref}
             data-sidebar="trigger"
             variant="ghost"
-            className={className}
+            size="icon"
+            className={cn('h-7 w-7', className)}
             onClick={(event) => {
                 onClick?.(event)
                 toggleSidebar()
             }}
             {...props}
         >
-            <PanelLeft className="h-5 w-5" />
+            <PanelLeft />
             <span className="sr-only">Toggle Sidebar</span>
         </Button>
     )
@@ -317,7 +317,7 @@ const SidebarInset = React.forwardRef<HTMLDivElement, React.ComponentProps<'main
             <main
                 ref={ref}
                 className={cn(
-                    'bg-background relative flex min-h-svh flex-1 flex-col',
+                    'relative flex min-h-svh flex-1 flex-col bg-background',
                     'peer-data-[variant=inset]:min-h-[calc(100svh-theme(spacing.4))] md:peer-data-[variant=inset]:m-2 md:peer-data-[state=collapsed]:peer-data-[variant=inset]:ml-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow',
                     className
                 )}
@@ -337,7 +337,7 @@ const SidebarInput = React.forwardRef<
             ref={ref}
             data-sidebar="input"
             className={cn(
-                'bg-background h-8 w-full shadow-none focus-visible:ring-2 focus-visible:ring-sidebar-ring',
+                'h-8 w-full bg-background shadow-none focus-visible:ring-2 focus-visible:ring-sidebar-ring',
                 className
             )}
             {...props}
@@ -431,7 +431,7 @@ const SidebarGroupLabel = React.forwardRef<
             ref={ref}
             data-sidebar="group-label"
             className={cn(
-                'flex h-8 shrink-0 items-center rounded-md px-2 text-xs font-medium text-base-content/70 outline-none ring-sidebar-ring transition-[margin,opa] duration-200 ease-linear focus-visible:ring-2 [&>svg]:size-4 [&>svg]:shrink-0',
+                'flex h-8 shrink-0 items-center rounded-md px-2 text-xs font-medium text-sidebar-foreground/70 outline-none ring-sidebar-ring transition-[margin,opa] duration-200 ease-linear focus-visible:ring-2 [&>svg]:size-4 [&>svg]:shrink-0',
                 'group-data-[collapsible=icon]:-mt-8 group-data-[collapsible=icon]:opacity-0',
                 className
             )}

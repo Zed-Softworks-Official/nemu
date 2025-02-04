@@ -9,10 +9,12 @@ import {
     useState
 } from 'react'
 
+import { generatePermittedFileTypes } from 'uploadthing/client'
+
 import { type EndpointHelper, useUploadThing } from '~/components/files/uploadthing'
 import { type NemuFileRouterType } from '~/app/api/uploadthing/core'
 import { type ClientUploadedFileData } from 'uploadthing/types'
-import { type ImageEditorData } from '~/core/structures'
+import { type ImageEditorData } from '~/lib/structures'
 
 type EditorState = {
     create: ImageEditorData[]
@@ -64,13 +66,13 @@ export default function UploadThingProvider({
         }
     })
 
-    const fileTypes = routeConfig ? Object.keys(routeConfig) : []
+    const fileTypes = generatePermittedFileTypes(routeConfig).fileTypes
 
     useEffect(() => {
         return () => {
             for (const preview of images) {
                 if (preview.data.action === 'create') {
-                    URL.revokeObjectURL(preview.data.image_data.url)
+                    URL.revokeObjectURL(preview.data.image_data.url ?? '')
                 }
             }
         }
@@ -104,4 +106,12 @@ export default function UploadThingProvider({
     )
 }
 
-export const useUploadThingContext = () => useContext(UploadThingContext)!
+export function useNemuUploadThing() {
+    const context = useContext(UploadThingContext)
+
+    if (!context) {
+        throw new Error('useUploadThingContext must be used within a UploadThingProvider')
+    }
+
+    return context
+}

@@ -1,47 +1,21 @@
-import Link from 'next/link'
-import { Suspense } from 'react'
-import { Plus } from 'lucide-react'
-import { redirect } from 'next/navigation'
-import { currentUser } from '@clerk/nextjs/server'
+import { DashboardCreateButton } from '~/components/ui/button'
+import RequestFormsList from './request-forms-list'
+import { api } from '~/trpc/server'
 
-import { get_form_list } from '~/server/db/query'
+export default async function RequestFormsPage() {
+    const dashboard_links = await api.stripe.get_dashboard_links()
 
-import Loading from '~/components/ui/loading'
-import CommissionFormsTable from '~/components/dashboard/commission-forms-table'
-
-export default function FormsDashboardPage() {
     return (
         <div className="container mx-auto px-5 py-10">
             <div className="mb-6 flex items-center justify-between">
-                <h1 className="text-3xl font-bold">Forms</h1>
-                <Link
+                <h1 className="text-3xl font-bold">My Forms</h1>
+                <DashboardCreateButton
+                    onboarded={dashboard_links.onboarded}
+                    text="New Form"
                     href="/dashboard/forms/create"
-                    className="btn btn-primary text-base-content"
-                >
-                    <Plus className="h-6 w-6" />
-                    New Form
-                </Link>
+                />
             </div>
-
-            <Suspense fallback={<Loading />}>
-                <FormsList />
-            </Suspense>
+            <RequestFormsList />
         </div>
     )
-}
-
-async function FormsList() {
-    const user = await currentUser()
-
-    if (!user) {
-        return redirect('/u/login')
-    }
-
-    const forms_list = await get_form_list(user.privateMetadata.artist_id as string)
-
-    if (!forms_list || forms_list.length === 0) {
-        return <>No Forms Found</>
-    }
-
-    return <CommissionFormsTable forms={forms_list} />
 }
