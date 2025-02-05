@@ -160,7 +160,7 @@ async function UserDropdown() {
             <DropdownMenuContent className="min-w-[200px]" align="end">
                 <ArtistSection
                     handle={current_user?.publicMetadata.handle as string}
-                    show={(current_user?.publicMetadata.role as UserRole) === 'admin'}
+                    show={(current_user?.publicMetadata.role as UserRole) === 'artist'}
                 />
                 <AdminSection
                     show={(current_user?.publicMetadata.role as UserRole) === 'admin'}
