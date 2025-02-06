@@ -13,6 +13,7 @@ import { ThemeProvider } from '~/components/themes/theme-provider'
 import { env } from '~/env'
 import { Toaster } from '~/components/ui/sonner'
 import { PosthogProvider } from '~/components/posthog-provider'
+import PlausibleProvider from 'next-plausible'
 
 const nunito = Nunito({
     subsets: ['latin']
@@ -63,17 +64,19 @@ export default function RootLayout({
                     publishableKey={env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
                     dynamic
                 >
-                    <PosthogProvider>
-                        <ThemeProvider
-                            attribute={'class'}
-                            defaultTheme={'dark'}
-                            enableSystem
-                            disableTransitionOnChange
-                        >
-                            <TRPCReactProvider>{children}</TRPCReactProvider>
-                            <Toaster position="bottom-right" richColors />
-                        </ThemeProvider>
-                    </PosthogProvider>
+                    <PlausibleProvider domain={'nemu.art'}>
+                        <PosthogProvider>
+                            <ThemeProvider
+                                attribute={'class'}
+                                defaultTheme={'dark'}
+                                enableSystem
+                                disableTransitionOnChange
+                            >
+                                <TRPCReactProvider>{children}</TRPCReactProvider>
+                                <Toaster position="bottom-right" richColors />
+                            </ThemeProvider>
+                        </PosthogProvider>
+                    </PlausibleProvider>
                 </ClerkProvider>
             </body>
         </html>
