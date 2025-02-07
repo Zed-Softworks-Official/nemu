@@ -39,6 +39,7 @@ import {
 import { get_redis_key, redis } from '~/server/redis'
 import { get_ut_url } from '~/lib/utils'
 import { utapi } from '~/server/uploadthing'
+import { is_supporter } from '~/app/api/stripe/sync'
 
 export const request_router = createTRPCRouter({
     set_form: artistProcedure
@@ -684,10 +685,11 @@ export const request_router = createTRPCRouter({
                     : undefined
             )
 
+            const supporter = await is_supporter(ctx.artist.user_id)
             const finalized_invoice = await StripeFinalizeInvoice(
                 invoice.stripe_id,
                 invoice.stripe_account,
-                ctx.artist.supporter
+                supporter
             )
 
             if (!finalized_invoice) {

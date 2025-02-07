@@ -1,7 +1,6 @@
 import { createCallerFactory, createTRPCRouter } from '~/server/api/trpc'
 
 import { artist_verification_router } from '~/server/api/routers/artist-verification'
-import { supporter_router } from '~/server/api/routers/supporter'
 import { stripe_router } from '~/server/api/routers/stripe'
 import { kanban_router } from '~/server/api/routers/kanban'
 import { request_router } from '~/server/api/routers/request'
@@ -21,7 +20,6 @@ import { dashboard_router } from '~/server/api/routers/dashboard'
 export const appRouter = createTRPCRouter({
     artist: artist_router,
     artist_verification: artist_verification_router,
-    supporter: supporter_router,
     stripe: stripe_router,
     kanban: kanban_router,
     request: request_router,

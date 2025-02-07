@@ -1,49 +1,24 @@
 import Link from 'next/link'
 import { Suspense } from 'react'
-import { ArrowRight } from 'lucide-react'
 
 import NemuImage from '~/components/nemu-image'
-import { Button } from '~/components/ui/button'
-import { Carousel, CarouselContent, CarouselItem } from '~/components/ui/carousel'
 import Loading from '~/components/ui/loading'
+import { HomeCarousel } from './carousel'
 
 import { api } from '~/trpc/server'
 
 export default function HomePage() {
     return (
         <div className="container mx-auto">
-            <Carousel className="overflow-hidden rounded-xl">
-                <CarouselContent>
-                    <CarouselItem className="flex flex-col items-center justify-between bg-primary p-10 sm:flex-row">
-                        <div className="flex flex-col gap-3 pb-10 sm:pb-0">
-                            <h2 className="text-xl font-bold">Artists Wanted!</h2>
-                            <p className="max-w-lg text-foreground/70">
-                                Join Nemu to showcase your art, connect with a global
-                                audience, sell your creations effortlessly, and get
-                                commissioned for custom work.
-                            </p>
-                            <Button
-                                asChild
-                                variant={'outline'}
-                                className="mt-5 w-full bg-transparent hover:bg-transparent/20 sm:w-1/2"
-                            >
-                                <Link href={'/artists/apply'}>
-                                    <span>Join Now</span>
-                                    <ArrowRight className="ml-2 h-4 w-4" />
-                                </Link>
-                            </Button>
-                        </div>
-                        <NemuImage
-                            src="/nemu/artists-wanted.png"
-                            alt="Artists Wanted"
-                            width={200}
-                            height={200}
-                        />
-                    </CarouselItem>
-                </CarouselContent>
-            </Carousel>
+            <HomeCarousel />
 
-            <Suspense fallback={<Loading />}>
+            <Suspense
+                fallback={
+                    <div className="flex flex-1 items-center justify-center">
+                        <Loading />
+                    </div>
+                }
+            >
                 <RandomCommissions />
             </Suspense>
         </div>

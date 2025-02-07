@@ -1,12 +1,11 @@
 import { artistProcedure, createTRPCRouter } from '../trpc'
 
-import type { StripeDashboardData } from '~/lib/structures'
+import { type StripeDashboardData } from '~/lib/structures'
 
 import {
     StripeGetAccount,
     StripeCreateAccountLink,
-    StripeCreateLoginLink,
-    StripeCreateSupporterBilling
+    StripeCreateLoginLink
 } from '~/lib/payments'
 import { get_redis_key } from '~/server/redis'
 
@@ -24,8 +23,7 @@ export const stripe_router = createTRPCRouter({
             managment: {
                 type: 'dashboard',
                 url: ''
-            },
-            checkout_portal: ''
+            }
         }
 
         const stripe_account = await StripeGetAccount(ctx.artist.stripe_account)
@@ -43,14 +41,6 @@ export const stripe_router = createTRPCRouter({
                 type: 'dashboard',
                 url: (await StripeCreateLoginLink(stripe_account.id)).url
             }
-        }
-
-        if (ctx.artist.zed_customer_id) {
-            const portal_url = (
-                await StripeCreateSupporterBilling(ctx.artist.zed_customer_id)
-            ).url
-
-            result.checkout_portal = portal_url
         }
 
         await ctx.redis.set(redis_key, result, {

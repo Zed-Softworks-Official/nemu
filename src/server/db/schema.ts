@@ -164,9 +164,6 @@ export const artists = createTable('artist', {
         .default('DLbLjqbVNirZvpnl7EHDBYPmtFe4irSybTpJxdUn89oQzflX')
         .notNull(),
 
-    supporter: boolean('supporter').default(false).notNull(),
-    zed_customer_id: text('zed_customer_id'),
-
     automated_message_enabled: boolean('automated_message_enabled').default(false),
     automated_message: text('automated_message'),
 
