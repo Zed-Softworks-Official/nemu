@@ -206,6 +206,9 @@ importers:
       nextjs-toploader:
         specifier: ^3.7.15
         version: 3.7.15(next@15.1.6(@babel/core@7.26.0)(@opentelemetry/api@1.9.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      path-to-regexp:
+        specifier: 0.1.12
+        version: 0.1.12
       postgres:
         specifier: ^3.4.5
         version: 3.4.5
@@ -4972,6 +4975,9 @@ packages:
 
   path-to-regexp@0.1.10:
     resolution: {integrity: sha512-7lf7qcQidTku0Gu3YDPc8DJ1q7OOucfa/BSsIwjuh56VU7katFvuM8hULfkwB3Fns/rsVF7PwPKVw1sl5KQS9w==}
+
+  path-to-regexp@0.1.12:
+    resolution: {integrity: sha512-RA1GjUVMnvYFxuqovrEqZoxxW5NUZqbwKtYz/Tt7nXerk0LbLblQmrsgdeOxV5SFHf0UDggjS/bSeOZwt1pmEQ==}
 
   pg-cloudflare@1.1.1:
     resolution: {integrity: sha512-xWPagP/4B6BgFO+EKz3JONXv3YDgvkbVrGw2mTo3D6tVDQRh1e7cqVGvyR3BE+eQgAvx1XhW/iEASj4/jCWl3Q==}
@@ -11678,6 +11684,8 @@ snapshots:
 
   path-to-regexp@0.1.10:
     optional: true
+
+  path-to-regexp@0.1.12: {}
 
   pg-cloudflare@1.1.1:
     optional: true
