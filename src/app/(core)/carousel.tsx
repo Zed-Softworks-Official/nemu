@@ -11,9 +11,7 @@ export function HomeCarousel() {
     return (
         <Carousel
             className="overflow-hidden rounded-xl"
-            plugins={[
-                AutoPlay({ delay: 5000, stopOnInteraction: true, stopOnMouseEnter: true })
-            ]}
+            plugins={[AutoPlay({ delay: 5000, stopOnInteraction: true })]}
             opts={{ loop: true }}
         >
             <CarouselContent>

@@ -14,7 +14,7 @@ export default function HomePage() {
 
             <Suspense
                 fallback={
-                    <div className="flex flex-1 items-center justify-center">
+                    <div className="mt-10 flex flex-1 items-center justify-center">
                         <Loading />
                     </div>
                 }
