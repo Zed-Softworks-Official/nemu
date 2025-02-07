@@ -1,5 +1,7 @@
 import { currentUser } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
+import { env } from '~/env'
+
 import { get_redis_key, redis } from '~/server/redis'
 import { stripe } from '~/server/stripe'
 
@@ -17,7 +19,8 @@ export async function GET() {
     }
 
     const portal = await stripe.billingPortal.sessions.create({
-        customer: stripe_customer_id
+        customer: stripe_customer_id,
+        return_url: `${env.BASE_URL}`
     })
 
     if (!portal.url) {
