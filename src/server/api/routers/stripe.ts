@@ -1,14 +1,16 @@
 import { artistProcedure, createTRPCRouter } from '../trpc'
 
-import type { StripeDashboardData } from '~/lib/structures'
+import { type StripeDashboardData } from '~/lib/structures'
 
 import {
     StripeGetAccount,
     StripeCreateAccountLink,
-    StripeCreateLoginLink,
-    StripeCreateSupporterBilling
+    StripeCreateLoginLink
 } from '~/lib/payments'
 import { get_redis_key } from '~/server/redis'
+import { TRPCError } from '@trpc/server'
+import { stripe } from '~/server/stripe'
+import { env } from '~/env'
 
 export const stripe_router = createTRPCRouter({
     get_dashboard_links: artistProcedure.query(async ({ ctx }) => {
@@ -45,13 +47,21 @@ export const stripe_router = createTRPCRouter({
             }
         }
 
-        if (ctx.artist.zed_customer_id) {
-            const portal_url = (
-                await StripeCreateSupporterBilling(ctx.artist.zed_customer_id)
-            ).url
-
-            result.checkout_portal = portal_url
+        const stripe_customer_id = await ctx.redis.get<string>(
+            get_redis_key('stripe:user', ctx.auth.userId)
+        )
+        if (!stripe_customer_id) {
+            throw new TRPCError({
+                message: 'No stripe customer id found',
+                code: 'BAD_REQUEST'
+            })
         }
+
+        const portal_url = await stripe.billingPortal.sessions.create({
+            customer: stripe_customer_id,
+            return_url: env.BASE_URL
+        })
+        result.checkout_portal = portal_url.url
 
         await ctx.redis.set(redis_key, result, {
             ex: 3600

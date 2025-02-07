@@ -110,7 +110,7 @@ function Footer() {
                         Become an Artist
                     </Link>
                     <Link
-                        href={'/artists/supporter'}
+                        href={'/supporter'}
                         className="text-sm text-muted-foreground hover:underline"
                     >
                         Become a Supporter

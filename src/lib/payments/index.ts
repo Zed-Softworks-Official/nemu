@@ -1,5 +1,4 @@
 export * from '~/lib/payments/accounts'
-export * from '~/lib/payments/supporter'
 export * from '~/lib/payments/customer'
 export * from '~/lib/payments/commission'
 

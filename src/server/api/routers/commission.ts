@@ -21,6 +21,7 @@ import { utapi } from '~/server/uploadthing'
 import { update_index } from '~/server/algolia/collections'
 import { clerkClient } from '@clerk/nextjs/server'
 import { get_redis_key } from '~/server/redis'
+import { is_supporter } from '~/app/api/stripe/sync'
 
 export const commission_router = createTRPCRouter({
     set_commission: artistProcedure
@@ -192,6 +193,8 @@ export const commission_router = createTRPCRouter({
                 })
             }
 
+            const supporter = await is_supporter(data.user_id)
+
             // Format images for client
             const images = await convert_images_to_nemu_images(data.commissions[0].images)
             const result: ClientCommissionItem = {
@@ -212,7 +215,7 @@ export const commission_router = createTRPCRouter({
 
                 artist: {
                     handle: data.handle,
-                    supporter: data.supporter,
+                    supporter,
                     terms: data.terms
                 },
                 requests: await Promise.all(
@@ -309,6 +312,8 @@ export const commission_router = createTRPCRouter({
             return []
         }
 
+        const supporter = await is_supporter(artist.user_id)
+
         const result: ClientCommissionItem[] = []
         for (const commission of artist.commissions) {
             result.push({
@@ -328,7 +333,7 @@ export const commission_router = createTRPCRouter({
                 new_requests: commission.new_requests,
                 artist: {
                     handle: artist.handle ?? 'Nemu Jr',
-                    supporter: artist.supporter
+                    supporter
                 },
                 charge_method: commission.charge_method,
                 downpayment_percentage: commission.downpayment_percentage

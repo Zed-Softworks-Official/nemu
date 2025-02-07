@@ -13,6 +13,9 @@ import { type StripePaymentMetadata } from '~/lib/structures'
 const allowed_events = [
     'invoice.paid',
     'customer.subscription.created',
+    'customer.subscription.paused',
+    'customer.subscription.resumed',
+    'customer.subscription.updated',
     'customer.subscription.deleted',
     'account.updated'
 ] as Stripe.Event.Type[]

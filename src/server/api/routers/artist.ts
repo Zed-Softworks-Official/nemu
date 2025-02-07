@@ -2,6 +2,7 @@ import { clerkClient } from '@clerk/nextjs/server'
 import { TRPCError } from '@trpc/server'
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
+import { is_supporter } from '~/app/api/stripe/sync'
 import { chargeMethods, SocialAgent } from '~/lib/structures'
 import { get_ut_url } from '~/lib/utils'
 import { update_index } from '~/server/algolia/collections'
@@ -57,8 +58,10 @@ export const artist_router = createTRPCRouter({
                 }))
             }))
 
+            const supporter = await is_supporter(artist.user_id)
             return {
                 ...artist,
+                supporter,
                 header_photo: get_ut_url(artist.header_photo),
                 portfolio: portfolio_items,
                 commissions: commission_list,

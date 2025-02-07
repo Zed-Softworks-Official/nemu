@@ -1,3 +1,5 @@
+import type Stripe from 'stripe'
+
 export const purchaseTypes = ['artist_corner', 'commission_invoice', 'supporter'] as const
 export type PurchaseType = (typeof purchaseTypes)[number]
 
@@ -29,3 +31,20 @@ export interface StripeDashboardData {
 
     checkout_portal?: string
 }
+
+export type StripeSubData =
+    | {
+          subscription_id: string | null
+          status: Stripe.Subscription.Status
+          price_id: string | null
+          current_period_start: number | null
+          current_period_end: number | null
+          cancel_at_period_end: boolean
+          payment_method: {
+              brand: string | null // e.g., "visa", "mastercard"
+              last4: string | null // e.g., "4242"
+          } | null
+      }
+    | {
+          status: 'none'
+      }
