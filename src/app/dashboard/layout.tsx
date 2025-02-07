@@ -210,13 +210,7 @@ async function SidebarSettingsContent() {
             </SidebarMenuItem>
             <SidebarMenuItem>
                 <SidebarMenuButton asChild>
-                    <Link
-                        href={
-                            dashboard_links.checkout_portal
-                                ? dashboard_links.checkout_portal
-                                : '/artists/supporter'
-                        }
-                    >
+                    <Link href={'/supporter'}>
                         <BadgeDollarSign className="h-6 w-6" />
                         Supporter
                     </Link>

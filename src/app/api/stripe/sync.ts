@@ -53,7 +53,13 @@ export async function sync_sub_stripe_data(customer_id: string) {
         return subData
     }
 
-    const subscription = subscriptions.data[0]!
+    const subscription = subscriptions.data[0]
+    if (!subscription) {
+        const subData = { status: 'none' } satisfies StripeSubData
+        await redis.set(get_redis_key('stripe:customer', customer_id), subData)
+        return subData
+    }
+
     const subData = {
         subscription_id: subscription.id,
         status: subscription.status,

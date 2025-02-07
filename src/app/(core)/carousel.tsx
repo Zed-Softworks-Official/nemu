@@ -11,7 +11,9 @@ export function HomeCarousel() {
     return (
         <Carousel
             className="overflow-hidden rounded-xl"
-            plugins={[AutoPlay({ delay: 5000 })]}
+            plugins={[
+                AutoPlay({ delay: 5000, stopOnInteraction: true, stopOnMouseEnter: true })
+            ]}
             opts={{ loop: true }}
         >
             <CarouselContent>
@@ -39,6 +41,8 @@ export function HomeCarousel() {
                         alt="Artists Wanted"
                         width={200}
                         height={200}
+                        loading="eager"
+                        priority
                     />
                 </CarouselItem>
                 <CarouselItem className="flex flex-col items-center justify-between bg-primary p-10 sm:flex-row">
@@ -63,6 +67,8 @@ export function HomeCarousel() {
                         alt="Become a Supporter"
                         width={200}
                         height={200}
+                        loading="eager"
+                        priority
                     />
                 </CarouselItem>
             </CarouselContent>

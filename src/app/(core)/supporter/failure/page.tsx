@@ -1,6 +1,6 @@
 import NemuImage from '~/components/nemu-image'
 
-export default function SubscriptionError() {
+export default function SupporterFailure() {
     return (
         <div className="flex h-full w-full flex-col items-center justify-center gap-5 p-5 text-center">
             <NemuImage

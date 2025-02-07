@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const period = searchParams.get('period')
     if (period !== 'monthly' && period !== 'annual') {
-        throw new Error('Invalid period')
+        return NextResponse.redirect('/supporter/failure')
     }
 
     const user = await currentUser()
@@ -58,7 +58,8 @@ export async function GET(request: NextRequest) {
     })
 
     if (!checkout_session.url) {
-        throw new Error('Failed to create checkout session')
+        console.log('[STRIPE]: Failed to create checkout session', checkout_session)
+        return NextResponse.redirect('/supporter/failure')
     }
 
     return NextResponse.redirect(checkout_session.url)

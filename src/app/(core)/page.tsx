@@ -3,7 +3,7 @@ import { Suspense } from 'react'
 
 import NemuImage from '~/components/nemu-image'
 import Loading from '~/components/ui/loading'
-import { HomeCarousel } from '../carousel'
+import { HomeCarousel } from './carousel'
 
 import { api } from '~/trpc/server'
 

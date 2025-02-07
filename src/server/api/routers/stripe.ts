@@ -8,9 +8,6 @@ import {
     StripeCreateLoginLink
 } from '~/lib/payments'
 import { get_redis_key } from '~/server/redis'
-import { TRPCError } from '@trpc/server'
-import { stripe } from '~/server/stripe'
-import { env } from '~/env'
 
 export const stripe_router = createTRPCRouter({
     get_dashboard_links: artistProcedure.query(async ({ ctx }) => {
@@ -26,8 +23,7 @@ export const stripe_router = createTRPCRouter({
             managment: {
                 type: 'dashboard',
                 url: ''
-            },
-            checkout_portal: ''
+            }
         }
 
         const stripe_account = await StripeGetAccount(ctx.artist.stripe_account)
@@ -46,22 +42,6 @@ export const stripe_router = createTRPCRouter({
                 url: (await StripeCreateLoginLink(stripe_account.id)).url
             }
         }
-
-        const stripe_customer_id = await ctx.redis.get<string>(
-            get_redis_key('stripe:user', ctx.auth.userId)
-        )
-        if (!stripe_customer_id) {
-            throw new TRPCError({
-                message: 'No stripe customer id found',
-                code: 'BAD_REQUEST'
-            })
-        }
-
-        const portal_url = await stripe.billingPortal.sessions.create({
-            customer: stripe_customer_id,
-            return_url: env.BASE_URL
-        })
-        result.checkout_portal = portal_url.url
 
         await ctx.redis.set(redis_key, result, {
             ex: 3600
