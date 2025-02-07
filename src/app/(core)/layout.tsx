@@ -249,11 +249,7 @@ function GeneralSection(props: { is_artist: boolean; supporter: boolean }) {
                 </DropdownMenuItem>
             )}
             <DropdownMenuItem asChild>
-                <Link
-                    prefetch={true}
-                    href={'/requests'}
-                    className="flex w-full items-center gap-3"
-                >
+                <Link prefetch={true} href={'/requests'}>
                     <Truck className="h-6 w-6" />
                     Requests
                 </Link>
@@ -262,18 +258,13 @@ function GeneralSection(props: { is_artist: boolean; supporter: boolean }) {
                 <Link
                     prefetch={true}
                     href={props.is_artist ? '/dashboard/messages' : '/messages'}
-                    className="flex w-full items-center gap-3"
                 >
                     <Mail className="h-6 w-6" />
                     Messages
                 </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-                <Link
-                    prefetch={true}
-                    href={'/u/account'}
-                    className="flex w-full items-center gap-3"
-                >
+                <Link prefetch={true} href={'/u/account'}>
                     <Settings className="h-6 w-6" />
                     Account
                 </Link>
@@ -281,7 +272,7 @@ function GeneralSection(props: { is_artist: boolean; supporter: boolean }) {
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
                 <SignOutButton>
-                    <div className="flex w-full items-center gap-3">
+                    <div className="flex w-full items-center">
                         <LogOut className="h-6 w-6" />
                         Sign out
                     </div>
