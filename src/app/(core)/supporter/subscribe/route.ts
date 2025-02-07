@@ -1,5 +1,6 @@
 import { currentUser } from '@clerk/nextjs/server'
-import { type NextRequest, NextResponse } from 'next/server'
+import { type NextRequest } from 'next/server'
+import { redirect } from 'next/navigation'
 
 import { env } from '~/env'
 import { get_redis_key, redis } from '~/server/redis'
@@ -9,12 +10,12 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const period = searchParams.get('period')
     if (period !== 'monthly' && period !== 'annual') {
-        return NextResponse.redirect('/supporter/failure')
+        return redirect('/supporter/failure')
     }
 
     const user = await currentUser()
     if (!user) {
-        return NextResponse.redirect('/u/login')
+        return redirect('/u/login')
     }
 
     let stripe_customer_id = await redis.get<string>(
@@ -59,8 +60,8 @@ export async function GET(request: NextRequest) {
 
     if (!checkout_session.url) {
         console.log('[STRIPE]: Failed to create checkout session', checkout_session)
-        return NextResponse.redirect('/supporter/failure')
+        return redirect('/supporter/failure')
     }
 
-    return NextResponse.redirect(checkout_session.url)
+    return redirect(checkout_session.url)
 }
