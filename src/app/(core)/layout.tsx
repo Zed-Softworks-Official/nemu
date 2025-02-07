@@ -1,10 +1,11 @@
 import { Suspense } from 'react'
-import { SignedIn, SignedOut, SignOutButton } from '@clerk/nextjs'
+import { RedirectToSignIn, SignedIn, SignedOut, SignOutButton } from '@clerk/nextjs'
 import { currentUser } from '@clerk/nextjs/server'
 import {
     BarChart,
     Brush,
     CogIcon,
+    CreditCard,
     LayoutDashboard,
     LogOut,
     Mail,
@@ -31,6 +32,7 @@ import NemuImage from '~/components/nemu-image'
 import { Notifications } from '~/components/notifications'
 import { Skeleton } from '~/components/ui/skeleton'
 import { type UserRole } from '~/lib/structures'
+import { is_supporter } from '../api/stripe/sync'
 
 export default function StandarLayout(props: {
     children: React.ReactNode
@@ -147,6 +149,12 @@ function Footer() {
 async function UserDropdown() {
     const current_user = await currentUser()
 
+    if (!current_user) {
+        return <RedirectToSignIn />
+    }
+
+    const supporter = await is_supporter(current_user?.id)
+
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -169,6 +177,7 @@ async function UserDropdown() {
                     is_artist={
                         (current_user?.publicMetadata.role as UserRole) === 'artist'
                     }
+                    supporter={supporter}
                 />
             </DropdownMenuContent>
         </DropdownMenu>
@@ -227,10 +236,18 @@ function AdminSection(props: { show?: boolean }) {
     )
 }
 
-function GeneralSection(props: { is_artist: boolean }) {
+function GeneralSection(props: { is_artist: boolean; supporter: boolean }) {
     return (
         <DropdownMenuGroup>
             <DropdownMenuLabel>General</DropdownMenuLabel>
+            {props.supporter && (
+                <DropdownMenuItem asChild>
+                    <Link href={'/supporter/portal'}>
+                        <CreditCard className="h-6 w-6" />
+                        Billing
+                    </Link>
+                </DropdownMenuItem>
+            )}
             <DropdownMenuItem asChild>
                 <Link
                     prefetch={true}
