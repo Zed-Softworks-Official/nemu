@@ -7,7 +7,7 @@ ModuleRegistry.registerModules([AllCommunityModule])
 
 export function DataTable<TData>(props: AgGridReactProps<TData>) {
     const myTheme = themeQuartz.withParams({
-        backgroundColor: '#333333',
+        backgroundColor: '#0A0A0A',
         browserColorScheme: 'dark',
         chromeBackgroundColor: {
             ref: 'foregroundColor',
