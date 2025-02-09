@@ -109,7 +109,7 @@ export function AnimatedFeatures() {
                 >
                     Powerful Features for Artists
                 </motion.h2>
-                <div className="max-w-6xl mx-auto grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
+                <div className="mx-auto grid max-w-6xl grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
                     {features.map((feature) => (
                         <motion.div
                             variants={itemVariants}
@@ -154,7 +154,7 @@ export function AnimatedPricing() {
                         features={[
                             { name: 'All Platform Features', included: true },
                             { name: 'Unlimited Commissions', included: true },
-                            { name: '5% Platform Fee', included: false }
+                            { name: 'No Platform Fee', included: false }
                         ]}
                         highlighted={false}
                     />
@@ -169,7 +169,7 @@ export function AnimatedPricing() {
                         features={[
                             { name: 'Everything in Standard', included: true },
                             { name: 'Priority Support', included: true },
-                            { name: 'No Platform Fee (0%)', included: true }
+                            { name: 'No Platform Fee', included: true }
                         ]}
                         highlighted={true}
                     />

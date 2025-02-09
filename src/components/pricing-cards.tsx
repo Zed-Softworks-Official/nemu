@@ -78,7 +78,7 @@ export function PricingCard(props: {
             variants={containerVariants}
         >
             <Card
-                className={`flex flex-col ${props.highlighted ? 'border-2 border-primary shadow-lg' : ''}`}
+                className={`flex flex-1 flex-col ${props.highlighted ? 'border-2 border-primary shadow-lg' : ''}`}
             >
                 <CardHeader>
                     <CardTitle className="text-2xl">{props.title}</CardTitle>
