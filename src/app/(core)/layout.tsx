@@ -43,8 +43,8 @@ export default function StandarLayout(props: {
             <div className="flex min-h-screen w-full flex-1 flex-col">
                 <Navbar />
                 <div className="relative">{props.children}</div>
-                <Footer />
             </div>
+            <Footer />
             {props.modal}
         </main>
     )
