@@ -60,7 +60,7 @@ export function PricingCard(props: {
     title: string
     description: string
     period?: string
-    price: number
+    price: number | string
     features: { name: string; included: boolean }[]
     buttonText?: string
     buttonVariant?: ButtonProps['variant']

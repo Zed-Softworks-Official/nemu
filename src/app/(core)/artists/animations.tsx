@@ -149,8 +149,8 @@ export function AnimatedPricing() {
                 <motion.div variants={itemVariants}>
                     <PricingCard
                         title="Standard"
-                        description="5% + Stripe Fees"
-                        price={0}
+                        description="5% Platform Fee + Stripe Fees"
+                        price={'Free'}
                         features={[
                             { name: 'All Platform Features', included: true },
                             { name: 'Unlimited Commissions', included: true },
