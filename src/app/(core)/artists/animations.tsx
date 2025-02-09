@@ -193,7 +193,7 @@ export function AnimatedCommunity() {
                 >
                     As an open-source platform, we prioritize community feedback and
                     collaboration. We put our community at the heart of everything we do.
-                    Your voice3 matters in shaping the future of our platform.
+                    Your voice matters in shaping the future of our platform.
                 </motion.p>
                 <motion.ul
                     variants={itemVariants}
