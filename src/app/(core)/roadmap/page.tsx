@@ -66,7 +66,7 @@ const features: Feature[] = [
 
 export default function RoadmapPage() {
     return (
-        <div className="flex min-h-[100dvh] flex-col">
+        <div className="container mx-auto flex min-h-[100dvh] flex-col">
             <section className="w-full lg:pb-12">
                 <div className="container space-y-10 xl:space-y-16">
                     <div className="mx-auto grid gap-4 md:grid-cols-2 md:gap-16">

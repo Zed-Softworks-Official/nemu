@@ -2,7 +2,7 @@ import NemuImage from '~/components/nemu-image'
 
 export default function SupporterSuccessPage() {
     return (
-        <div className="flex flex-col justify-center pt-24">
+        <div className="container mx-auto flex flex-col justify-center pt-24">
             <div className="mx-auto max-w-7xl px-6 lg:px-8">
                 <div className="mx-auto flex max-w-2xl flex-col items-center justify-center gap-5 sm:text-center">
                     <NemuImage

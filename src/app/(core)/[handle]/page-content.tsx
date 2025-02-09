@@ -122,7 +122,7 @@ export function ArtistBody(props: { handle: string }) {
     }
 
     return (
-        <div className="flex flex-col gap-10 lg:mt-36 lg:flex-row">
+        <div className="container mx-auto flex flex-col gap-10 lg:mt-36 lg:flex-row">
             <div className="h-fit w-full rounded-xl bg-background-secondary p-10 text-center lg:w-1/3">
                 <div className="flex flex-col justify-center gap-5">
                     <div className="flex flex-col">

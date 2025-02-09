@@ -2,7 +2,7 @@ import NemuImage from '~/components/nemu-image'
 
 export default function ArtistApplySuccessPage() {
     return (
-        <div className="mx-auto flex max-w-2xl flex-col items-center gap-8 px-4 py-12">
+        <div className="container mx-auto flex max-w-2xl flex-col items-center gap-8 px-4 py-12">
             <div className="flex flex-col items-center justify-center space-y-6">
                 <NemuImage
                     src={'/nemu/sparkles.png'}

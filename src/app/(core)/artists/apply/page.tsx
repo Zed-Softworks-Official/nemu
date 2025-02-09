@@ -12,7 +12,7 @@ export default async function ArtistsApplyPage() {
     }
 
     return (
-        <div className="mx-auto grid max-w-6xl items-center gap-6 px-4 py-6 md:grid-cols-2 lg:gap-12">
+        <div className="container mx-auto grid max-w-6xl items-center gap-6 px-4 py-6 md:grid-cols-2 lg:gap-12">
             <div className="flex flex-col items-center justify-center space-y-8 rounded-l-xl bg-background-secondary p-6">
                 <div>
                     <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-foreground">
