@@ -28,7 +28,7 @@ export function HomeCarousel() {
                             variant={'outline'}
                             className="mt-5 w-full bg-transparent hover:bg-transparent/20 sm:w-1/2"
                         >
-                            <Link href={'/artists/apply'}>
+                            <Link href={'/artists'}>
                                 <span>Join Now</span>
                                 <ArrowRight className="ml-2 h-4 w-4" />
                             </Link>

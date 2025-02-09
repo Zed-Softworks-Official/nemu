@@ -14,6 +14,8 @@ import {
     CardHeader,
     CardTitle
 } from '~/components/ui/card'
+import { useAnimations } from '~/hooks/use-animation'
+import { useRef } from 'react'
 
 export default function PricingCards() {
     return (
@@ -54,22 +56,26 @@ export default function PricingCards() {
     )
 }
 
-function PricingCard(props: {
+export function PricingCard(props: {
     title: string
     description: string
-    period: string
+    period?: string
     price: number
     features: { name: string; included: boolean }[]
-    buttonText: string
-    buttonVariant: ButtonProps['variant']
-    buttonUrl: string
+    buttonText?: string
+    buttonVariant?: ButtonProps['variant']
+    buttonUrl?: string
     highlighted: boolean
 }) {
+    const ref = useRef<HTMLDivElement>(null)
+    const { controls, containerVariants } = useAnimations({ ref })
+
     return (
         <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.425, delay: 0.25 }}
+            ref={ref}
+            initial={'hidden'}
+            animate={controls}
+            variants={containerVariants}
         >
             <Card
                 className={`flex flex-col ${props.highlighted ? 'border-2 border-primary shadow-lg' : ''}`}
@@ -106,11 +112,13 @@ function PricingCard(props: {
                         ))}
                     </ul>
                 </CardContent>
-                <CardFooter>
-                    <Button className="w-full" variant={props.buttonVariant} asChild>
-                        <Link href={props.buttonUrl}>{props.buttonText}</Link>
-                    </Button>
-                </CardFooter>
+                {props.buttonText && props.buttonVariant && props.buttonUrl && (
+                    <CardFooter>
+                        <Button className="w-full" variant={props.buttonVariant} asChild>
+                            <Link href={props.buttonUrl}>{props.buttonText}</Link>
+                        </Button>
+                    </CardFooter>
+                )}
             </Card>
         </motion.div>
     )

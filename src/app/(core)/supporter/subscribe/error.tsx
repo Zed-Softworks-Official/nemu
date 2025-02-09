@@ -2,7 +2,7 @@ import NemuImage from '~/components/nemu-image'
 
 export default function SubscriptionError() {
     return (
-        <div className="flex h-full w-full flex-col items-center justify-center gap-5 p-5 text-center">
+        <div className="container mx-auto flex h-full w-full flex-col items-center justify-center gap-5 p-5 text-center">
             <NemuImage
                 src="/nemu/not-like-this.png"
                 alt="Error"

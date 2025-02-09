@@ -1,8 +1,8 @@
-import PricingCards from './pricing-cards'
+import PricingCards from '~/components/pricing-cards'
 
 export default function GetSupporterPage() {
     return (
-        <div className="mx-auto mt-10 flex max-w-4xl flex-col items-center justify-center gap-2">
+        <div className="container mx-auto mt-10 flex max-w-4xl flex-col items-center justify-center gap-2">
             <h1 className="text-3xl font-bold">Become a Supporter</h1>
 
             <p className="text-lg text-muted-foreground">

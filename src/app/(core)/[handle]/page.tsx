@@ -47,7 +47,7 @@ export default async function ArtistPage(props: Props) {
 
     return (
         <Tabs defaultValue="commissions">
-            <div className="flex flex-1 flex-col flex-wrap">
+            <div className="container mx-auto flex flex-1 flex-col flex-wrap">
                 <AspectRatio ratio={12 / 3}>
                     <ArtistBanner handle={handle} />
                 </AspectRatio>

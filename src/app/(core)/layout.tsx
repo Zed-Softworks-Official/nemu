@@ -40,11 +40,11 @@ export default function StandarLayout(props: {
 }) {
     return (
         <main>
-            <div className="container mx-auto flex min-h-screen w-full flex-1 flex-col">
+            <div className="flex min-h-screen w-full flex-1 flex-col">
                 <Navbar />
-                <div className="py-5">{props.children}</div>
+                <div className="relative">{props.children}</div>
+                <Footer />
             </div>
-            <Footer />
             {props.modal}
         </main>
     )
@@ -52,7 +52,7 @@ export default function StandarLayout(props: {
 
 function Navbar() {
     return (
-        <header className="flex w-full items-center justify-between gap-5 px-10 py-5 sm:px-0">
+        <header className="container mx-auto flex w-full items-center justify-between gap-5 px-10 py-5 sm:px-0">
             <FullLogo />
             <SearchBar />
             <nav>
@@ -106,7 +106,7 @@ function Footer() {
                         Artists
                     </h2>
                     <Link
-                        href={'/artists/apply'}
+                        href={'/artists'}
                         className="text-sm text-muted-foreground hover:underline"
                     >
                         Become an Artist

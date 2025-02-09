@@ -42,7 +42,7 @@ export default async function CommissionsPage(props: Props) {
     const handle = params.handle.substring(3, params.handle.length + 1)
 
     return (
-        <div className="flex flex-col gap-5 rounded-lg bg-background-secondary p-5 shadow-xl">
+        <div className="container mx-auto flex flex-col gap-5 rounded-lg bg-background-secondary p-5 shadow-xl">
             <div className="flex flex-col gap-5">
                 <CommissionView handle={handle} slug={params.slug} />
             </div>
