@@ -6,6 +6,7 @@ import {
     FileText,
     Handshake,
     Kanban,
+    type LucideIcon,
     MessageSquare,
     Package,
     Rocket,
@@ -14,11 +15,12 @@ import {
 import { motion } from 'motion/react'
 import Link from 'next/link'
 import { useRef } from 'react'
+
 import NemuImage from '~/components/nemu-image'
 import { Button } from '~/components/ui/button'
+import { PricingCard } from '~/components/pricing-cards'
 
 import { useAnimations } from '~/hooks/use-animation'
-import { PricingCard } from '~/components/pricing-cards'
 
 export function AnimatedHero() {
     const ref = useRef<HTMLDivElement>(null)
@@ -35,7 +37,7 @@ export function AnimatedHero() {
             <motion.div variants={itemVariants} className="mb-10">
                 <NemuImage
                     src={'/nemu/artists-wanted.png'}
-                    alt="Artits Wanted"
+                    alt="Artists Wanted"
                     width={200}
                     height={200}
                 />
@@ -59,7 +61,13 @@ export function AnimatedHero() {
     )
 }
 
-const features = [
+interface Feature {
+    icon: LucideIcon
+    title: string
+    description: string
+}
+
+const features: Feature[] = [
     {
         icon: Kanban,
         title: 'Kanban Board',
@@ -160,8 +168,8 @@ export function AnimatedPricing() {
                         period="month"
                         features={[
                             { name: 'Everything in Standard', included: true },
-                            { name: 'Unlimited Commissions', included: true },
-                            { name: '0% Platform Fee', included: true }
+                            { name: 'Priority Support', included: true },
+                            { name: 'No Platform Fee (0%)', included: true }
                         ]}
                         highlighted={true}
                     />
@@ -234,11 +242,10 @@ export function AnimatedCTA() {
             className="flex flex-col items-center justify-center gap-4 bg-primary px-4 py-20"
         >
             <motion.h2 variants={itemVariants} className="text-center text-4xl font-bold">
-                Become an Artist
+                Become an artist on Nemu
             </motion.h2>
             <motion.p variants={itemVariants} className="text-center text-xl">
-                Join our open-source, community-first platform and turn your passion into
-                profit
+                Apply to be an artist today!
             </motion.p>
             <motion.div variants={itemVariants} className="pt-10">
                 <Button asChild size={'lg'} variant={'outline'}>
