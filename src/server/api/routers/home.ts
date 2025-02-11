@@ -1,10 +1,12 @@
 import { eq, sql } from 'drizzle-orm'
+import { z } from 'zod'
 
-import { createTRPCRouter, publicProcedure } from '../trpc'
-import { cache, get_redis_key } from '~/server/redis'
-import type { CommissionAvailability } from '~/lib/structures'
-import { format_to_currency, get_ut_url } from '~/lib/utils'
 import { commissions } from '~/server/db/schema'
+import { cache, get_redis_key } from '~/server/redis'
+import { createTRPCRouter, publicProcedure } from '~/server/api/trpc'
+
+import { format_to_currency, get_ut_url } from '~/lib/utils'
+import type { CommissionAvailability } from '~/lib/structures'
 
 type RandomCommissions = {
     id: string
@@ -20,6 +22,17 @@ type RandomCommissions = {
 }
 
 export const home_router = createTRPCRouter({
+    get_commissions: publicProcedure
+        .input(
+            z.object({
+                limit: z.number().min(1).max(20).default(10),
+                cursor: z.string().nullish()
+            })
+        )
+        .query(async () => {
+            console.log('Hello, World!')
+        }),
+
     random_commissions: publicProcedure.query(async ({ ctx }) => {
         return await cache(
             get_redis_key('home', 'random_commissions'),

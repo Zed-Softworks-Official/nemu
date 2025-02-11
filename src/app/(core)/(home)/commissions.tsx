@@ -1,36 +1,26 @@
+'use client'
+
 import Link from 'next/link'
-import { Suspense } from 'react'
 
 import NemuImage from '~/components/nemu-image'
 import Loading from '~/components/ui/loading'
-import { HomeCarousel } from './carousel'
 
-import { api } from '~/trpc/server'
+import { api } from '~/trpc/react'
 
-export default function HomePage() {
-    return (
-        <div className="container mx-auto">
-            <HomeCarousel />
+export function RandomCommissions() {
+    const { data, isLoading } = api.home.random_commissions.useQuery()
 
-            <Suspense
-                fallback={
-                    <div className="mt-10 flex flex-1 items-center justify-center">
-                        <Loading />
-                    </div>
-                }
-            >
-                <RandomCommissions />
-            </Suspense>
-        </div>
-    )
-}
-
-async function RandomCommissions() {
-    const random_commissions = await api.home.random_commissions()
+    if (isLoading) {
+        return (
+            <div className="mt-10 flex flex-1 flex-col items-center justify-center gap-2">
+                <Loading />
+            </div>
+        )
+    }
 
     return (
         <div className="mt-10 columns-1 gap-4 sm:columns-2 lg:columns-3 xl:columns-4">
-            {random_commissions.map((commission) => (
+            {data?.map((commission) => (
                 <div
                     key={commission.id}
                     className="mb-4 break-inside-avoid rounded-lg border bg-card p-4 shadow-sm"
