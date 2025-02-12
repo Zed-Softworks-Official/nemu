@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { currentUser } from '@clerk/nextjs/server'
-import crypto from 'crypto'
+import crypto from 'node:crypto'
 
 import { env } from '~/env'
 
