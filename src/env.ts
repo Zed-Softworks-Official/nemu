@@ -42,7 +42,9 @@ export const env = createEnv({
         PUSHER_SECRET: z.string(),
 
         STRIPE_SUPPORTER_MONTHLY_PRICE_ID: z.string(),
-        STRIPE_SUPPORTER_ANNUAL_PRICE_ID: z.string()
+        STRIPE_SUPPORTER_ANNUAL_PRICE_ID: z.string(),
+
+        FEATUREBASE_VERIFICATION_SECRET: z.string()
     },
 
     /**
@@ -115,7 +117,9 @@ export const env = createEnv({
         NEXT_PUBLIC_PUSHER_CLUSTER: process.env.NEXT_PUBLIC_PUSHER_CLUSTER,
 
         STRIPE_SUPPORTER_MONTHLY_PRICE_ID: process.env.STRIPE_SUPPORTER_MONTHLY_PRICE_ID,
-        STRIPE_SUPPORTER_ANNUAL_PRICE_ID: process.env.STRIPE_SUPPORTER_ANNUAL_PRICE_ID
+        STRIPE_SUPPORTER_ANNUAL_PRICE_ID: process.env.STRIPE_SUPPORTER_ANNUAL_PRICE_ID,
+
+        FEATUREBASE_VERIFICATION_SECRET: process.env.FEATUREBASE_VERIFICATION_SECRET
     },
     /**
      * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

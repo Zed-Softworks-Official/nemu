@@ -123,7 +123,20 @@ function Footer() {
                         Company
                     </h2>
                     <Link
-                        href={'/roadmap'}
+                        data-featurebase-link
+                        href={'https://feedback.nemu.art'}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-muted-foreground hover:underline"
+                    >
+                        Feature Requests
+                    </Link>
+
+                    <Link
+                        data-featurebase-link
+                        href={'https://feedback.nemu.art/roadmap'}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="text-sm text-muted-foreground hover:underline"
                     >
                         Roadmap

@@ -14,6 +14,7 @@ import { env } from '~/env'
 import { Toaster } from '~/components/ui/sonner'
 import { PosthogProvider } from '~/components/posthog-provider'
 import PlausibleProvider from 'next-plausible'
+import { Featurebase } from '~/components/featurebase'
 
 const nunito = Nunito({
     subsets: ['latin']
@@ -74,6 +75,7 @@ export default function RootLayout({
                             >
                                 <TRPCReactProvider>{children}</TRPCReactProvider>
                                 <Toaster position="bottom-right" richColors />
+                                <Featurebase />
                             </ThemeProvider>
                         </PosthogProvider>
                     </PlausibleProvider>
