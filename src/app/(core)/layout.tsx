@@ -117,13 +117,25 @@ function Footer() {
                     >
                         Become a Supporter
                     </Link>
+                    <Link
+                        data-featurebase-link
+                        href={'https://feedback.nemu.art'}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-muted-foreground hover:underline"
+                    >
+                        Feature Requests
+                    </Link>
                 </div>
                 <div className="flex flex-col gap-2">
                     <h2 className="text-lg font-semibold uppercase text-muted-foreground/60">
                         Company
                     </h2>
                     <Link
-                        href={'/roadmap'}
+                        data-featurebase-link
+                        href={'https://feedback.nemu.art/roadmap'}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="text-sm text-muted-foreground hover:underline"
                     >
                         Roadmap
