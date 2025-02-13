@@ -1,4 +1,4 @@
-import { and, asc, eq, gte } from 'drizzle-orm'
+import { and, asc, eq, gt } from 'drizzle-orm'
 import { z } from 'zod'
 
 import { commissions } from '~/server/db/schema'
@@ -37,7 +37,7 @@ export const home_router = createTRPCRouter({
                 orderBy: (commission) => asc(commission.created_at),
                 where: input.cursor
                     ? and(
-                          gte(commissions.created_at, input.cursor),
+                          gt(commissions.created_at, input.cursor),
                           eq(commissions.published, true)
                       )
                     : eq(commissions.published, true)
