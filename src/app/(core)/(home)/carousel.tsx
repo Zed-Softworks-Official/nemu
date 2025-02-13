@@ -2,10 +2,11 @@
 
 import { ArrowRight } from 'lucide-react'
 import Link from 'next/link'
+import AutoPlay from 'embla-carousel-autoplay'
+
 import { Button } from '~/components/ui/button'
 import { Carousel, CarouselContent, CarouselItem } from '~/components/ui/carousel'
 import NemuImage from '~/components/nemu-image'
-import AutoPlay from 'embla-carousel-autoplay'
 
 export function HomeCarousel() {
     return (
