@@ -25,7 +25,7 @@ export const home_router = createTRPCRouter({
         .input(
             z.object({
                 limit: z.number().min(1).max(20).default(10),
-                cursor: z.date().nullish()
+                cursor: z.date().max(new Date()).nullish()
             })
         )
         .query(async ({ ctx, input }) => {
