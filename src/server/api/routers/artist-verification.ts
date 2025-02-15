@@ -189,16 +189,16 @@ export const artist_verification_router = createTRPCRouter({
                 })
             }
 
-            // await create_artist(
-            //     {
-            //         requested_handle: input.requested_handle,
-            //         location: input.location,
-            //         twitter: input.twitter ?? '',
-            //         method: VerificationMethod.Code,
-            //         website: input.website ?? ''
-            //     },
-            //     ctx.auth.userId
-            // )
+            await create_artist(
+                {
+                    requested_handle: input.requested_handle,
+                    location: input.location,
+                    twitter: input.twitter ?? '',
+                    method: VerificationMethod.Code,
+                    website: input.website ?? ''
+                },
+                ctx.auth.userId
+            )
         })
 })
 
