@@ -12,7 +12,12 @@ import {
     VerificationMethod
 } from '~/lib/structures'
 
-import { artist_codes, artist_verifications, artists } from '~/server/db/schema'
+import {
+    artist_codes,
+    artist_verifications,
+    artists,
+    con_sign_up
+} from '~/server/db/schema'
 import { TRPCError } from '@trpc/server'
 import { db } from '~/server/db'
 import { eq } from 'drizzle-orm'
@@ -155,13 +160,20 @@ export const artist_verification_router = createTRPCRouter({
                 requested_handle: z.string(),
                 location: z.string(),
                 twitter: z.string().url().optional(),
-                website: z.string().url().optional()
+                website: z.string().url().optional(),
+                con_slug: z.string()
             })
         )
         .mutation(async ({ input, ctx }) => {
-            const artist = await ctx.db.query.artists.findFirst({
+            const artist_promise = ctx.db.query.artists.findFirst({
                 where: eq(artists.handle, input.requested_handle)
             })
+
+            const con_promise = ctx.db.query.con_sign_up.findFirst({
+                where: eq(con_sign_up.slug, input.con_slug)
+            })
+
+            const [artist, con] = await Promise.all([artist_promise, con_promise])
 
             if (artist) {
                 throw new TRPCError({
@@ -170,16 +182,23 @@ export const artist_verification_router = createTRPCRouter({
                 })
             }
 
-            await create_artist(
-                {
-                    requested_handle: input.requested_handle,
-                    location: input.location,
-                    twitter: input.twitter ?? '',
-                    method: VerificationMethod.Code,
-                    website: input.website ?? ''
-                },
-                ctx.auth.userId
-            )
+            if (con?.expires_at && con.expires_at < new Date()) {
+                throw new TRPCError({
+                    code: 'BAD_REQUEST',
+                    message: 'Con has expired'
+                })
+            }
+
+            // await create_artist(
+            //     {
+            //         requested_handle: input.requested_handle,
+            //         location: input.location,
+            //         twitter: input.twitter ?? '',
+            //         method: VerificationMethod.Code,
+            //         website: input.website ?? ''
+            //     },
+            //     ctx.auth.userId
+            // )
         })
 })
 

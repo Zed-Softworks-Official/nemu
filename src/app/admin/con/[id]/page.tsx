@@ -15,9 +15,9 @@ export default function QrPage() {
 
     const handle_download = () => {
         ref.current?.download({
-            name: `${con.data?.name}-qr.png`,
+            name: `${con.data?.name}-qr`,
             format: 'png',
-            size: 512
+            size: 1024
         })
     }
 
@@ -30,11 +30,11 @@ export default function QrPage() {
             <ReactQRCode
                 ref={ref}
                 value={`https://nemu.art/cons/${con.data?.slug}`}
-                size={512}
+                size={1024}
                 imageSettings={{
                     src: '/profile.png',
-                    width: 100,
-                    height: 100,
+                    width: 300,
+                    height: 300,
                     excavate: true
                 }}
                 dataModulesSettings={{
