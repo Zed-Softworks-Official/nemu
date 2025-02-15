@@ -30,7 +30,9 @@ import {
     type DownloadType,
     type RequestStatus,
     commissionAvalabilities,
-    type CommissionAvailability
+    type CommissionAvailability,
+    conStatus,
+    type ConStatus
 } from '~/lib/structures'
 
 /**
@@ -91,6 +93,8 @@ export const CommissionAvailabilityEnum = pgEnum(
 export const DownloadTypeEnum = pgEnum('download_type', enum_to_pg_enum(downloadTypes))
 
 export const ChargeMethodEnum = pgEnum('charge_method', enum_to_pg_enum(chargeMethods))
+
+export const ConStatusEnum = pgEnum('con_status', enum_to_pg_enum(conStatus))
 
 //////////////////////////////////////////////////////////
 // Tables
@@ -373,6 +377,18 @@ export const chats = createTable('chats', {
 
     message_redis_key: text('message_redis_key').notNull(),
     created_at: timestamp('created_at').defaultNow().notNull()
+})
+
+export const con_sign_up = createTable('con_sign_up', {
+    id: varchar('id', { length: 128 }).primaryKey(),
+
+    name: varchar('name', { length: 128 }).notNull(),
+    slug: varchar('slug', { length: 128 }).notNull(),
+    status: ConStatusEnum('status').$type<ConStatus>().default('active'),
+
+    created_at: timestamp('created_at').defaultNow().notNull(),
+    expires_at: timestamp('expires_at').notNull(),
+    sign_up_count: integer('sign_up_count').default(0).notNull()
 })
 
 //////////////////////////////////////////////////////////

@@ -41,6 +41,9 @@ importers:
       '@knocklabs/react':
         specifier: ^0.2.31
         version: 0.2.31(@types/react-dom@18.3.1)(@types/react@18.3.12)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@lglab/react-qr-code':
+        specifier: ^1.4.0
+        version: 1.4.0(react@18.3.1)
       '@paralleldrive/cuid2':
         specifier: ^2.2.2
         version: 2.2.2
@@ -1088,6 +1091,11 @@ packages:
 
   '@knocklabs/types@0.1.5':
     resolution: {integrity: sha512-Wu/0XsrTKBM2JO2eoazhz6MWpnmm6uCUsozPyg4aeJS7vndtqLPwniW6fzVn1gSrR7upWkWThrv5ZzokZ6BAHQ==}
+
+  '@lglab/react-qr-code@1.4.0':
+    resolution: {integrity: sha512-tKTgk/HNpZ4+GEWIHBEH6Qf/Y9Jdkusq6xDiGW7HEzojB4gpoUky5YVsm2YKGe+XVfp/4Y0fs34c1ixaGhtrBQ==}
+    peerDependencies:
+      react: ^18 || ^19
 
   '@neondatabase/serverless@0.10.4':
     resolution: {integrity: sha512-2nZuh3VUO9voBauuh+IGYRhGU/MskWHt1IuZvHcJw6GLjDgtqj/KViKo7SIrLdGLdot7vFbiRRw+BgEy3wT9HA==}
@@ -7196,6 +7204,10 @@ snapshots:
       - debug
 
   '@knocklabs/types@0.1.5': {}
+
+  '@lglab/react-qr-code@1.4.0(react@18.3.1)':
+    dependencies:
+      react: 18.3.1
 
   '@neondatabase/serverless@0.10.4':
     dependencies:

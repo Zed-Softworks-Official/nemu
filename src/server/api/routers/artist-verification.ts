@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { adminProcedure, createTRPCRouter } from '../trpc'
+import { adminProcedure, createTRPCRouter, protectedProcedure } from '../trpc'
 import { clerkClient } from '@clerk/nextjs/server'
 import { revalidateTag } from 'next/cache'
 import { createId } from '@paralleldrive/cuid2'
@@ -147,6 +147,39 @@ export const artist_verification_router = createTRPCRouter({
                         ? '/artists/apply/success'
                         : '/artists/apply/further-steps'
             }
+        }),
+
+    verify_from_con: protectedProcedure
+        .input(
+            z.object({
+                requested_handle: z.string(),
+                location: z.string(),
+                twitter: z.string().url().optional(),
+                website: z.string().url().optional()
+            })
+        )
+        .mutation(async ({ input, ctx }) => {
+            const artist = await ctx.db.query.artists.findFirst({
+                where: eq(artists.handle, input.requested_handle)
+            })
+
+            if (artist) {
+                throw new TRPCError({
+                    code: 'BAD_REQUEST',
+                    message: 'Artist already exists'
+                })
+            }
+
+            await create_artist(
+                {
+                    requested_handle: input.requested_handle,
+                    location: input.location,
+                    twitter: input.twitter ?? '',
+                    method: VerificationMethod.Code,
+                    website: input.website ?? ''
+                },
+                ctx.auth.userId
+            )
         })
 })
 

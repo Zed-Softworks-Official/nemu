@@ -14,11 +14,12 @@ import {
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
-    SidebarProvider
+    SidebarProvider,
+    SidebarTrigger
 } from '~/components/ui/sidebar'
 import { FullLogo } from '~/components/ui/logo'
 import Link from 'next/link'
-import { ArrowLeft, Code, Check } from 'lucide-react'
+import { ArrowLeft, Code, Check, MapPinCheck } from 'lucide-react'
 
 const sidebar_items = [
     {
@@ -30,6 +31,11 @@ const sidebar_items = [
         title: 'Verify Artist',
         href: '/admin/verify-artist',
         icon: <Check className="h-6 w-6" />
+    },
+    {
+        title: 'Conventions',
+        href: '/admin/con',
+        icon: <MapPinCheck className="h-6 w-6" />
     }
 ]
 
@@ -48,6 +54,9 @@ export default async function AdminLayout(props: { children: React.ReactNode }) 
         <SidebarProvider>
             <AdminSidebar />
             <SidebarInset className="px bg-background-secondary p-2">
+                <header className="py-2">
+                    <SidebarTrigger />
+                </header>
                 <div className="flex flex-1 rounded-xl bg-background p-4">
                     {props.children}
                 </div>
