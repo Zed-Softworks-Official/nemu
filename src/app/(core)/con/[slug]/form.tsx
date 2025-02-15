@@ -35,7 +35,7 @@ const schema = z.object({
 
 type SchemaType = z.infer<typeof schema>
 
-export default function ApplyConForm() {
+export default function ApplyConForm(props: { slug: string }) {
     const router = useRouter()
     const createArtist = api.artist_verification.verify_from_con.useMutation({
         onMutate: () => {
@@ -69,7 +69,10 @@ export default function ApplyConForm() {
     })
 
     async function process_form(data: SchemaType) {
-        createArtist.mutate(data)
+        createArtist.mutate({
+            ...data,
+            con_slug: props.slug
+        })
     }
 
     return (
