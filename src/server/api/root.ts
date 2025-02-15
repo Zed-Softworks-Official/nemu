@@ -10,6 +10,7 @@ import { chat_router } from '~/server/api/routers/chat'
 import { portfolio_router } from '~/server/api/routers/portfolio'
 import { home_router } from '~/server/api/routers/home'
 import { dashboard_router } from '~/server/api/routers/dashboard'
+import { con_router } from '~/server/api/routers/con'
 
 /**
  * This is the primary router for your server.
@@ -27,7 +28,8 @@ export const appRouter = createTRPCRouter({
     chat: chat_router,
     portfolio: portfolio_router,
     home: home_router,
-    dashboard: dashboard_router
+    dashboard: dashboard_router,
+    con: con_router
 })
 
 // export type definition of API

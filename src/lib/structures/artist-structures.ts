@@ -42,3 +42,6 @@ export const verification_data = z.object({
 })
 
 export type VerificationDataType = z.infer<typeof verification_data>
+
+export const conStatus = ['active', 'expired'] as const
+export type ConStatus = (typeof conStatus)[number]
