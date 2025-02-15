@@ -1,8 +1,9 @@
 'use client'
 
 import { ReactQRCode, type ReactQRCodeRef } from '@lglab/react-qr-code'
-import { useParams } from 'next/navigation'
+import { notFound, useParams } from 'next/navigation'
 import { useRef } from 'react'
+
 import { Button } from '~/components/ui/button'
 import Loading from '~/components/ui/loading'
 
@@ -11,6 +12,10 @@ import { api } from '~/trpc/react'
 export default function QrPage() {
     const ref = useRef<ReactQRCodeRef>(null)
     const { id } = useParams()
+    if (!id) {
+        return notFound()
+    }
+
     const con = api.con.get_con.useQuery({ id: id as string })
 
     const handle_download = () => {
@@ -23,13 +28,17 @@ export default function QrPage() {
 
     if (con.isLoading) return <Loading />
 
+    if (!con.data?.slug || !con.data?.name) {
+        return notFound()
+    }
+
     return (
         <div className="container mx-auto flex max-w-4xl flex-1 flex-col items-center justify-center gap-4">
-            <h1 className="text-2xl font-bold">Con: {con.data?.name}</h1>
+            <h1 className="text-2xl font-bold">Con: {con.data.name}</h1>
 
             <ReactQRCode
                 ref={ref}
-                value={`https://nemu.art/cons/${con.data?.slug}`}
+                value={`https://nemu.art/cons/${con.data.slug}`}
                 size={1024}
                 imageSettings={{
                     src: '/profile.png',

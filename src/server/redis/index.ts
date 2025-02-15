@@ -13,6 +13,7 @@ type RedisKey =
     | 'invoices'
     | 'stripe:user'
     | 'stripe:customer'
+    | 'con'
 
 export const redis = new Redis({
     url: env.UPSTASH_REDIS_REST_URL,

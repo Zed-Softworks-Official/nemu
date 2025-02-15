@@ -379,17 +379,24 @@ export const chats = createTable('chats', {
     created_at: timestamp('created_at').defaultNow().notNull()
 })
 
-export const con_sign_up = createTable('con_sign_up', {
-    id: varchar('id', { length: 128 }).primaryKey(),
+export const con_sign_up = createTable(
+    'con_sign_up',
+    {
+        id: varchar('id', { length: 128 }).primaryKey(),
 
-    name: varchar('name', { length: 128 }).notNull(),
-    slug: varchar('slug', { length: 128 }).notNull(),
-    status: ConStatusEnum('status').$type<ConStatus>().default('active'),
+        name: varchar('name', { length: 128 }).notNull(),
+        slug: varchar('slug', { length: 128 }).notNull(),
+        status: ConStatusEnum('status').$type<ConStatus>().default('active'),
 
-    created_at: timestamp('created_at').defaultNow().notNull(),
-    expires_at: timestamp('expires_at').notNull(),
-    sign_up_count: integer('sign_up_count').default(0).notNull()
-})
+        created_at: timestamp('created_at').defaultNow().notNull(),
+        expires_at: timestamp('expires_at').notNull(),
+        sign_up_count: integer('sign_up_count').default(0).notNull()
+    },
+    (table) => ({
+        slugIndex: index('slug_idx').on(table.slug),
+        statusIndex: index('status_idx').on(table.status)
+    })
+)
 
 //////////////////////////////////////////////////////////
 // Relations

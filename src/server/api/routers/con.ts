@@ -9,6 +9,7 @@ import {
 } from '~/server/api/trpc'
 import { con_sign_up } from '~/server/db/schema'
 import { eq } from 'drizzle-orm'
+import { cache, get_redis_key } from '~/server/redis'
 
 export const con_router = createTRPCRouter({
     set_con: adminProcedure
@@ -50,16 +51,22 @@ export const con_router = createTRPCRouter({
             })
         )
         .query(async ({ ctx, input }) => {
-            const con = await ctx.db.query.con_sign_up.findFirst({
-                where: eq(con_sign_up.slug, input.slug)
-            })
+            return await cache(
+                get_redis_key('con', input.slug),
+                async () => {
+                    const con = await ctx.db.query.con_sign_up.findFirst({
+                        where: eq(con_sign_up.slug, input.slug)
+                    })
 
-            if (!con) return null
+                    if (!con) return null
 
-            return {
-                is_valid: true,
-                is_expired: con.expires_at < new Date(),
-                name: con.name
-            }
+                    return {
+                        is_valid: true,
+                        is_expired: con.expires_at < new Date(),
+                        name: con.name
+                    }
+                },
+                300
+            )
         })
 })
