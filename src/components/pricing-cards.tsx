@@ -84,7 +84,7 @@ export function PricingCard(props: {
                     <CardTitle className="text-2xl">{props.title}</CardTitle>
                     <CardDescription>{props.description}</CardDescription>
                 </CardHeader>
-                <CardContent className="flex-grow">
+                <CardContent className="grow">
                     <div className="mb-4 text-4xl font-bold">
                         {props.price}
                         {props.period && (

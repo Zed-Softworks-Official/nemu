@@ -112,7 +112,7 @@ export default function SearchBar() {
                     className="w-15 h-10 bg-background-secondary hover:bg-background-tertiary"
                     onClick={() => setOpen(true)}
                 >
-                    <SearchIcon className="!h-5 !w-5" />
+                    <SearchIcon className="h-5! w-5!" />
                 </Button>
             </div>
             <CommandDialog open={open} onOpenChange={setOpen}>

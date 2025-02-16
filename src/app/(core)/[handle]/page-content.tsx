@@ -79,7 +79,7 @@ export function ArtistHeader(props: { handle: string }) {
                             alt="Supporter Image"
                             width={100}
                             height={100}
-                            className="absolute -right-4 top-0 !h-10 !w-10"
+                            className="absolute -right-4 top-0 h-10! w-10!"
                         />
                     )}
                     <Avatar className="h-24 w-24">
@@ -235,10 +235,10 @@ function CommissionsList(props: { handle: string }) {
             {artist.commissions.map((commission) => (
                 <li
                     key={commission.id}
-                    className="overflow-hidden rounded-lg bg-background shadow"
+                    className="overflow-hidden rounded-lg bg-background shadow-sm"
                 >
                     <div className="md:flex">
-                        <div className="md:flex-shrink-0">
+                        <div className="md:shrink-0">
                             <NemuImage
                                 src={commission.images[0]?.url ?? ''}
                                 alt={`Preview of ${commission.title}`}
@@ -318,7 +318,7 @@ function PortfolioList(props: { handle: string }) {
                             className="object-cover transition-transform duration-300 hover:scale-110"
                         />
                     </AspectRatio>
-                    <div className="absolute inset-0 flex items-end bg-gradient-to-t from-black/60 to-transparent p-4 opacity-0 transition-opacity duration-300 hover:opacity-100">
+                    <div className="absolute inset-0 flex items-end bg-linear-to-t from-black/60 to-transparent p-4 opacity-0 transition-opacity duration-300 hover:opacity-100">
                         <h3 className="text-lg font-semibold text-white">
                             {portfolio.title}
                         </h3>
