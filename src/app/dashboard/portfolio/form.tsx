@@ -279,7 +279,7 @@ export function UpdateForm(props: { id: string }) {
                     <AlertDialogAction asChild>
                         <Button
                             variant={'destructive'}
-                            className="!bg-destructive"
+                            className="bg-destructive!"
                             onClick={() => {
                                 destroyPortfolio.mutate({
                                     id: props.id

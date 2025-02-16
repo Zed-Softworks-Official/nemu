@@ -79,7 +79,7 @@ function CommissionContent(props: {
         }
 
         return (
-            <div className="flex h-full max-h-fit flex-1 flex-grow-0 overflow-y-auto">
+            <div className="flex h-full max-h-fit flex-1 grow-0 overflow-y-auto">
                 <RequestForm
                     commission_id={props.commission.id}
                     set_show_form={setShowForm}
@@ -91,7 +91,7 @@ function CommissionContent(props: {
     }
 
     return (
-        <div className="flex h-full max-h-fit flex-1 flex-grow-0 overflow-y-auto">
+        <div className="flex h-full max-h-fit flex-1 grow-0 overflow-y-auto">
             <div className="flex flex-col gap-5 p-5">
                 <div className="flex flex-row justify-between">
                     <div>
