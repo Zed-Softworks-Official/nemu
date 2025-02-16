@@ -93,23 +93,20 @@ export default function SearchBar() {
     }, [query, search])
 
     return (
-        <div className="relative h-full w-full">
+        <div className="relative">
             <div
-                className="hidden h-16 w-full flex-row items-center justify-between rounded-xl bg-background-secondary p-5 sm:flex"
+                className="bg-background-secondary hidden items-center justify-between gap-2 rounded-md p-3 sm:flex"
                 onClick={() => setOpen(true)}
             >
-                <div className="flex flex-row items-center gap-5">
-                    <SearchIcon className="h-6 w-6" />
-                    <span className="text-muted-foreground">Search</span>
-                </div>
-                <kbd className="pointer-events-none inline-flex h-6 select-none items-center gap-1 rounded bg-background-tertiary px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+                <SearchIcon className="size-4" />
+                <kbd className="bg-background-tertiary text-muted-foreground pointer-events-none inline-flex h-6 items-center gap-1 rounded px-1.5 font-mono text-[10px] font-medium opacity-100 select-none">
                     <span className="text-xs">⌘</span>K
                 </kbd>
             </div>
             <div className="flex w-full items-center justify-center sm:hidden">
                 <Button
                     size={'lg'}
-                    className="w-15 h-10 bg-background-secondary hover:bg-background-tertiary"
+                    className="bg-background-secondary hover:bg-background-tertiary"
                     onClick={() => setOpen(true)}
                 >
                     <SearchIcon className="h-5! w-5!" />
