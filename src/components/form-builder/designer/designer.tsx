@@ -147,13 +147,13 @@ export function Designer() {
             <div className="w-full p-4" onClick={() => set_selected_element(null)}>
                 <div
                     className={cn(
-                        'm-auto flex h-full max-w-[920px] flex-1 flex-grow flex-col items-center justify-start overflow-y-auto rounded-xl bg-background p-2',
+                        'm-auto flex h-full max-w-[920px] flex-1 grow flex-col items-center justify-start overflow-y-auto rounded-xl bg-background p-2',
                         droppable.isOver && 'ring-2 ring-primary'
                     )}
                     ref={droppable.setNodeRef}
                 >
                     {!droppable.isOver && elements.length === 0 && (
-                        <p className="flex flex-grow items-center text-3xl font-bold text-muted-foreground">
+                        <p className="flex grow items-center text-3xl font-bold text-muted-foreground">
                             Drop Here
                         </p>
                     )}
@@ -294,7 +294,7 @@ function PropertiesFormSidebar() {
     const PropertiesForm = FormElements[selected_element.type].properties_component
 
     return (
-        <aside className="flex h-full w-[400px] max-w-[400px] flex-grow flex-col gap-2 overflow-y-auto border-l-2 border-muted bg-background-secondary p-4">
+        <aside className="flex h-full w-[400px] max-w-[400px] grow flex-col gap-2 overflow-y-auto border-l-2 border-muted bg-background-secondary p-4">
             <div className="flex items-center justify-between">
                 <h2 className="text-lg font-medium">Properties</h2>
                 <Button
@@ -313,7 +313,7 @@ function PropertiesFormSidebar() {
 
 function FormElementSidebar() {
     return (
-        <aside className="flex h-full w-[400px] max-w-[400px] flex-grow flex-col gap-2 overflow-y-auto border-l-2 border-muted bg-background-secondary p-4">
+        <aside className="flex h-full w-[400px] max-w-[400px] grow flex-col gap-2 overflow-y-auto border-l-2 border-muted bg-background-secondary p-4">
             <h2 className="place-self-start text-lg font-medium text-muted-foreground">
                 Layout Elements
             </h2>
@@ -362,7 +362,7 @@ function SidebarButtonElement(props: { form_element: FormElement }) {
             {...draggable.listeners}
             {...draggable.attributes}
         >
-            <Icon className="!h-6 !w-6 cursor-grab" />
+            <Icon className="h-6! w-6! cursor-grab" />
             <p className="text-xs">{label}</p>
         </Button>
     )

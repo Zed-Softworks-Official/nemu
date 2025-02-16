@@ -169,7 +169,7 @@ async function SidebarUserdropdown() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent
                         side="top"
-                        className="w-[--radix-popper-anchor-width]"
+                        className="w-(--radix-popper-anchor-width)"
                     >
                         <DropdownMenuItem asChild>
                             <Link

@@ -105,7 +105,7 @@ function CommissionTable(props: { commissions: ClientCommissionItem[] }) {
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent
                                         side="bottom"
-                                        className="w-[--radix-popper-arrow-size]"
+                                        className="w-(--radix-popper-arrow-size)"
                                     >
                                         <DropdownMenuItem asChild>
                                             <Link

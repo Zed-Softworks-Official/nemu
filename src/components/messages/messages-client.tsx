@@ -43,7 +43,7 @@ export function MessagesClient(props: {
                 )}
                 <div
                     className={cn(
-                        'flex h-full w-full flex-grow rounded-xl bg-background-secondary p-10',
+                        'flex h-full w-full grow rounded-xl bg-background-secondary p-10',
                         {
                             'rounded-l-none': !props.list_hidden
                         }
@@ -165,7 +165,7 @@ function MessagesInput() {
 
     return (
         <div className="mb-2 border-t px-4 pt-4 sm:mb-0">
-            <div className="relative flex-1 overflow-hidden rounded-lg bg-background-tertiary shadow-sm ring-1 ring-background-tertiary focus-within:ring-2 focus-within:ring-primary">
+            <div className="relative flex-1 overflow-hidden rounded-lg bg-background-tertiary shadow-xs ring-1 ring-background-tertiary focus-within:ring-2 focus-within:ring-primary">
                 <TextareaAutosize
                     ref={textareaRef}
                     onKeyDown={(e) => {
@@ -178,7 +178,7 @@ function MessagesInput() {
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     placeholder={`Message ${chat_partner?.username}`}
-                    className="rouned-lg block w-full resize-none border-0 bg-transparent outline-none sm:p-1.5 sm:text-sm sm:leading-6"
+                    className="rouned-lg block w-full resize-none border-0 bg-transparent outline-hidden sm:p-1.5 sm:text-sm sm:leading-6"
                 />
                 <div
                     onClick={() => textareaRef.current?.focus()}
@@ -190,7 +190,7 @@ function MessagesInput() {
                     </div>
                 </div>
                 <div className="absolute bottom-0 right-0 flex justify-between py-2 pl-3 pr-2">
-                    <div className="flex-shrink-0">
+                    <div className="shrink-0">
                         <Button
                             disabled={!current_chat_id || sendMessage.isPending}
                             variant={'ghost'}

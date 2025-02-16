@@ -54,10 +54,10 @@ function Navbar() {
     return (
         <header className="container mx-auto flex w-full items-center justify-between gap-5 px-10 py-5 sm:px-0">
             <FullLogo />
-            <SearchBar />
             <nav>
                 <SignedIn>
                     <div className="flex items-center gap-5">
+                        <SearchBar />
                         <Notifications />
                         <Suspense
                             fallback={<Skeleton className="h-12 w-12 rounded-full" />}
@@ -89,7 +89,7 @@ function Footer() {
                         width={50}
                         height={50}
                     />
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-muted-foreground text-sm">
                         Copyright &copy; {new Date().getFullYear()}{' '}
                         <Link
                             href={'https://zedsoftworks.dev'}
@@ -102,24 +102,24 @@ function Footer() {
                     </p>
                 </div>
                 <div className="flex flex-col gap-2">
-                    <h2 className="text-lg font-semibold uppercase text-muted-foreground/60">
+                    <h2 className="text-muted-foreground/60 text-lg font-semibold uppercase">
                         Artists
                     </h2>
                     <Link
                         href={'/artists'}
-                        className="text-sm text-muted-foreground hover:underline"
+                        className="text-muted-foreground text-sm hover:underline"
                     >
                         Become an Artist
                     </Link>
                     <Link
                         href={'/supporter'}
-                        className="text-sm text-muted-foreground hover:underline"
+                        className="text-muted-foreground text-sm hover:underline"
                     >
                         Become a Supporter
                     </Link>
                 </div>
                 <div className="flex flex-col gap-2">
-                    <h2 className="text-lg font-semibold uppercase text-muted-foreground/60">
+                    <h2 className="text-muted-foreground/60 text-lg font-semibold uppercase">
                         Company
                     </h2>
                     <Link
@@ -127,7 +127,7 @@ function Footer() {
                         href={'https://feedback.nemu.art'}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-sm text-muted-foreground hover:underline"
+                        className="text-muted-foreground text-sm hover:underline"
                     >
                         Feature Requests
                     </Link>
@@ -137,19 +137,19 @@ function Footer() {
                         href={'https://feedback.nemu.art/roadmap'}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-sm text-muted-foreground hover:underline"
+                        className="text-muted-foreground text-sm hover:underline"
                     >
                         Roadmap
                     </Link>
                     <Link
                         href={'/terms'}
-                        className="text-sm text-muted-foreground hover:underline"
+                        className="text-muted-foreground text-sm hover:underline"
                     >
                         Terms of Service
                     </Link>
                     <Link
                         href={'/privacy'}
-                        className="text-sm text-muted-foreground hover:underline"
+                        className="text-muted-foreground text-sm hover:underline"
                     >
                         Privacy Policy
                     </Link>

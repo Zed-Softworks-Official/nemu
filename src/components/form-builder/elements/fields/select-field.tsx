@@ -353,7 +353,7 @@ function PropertiesComponent(props: { element_instance: FormElementInstance }) {
                     control={form.control}
                     name="required"
                     render={({ field }) => (
-                        <FormItem className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
+                        <FormItem className="flex items-center justify-between rounded-lg border p-3 shadow-xs">
                             <div className="space-y-0.5">
                                 <FormLabel>Required</FormLabel>
                                 <FormDescription>
