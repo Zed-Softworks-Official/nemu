@@ -82,7 +82,7 @@ function DesignerComponent(props: { element_instance: FormElementInstance }) {
                     {required && '*'}
                 </Label>
                 {helper_text && (
-                    <p className="text-sm text-muted-foreground">{helper_text}</p>
+                    <p className="text-muted-foreground text-sm">{helper_text}</p>
                 )}
             </div>
         </div>
@@ -135,7 +135,7 @@ function FormComponent(props: {
                     {required && '*'}
                 </Label>
                 {helper_text && (
-                    <p className="text-sm text-muted-foreground">{helper_text}</p>
+                    <p className="text-muted-foreground text-sm">{helper_text}</p>
                 )}
             </div>
         </div>

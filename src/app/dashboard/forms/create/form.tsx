@@ -83,7 +83,7 @@ export function CreateForm() {
                             <Textarea
                                 {...form.register('description')}
                                 placeholder="Something to describe the form (optional)"
-                                className="resize-none bg-background-secondary"
+                                className="bg-background-secondary resize-none"
                                 rows={6}
                                 defaultValue={field.value ?? ''}
                             />

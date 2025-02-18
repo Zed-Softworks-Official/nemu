@@ -115,7 +115,7 @@ export function RequestForm(props: {
                         priority
                     />
                     <h2 className="text-2xl font-bold">Things are happening!</h2>
-                    <p className="italic text-muted-foreground">
+                    <p className="text-muted-foreground italic">
                         You&apos;ll receive a notification from the artist about wether
                         your commission has been accepted or rejected. Until then, hold on
                         tight!
@@ -141,7 +141,7 @@ export function RequestForm(props: {
                     height={200}
                 />
                 <h2 className="text-xl font-bold">You&apos;re onto the next step!</h2>
-                <p className="text-lg text-muted-foreground">
+                <p className="text-muted-foreground text-lg">
                     We&apos;ll need you to fill out this form provided by the artist to
                     get a better understanding of your commission.
                 </p>

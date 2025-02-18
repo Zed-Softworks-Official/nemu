@@ -11,7 +11,7 @@ export default function ParallelModal(props: { children: React.ReactNode }) {
 
     return (
         <Dialog open={open} onOpenChange={onDismiss}>
-            <DialogContent className="flex h-full max-h-[80vh] w-full max-w-6xl flex-1 shrink-0 grow-0 overflow-y-hidden bg-background-tertiary">
+            <DialogContent className="bg-background-tertiary flex h-full max-h-[80vh] w-full max-w-6xl flex-1 shrink-0 grow-0 overflow-y-hidden">
                 <DialogTitle className="sr-only">Modal</DialogTitle>
                 {props.children}
             </DialogContent>

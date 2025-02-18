@@ -84,13 +84,13 @@ function DesignerComponent(props: { element_instance: FormElementInstance }) {
             <Button
                 disabled
                 variant={'outline'}
-                className="w-full justify-start text-left font-normal text-muted-foreground"
+                className="text-muted-foreground w-full justify-start text-left font-normal"
             >
                 <CalendarIcon className="mr-2 h-4 w-4" />
                 Pick a Date
             </Button>
             {helper_text && (
-                <p className="text-sm text-muted-foreground">{helper_text}</p>
+                <p className="text-muted-foreground text-sm">{helper_text}</p>
             )}
         </div>
     )
@@ -126,7 +126,7 @@ function FormComponent(props: {
                     <Button
                         variant={'outline'}
                         className={cn(
-                            'w-[280px] justify-start border-background-tertiary bg-background-secondary text-left font-normal',
+                            'border-background-tertiary bg-background-secondary w-[280px] justify-start text-left font-normal',
                             !date && 'text-muted-foreground',
                             error && 'border-destructive'
                         )}
@@ -157,7 +157,7 @@ function FormComponent(props: {
             {helper_text && (
                 <p
                     className={cn(
-                        'text-sm text-muted-foreground',
+                        'text-muted-foreground text-sm',
                         error && 'text-destructive'
                     )}
                 >

@@ -149,7 +149,7 @@ export function SettingsForm() {
                                 <Textarea
                                     {...field}
                                     placeholder="I once ruled the world"
-                                    className="resize-none bg-background-secondary"
+                                    className="bg-background-secondary resize-none"
                                     rows={6}
                                 />
                             </FormControl>
@@ -198,7 +198,7 @@ export function SettingsForm() {
                                 <Textarea
                                     {...field}
                                     placeholder="Please feed Nemu"
-                                    className="resize-none bg-background-secondary"
+                                    className="bg-background-secondary resize-none"
                                     rows={6}
                                 />
                             </FormControl>
@@ -301,7 +301,7 @@ export function SettingsForm() {
 
                                             form.setValue('socials', paddedSocials)
                                         }}
-                                        className="mb-2 bg-background-secondary"
+                                        className="bg-background-secondary mb-2"
                                         placeholder={`Social media URL ${index + 1}`}
                                     />
                                 </FormControl>

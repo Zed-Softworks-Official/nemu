@@ -26,7 +26,7 @@ export function PortfolioList() {
                                     width={300}
                                     height={300}
                                 />
-                                <div className="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/60 to-transparent p-4">
+                                <div className="absolute right-0 bottom-0 left-0 bg-linear-to-t from-black/60 to-transparent p-4">
                                     <h3 className="text-lg font-semibold text-white">
                                         {item.title}
                                     </h3>

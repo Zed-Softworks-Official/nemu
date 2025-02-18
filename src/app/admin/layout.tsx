@@ -57,7 +57,7 @@ export default async function AdminLayout(props: { children: React.ReactNode }) 
                 <header className="py-2">
                     <SidebarTrigger />
                 </header>
-                <div className="flex flex-1 rounded-xl bg-background p-4">
+                <div className="bg-background flex flex-1 rounded-xl p-4">
                     {props.children}
                 </div>
             </SidebarInset>

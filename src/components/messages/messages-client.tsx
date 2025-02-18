@@ -33,7 +33,7 @@ export function MessagesClient(props: {
 }) {
     return (
         <MessagesProvider current_order_id={props.current_order_id}>
-            <div className="mx-auto flex h-[80vh] w-full rounded-xl bg-background-tertiary shadow-xl">
+            <div className="bg-background-tertiary mx-auto flex h-[80vh] w-full rounded-xl shadow-xl">
                 {!props.list_hidden && (
                     <div className="flex w-full max-w-[400px] flex-col p-10">
                         <h1 className="text-xl font-bold">Commissions</h1>
@@ -43,7 +43,7 @@ export function MessagesClient(props: {
                 )}
                 <div
                     className={cn(
-                        'flex h-full w-full grow rounded-xl bg-background-secondary p-10',
+                        'bg-background-secondary flex h-full w-full grow rounded-xl p-10',
                         {
                             'rounded-l-none': !props.list_hidden
                         }
@@ -70,7 +70,7 @@ function MessageClientBody() {
                     className="mb-10"
                 />
                 <h1 className="text-xl font-bold">No Commission Selected</h1>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-muted-foreground text-sm">
                     Select a commission to start chatting with the artist
                 </p>
             </div>
@@ -165,7 +165,7 @@ function MessagesInput() {
 
     return (
         <div className="mb-2 border-t px-4 pt-4 sm:mb-0">
-            <div className="relative flex-1 overflow-hidden rounded-lg bg-background-tertiary shadow-xs ring-1 ring-background-tertiary focus-within:ring-2 focus-within:ring-primary">
+            <div className="bg-background-tertiary ring-background-tertiary focus-within:ring-primary relative flex-1 overflow-hidden rounded-lg ring-1 shadow-xs focus-within:ring-2">
                 <TextareaAutosize
                     ref={textareaRef}
                     onKeyDown={(e) => {
@@ -189,7 +189,7 @@ function MessagesInput() {
                         <div className="h-9"></div>
                     </div>
                 </div>
-                <div className="absolute bottom-0 right-0 flex justify-between py-2 pl-3 pr-2">
+                <div className="absolute right-0 bottom-0 flex justify-between py-2 pr-2 pl-3">
                     <div className="shrink-0">
                         <Button
                             disabled={!current_chat_id || sendMessage.isPending}
@@ -219,7 +219,7 @@ function ChannelList() {
             {chats?.map((chat) => (
                 <div
                     key={chat.id}
-                    className="flex cursor-pointer items-center gap-2 rounded-xl bg-background p-5 transition-colors duration-200 ease-in-out hover:bg-primary"
+                    className="bg-background hover:bg-primary flex cursor-pointer items-center gap-2 rounded-xl p-5 transition-colors duration-200 ease-in-out"
                     onClick={() => set_current_order_id(chat.request.order_id)}
                 >
                     <Avatar>
@@ -316,7 +316,7 @@ function Message(props: {
                     })}
                 >
                     {props.message.content}{' '}
-                    <span className="ml-2 text-xs text-muted-foreground">
+                    <span className="text-muted-foreground ml-2 text-xs">
                         {formatTimestamp(props.message.timestamp)}
                     </span>
                 </span>

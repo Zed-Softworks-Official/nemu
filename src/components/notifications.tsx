@@ -63,7 +63,7 @@ function NotificationFeed() {
                     <BellIcon className="size-4" />
                     <span className="sr-only">Notifications</span>
                     {metadata?.unread_count !== 0 && (
-                        <div className="absolute right-0 top-0 size-2 rounded-full bg-primary"></div>
+                        <div className="bg-primary absolute top-0 right-0 size-2 rounded-full"></div>
                     )}
                 </Button>
             </DropdownMenuTrigger>

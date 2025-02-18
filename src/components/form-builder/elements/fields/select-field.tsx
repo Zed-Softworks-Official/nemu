@@ -94,7 +94,7 @@ function DesignerComponent(props: { element_instance: FormElementInstance }) {
                 </SelectTrigger>
             </Select>
             {helper_text && (
-                <p className="text-sm text-muted-foreground">{helper_text}</p>
+                <p className="text-muted-foreground text-sm">{helper_text}</p>
             )}
         </div>
     )
@@ -137,7 +137,7 @@ function FormComponent(props: {
             >
                 <SelectTrigger
                     className={cn(
-                        'w-full bg-background-secondary',
+                        'bg-background-secondary w-full',
                         error && 'border-destructive'
                     )}
                 >
@@ -154,7 +154,7 @@ function FormComponent(props: {
             {helper_text && (
                 <p
                     className={cn(
-                        'text-sm text-muted-foreground',
+                        'text-muted-foreground text-sm',
                         error && 'text-destructive'
                     )}
                 >

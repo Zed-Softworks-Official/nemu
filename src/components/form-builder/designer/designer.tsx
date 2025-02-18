@@ -147,19 +147,19 @@ export function Designer() {
             <div className="w-full p-4" onClick={() => set_selected_element(null)}>
                 <div
                     className={cn(
-                        'm-auto flex h-full max-w-[920px] flex-1 grow flex-col items-center justify-start overflow-y-auto rounded-xl bg-background p-2',
-                        droppable.isOver && 'ring-2 ring-primary'
+                        'bg-background m-auto flex h-full max-w-[920px] flex-1 grow flex-col items-center justify-start overflow-y-auto rounded-xl p-2',
+                        droppable.isOver && 'ring-primary ring-2'
                     )}
                     ref={droppable.setNodeRef}
                 >
                     {!droppable.isOver && elements.length === 0 && (
-                        <p className="flex grow items-center text-3xl font-bold text-muted-foreground">
+                        <p className="text-muted-foreground flex grow items-center text-3xl font-bold">
                             Drop Here
                         </p>
                     )}
                     {droppable.isOver && elements.length === 0 && (
                         <div className="w-full p-4">
-                            <div className="h-[120px] rounded-md bg-primary/20"></div>
+                            <div className="bg-primary/20 h-[120px] rounded-md"></div>
                         </div>
                     )}
                     {elements.length > 0 && (
@@ -219,7 +219,7 @@ function DesignerElementWrapper(props: { element: FormElementInstance }) {
     return (
         <div
             ref={draggable.setNodeRef}
-            className="relative flex h-[120px] flex-col rounded-xl text-foreground ring-1 ring-inset ring-accent hover:cursor-pointer"
+            className="text-foreground ring-accent relative flex h-[120px] flex-col rounded-xl ring-1 ring-inset hover:cursor-pointer"
             onMouseEnter={() => setMouseOver(true)}
             onMouseLeave={() => setMouseOver(false)}
             onClick={(e) => {
@@ -239,7 +239,7 @@ function DesignerElementWrapper(props: { element: FormElementInstance }) {
                 ref={bottom_half.setNodeRef}
             ></div>
             {mouseOver && (
-                <div className="absolute h-full w-full bg-background-secondary/80">
+                <div className="bg-background-secondary/80 absolute h-full w-full">
                     <div className="absolute right-0 h-full">
                         <Button
                             variant={'destructive'}
@@ -253,22 +253,22 @@ function DesignerElementWrapper(props: { element: FormElementInstance }) {
                             <Trash2 className="h-6 w-6" />
                         </Button>
                     </div>
-                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 animate-pulse">
-                        <p className="text-sm text-muted-foreground">
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-pulse">
+                        <p className="text-muted-foreground text-sm">
                             Click for properties or drag to move
                         </p>
                     </div>
                 </div>
             )}
             {top_half.isOver && (
-                <div className="absolute top-0 h-[7px] w-full rounded-b-none rounded-t-xl bg-primary"></div>
+                <div className="bg-primary absolute top-0 h-[7px] w-full rounded-t-xl rounded-b-none"></div>
             )}
             {bottom_half.isOver && (
-                <div className="absolute bottom-0 h-[7px] w-full rounded-b-xl rounded-t-none bg-primary"></div>
+                <div className="bg-primary absolute bottom-0 h-[7px] w-full rounded-t-none rounded-b-xl"></div>
             )}
             <div
                 className={cn(
-                    'pointer-events-none flex h-[120px] w-full items-center rounded-xl bg-accent/40 px-4 py-2 opacity-100',
+                    'bg-accent/40 pointer-events-none flex h-[120px] w-full items-center rounded-xl px-4 py-2 opacity-100',
                     mouseOver && 'opacity-30'
                 )}
             >
@@ -294,7 +294,7 @@ function PropertiesFormSidebar() {
     const PropertiesForm = FormElements[selected_element.type].properties_component
 
     return (
-        <aside className="flex h-full w-[400px] max-w-[400px] grow flex-col gap-2 overflow-y-auto border-l-2 border-muted bg-background-secondary p-4">
+        <aside className="border-muted bg-background-secondary flex h-full w-[400px] max-w-[400px] grow flex-col gap-2 overflow-y-auto border-l-2 p-4">
             <div className="flex items-center justify-between">
                 <h2 className="text-lg font-medium">Properties</h2>
                 <Button
@@ -313,8 +313,8 @@ function PropertiesFormSidebar() {
 
 function FormElementSidebar() {
     return (
-        <aside className="flex h-full w-[400px] max-w-[400px] grow flex-col gap-2 overflow-y-auto border-l-2 border-muted bg-background-secondary p-4">
-            <h2 className="place-self-start text-lg font-medium text-muted-foreground">
+        <aside className="border-muted bg-background-secondary flex h-full w-[400px] max-w-[400px] grow flex-col gap-2 overflow-y-auto border-l-2 p-4">
+            <h2 className="text-muted-foreground place-self-start text-lg font-medium">
                 Layout Elements
             </h2>
             <Separator className="my-2" />
@@ -325,7 +325,7 @@ function FormElementSidebar() {
                 <SidebarButtonElement form_element={FormElements.SeparatorField} />
                 <SidebarButtonElement form_element={FormElements.SpacerField} />
             </div>
-            <h2 className="place-self-start text-lg font-medium text-muted-foreground">
+            <h2 className="text-muted-foreground place-self-start text-lg font-medium">
                 Field Elements
             </h2>
             <Separator className="my-2" />
@@ -356,7 +356,7 @@ function SidebarButtonElement(props: { form_element: FormElement }) {
             ref={draggable.setNodeRef}
             className={cn(
                 'flex h-[120px] w-[120px] flex-col gap-2',
-                draggable.isDragging && 'ring-2 ring-primary'
+                draggable.isDragging && 'ring-primary ring-2'
             )}
             variant={'outline'}
             {...draggable.listeners}
@@ -426,7 +426,7 @@ export function DragOverlayWrapper() {
         } else {
             const DesignerElementComponent = FormElements[element.type].designer_component
             node = (
-                <div className="pointer-events-none flex h-[120px] w-full rounded-xl border bg-accent px-4 py-2 opacity-80">
+                <div className="bg-accent pointer-events-none flex h-[120px] w-full rounded-xl border px-4 py-2 opacity-80">
                     <DesignerElementComponent element_instance={element} />
                 </div>
             )
