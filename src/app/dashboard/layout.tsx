@@ -86,7 +86,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                         <DashboardBreadcrumbs />
                     </div>
                 </header>
-                <div className="flex flex-1 rounded-xl bg-background p-4">{children}</div>
+                <div className="bg-background flex flex-1 rounded-xl p-4">{children}</div>
             </SidebarInset>
         </SidebarProvider>
     )

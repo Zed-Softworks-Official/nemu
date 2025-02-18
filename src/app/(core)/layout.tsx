@@ -81,7 +81,7 @@ function Navbar() {
 function Footer() {
     return (
         <footer className="bg-background-secondary p-10">
-            <div className="container mx-auto grid gap-3 sm:grid-cols-3">
+            <div className="container mx-auto grid gap-3 space-y-5 sm:grid-cols-3">
                 <div className="flex h-full flex-col justify-between">
                     <NemuImage
                         src={'/zed-logo.svg'}

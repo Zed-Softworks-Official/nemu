@@ -78,7 +78,7 @@ export function PricingCard(props: {
             variants={containerVariants}
         >
             <Card
-                className={`flex flex-1 flex-col ${props.highlighted ? 'border-2 border-primary shadow-lg' : ''}`}
+                className={`flex flex-1 flex-col ${props.highlighted ? 'border-primary border-2 shadow-lg' : ''}`}
             >
                 <CardHeader>
                     <CardTitle className="text-2xl">{props.title}</CardTitle>
@@ -88,7 +88,7 @@ export function PricingCard(props: {
                     <div className="mb-4 text-4xl font-bold">
                         {props.price}
                         {props.period && (
-                            <span className="text-xl font-normal text-muted-foreground">
+                            <span className="text-muted-foreground text-xl font-normal">
                                 /{props.period}
                             </span>
                         )}
@@ -97,9 +97,9 @@ export function PricingCard(props: {
                         {props.features.map((feature, index) => (
                             <li key={index} className="flex items-center">
                                 {feature.included ? (
-                                    <Check className="mr-2 h-5 w-5 text-primary" />
+                                    <Check className="text-primary mr-2 h-5 w-5" />
                                 ) : (
-                                    <X className="mr-2 h-5 w-5 text-muted-foreground" />
+                                    <X className="text-muted-foreground mr-2 h-5 w-5" />
                                 )}
                                 <span
                                     className={

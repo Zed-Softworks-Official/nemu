@@ -17,7 +17,7 @@ export default function RequestSidenavLink(props: {
             className={cn(
                 'hover:underline',
                 pathname.includes(props.path)
-                    ? 'font-semibold text-primary'
+                    ? 'text-primary font-semibold'
                     : 'text-muted-foreground'
             )}
         >

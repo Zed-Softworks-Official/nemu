@@ -102,7 +102,7 @@ export function CreateForm() {
                                         <Button
                                             variant={'outline'}
                                             className={cn(
-                                                'w-[200px] justify-start border-background-tertiary bg-background-secondary text-left font-normal',
+                                                'border-background-tertiary bg-background-secondary w-[200px] justify-start text-left font-normal',
                                                 !field.value && 'text-muted-foreground'
                                             )}
                                         >

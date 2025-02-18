@@ -12,10 +12,10 @@ export default function SupporterSuccessPage() {
                         height={200}
                         priority
                     />
-                    <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+                    <h2 className="text-foreground text-3xl font-bold tracking-tight sm:text-4xl">
                         Thank you for your support!
                     </h2>
-                    <p className="mt-6 text-lg leading-8 text-muted-foreground">
+                    <p className="text-muted-foreground mt-6 text-lg leading-8">
                         We&apos;re so glad you&apos;re supporting us! We&apos;ll be in
                         touch soon with updates on how you can help fund the development
                         of Nemu.

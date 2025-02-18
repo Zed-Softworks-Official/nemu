@@ -126,7 +126,7 @@ function CommissionCard(props: {
                 </CardContent>
                 <CardFooter className="flex flex-col items-start">
                     <span className="text-sm font-medium">{props.commission.price}</span>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-muted-foreground text-xs">
                         by @{props.commission.artist.handle}
                     </span>
                 </CardFooter>

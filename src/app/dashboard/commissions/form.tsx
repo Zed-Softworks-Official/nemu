@@ -171,7 +171,7 @@ export function CreateForm() {
                             <Textarea
                                 placeholder="Description"
                                 {...field}
-                                className="resize-none bg-background-secondary"
+                                className="bg-background-secondary resize-none"
                                 rows={8}
                                 onChange={(e) => field.onChange(e.currentTarget.value)}
                             />
@@ -186,14 +186,14 @@ export function CreateForm() {
                         <FormItem>
                             <FormLabel>Price:</FormLabel>
                             <div className="flex">
-                                <div className="flex items-center justify-center rounded-l-md bg-background-tertiary px-5">
+                                <div className="bg-background-tertiary flex items-center justify-center rounded-l-md px-5">
                                     <CircleDollarSign className="h-6 w-6" />
                                 </div>
                                 <Input
                                     placeholder="Starting Price"
                                     type="text"
                                     inputMode="numeric"
-                                    className="w-full rounded-l-none bg-background-secondary"
+                                    className="bg-background-secondary w-full rounded-l-none"
                                     ref={field.ref}
                                     disabled={field.disabled}
                                     defaultValue={field.value ?? ''}
@@ -250,7 +250,7 @@ export function CreateForm() {
                                         <Input
                                             type="number"
                                             inputMode="numeric"
-                                            className="w-[100px] bg-background-secondary"
+                                            className="bg-background-secondary w-[100px]"
                                             ref={field.ref}
                                             value={
                                                 (field.value as unknown as number[])[0] ??
@@ -572,7 +572,7 @@ export function UpdateForm(props: { commission: ClientCommissionItemEditable }) 
                             <Textarea
                                 placeholder="Description"
                                 {...field}
-                                className="resize-none bg-background-secondary"
+                                className="bg-background-secondary resize-none"
                                 rows={8}
                                 onChange={(e) => field.onChange(e.currentTarget.value)}
                             />
@@ -587,14 +587,14 @@ export function UpdateForm(props: { commission: ClientCommissionItemEditable }) 
                         <FormItem>
                             <FormLabel>Price:</FormLabel>
                             <div className="flex">
-                                <div className="flex items-center justify-center rounded-l-md bg-background-tertiary px-5">
+                                <div className="bg-background-tertiary flex items-center justify-center rounded-l-md px-5">
                                     <CircleDollarSign className="h-6 w-6" />
                                 </div>
                                 <Input
                                     placeholder="Starting Price"
                                     type="text"
                                     inputMode="numeric"
-                                    className="w-full rounded-l-none bg-background-secondary"
+                                    className="bg-background-secondary w-full rounded-l-none"
                                     ref={field.ref}
                                     disabled={field.disabled}
                                     defaultValue={field.value ?? ''}
@@ -651,7 +651,7 @@ export function UpdateForm(props: { commission: ClientCommissionItemEditable }) 
                                         <Input
                                             type="number"
                                             inputMode="numeric"
-                                            className="w-[100px] bg-background-secondary"
+                                            className="bg-background-secondary w-[100px]"
                                             ref={field.ref}
                                             value={
                                                 (field.value as unknown as number[])[0] ??

@@ -52,7 +52,7 @@ export function CommissionHeader() {
             <h1 className="text-2xl font-bold">
                 {request_data?.user.username} | {request_data?.commission?.title}
             </h1>
-            <span className="text-sm text-muted-foreground">
+            <span className="text-muted-foreground text-sm">
                 {request_data?.created_at?.toLocaleDateString()}
             </span>
         </div>

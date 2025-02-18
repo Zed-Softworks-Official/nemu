@@ -50,7 +50,7 @@ export function CommissionView(props: { handle: string; slug: string }) {
     return (
         <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
             <ImageViewer images={commission.images} />
-            <div className="col-span-2 h-full overflow-y-auto rounded-xl bg-background shadow-xl">
+            <div className="bg-background col-span-2 h-full overflow-y-auto rounded-xl shadow-xl">
                 <CommissionContent
                     commission={commission}
                     form_data={commission.form}
@@ -101,12 +101,12 @@ function CommissionContent(props: {
                                 {text}
                             </Badge>
                         </h2>
-                        <p className="mb-4 text-muted-foreground">
+                        <p className="text-muted-foreground mb-4">
                             By
                             <Button
                                 variant={'link'}
                                 asChild
-                                className="ml-0 pl-2 text-muted-foreground hover:text-foreground"
+                                className="text-muted-foreground hover:text-foreground ml-0 pl-2"
                             >
                                 <Link
                                     prefetch={true}
@@ -176,12 +176,12 @@ function CommissionContent(props: {
 
 function CommissionChargeMethod(props: { charge_method: ChargeMethod }) {
     if (props.charge_method === 'in_full') {
-        return <span className="text-sm italic text-muted-foreground">Pay In Full</span>
+        return <span className="text-muted-foreground text-sm italic">Pay In Full</span>
     }
 
     if (props.charge_method === 'down_payment') {
         return (
-            <span className="text-sm italic text-muted-foreground">
+            <span className="text-muted-foreground text-sm italic">
                 Down Payment Required
             </span>
         )

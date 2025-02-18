@@ -159,7 +159,7 @@ function NemuUploadDropzone(props: {
         <div
             {...getRootProps()}
             className={cn(
-                'border-base-content mx-auto flex w-full border-spacing-28 cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-opacity-50 bg-background-secondary p-10 transition-all duration-200 ease-in-out hover:border-primary focus:border-primary',
+                'border-base-content border-opacity-50 bg-background-secondary hover:border-primary focus:border-primary mx-auto flex w-full border-spacing-28 cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-10 transition-all duration-200 ease-in-out',
                 props.className
             )}
         >
@@ -209,7 +209,7 @@ function NemuUploadPreview(props: {
     return (
         <div
             className={cn(
-                'flex flex-col gap-5 rounded-xl bg-background-secondary p-5 shadow-xl',
+                'bg-background-secondary flex flex-col gap-5 rounded-xl p-5 shadow-xl',
                 props.className
             )}
         >
