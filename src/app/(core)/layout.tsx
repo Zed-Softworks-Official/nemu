@@ -54,17 +54,13 @@ function Navbar() {
     return (
         <header className="container mx-auto flex w-full items-center justify-between gap-5 px-10 py-5 sm:px-0">
             <FullLogo />
-            <nav>
+            <nav className="flex items-center gap-5">
+                <SearchBar />
                 <SignedIn>
-                    <div className="flex items-center gap-5">
-                        <SearchBar />
-                        <Notifications />
-                        <Suspense
-                            fallback={<Skeleton className="h-12 w-12 rounded-full" />}
-                        >
-                            <UserDropdown />
-                        </Suspense>
-                    </div>
+                    <Notifications />
+                    <Suspense fallback={<Skeleton className="h-12 w-12 rounded-full" />}>
+                        <UserDropdown />
+                    </Suspense>
                 </SignedIn>
                 <SignedOut>
                     <Button className="h-12 rounded-full" variant={'ghost'} asChild>
