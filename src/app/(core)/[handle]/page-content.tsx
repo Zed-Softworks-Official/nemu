@@ -79,7 +79,7 @@ export function ArtistHeader(props: { handle: string }) {
                             alt="Supporter Image"
                             width={100}
                             height={100}
-                            className="absolute -right-4 top-0 h-10! w-10!"
+                            className="absolute top-0 -right-4 h-10! w-10!"
                         />
                     )}
                     <Avatar className="h-24 w-24">
@@ -123,18 +123,18 @@ export function ArtistBody(props: { handle: string }) {
 
     return (
         <div className="container mx-auto flex flex-col gap-10 lg:mt-36 lg:flex-row">
-            <div className="h-fit w-full rounded-xl bg-background-secondary p-10 text-center lg:w-1/3">
+            <div className="bg-background-secondary h-fit w-full rounded-xl p-10 text-center lg:w-1/3">
                 <div className="flex flex-col justify-center gap-5">
                     <div className="flex flex-col">
                         <h2 className="mb-5 font-bold uppercase">About</h2>
-                        <Separator className="mb-5 bg-foreground/[0.1]" />
+                        <Separator className="bg-foreground/[0.1] mb-5" />
                         <p>{artist?.about}</p>
                         <p className="mt-2">Location: {artist?.location}</p>
                     </div>
                     <div>
-                        <Separator className="mb-5 bg-foreground/[0.1]" />
+                        <Separator className="bg-foreground/[0.1] mb-5" />
                         <h2 className="mb-5 font-bold uppercase">Socials</h2>
-                        <Separator className="mb-5 bg-foreground/[0.1]" />
+                        <Separator className="bg-foreground/[0.1] mb-5" />
                         <div className="flex items-center justify-center gap-5">
                             {artist?.socials?.map((social) => (
                                 <Button
@@ -142,7 +142,7 @@ export function ArtistBody(props: { handle: string }) {
                                     variant={'ghost'}
                                     key={social.agent}
                                     className={
-                                        'h-12 w-12 rounded-full hover:bg-background-tertiary'
+                                        'hover:bg-background-tertiary h-12 w-12 rounded-full'
                                     }
                                 >
                                     <Link href={social.url} target="_blank">
@@ -155,15 +155,15 @@ export function ArtistBody(props: { handle: string }) {
                 </div>
             </div>
             <div className="mx-auto flex w-full flex-row gap-10">
-                <div className="flex h-full w-full flex-col rounded-xl bg-background-secondary p-10">
+                <div className="bg-background-secondary flex h-full w-full flex-col rounded-xl p-10">
                     <TabsContent value="commissions">
                         <h2 className="mb-5 font-bold uppercase">Commissions</h2>
-                        <Separator className="mb-5 bg-foreground/[0.1]" />
+                        <Separator className="bg-foreground/[0.1] mb-5" />
                         <CommissionsList handle={props.handle} />
                     </TabsContent>
                     <TabsContent value="portfolio">
                         <h2 className="mb-5 font-bold uppercase">Portfolio</h2>
-                        <Separator className="mb-5 bg-foreground/[0.1]" />
+                        <Separator className="bg-foreground/[0.1] mb-5" />
                         <PortfolioList handle={props.handle} />
                     </TabsContent>
                 </div>
@@ -235,7 +235,7 @@ function CommissionsList(props: { handle: string }) {
             {artist.commissions.map((commission) => (
                 <li
                     key={commission.id}
-                    className="overflow-hidden rounded-lg bg-background shadow-sm"
+                    className="bg-background overflow-hidden rounded-lg shadow-sm"
                 >
                     <div className="md:flex">
                         <div className="md:shrink-0">
@@ -254,7 +254,7 @@ function CommissionsList(props: { handle: string }) {
                                 </h2>
                                 <Badge>{commission.availability}</Badge>
                             </div>
-                            <p className="mb-4 text-muted-foreground">
+                            <p className="text-muted-foreground mb-4">
                                 {commission.description.substring(
                                     0,
                                     commission.description.length >= 250
@@ -265,7 +265,7 @@ function CommissionsList(props: { handle: string }) {
                             </p>
                             <div className="flex items-center justify-between">
                                 <div className="flex flex-col">
-                                    <span className="text-lg font-medium uppercase text-muted-foreground">
+                                    <span className="text-muted-foreground text-lg font-medium uppercase">
                                         FROM
                                     </span>
                                     <span className="text-lg font-medium">

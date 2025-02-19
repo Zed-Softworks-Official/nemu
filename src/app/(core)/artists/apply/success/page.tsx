@@ -19,10 +19,10 @@ export default function ArtistApplySuccessPage() {
                     className="w-64 object-cover"
                 />
                 <div>
-                    <h2 className="text-center text-3xl font-bold tracking-tight text-foreground">
+                    <h2 className="text-foreground text-center text-3xl font-bold tracking-tight">
                         Welcome to Nemu!
                     </h2>
-                    <p className="mt-2 text-center text-sm text-muted-foreground">
+                    <p className="text-muted-foreground mt-2 text-center text-sm">
                         We&apos;re so excited to have you on board! Make sure to complete
                         the onboarding process so you can start selling your art!
                     </p>

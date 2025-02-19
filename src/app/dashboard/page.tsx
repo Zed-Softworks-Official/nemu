@@ -4,7 +4,7 @@ export default function DashboardHome() {
             <h1 className="text-3xl font-bold">Home</h1>
 
             <div className="flex h-full w-full flex-col items-center justify-center gap-5">
-                <h2 className="text-2xl font-bold text-muted-foreground">
+                <h2 className="text-muted-foreground text-2xl font-bold">
                     Stats Coming Soon
                 </h2>
             </div>

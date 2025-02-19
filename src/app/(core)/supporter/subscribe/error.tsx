@@ -10,7 +10,7 @@ export default function SubscriptionError() {
                 height={400}
             />
             <h1 className="text-3xl font-bold">PANIC</h1>
-            <p className="text-lg text-muted-foreground">
+            <p className="text-muted-foreground text-lg">
                 Oh Nyo! Looks Like Something Went Wrong.
             </p>
         </div>

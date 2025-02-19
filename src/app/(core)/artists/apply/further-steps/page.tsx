@@ -12,10 +12,10 @@ export default function ArtistApplySuccessPage() {
                     className="w-64 object-cover"
                 />
                 <div>
-                    <h2 className="text-center text-3xl font-bold tracking-tight text-foreground">
+                    <h2 className="text-foreground text-center text-3xl font-bold tracking-tight">
                         Thank you for your Interest!
                     </h2>
-                    <p className="mt-2 text-center text-sm text-muted-foreground">
+                    <p className="text-muted-foreground mt-2 text-center text-sm">
                         We&apos;re glad you&apos;re interested in Nemu! We&apos;ll be in
                         touch soon, until then hold tight!
                     </p>

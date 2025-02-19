@@ -349,7 +349,7 @@ function Container(props: {
     if (isDragging) {
         return (
             <Card
-                className="mb-4 flex flex-1 break-inside-avoid flex-col bg-background"
+                className="bg-background mb-4 flex flex-1 break-inside-avoid flex-col"
                 ref={setNodeRef}
                 style={style}
                 {...attributes}
@@ -378,7 +378,7 @@ function Container(props: {
 
     return (
         <Card
-            className="mb-4 flex flex-1 break-inside-avoid flex-col bg-background"
+            className="bg-background mb-4 flex flex-1 break-inside-avoid flex-col"
             ref={setNodeRef}
             style={style}
             {...attributes}

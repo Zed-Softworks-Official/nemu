@@ -10,7 +10,7 @@ export default function NotFound() {
                 height={400}
             />
             <h1 className="text-3xl font-bold">404</h1>
-            <p className="text-lg text-muted-foreground">
+            <p className="text-muted-foreground text-lg">
                 Oh Nyo! The page you&apos;re looking for doesn&apos;t exist
             </p>
         </div>

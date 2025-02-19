@@ -116,7 +116,7 @@ export function AnimatedFeatures() {
                             key={feature.title}
                             className="text-center"
                         >
-                            <feature.icon className="mx-auto mb-4 size-12 text-primary" />
+                            <feature.icon className="text-primary mx-auto mb-4 size-12" />
                             <h3 className="text-xl font-semibold">{feature.title}</h3>
                             <p className="text-muted-foreground">{feature.description}</p>
                         </motion.div>
@@ -197,7 +197,7 @@ export function AnimatedCommunity() {
             <div className="mx-auto max-w-4xl text-center">
                 <motion.p
                     variants={itemVariants}
-                    className="mb-8 text-xl text-muted-foreground"
+                    className="text-muted-foreground mb-8 text-xl"
                 >
                     As an open-source platform, we prioritize community feedback and
                     collaboration. We put our community at the heart of everything we do.
@@ -208,19 +208,19 @@ export function AnimatedCommunity() {
                     className="mb-8 inline-block space-y-5 text-left [&>li]:flex [&>li]:items-center [&>li]:gap-2 [&>li]:text-lg"
                 >
                     <li>
-                        <Sparkle className="size-6 text-primary" />
+                        <Sparkle className="text-primary size-6" />
                         Suggest New Features
                     </li>
                     <li>
-                        <Code className="size-6 text-primary" />
+                        <Code className="text-primary size-6" />
                         Contribute to our codebase
                     </li>
                     <li>
-                        <Handshake className="size-6 text-primary" />
+                        <Handshake className="text-primary size-6" />
                         Connect with other artists
                     </li>
                     <li>
-                        <Rocket className="size-6 text-primary" />
+                        <Rocket className="text-primary size-6" />
                         Help us grow and improve
                     </li>
                 </motion.ul>
@@ -239,7 +239,7 @@ export function AnimatedCTA() {
             animate={controls}
             variants={containerVariants}
             initial={'hidden'}
-            className="flex flex-col items-center justify-center gap-4 bg-primary px-4 py-20"
+            className="bg-primary flex flex-col items-center justify-center gap-4 px-4 py-20"
         >
             <motion.h2 variants={itemVariants} className="text-center text-4xl font-bold">
                 Become an artist on Nemu

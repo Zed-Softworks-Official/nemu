@@ -16,10 +16,10 @@ export function HomeCarousel() {
             opts={{ loop: true }}
         >
             <CarouselContent>
-                <CarouselItem className="flex flex-col items-center justify-between bg-primary p-10 sm:flex-row">
+                <CarouselItem className="bg-primary flex flex-col items-center justify-between p-10 sm:flex-row">
                     <div className="flex flex-col gap-3 pb-10 sm:pb-0">
                         <h2 className="text-xl font-bold">Artists Wanted!</h2>
-                        <p className="max-w-lg text-foreground/70">
+                        <p className="text-foreground/70 max-w-lg">
                             Join Nemu to showcase your art, connect with a global
                             audience, sell your creations effortlessly, and get
                             commissioned for custom work.
@@ -44,10 +44,10 @@ export function HomeCarousel() {
                         priority
                     />
                 </CarouselItem>
-                <CarouselItem className="flex flex-col items-center justify-between bg-primary p-10 sm:flex-row">
+                <CarouselItem className="bg-primary flex flex-col items-center justify-between p-10 sm:flex-row">
                     <div className="flex flex-col gap-3 pb-10 sm:pb-0">
                         <h2 className="text-xl font-bold">Become A Supporter</h2>
-                        <p className="max-w-lg text-foreground/70">
+                        <p className="text-foreground/70 max-w-lg">
                             Become a supporter to help fund the development of nemu
                         </p>
                         <Button

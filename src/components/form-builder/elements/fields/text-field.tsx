@@ -85,7 +85,7 @@ function DesignerComponent(props: { element_instance: FormElementInstance }) {
                 className="bg-background-secondary"
             />
             {helper_text && (
-                <p className="text-sm text-muted-foreground">{helper_text}</p>
+                <p className="text-muted-foreground text-sm">{helper_text}</p>
             )}
         </div>
     )
@@ -131,7 +131,7 @@ function FormComponent(props: {
             {helper_text && (
                 <p
                     className={cn(
-                        'text-sm text-muted-foreground',
+                        'text-muted-foreground text-sm',
                         error && 'text-destructive'
                     )}
                 >

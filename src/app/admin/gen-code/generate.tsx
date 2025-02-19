@@ -68,7 +68,7 @@ export function GenerateAristCode() {
             <Separator />
             <Form {...form}>
                 <form
-                    className="flex flex-col gap-5 rounded-xl bg-background-secondary p-5"
+                    className="bg-background-secondary flex flex-col gap-5 rounded-xl p-5"
                     onSubmit={form.handleSubmit(ProcessForm)}
                 >
                     <FormField
