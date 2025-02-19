@@ -1,19 +1,20 @@
 'use client'
 
+import Link from 'next/link'
 import {
     KnockProvider,
     useKnockClient,
     useNotifications,
     useNotificationStore
 } from '@knocklabs/react'
-
 import { useUser } from '@clerk/nextjs'
+import { useEffect, useMemo, useState } from 'react'
+import { Archive, BellIcon, Inbox } from 'lucide-react'
 
 import { env } from '~/env'
+
 import { Skeleton } from '~/components/ui/skeleton'
-import { useEffect } from 'react'
 import { Button } from '~/components/ui/button'
-import { BellIcon } from 'lucide-react'
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -22,10 +23,12 @@ import {
     DropdownMenuLabel,
     DropdownMenuTrigger
 } from '~/components/ui/dropdown-menu'
-import Link from 'next/link'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
+
 import { cn } from '~/lib/utils'
 
 type Feed = ReturnType<typeof useNotifications>
+type NotificationInbox = 'inbox' | 'archive'
 
 export function Notifications() {
     const { user, isLoaded } = useUser()
@@ -47,8 +50,20 @@ export function Notifications() {
 
 function NotificationFeed() {
     const knock_client = useKnockClient()
-    const feed_client = useNotifications(knock_client, env.NEXT_PUBLIC_KNOCK_FEED_ID)
+    const feed_client = useNotifications(knock_client, env.NEXT_PUBLIC_KNOCK_FEED_ID, {
+        archived: 'include'
+    })
+
     const { items, metadata } = useNotificationStore(feed_client)
+    const [selectedTab, setSelectedTab] = useState<NotificationInbox>('inbox')
+
+    const itemsInInbox = useMemo(() => {
+        return items.filter((item) => !item.archived_at).length
+    }, [items])
+
+    const itemsInArchive = useMemo(() => {
+        return items.filter((item) => item.archived_at).length
+    }, [items])
 
     useFetchNotifications(feed_client)
 
@@ -59,6 +74,9 @@ function NotificationFeed() {
                     variant={'ghost'}
                     size={'icon'}
                     className="relative rounded-full focus-visible:ring-0"
+                    onClick={() => {
+                        void feed_client.markAllAsRead()
+                    }}
                 >
                     <BellIcon className="size-4" />
                     <span className="sr-only">Notifications</span>
@@ -69,61 +87,104 @@ function NotificationFeed() {
             </DropdownMenuTrigger>
             <DropdownMenuContent
                 align="end"
-                className="flex max-h-[500px] max-w-[300px] flex-col gap-2 overflow-y-auto"
+                className="flex max-h-[500px] min-h-[500px] max-w-[300px] min-w-[300px] flex-col gap-2 overflow-y-auto p-0"
             >
-                <DropdownMenuGroup className="flex items-center justify-between">
-                    <DropdownMenuLabel>Notifications</DropdownMenuLabel>
-                    <Button
-                        variant={'ghost'}
-                        size={'sm'}
-                        className="text-muted-foreground"
-                        onClick={() => {
-                            void feed_client.markAllAsRead()
-                        }}
+                <Tabs
+                    defaultValue={selectedTab}
+                    className="flex flex-grow flex-col"
+                    onValueChange={(value) => setSelectedTab(value as NotificationInbox)}
+                >
+                    <TabsList className="bg-popover sticky top-0 z-10 flex w-full items-center justify-center">
+                        <TabsTrigger
+                            value="inbox"
+                            className={cn(
+                                'flex w-full items-center justify-center gap-2 rounded-none p-2 text-sm',
+                                {
+                                    'border-primary border-b-2': selectedTab === 'inbox',
+                                    'text-muted-foreground border-b-2':
+                                        selectedTab !== 'inbox'
+                                }
+                            )}
+                        >
+                            <Inbox className="size-4" />
+                            Inbox
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="archive"
+                            className={cn(
+                                'flex w-full items-center justify-center gap-2 rounded-none p-2 text-sm',
+                                {
+                                    'border-primary border-b-2':
+                                        selectedTab === 'archive',
+                                    'text-muted-foreground border-b-2':
+                                        selectedTab !== 'archive'
+                                }
+                            )}
+                        >
+                            <Archive className="size-4" />
+                            Archive
+                        </TabsTrigger>
+                    </TabsList>
+                    <TabsContent
+                        value="inbox"
+                        className="relative flex flex-grow flex-col"
                     >
-                        Mark all as Read
-                    </Button>
-                </DropdownMenuGroup>
-
-                {items.map((item) => (
-                    <DropdownMenuItem
-                        key={item.id}
-                        className="flex flex-col items-start gap-2"
-                    >
-                        {item.blocks.map((block) => (
-                            <div
-                                key={block.name}
-                                onClick={() => {
-                                    if (item.read_at) return
-
-                                    void feed_client.markAsRead(item)
-                                }}
-                            >
-                                {(block.type === 'markdown' || block.type === 'text') && (
-                                    <div
-                                        className={cn(
-                                            item.read_at && 'text-muted-foreground'
-                                        )}
-                                        dangerouslySetInnerHTML={{
-                                            __html: block.rendered
-                                        }}
-                                    />
-                                )}
-                                {block.type === 'button_set' && (
-                                    <div>
-                                        {block.buttons.map((button) => (
-                                            <Button key={button.name} size={'sm'} asChild>
-                                                <Link href={button.action}>
-                                                    {button.label}
-                                                </Link>
-                                            </Button>
-                                        ))}
-                                    </div>
-                                )}
+                        {items
+                            .filter((item) => !item.archived_at)
+                            .map((item) => (
+                                <NotificationItem
+                                    key={item.id}
+                                    item={item}
+                                    feed_client={feed_client}
+                                    onArchive={() => {
+                                        void feed_client.markAsArchived(item)
+                                    }}
+                                />
+                            ))}
+                        {/*Check if inbox is empty*/}
+                        {itemsInInbox === 0 && (
+                            <EmptyState
+                                icon={<Inbox className="text-muted-foreground size-16" />}
+                                message="No New Notifications"
+                            />
+                        )}
+                        {itemsInInbox > 0 && (
+                            <div className="bg-popover sticky bottom-0 flex flex-col items-center justify-center border-t-2">
+                                <Button
+                                    variant={'ghost'}
+                                    className="text-muted-foreground w-full rounded-none"
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        void feed_client.markAllAsArchived()
+                                    }}
+                                >
+                                    <Archive className="size-4" />
+                                    Archive All
+                                </Button>
                             </div>
-                        ))}
-                    </DropdownMenuItem>
-                ))}
+                        )}
+                    </TabsContent>
+                    <TabsContent value="archive" className="flex flex-grow flex-col">
+                        {items
+                            .filter((item) => item.archived_at)
+                            .map((item) => (
+                                <NotificationItem
+                                    key={item.id}
+                                    item={item}
+                                    feed_client={feed_client}
+                                />
+                            ))}
+                        {/*Check if inbox is empty*/}
+                        {itemsInArchive === 0 && (
+                            <EmptyState
+                                icon={
+                                    <Archive className="text-muted-foreground size-16" />
+                                }
+                                message="No Archived Notifications"
+                            />
+                        )}
+                    </TabsContent>
+                </Tabs>
             </DropdownMenuContent>
         </DropdownMenu>
     )
@@ -133,4 +194,74 @@ function useFetchNotifications(feed_client: Feed) {
     useEffect(() => {
         void feed_client.fetch()
     }, [feed_client])
+}
+
+function EmptyState(props: { icon: React.ReactNode; message: string }) {
+    return (
+        <DropdownMenuGroup className="flex flex-1 flex-col items-center justify-center">
+            <DropdownMenuLabel className="flex flex-1 flex-col items-center justify-center gap-5">
+                {props.icon}
+                {props.message}
+            </DropdownMenuLabel>
+        </DropdownMenuGroup>
+    )
+}
+
+function NotificationItem(props: {
+    item: ReturnType<typeof useNotificationStore>['items'][number]
+    feed_client: Feed
+    onArchive?: () => void
+}) {
+    return (
+        <DropdownMenuItem
+            className="border-muted flex items-start gap-2 rounded-none border-b-2"
+            onClick={() => {
+                void props.feed_client.markAsRead(props.item)
+            }}
+        >
+            <div className="flex flex-col items-start gap-2">
+                {props.item.blocks.map((block) => (
+                    <div key={block.name}>
+                        {(block.type === 'markdown' || block.type === 'text') && (
+                            <div
+                                className={cn(
+                                    props.item.read_at && 'text-muted-foreground'
+                                )}
+                                dangerouslySetInnerHTML={{
+                                    __html: block.rendered
+                                }}
+                            />
+                        )}
+                        {block.type === 'button_set' && (
+                            <div>
+                                {block.buttons.map((button) => (
+                                    <Button key={button.name} size={'sm'} asChild>
+                                        <Link href={button.action}>{button.label}</Link>
+                                    </Button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                ))}
+            </div>
+            {props.onArchive && (
+                <div className="flex flex-1 items-center justify-center">
+                    <Button
+                        variant={'ghost'}
+                        size={'icon'}
+                        className="text-muted-foreground"
+                        onClick={(e) => {
+                            if (!props.onArchive) return
+
+                            props.onArchive()
+                            e.stopPropagation()
+                        }}
+                    >
+                        <span className="sr-only">Archive</span>
+                        <Archive className="size-4" />
+                    </Button>
+                </div>
+            )}
+        </DropdownMenuItem>
+    )
 }
