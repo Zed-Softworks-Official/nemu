@@ -57,12 +57,14 @@ function NotificationFeed() {
     const { items, metadata } = useNotificationStore(feed_client)
     const [selectedTab, setSelectedTab] = useState<NotificationInbox>('inbox')
 
-    const itemsInInbox = useMemo(() => {
-        return items.filter((item) => !item.archived_at).length
-    }, [items])
-
-    const itemsInArchive = useMemo(() => {
-        return items.filter((item) => item.archived_at).length
+    const notificationCounts = useMemo(() => {
+        return items.reduce(
+            (acc, item) => ({
+                count: acc.count + (item.archived_at ? 0 : 1),
+                archived: acc.archived + (item.archived_at ? 1 : 0)
+            }),
+            { count: 0, archived: 0 }
+        )
     }, [items])
 
     useFetchNotifications(feed_client)
@@ -142,13 +144,13 @@ function NotificationFeed() {
                                 />
                             ))}
                         {/*Check if inbox is empty*/}
-                        {itemsInInbox === 0 && (
+                        {notificationCounts.count === 0 && (
                             <EmptyState
                                 icon={<Inbox className="text-muted-foreground size-16" />}
                                 message="No New Notifications"
                             />
                         )}
-                        {itemsInInbox > 0 && (
+                        {notificationCounts.count > 0 && (
                             <div className="bg-popover sticky bottom-0 flex flex-col items-center justify-center border-t-2">
                                 <Button
                                     variant={'ghost'}
@@ -175,7 +177,7 @@ function NotificationFeed() {
                                 />
                             ))}
                         {/*Check if inbox is empty*/}
-                        {itemsInArchive === 0 && (
+                        {notificationCounts.archived === 0 && (
                             <EmptyState
                                 icon={
                                     <Archive className="text-muted-foreground size-16" />
