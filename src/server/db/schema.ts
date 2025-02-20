@@ -7,14 +7,13 @@ import {
     text,
     boolean,
     index,
-    pgTableCreator,
+    mysqlTableCreator,
     timestamp,
     varchar,
     json,
-    integer,
-    customType,
-    pgEnum
-} from 'drizzle-orm/pg-core'
+    int,
+    mysqlEnum
+} from 'drizzle-orm/mysql-core'
 import { type FormElementInstance } from '~/components/form-builder/elements/form-elements'
 
 import {
@@ -41,80 +40,47 @@ import {
  *
  * @see https://orm.drizzle.team/docs/goodies#multi-project-schema
  */
-export const createTable = pgTableCreator((name) => `nemu_${name}`)
+export const createTable = mysqlTableCreator((name) => `nemu_${name}`)
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const enum_to_pg_enum = (m_Enum: any) =>
+const convertEnum = (m_Enum: any) =>
     // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
     Object.values(m_Enum).map((value: any) => `${value}`) as [string, ...string[]]
 
 /**
- * Creates a custom json schema type
- *
- * @param name - name of the coloumn
- * @returns
- */
-export const customJson = <TData>(name: string) =>
-    customType<{ data: TData; driverData: string }>({
-        dataType: () => 'json',
-        toDriver: (value: TData) => JSON.stringify(value)
-        // fromDriver: (value: string) => JSON.parse(value) as TData
-    })(name)
-
-/**
  * An Enumeration for the user roles
  */
-export const UserRoleEnum = pgEnum('role', userRoles)
+export const UserRoleEnum = (name: string) => mysqlEnum(name, userRoles)
 
 /**
  * Enumeration for the different invoice statuses
  */
-export const InvoiceStatusEnum = pgEnum(
-    'invoice_status',
-    enum_to_pg_enum(invoiceStatuses)
-)
+export const InvoiceStatusEnum = (name: string) =>
+    mysqlEnum(name, convertEnum(invoiceStatuses))
 
 /**
  * An Enumeration for the Request Status
  */
-export const RequestStatusEnum = pgEnum(
-    'request_status',
-    enum_to_pg_enum(requestStatuses)
-)
+export const RequestStatusEnum = (name: string) =>
+    mysqlEnum(name, convertEnum(requestStatuses))
 
 /**
  * An Enumeration for the Commission Availability
  */
-export const CommissionAvailabilityEnum = pgEnum(
-    'availability',
-    enum_to_pg_enum(commissionAvalabilities)
-)
+export const CommissionAvailabilityEnum = (name: string) =>
+    mysqlEnum(name, convertEnum(commissionAvalabilities))
 
-export const DownloadTypeEnum = pgEnum('download_type', enum_to_pg_enum(downloadTypes))
+export const DownloadTypeEnum = (name: string) =>
+    mysqlEnum(name, convertEnum(downloadTypes))
 
-export const ChargeMethodEnum = pgEnum('charge_method', enum_to_pg_enum(chargeMethods))
+export const ChargeMethodEnum = (name: string) =>
+    mysqlEnum(name, convertEnum(chargeMethods))
 
-export const ConStatusEnum = pgEnum('con_status', enum_to_pg_enum(conStatus))
+export const ConStatusEnum = (name: string) => mysqlEnum(name, convertEnum(conStatus))
 
 //////////////////////////////////////////////////////////
 // Tables
 //////////////////////////////////////////////////////////
-
-/**
- * Stripe Customer Ids
- *
- * Holds the link between a user, artist, and both customer id and stripe account
- */
-export const stripe_customer_ids = createTable('stripe_customer_ids', {
-    id: varchar('id', { length: 128 }).primaryKey(),
-    user_id: text('user_id').notNull(),
-    artist_id: text('artist_id').notNull(),
-
-    customer_id: text('customer_id').notNull(),
-    stripe_account: text('stripe_account').notNull(),
-
-    created_at: timestamp('created_at').defaultNow().notNull()
-})
 
 /**
  * Delivery
@@ -129,7 +95,6 @@ export const delivery = createTable('delivery', {
     artist_id: text('artist_id').notNull(),
 
     request_id: text('request_id'),
-    product_id: text('product_id'),
 
     ut_key: text('ut_key').notNull(),
     type: DownloadTypeEnum('download_type').$type<DownloadType>().notNull(),
@@ -138,7 +103,7 @@ export const delivery = createTable('delivery', {
         .$onUpdate(() => new Date())
         .defaultNow()
         .notNull(),
-    version: integer('version')
+    version: int('version')
         .default(1)
         .$onUpdate(() => sql`version + 1`)
         .notNull(),
@@ -240,7 +205,7 @@ export const portfolios = createTable('portfolio', {
 export const commissions = createTable('commission', {
     id: varchar('id', { length: 128 }).primaryKey(),
     artist_id: text('artist_id').notNull(),
-    price: integer('price').notNull(),
+    price: int('price').notNull(),
     rating: decimal('rating', { precision: 2, scale: 1 }).notNull(),
     adult_content: boolean('adult_content').default(false).notNull(),
 
@@ -264,27 +229,53 @@ export const commissions = createTable('commission', {
     published: boolean('published').default(false).notNull(),
     created_at: timestamp('created_at').defaultNow().notNull(),
 
-    max_commissions_until_waitlist: integer('max_commissions_until_waitlist')
+    max_commissions_until_waitlist: int('max_commissions_until_waitlist')
         .default(0)
         .notNull(),
-    max_commissions_until_closed: integer('max_commissions_until_closed')
+    max_commissions_until_closed: int('max_commissions_until_closed')
         .default(0)
         .notNull(),
 
-    total_requests: integer('total_requests').default(0).notNull(),
-    new_requests: integer('new_requests').default(0).notNull(),
-    accepted_requests: integer('accepted_requests').default(0).notNull(),
-    rejected_requests: integer('rejected_requests').default(0).notNull(),
+    total_requests: int('total_requests').default(0).notNull(),
+    new_requests: int('new_requests').default(0).notNull(),
+    accepted_requests: int('accepted_requests').default(0).notNull(),
+    rejected_requests: int('rejected_requests').default(0).notNull(),
 
     charge_method: ChargeMethodEnum('charge_method')
         .$type<ChargeMethod>()
         .default('in_full')
         .notNull(),
-    downpayment_percentage: integer('downpayment_percentage').default(0).notNull(),
+    downpayment_percentage: int('downpayment_percentage').default(0).notNull(),
 
     rush_orders_allowed: boolean('rush_orders_allowed').default(false),
     rush_charge: decimal('rush_charge', { precision: 3, scale: 2 }).default('0.00'),
     rush_percentage: boolean('rush_percentage').default(false)
+})
+
+export const products = createTable('products', {
+    id: varchar('id', { length: 128 }).primaryKey(),
+    name: varchar('name', { length: 128 }).notNull(),
+    description: text('description'),
+    published: boolean('published').default(false).notNull(),
+
+    created_at: timestamp('created_at').defaultNow(),
+
+    price: int('price').notNull(),
+    images: json('images').$type<string[]>().notNull(),
+    download: varchar('download', { length: 128 }),
+    sold_count: int('sold_count').default(0),
+
+    artist_id: varchar('artist_id', { length: 128 }).notNull()
+})
+
+export const purchase = createTable('purchase', {
+    id: varchar('id', { length: 128 }).primaryKey(),
+
+    product_id: varchar('product_id', { length: 128 }).notNull(),
+    user_id: varchar('user_id', { length: 128 }).notNull(),
+    artist_id: varchar('artist_id', { length: 128 }).notNull(),
+
+    created_at: timestamp('created_at').defaultNow()
 })
 
 /**
@@ -306,7 +297,7 @@ export const invoices = createTable('invoice', {
 
     customer_id: text('customer_id').notNull(),
     stripe_account: text('stripe_account').notNull(),
-    total: integer('total').notNull(),
+    total: int('total').notNull(),
 
     user_id: text('user_id').notNull(),
     artist_id: text('artist_id').notNull(),
@@ -344,7 +335,7 @@ export const requests = createTable('request', {
     commission_id: text('commission_id').notNull(),
 
     order_id: text('order_id').notNull(),
-    invoice_ids: text('invoice_ids').array(),
+    invoice_ids: json('invoice_ids').$type<string[]>(),
     kanban_id: text('kanban_id'),
     delivery_id: text('delivery_id'),
 
@@ -373,7 +364,7 @@ export const chats = createTable('chats', {
     commission_id: varchar('commission_id', { length: 128 }).notNull(),
     artist_id: varchar('artist_id', { length: 128 }).notNull(),
 
-    user_ids: varchar('user_ids', { length: 128 }).array().notNull(),
+    user_ids: json('user_ids').$type<string[]>().notNull(),
 
     message_redis_key: text('message_redis_key').notNull(),
     created_at: timestamp('created_at').defaultNow().notNull()
@@ -390,7 +381,7 @@ export const con_sign_up = createTable(
 
         created_at: timestamp('created_at').defaultNow().notNull(),
         expires_at: timestamp('expires_at').notNull(),
-        sign_up_count: integer('sign_up_count').default(0).notNull()
+        sign_up_count: int('sign_up_count').default(0).notNull()
     },
     (table) => ({
         slugIndex: index('slug_idx').on(table.slug),
@@ -435,23 +426,12 @@ export const deliveryRelations = relations(delivery, ({ one }) => ({
 }))
 
 /**
- * Customer Id Relations
- */
-export const customerIdRelations = relations(stripe_customer_ids, ({ one }) => ({
-    artist: one(artists, {
-        fields: [stripe_customer_ids.artist_id],
-        references: [artists.id]
-    })
-}))
-
-/**
  * Artist Relations
  */
 export const artistRelations = relations(artists, ({ many }) => ({
     commissions: many(commissions),
     portfolio: many(portfolios),
     forms: many(forms),
-    customer_ids: many(stripe_customer_ids),
     invoices: many(invoices),
     chats: many(chats)
 }))

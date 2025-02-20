@@ -16,6 +16,12 @@ export type ArtistIndex = {
     image_url: string
 } & BaseSearchIndex
 
+export type ArtistEditIndex = {
+    handle?: string
+    about?: string
+    image_url?: string
+} & BaseSearchIndex
+
 /**
  * Commission Search Index
  *
@@ -29,4 +35,14 @@ export type CommissionIndex = {
     featured_image: string
     slug: string
     published: boolean
+} & BaseSearchIndex
+
+export type CommissionEditIndex = {
+    artist_handle?: string
+    title?: string
+    price?: string
+    description?: string
+    featured_image?: string
+    slug?: string
+    published?: boolean
 } & BaseSearchIndex

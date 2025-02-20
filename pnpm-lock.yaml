@@ -47,6 +47,9 @@ importers:
       '@paralleldrive/cuid2':
         specifier: ^2.2.2
         version: 2.2.2
+      '@planetscale/database':
+        specifier: ^1.19.0
+        version: 1.19.0
       '@radix-ui/react-accordion':
         specifier: ^1.2.3
         version: 1.2.3(@types/react-dom@18.3.5(@types/react@18.3.18))(@types/react@18.3.18)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -172,7 +175,7 @@ importers:
         version: 3.6.0
       drizzle-orm:
         specifier: ^0.33.0
-        version: 0.33.0(@opentelemetry/api@1.9.0)(@types/pg@8.6.1)(@types/react@18.3.18)(postgres@3.4.5)(react@18.3.1)
+        version: 0.33.0(@opentelemetry/api@1.9.0)(@planetscale/database@1.19.0)(@types/pg@8.6.1)(@types/react@18.3.18)(postgres@3.4.5)(react@18.3.1)
       embla-carousel-autoplay:
         specifier: ^8.5.2
         version: 8.5.2(embla-carousel@8.5.2)
@@ -215,9 +218,6 @@ importers:
       path-to-regexp:
         specifier: 0.1.12
         version: 0.1.12
-      postgres:
-        specifier: ^3.4.5
-        version: 3.4.5
       posthog-js:
         specifier: ^1.219.3
         version: 1.219.4
@@ -1385,6 +1385,10 @@ packages:
   '@pkgjs/parseargs@0.11.0':
     resolution: {integrity: sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg==}
     engines: {node: '>=14'}
+
+  '@planetscale/database@1.19.0':
+    resolution: {integrity: sha512-Tv4jcFUFAFjOWrGSio49H6R2ijALv0ZzVBfJKIdm+kl9X046Fh4LLawrF9OMsglVbK6ukqMJsUCeucGAFTBcMA==}
+    engines: {node: '>=16'}
 
   '@popperjs/core@2.11.8':
     resolution: {integrity: sha512-P1st0aksCrn9sGZhp8GMYwBnQsbvAWsZAX44oXNNvLHGqAOcoVxmjZiohstwQ7SqKnbR47akdNi+uleWD8+g6A==}
@@ -7241,6 +7245,8 @@ snapshots:
   '@pkgjs/parseargs@0.11.0':
     optional: true
 
+  '@planetscale/database@1.19.0': {}
+
   '@popperjs/core@2.11.8': {}
 
   '@prisma/instrumentation@5.22.0':
@@ -9383,9 +9389,10 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  drizzle-orm@0.33.0(@opentelemetry/api@1.9.0)(@types/pg@8.6.1)(@types/react@18.3.18)(postgres@3.4.5)(react@18.3.1):
+  drizzle-orm@0.33.0(@opentelemetry/api@1.9.0)(@planetscale/database@1.19.0)(@types/pg@8.6.1)(@types/react@18.3.18)(postgres@3.4.5)(react@18.3.1):
     optionalDependencies:
       '@opentelemetry/api': 1.9.0
+      '@planetscale/database': 1.19.0
       '@types/pg': 8.6.1
       '@types/react': 18.3.18
       postgres: 3.4.5
@@ -11273,7 +11280,8 @@ snapshots:
     dependencies:
       xtend: 4.0.2
 
-  postgres@3.4.5: {}
+  postgres@3.4.5:
+    optional: true
 
   posthog-js@1.219.4:
     dependencies:

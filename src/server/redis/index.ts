@@ -13,6 +13,7 @@ type RedisKey =
     | 'invoices'
     | 'stripe:user'
     | 'stripe:customer'
+    | 'stripe:artist:customer'
     | 'con'
 
 export const redis = new Redis({
