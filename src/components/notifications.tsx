@@ -58,11 +58,10 @@ function NotificationFeed() {
     const [selectedTab, setSelectedTab] = useState<NotificationInbox>('inbox')
 
     const itemsInInbox = useMemo(() => {
-        return items.filter((item) => !item.archived_at).length
-    }, [items])
+        const count = items.filter((item) => !item.archived_at).length
+        const archived = items.filter((item) => item.archived_at).length
 
-    const itemsInArchive = useMemo(() => {
-        return items.filter((item) => item.archived_at).length
+        return { count, archived }
     }, [items])
 
     useFetchNotifications(feed_client)
@@ -142,13 +141,13 @@ function NotificationFeed() {
                                 />
                             ))}
                         {/*Check if inbox is empty*/}
-                        {itemsInInbox === 0 && (
+                        {itemsInInbox.count === 0 && (
                             <EmptyState
                                 icon={<Inbox className="text-muted-foreground size-16" />}
                                 message="No New Notifications"
                             />
                         )}
-                        {itemsInInbox > 0 && (
+                        {itemsInInbox.count > 0 && (
                             <div className="bg-popover sticky bottom-0 flex flex-col items-center justify-center border-t-2">
                                 <Button
                                     variant={'ghost'}
@@ -175,7 +174,7 @@ function NotificationFeed() {
                                 />
                             ))}
                         {/*Check if inbox is empty*/}
-                        {itemsInArchive === 0 && (
+                        {itemsInInbox.archived === 0 && (
                             <EmptyState
                                 icon={
                                     <Archive className="text-muted-foreground size-16" />
