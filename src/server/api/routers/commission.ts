@@ -125,42 +125,40 @@ export const commission_router = createTRPCRouter({
             }
 
             // Update the database with the relavent information that has been changed
+            const updated_data = {
+                title: input.data.title,
+                description: input.data.description,
+                price: input.data.price,
+                availability: input.data.availability,
+                max_commissions_until_waitlist: input.data.max_commissions_until_waitlist,
+                max_commissions_until_closed: input.data.max_commissions_until_closed,
+                images: input.data.images?.map((image) => ({
+                    ut_key: image
+                })),
+                published: input.data.published,
+                charge_method: input.data.charge_method,
+                downpayment_percentage: input.data.downpayment_percentage
+            }
+
             const updated_commission_promise = ctx.db
                 .update(commissions)
-                .set({
-                    title: input.data.title,
-                    description: input.data.description,
-                    price: input.data.price,
-                    availability: input.data.availability,
-                    max_commissions_until_waitlist:
-                        input.data.max_commissions_until_waitlist,
-                    max_commissions_until_closed: input.data.max_commissions_until_closed,
-                    images: input.data.images?.map((image) => ({
-                        ut_key: image
-                    })),
-                    published: input.data.published,
-                    charge_method: input.data.charge_method,
-                    downpayment_percentage: input.data.downpayment_percentage
-                })
+                .set(updated_data)
                 .where(eq(commissions.id, input.id))
-                .returning()
 
             // Wait for all promises to resolve
-            const [, updated_commission] = await Promise.all([
-                deleted_iamges_promise,
-                updated_commission_promise
-            ])
+            await Promise.all([deleted_iamges_promise, updated_commission_promise])
 
             // Update algolia
             await update_index('commissions', {
                 objectID: input.id,
-                title: updated_commission[0]!.title,
-                price: format_to_currency(updated_commission[0]!.price / 100),
-                description: updated_commission[0]!.description,
-                featured_image: get_ut_url(updated_commission[0]!.images[0]!.ut_key),
-                slug: updated_commission[0]!.slug,
+                title: updated_data.title,
+                price: updated_data.price
+                    ? format_to_currency(updated_data.price / 100)
+                    : undefined,
+                description: updated_data.description!,
+                featured_image: get_ut_url(updated_data.images![0]!.ut_key),
                 artist_handle: ctx.artist.handle,
-                published: updated_commission[0]!.published
+                published: updated_data.published
             })
         }),
 

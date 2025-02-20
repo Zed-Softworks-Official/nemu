@@ -1,7 +1,7 @@
 import { clerkClient } from '@clerk/nextjs/server'
 import { createId } from '@paralleldrive/cuid2'
 import { z } from 'zod'
-import { and, eq, type InferInsertModel, sql } from 'drizzle-orm'
+import { eq, type InferInsertModel, sql } from 'drizzle-orm'
 import { TRPCError } from '@trpc/server'
 
 import { artistProcedure, createTRPCRouter, protectedProcedure } from '../trpc'
@@ -13,8 +13,7 @@ import {
     forms,
     invoices,
     kanbans,
-    requests,
-    stripe_customer_ids
+    requests
 } from '~/server/db/schema'
 
 import {
@@ -219,11 +218,7 @@ export const request_router = createTRPCRouter({
             const request = await ctx.db.query.requests.findFirst({
                 where: eq(requests.id, input.request_id),
                 with: {
-                    commission: {
-                        with: {
-                            artist: true
-                        }
-                    }
+                    commission: true
                 }
             })
 
@@ -234,19 +229,20 @@ export const request_router = createTRPCRouter({
                 })
             }
 
-            let customer_id = await ctx.db.query.stripe_customer_ids.findFirst({
-                where: and(
-                    eq(stripe_customer_ids.user_id, request.user_id),
-                    eq(stripe_customer_ids.artist_id, request.commission.artist_id)
+            let customer_id = await ctx.redis.get<string>(
+                get_redis_key(
+                    'stripe:artist:customer',
+                    request.user_id,
+                    request.commission.artist_id
                 )
-            })
+            )
 
             const clerk_client = await clerkClient()
             const request_user = await clerk_client.users.getUser(request.user_id)
 
             if (!customer_id) {
                 const customer = await StripeCreateCustomer(
-                    request.commission.artist.stripe_account,
+                    ctx.artist.stripe_account,
                     request_user.username ?? request_user.id,
                     request_user.emailAddresses[0]!.emailAddress
                 )
@@ -258,18 +254,15 @@ export const request_router = createTRPCRouter({
                     })
                 }
 
-                customer_id = (
-                    await ctx.db
-                        .insert(stripe_customer_ids)
-                        .values({
-                            id: createId(),
-                            user_id: request_user.id,
-                            artist_id: request.commission.artist_id,
-                            customer_id: customer.id,
-                            stripe_account: request.commission.artist.stripe_account
-                        })
-                        .returning()
-                ).at(0)
+                customer_id = customer.id
+                await ctx.redis.set<string>(
+                    get_redis_key(
+                        'stripe:artist:customer',
+                        request.user_id,
+                        request.commission.artist_id
+                    ),
+                    customer_id
+                )
 
                 if (!customer_id) {
                     throw new TRPCError({
@@ -293,7 +286,7 @@ export const request_router = createTRPCRouter({
                 recipients: [request.user_id],
                 data: {
                     commission_title: request.commission.title,
-                    artist_handle: request.commission.artist.handle,
+                    artist_handle: ctx.artist.handle,
                     status: input.accepted ? 'accept' : 'reject'
                 }
             })
@@ -354,8 +347,8 @@ export const request_router = createTRPCRouter({
                 }
 
                 const stripe_draft = await StripeCreateInvoice(
-                    customer_id.stripe_account,
-                    customer_id.customer_id,
+                    ctx.artist.stripe_account,
+                    customer_id,
                     request.order_id
                 )
 
@@ -368,10 +361,10 @@ export const request_router = createTRPCRouter({
 
                 invoice_values.push({
                     id: invoice_id,
-                    customer_id: customer_id.customer_id,
-                    artist_id: customer_id.artist_id,
-                    stripe_account: customer_id.stripe_account,
-                    user_id: customer_id.user_id,
+                    customer_id: customer_id,
+                    artist_id: ctx.artist.id,
+                    stripe_account: ctx.artist.stripe_account,
+                    user_id: request.user_id,
                     request_id: request.id,
                     total: request.commission.price,
                     stripe_id: stripe_draft.id,
@@ -391,7 +384,7 @@ export const request_router = createTRPCRouter({
             const chat_values = {
                 id: chat_primary_key,
                 artist_id: request.commission.artist_id,
-                user_ids: [request.user_id, request.commission.artist.user_id],
+                user_ids: [request.user_id, ctx.artist.user_id],
                 request_id: request.id,
                 commission_id: request.commission_id,
                 message_redis_key: get_redis_key('chats', request.order_id)
@@ -450,8 +443,8 @@ export const request_router = createTRPCRouter({
                             username: request_user.username ?? request.user_id
                         },
                         {
-                            user_id: request.commission.artist.user_id,
-                            username: request.commission.artist.handle
+                            user_id: ctx.artist.user_id,
+                            username: ctx.artist.handle
                         }
                     ]
                 } satisfies Chat)

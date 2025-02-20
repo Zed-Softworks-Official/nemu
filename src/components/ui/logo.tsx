@@ -6,7 +6,6 @@ import Link from 'next/link'
 import { motion } from 'motion/react'
 
 import NemuImage from '~/components/nemu-image'
-import { Badge } from '~/components/ui/badge'
 
 export function FullLogo() {
     const { resolvedTheme } = useTheme()
@@ -24,9 +23,9 @@ export function FullLogo() {
 
     return (
         <motion.div whileHover={{ scale: 1.1 }}>
-            <Link href="/" className="group flex shrink-0 cursor-pointer flex-row pr-12">
+            <Link href="/">
+                <span className="sr-only">Nemu</span>
                 <NemuImage src={src} alt="Nemu Logo" width={138} height={54} priority />
-                <Badge className="h-5 rounded-full">Beta</Badge>
             </Link>
         </motion.div>
     )

@@ -1,7 +1,12 @@
 import 'server-only'
 
 import { algoliasearch } from 'algoliasearch'
-import type { ArtistIndex, CommissionIndex } from '~/lib/structures'
+import type {
+    ArtistEditIndex,
+    ArtistIndex,
+    CommissionEditIndex,
+    CommissionIndex
+} from '~/lib/structures'
 import { env } from '~/env'
 
 type SearchType = 'artists' | 'commissions'
@@ -36,7 +41,7 @@ export async function del_index(index: SearchType, object_id: string) {
  */
 export async function update_index(
     index: SearchType,
-    data: ArtistIndex | CommissionIndex
+    data: ArtistEditIndex | CommissionEditIndex
 ) {
     return await client.partialUpdateObject({
         indexName: index,
