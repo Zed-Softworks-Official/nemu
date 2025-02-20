@@ -144,13 +144,13 @@ function NotificationFeed() {
                                 />
                             ))}
                         {/*Check if inbox is empty*/}
-                        {itemsInInbox.count === 0 && (
+                        {notificationCounts.count === 0 && (
                             <EmptyState
                                 icon={<Inbox className="text-muted-foreground size-16" />}
                                 message="No New Notifications"
                             />
                         )}
-                        {itemsInInbox.count > 0 && (
+                        {notificationCounts.count > 0 && (
                             <div className="bg-popover sticky bottom-0 flex flex-col items-center justify-center border-t-2">
                                 <Button
                                     variant={'ghost'}
@@ -177,7 +177,7 @@ function NotificationFeed() {
                                 />
                             ))}
                         {/*Check if inbox is empty*/}
-                        {itemsInInbox.archived === 0 && (
+                        {notificationCounts.archived === 0 && (
                             <EmptyState
                                 icon={
                                     <Archive className="text-muted-foreground size-16" />
