@@ -57,11 +57,14 @@ function NotificationFeed() {
     const { items, metadata } = useNotificationStore(feed_client)
     const [selectedTab, setSelectedTab] = useState<NotificationInbox>('inbox')
 
-    const itemsInInbox = useMemo(() => {
-        const count = items.filter((item) => !item.archived_at).length
-        const archived = items.filter((item) => item.archived_at).length
-
-        return { count, archived }
+    const notificationCounts = useMemo(() => {
+        return items.reduce(
+            (acc, item) => ({
+                count: acc.count + (item.archived_at ? 0 : 1),
+                archived: acc.archived + (item.archived_at ? 1 : 0)
+            }),
+            { count: 0, archived: 0 }
+        )
     }, [items])
 
     useFetchNotifications(feed_client)
