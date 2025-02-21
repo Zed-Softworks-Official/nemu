@@ -8,12 +8,14 @@ import { type Metadata } from 'next'
 import { ClerkProvider } from '@clerk/nextjs'
 import { dark } from '@clerk/themes'
 
-import { TRPCReactProvider } from '~/trpc/react'
-import { ThemeProvider } from '~/components/themes/theme-provider'
+import PlausibleProvider from 'next-plausible'
+
 import { env } from '~/env'
+import { TRPCReactProvider } from '~/trpc/react'
+
+import { ThemeProvider } from '~/components/themes/theme-provider'
 import { Toaster } from '~/components/ui/sonner'
 import { PosthogProvider } from '~/components/posthog-provider'
-import PlausibleProvider from 'next-plausible'
 import { Featurebase } from '~/components/featurebase'
 
 const nunito = Nunito({
@@ -22,7 +24,7 @@ const nunito = Nunito({
 
 export const metadata: Metadata = {
     title: 'Nemu',
-    description: 'An Artists Best Friend',
+    description: 'The open-source platform for artists',
     icons: [{ rel: 'icon', url: '/favicon.ico' }],
     openGraph: {
         images: [
@@ -32,13 +34,13 @@ export const metadata: Metadata = {
         ],
         siteName: 'Nemu',
         title: 'Nemu',
-        description: 'An Artists Best Friend',
+        description: 'The open-source platform for artists',
         url: 'https://nemu.art'
     },
     twitter: {
         card: 'summary_large_image',
         title: 'Nemu',
-        description: 'An Artists Best Friend',
+        description: 'The open-source platform for artists',
         images: [
             {
                 url: 'https://nemu.art/profile.png'
