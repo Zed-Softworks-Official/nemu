@@ -1,8 +1,9 @@
 import { z } from 'zod'
-import { adminProcedure, createTRPCRouter, protectedProcedure } from '../trpc'
 import { clerkClient } from '@clerk/nextjs/server'
 import { revalidateTag } from 'next/cache'
 import { createId } from '@paralleldrive/cuid2'
+
+import { adminProcedure, createTRPCRouter, protectedProcedure } from '~/server/api/trpc'
 
 import {
     type NemuPublicUserMetadata,
@@ -59,7 +60,7 @@ export const artist_verification_router = createTRPCRouter({
         return await ctx.db.query.artist_verifications.findMany()
     }),
 
-    verify_artist: adminProcedure
+    verify_artist: protectedProcedure
         .input(
             z.object({
                 requested_handle: z.string(),

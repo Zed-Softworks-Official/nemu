@@ -45,3 +45,6 @@ export type VerificationDataType = z.infer<typeof verification_data>
 
 export const conStatus = ['active', 'expired'] as const
 export type ConStatus = (typeof conStatus)[number]
+
+export const purchaseStatus = ['pending', 'completed', 'cancelled'] as const
+export type PurchaseStatus = (typeof purchaseStatus)[number]

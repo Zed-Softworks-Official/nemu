@@ -1,6 +1,8 @@
 // Example model schema from the Drizzle docs
 // https://orm.drizzle.team/docs/sql-schema-declaration
 
+import { type JSONContent } from '@tiptap/react'
+
 import { relations, sql } from 'drizzle-orm'
 import {
     decimal,
@@ -31,7 +33,9 @@ import {
     commissionAvalabilities,
     type CommissionAvailability,
     conStatus,
-    type ConStatus
+    type ConStatus,
+    purchaseStatus,
+    type PurchaseStatus
 } from '~/lib/structures'
 
 /**
@@ -77,6 +81,8 @@ export const ChargeMethodEnum = (name: string) =>
     mysqlEnum(name, convertEnum(chargeMethods))
 
 export const ConStatusEnum = (name: string) => mysqlEnum(name, convertEnum(conStatus))
+export const PurchaseStatusEnum = (name: string) =>
+    mysqlEnum(name, convertEnum(purchaseStatus))
 
 //////////////////////////////////////////////////////////
 // Tables
@@ -255,7 +261,7 @@ export const commissions = createTable('commission', {
 export const products = createTable('products', {
     id: varchar('id', { length: 128 }).primaryKey(),
     name: varchar('name', { length: 128 }).notNull(),
-    description: text('description'),
+    description: json('description').$type<JSONContent>(),
     published: boolean('published').default(false).notNull(),
 
     created_at: timestamp('created_at').defaultNow(),
@@ -274,6 +280,10 @@ export const purchase = createTable('purchase', {
     product_id: varchar('product_id', { length: 128 }).notNull(),
     user_id: varchar('user_id', { length: 128 }).notNull(),
     artist_id: varchar('artist_id', { length: 128 }).notNull(),
+    status: PurchaseStatusEnum('status')
+        .$type<PurchaseStatus>()
+        .default('pending')
+        .notNull(),
 
     created_at: timestamp('created_at').defaultNow()
 })

@@ -12,6 +12,14 @@ export function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs))
 }
 
+export function format_file_size(size: number) {
+    if (size < 1024 * 1024) {
+        return `${(size / 1024).toFixed(1)} KB`
+    }
+
+    return `${(size / (1024 * 1024)).toFixed(1)} MB`
+}
+
 /**
  * Formats a number to be in "Price Format", currently only for US
  *

@@ -6,6 +6,7 @@ import './src/env'
 
 import type { NextConfig } from 'next'
 import { withSentryConfig } from '@sentry/nextjs'
+import path from 'path'
 
 export const config = {
     images: {
@@ -14,6 +15,12 @@ export const config = {
                 protocol: 'https',
                 hostname: 'utfs.io',
                 pathname: '/a/74fsewdwmb/**',
+                search: ''
+            },
+            {
+                protocol: 'https',
+                hostname: 'utfs.io',
+                pathname: '/a/vsku5b7hpr/**',
                 search: ''
             },
             {
@@ -40,7 +47,16 @@ export const config = {
             }
         ]
     },
-    skipTrailingSlashRedirect: true
+    skipTrailingSlashRedirect: true,
+    webpack: (config, { isServer }: { isServer: boolean }) => {
+        if (!isServer) {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+            config.resolve.alias.yjs = path.resolve(__dirname, 'node_modules/yjs')
+        }
+
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+        return config
+    }
 } satisfies NextConfig
 
 export default withSentryConfig(config, {

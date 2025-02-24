@@ -9,7 +9,8 @@ import {
     Layers,
     Mail,
     User,
-    ChevronUp
+    ChevronUp,
+    Store
 } from 'lucide-react'
 
 import { currentUser } from '@clerk/nextjs/server'
@@ -50,27 +51,32 @@ const sidebar_items = [
     {
         title: 'Home',
         href: '/dashboard',
-        icon: <Home className="h-6 w-6" />
+        icon: <Home className="size-6" />
     },
     {
         title: 'Commissions',
         href: '/dashboard/commissions',
-        icon: <Layers className="h-6 w-6" />
+        icon: <Layers className="size-6" />
+    },
+    {
+        title: 'Artist Corner',
+        href: '/dashboard/artist-corner',
+        icon: <Store className="size-6" />
     },
     {
         title: 'Portfolio',
         href: '/dashboard/portfolio',
-        icon: <ImageIcon className="h-6 w-6" />
+        icon: <ImageIcon className="size-6" />
     },
     {
         title: 'Forms',
         href: '/dashboard/forms',
-        icon: <ClipboardList className="h-6 w-6" />
+        icon: <ClipboardList className="size-6" />
     },
     {
         title: 'Messages',
         href: '/dashboard/messages',
-        icon: <Mail className="h-6 w-6" />
+        icon: <Mail className="size-6" />
     }
 ]
 
@@ -78,7 +84,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     return (
         <SidebarProvider>
             <DashboardSidebar />
-            <SidebarInset className="bg-background-secondary px-4 pb-4">
+            <SidebarInset className="bg-sidebar relative px-4 pb-4">
                 <header className="flex h-16 shrink-0 items-center gap-2">
                     <div className="flex items-center gap-2 px-4">
                         <SidebarTrigger />
