@@ -17,6 +17,7 @@ type RedisKey =
     | 'con'
     | 'product:images'
     | 'product:downloads'
+    | 'product:stripe'
 
 export const redis = new Redis({
     url: env.UPSTASH_REDIS_REST_URL,

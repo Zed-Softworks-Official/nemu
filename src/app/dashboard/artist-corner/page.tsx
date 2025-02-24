@@ -14,8 +14,8 @@ export default function ArtistCornerDashboard() {
                 <h1 className="text-3xl font-bold">Artist Corner</h1>
                 <Button asChild>
                     <Link href="/dashboard/artist-corner/create">
+                        <span className="sr-only">Create Product</span>
                         <Plus className="size-4" />
-                        Create Product
                     </Link>
                 </Button>
             </div>
@@ -48,7 +48,7 @@ async function Products() {
             ]}
             rowData={products}
             columnActionData={{
-                url: `/dashboard/artist-corner/products`,
+                url: `/dashboard/artist-corner`,
                 field: 'id',
                 actionText: 'View'
             }}

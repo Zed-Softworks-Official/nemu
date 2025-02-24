@@ -269,7 +269,6 @@ export const products = createTable('products', {
     price: int('price').notNull(),
     images: json('images').$type<string[]>().notNull(),
     download: varchar('download', { length: 128 }),
-    sold_count: int('sold_count').default(0),
 
     artist_id: varchar('artist_id', { length: 128 }).notNull()
 })
