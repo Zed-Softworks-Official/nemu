@@ -35,7 +35,8 @@ import {
     conStatus,
     type ConStatus,
     purchaseStatus,
-    type PurchaseStatus
+    type PurchaseStatus,
+    type DownloadData
 } from '~/lib/structures'
 
 /**
@@ -263,12 +264,13 @@ export const products = createTable('products', {
     name: varchar('name', { length: 128 }).notNull(),
     description: json('description').$type<JSONContent>(),
     published: boolean('published').default(false).notNull(),
+    is_free: boolean('is_free').default(false).notNull(),
 
     created_at: timestamp('created_at').defaultNow(),
 
     price: int('price').notNull(),
     images: json('images').$type<string[]>().notNull(),
-    download: varchar('download', { length: 128 }),
+    download: json('download').$type<DownloadData>().notNull(),
 
     artist_id: varchar('artist_id', { length: 128 }).notNull()
 })
@@ -442,7 +444,8 @@ export const artistRelations = relations(artists, ({ many }) => ({
     portfolio: many(portfolios),
     forms: many(forms),
     invoices: many(invoices),
-    chats: many(chats)
+    chats: many(chats),
+    products: many(products)
 }))
 
 /**
@@ -535,5 +538,27 @@ export const kanbanRelations = relations(kanbans, ({ one }) => ({
     request: one(requests, {
         fields: [kanbans.request_id],
         references: [requests.id]
+    })
+}))
+
+/**
+ * Product Relations
+ */
+export const productRelations = relations(products, ({ one, many }) => ({
+    artist: one(artists, {
+        fields: [products.artist_id],
+        references: [artists.id]
+    }),
+    purchases: many(purchase)
+}))
+
+export const purchaseRelations = relations(purchase, ({ one }) => ({
+    product: one(products, {
+        fields: [purchase.product_id],
+        references: [products.id]
+    }),
+    artist: one(artists, {
+        fields: [purchase.artist_id],
+        references: [artists.id]
     })
 }))

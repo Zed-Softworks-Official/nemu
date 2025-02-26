@@ -1,7 +1,9 @@
 import { Pencil } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+
 import { Button } from '~/components/ui/button'
+// import { Chart } from '~/components/ui/chart'
 import { api } from '~/trpc/server'
 
 export default async function ArtistCornerProductPags(props: {
@@ -20,7 +22,7 @@ export default async function ArtistCornerProductPags(props: {
                 <div className="flex justify-between gap-2">
                     <h1 className="text-2xl font-bold">{data.product.name}</h1>
                     <Button asChild>
-                        <Link href={`/dashboard/artist-corner/${id}/edit`}>
+                        <Link href={`/dashboard/artist-corner/${id}/update`}>
                             <span className="sr-only">Edit</span>
                             <Pencil className="size-4" />
                         </Link>
@@ -28,7 +30,7 @@ export default async function ArtistCornerProductPags(props: {
                 </div>
             </div>
 
-            <>Some other stuff</>
+            {/* <Chart options={{}} /> */}
         </div>
     )
 }

@@ -1,13 +1,15 @@
 'use client'
 
-import { useEditor, EditorContent } from '@tiptap/react'
+import { useEditor, EditorContent, type JSONContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 
 export function MarkdownEditor(props: {
     disabled?: boolean
     onUpdate: (content: string) => void
+    content?: JSONContent | null
 }) {
     const editor = useEditor({
+        content: props.content ?? undefined,
         editable: !props.disabled,
         extensions: [StarterKit],
         onUpdate: ({ editor }) => {
