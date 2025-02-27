@@ -29,18 +29,12 @@ import {
 
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
 import { Button } from '~/components/ui/button'
-import NemuImage from '~/components/nemu-image'
 import { Notifications } from '~/components/notifications'
 import { Skeleton } from '~/components/ui/skeleton'
 import { type UserRole } from '~/lib/structures'
-import {
-    NavigationMenu,
-    NavigationMenuItem,
-    NavigationMenuLink,
-    NavigationMenuList
-} from '~/components/ui/navigation-menu'
 
 import { is_supporter } from '~/app/api/stripe/sync'
+import { NavigationSheet } from './navigation'
 
 export default function StandarLayout(props: {
     children: React.ReactNode
@@ -52,7 +46,6 @@ export default function StandarLayout(props: {
                 <Navbar />
                 <div className="relative">{props.children}</div>
             </div>
-            <Footer />
             {props.modal}
         </main>
     )
@@ -61,28 +54,8 @@ export default function StandarLayout(props: {
 function Navbar() {
     return (
         <header className="container mx-auto flex w-full items-center justify-between gap-5 px-10 py-5 sm:px-0">
-            <div className="flex items-center gap-2">
-                <FullLogo />
-                <NavigationMenu>
-                    <NavigationMenuList>
-                        <NavigationMenuItem>
-                            <Link href={'/'} prefetch={true} legacyBehavior passHref>
-                                <NavigationMenuLink>Commissions</NavigationMenuLink>
-                            </Link>
-                        </NavigationMenuItem>
-                        <NavigationMenuItem>
-                            <Link
-                                href={'/artist-corner'}
-                                prefetch={true}
-                                legacyBehavior
-                                passHref
-                            >
-                                <NavigationMenuLink>Artist Corner</NavigationMenuLink>
-                            </Link>
-                        </NavigationMenuItem>
-                    </NavigationMenuList>
-                </NavigationMenu>
-            </div>
+            <FullLogo />
+
             <div className="flex items-center gap-5">
                 <SearchBar />
                 <SignedIn>
@@ -98,89 +71,9 @@ function Navbar() {
                         </Link>
                     </Button>
                 </SignedOut>
+                <NavigationSheet />
             </div>
         </header>
-    )
-}
-
-function Footer() {
-    return (
-        <footer className="bg-background-secondary p-10">
-            <div className="container mx-auto grid gap-3 space-y-5 sm:grid-cols-3">
-                <div className="flex h-full flex-col justify-between">
-                    <NemuImage
-                        src={'/zed-logo.svg'}
-                        alt="Zed Softworks Logo"
-                        width={50}
-                        height={50}
-                    />
-                    <p className="text-muted-foreground text-sm">
-                        Copyright &copy; {new Date().getFullYear()}{' '}
-                        <Link
-                            href={'https://zedsoftworks.dev'}
-                            target="_blank"
-                            className="hover:underline"
-                        >
-                            Zed Softworks LLC
-                        </Link>
-                        . All rights reserved.
-                    </p>
-                </div>
-                <div className="flex flex-col gap-2">
-                    <h2 className="text-muted-foreground/60 text-lg font-semibold uppercase">
-                        Artists
-                    </h2>
-                    <Link
-                        href={'/artists'}
-                        className="text-muted-foreground text-sm hover:underline"
-                    >
-                        Become an Artist
-                    </Link>
-                    <Link
-                        href={'/supporter'}
-                        className="text-muted-foreground text-sm hover:underline"
-                    >
-                        Become a Supporter
-                    </Link>
-                </div>
-                <div className="flex flex-col gap-2">
-                    <h2 className="text-muted-foreground/60 text-lg font-semibold uppercase">
-                        Company
-                    </h2>
-                    <Link
-                        data-featurebase-link
-                        href={'https://feedback.nemu.art'}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-muted-foreground text-sm hover:underline"
-                    >
-                        Feature Requests
-                    </Link>
-
-                    <Link
-                        data-featurebase-link
-                        href={'https://feedback.nemu.art/roadmap'}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-muted-foreground text-sm hover:underline"
-                    >
-                        Roadmap
-                    </Link>
-                    <Link
-                        href={'/terms'}
-                        className="text-muted-foreground text-sm hover:underline"
-                    >
-                        Terms of Service
-                    </Link>
-                    <Link
-                        href={'/privacy'}
-                        className="text-muted-foreground text-sm hover:underline"
-                    >
-                        Privacy Policy
-                    </Link>
-                </div>
-            </div>
-        </footer>
     )
 }
 

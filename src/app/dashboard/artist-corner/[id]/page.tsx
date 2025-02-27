@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation'
 import { Button } from '~/components/ui/button'
 // import { Chart } from '~/components/ui/chart'
 import { api } from '~/trpc/server'
+import PublishProduct from './publish'
 
 export default async function ArtistCornerProductPags(props: {
     params: Promise<{ id: string }>
@@ -21,12 +22,15 @@ export default async function ArtistCornerProductPags(props: {
             <div className="flex flex-col gap-4">
                 <div className="flex justify-between gap-2">
                     <h1 className="text-2xl font-bold">{data.product.name}</h1>
-                    <Button asChild>
-                        <Link href={`/dashboard/artist-corner/${id}/update`}>
-                            <span className="sr-only">Edit</span>
-                            <Pencil className="size-4" />
-                        </Link>
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <PublishProduct id={id} published={data.product.published} />
+                        <Button asChild size="icon">
+                            <Link href={`/dashboard/artist-corner/${id}/update`}>
+                                <span className="sr-only">Edit</span>
+                                <Pencil className="size-4" />
+                            </Link>
+                        </Button>
+                    </div>
                 </div>
             </div>
 

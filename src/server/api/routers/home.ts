@@ -7,6 +7,7 @@ import { createTRPCRouter, publicProcedure } from '~/server/api/trpc'
 
 import { format_to_currency, get_ut_url } from '~/lib/utils'
 import type { CommissionAvailability } from '~/lib/structures'
+import { cache, get_redis_key } from '~/server/redis'
 
 type CommissionResult = {
     id: string
@@ -105,5 +106,34 @@ export const home_router = createTRPCRouter({
             }))
 
             return { res, next_cursor: data[data.length - 1]?.created_at }
-        })
+        }),
+
+    get_featured_products: publicProcedure.query(async ({ ctx }) => {
+        return await cache(
+            get_redis_key('product:featured', 'home'),
+            async () => {
+                const data = await ctx.db.query.products.findMany({
+                    limit: 3,
+                    where: eq(products.published, true),
+                    with: {
+                        artist: true
+                    }
+                })
+
+                const res: ProductResult[] = data.map((product) => ({
+                    id: product.id,
+                    name: product.name,
+                    description: product.description,
+                    featured_image: get_ut_url(product.images[0] ?? ''),
+                    price: format_to_currency(product.price / 100),
+                    artist: {
+                        handle: product.artist.handle
+                    }
+                }))
+
+                return res
+            },
+            3600
+        )
+    })
 })

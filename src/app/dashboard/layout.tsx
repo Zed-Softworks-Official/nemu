@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import { Suspense } from 'react'
 import {
-    BadgeDollarSign,
     ClipboardList,
     HandCoins,
     Home,
@@ -10,7 +9,8 @@ import {
     Mail,
     User,
     ChevronUp,
-    Store
+    Store,
+    Crown
 } from 'lucide-react'
 
 import { currentUser } from '@clerk/nextjs/server'
@@ -217,7 +217,7 @@ async function SidebarSettingsContent() {
             <SidebarMenuItem>
                 <SidebarMenuButton asChild>
                     <Link href={'/supporter'}>
-                        <BadgeDollarSign className="h-6 w-6" />
+                        <Crown className="h-6 w-6" />
                         Supporter
                     </Link>
                 </SidebarMenuButton>

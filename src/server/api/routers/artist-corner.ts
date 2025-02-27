@@ -246,5 +246,16 @@ export const artist_corner_router = createTRPCRouter({
                 sales,
                 charges
             }
+        }),
+
+    publish_product_by_id: artistProcedure
+        .input(z.object({ id: z.string(), published: z.boolean() }))
+        .mutation(async ({ ctx, input }) => {
+            await ctx.db
+                .update(products)
+                .set({
+                    published: input.published
+                })
+                .where(eq(products.id, input.id))
         })
 })
