@@ -165,7 +165,7 @@ function MessagesInput() {
 
     return (
         <div className="mb-2 border-t px-4 pt-4 sm:mb-0">
-            <div className="bg-background-tertiary ring-background-tertiary focus-within:ring-primary relative flex-1 overflow-hidden rounded-lg ring-1 shadow-xs focus-within:ring-2">
+            <div className="bg-background-tertiary ring-background-tertiary focus-within:ring-primary relative flex-1 overflow-hidden rounded-lg shadow-xs ring-1 focus-within:ring-2">
                 <TextareaAutosize
                     ref={textareaRef}
                     onKeyDown={(e) => {

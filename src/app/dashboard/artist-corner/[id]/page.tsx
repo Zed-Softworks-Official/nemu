@@ -30,7 +30,11 @@ export default async function ArtistCornerProductPags(props: {
                 </div>
             </div>
 
-            {/* <Chart options={{}} /> */}
+            <div className="flex h-full w-full flex-col items-center justify-center gap-5">
+                <h2 className="text-muted-foreground text-2xl font-bold">
+                    Stats Coming Soon
+                </h2>
+            </div>
         </div>
     )
 }

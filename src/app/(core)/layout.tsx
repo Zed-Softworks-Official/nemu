@@ -13,6 +13,7 @@ import {
     Truck,
     User
 } from 'lucide-react'
+import Link from 'next/link'
 
 import SearchBar from '~/components/search'
 import { FullLogo } from '~/components/ui/logo'
@@ -25,14 +26,21 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger
 } from '~/components/ui/dropdown-menu'
+
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
-import Link from 'next/link'
 import { Button } from '~/components/ui/button'
 import NemuImage from '~/components/nemu-image'
 import { Notifications } from '~/components/notifications'
 import { Skeleton } from '~/components/ui/skeleton'
 import { type UserRole } from '~/lib/structures'
-import { is_supporter } from '../api/stripe/sync'
+import {
+    NavigationMenu,
+    NavigationMenuItem,
+    NavigationMenuLink,
+    NavigationMenuList
+} from '~/components/ui/navigation-menu'
+
+import { is_supporter } from '~/app/api/stripe/sync'
 
 export default function StandarLayout(props: {
     children: React.ReactNode
@@ -53,8 +61,29 @@ export default function StandarLayout(props: {
 function Navbar() {
     return (
         <header className="container mx-auto flex w-full items-center justify-between gap-5 px-10 py-5 sm:px-0">
-            <FullLogo />
-            <nav className="flex items-center gap-5">
+            <div className="flex items-center gap-2">
+                <FullLogo />
+                <NavigationMenu>
+                    <NavigationMenuList>
+                        <NavigationMenuItem>
+                            <Link href={'/'} prefetch={true} legacyBehavior passHref>
+                                <NavigationMenuLink>Commissions</NavigationMenuLink>
+                            </Link>
+                        </NavigationMenuItem>
+                        <NavigationMenuItem>
+                            <Link
+                                href={'/artist-corner'}
+                                prefetch={true}
+                                legacyBehavior
+                                passHref
+                            >
+                                <NavigationMenuLink>Artist Corner</NavigationMenuLink>
+                            </Link>
+                        </NavigationMenuItem>
+                    </NavigationMenuList>
+                </NavigationMenu>
+            </div>
+            <div className="flex items-center gap-5">
                 <SearchBar />
                 <SignedIn>
                     <Notifications />
@@ -69,7 +98,7 @@ function Navbar() {
                         </Link>
                     </Button>
                 </SignedOut>
-            </nav>
+            </div>
         </header>
     )
 }

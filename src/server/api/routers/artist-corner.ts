@@ -15,7 +15,7 @@ import { utapi } from '~/server/uploadthing'
 
 const productSchema = z.object({
     name: z.string(),
-    description: z.string(),
+    description: z.any(),
     price: z.number(),
     download: z.object({
         ut_key: z.string(),
@@ -29,7 +29,7 @@ const productSchema = z.object({
 export const artist_corner_router = createTRPCRouter({
     set_product: artistProcedure.input(productSchema).mutation(async ({ input, ctx }) => {
         const id = createId()
-        const description = JSON.parse(input.description) as JSONContent
+        const description = input.description as JSONContent
         const insert_promise = ctx.db.insert(products).values({
             id,
             artist_id: ctx.artist.id,
@@ -120,7 +120,7 @@ export const artist_corner_router = createTRPCRouter({
                 .update(products)
                 .set({
                     ...items,
-                    description: JSON.parse(input.description) as JSONContent
+                    description: input.description as JSONContent
                 })
                 .where(eq(products.id, input.id))
 

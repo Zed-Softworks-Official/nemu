@@ -1,7 +1,8 @@
 import { and, asc, eq, gt } from 'drizzle-orm'
 import { z } from 'zod'
+import { type JSONContent } from '@tiptap/react'
 
-import { commissions } from '~/server/db/schema'
+import { commissions, products } from '~/server/db/schema'
 import { createTRPCRouter, publicProcedure } from '~/server/api/trpc'
 
 import { format_to_currency, get_ut_url } from '~/lib/utils'
@@ -14,6 +15,17 @@ type CommissionResult = {
     featured_image: string
     slug: string
     availability: CommissionAvailability
+    price: string
+    artist: {
+        handle: string
+    }
+}
+
+type ProductResult = {
+    id: string
+    name: string
+    description: JSONContent | null
+    featured_image: string
     price: string
     artist: {
         handle: string
@@ -53,6 +65,42 @@ export const home_router = createTRPCRouter({
                 price: format_to_currency(commission.price / 100),
                 artist: {
                     handle: commission.artist.handle
+                }
+            }))
+
+            return { res, next_cursor: data[data.length - 1]?.created_at }
+        }),
+
+    get_products_infinite: publicProcedure
+        .input(
+            z.object({
+                cursor: z.date().optional(),
+                limit: z.number().min(1).max(20).default(10)
+            })
+        )
+        .query(async ({ input, ctx }) => {
+            const data = await ctx.db.query.products.findMany({
+                limit: input.limit,
+                with: {
+                    artist: true
+                },
+                orderBy: (product) => asc(product.created_at),
+                where: input.cursor
+                    ? and(
+                          gt(products.created_at, input.cursor),
+                          eq(products.published, true)
+                      )
+                    : eq(products.published, true)
+            })
+
+            const res: ProductResult[] = data.map((product) => ({
+                id: product.id,
+                name: product.name,
+                description: product.description,
+                featured_image: get_ut_url(product.images[0] ?? ''),
+                price: format_to_currency(product.price / 100),
+                artist: {
+                    handle: product.artist.handle
                 }
             }))
 

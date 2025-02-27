@@ -39,6 +39,7 @@ import { format_file_size } from '~/lib/utils'
 import { type DownloadData } from '~/lib/structures'
 
 import { api, type RouterOutputs } from '~/trpc/react'
+import { type JSONContent } from '@tiptap/react'
 
 const MarkdownEditor = dynamic(
     () => import('~/components/ui/markdown-editor').then((mod) => mod.MarkdownEditor),
@@ -49,7 +50,7 @@ const MarkdownEditor = dynamic(
 
 const productSchema = z.object({
     name: z.string().min(2).max(64),
-    description: z.string().min(2),
+    description: z.any(),
     price: z
         .string()
         .refine((val) => !isNaN(Number(val)), {
@@ -112,7 +113,7 @@ export function CreateForm() {
             ...data,
             price: Number(data.price) * 100,
             download: currentFile,
-            description: JSON.stringify(data.description)
+            description: data.description as JSONContent
         })
     }
 
@@ -505,7 +506,9 @@ export function UpdateForm(props: {
                 </FormItem>
                 <div className="flex w-full justify-between">
                     <Button variant="outline" asChild>
-                        <Link href="/dashboard/artist-corner">Cancel</Link>
+                        <Link href={`/dashboard/artist-corner/${props.product.id}`}>
+                            Cancel
+                        </Link>
                     </Button>
                     <Button
                         type="submit"
