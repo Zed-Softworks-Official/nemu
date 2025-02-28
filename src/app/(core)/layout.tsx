@@ -41,11 +41,9 @@ export default function StandarLayout(props: {
     modal: React.ReactNode
 }) {
     return (
-        <main className="flex h-full w-full flex-1 flex-col">
+        <main>
             <Navbar />
-            <div className="relative flex h-full w-full flex-1 flex-col">
-                {props.children}
-            </div>
+            <div className="relative">{props.children}</div>
             {props.modal}
         </main>
     )

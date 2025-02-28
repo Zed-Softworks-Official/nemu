@@ -1,15 +1,18 @@
 import { clerkClient, getAuth } from '@clerk/nextjs/server'
 import { notFound, redirect } from 'next/navigation'
 import { type NextRequest } from 'next/server'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
+import { createId } from '@paralleldrive/cuid2'
 
-import type { StripeProductData } from '~/lib/structures'
+import type { StripePaymentMetadata, StripeProductData } from '~/lib/structures'
 import { db } from '~/server/db'
-import { artists } from '~/server/db/schema'
+import { artists, purchase } from '~/server/db/schema'
 import { get_redis_key, redis } from '~/server/redis'
 
 import { stripe } from '~/server/stripe'
 import { env } from '~/env'
+import { is_supporter } from '~/app/api/stripe/sync'
+import { calculate_application_fee } from '~/lib/payments'
 
 export async function GET(
     req: NextRequest,
@@ -26,6 +29,18 @@ export async function GET(
         )
     })
     if (!artist) return notFound()
+
+    const already_purchased = await db.query.purchase.findFirst({
+        where: and(
+            eq(purchase.product_id, params.id),
+            eq(purchase.user_id, auth.userId),
+            eq(purchase.status, 'completed')
+        )
+    })
+
+    if (already_purchased) {
+        return redirect(`${env.BASE_URL}/purchases`)
+    }
 
     let stripe_customer = await redis.get<string>(
         get_redis_key('stripe:artist:customer', auth.userId, artist.id)
@@ -53,6 +68,12 @@ export async function GET(
     )
     if (!product_data) return notFound()
 
+    const application_fee_amount = !(await is_supporter(artist.user_id))
+        ? calculate_application_fee(product_data.price)
+        : undefined
+
+    const purchase_id = createId()
+
     const checkout = await stripe.checkout.sessions.create(
         {
             customer: stripe_customer,
@@ -62,15 +83,37 @@ export async function GET(
                     quantity: 1
                 }
             ],
+            metadata: {
+                purchase_type: 'artist_corner',
+                stripe_account: artist.stripe_account,
+                purchase_id
+            } satisfies StripePaymentMetadata,
             mode: 'payment',
             currency: 'usd',
             success_url: `${env.BASE_URL}/${params.handle}/artist-corner/${params.id}/success`,
-            cancel_url: `${env.BASE_URL}/${params.handle}/artist-corner/${params.id}`
+            cancel_url: `${env.BASE_URL}/${params.handle}/artist-corner/${params.id}`,
+            ui_mode: 'hosted',
+            payment_intent_data: {
+                application_fee_amount
+            },
+            payment_method_types: ['card', 'link']
         },
         {
             stripeAccount: artist.stripe_account
         }
     )
 
-    return redirect(checkout.url ?? '/artist-corner')
+    if (!checkout.url) {
+        throw new Error('[STRIPE] Checkout session URL not found')
+    }
+
+    await db.insert(purchase).values({
+        id: purchase_id,
+        product_id: params.id,
+        user_id: auth.userId,
+        artist_id: artist.id,
+        status: 'pending'
+    })
+
+    return redirect(checkout.url)
 }

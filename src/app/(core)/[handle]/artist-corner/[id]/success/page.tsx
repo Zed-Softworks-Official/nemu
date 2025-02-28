@@ -1,6 +1,6 @@
 import NemuImage from '~/components/nemu-image'
 
-export default function SuccessPage() {
+export default async function SuccessPage() {
     return (
         <div className="container mx-auto flex h-full min-h-full flex-1 flex-col items-center justify-center gap-2">
             <NemuImage src="/nemu/sparkles.png" alt="Sparkles" width={200} height={200} />

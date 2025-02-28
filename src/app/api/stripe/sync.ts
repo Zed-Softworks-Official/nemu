@@ -4,7 +4,7 @@ import { and, eq } from 'drizzle-orm'
 import { env } from '~/env'
 
 import { db } from '~/server/db'
-import { artists, invoices } from '~/server/db/schema'
+import { artists, invoices, purchase } from '~/server/db/schema'
 import { KnockWorkflows, send_notification } from '~/server/knock'
 import { stripe } from '~/server/stripe'
 import { get_redis_key, redis } from '~/server/redis'
@@ -28,6 +28,24 @@ export async function sync_stripe_data(
             return await invoice_paid(event_data.id, metadata.stripe_account)
         case 'account.updated':
             return await account_updated(metadata.stripe_account)
+        case 'checkout.session.completed':
+            if (metadata.purchase_type === 'artist_corner') {
+                return await checkoutSessionCompleted({
+                    session_id: event_data.id,
+                    stripe_account: metadata.stripe_account,
+                    purchase_id: metadata.purchase_id
+                })
+            }
+            break
+        case 'checkout.session.expired':
+            if (metadata.purchase_type === 'artist_corner') {
+                return await checkoutSessionExpired({
+                    session_id: event_data.id,
+                    stripe_account: metadata.stripe_account,
+                    purchase_id: metadata.purchase_id
+                })
+            }
+            break
     }
 
     return await sync_sub_stripe_data(customer_id)
@@ -201,4 +219,40 @@ export async function is_supporter(user_id: string) {
     }
 
     return supporter
+}
+
+async function checkoutSessionCompleted(data: {
+    session_id: string
+    stripe_account: string
+    purchase_id: string
+}) {
+    // Get the checkout session
+    const session = await stripe.checkout.sessions.retrieve(data.session_id, {
+        stripeAccount: data.stripe_account
+    })
+
+    if (session.status !== 'complete') {
+        throw new Error('[STRIPE HOOK] Checkout session not completed')
+    }
+
+    // Update the purchase
+    await db
+        .update(purchase)
+        .set({
+            status: 'completed'
+        })
+        .where(eq(purchase.id, data.purchase_id))
+}
+
+async function checkoutSessionExpired(data: {
+    session_id: string
+    stripe_account: string
+    purchase_id: string
+}) {
+    await db
+        .update(purchase)
+        .set({
+            status: 'cancelled'
+        })
+        .where(eq(purchase.id, data.purchase_id))
 }

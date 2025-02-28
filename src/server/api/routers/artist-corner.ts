@@ -69,6 +69,7 @@ export const artist_corner_router = createTRPCRouter({
 
             await ctx.redis.set(get_redis_key('product:stripe', id), {
                 product_id: stripe_product.id,
+                price: input.price,
                 price_id:
                     typeof stripe_product.default_price === 'string'
                         ? stripe_product.default_price
@@ -189,6 +190,7 @@ export const artist_corner_router = createTRPCRouter({
 
                 stripe_data = {
                     product_id: stripe_product.id,
+                    price: input.price,
                     price_id:
                         typeof stripe_product.default_price === 'string'
                             ? stripe_product.default_price
