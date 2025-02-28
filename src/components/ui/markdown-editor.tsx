@@ -5,7 +5,7 @@ import StarterKit from '@tiptap/starter-kit'
 
 export function MarkdownEditor(props: {
     disabled?: boolean
-    onUpdate: (content: JSONContent) => void
+    onUpdate?: (content: JSONContent) => void
     content?: JSONContent | string | null
 }) {
     const parseContent = () => {
@@ -34,6 +34,8 @@ export function MarkdownEditor(props: {
             })
         ],
         onUpdate: ({ editor }) => {
+            if (!props.onUpdate) return
+
             props.onUpdate(editor.getJSON())
         },
         editorProps: {
@@ -43,5 +45,5 @@ export function MarkdownEditor(props: {
         }
     })
 
-    return <EditorContent editor={editor} />
+    return <EditorContent editor={editor} className="w-full" />
 }

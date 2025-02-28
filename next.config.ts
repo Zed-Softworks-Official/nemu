@@ -8,7 +8,7 @@ import type { NextConfig } from 'next'
 import { withSentryConfig } from '@sentry/nextjs'
 import path from 'path'
 
-export const config = {
+const config = {
     images: {
         remotePatterns: [
             {

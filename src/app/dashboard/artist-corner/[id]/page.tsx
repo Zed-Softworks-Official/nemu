@@ -11,7 +11,7 @@ export default async function ArtistCornerProductPags(props: {
     params: Promise<{ id: string }>
 }) {
     const { id } = await props.params
-    const data = await api.artist_corner.get_product_by_id({ id })
+    const data = await api.artist_corner.get_product_by_id_dashboard({ id })
 
     if (!data.product || !data.sales) {
         return notFound()

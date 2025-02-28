@@ -7,7 +7,7 @@ import { z } from 'zod'
 import { type StripeProductData } from '~/lib/structures'
 import { format_to_currency, get_ut_url } from '~/lib/utils'
 
-import { artistProcedure, createTRPCRouter } from '~/server/api/trpc'
+import { artistProcedure, createTRPCRouter, publicProcedure } from '~/server/api/trpc'
 import { products } from '~/server/db/schema'
 import { get_redis_key } from '~/server/redis'
 import { stripe } from '~/server/stripe'
@@ -69,6 +69,10 @@ export const artist_corner_router = createTRPCRouter({
 
             await ctx.redis.set(get_redis_key('product:stripe', id), {
                 product_id: stripe_product.id,
+                price_id:
+                    typeof stripe_product.default_price === 'string'
+                        ? stripe_product.default_price
+                        : stripe_product.id,
                 revenue: 0,
                 sold: 0,
                 sold_amount: 0,
@@ -185,6 +189,10 @@ export const artist_corner_router = createTRPCRouter({
 
                 stripe_data = {
                     product_id: stripe_product.id,
+                    price_id:
+                        typeof stripe_product.default_price === 'string'
+                            ? stripe_product.default_price
+                            : stripe_product.id,
                     revenue: 0,
                     sold: 0,
                     sold_amount: 0,
@@ -214,7 +222,7 @@ export const artist_corner_router = createTRPCRouter({
         }))
     }),
 
-    get_product_by_id: artistProcedure
+    get_product_by_id_dashboard: artistProcedure
         .input(z.object({ id: z.string() }))
         .query(async ({ ctx, input }) => {
             const product_promise = ctx.db.query.products.findFirst({
@@ -245,6 +253,30 @@ export const artist_corner_router = createTRPCRouter({
                 product,
                 sales,
                 charges
+            }
+        }),
+
+    get_product_by_id: publicProcedure
+        .input(
+            z.object({
+                id: z.string()
+            })
+        )
+        .query(async ({ ctx, input }) => {
+            const data = await ctx.db.query.products.findFirst({
+                where: eq(products.id, input.id)
+            })
+
+            if (!data) {
+                return null
+            }
+
+            return {
+                name: data.name,
+                description: data.description,
+                images: data.images.map((key) => get_ut_url(key)),
+                price: format_to_currency(data.price / 100),
+                is_free: data.is_free
             }
         }),
 

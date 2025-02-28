@@ -3,6 +3,7 @@ export type PurchaseStatus = (typeof purchaseStatus)[number]
 
 export type StripeProductData = {
     product_id: string
+    price_id: string
     revenue: number
     sold: number
     sold_amount: number

@@ -6,7 +6,7 @@ export default async function ArtistCornerUpdatePage(props: {
     params: Promise<{ id: string }>
 }) {
     const { id } = await props.params
-    const data = await api.artist_corner.get_product_by_id({
+    const data = await api.artist_corner.get_product_by_id_dashboard({
         id
     })
 
