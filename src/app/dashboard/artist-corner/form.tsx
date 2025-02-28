@@ -298,7 +298,9 @@ export function CreateForm() {
 }
 
 export function UpdateForm(props: {
-    product: NonNullable<RouterOutputs['artist_corner']['get_product_by_id']['product']>
+    product: NonNullable<
+        RouterOutputs['artist_corner']['get_product_by_id_dashboard']['product']
+    >
 }) {
     const [currentFile, setCurrentFile] = useState<DownloadData>(props.product.download)
     const router = useRouter()
