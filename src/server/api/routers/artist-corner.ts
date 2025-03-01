@@ -43,13 +43,13 @@ export const artist_corner_router = createTRPCRouter({
         })
 
         const remove_image_from_redis_promise = ctx.redis.zrem(
-            get_redis_key('product:images', ctx.artist.id),
+            'product:images',
             ...input.images
         )
 
         const remove_download_from_redis_promise = ctx.redis.zrem(
-            get_redis_key('product:downloads', ctx.artist.id),
-            input.download
+            'product:downloads',
+            input.download.ut_key
         )
 
         const stripe_promise = async () => {
@@ -135,9 +135,10 @@ export const artist_corner_router = createTRPCRouter({
                 .where(eq(products.id, input.id))
 
             // Remove from redis
-            const redis_promise = ctx.redis.zrem(
-                get_redis_key('product:images', ctx.artist.id),
-                input.images
+            const redis_promise = ctx.redis.zrem('product:images', ...input.images)
+            const redis_promise_2 = ctx.redis.zrem(
+                'product:downloads',
+                input.download.ut_key
             )
 
             // Possibly update price on stripe product
@@ -213,7 +214,13 @@ export const artist_corner_router = createTRPCRouter({
                 )
             }
 
-            await Promise.all([ut_promise, db_promise, stripe_promise(), redis_promise])
+            await Promise.all([
+                ut_promise,
+                db_promise,
+                stripe_promise(),
+                redis_promise,
+                redis_promise_2
+            ])
         }),
 
     get_products: artistProcedure.query(async ({ ctx }) => {

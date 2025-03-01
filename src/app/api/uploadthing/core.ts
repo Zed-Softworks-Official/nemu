@@ -4,7 +4,7 @@ import { clerkClient, getAuth } from '@clerk/nextjs/server'
 import { type NextRequest } from 'next/server'
 import { UploadThingError } from 'uploadthing/server'
 import { createUploadthing, type FileRouter } from 'uploadthing/next'
-import { get_redis_key, redis } from '~/server/redis'
+import { redis } from '~/server/redis'
 
 const f = createUploadthing()
 
@@ -74,7 +74,7 @@ export const nemuFileRouter = {
         .onUploadComplete(async ({ metadata, file }) => {
             if (!metadata.artist_id) return
 
-            await redis.zadd(get_redis_key('product:images', metadata.artist_id), {
+            await redis.zadd('product:images', {
                 member: file.key,
                 score: Math.floor((Date.now() + 3600000) / 1000)
             })
@@ -87,7 +87,7 @@ export const nemuFileRouter = {
         .onUploadComplete(async ({ metadata, file }) => {
             if (!metadata.artist_id) return
 
-            await redis.zadd(get_redis_key('product:downloads', metadata.artist_id), {
+            await redis.zadd('product:downloads', {
                 member: file.key,
                 score: Math.floor((Date.now() + 3600000) / 1000)
             })
