@@ -7,7 +7,7 @@ import { createId } from '@paralleldrive/cuid2'
 import type { StripePaymentMetadata, StripeProductData } from '~/lib/structures'
 import { db } from '~/server/db'
 import { artists, purchase } from '~/server/db/schema'
-import { get_redis_key, redis } from '~/server/redis'
+import { get_redis_key as getRedisKey, redis } from '~/server/redis'
 
 import { stripe } from '~/server/stripe'
 import { env } from '~/env'
@@ -30,7 +30,7 @@ export async function GET(
     })
     if (!artist) return notFound()
 
-    const already_purchased = await db.query.purchase.findFirst({
+    const alreadyPurchased = await db.query.purchase.findFirst({
         where: and(
             eq(purchase.product_id, params.id),
             eq(purchase.user_id, auth.userId),
@@ -38,15 +38,22 @@ export async function GET(
         )
     })
 
-    if (already_purchased) {
+    if (alreadyPurchased) {
         return redirect(`${env.BASE_URL}/purchases`)
     }
 
-    let stripe_customer = await redis.get<string>(
-        get_redis_key('stripe:artist:customer', auth.userId, artist.id)
+    const sessionAlreadyExists = await redis.get<string>(
+        getRedisKey('product:purchase', params.id, auth.userId)
+    )
+    if (sessionAlreadyExists) {
+        return redirect(sessionAlreadyExists)
+    }
+
+    let stripeCustomer = await redis.get<string>(
+        getRedisKey('stripe:artist:customer', auth.userId, artist.id)
     )
 
-    if (!stripe_customer) {
+    if (!stripeCustomer) {
         const user = await (await clerkClient()).users.getUser(auth.userId)
         const customer = await stripe.customers.create(
             {
@@ -55,38 +62,38 @@ export async function GET(
             },
             { stripeAccount: artist.stripe_account }
         )
-        stripe_customer = customer.id
+        stripeCustomer = customer.id
 
         await redis.set(
-            get_redis_key('stripe:artist:customer', auth.userId, artist.id),
-            stripe_customer
+            getRedisKey('stripe:artist:customer', auth.userId, artist.id),
+            stripeCustomer
         )
     }
 
-    const product_data = await redis.get<StripeProductData>(
-        get_redis_key('product:stripe', params.id)
+    const productData = await redis.get<StripeProductData>(
+        getRedisKey('product:stripe', params.id)
     )
-    if (!product_data) return notFound()
+    if (!productData) return notFound()
 
-    const application_fee_amount = !(await is_supporter(artist.user_id))
-        ? calculate_application_fee(product_data.price)
+    const applicationFeeAmount = !(await is_supporter(artist.user_id))
+        ? calculate_application_fee(productData.price)
         : undefined
 
-    const purchase_id = createId()
+    const purchaseId = createId()
 
     const checkout = await stripe.checkout.sessions.create(
         {
-            customer: stripe_customer,
+            customer: stripeCustomer,
             line_items: [
                 {
-                    price: product_data.price_id,
+                    price: productData.price_id,
                     quantity: 1
                 }
             ],
             metadata: {
                 purchase_type: 'artist_corner',
                 stripe_account: artist.stripe_account,
-                purchase_id
+                purchase_id: purchaseId
             } satisfies StripePaymentMetadata,
             mode: 'payment',
             currency: 'usd',
@@ -94,9 +101,10 @@ export async function GET(
             cancel_url: `${env.BASE_URL}/${params.handle}/artist-corner/${params.id}`,
             ui_mode: 'hosted',
             payment_intent_data: {
-                application_fee_amount
+                application_fee_amount: applicationFeeAmount
             },
-            payment_method_types: ['card', 'link']
+            payment_method_types: ['card', 'link'],
+            expires_at: Math.floor(Date.now() / 1000) + 60 * 60 * 24 // 24 hours
         },
         {
             stripeAccount: artist.stripe_account
@@ -107,8 +115,16 @@ export async function GET(
         throw new Error('[STRIPE] Checkout session URL not found')
     }
 
+    await redis.set(
+        getRedisKey('product:purchase', params.id, auth.userId),
+        checkout.url,
+        {
+            ex: 60 * 60 * 24 // 24 hours
+        }
+    )
+
     await db.insert(purchase).values({
-        id: purchase_id,
+        id: purchaseId,
         product_id: params.id,
         user_id: auth.userId,
         artist_id: artist.id,
