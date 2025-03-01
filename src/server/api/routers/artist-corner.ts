@@ -1,14 +1,19 @@
 import { createId } from '@paralleldrive/cuid2'
 import { type JSONContent } from '@tiptap/react'
 import { TRPCError } from '@trpc/server'
-import { eq } from 'drizzle-orm'
+import { and, desc, eq } from 'drizzle-orm'
 import { z } from 'zod'
 
 import { type StripeProductData } from '~/lib/structures'
 import { format_to_currency, get_ut_url } from '~/lib/utils'
 
-import { artistProcedure, createTRPCRouter, publicProcedure } from '~/server/api/trpc'
-import { products } from '~/server/db/schema'
+import {
+    artistProcedure,
+    createTRPCRouter,
+    protectedProcedure,
+    publicProcedure
+} from '~/server/api/trpc'
+import { products, purchase } from '~/server/db/schema'
 import { get_redis_key } from '~/server/redis'
 import { stripe } from '~/server/stripe'
 import { utapi } from '~/server/uploadthing'
@@ -291,5 +296,34 @@ export const artist_corner_router = createTRPCRouter({
                     published: input.published
                 })
                 .where(eq(products.id, input.id))
+        }),
+
+    get_purchased: protectedProcedure.query(async ({ ctx }) => {
+        const purchases = await ctx.db.query.purchase.findMany({
+            where: and(
+                eq(purchase.user_id, ctx.auth.userId),
+                eq(purchase.status, 'completed')
+            ),
+            limit: 10,
+            orderBy: desc(purchase.created_at),
+            with: {
+                product: true,
+                artist: true
+            }
         })
+
+        return purchases.map((data) => ({
+            id: data.id,
+            product: {
+                id: data.product.id,
+                name: data.product.name,
+                download: {
+                    filename: data.product.download.filename
+                }
+            },
+            artist: {
+                handle: data.artist.handle
+            }
+        }))
+    })
 })

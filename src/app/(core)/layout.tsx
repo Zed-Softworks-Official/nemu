@@ -9,6 +9,7 @@ import {
     LayoutDashboard,
     LogOut,
     Mail,
+    Package,
     Settings,
     Truck,
     User
@@ -177,6 +178,12 @@ function GeneralSection(props: { is_artist: boolean; supporter: boolean }) {
                     </Link>
                 </DropdownMenuItem>
             )}
+            <DropdownMenuItem asChild>
+                <Link href="/purchases" prefetch={true}>
+                    <Package className="size-6" />
+                    Purchases
+                </Link>
+            </DropdownMenuItem>
             <DropdownMenuItem asChild>
                 <Link prefetch={true} href={'/requests'}>
                     <Truck className="h-6 w-6" />
