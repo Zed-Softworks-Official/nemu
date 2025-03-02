@@ -11,13 +11,13 @@ import { portfolio_router } from '~/server/api/routers/portfolio'
 import { home_router } from '~/server/api/routers/home'
 import { dashboard_router } from '~/server/api/routers/dashboard'
 import { con_router } from '~/server/api/routers/con'
+import { artist_corner_router } from '~/server/api/routers/artist-corner'
 
 /**
  * This is the primary router for your server.
  *
  * All routers added in /api/routers should be manually added here.
  */
-
 export const appRouter = createTRPCRouter({
     artist: artist_router,
     artist_verification: artist_verification_router,
@@ -29,7 +29,8 @@ export const appRouter = createTRPCRouter({
     portfolio: portfolio_router,
     home: home_router,
     dashboard: dashboard_router,
-    con: con_router
+    con: con_router,
+    artist_corner: artist_corner_router
 })
 
 // export type definition of API

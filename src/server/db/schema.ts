@@ -1,6 +1,8 @@
 // Example model schema from the Drizzle docs
 // https://orm.drizzle.team/docs/sql-schema-declaration
 
+import { type JSONContent } from '@tiptap/react'
+
 import { relations, sql } from 'drizzle-orm'
 import {
     decimal,
@@ -31,7 +33,10 @@ import {
     commissionAvalabilities,
     type CommissionAvailability,
     conStatus,
-    type ConStatus
+    type ConStatus,
+    purchaseStatus,
+    type PurchaseStatus,
+    type DownloadData
 } from '~/lib/structures'
 
 /**
@@ -77,6 +82,8 @@ export const ChargeMethodEnum = (name: string) =>
     mysqlEnum(name, convertEnum(chargeMethods))
 
 export const ConStatusEnum = (name: string) => mysqlEnum(name, convertEnum(conStatus))
+export const PurchaseStatusEnum = (name: string) =>
+    mysqlEnum(name, convertEnum(purchaseStatus))
 
 //////////////////////////////////////////////////////////
 // Tables
@@ -255,15 +262,15 @@ export const commissions = createTable('commission', {
 export const products = createTable('products', {
     id: varchar('id', { length: 128 }).primaryKey(),
     name: varchar('name', { length: 128 }).notNull(),
-    description: text('description'),
+    description: json('description').$type<JSONContent>(),
     published: boolean('published').default(false).notNull(),
+    is_free: boolean('is_free').default(false).notNull(),
 
     created_at: timestamp('created_at').defaultNow(),
 
     price: int('price').notNull(),
     images: json('images').$type<string[]>().notNull(),
-    download: varchar('download', { length: 128 }),
-    sold_count: int('sold_count').default(0),
+    download: json('download').$type<DownloadData>().notNull(),
 
     artist_id: varchar('artist_id', { length: 128 }).notNull()
 })
@@ -274,6 +281,10 @@ export const purchase = createTable('purchase', {
     product_id: varchar('product_id', { length: 128 }).notNull(),
     user_id: varchar('user_id', { length: 128 }).notNull(),
     artist_id: varchar('artist_id', { length: 128 }).notNull(),
+    status: PurchaseStatusEnum('status')
+        .$type<PurchaseStatus>()
+        .default('pending')
+        .notNull(),
 
     created_at: timestamp('created_at').defaultNow()
 })
@@ -433,7 +444,8 @@ export const artistRelations = relations(artists, ({ many }) => ({
     portfolio: many(portfolios),
     forms: many(forms),
     invoices: many(invoices),
-    chats: many(chats)
+    chats: many(chats),
+    products: many(products)
 }))
 
 /**
@@ -526,5 +538,27 @@ export const kanbanRelations = relations(kanbans, ({ one }) => ({
     request: one(requests, {
         fields: [kanbans.request_id],
         references: [requests.id]
+    })
+}))
+
+/**
+ * Product Relations
+ */
+export const productRelations = relations(products, ({ one, many }) => ({
+    artist: one(artists, {
+        fields: [products.artist_id],
+        references: [artists.id]
+    }),
+    purchases: many(purchase)
+}))
+
+export const purchaseRelations = relations(purchase, ({ one }) => ({
+    product: one(products, {
+        fields: [purchase.product_id],
+        references: [products.id]
+    }),
+    artist: one(artists, {
+        fields: [purchase.artist_id],
+        references: [artists.id]
     })
 }))

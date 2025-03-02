@@ -1,5 +1,11 @@
 {
     "buildCommand": "pnpm build",
     "devCommand": "pnpm dev",
-    "installCommand": "pnpm install"
+    "installCommand": "pnpm install",
+    "crons": [
+        {
+            "path": "/api/uploadthing/cron",
+            "schedule": "0 10 * * *"
+        }
+    ]
 }

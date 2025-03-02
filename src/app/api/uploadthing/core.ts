@@ -1,19 +1,20 @@
 /* eslint-disable @typescript-eslint/only-throw-error */
 
-import { currentUser } from '@clerk/nextjs/server'
+import { clerkClient, getAuth } from '@clerk/nextjs/server'
 import { type NextRequest } from 'next/server'
 import { UploadThingError } from 'uploadthing/server'
 import { createUploadthing, type FileRouter } from 'uploadthing/next'
+import { redis } from '~/server/redis'
 
 const f = createUploadthing()
 
 const validate_auth = async (req: NextRequest, check_artist = false) => {
-    const user = await currentUser()
-
-    if (!user) {
+    const auth = getAuth(req)
+    if (!auth.userId) {
         throw new UploadThingError('Unauthorized')
     }
 
+    const user = await (await clerkClient()).users.getUser(auth.userId)
     const artist_id = user.privateMetadata.artist_id as string | undefined
 
     if (check_artist) {
@@ -66,6 +67,30 @@ export const nemuFileRouter = {
         .middleware(async ({ req }) => await validate_auth(req, true))
         .onUploadComplete(() => {
             console.log('Delivery Upload Complete')
+        }),
+
+    productImageUploader: f({ image: { maxFileCount: 5, maxFileSize: '4MB' } })
+        .middleware(async ({ req }) => await validate_auth(req, true))
+        .onUploadComplete(async ({ metadata, file }) => {
+            if (!metadata.artist_id) return
+
+            await redis.zadd('product:images', {
+                member: file.key,
+                score: Math.floor((Date.now() + 3600000) / 1000)
+            })
+        }),
+
+    productDownloadUploader: f({
+        'application/zip': { maxFileCount: 1, maxFileSize: '2GB' }
+    })
+        .middleware(async ({ req }) => await validate_auth(req, true))
+        .onUploadComplete(async ({ metadata, file }) => {
+            if (!metadata.artist_id) return
+
+            await redis.zadd('product:downloads', {
+                member: file.key,
+                score: Math.floor((Date.now() + 3600000) / 1000)
+            })
         })
 } satisfies FileRouter
 

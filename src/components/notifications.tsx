@@ -151,7 +151,7 @@ function NotificationFeed() {
                             />
                         )}
                         {notificationCounts.count > 0 && (
-                            <div className="bg-popover sticky bottom-0 flex flex-col items-center justify-center border-t-2">
+                            <div className="bg-popover bottom-0 flex flex-col items-center justify-center border-t-2">
                                 <Button
                                     variant={'ghost'}
                                     className="text-muted-foreground w-full rounded-none"
@@ -216,7 +216,7 @@ function NotificationItem(props: {
 }) {
     return (
         <DropdownMenuItem
-            className="border-muted flex items-start gap-2 rounded-none border-b-2"
+            className="border-muted flex items-center justify-center gap-2 rounded-none border-b-2"
             onClick={() => {
                 void props.feed_client.markAsRead(props.item)
             }}

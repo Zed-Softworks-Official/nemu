@@ -1,4 +1,6 @@
 @import 'tailwindcss';
+@import 'uploadthing/tw/v4';
+@source "../node_modules/@uploadthing/react/dist";
 @plugin 'tailwindcss-animate';
 
 @custom-variant dark (&:is(.dark *));
@@ -94,7 +96,7 @@
     --chart-3: hsl(30 80% 55%);
     --chart-4: hsl(280 65% 60%);
     --chart-5: hsl(340 75% 55%);
-    --sidebar-background: hsl(0 0% 3.9%);
+    --sidebar-background: hsl(0 0% 5%);
     --sidebar-foreground: hsl(240 4.8% 95.9%);
     --sidebar-primary: hsl(224.3 76.3% 48%);
     --sidebar-primary-foreground: hsl(0 0% 100%);

@@ -9,10 +9,12 @@ import {
     LayoutDashboard,
     LogOut,
     Mail,
+    Package,
     Settings,
     Truck,
     User
 } from 'lucide-react'
+import Link from 'next/link'
 
 import SearchBar from '~/components/search'
 import { FullLogo } from '~/components/ui/logo'
@@ -25,14 +27,15 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger
 } from '~/components/ui/dropdown-menu'
+
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
-import Link from 'next/link'
 import { Button } from '~/components/ui/button'
-import NemuImage from '~/components/nemu-image'
 import { Notifications } from '~/components/notifications'
 import { Skeleton } from '~/components/ui/skeleton'
 import { type UserRole } from '~/lib/structures'
-import { is_supporter } from '../api/stripe/sync'
+
+import { is_supporter } from '~/app/api/stripe/sync'
+import { NavigationSheet } from './navigation'
 
 export default function StandarLayout(props: {
     children: React.ReactNode
@@ -40,11 +43,8 @@ export default function StandarLayout(props: {
 }) {
     return (
         <main>
-            <div className="flex min-h-screen w-full flex-1 flex-col">
-                <Navbar />
-                <div className="relative">{props.children}</div>
-            </div>
-            <Footer />
+            <Navbar />
+            <div className="relative">{props.children}</div>
             {props.modal}
         </main>
     )
@@ -54,7 +54,8 @@ function Navbar() {
     return (
         <header className="container mx-auto flex w-full items-center justify-between gap-5 px-10 py-5 sm:px-0">
             <FullLogo />
-            <nav className="flex items-center gap-5">
+
+            <div className="flex items-center gap-5">
                 <SearchBar />
                 <SignedIn>
                     <Notifications />
@@ -65,93 +66,13 @@ function Navbar() {
                 <SignedOut>
                     <Button className="h-12 rounded-full" variant={'ghost'} asChild>
                         <Link prefetch={true} href={'/u/login'}>
-                            <User className="h-12 w-12" />
+                            <User className="size-6" />
                         </Link>
                     </Button>
                 </SignedOut>
-            </nav>
-        </header>
-    )
-}
-
-function Footer() {
-    return (
-        <footer className="bg-background-secondary p-10">
-            <div className="container mx-auto grid gap-3 space-y-5 sm:grid-cols-3">
-                <div className="flex h-full flex-col justify-between">
-                    <NemuImage
-                        src={'/zed-logo.svg'}
-                        alt="Zed Softworks Logo"
-                        width={50}
-                        height={50}
-                    />
-                    <p className="text-muted-foreground text-sm">
-                        Copyright &copy; {new Date().getFullYear()}{' '}
-                        <Link
-                            href={'https://zedsoftworks.dev'}
-                            target="_blank"
-                            className="hover:underline"
-                        >
-                            Zed Softworks LLC
-                        </Link>
-                        . All rights reserved.
-                    </p>
-                </div>
-                <div className="flex flex-col gap-2">
-                    <h2 className="text-muted-foreground/60 text-lg font-semibold uppercase">
-                        Artists
-                    </h2>
-                    <Link
-                        href={'/artists'}
-                        className="text-muted-foreground text-sm hover:underline"
-                    >
-                        Become an Artist
-                    </Link>
-                    <Link
-                        href={'/supporter'}
-                        className="text-muted-foreground text-sm hover:underline"
-                    >
-                        Become a Supporter
-                    </Link>
-                </div>
-                <div className="flex flex-col gap-2">
-                    <h2 className="text-muted-foreground/60 text-lg font-semibold uppercase">
-                        Company
-                    </h2>
-                    <Link
-                        data-featurebase-link
-                        href={'https://feedback.nemu.art'}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-muted-foreground text-sm hover:underline"
-                    >
-                        Feature Requests
-                    </Link>
-
-                    <Link
-                        data-featurebase-link
-                        href={'https://feedback.nemu.art/roadmap'}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-muted-foreground text-sm hover:underline"
-                    >
-                        Roadmap
-                    </Link>
-                    <Link
-                        href={'/terms'}
-                        className="text-muted-foreground text-sm hover:underline"
-                    >
-                        Terms of Service
-                    </Link>
-                    <Link
-                        href={'/privacy'}
-                        className="text-muted-foreground text-sm hover:underline"
-                    >
-                        Privacy Policy
-                    </Link>
-                </div>
+                <NavigationSheet />
             </div>
-        </footer>
+        </header>
     )
 }
 
@@ -170,7 +91,7 @@ async function UserDropdown() {
                 <Avatar>
                     <AvatarImage src={current_user?.imageUrl} alt="User Avatar" />
                     <AvatarFallback>
-                        <User className="h-6 w-6" />
+                        <User className="size-6" />
                     </AvatarFallback>
                 </Avatar>
             </DropdownMenuTrigger>
@@ -204,13 +125,13 @@ function ArtistSection(props: { show?: boolean; handle: string }) {
                     className="flex w-full items-center gap-3"
                     href={`/@${props.handle}`}
                 >
-                    <Brush className="h-6 w-6" />
+                    <Brush className="size-6" />
                     My Page
                 </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
                 <Link href={'/dashboard'} className="flex w-full items-center gap-3">
-                    <BarChart className="h-6 w-6" />
+                    <BarChart className="size-6" />
                     Dashboard
                 </Link>
             </DropdownMenuItem>
@@ -219,7 +140,7 @@ function ArtistSection(props: { show?: boolean; handle: string }) {
                     href={'/dashboard/settings'}
                     className="flex w-full items-center gap-3"
                 >
-                    <CogIcon className="h-6 w-6" />
+                    <CogIcon className="size-6" />
                     Artist Settings
                 </Link>
             </DropdownMenuItem>
@@ -236,7 +157,7 @@ function AdminSection(props: { show?: boolean }) {
             <DropdownMenuLabel>Admin</DropdownMenuLabel>
             <DropdownMenuItem asChild>
                 <Link href={'/admin'} className="flex w-full items-center gap-3">
-                    <LayoutDashboard className="h-6 w-6" />
+                    <LayoutDashboard className="size-6" />
                     Admin Dashboard
                 </Link>
             </DropdownMenuItem>
@@ -252,14 +173,20 @@ function GeneralSection(props: { is_artist: boolean; supporter: boolean }) {
             {props.supporter && (
                 <DropdownMenuItem asChild>
                     <Link href={'/supporter/portal'}>
-                        <CreditCard className="h-6 w-6" />
+                        <CreditCard className="size-6" />
                         Billing
                     </Link>
                 </DropdownMenuItem>
             )}
             <DropdownMenuItem asChild>
+                <Link href="/purchases" prefetch={true}>
+                    <Package className="size-6" />
+                    Purchases
+                </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
                 <Link prefetch={true} href={'/requests'}>
-                    <Truck className="h-6 w-6" />
+                    <Truck className="size-6" />
                     Requests
                 </Link>
             </DropdownMenuItem>
@@ -268,13 +195,13 @@ function GeneralSection(props: { is_artist: boolean; supporter: boolean }) {
                     prefetch={true}
                     href={props.is_artist ? '/dashboard/messages' : '/messages'}
                 >
-                    <Mail className="h-6 w-6" />
+                    <Mail className="size-6" />
                     Messages
                 </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
                 <Link prefetch={true} href={'/u/account'}>
-                    <Settings className="h-6 w-6" />
+                    <Settings className="size-6" />
                     Account
                 </Link>
             </DropdownMenuItem>
@@ -282,7 +209,7 @@ function GeneralSection(props: { is_artist: boolean; supporter: boolean }) {
             <DropdownMenuItem asChild>
                 <SignOutButton>
                     <div className="flex w-full items-center">
-                        <LogOut className="h-6 w-6" />
+                        <LogOut className="size-6" />
                         Sign out
                     </div>
                 </SignOutButton>

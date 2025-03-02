@@ -17,7 +17,9 @@ const allowed_events = [
     'customer.subscription.resumed',
     'customer.subscription.updated',
     'customer.subscription.deleted',
-    'account.updated'
+    'account.updated',
+    'checkout.session.completed',
+    'checkout.session.expired'
 ] as Stripe.Event.Type[]
 
 async function process_event(event: Stripe.Event) {

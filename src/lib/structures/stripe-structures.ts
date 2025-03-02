@@ -16,11 +16,21 @@ export interface InvoiceItem {
     quantity: number
 }
 
-export interface StripePaymentMetadata {
-    purchase_type: PurchaseType
-    stripe_account: string
-    order_id: string
-}
+export type StripePaymentMetadata =
+    | {
+          purchase_type: 'commission_invoice'
+          stripe_account: string
+          order_id: string
+      }
+    | {
+          purchase_type: 'artist_corner'
+          stripe_account: string
+          purchase_id: string
+      }
+    | {
+          purchase_type: 'supporter'
+          stripe_account: string
+      }
 
 export interface StripeDashboardData {
     onboarded: boolean

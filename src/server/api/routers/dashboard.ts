@@ -4,7 +4,7 @@ import { and, desc, eq, gte } from 'drizzle-orm'
 import { commissions, invoices, requests } from '~/server/db/schema'
 import { clerkClient } from '@clerk/nextjs/server'
 import { TRPCError } from '@trpc/server'
-import { calculate_percentage_change, format_to_currency } from '~/lib/utils'
+import { calculate_percentage_change, formatToCurrency } from '~/lib/utils'
 import { cache, get_redis_key } from '~/server/redis'
 
 interface RecentSalesData {
@@ -109,7 +109,7 @@ export const dashboard_router = createTRPCRouter({
                     recent_sales.push({
                         commission_title: invoice.request.commission.title,
                         requester_username: user.username!,
-                        price: format_to_currency(invoice.total)
+                        price: formatToCurrency(invoice.total)
                     })
                 }
 
