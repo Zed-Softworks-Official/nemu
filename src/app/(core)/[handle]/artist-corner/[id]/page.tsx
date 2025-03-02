@@ -16,7 +16,7 @@ export async function generateMetadata(props: Props) {
     const params = await props.params
     const handle = params.handle.substring(3, params.handle.length)
 
-    const product = await api.artist_corner.get_product_by_id({
+    const product = await api.artistCorner.getProductById({
         id: params.id
     })
     if (!product) return {}
@@ -49,7 +49,7 @@ export default async function ArtistCornerProductPage(props: Props) {
 }
 
 async function ProductView(props: { id: string; handle: string }) {
-    const product = await api.artist_corner.get_product_by_id({
+    const product = await api.artistCorner.getProductById({
         id: props.id
     })
 

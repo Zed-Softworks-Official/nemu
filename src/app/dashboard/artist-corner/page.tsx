@@ -28,7 +28,7 @@ export default function ArtistCornerDashboard() {
 }
 
 async function Products() {
-    const products = await api.artist_corner.get_products()
+    const products = await api.artistCorner.getProducts()
 
     return (
         <DataTable

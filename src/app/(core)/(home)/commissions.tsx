@@ -26,7 +26,7 @@ export function InfiniteCommissions() {
         rootMargin: '0px'
     })
 
-    const query = api.home.get_commissions.useInfiniteQuery(
+    const query = api.home.getCommissionsInfinite.useInfiniteQuery(
         {
             limit: 10
         },
@@ -83,7 +83,7 @@ export function InfiniteCommissions() {
 }
 
 function CommissionCard(props: {
-    commission: RouterOutputs['home']['get_commissions']['res'][number]
+    commission: RouterOutputs['home']['getCommissionsInfinite']['res'][number]
 }) {
     let badge_variant: BadgeProps['variant'] = 'default'
     switch (props.commission.availability) {

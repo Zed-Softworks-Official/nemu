@@ -43,7 +43,7 @@ export function CreateForm() {
         }
     })
 
-    const createCon = api.con.set_con.useMutation({
+    const createCon = api.con.setCon.useMutation({
         onMutate: () => {
             const toast_id = toast.loading('Creating con')
 

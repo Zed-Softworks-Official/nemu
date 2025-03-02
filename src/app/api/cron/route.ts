@@ -10,16 +10,16 @@ import { type RequestQueue, type StripeInvoiceData } from '~/lib/structures'
 import { tryCatch } from '~/lib/try-catch'
 import { db } from '~/server/db'
 import { commissions, invoices, requests } from '~/server/db/schema'
-import { KnockWorkflows, send_notification } from '~/server/knock'
+import { KnockWorkflows, sendNotification } from '~/server/knock'
 
-import { get_redis_key, redis } from '~/server/redis'
+import { getRedisKey, redis } from '~/server/redis'
 import { stripe } from '~/server/stripe'
 
 async function process_event(expired_invoices: string[]) {
     await Promise.all(
         expired_invoices.map(async (invoice_id) => {
             const invoice = await redis.get<StripeInvoiceData>(
-                get_redis_key('invoices', invoice_id)
+                getRedisKey('invoices', invoice_id)
             )
 
             if (!invoice) {
@@ -27,7 +27,7 @@ async function process_event(expired_invoices: string[]) {
             }
 
             const request_queue = await redis.json.get<RequestQueue>(
-                get_redis_key('request_queue', invoice.commission_id)
+                getRedisKey('request_queue', invoice.commission_id)
             )
 
             const commission_promise = db.query.commissions.findFirst({
@@ -64,7 +64,7 @@ async function process_event(expired_invoices: string[]) {
                 request_queue.requests.push(new_request)
 
                 await redis.json.set(
-                    get_redis_key('request_queue', invoice.commission_id),
+                    getRedisKey('request_queue', invoice.commission_id),
                     '$',
                     request_queue as unknown as Record<string, unknown>
                 )
@@ -84,7 +84,7 @@ async function process_event(expired_invoices: string[]) {
                 // Remove from cron
                 redis.zrem('invoices_due_cron', invoice_id),
                 // Send notification to user
-                send_notification({
+                sendNotification({
                     type: KnockWorkflows.InvoiceOverdue,
                     recipients: [invoice.user_id],
                     data: {
@@ -108,7 +108,7 @@ async function process_event(expired_invoices: string[]) {
                     })
                     .where(eq(invoices.id, invoice.db_id)),
                 // Update the invoice in redis to reflect new state
-                redis.set(get_redis_key('invoices', invoice.id), {
+                redis.set(getRedisKey('invoices', invoice.id), {
                     ...invoice,
                     status: 'cancelled'
                 } satisfies StripeInvoiceData)

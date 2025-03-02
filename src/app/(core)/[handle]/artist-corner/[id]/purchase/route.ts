@@ -7,7 +7,7 @@ import { createId } from '@paralleldrive/cuid2'
 import type { StripePaymentMetadata, StripeProductData } from '~/lib/structures'
 import { db } from '~/server/db'
 import { artists, purchase } from '~/server/db/schema'
-import { get_redis_key as getRedisKey, redis } from '~/server/redis'
+import { getRedisKey as getRedisKey, redis } from '~/server/redis'
 
 import { stripe } from '~/server/stripe'
 import { env } from '~/env'

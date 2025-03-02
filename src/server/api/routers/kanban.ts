@@ -6,8 +6,8 @@ import { type KanbanContainerData, type KanbanTaskData } from '~/lib/structures'
 import { db } from '~/server/db'
 import { TRPCError } from '@trpc/server'
 
-export const kanban_router = createTRPCRouter({
-    get_kanban_messages: protectedProcedure
+export const kanbanRouter = createTRPCRouter({
+    getKanbanMessages: protectedProcedure
         .input(
             z.object({
                 order_id: z.string()
@@ -35,7 +35,7 @@ export const kanban_router = createTRPCRouter({
             }
         }),
 
-    add_to_kanban: artistProcedure
+    addToKanban: artistProcedure
         .input(
             z.object({
                 kanban_id: z.string(),
@@ -75,7 +75,7 @@ export const kanban_router = createTRPCRouter({
                 .where(eq(kanbans.id, input.kanban_id))
         }),
 
-    update_kanban: artistProcedure
+    updateKanban: artistProcedure
         .input(
             z.object({
                 kanban_id: z.string(),

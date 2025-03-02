@@ -4,15 +4,15 @@ import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { is_supporter } from '~/app/api/stripe/sync'
 import { chargeMethods, SocialAgent } from '~/lib/structures'
-import { get_ut_url } from '~/lib/utils'
-import { update_index } from '~/server/algolia/collections'
+import { getUTUrl } from '~/lib/utils'
+import { updateIndex } from '~/server/algolia/collections'
 
 import { artistProcedure, createTRPCRouter, publicProcedure } from '~/server/api/trpc'
 import { artists, commissions } from '~/server/db/schema'
 import { utapi } from '~/server/uploadthing'
 
-export const artist_router = createTRPCRouter({
-    get_artist_data: publicProcedure
+export const artistRouter = createTRPCRouter({
+    getArtistData: publicProcedure
         .input(
             z.object({
                 handle: z.string()
@@ -47,14 +47,14 @@ export const artist_router = createTRPCRouter({
             const portfolio_items = artist.portfolio.map((portfolio) => ({
                 ...portfolio,
                 image: {
-                    url: get_ut_url(portfolio.ut_key)
+                    url: getUTUrl(portfolio.ut_key)
                 }
             }))
 
             const commission_list = artist.commissions.map((commission) => ({
                 ...commission,
                 images: commission.images.map((image) => ({
-                    url: get_ut_url(image.ut_key ?? '')
+                    url: getUTUrl(image.ut_key ?? '')
                 }))
             }))
 
@@ -62,7 +62,7 @@ export const artist_router = createTRPCRouter({
             return {
                 ...artist,
                 supporter,
-                header_photo: get_ut_url(artist.header_photo),
+                header_photo: getUTUrl(artist.header_photo),
                 portfolio: portfolio_items,
                 commissions: commission_list,
                 user: {
@@ -72,7 +72,7 @@ export const artist_router = createTRPCRouter({
             }
         }),
 
-    get_artist_settings: artistProcedure.query(async ({ ctx }) => {
+    getArtistSettings: artistProcedure.query(async ({ ctx }) => {
         return {
             about: ctx.artist.about,
             location: ctx.artist.location,
@@ -83,7 +83,7 @@ export const artist_router = createTRPCRouter({
         }
     }),
 
-    set_artist_settings: artistProcedure
+    setArtistSettings: artistProcedure
         .input(
             z.object({
                 about: z.string().optional(),
@@ -106,11 +106,11 @@ export const artist_router = createTRPCRouter({
             if (input.header_image_key) {
                 const delete_promise = utapi.deleteFiles(ctx.artist.header_photo)
 
-                const algolia_update = update_index('artists', {
+                const algolia_update = updateIndex('artists', {
                     objectID: ctx.artist.id,
                     handle: ctx.artist.handle,
                     about: ctx.artist.about,
-                    image_url: get_ut_url(input.header_image_key)
+                    image_url: getUTUrl(input.header_image_key)
                 })
 
                 await Promise.all([delete_promise, algolia_update])

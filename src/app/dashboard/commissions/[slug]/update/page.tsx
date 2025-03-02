@@ -9,7 +9,7 @@ export default async function CommissionUpdatePage(props: {
 }) {
     const params = await props.params
 
-    const commission = await api.commission.get_commission_for_editing({
+    const commission = await api.commission.getCommissionForEditing({
         slug: params.slug
     })
 

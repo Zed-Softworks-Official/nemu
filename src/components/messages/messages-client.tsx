@@ -130,7 +130,7 @@ function MessagesInput() {
     const [input, setInput] = useState('')
     const textareaRef = useRef<HTMLTextAreaElement | null>(null)
 
-    const sendMessage = api.chat.send_message.useMutation({
+    const sendMessage = api.chat.sendMessage.useMutation({
         onError: (e) => {
             toast.error(e.message)
         }
@@ -207,7 +207,7 @@ function MessagesInput() {
 }
 
 function ChannelList() {
-    const { data: chats, isLoading } = api.chat.get_chats.useQuery()
+    const { data: chats, isLoading } = api.chat.getChats.useQuery()
     const { set_current_chat_id: set_current_order_id } = useMessages()
 
     if (isLoading) {

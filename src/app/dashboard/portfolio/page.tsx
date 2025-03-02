@@ -3,7 +3,7 @@ import { PortfolioList } from './list'
 import { api } from '~/trpc/server'
 
 export default async function DashboardPortfolioPage() {
-    const dashboard_links = await api.stripe.get_dashboard_links()
+    const dashboard_links = await api.stripe.getDashboardLinks()
 
     return (
         <div className="container mx-auto px-5 py-10">

@@ -9,10 +9,10 @@ import {
 } from '~/server/api/trpc'
 import { con_sign_up } from '~/server/db/schema'
 import { eq } from 'drizzle-orm'
-import { cache, get_redis_key } from '~/server/redis'
+import { cache, getRedisKey } from '~/server/redis'
 
-export const con_router = createTRPCRouter({
-    set_con: adminProcedure
+export const conRouter = createTRPCRouter({
+    setCon: adminProcedure
         .input(
             z.object({
                 name: z.string(),
@@ -28,11 +28,11 @@ export const con_router = createTRPCRouter({
             })
         }),
 
-    get_cons: protectedProcedure.query(async ({ ctx }) => {
+    getCons: protectedProcedure.query(async ({ ctx }) => {
         return await ctx.db.query.con_sign_up.findMany()
     }),
 
-    get_con: protectedProcedure
+    getCon: protectedProcedure
         .input(
             z.object({
                 id: z.string()
@@ -44,7 +44,7 @@ export const con_router = createTRPCRouter({
             })
         }),
 
-    valid_slug: publicProcedure
+    validSlug: publicProcedure
         .input(
             z.object({
                 slug: z.string()
@@ -52,7 +52,7 @@ export const con_router = createTRPCRouter({
         )
         .query(async ({ ctx, input }) => {
             return await cache(
-                get_redis_key('con', input.slug),
+                getRedisKey('con', input.slug),
                 async () => {
                     const con = await ctx.db.query.con_sign_up.findFirst({
                         where: eq(con_sign_up.slug, input.slug)

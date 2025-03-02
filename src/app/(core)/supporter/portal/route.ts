@@ -2,7 +2,7 @@ import { currentUser } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
 import { env } from '~/env'
 
-import { get_redis_key, redis } from '~/server/redis'
+import { getRedisKey, redis } from '~/server/redis'
 import { stripe } from '~/server/stripe'
 
 export async function GET() {
@@ -12,7 +12,7 @@ export async function GET() {
     }
 
     const stripe_customer_id = await redis.get<string>(
-        get_redis_key('stripe:user', user.id)
+        getRedisKey('stripe:user', user.id)
     )
     if (!stripe_customer_id) {
         return redirect('/')

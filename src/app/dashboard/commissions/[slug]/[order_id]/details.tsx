@@ -64,7 +64,7 @@ export function CommissionDetails() {
     const { request_data } = useDashboardOrder()
     const utils = api.useUtils()
 
-    const determineRequest = api.request.determine_request.useMutation({
+    const determineRequest = api.request.determineRequest.useMutation({
         onMutate: (input) => {
             const toast_id = toast.loading(
                 `${input.accepted ? 'Accepting' : 'Rejecting'} request...`
@@ -82,7 +82,7 @@ export function CommissionDetails() {
                 id: context?.toast_id
             })
 
-            void utils.request.get_request_by_id.invalidate()
+            void utils.request.getRequestById.invalidate()
         }
     })
 
@@ -222,8 +222,8 @@ function Delivery() {
     const { request_data } = useDashboardOrder()
     const utils = api.useUtils()
 
-    const requestFailed = api.request.request_failed.useMutation()
-    const createDelivery = api.request.update_request_delivery.useMutation({
+    const requestFailed = api.request.requestFailed.useMutation()
+    const createDelivery = api.request.updateRequestDelivery.useMutation({
         onMutate: () => {
             const toast_id = toast.loading('Uploading Delivery')
 
@@ -243,7 +243,7 @@ function Delivery() {
                 id: context?.toast_id
             })
 
-            void utils.request.get_request_by_id.invalidate()
+            void utils.request.getRequestById.invalidate()
         }
     })
 

@@ -3,7 +3,7 @@ import { type NextRequest } from 'next/server'
 import { redirect } from 'next/navigation'
 
 import { env } from '~/env'
-import { get_redis_key, redis } from '~/server/redis'
+import { getRedisKey, redis } from '~/server/redis'
 import { stripe } from '~/server/stripe'
 
 export async function GET(request: NextRequest) {
@@ -18,9 +18,7 @@ export async function GET(request: NextRequest) {
         return redirect('/u/login')
     }
 
-    let stripe_customer_id = await redis.get<string>(
-        get_redis_key('stripe:user', user.id)
-    )
+    let stripe_customer_id = await redis.get<string>(getRedisKey('stripe:user', user.id))
     if (!stripe_customer_id) {
         const new_customer = await stripe.customers.create({
             email: user.emailAddresses[0]?.emailAddress,
@@ -29,7 +27,7 @@ export async function GET(request: NextRequest) {
             }
         })
 
-        await redis.set(get_redis_key('stripe:user', user.id), new_customer.id)
+        await redis.set(getRedisKey('stripe:user', user.id), new_customer.id)
         stripe_customer_id = new_customer.id
     }
 

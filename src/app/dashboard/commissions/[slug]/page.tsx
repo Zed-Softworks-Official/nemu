@@ -19,7 +19,7 @@ export default async function CommissionDetailPage(props: {
         return <RedirectToSignIn />
     }
 
-    const commission = await api.commission.get_commission({
+    const commission = await api.commission.getCommission({
         handle: user?.publicMetadata.handle as string,
         slug: params.slug
     })

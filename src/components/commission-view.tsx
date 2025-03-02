@@ -9,7 +9,7 @@ import { RedirectToSignIn, useUser } from '@clerk/nextjs'
 
 import { api } from '~/trpc/react'
 import { type forms } from '~/server/db/schema'
-import { get_availability_badge_data } from '~/lib/utils'
+import { getAvailabilityBadgeData } from '~/lib/utils'
 import { type ChargeMethod, type ClientCommissionItem } from '~/lib/structures'
 
 import Loading from '~/components/ui/loading'
@@ -30,7 +30,7 @@ import Price from '~/components/ui/price'
 import ShareButton from '~/components/ui/share-button'
 
 export function CommissionView(props: { handle: string; slug: string }) {
-    const { data: commission, isLoading } = api.commission.get_commission.useQuery({
+    const { data: commission, isLoading } = api.commission.getCommission.useQuery({
         handle: props.handle,
         slug: props.slug
     })
@@ -71,7 +71,7 @@ function CommissionContent(props: {
     const [showForm, setShowForm] = useState(false)
     const [acceptedTerms, setAcceptedTerms] = useState(false)
 
-    const [variant, text] = get_availability_badge_data(props.commission.availability)
+    const [variant, text] = getAvailabilityBadgeData(props.commission.availability)
 
     if (showForm && props.user_requested !== undefined && props.commission.id) {
         if (!user) {

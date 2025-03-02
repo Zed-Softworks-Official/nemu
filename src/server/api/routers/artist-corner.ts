@@ -5,7 +5,7 @@ import { and, desc, eq, lt } from 'drizzle-orm'
 import { z } from 'zod'
 
 import { type StripeProductData } from '~/lib/structures'
-import { formatToCurrency, get_ut_url } from '~/lib/utils'
+import { formatToCurrency, getUTUrl } from '~/lib/utils'
 
 import {
     artistProcedure,
@@ -14,7 +14,7 @@ import {
     publicProcedure
 } from '~/server/api/trpc'
 import { products, purchase } from '~/server/db/schema'
-import { get_redis_key } from '~/server/redis'
+import { getRedisKey } from '~/server/redis'
 import { stripe } from '~/server/stripe'
 import { utapi } from '~/server/uploadthing'
 
@@ -31,8 +31,8 @@ const productSchema = z.object({
     is_free: z.boolean()
 })
 
-export const artist_corner_router = createTRPCRouter({
-    set_product: artistProcedure.input(productSchema).mutation(async ({ input, ctx }) => {
+export const artistCornerRouter = createTRPCRouter({
+    setProduct: artistProcedure.input(productSchema).mutation(async ({ input, ctx }) => {
         const id = createId()
         const description = input.description as JSONContent
 
@@ -45,7 +45,7 @@ export const artist_corner_router = createTRPCRouter({
                 const stripe_product = await stripe.products.create(
                     {
                         name: input.name,
-                        images: input.images.map((image) => get_ut_url(image)),
+                        images: input.images.map((image) => getUTUrl(image)),
                         default_price_data: {
                             currency: 'usd',
                             unit_amount: input.price
@@ -86,7 +86,7 @@ export const artist_corner_router = createTRPCRouter({
             await Promise.all([
                 // Only set stripe data in Redis if it exists
                 stripeData
-                    ? ctx.redis.set(get_redis_key('product:stripe', id), stripeData)
+                    ? ctx.redis.set(getRedisKey('product:stripe', id), stripeData)
                     : Promise.resolve(),
 
                 // Remove images and downloads from Redis
@@ -104,7 +104,7 @@ export const artist_corner_router = createTRPCRouter({
                 // Rollback: Delete Stripe product if it was created
                 if (!input.is_free) {
                     const stripeData = await ctx.redis.get<StripeProductData>(
-                        get_redis_key('product:stripe', id)
+                        getRedisKey('product:stripe', id)
                     )
 
                     if (stripeData) {
@@ -112,7 +112,7 @@ export const artist_corner_router = createTRPCRouter({
                             stripeAccount: ctx.artist.stripe_account
                         })
 
-                        await ctx.redis.del(get_redis_key('product:stripe', id))
+                        await ctx.redis.del(getRedisKey('product:stripe', id))
                     }
                 }
             } catch (rollbackError) {
@@ -125,7 +125,7 @@ export const artist_corner_router = createTRPCRouter({
         }
     }),
 
-    update_product: artistProcedure
+    updateProduct: artistProcedure
         .input(productSchema.merge(z.object({ id: z.string() })))
         .mutation(async ({ input, ctx }) => {
             // Step 1: Fetch the current product state for comparison and potential rollback
@@ -165,7 +165,7 @@ export const artist_corner_router = createTRPCRouter({
                 // Step 2: Handle Stripe updates first (most likely to fail)
                 if (product.price !== input.price || product.is_free !== input.is_free) {
                     const stripe_data = await ctx.redis.get<StripeProductData>(
-                        get_redis_key('product:stripe', input.id)
+                        getRedisKey('product:stripe', input.id)
                     )
 
                     if (stripe_data) {
@@ -187,7 +187,7 @@ export const artist_corner_router = createTRPCRouter({
                             stripe_data.productId,
                             {
                                 default_price: stripe_price_id.id,
-                                images: input.images.map((image) => get_ut_url(image)),
+                                images: input.images.map((image) => getUTUrl(image)),
                                 name: input.name
                             },
                             {
@@ -196,7 +196,7 @@ export const artist_corner_router = createTRPCRouter({
                         )
 
                         // Update Redis with new price
-                        await ctx.redis.set(get_redis_key('product:stripe', input.id), {
+                        await ctx.redis.set(getRedisKey('product:stripe', input.id), {
                             ...stripe_data,
                             price: input.price,
                             priceId: stripe_price_id.id
@@ -208,7 +208,7 @@ export const artist_corner_router = createTRPCRouter({
                         const stripe_product = await stripe.products.create(
                             {
                                 name: input.name,
-                                images: input.images.map((image) => get_ut_url(image)),
+                                images: input.images.map((image) => getUTUrl(image)),
                                 default_price_data: {
                                     currency: 'usd',
                                     unit_amount: input.price
@@ -239,7 +239,7 @@ export const artist_corner_router = createTRPCRouter({
                         } satisfies StripeProductData
 
                         await ctx.redis.set(
-                            get_redis_key('product:stripe', input.id),
+                            getRedisKey('product:stripe', input.id),
                             newStripeData
                         )
 
@@ -300,7 +300,7 @@ export const artist_corner_router = createTRPCRouter({
                     // Rollback Stripe changes
                     if (changes.stripeUpdated) {
                         const stripe_data = await ctx.redis.get<StripeProductData>(
-                            get_redis_key('product:stripe', input.id)
+                            getRedisKey('product:stripe', input.id)
                         )
 
                         if (changes.newStripeProductId) {
@@ -319,13 +319,13 @@ export const artist_corner_router = createTRPCRouter({
                                 )
 
                                 await ctx.redis.del(
-                                    get_redis_key('product:stripe', input.id)
+                                    getRedisKey('product:stripe', input.id)
                                 )
                             } else {
                                 // Otherwise restore the original price
                                 const original_stripe_data =
                                     await ctx.redis.get<StripeProductData>(
-                                        get_redis_key('product:stripe', input.id)
+                                        getRedisKey('product:stripe', input.id)
                                     )
 
                                 if (original_stripe_data) {
@@ -334,7 +334,7 @@ export const artist_corner_router = createTRPCRouter({
                                         {
                                             default_price: original_stripe_data.priceId,
                                             images: originalProduct.images.map((image) =>
-                                                get_ut_url(image)
+                                                getUTUrl(image)
                                             ),
                                             name: originalProduct.name
                                         },
@@ -357,7 +357,7 @@ export const artist_corner_router = createTRPCRouter({
             }
         }),
 
-    get_products: artistProcedure.query(async ({ ctx }) => {
+    getProducts: artistProcedure.query(async ({ ctx }) => {
         const all_products = await ctx.db.query.products.findMany({
             where: eq(products.artist_id, ctx.artist.id)
         })
@@ -370,7 +370,7 @@ export const artist_corner_router = createTRPCRouter({
         }))
     }),
 
-    get_product_by_id_dashboard: artistProcedure
+    getProductByIdDashboard: artistProcedure
         .input(z.object({ id: z.string() }))
         .query(async ({ ctx, input }) => {
             const product_promise = ctx.db.query.products.findFirst({
@@ -378,7 +378,7 @@ export const artist_corner_router = createTRPCRouter({
             })
 
             const sales_promise = ctx.redis.get<StripeProductData>(
-                get_redis_key('product:stripe', input.id)
+                getRedisKey('product:stripe', input.id)
             )
 
             const charges_promise = stripe.checkout.sessions.list(
@@ -404,7 +404,7 @@ export const artist_corner_router = createTRPCRouter({
             }
         }),
 
-    get_product_by_id: publicProcedure
+    getProductById: publicProcedure
         .input(
             z.object({
                 id: z.string()
@@ -422,13 +422,13 @@ export const artist_corner_router = createTRPCRouter({
             return {
                 name: data.name,
                 description: data.description,
-                images: data.images.map((key) => get_ut_url(key)),
+                images: data.images.map((key) => getUTUrl(key)),
                 price: formatToCurrency(data.price / 100),
                 is_free: data.is_free
             }
         }),
 
-    publish_product_by_id: artistProcedure
+    publishProductById: artistProcedure
         .input(z.object({ id: z.string(), published: z.boolean() }))
         .mutation(async ({ ctx, input }) => {
             await ctx.db
@@ -439,7 +439,7 @@ export const artist_corner_router = createTRPCRouter({
                 .where(eq(products.id, input.id))
         }),
 
-    get_purchased: protectedProcedure
+    getPurchased: protectedProcedure
         .input(
             z.object({
                 limit: z.number().min(1).max(50).default(10),

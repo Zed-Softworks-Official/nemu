@@ -37,7 +37,7 @@ type SchemaType = z.infer<typeof schema>
 
 export default function ApplyConForm(props: { slug: string }) {
     const router = useRouter()
-    const createArtist = api.artist_verification.verify_from_con.useMutation({
+    const createArtist = api.artistVerification.verifyFromCon.useMutation({
         onMutate: () => {
             const toast_id = toast.loading('Registering')
 

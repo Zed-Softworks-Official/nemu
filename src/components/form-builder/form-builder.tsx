@@ -121,7 +121,7 @@ function PreviewButton() {
 function SaveButton(props: { form_id: string }) {
     const { elements } = useDesigner()
 
-    const saveForm = api.request.set_form_content.useMutation({
+    const saveForm = api.request.setFormContent.useMutation({
         onMutate: () => {
             const toast_id = toast.loading('Saving form')
             return { toast_id }

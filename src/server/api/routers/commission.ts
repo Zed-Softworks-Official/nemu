@@ -12,15 +12,15 @@ import {
     type ClientCommissionItemEditable,
     type RequestQueue
 } from '~/lib/structures'
-import { convert_images_to_nemu_images, formatToCurrency, get_ut_url } from '~/lib/utils'
+import { convertImagesToNemuImages, formatToCurrency, getUTUrl } from '~/lib/utils'
 import { utapi } from '~/server/uploadthing'
-import { update_index } from '~/server/algolia/collections'
+import { updateIndex } from '~/server/algolia/collections'
 import { clerkClient } from '@clerk/nextjs/server'
-import { get_redis_key } from '~/server/redis'
+import { getRedisKey } from '~/server/redis'
 import { is_supporter } from '~/app/api/stripe/sync'
 
-export const commission_router = createTRPCRouter({
-    set_commission: artistProcedure
+export const commissionRouter = createTRPCRouter({
+    setCommission: artistProcedure
         .input(
             z.object({
                 title: z.string(),
@@ -84,13 +84,13 @@ export const commission_router = createTRPCRouter({
             })
 
             // Create request queue
-            await ctx.redis.json.set(get_redis_key('request_queue', commission_id), '$', {
+            await ctx.redis.json.set(getRedisKey('request_queue', commission_id), '$', {
                 requests: [],
                 waitlist: []
             } satisfies RequestQueue)
         }),
 
-    update_commission: artistProcedure
+    updateCommission: artistProcedure
         .input(
             z.object({
                 id: z.string(),
@@ -145,20 +145,20 @@ export const commission_router = createTRPCRouter({
             await Promise.all([deleted_iamges_promise, updated_commission_promise])
 
             // Update algolia
-            await update_index('commissions', {
+            await updateIndex('commissions', {
                 objectID: input.id,
                 title: updated_data.title,
                 price: updated_data.price
                     ? formatToCurrency(updated_data.price / 100)
                     : undefined,
                 description: updated_data.description!,
-                featured_image: get_ut_url(updated_data.images![0]!.ut_key),
+                featured_image: getUTUrl(updated_data.images![0]!.ut_key),
                 artist_handle: ctx.artist.handle,
                 published: updated_data.published
             })
         }),
 
-    get_commission: publicProcedure
+    getCommission: publicProcedure
         .input(
             z.object({
                 handle: z.string(),
@@ -190,7 +190,7 @@ export const commission_router = createTRPCRouter({
             const supporter = await is_supporter(data.user_id)
 
             // Format images for client
-            const images = await convert_images_to_nemu_images(data.commissions[0].images)
+            const images = await convertImagesToNemuImages(data.commissions[0].images)
             const result: ClientCommissionItem = {
                 title: data.commissions[0].title,
                 description: data.commissions[0].description,
@@ -230,7 +230,7 @@ export const commission_router = createTRPCRouter({
             return result
         }),
 
-    get_commission_for_editing: artistProcedure
+    getCommissionForEditing: artistProcedure
         .input(
             z.object({
                 slug: z.string()
@@ -271,7 +271,7 @@ export const commission_router = createTRPCRouter({
                     data: {
                         action: 'update',
                         image_data: {
-                            url: get_ut_url(image.ut_key ?? ''),
+                            url: getUTUrl(image.ut_key ?? ''),
                             ut_key: image.ut_key
                         }
                     }
@@ -287,7 +287,7 @@ export const commission_router = createTRPCRouter({
             return result
         }),
 
-    get_commission_list: artistProcedure.query(async ({ ctx }) => {
+    getCommissionList: artistProcedure.query(async ({ ctx }) => {
         const artist = await ctx.db.query.artists.findFirst({
             where: eq(artists.id, ctx.artist.id),
             with: {
@@ -319,7 +319,7 @@ export const commission_router = createTRPCRouter({
                 published: commission.published,
                 images: [
                     {
-                        url: get_ut_url(commission.images[0]!.ut_key)
+                        url: getUTUrl(commission.images[0]!.ut_key)
                     }
                 ],
                 slug: commission.slug,

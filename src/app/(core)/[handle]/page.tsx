@@ -21,7 +21,7 @@ export async function generateMetadata(
     const params = await props.params
     const handle = params.handle.substring(3, params.handle.length + 1)
 
-    const artist = await api.artist.get_artist_data({ handle })
+    const artist = await api.artist.getArtistData({ handle })
 
     if (!artist) {
         return {}

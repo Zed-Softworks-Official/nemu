@@ -17,7 +17,7 @@ export default function PublishProduct(props: { id: string; published: boolean }
         return 'default'
     }, [currentlyPublished])
 
-    const publishProduct = api.artist_corner.publish_product_by_id.useMutation({
+    const publishProduct = api.artistCorner.publishProductById.useMutation({
         onMutate: () => {
             const toast_id = toast.loading('Updating')
 

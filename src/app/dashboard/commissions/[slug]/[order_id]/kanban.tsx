@@ -39,7 +39,7 @@ export function Kanban() {
 
     const { containers, tasks, set_containers, set_tasks, kanban_id } =
         useDashboardOrder()
-    const saveKanban = api.kanban.update_kanban.useMutation({
+    const saveKanban = api.kanban.updateKanban.useMutation({
         onMutate: () => {
             const toast_id = toast.loading('Saving Kanban...')
 

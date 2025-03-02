@@ -18,7 +18,7 @@ import { api } from '~/trpc/react'
 
 export default function PurchaseList() {
     const { data, isLoading, isFetching, fetchNextPage, hasNextPage } =
-        api.artist_corner.get_purchased.useInfiniteQuery(
+        api.artistCorner.getPurchased.useInfiniteQuery(
             {
                 limit: 10
             },

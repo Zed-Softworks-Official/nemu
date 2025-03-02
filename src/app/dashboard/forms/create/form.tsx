@@ -26,7 +26,7 @@ export function CreateForm() {
         mode: 'onSubmit'
     })
 
-    const createForm = api.request.set_form.useMutation()
+    const createForm = api.request.setForm.useMutation()
 
     const process_form = async (values: FormSchemaType) => {
         const toast_id = toast.loading('Creating Form')

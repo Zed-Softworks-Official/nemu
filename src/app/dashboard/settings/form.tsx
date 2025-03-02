@@ -53,9 +53,9 @@ type SettingsForm = z.infer<typeof schema>
 export function SettingsForm() {
     const [pending, setPending] = useState(false)
     const { uploadImages, images } = useNemuUploadThing()
-    const { data: settings, isLoading } = api.artist.get_artist_settings.useQuery()
+    const { data: settings, isLoading } = api.artist.getArtistSettings.useQuery()
 
-    const updateSettings = api.artist.set_artist_settings.useMutation()
+    const updateSettings = api.artist.setArtistSettings.useMutation()
 
     const form = useForm<SettingsForm>({
         resolver: zodResolver(schema),

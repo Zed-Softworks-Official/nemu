@@ -10,7 +10,7 @@ import {
     CardHeader,
     CardTitle
 } from '~/components/ui/card'
-import { get_ut_url } from '~/lib/utils'
+import { getUTUrl } from '~/lib/utils'
 import { useOrder } from '~/components/orders/standard-order'
 
 export default function Delivery() {
@@ -47,7 +47,7 @@ export default function Delivery() {
                         <Button
                             size={'lg'}
                             onClick={() => {
-                                const download_url = get_ut_url(
+                                const download_url = getUTUrl(
                                     request_data.delivery?.ut_key ?? 'Unknown'
                                 )
 

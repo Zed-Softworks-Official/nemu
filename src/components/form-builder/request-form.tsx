@@ -22,7 +22,7 @@ export function RequestForm(props: {
     form_data: InferSelectModel<typeof forms>
     user_requested: boolean | undefined
 }) {
-    const submit_request = api.request.set_request.useMutation({
+    const submit_request = api.request.setRequest.useMutation({
         onMutate: () => {
             const toast_id = toast.loading('Submitting Request')
 

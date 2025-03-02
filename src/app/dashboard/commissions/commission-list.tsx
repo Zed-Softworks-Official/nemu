@@ -27,7 +27,7 @@ import {
 import { type ClientCommissionItem } from '~/lib/structures'
 
 export function CommissionList() {
-    const { data, isLoading } = api.commission.get_commission_list.useQuery()
+    const { data, isLoading } = api.commission.getCommissionList.useQuery()
 
     if (isLoading) {
         return (

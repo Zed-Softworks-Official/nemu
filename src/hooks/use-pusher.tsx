@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 
-import { to_pusher_key } from '~/lib/utils'
-import { pusher_client } from '~/server/pusher/client'
+import { toPusherKey } from '~/lib/utils'
+import { pusherClient } from '~/server/pusher/client'
 
 type PusherOpts<T> = {
     key: string
@@ -11,12 +11,12 @@ type PusherOpts<T> = {
 
 export function usePusher<T>(opts: PusherOpts<T>) {
     useEffect(() => {
-        pusher_client.subscribe(to_pusher_key(opts.key))
-        pusher_client.bind(opts.event_name, opts.callback)
+        pusherClient.subscribe(toPusherKey(opts.key))
+        pusherClient.bind(opts.event_name, opts.callback)
 
         return () => {
-            pusher_client.unsubscribe(to_pusher_key(opts.key))
-            pusher_client.unbind(opts.event_name, opts.callback)
+            pusherClient.unsubscribe(toPusherKey(opts.key))
+            pusherClient.unbind(opts.event_name, opts.callback)
         }
     }, [opts])
 }

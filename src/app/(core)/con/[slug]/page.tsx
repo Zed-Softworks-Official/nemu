@@ -16,7 +16,7 @@ import {
 export default async function ConPage(props: { params: Promise<{ slug: string }> }) {
     const { slug } = await props.params
     const current_user = await currentUser()
-    const valid_slug = await api.con.valid_slug({ slug })
+    const valid_slug = await api.con.validSlug({ slug })
 
     if (!current_user) {
         return redirect('/')

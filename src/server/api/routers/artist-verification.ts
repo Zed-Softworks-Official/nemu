@@ -24,11 +24,11 @@ import { db } from '~/server/db'
 import { eq } from 'drizzle-orm'
 import { StripeCreateAccount } from '~/lib/payments'
 
-import { set_index } from '~/server/algolia/collections'
-import { send_notification, KnockWorkflows } from '~/server/knock'
+import { setIndex } from '~/server/algolia/collections'
+import { sendNotification, KnockWorkflows } from '~/server/knock'
 
-export const artist_verification_router = createTRPCRouter({
-    generate_artist_code: adminProcedure
+export const artistVerificationRouter = createTRPCRouter({
+    generateArtistCode: adminProcedure
         .input(
             z.object({
                 amount: z.number().min(1).max(100)
@@ -52,15 +52,15 @@ export const artist_verification_router = createTRPCRouter({
             return { success: true, codes: result }
         }),
 
-    get_artist_codes: adminProcedure.query(async ({ ctx }) => {
+    getArtistCodes: adminProcedure.query(async ({ ctx }) => {
         return await ctx.db.query.artist_codes.findMany()
     }),
 
-    get_artist_verifications: adminProcedure.query(async ({ ctx }) => {
+    getArtistVerifications: adminProcedure.query(async ({ ctx }) => {
         return await ctx.db.query.artist_verifications.findMany()
     }),
 
-    verify_artist: protectedProcedure
+    verifyArtist: protectedProcedure
         .input(
             z.object({
                 requested_handle: z.string(),
@@ -94,7 +94,7 @@ export const artist_verification_router = createTRPCRouter({
                             })
                         }
 
-                        const db_promise = create_artist(
+                        const db_promise = createArtist(
                             {
                                 requested_handle: input.requested_handle,
                                 twitter: input.twitter ?? '',
@@ -107,7 +107,7 @@ export const artist_verification_router = createTRPCRouter({
                         )
 
                         // Notify the user that they've been approved
-                        const knock_promise = send_notification({
+                        const knock_promise = sendNotification({
                             type: KnockWorkflows.VerificationApproved,
                             recipients: [ctx.auth.userId],
                             data: {
@@ -136,7 +136,7 @@ export const artist_verification_router = createTRPCRouter({
                         })
 
                         // Notify the user of the request
-                        const knock_promise = send_notification({
+                        const knock_promise = sendNotification({
                             type: KnockWorkflows.VerificationPending,
                             recipients: [ctx.auth.userId],
                             data: undefined
@@ -155,7 +155,7 @@ export const artist_verification_router = createTRPCRouter({
             }
         }),
 
-    verify_from_con: protectedProcedure
+    verifyFromCon: protectedProcedure
         .input(
             z.object({
                 requested_handle: z.string(),
@@ -190,7 +190,7 @@ export const artist_verification_router = createTRPCRouter({
                 })
             }
 
-            await create_artist(
+            await createArtist(
                 {
                     requested_handle: input.requested_handle,
                     location: input.location,
@@ -203,7 +203,7 @@ export const artist_verification_router = createTRPCRouter({
         })
 })
 
-async function create_artist(input: VerificationDataType, user_id: string) {
+async function createArtist(input: VerificationDataType, user_id: string) {
     const social_accounts: SocialAccount[] = []
     const clerk_client = await clerkClient()
 
@@ -264,7 +264,7 @@ async function create_artist(input: VerificationDataType, user_id: string) {
     })
 
     // Update Algolia
-    const algolia_promise = set_index('artists', {
+    const algolia_promise = setIndex('artists', {
         objectID: artist.id,
         handle: artist.handle,
         about: artist.about,

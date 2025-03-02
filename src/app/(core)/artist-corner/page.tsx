@@ -24,7 +24,7 @@ export default function ArtistCornerPage() {
 }
 
 async function FeaturedProducts() {
-    const featured_products = await api.home.get_featured_products()
+    const featured_products = await api.home.getFeaturedProducts()
 
     if (!featured_products) return null
 
@@ -54,7 +54,7 @@ function ProductList() {
 }
 
 function Product(props: {
-    product?: NonNullable<RouterOutputs['home']['get_featured_products'][number]>
+    product?: NonNullable<RouterOutputs['home']['getFeaturedProducts'][number]>
 }) {
     if (!props.product) return null
 

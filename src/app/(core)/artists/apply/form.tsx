@@ -44,7 +44,7 @@ type SchemaType = z.infer<typeof schema>
 export default function ArtistApplyForm() {
     const router = useRouter()
 
-    const verifyArtist = api.artist_verification.verify_artist.useMutation({
+    const verifyArtist = api.artistVerification.verifyArtist.useMutation({
         onMutate: () => {
             const toast_id = toast.loading('Submitting your application')
 

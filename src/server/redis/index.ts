@@ -26,7 +26,7 @@ export const redis = new Redis({
     token: env.UPSTASH_REDIS_REST_TOKEN
 })
 
-export function get_redis_key(key: RedisKey, ...args: string[]) {
+export function getRedisKey(key: RedisKey, ...args: string[]) {
     return `${key}:${args.join(':')}`
 }
 
