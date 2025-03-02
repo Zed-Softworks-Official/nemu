@@ -16,7 +16,7 @@ export default function QrPage() {
         return notFound()
     }
 
-    const con = api.con.get_con.useQuery({ id: id as string })
+    const con = api.con.getCon.useQuery({ id: id as string })
 
     const handle_download = () => {
         ref.current?.download({

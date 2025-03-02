@@ -32,7 +32,7 @@ type DashboardOrderContextType = {
     is_downpayment_invoice: boolean
     current_invoice: InferSelectModel<typeof invoices> | null
 
-    request_data: RouterOutputs['request']['get_request_by_id']
+    request_data: RouterOutputs['request']['getRequestById']
 }
 
 const DashboardOrderContext = createContext<DashboardOrderContextType | null>(null)
@@ -50,7 +50,7 @@ export function DashboardOrderProvider(props: {
     const [isDownpaymentInvoice, setIsDownpaymentInvoice] = useState(false)
     const [kanbanId, setKanbanId] = useState('')
 
-    const { data: request_data, isLoading } = api.request.get_request_by_id.useQuery({
+    const { data: request_data, isLoading } = api.request.getRequestById.useQuery({
         order_id: props.order_id,
         requester: 'artist'
     })

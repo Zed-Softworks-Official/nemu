@@ -25,7 +25,7 @@ import {
 } from '~/lib/structures'
 
 import type { FormElementInstance } from '~/components/form-builder/elements/form-elements'
-import { send_notification, KnockWorkflows } from '~/server/knock'
+import { sendNotification, KnockWorkflows } from '~/server/knock'
 import { env } from '~/env'
 
 import {
@@ -35,13 +35,13 @@ import {
     StripeUpdateInvoice
 } from '~/lib/payments'
 
-import { get_redis_key, redis } from '~/server/redis'
-import { get_ut_url } from '~/lib/utils'
+import { getRedisKey, redis } from '~/server/redis'
+import { getUTUrl } from '~/lib/utils'
 import { utapi } from '~/server/uploadthing'
 import { is_supporter } from '~/app/api/stripe/sync'
 
-export const request_router = createTRPCRouter({
-    set_form: artistProcedure
+export const requestRouter = createTRPCRouter({
+    setForm: artistProcedure
         .input(
             z.object({
                 name: z.string(),
@@ -57,7 +57,7 @@ export const request_router = createTRPCRouter({
             })
         }),
 
-    set_form_content: artistProcedure
+    setFormContent: artistProcedure
         .input(
             z.object({
                 id: z.string(),
@@ -73,7 +73,7 @@ export const request_router = createTRPCRouter({
                 .where(eq(forms.id, input.id))
         }),
 
-    get_form_by_id: protectedProcedure
+    getFormById: protectedProcedure
         .input(
             z.object({
                 id: z.string()
@@ -85,7 +85,7 @@ export const request_router = createTRPCRouter({
             })
         }),
 
-    get_forms_list_and_payment_method: artistProcedure.query(async ({ ctx }) => {
+    getFormsListAndPaymentMethod: artistProcedure.query(async ({ ctx }) => {
         const forms_list = await ctx.db.query.forms.findMany({
             where: eq(forms.artist_id, ctx.artist.id)
         })
@@ -96,7 +96,7 @@ export const request_router = createTRPCRouter({
         }
     }),
 
-    set_request: protectedProcedure
+    setRequest: protectedProcedure
         .input(
             z.object({
                 commission_id: z.string(),
@@ -126,7 +126,7 @@ export const request_router = createTRPCRouter({
                 })
             }
 
-            const request_redis_key = get_redis_key('request_queue', input.commission_id)
+            const request_redis_key = getRedisKey('request_queue', input.commission_id)
             const request_queue = (
                 await ctx.redis.json.get<RequestQueue[] | null>(request_redis_key, '$')
             )?.[0]
@@ -175,7 +175,7 @@ export const request_router = createTRPCRouter({
                     .where(eq(commissions.id, commission.id))
             }
 
-            const user_notification_promise = send_notification({
+            const user_notification_promise = sendNotification({
                 type: KnockWorkflows.CommissionRequestUserEnd,
                 recipients: [ctx.auth.userId],
                 data: {
@@ -184,7 +184,7 @@ export const request_router = createTRPCRouter({
                 }
             })
 
-            const artist_notification_promise = send_notification({
+            const artist_notification_promise = sendNotification({
                 type: KnockWorkflows.CommissionRequestArtistEnd,
                 recipients: [commission.artist.user_id],
                 data: {
@@ -207,7 +207,7 @@ export const request_router = createTRPCRouter({
             ])
         }),
 
-    determine_request: artistProcedure
+    determineRequest: artistProcedure
         .input(
             z.object({
                 request_id: z.string(),
@@ -230,7 +230,7 @@ export const request_router = createTRPCRouter({
             }
 
             let customer_id = await ctx.redis.get<string>(
-                get_redis_key(
+                getRedisKey(
                     'stripe:artist:customer',
                     request.user_id,
                     request.commission.artist_id
@@ -256,7 +256,7 @@ export const request_router = createTRPCRouter({
 
                 customer_id = customer.id
                 await ctx.redis.set<string>(
-                    get_redis_key(
+                    getRedisKey(
                         'stripe:artist:customer',
                         request.user_id,
                         request.commission.artist_id
@@ -281,7 +281,7 @@ export const request_router = createTRPCRouter({
                 })
                 .where(eq(commissions.id, request.commission_id))
 
-            await send_notification({
+            await sendNotification({
                 type: KnockWorkflows.CommissionDetermineRequest,
                 recipients: [request.user_id],
                 data: {
@@ -293,7 +293,7 @@ export const request_router = createTRPCRouter({
 
             if (!input.accepted) {
                 // Remove from request queue
-                const redis_key = get_redis_key('request_queue', request.commission_id)
+                const redis_key = getRedisKey('request_queue', request.commission_id)
                 const path = request.status === 'pending' ? '$.requests' : '$.waitlist'
                 const index = await ctx.redis.json.arrindex(
                     redis_key,
@@ -387,7 +387,7 @@ export const request_router = createTRPCRouter({
                 user_ids: [request.user_id, ctx.artist.user_id],
                 request_id: request.id,
                 commission_id: request.commission_id,
-                message_redis_key: get_redis_key('chats', request.order_id)
+                message_redis_key: getRedisKey('chats', request.order_id)
             }
 
             const kanban_containers: KanbanContainerData[] = [
@@ -451,7 +451,7 @@ export const request_router = createTRPCRouter({
             ])
         }),
 
-    get_request_list: protectedProcedure.query(async ({ ctx }) => {
+    getRequestList: protectedProcedure.query(async ({ ctx }) => {
         const clerk_client = await clerkClient()
         const db_requests = await ctx.db.query.requests.findMany({
             where: eq(requests.user_id, ctx.auth.userId),
@@ -479,7 +479,7 @@ export const request_router = createTRPCRouter({
                     ...request.commission,
                     images: [
                         {
-                            url: get_ut_url(request.commission.images[0]?.ut_key ?? '')
+                            url: getUTUrl(request.commission.images[0]?.ut_key ?? '')
                         }
                     ]
                 },
@@ -493,7 +493,7 @@ export const request_router = createTRPCRouter({
         return result
     }),
 
-    get_request_by_id: protectedProcedure
+    getRequestById: protectedProcedure
         .input(
             z.object({
                 order_id: z.string(),
@@ -542,7 +542,7 @@ export const request_router = createTRPCRouter({
                 commission: {
                     ...request.commission,
                     images: request.commission.images.map((image) => ({
-                        url: get_ut_url(image.ut_key)
+                        url: getUTUrl(image.ut_key)
                     }))
                 },
                 user: {
@@ -558,7 +558,7 @@ export const request_router = createTRPCRouter({
             return result
         }),
 
-    update_request_delivery: artistProcedure
+    updateRequestDelivery: artistProcedure
         .input(
             z.object({
                 order_id: z.string(),
@@ -609,7 +609,7 @@ export const request_router = createTRPCRouter({
             await Promise.all([delete_promise, update_promise])
         }),
 
-    update_invoice_items: artistProcedure
+    updateInvoiceItems: artistProcedure
         .input(
             z.object({
                 invoice_id: z.string(),
@@ -639,7 +639,7 @@ export const request_router = createTRPCRouter({
     // TODO: Pass in InvoiceItems directly from the invoice editor, that way, when
     // We send the invoice, we send the most recent up to date items, rather then,
     // Possibly losing out on information if the user doesn't save before sending
-    send_invoice: artistProcedure
+    setInvoice: artistProcedure
         .input(
             z.object({
                 invoice_id: z.string(),
@@ -703,7 +703,7 @@ export const request_router = createTRPCRouter({
                         total: finalized_invoice.total
                     })
                     .where(eq(invoices.id, input.invoice_id)),
-                send_notification({
+                sendNotification({
                     type: KnockWorkflows.InvoiceSent,
                     recipients: [invoice.request.user_id],
                     data: {
@@ -716,7 +716,7 @@ export const request_router = createTRPCRouter({
                     score: finalized_invoice.due_date ?? 0,
                     member: finalized_invoice.id
                 }),
-                ctx.redis.set(get_redis_key('invoices', finalized_invoice.id), {
+                ctx.redis.set(getRedisKey('invoices', finalized_invoice.id), {
                     id: finalized_invoice.id,
                     db_id: invoice.id,
                     stripe_account: invoice.stripe_account,
@@ -731,7 +731,7 @@ export const request_router = createTRPCRouter({
             ])
         }),
 
-    request_failed: artistProcedure
+    requestFailed: artistProcedure
         .input(
             z.object({
                 file_key: z.string()

@@ -17,7 +17,7 @@ const client = algoliasearch(env.ALGOLIA_APP_ID, env.ALGOLIA_API_KEY)
  * @param {SearchType} index - The type of index to create
  * @param {ArtistIndex | CommissionIndex} data - The data to save
  */
-export async function set_index(index: SearchType, data: ArtistIndex | CommissionIndex) {
+export async function setIndex(index: SearchType, data: ArtistIndex | CommissionIndex) {
     return await client.saveObject({
         indexName: index,
         body: data
@@ -28,7 +28,7 @@ export async function set_index(index: SearchType, data: ArtistIndex | Commissio
  * @param {SearchType} index - The type of index to delete
  * @param {string} object_id - The object id to delete
  */
-export async function del_index(index: SearchType, object_id: string) {
+export async function delIndex(index: SearchType, object_id: string) {
     return await client.deleteObject({
         indexName: index,
         objectID: object_id
@@ -39,7 +39,7 @@ export async function del_index(index: SearchType, object_id: string) {
  * @param {SearchType} index - The type of index to update
  * @param {ArtistIndex | CommissionIndex} data - The data to update
  */
-export async function update_index(
+export async function updateIndex(
     index: SearchType,
     data: ArtistEditIndex | CommissionEditIndex
 ) {

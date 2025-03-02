@@ -53,7 +53,7 @@ export function MessagesProvider(props: {
     const [unseenMessages, setUnseenMessages] = useState<Message[]>([])
     const [chatPartner, setChatPartner] = useState<ChatUser | undefined>(undefined)
 
-    const chatQuery = api.chat.get_chat.useMutation({
+    const chatQuery = api.chat.getChat.useMutation({
         onError: (e) => {
             setIsLoading(true)
             toast.error(e.message)

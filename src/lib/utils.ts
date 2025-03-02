@@ -44,7 +44,7 @@ export function formatToCurrency(number: number) {
  *
  * @param {CommissionAvailability} availability - The availabilty you want the data for
  */
-export function get_availability_badge_data(
+export function getAvailabilityBadgeData(
     availability: CommissionAvailability
 ): [variant: 'default' | 'secondary' | 'destructive', text: string] {
     switch (availability) {
@@ -57,7 +57,7 @@ export function get_availability_badge_data(
     }
 }
 
-export function calculate_percentage_change(current: number, previous: number) {
+export function calculatePercentageChange(current: number, previous: number) {
     if (current === previous && current === 0 && previous === 0) {
         return '0%'
     }
@@ -75,21 +75,21 @@ export function calculate_percentage_change(current: number, previous: number) {
  * @param {string[]} images - The images to convert
  * @returns {NemuImageData[]} - The converted images
  */
-export async function convert_images_to_nemu_images(images: NemuImageData[]) {
+export async function convertImagesToNemuImages(images: NemuImageData[]) {
     // Format for client
     const result: ClientNemuImageData[] = []
 
     for (const image of images) {
         result.push({
-            url: get_ut_url(image.ut_key)
+            url: getUTUrl(image.ut_key)
         })
     }
 
     return result
 }
 
-export const to_pusher_key = (key: string) => key.replace(/:/g, '__')
+export const toPusherKey = (key: string) => key.replace(/:/g, '__')
 
-export function get_ut_url(ut_key: string) {
+export function getUTUrl(ut_key: string) {
     return `https://utfs.io/a/${env.NEXT_PUBLIC_UPLOADTHING_APP_ID}/${ut_key}`
 }

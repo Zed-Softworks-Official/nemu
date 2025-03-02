@@ -18,7 +18,7 @@ import { api } from '~/trpc/react'
 
 export function PublishButton(props: { id: string; published: boolean }) {
     const [currentlyPublished, setCurrentlyPublished] = useState(props.published)
-    const publishCommission = api.commission.update_commission.useMutation({
+    const publishCommission = api.commission.updateCommission.useMutation({
         onMutate: () => {
             const toast_id = toast.loading('Updating Commission')
             return { toast_id }

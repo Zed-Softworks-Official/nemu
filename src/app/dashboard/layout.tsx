@@ -198,7 +198,7 @@ async function SidebarUserdropdown() {
 }
 
 async function SidebarSettingsContent() {
-    const dashboard_links = await api.stripe.get_dashboard_links()
+    const dashboard_links = await api.stripe.getDashboardLinks()
 
     if (!dashboard_links) {
         return null

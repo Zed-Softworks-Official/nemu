@@ -6,12 +6,12 @@ import { portfolios } from '~/server/db/schema'
 import type { ClientPortfolioItem } from '~/lib/structures'
 import { createId } from '@paralleldrive/cuid2'
 
-import { get_ut_url } from '~/lib/utils'
+import { getUTUrl } from '~/lib/utils'
 import { TRPCError } from '@trpc/server'
 import { utapi } from '~/server/uploadthing'
 
-export const portfolio_router = createTRPCRouter({
-    set_portfolio: artistProcedure
+export const portfolioRouter = createTRPCRouter({
+    setPortfolio: artistProcedure
         .input(
             z.object({
                 title: z.string().min(2).max(128),
@@ -27,7 +27,7 @@ export const portfolio_router = createTRPCRouter({
             })
         }),
 
-    update_portfolio: artistProcedure
+    updatePortfolio: artistProcedure
         .input(
             z.object({
                 id: z.string(),
@@ -43,7 +43,7 @@ export const portfolio_router = createTRPCRouter({
                 .where(eq(portfolios.id, input.id))
         }),
 
-    destroy_portfolio: artistProcedure
+    destroyPortfolio: artistProcedure
         .input(
             z.object({
                 id: z.string()
@@ -67,7 +67,7 @@ export const portfolio_router = createTRPCRouter({
             ])
         }),
 
-    get_portfolio_by_id: publicProcedure
+    getPortfolioById: publicProcedure
         .input(
             z.object({
                 id: z.string()
@@ -88,12 +88,12 @@ export const portfolio_router = createTRPCRouter({
             return {
                 ...portfolio,
                 image: {
-                    url: get_ut_url(portfolio.ut_key)
+                    url: getUTUrl(portfolio.ut_key)
                 }
             } satisfies ClientPortfolioItem
         }),
 
-    get_portfolio_list: artistProcedure.query(async ({ ctx }) => {
+    getPortfolioList: artistProcedure.query(async ({ ctx }) => {
         const portfolio_items = await ctx.db.query.portfolios.findMany({
             where: eq(portfolios.artist_id, ctx.artist.id)
         })
@@ -101,7 +101,7 @@ export const portfolio_router = createTRPCRouter({
         const result: ClientPortfolioItem[] = portfolio_items.map((item) => ({
             ...item,
             image: {
-                url: get_ut_url(item.ut_key)
+                url: getUTUrl(item.ut_key)
             }
         }))
 

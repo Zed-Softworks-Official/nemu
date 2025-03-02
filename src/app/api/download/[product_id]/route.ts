@@ -2,7 +2,7 @@ import { getAuth } from '@clerk/nextjs/server'
 import { and, eq } from 'drizzle-orm'
 import { notFound, redirect } from 'next/navigation'
 import { NextResponse, type NextRequest } from 'next/server'
-import { get_ut_url } from '~/lib/utils'
+import { getUTUrl } from '~/lib/utils'
 
 import { db } from '~/server/db'
 import { purchase } from '~/server/db/schema'
@@ -32,7 +32,7 @@ export async function GET(
 
     try {
         // Fetch the file from uploadthing
-        const response = await fetch(get_ut_url(res.product.download.utKey))
+        const response = await fetch(getUTUrl(res.product.download.utKey))
 
         if (!response.ok) {
             console.error(

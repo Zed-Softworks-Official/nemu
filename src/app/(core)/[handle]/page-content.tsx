@@ -16,7 +16,7 @@ import Loading from '~/components/ui/loading'
 import { AspectRatio } from '~/components/ui/aspect-ratio'
 
 export function ArtistBanner(props: { handle: string }) {
-    const { data: artist, isLoading } = api.artist.get_artist_data.useQuery({
+    const { data: artist, isLoading } = api.artist.getArtistData.useQuery({
         handle: props.handle
     })
 
@@ -48,7 +48,7 @@ export function ArtistBanner(props: { handle: string }) {
 }
 
 export function ArtistHeader(props: { handle: string }) {
-    const { data: artist, isLoading } = api.artist.get_artist_data.useQuery({
+    const { data: artist, isLoading } = api.artist.getArtistData.useQuery({
         handle: props.handle
     })
 
@@ -113,7 +113,7 @@ export function ArtistHeader(props: { handle: string }) {
 }
 
 export function ArtistBody(props: { handle: string }) {
-    const { data: artist, isLoading } = api.artist.get_artist_data.useQuery({
+    const { data: artist, isLoading } = api.artist.getArtistData.useQuery({
         handle: props.handle
     })
 
@@ -218,7 +218,7 @@ function PixivIcon({ className }: SocialIconProps) {
 }
 
 function CommissionsList(props: { handle: string }) {
-    const { data: artist, isLoading } = api.artist.get_artist_data.useQuery({
+    const { data: artist, isLoading } = api.artist.getArtistData.useQuery({
         handle: props.handle
     })
 
@@ -292,7 +292,7 @@ function CommissionsList(props: { handle: string }) {
 }
 
 function PortfolioList(props: { handle: string }) {
-    const { data: artist, isLoading } = api.artist.get_artist_data.useQuery({
+    const { data: artist, isLoading } = api.artist.getArtistData.useQuery({
         handle: props.handle
     })
 

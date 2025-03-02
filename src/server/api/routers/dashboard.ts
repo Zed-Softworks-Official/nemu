@@ -4,8 +4,8 @@ import { and, desc, eq, gte } from 'drizzle-orm'
 import { commissions, invoices, requests } from '~/server/db/schema'
 import { clerkClient } from '@clerk/nextjs/server'
 import { TRPCError } from '@trpc/server'
-import { calculate_percentage_change, formatToCurrency } from '~/lib/utils'
-import { cache, get_redis_key } from '~/server/redis'
+import { calculatePercentageChange, formatToCurrency } from '~/lib/utils'
+import { cache, getRedisKey } from '~/server/redis'
 
 interface RecentSalesData {
     monthly_revenue: {
@@ -30,10 +30,10 @@ interface RecentSalesData {
     chart_data: SalesData[]
 }
 
-export const dashboard_router = createTRPCRouter({
-    get_recent_data: artistProcedure.query(async ({ ctx }) => {
+export const dashboardRouter = createTRPCRouter({
+    getRecentData: artistProcedure.query(async ({ ctx }) => {
         const result = await cache(
-            get_redis_key('dashboard_data', ctx.artist.id, 'salesData'),
+            getRedisKey('dashboard_data', ctx.artist.id, 'salesData'),
             async () => {
                 const client_promise = clerkClient()
                 const requests_promise = ctx.db.query.commissions.findMany({
@@ -193,14 +193,14 @@ export const dashboard_router = createTRPCRouter({
                 const result: RecentSalesData = {
                     monthly_revenue: {
                         amount: total_revenue,
-                        change: calculate_percentage_change(
+                        change: calculatePercentageChange(
                             total_revenue,
                             previous_total_revenue
                         )
                     },
                     monthly_open_commissions: {
                         count: monthly_open_commissions,
-                        change: calculate_percentage_change(
+                        change: calculatePercentageChange(
                             monthly_open_commissions,
                             previous_monthly_open_commissions
                         )

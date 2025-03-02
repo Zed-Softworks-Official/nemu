@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 
 import { sync_sub_stripe_data } from '~/app/api/stripe/sync'
 import { tryCatch } from '~/lib/try-catch'
-import { get_redis_key, redis } from '~/server/redis'
+import { getRedisKey, redis } from '~/server/redis'
 
 export async function GET() {
     const user = await currentUser()
@@ -12,7 +12,7 @@ export async function GET() {
     }
 
     const stripe_customer_id = await redis.get<string>(
-        get_redis_key('stripe:user', user.id)
+        getRedisKey('stripe:user', user.id)
     )
     if (!stripe_customer_id) {
         return redirect('/')

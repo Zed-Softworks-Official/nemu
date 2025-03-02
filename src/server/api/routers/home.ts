@@ -5,9 +5,9 @@ import { type JSONContent } from '@tiptap/react'
 import { commissions, products } from '~/server/db/schema'
 import { createTRPCRouter, publicProcedure } from '~/server/api/trpc'
 
-import { formatToCurrency, get_ut_url } from '~/lib/utils'
+import { formatToCurrency, getUTUrl } from '~/lib/utils'
 import type { CommissionAvailability } from '~/lib/structures'
-import { cache, get_redis_key } from '~/server/redis'
+import { cache, getRedisKey } from '~/server/redis'
 
 type CommissionResult = {
     id: string
@@ -33,8 +33,8 @@ type ProductResult = {
     }
 }
 
-export const home_router = createTRPCRouter({
-    get_commissions: publicProcedure
+export const homeRouter = createTRPCRouter({
+    getCommissionsInfinite: publicProcedure
         .input(
             z.object({
                 limit: z.number().min(1).max(20).default(10),
@@ -62,7 +62,7 @@ export const home_router = createTRPCRouter({
                 description: commission.description,
                 slug: commission.slug,
                 availability: commission.availability,
-                featured_image: get_ut_url(commission.images[0]?.ut_key ?? ''),
+                featured_image: getUTUrl(commission.images[0]?.ut_key ?? ''),
                 price: formatToCurrency(commission.price / 100),
                 artist: {
                     handle: commission.artist.handle
@@ -72,7 +72,7 @@ export const home_router = createTRPCRouter({
             return { res, next_cursor: data[data.length - 1]?.created_at }
         }),
 
-    get_products_infinite: publicProcedure
+    getProductsInfinite: publicProcedure
         .input(
             z.object({
                 cursor: z.date().optional(),
@@ -98,7 +98,7 @@ export const home_router = createTRPCRouter({
                 id: product.id,
                 name: product.name,
                 description: product.description,
-                featured_image: get_ut_url(product.images[0] ?? ''),
+                featured_image: getUTUrl(product.images[0] ?? ''),
                 price: formatToCurrency(product.price / 100),
                 artist: {
                     handle: product.artist.handle
@@ -108,9 +108,9 @@ export const home_router = createTRPCRouter({
             return { res, next_cursor: data[data.length - 1]?.created_at }
         }),
 
-    get_featured_products: publicProcedure.query(async ({ ctx }) => {
+    getFeaturedProducts: publicProcedure.query(async ({ ctx }) => {
         return await cache(
-            get_redis_key('product:featured', 'home'),
+            getRedisKey('product:featured', 'home'),
             async () => {
                 const data = await ctx.db.query.products.findMany({
                     limit: 3,
@@ -124,7 +124,7 @@ export const home_router = createTRPCRouter({
                     id: product.id,
                     name: product.name,
                     description: product.description,
-                    featured_image: get_ut_url(product.images[0] ?? ''),
+                    featured_image: getUTUrl(product.images[0] ?? ''),
                     price: formatToCurrency(product.price / 100),
                     artist: {
                         handle: product.artist.handle
