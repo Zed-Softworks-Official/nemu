@@ -28,8 +28,8 @@ export function CreateForm() {
 
     const createForm = api.request.setForm.useMutation()
 
-    const process_form = async (values: FormSchemaType) => {
-        const toast_id = toast.loading('Creating Form')
+    const processForm = async (values: FormSchemaType) => {
+        const toastId = toast.loading('Creating Form')
 
         await createForm.mutateAsync(
             {
@@ -39,12 +39,12 @@ export function CreateForm() {
             {
                 onSuccess: () => {
                     toast.success('Form Created!', {
-                        id: toast_id
+                        id: toastId
                     })
                 },
                 onError: () => {
                     toast.error('Failed to create form', {
-                        id: toast_id
+                        id: toastId
                     })
                 }
             }
@@ -55,7 +55,7 @@ export function CreateForm() {
         <Form {...form}>
             <form
                 className="container mx-auto flex max-w-xl flex-col gap-5"
-                onSubmit={form.handleSubmit(process_form)}
+                onSubmit={form.handleSubmit(processForm)}
             >
                 <h1 className="text-2xl font-bold">Create Form</h1>
                 <Separator />

@@ -73,8 +73,8 @@ export const chatRouter = createTRPCRouter({
         )
         .mutation(async ({ ctx, input }) => {
             const clerk_client = await clerkClient()
-            const redis_key = getRedisKey('chats', input.chat_id)
-            const chat: Chat | null = await redis.json.get(redis_key)
+            const redisKey = getRedisKey('chats', input.chat_id)
+            const chat: Chat | null = await redis.json.get(redisKey)
 
             if (!chat) {
                 throw new TRPCError({
@@ -115,8 +115,8 @@ export const chatRouter = createTRPCRouter({
             })
         )
         .mutation(async ({ ctx, input }) => {
-            const redis_key = getRedisKey('chats', input.chat_id)
-            const chat: Chat | null = await redis.json.get(redis_key)
+            const redisKey = getRedisKey('chats', input.chat_id)
+            const chat: Chat | null = await redis.json.get(redisKey)
 
             if (!chat) {
                 throw new TRPCError({
@@ -153,6 +153,6 @@ export const chatRouter = createTRPCRouter({
                 message
             )
 
-            await redis.json.arrappend(redis_key, '$.messages', message)
+            await redis.json.arrappend(redisKey, '$.messages', message)
         })
 })

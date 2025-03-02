@@ -15,18 +15,18 @@ import { KnockWorkflows, sendNotification } from '~/server/knock'
 import { getRedisKey, redis } from '~/server/redis'
 import { stripe } from '~/server/stripe'
 
-async function process_event(expired_invoices: string[]) {
+async function processEvent(expiredInvoices: string[]) {
     await Promise.all(
-        expired_invoices.map(async (invoice_id) => {
+        expiredInvoices.map(async (invoiceId) => {
             const invoice = await redis.get<StripeInvoiceData>(
-                getRedisKey('invoices', invoice_id)
+                getRedisKey('invoices', invoiceId)
             )
 
             if (!invoice) {
                 return
             }
 
-            const request_queue = await redis.json.get<RequestQueue>(
+            const requestQueue = await redis.json.get<RequestQueue>(
                 getRedisKey('request_queue', invoice.commission_id)
             )
 
@@ -37,36 +37,36 @@ async function process_event(expired_invoices: string[]) {
                 }
             })
 
-            if (!request_queue) {
+            if (!requestQueue) {
                 throw new Error('[CRON]: Request queue not found???')
             }
 
-            const invoice_index = request_queue.requests.findIndex(
+            const invoiceIndex = requestQueue.requests.findIndex(
                 (request) => request === invoice.order_id
             )
 
-            if (invoice_index === -1) {
+            if (invoiceIndex === -1) {
                 throw new Error('[CRON]: Invoice not found in request queue???')
             }
 
             // Remove from the request queue
-            request_queue.requests.splice(invoice_index, 1)
+            requestQueue.requests.splice(invoiceIndex, 1)
 
             // Get the next request from the waitlist
-            if (request_queue.waitlist.length > 0) {
-                const new_request = request_queue.waitlist.shift()
+            if (requestQueue.waitlist.length > 0) {
+                const newRequest = requestQueue.waitlist.shift()
 
-                if (!new_request) {
+                if (!newRequest) {
                     throw new Error('[CRON]: No new request found in waitlist???')
                 }
 
                 // Add the new request to the requests array
-                request_queue.requests.push(new_request)
+                requestQueue.requests.push(newRequest)
 
                 await redis.json.set(
                     getRedisKey('request_queue', invoice.commission_id),
                     '$',
-                    request_queue as unknown as Record<string, unknown>
+                    requestQueue as unknown as Record<string, unknown>
                 )
             }
 
@@ -78,11 +78,11 @@ async function process_event(expired_invoices: string[]) {
 
             return Promise.all([
                 // Void the invoice
-                stripe.invoices.voidInvoice(invoice_id, {
+                stripe.invoices.voidInvoice(invoiceId, {
                     stripeAccount: invoice.stripe_account
                 }),
                 // Remove from cron
-                redis.zrem('invoices_due_cron', invoice_id),
+                redis.zrem('invoices_due_cron', invoiceId),
                 // Send notification to user
                 sendNotification({
                     type: KnockWorkflows.InvoiceOverdue,
@@ -134,11 +134,11 @@ export const { POST } = serve(
                 return NextResponse.json({ received: true })
             }
 
-            async function do_event_processing() {
-                waitUntil(process_event(expired_invoices))
+            async function doEventProcessing() {
+                waitUntil(processEvent(expired_invoices))
             }
 
-            const { error } = await tryCatch(do_event_processing())
+            const { error } = await tryCatch(doEventProcessing())
 
             if (error) {
                 console.error('[CRON]: Error processing event', error)

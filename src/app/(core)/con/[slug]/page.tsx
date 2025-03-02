@@ -15,19 +15,19 @@ import {
 
 export default async function ConPage(props: { params: Promise<{ slug: string }> }) {
     const { slug } = await props.params
-    const current_user = await currentUser()
-    const valid_slug = await api.con.validSlug({ slug })
+    const user = await currentUser()
+    const validSlug = await api.con.validSlug({ slug })
 
-    if (!current_user) {
+    if (!user) {
         return redirect('/')
     }
 
-    if (!valid_slug) {
+    if (!validSlug) {
         toast.error('This con link is invalid or does not exist')
         return redirect('/')
     }
 
-    if (valid_slug.is_expired) {
+    if (validSlug.is_expired) {
         toast.error('This con link has expired')
         return redirect('/')
     }
@@ -44,7 +44,7 @@ export default async function ConPage(props: { params: Promise<{ slug: string }>
                     />
                     <CardTitle>Welcome to Nemu!</CardTitle>
                     <CardDescription>
-                        Thank you so much for coming to {valid_slug.name}
+                        Thank you so much for coming to {validSlug.name}
                     </CardDescription>
                 </CardHeader>
                 <CardContent>

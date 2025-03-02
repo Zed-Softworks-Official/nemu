@@ -151,8 +151,8 @@ export const commissionRouter = createTRPCRouter({
                 price: updated_data.price
                     ? formatToCurrency(updated_data.price / 100)
                     : undefined,
-                description: updated_data.description!,
-                featured_image: getUTUrl(updated_data.images![0]!.ut_key),
+                description: updated_data.description,
+                featured_image: getUTUrl(updated_data.images?.[0]?.ut_key ?? ''),
                 artist_handle: ctx.artist.handle,
                 published: updated_data.published
             })
@@ -319,7 +319,7 @@ export const commissionRouter = createTRPCRouter({
                 published: commission.published,
                 images: [
                     {
-                        url: getUTUrl(commission.images[0]!.ut_key)
+                        url: getUTUrl(commission.images[0]?.ut_key ?? '')
                     }
                 ],
                 slug: commission.slug,
