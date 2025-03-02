@@ -1,7 +1,7 @@
 import { createId } from '@paralleldrive/cuid2'
 import { type JSONContent } from '@tiptap/react'
 import { TRPCError } from '@trpc/server'
-import { and, desc, eq } from 'drizzle-orm'
+import { and, desc, eq, lt } from 'drizzle-orm'
 import { z } from 'zod'
 
 import { type StripeProductData } from '~/lib/structures'
@@ -439,32 +439,69 @@ export const artist_corner_router = createTRPCRouter({
                 .where(eq(products.id, input.id))
         }),
 
-    get_purchased: protectedProcedure.query(async ({ ctx }) => {
-        const purchases = await ctx.db.query.purchase.findMany({
-            where: and(
+    get_purchased: protectedProcedure
+        .input(
+            z.object({
+                limit: z.number().min(1).max(50).default(10),
+                cursor: z.string().nullish(), // for pagination
+                skip: z.number().optional()
+            })
+        )
+        .query(async ({ ctx, input }) => {
+            const { limit, cursor, skip } = input
+
+            // Build the where clause
+            const where = and(
                 eq(purchase.user_id, ctx.auth.userId),
-                eq(purchase.status, 'completed')
-            ),
-            limit: 10,
-            orderBy: desc(purchase.created_at),
-            with: {
-                product: true,
-                artist: true
+                eq(purchase.status, 'completed'),
+                // Add cursor-based filtering if cursor is provided
+                cursor ? lt(purchase.created_at, new Date(cursor)) : undefined
+            )
+
+            // Fetch one more item than requested to determine if there are more items
+            const purchases = await ctx.db.query.purchase.findMany({
+                where,
+                limit: limit + 1,
+                offset: skip,
+                orderBy: desc(purchase.created_at),
+                with: {
+                    product: true,
+                    artist: true
+                }
+            })
+
+            // Check if there are more results
+            const hasMore = purchases.length > limit
+            // Remove the extra item if we fetched more than requested
+            const items = hasMore ? purchases.slice(0, limit) : purchases
+
+            // Get the next cursor (timestamp of the last item)
+            const nextCursor =
+                items.length > 0
+                    ? items[items.length - 1]?.created_at?.toISOString()
+                    : null
+
+            // Transform the data
+            const transformedItems = items.map((data) => ({
+                id: data.id,
+                created_at: data.created_at,
+                product: {
+                    id: data.product.id,
+                    name: data.product.name,
+                    download: {
+                        filename: data.product.download.filename
+                    }
+                },
+                artist: {
+                    handle: data.artist.handle
+                }
+            }))
+
+            // Return paginated result
+            return {
+                items: transformedItems,
+                nextCursor,
+                hasMore
             }
         })
-
-        return purchases.map((data) => ({
-            id: data.id,
-            product: {
-                id: data.product.id,
-                name: data.product.name,
-                download: {
-                    filename: data.product.download.filename
-                }
-            },
-            artist: {
-                handle: data.artist.handle
-            }
-        }))
-    })
 })

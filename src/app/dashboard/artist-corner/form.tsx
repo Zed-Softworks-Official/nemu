@@ -59,7 +59,7 @@ const productSchema = z
     })
     .superRefine((data, ctx) => {
         const numericPrice =
-            typeof data.price === 'string' ? parseFloat(data.price) : data.price
+            typeof data.price === 'string' ? Number.parseFloat(data.price) : data.price
         if (!data.is_free) {
             if (isNaN(numericPrice) || numericPrice <= 0 || numericPrice < 1) {
                 ctx.addIssue({
@@ -111,12 +111,12 @@ export function ProductForm({ mode, initialData }: ProductFormProps) {
                   is_free: false
               }
             : {
-                  name: initialData!.name,
-                  description: JSON.stringify(initialData!.description),
-                  price: (initialData!.price / 100).toFixed(2),
-                  images: initialData!.images,
-                  download: initialData!.download.utKey,
-                  is_free: initialData!.is_free
+                  name: initialData?.name,
+                  description: JSON.stringify(initialData?.description),
+                  price: ((initialData?.price ?? 0) / 100).toFixed(2),
+                  images: initialData?.images,
+                  download: initialData?.download.utKey,
+                  is_free: initialData?.is_free
               }
 
     const form = useForm<ProductSchemaType>({

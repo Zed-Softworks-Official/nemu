@@ -34,6 +34,7 @@ export async function GET(
         where: and(
             eq(purchase.product_id, params.id),
             eq(purchase.user_id, auth.userId),
+            eq(purchase.artist_id, artist.id),
             eq(purchase.status, 'completed')
         )
     })

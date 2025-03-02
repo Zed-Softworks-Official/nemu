@@ -5,6 +5,8 @@ import { ArrowLeft } from 'lucide-react'
 import { api } from '~/trpc/server'
 import { UpdateForm } from '../../form'
 import { Button } from '~/components/ui/button'
+import { Suspense } from 'react'
+import Loading from '~/components/ui/loading'
 
 export default async function ArtistCornerUpdatePage(props: {
     params: Promise<{ id: string }>
@@ -30,7 +32,9 @@ export default async function ArtistCornerUpdatePage(props: {
                 </Button>
             </div>
 
-            <UpdateForm product={data.product} />
+            <Suspense fallback={<Loading />}>
+                <UpdateForm product={data.product} />
+            </Suspense>
         </div>
     )
 }
