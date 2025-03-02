@@ -23,7 +23,7 @@ import {
 import { Button } from '~/components/ui/button'
 
 import type { InvoiceItem } from '~/lib/structures'
-import { format_to_currency } from '~/lib/utils'
+import { formatToCurrency } from '~/lib/utils'
 
 import {
     Dialog,
@@ -118,7 +118,7 @@ export function InvoiceEditor() {
         {
             field: 'price',
             headerName: 'Price',
-            valueFormatter: (params) => format_to_currency(params.value / 100)
+            valueFormatter: (params) => formatToCurrency(params.value / 100)
         }
     ]
 
@@ -199,7 +199,7 @@ export function InvoiceEditor() {
                         <div className="flex w-full items-end justify-end">
                             <h2 className="text-lg font-bold">
                                 Total:{' '}
-                                {format_to_currency(
+                                {formatToCurrency(
                                     items.reduce(
                                         (acc, item) => acc + item.price * item.quantity,
                                         0

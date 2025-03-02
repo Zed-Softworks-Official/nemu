@@ -25,6 +25,8 @@ export default function PublishProduct(props: { id: string; published: boolean }
         },
         onSuccess: (_, __, ctx) => {
             toast.success('Updated', { id: ctx.toast_id })
+
+            setCurrentlyPublished(!currentlyPublished)
         },
         onError: (_, __, ctx) => {
             toast.error('Failed to update', { id: ctx?.toast_id })
@@ -36,8 +38,6 @@ export default function PublishProduct(props: { id: string; published: boolean }
             id: props.id,
             published: !currentlyPublished
         })
-
-        setCurrentlyPublished(!currentlyPublished)
     }, [currentlyPublished, publishProduct, props.id])
 
     return (

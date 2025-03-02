@@ -3,11 +3,10 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
 import { Button } from '~/components/ui/button'
-// import { Chart } from '~/components/ui/chart'
 import { api } from '~/trpc/server'
 import PublishProduct from './publish'
 
-export default async function ArtistCornerProductPags(props: {
+export default async function ArtistCornerProductPage(props: {
     params: Promise<{ id: string }>
 }) {
     const { id } = await props.params

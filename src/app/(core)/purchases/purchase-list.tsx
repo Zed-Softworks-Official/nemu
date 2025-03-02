@@ -2,6 +2,8 @@
 
 import { Download } from 'lucide-react'
 import Link from 'next/link'
+import { useState } from 'react'
+
 import { Button } from '~/components/ui/button'
 import {
     Card,
@@ -44,9 +46,20 @@ export default function PurchaseList() {
 }
 
 function DownloadButton(props: { product_id: string; filename: string }) {
+    const [isDownloading, setIsDownloading] = useState(false)
+
+    const handleDownload = () => {
+        setIsDownloading(true)
+        setTimeout(() => setIsDownloading(false), 2000)
+    }
+
     return (
-        <Button size={'lg'} asChild>
-            <Link href={`/api/download/${props.product_id}`} download={props.filename}>
+        <Button size={'lg'} disabled={isDownloading} asChild>
+            <Link
+                href={`/api/download/${props.product_id}`}
+                download={props.filename}
+                onClick={handleDownload}
+            >
                 <Download className="size-4" />
                 Download
             </Link>

@@ -66,7 +66,7 @@ function Navbar() {
                 <SignedOut>
                     <Button className="h-12 rounded-full" variant={'ghost'} asChild>
                         <Link prefetch={true} href={'/u/login'}>
-                            <User className="h-12 w-12" />
+                            <User className="size-6" />
                         </Link>
                     </Button>
                 </SignedOut>
@@ -91,7 +91,7 @@ async function UserDropdown() {
                 <Avatar>
                     <AvatarImage src={current_user?.imageUrl} alt="User Avatar" />
                     <AvatarFallback>
-                        <User className="h-6 w-6" />
+                        <User className="size-6" />
                     </AvatarFallback>
                 </Avatar>
             </DropdownMenuTrigger>
@@ -125,13 +125,13 @@ function ArtistSection(props: { show?: boolean; handle: string }) {
                     className="flex w-full items-center gap-3"
                     href={`/@${props.handle}`}
                 >
-                    <Brush className="h-6 w-6" />
+                    <Brush className="size-6" />
                     My Page
                 </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
                 <Link href={'/dashboard'} className="flex w-full items-center gap-3">
-                    <BarChart className="h-6 w-6" />
+                    <BarChart className="size-6" />
                     Dashboard
                 </Link>
             </DropdownMenuItem>
@@ -140,7 +140,7 @@ function ArtistSection(props: { show?: boolean; handle: string }) {
                     href={'/dashboard/settings'}
                     className="flex w-full items-center gap-3"
                 >
-                    <CogIcon className="h-6 w-6" />
+                    <CogIcon className="size-6" />
                     Artist Settings
                 </Link>
             </DropdownMenuItem>
@@ -157,7 +157,7 @@ function AdminSection(props: { show?: boolean }) {
             <DropdownMenuLabel>Admin</DropdownMenuLabel>
             <DropdownMenuItem asChild>
                 <Link href={'/admin'} className="flex w-full items-center gap-3">
-                    <LayoutDashboard className="h-6 w-6" />
+                    <LayoutDashboard className="size-6" />
                     Admin Dashboard
                 </Link>
             </DropdownMenuItem>
@@ -173,7 +173,7 @@ function GeneralSection(props: { is_artist: boolean; supporter: boolean }) {
             {props.supporter && (
                 <DropdownMenuItem asChild>
                     <Link href={'/supporter/portal'}>
-                        <CreditCard className="h-6 w-6" />
+                        <CreditCard className="size-6" />
                         Billing
                     </Link>
                 </DropdownMenuItem>
@@ -186,7 +186,7 @@ function GeneralSection(props: { is_artist: boolean; supporter: boolean }) {
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
                 <Link prefetch={true} href={'/requests'}>
-                    <Truck className="h-6 w-6" />
+                    <Truck className="size-6" />
                     Requests
                 </Link>
             </DropdownMenuItem>
@@ -195,13 +195,13 @@ function GeneralSection(props: { is_artist: boolean; supporter: boolean }) {
                     prefetch={true}
                     href={props.is_artist ? '/dashboard/messages' : '/messages'}
                 >
-                    <Mail className="h-6 w-6" />
+                    <Mail className="size-6" />
                     Messages
                 </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
                 <Link prefetch={true} href={'/u/account'}>
-                    <Settings className="h-6 w-6" />
+                    <Settings className="size-6" />
                     Account
                 </Link>
             </DropdownMenuItem>
@@ -209,7 +209,7 @@ function GeneralSection(props: { is_artist: boolean; supporter: boolean }) {
             <DropdownMenuItem asChild>
                 <SignOutButton>
                     <div className="flex w-full items-center">
-                        <LogOut className="h-6 w-6" />
+                        <LogOut className="size-6" />
                         Sign out
                     </div>
                 </SignOutButton>

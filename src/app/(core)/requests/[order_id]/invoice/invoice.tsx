@@ -3,7 +3,7 @@
 import Link from 'next/link'
 
 import { type InvoiceStatus } from '~/lib/structures'
-import { format_to_currency } from '~/lib/utils'
+import { formatToCurrency } from '~/lib/utils'
 
 import { DataTable } from '~/components/data-table'
 import { Badge } from '~/components/ui/badge'
@@ -47,7 +47,7 @@ export default function Invoice() {
                             data
                         }: {
                             data: (typeof request_data.invoices)[number]
-                        }) => <span>{format_to_currency(data.total / 100)}</span>
+                        }) => <span>{formatToCurrency(data.total / 100)}</span>
                     },
                     {
                         headerName: 'Actions',

@@ -6,7 +6,7 @@ import './src/env'
 
 import type { NextConfig } from 'next'
 import { withSentryConfig } from '@sentry/nextjs'
-import path from 'path'
+import path from 'node:path'
 
 const config = {
     images: {

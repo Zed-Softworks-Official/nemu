@@ -12,12 +12,16 @@ export function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs))
 }
 
-export function format_file_size(size: number) {
-    if (size < 1024 * 1024) {
-        return `${(size / 1024).toFixed(1)} KB`
-    }
+export function formatFileSize(size: number) {
+    if (size <= 0) return '0 B'
 
-    return `${(size / (1024 * 1024)).toFixed(1)} MB`
+    const units = ['B', 'KB', 'MB', 'GB', 'TB']
+    const index = Math.floor(Math.log(size) / Math.log(1024))
+
+    const unitIndex = Math.min(index, units.length - 1)
+    if (unitIndex === 0) return `${size} ${units[unitIndex]}`
+
+    return `${(size / Math.pow(1024, unitIndex)).toFixed(1)} ${units[unitIndex]}`
 }
 
 /**
@@ -26,7 +30,7 @@ export function format_file_size(size: number) {
  * @param {number} number - The number you wish to convert
  * @returns {string} - A string with the correct format for pricing
  */
-export function format_to_currency(number: number) {
+export function formatToCurrency(number: number) {
     const formatter = new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency: 'USD'

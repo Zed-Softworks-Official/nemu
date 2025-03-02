@@ -5,7 +5,7 @@ import { and, desc, eq } from 'drizzle-orm'
 import { z } from 'zod'
 
 import { type StripeProductData } from '~/lib/structures'
-import { format_to_currency, get_ut_url } from '~/lib/utils'
+import { formatToCurrency, get_ut_url } from '~/lib/utils'
 
 import {
     artistProcedure,
@@ -23,7 +23,7 @@ const productSchema = z.object({
     description: z.any(),
     price: z.number(),
     download: z.object({
-        ut_key: z.string(),
+        utKey: z.string(),
         filename: z.string(),
         size: z.number()
     }),
@@ -35,148 +35,13 @@ export const artist_corner_router = createTRPCRouter({
     set_product: artistProcedure.input(productSchema).mutation(async ({ input, ctx }) => {
         const id = createId()
         const description = input.description as JSONContent
-        const insert_promise = ctx.db.insert(products).values({
-            id,
-            artist_id: ctx.artist.id,
-            ...input,
-            description
-        })
 
-        const remove_image_from_redis_promise = ctx.redis.zrem(
-            'product:images',
-            ...input.images
-        )
+        try {
+            // Step 1: Create Stripe product first (if not free)
+            // This is the external dependency most likely to fail
+            let stripeData: StripeProductData | undefined = undefined
 
-        const remove_download_from_redis_promise = ctx.redis.zrem(
-            'product:downloads',
-            input.download.ut_key
-        )
-
-        const stripe_promise = async () => {
-            if (input.is_free) return
-
-            const stripe_product = await stripe.products.create(
-                {
-                    name: input.name,
-                    images: input.images.map((image) => get_ut_url(image)),
-                    default_price_data: {
-                        currency: 'usd',
-                        unit_amount: input.price
-                    },
-                    metadata: {
-                        actual_id: id
-                    }
-                },
-                {
-                    stripeAccount: ctx.artist.stripe_account
-                }
-            )
-
-            await ctx.redis.set(get_redis_key('product:stripe', id), {
-                product_id: stripe_product.id,
-                price: input.price,
-                price_id:
-                    typeof stripe_product.default_price === 'string'
-                        ? stripe_product.default_price
-                        : stripe_product.id,
-                revenue: 0,
-                sold: 0,
-                sold_amount: 0,
-                refund_count: 0,
-                refund_amount: 0
-            } satisfies StripeProductData)
-        }
-
-        await Promise.all([
-            stripe_promise(),
-            insert_promise,
-            remove_image_from_redis_promise,
-            remove_download_from_redis_promise
-        ])
-    }),
-
-    update_product: artistProcedure
-        .input(productSchema.merge(z.object({ id: z.string() })))
-        .mutation(async ({ input, ctx }) => {
-            const product = await ctx.db.query.products.findFirst({
-                where: eq(products.id, input.id)
-            })
-
-            if (!product) {
-                throw new TRPCError({
-                    code: 'INTERNAL_SERVER_ERROR',
-                    message: 'How did you get here?'
-                })
-            }
-
-            // Get the images that don't match
-            const items_to_delete = product.images.filter((ut_key) => {
-                if (input.images.find((value) => value === ut_key)) return false
-
-                return true
-            })
-
-            // Check if the download has changed
-            if (product.download.ut_key !== input.download.ut_key) {
-                items_to_delete.push(product.download.ut_key)
-            }
-
-            // Delete the files from ut
-            const ut_promise = utapi.deleteFiles(items_to_delete)
-
-            // Update db
-            const { id, ...items } = input
-            const db_promise = ctx.db
-                .update(products)
-                .set({
-                    ...items,
-                    description: input.description as JSONContent
-                })
-                .where(eq(products.id, input.id))
-
-            // Remove from redis
-            const redis_promise = ctx.redis.zrem('product:images', ...input.images)
-            const redis_promise_2 = ctx.redis.zrem(
-                'product:downloads',
-                input.download.ut_key
-            )
-
-            // Possibly update price on stripe product
-            const stripe_promise = async () => {
-                if (product.price === input.price) return
-
-                let stripe_data = await ctx.redis.get<StripeProductData>(
-                    get_redis_key('product:stripe', input.id)
-                )
-
-                if (stripe_data) {
-                    const stripe_price_id = await stripe.prices.create({
-                        currency: 'usd',
-                        unit_amount: input.price,
-                        product: stripe_data.product_id
-                    })
-
-                    if (!stripe_price_id) {
-                        throw new TRPCError({
-                            code: 'INTERNAL_SERVER_ERROR',
-                            message: '[STRIPE]: Failed to create new price id'
-                        })
-                    }
-
-                    await stripe.products.update(
-                        stripe_data.product_id,
-                        {
-                            default_price: stripe_price_id.id
-                        },
-                        {
-                            stripeAccount: ctx.artist.stripe_account
-                        }
-                    )
-
-                    return
-                }
-
-                // If stripe data doesn't exist, product was previously free and must get stripe product
+            if (!input.is_free) {
                 const stripe_product = await stripe.products.create(
                     {
                         name: input.name,
@@ -194,33 +59,302 @@ export const artist_corner_router = createTRPCRouter({
                     }
                 )
 
-                stripe_data = {
-                    product_id: stripe_product.id,
+                stripeData = {
+                    productId: stripe_product.id,
                     price: input.price,
-                    price_id:
+                    priceId:
                         typeof stripe_product.default_price === 'string'
                             ? stripe_product.default_price
                             : stripe_product.id,
                     revenue: 0,
                     sold: 0,
-                    sold_amount: 0,
-                    refund_count: 0,
-                    refund_amount: 0
+                    soldAmount: 0,
+                    refundCount: 0,
+                    refundAmount: 0
                 } satisfies StripeProductData
-
-                await ctx.redis.set<StripeProductData>(
-                    get_redis_key('product:stripe', input.id),
-                    stripe_data
-                )
             }
 
+            // Step 2: Insert into database
+            await ctx.db.insert(products).values({
+                id,
+                artist_id: ctx.artist.id,
+                ...input,
+                description
+            })
+
+            // Step 3: Update Redis only after database insertion succeeds
             await Promise.all([
-                ut_promise,
-                db_promise,
-                stripe_promise(),
-                redis_promise,
-                redis_promise_2
+                // Only set stripe data in Redis if it exists
+                stripeData
+                    ? ctx.redis.set(get_redis_key('product:stripe', id), stripeData)
+                    : Promise.resolve(),
+
+                // Remove images and downloads from Redis
+                ctx.redis.zrem('product:images', ...input.images),
+                ctx.redis.zrem('product:downloads', input.download.utKey)
             ])
+
+            return { success: true, id }
+        } catch (error) {
+            // Step 4: Handle failures with rollback
+            try {
+                // Rollback: Delete from database if it was inserted
+                await ctx.db.delete(products).where(eq(products.id, id))
+
+                // Rollback: Delete Stripe product if it was created
+                if (!input.is_free) {
+                    const stripeData = await ctx.redis.get<StripeProductData>(
+                        get_redis_key('product:stripe', id)
+                    )
+
+                    if (stripeData) {
+                        await stripe.products.del(stripeData.productId, {
+                            stripeAccount: ctx.artist.stripe_account
+                        })
+
+                        await ctx.redis.del(get_redis_key('product:stripe', id))
+                    }
+                }
+            } catch (rollbackError) {
+                // Log rollback errors but don't expose to client
+                console.error('Rollback failed:', rollbackError)
+            }
+
+            // Re-throw the original error
+            throw error
+        }
+    }),
+
+    update_product: artistProcedure
+        .input(productSchema.merge(z.object({ id: z.string() })))
+        .mutation(async ({ input, ctx }) => {
+            // Step 1: Fetch the current product state for comparison and potential rollback
+            const product = await ctx.db.query.products.findFirst({
+                where: eq(products.id, input.id)
+            })
+
+            if (!product) {
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Product not found'
+                })
+            }
+
+            // Save original state for potential rollback
+            const originalProduct = { ...product }
+
+            // Identify files to delete
+            const items_to_delete = product.images.filter((ut_key) => {
+                return !input.images.find((value) => value === ut_key)
+            })
+
+            if (product.download.utKey !== input.download.utKey) {
+                items_to_delete.push(product.download.utKey)
+            }
+
+            // Track changes for rollback
+            const changes = {
+                filesDeleted: false,
+                dbUpdated: false,
+                stripeUpdated: false,
+                newStripeProductId: null as string | null,
+                redisUpdated: false
+            }
+
+            try {
+                // Step 2: Handle Stripe updates first (most likely to fail)
+                if (product.price !== input.price || product.is_free !== input.is_free) {
+                    const stripe_data = await ctx.redis.get<StripeProductData>(
+                        get_redis_key('product:stripe', input.id)
+                    )
+
+                    if (stripe_data) {
+                        // Update existing Stripe product
+                        const stripe_price_id = await stripe.prices.create({
+                            currency: 'usd',
+                            unit_amount: input.price,
+                            product: stripe_data.productId
+                        })
+
+                        if (!stripe_price_id) {
+                            throw new TRPCError({
+                                code: 'INTERNAL_SERVER_ERROR',
+                                message: '[STRIPE]: Failed to create new price id'
+                            })
+                        }
+
+                        await stripe.products.update(
+                            stripe_data.productId,
+                            {
+                                default_price: stripe_price_id.id,
+                                images: input.images.map((image) => get_ut_url(image)),
+                                name: input.name
+                            },
+                            {
+                                stripeAccount: ctx.artist.stripe_account
+                            }
+                        )
+
+                        // Update Redis with new price
+                        await ctx.redis.set(get_redis_key('product:stripe', input.id), {
+                            ...stripe_data,
+                            price: input.price,
+                            priceId: stripe_price_id.id
+                        })
+
+                        changes.stripeUpdated = true
+                    } else if (!input.is_free) {
+                        // Create new Stripe product if switching from free to paid
+                        const stripe_product = await stripe.products.create(
+                            {
+                                name: input.name,
+                                images: input.images.map((image) => get_ut_url(image)),
+                                default_price_data: {
+                                    currency: 'usd',
+                                    unit_amount: input.price
+                                },
+                                metadata: {
+                                    actual_id: input.id
+                                }
+                            },
+                            {
+                                stripeAccount: ctx.artist.stripe_account
+                            }
+                        )
+
+                        changes.newStripeProductId = stripe_product.id
+
+                        const newStripeData = {
+                            productId: stripe_product.id,
+                            price: input.price,
+                            priceId:
+                                typeof stripe_product.default_price === 'string'
+                                    ? stripe_product.default_price
+                                    : stripe_product.id,
+                            revenue: 0,
+                            sold: 0,
+                            soldAmount: 0,
+                            refundCount: 0,
+                            refundAmount: 0
+                        } satisfies StripeProductData
+
+                        await ctx.redis.set(
+                            get_redis_key('product:stripe', input.id),
+                            newStripeData
+                        )
+
+                        changes.stripeUpdated = true
+                    }
+
+                    changes.redisUpdated = true
+                }
+
+                // Step 3: Delete files from uploadthing
+                if (items_to_delete.length > 0) {
+                    await utapi.deleteFiles(items_to_delete)
+                    changes.filesDeleted = true
+                }
+
+                // Step 4: Update database
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                const { id, ...items } = input
+                await ctx.db
+                    .update(products)
+                    .set({
+                        ...items,
+                        description: input.description as JSONContent
+                    })
+                    .where(eq(products.id, input.id))
+
+                changes.dbUpdated = true
+
+                // Step 5: Update Redis
+                await Promise.all([
+                    ctx.redis.zrem('product:images', ...input.images),
+                    ctx.redis.zrem('product:downloads', input.download.utKey)
+                ])
+
+                changes.redisUpdated = true
+
+                return { success: true, id: input.id }
+            } catch (error) {
+                // Step 6: Handle failures with rollback
+                try {
+                    console.error('Update failed, attempting rollback:', error)
+
+                    // Rollback database if it was updated
+                    if (changes.dbUpdated) {
+                        await ctx.db
+                            .update(products)
+                            .set({
+                                name: originalProduct.name,
+                                description: originalProduct.description,
+                                price: originalProduct.price,
+                                images: originalProduct.images,
+                                download: originalProduct.download,
+                                is_free: originalProduct.is_free
+                            })
+                            .where(eq(products.id, input.id))
+                    }
+
+                    // Rollback Stripe changes
+                    if (changes.stripeUpdated) {
+                        const stripe_data = await ctx.redis.get<StripeProductData>(
+                            get_redis_key('product:stripe', input.id)
+                        )
+
+                        if (changes.newStripeProductId) {
+                            // Delete newly created Stripe product
+                            await stripe.products.del(changes.newStripeProductId, {
+                                stripeAccount: ctx.artist.stripe_account
+                            })
+                        } else if (stripe_data) {
+                            // Restore original price and state
+                            if (originalProduct.is_free) {
+                                // If it was originally free, archive the product
+                                await stripe.products.update(
+                                    stripe_data.productId,
+                                    { active: false },
+                                    { stripeAccount: ctx.artist.stripe_account }
+                                )
+
+                                await ctx.redis.del(
+                                    get_redis_key('product:stripe', input.id)
+                                )
+                            } else {
+                                // Otherwise restore the original price
+                                const original_stripe_data =
+                                    await ctx.redis.get<StripeProductData>(
+                                        get_redis_key('product:stripe', input.id)
+                                    )
+
+                                if (original_stripe_data) {
+                                    await stripe.products.update(
+                                        stripe_data.productId,
+                                        {
+                                            default_price: original_stripe_data.priceId,
+                                            images: originalProduct.images.map((image) =>
+                                                get_ut_url(image)
+                                            ),
+                                            name: originalProduct.name
+                                        },
+                                        { stripeAccount: ctx.artist.stripe_account }
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Note: We can't rollback deleted files from uploadthing
+                    // This is a limitation we should document
+                } catch (rollbackError) {
+                    // Log rollback errors but don't expose to client
+                    console.error('Rollback failed:', rollbackError)
+                }
+
+                // Re-throw the original error
+                throw error
+            }
         }),
 
     get_products: artistProcedure.query(async ({ ctx }) => {
@@ -231,7 +365,7 @@ export const artist_corner_router = createTRPCRouter({
         return all_products.map((product) => ({
             id: product.id,
             name: product.name,
-            price: format_to_currency(product.price / 100),
+            price: formatToCurrency(product.price / 100),
             published: product.published
         }))
     }),
@@ -289,7 +423,7 @@ export const artist_corner_router = createTRPCRouter({
                 name: data.name,
                 description: data.description,
                 images: data.images.map((key) => get_ut_url(key)),
-                price: format_to_currency(data.price / 100),
+                price: formatToCurrency(data.price / 100),
                 is_free: data.is_free
             }
         }),

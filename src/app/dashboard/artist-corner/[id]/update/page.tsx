@@ -1,6 +1,10 @@
 import { notFound } from 'next/navigation'
+import Link from 'next/link'
+import { ArrowLeft } from 'lucide-react'
+
 import { api } from '~/trpc/server'
 import { UpdateForm } from '../../form'
+import { Button } from '~/components/ui/button'
 
 export default async function ArtistCornerUpdatePage(props: {
     params: Promise<{ id: string }>
@@ -18,6 +22,12 @@ export default async function ArtistCornerUpdatePage(props: {
         <div className="container mx-auto max-w-4xl">
             <div className="flex items-center justify-between gap-2">
                 <h1 className="text-2xl font-bold">{data.product.name}</h1>
+                <Button asChild>
+                    <Link href={`/dashboard/artist-corner/${id}`}>
+                        <ArrowLeft className="size-4" />
+                        Back To Product
+                    </Link>
+                </Button>
             </div>
 
             <UpdateForm product={data.product} />

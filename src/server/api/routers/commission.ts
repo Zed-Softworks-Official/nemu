@@ -12,11 +12,7 @@ import {
     type ClientCommissionItemEditable,
     type RequestQueue
 } from '~/lib/structures'
-import {
-    convert_images_to_nemu_images,
-    format_to_currency,
-    get_ut_url
-} from '~/lib/utils'
+import { convert_images_to_nemu_images, formatToCurrency, get_ut_url } from '~/lib/utils'
 import { utapi } from '~/server/uploadthing'
 import { update_index } from '~/server/algolia/collections'
 import { clerkClient } from '@clerk/nextjs/server'
@@ -153,7 +149,7 @@ export const commission_router = createTRPCRouter({
                 objectID: input.id,
                 title: updated_data.title,
                 price: updated_data.price
-                    ? format_to_currency(updated_data.price / 100)
+                    ? formatToCurrency(updated_data.price / 100)
                     : undefined,
                 description: updated_data.description!,
                 featured_image: get_ut_url(updated_data.images![0]!.ut_key),
@@ -198,7 +194,7 @@ export const commission_router = createTRPCRouter({
             const result: ClientCommissionItem = {
                 title: data.commissions[0].title,
                 description: data.commissions[0].description,
-                price: format_to_currency(Number(data.commissions[0].price / 100)),
+                price: formatToCurrency(Number(data.commissions[0].price / 100)),
                 availability: data.commissions[0].availability,
                 rating: Number(data.commissions[0].rating),
                 images: images,
@@ -317,7 +313,7 @@ export const commission_router = createTRPCRouter({
             result.push({
                 title: commission.title,
                 description: commission.description,
-                price: format_to_currency(Number(commission.price / 100)),
+                price: formatToCurrency(Number(commission.price / 100)),
                 availability: commission.availability,
                 rating: Number(commission.rating),
                 published: commission.published,

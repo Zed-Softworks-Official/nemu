@@ -29,12 +29,18 @@ export async function GET(
 
     if (!res) return notFound()
 
-    const fileBody = (await fetch(get_ut_url(res.product.download.ut_key))).body
+    const response = await fetch(get_ut_url(res.product.download.utKey))
+    if (!response.ok) {
+        console.error('Failed to fetch download', response)
+        return new NextResponse('Failed to fetch download', { status: 500 })
+    }
 
+    const fileBody = response.body
     return new NextResponse(fileBody, {
         headers: {
             'Content-Type': 'application/octet-stream',
-            'Content-Disposition': `attachment; filename="${res.product.download.filename}"`
+            'Content-Disposition': `attachment; filename="${res.product.download.filename}"`,
+            'Content-Length': res.product.download.size.toString()
         }
     })
 }

@@ -86,7 +86,7 @@ export async function GET(
             customer: stripeCustomer,
             line_items: [
                 {
-                    price: productData.price_id,
+                    price: productData.priceId,
                     quantity: 1
                 }
             ],

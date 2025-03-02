@@ -35,7 +35,7 @@ import {
 } from '~/components/ui/card'
 import { Switch } from '~/components/ui/switch'
 
-import { format_file_size } from '~/lib/utils'
+import { formatFileSize } from '~/lib/utils'
 import { type DownloadData } from '~/lib/structures'
 
 import { api, type RouterOutputs } from '~/trpc/react'
@@ -48,52 +48,92 @@ const MarkdownEditor = dynamic(
     }
 )
 
-const productSchema = z.object({
-    name: z.string().min(2).max(64),
-    description: z.any(),
-    price: z
-        .string()
-        .refine((val) => !isNaN(Number(val)), {
-            message: 'Price must be a number'
-        })
-        .refine((val) => Number(val) >= 1, {
-            message: 'Price must be greater than 0'
-        }),
-    images: z.array(z.string()).min(1).max(5),
-    download: z.string().min(1),
-    is_free: z.boolean()
-})
+const productSchema = z
+    .object({
+        name: z.string().min(2).max(64),
+        description: z.any(),
+        price: z.union([z.string(), z.number()]),
+        images: z.array(z.string()).min(1).max(5),
+        download: z.string().min(1),
+        is_free: z.boolean()
+    })
+    .superRefine((data, ctx) => {
+        const numericPrice =
+            typeof data.price === 'string' ? parseFloat(data.price) : data.price
+        if (!data.is_free) {
+            if (isNaN(numericPrice) || numericPrice <= 0 || numericPrice < 1) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    message: 'Price must be a number greater than 0',
+                    path: ['price']
+                })
+            }
+        } else {
+            if (!(data.price === 0 || data.price === '0' || data.price === '')) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    message: 'Price must be 0 if product is free',
+                    path: ['price']
+                })
+            }
+        }
+    })
 
 type ProductSchemaType = z.infer<typeof productSchema>
 
-export function CreateForm() {
-    const [currentFile, setCurrentFile] = useState<DownloadData | undefined>()
+type ProductFormProps = {
+    mode: 'create' | 'update'
+    initialData?: {
+        id: string
+        name: string
+        description: JSONContent
+        price: number
+        images: string[]
+        download: DownloadData
+        is_free: boolean
+    }
+}
+
+export function ProductForm({ mode, initialData }: ProductFormProps) {
+    const [currentFile, setCurrentFile] = useState<DownloadData | undefined>(
+        initialData?.download
+    )
     const router = useRouter()
+
+    const defaultValues =
+        mode === 'create'
+            ? {
+                  name: '',
+                  description: '',
+                  price: '0',
+                  images: [],
+                  download: '',
+                  is_free: false
+              }
+            : {
+                  name: initialData!.name,
+                  description: JSON.stringify(initialData!.description),
+                  price: (initialData!.price / 100).toFixed(2),
+                  images: initialData!.images,
+                  download: initialData!.download.utKey,
+                  is_free: initialData!.is_free
+              }
 
     const form = useForm<ProductSchemaType>({
         resolver: zodResolver(productSchema),
         mode: 'onSubmit',
-        defaultValues: {
-            name: '',
-            description: '',
-            price: '1.00',
-            images: [],
-            download: '',
-            is_free: false
-        }
+        defaultValues
     })
 
     const createProduct = api.artist_corner.set_product.useMutation({
         onMutate: () => {
             const toast_id = toast.loading('Creating Product')
-
             return { toast_id }
         },
         onSuccess: (_, __, ctx) => {
             toast.success('Product Created', {
                 id: ctx.toast_id
             })
-
             router.push('/dashboard/artist-corner')
         },
         onError: (_, __, ctx) => {
@@ -103,19 +143,56 @@ export function CreateForm() {
         }
     })
 
+    const updateProduct = api.artist_corner.update_product.useMutation({
+        onMutate: () => {
+            const toast_id = toast.loading('Updating Product')
+            return { toast_id }
+        },
+        onSuccess: (_, __, ctx) => {
+            toast.success('Product Updated', {
+                id: ctx.toast_id
+            })
+            router.push('/dashboard/artist-corner')
+        },
+        onError: (_, __, ctx) => {
+            toast.error('Failed to update product', {
+                id: ctx?.toast_id
+            })
+        }
+    })
+
+    const mutation = mode === 'create' ? createProduct : updateProduct
+
     const process_form = async (data: ProductSchemaType) => {
         if (!currentFile) {
             toast.error('Download File Invalid')
             return
         }
 
-        createProduct.mutate({
+        const commonData = {
             ...data,
             price: Number(data.price) * 100,
             download: currentFile,
-            description: data.description as JSONContent
-        })
+            description:
+                mode === 'create'
+                    ? (data.description as JSONContent)
+                    : JSON.stringify(data.description)
+        }
+
+        if (mode === 'create') {
+            createProduct.mutate(commonData)
+        } else if (initialData) {
+            updateProduct.mutate({
+                ...commonData,
+                id: initialData.id
+            })
+        }
     }
+
+    const cancelHref =
+        mode === 'create'
+            ? '/dashboard/artist-corner'
+            : `/dashboard/artist-corner/${initialData?.id}`
 
     return (
         <Form {...form}>
@@ -147,7 +224,14 @@ export function CreateForm() {
                         <FormItem>
                             <FormLabel>Description:</FormLabel>
                             <FormControl>
-                                <MarkdownEditor onUpdate={field.onChange} />
+                                <MarkdownEditor
+                                    onUpdate={field.onChange}
+                                    content={
+                                        mode === 'update'
+                                            ? initialData?.description
+                                            : undefined
+                                    }
+                                />
                             </FormControl>
                             <FormMessage />
                         </FormItem>
@@ -247,7 +331,6 @@ export function CreateForm() {
                         endpoint={'productDownloadUploader'}
                         onUploadBegin={() => {
                             if (!currentFile) return
-
                             setCurrentFile(undefined)
                         }}
                         onClientUploadComplete={(res) => {
@@ -257,7 +340,7 @@ export function CreateForm() {
                             setCurrentFile({
                                 filename: res[0].name,
                                 size: res[0].size,
-                                ut_key: res[0].key
+                                utKey: res[0].key
                             })
                         }}
                         onUploadError={(error) => {
@@ -271,7 +354,7 @@ export function CreateForm() {
                             <CardHeader>
                                 <CardTitle>{currentFile.filename}</CardTitle>
                                 <CardDescription>
-                                    {format_file_size(currentFile.size)}
+                                    {formatFileSize(currentFile.size ?? 0)}
                                 </CardDescription>
                             </CardHeader>
                         </Card>
@@ -279,17 +362,17 @@ export function CreateForm() {
                 </FormItem>
                 <div className="flex w-full justify-between">
                     <Button variant="outline" asChild>
-                        <Link href="/dashboard/artist-corner">Cancel</Link>
+                        <Link href={cancelHref}>Cancel</Link>
                     </Button>
                     <Button
                         type="submit"
                         disabled={
-                            !form.formState.isValid ||
-                            createProduct.isPending ||
-                            createProduct.isSuccess
+                            (mode === 'create' && !form.formState.isValid) ||
+                            mutation.isPending ||
+                            mutation.isSuccess
                         }
                     >
-                        Create
+                        {mode === 'create' ? 'Create' : 'Update'}
                     </Button>
                 </div>
             </form>
@@ -297,229 +380,27 @@ export function CreateForm() {
     )
 }
 
+export function CreateForm() {
+    return <ProductForm mode="create" />
+}
+
 export function UpdateForm(props: {
     product: NonNullable<
         RouterOutputs['artist_corner']['get_product_by_id_dashboard']['product']
     >
 }) {
-    const [currentFile, setCurrentFile] = useState<DownloadData>(props.product.download)
-    const router = useRouter()
-
-    const form = useForm<ProductSchemaType>({
-        resolver: zodResolver(productSchema),
-        mode: 'onSubmit',
-        defaultValues: {
-            name: props.product.name,
-            description: JSON.stringify(props.product.description),
-            price: (props.product.price / 100).toFixed(2),
-            images: props.product.images,
-            download: props.product.download.ut_key,
-            is_free: props.product.is_free
-        }
-    })
-
-    const updateProduct = api.artist_corner.update_product.useMutation({
-        onMutate: () => {
-            const toast_id = toast.loading('Updating Product')
-
-            return { toast_id }
-        },
-        onSuccess: (_, __, ctx) => {
-            toast.success('Product Updated', {
-                id: ctx.toast_id
-            })
-
-            router.push('/dashboard/artist-corner')
-        },
-        onError: (_, __, ctx) => {
-            toast.error('Failed to create product', {
-                id: ctx?.toast_id
-            })
-        }
-    })
-
-    const process_form = async (data: ProductSchemaType) => {
-        updateProduct.mutate({
-            ...data,
-            id: props.product.id,
-            download: currentFile,
-            price: Number(data.price) * 100,
-            description: JSON.stringify(data.description)
-        })
-    }
-
     return (
-        <Form {...form}>
-            <form
-                className="flex flex-col gap-4"
-                onSubmit={form.handleSubmit(process_form)}
-            >
-                <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Name:</FormLabel>
-                            <FormControl>
-                                <Input
-                                    className="bg-secondary"
-                                    placeholder="Product Name"
-                                    {...field}
-                                />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Description:</FormLabel>
-                            <FormControl>
-                                <MarkdownEditor
-                                    onUpdate={field.onChange}
-                                    content={props.product.description}
-                                />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <FormItem>
-                    <FormLabel>Images:</FormLabel>
-                    <UploadDropzone
-                        endpoint={'productImageUploader'}
-                        onClientUploadComplete={(res) => {
-                            form.setValue(
-                                'images',
-                                res.map((image) => image.key)
-                            )
-                        }}
-                        onUploadError={(error) => {
-                            toast.error('Oh Nyo! Something went wrong', {
-                                description: error.message
-                            })
-                        }}
-                    />
-                    {form.watch('images').length > 0 && (
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Preview</CardTitle>
-                            </CardHeader>
-                            <CardContent className="flex gap-2 overflow-x-auto">
-                                {form.watch('images').map((image) => (
-                                    <div className="relative" key={image}>
-                                        <Image
-                                            src={`https://utfs.io/a/${env.NEXT_PUBLIC_UPLOADTHING_APP_ID}/${image}`}
-                                            alt="Product Image"
-                                            width={200}
-                                            height={200}
-                                            className="rounded-md object-cover"
-                                        />
-                                        <Button
-                                            variant={'ghost'}
-                                            size="icon"
-                                            className="absolute top-2 right-2"
-                                            onClick={() => {
-                                                form.setValue(
-                                                    'images',
-                                                    form
-                                                        .getValues('images')
-                                                        .filter((i) => i !== image)
-                                                )
-                                            }}
-                                        >
-                                            <Trash2 className="size-4" />
-                                        </Button>
-                                    </div>
-                                ))}
-                            </CardContent>
-                        </Card>
-                    )}
-                </FormItem>
-                <FormField
-                    control={form.control}
-                    name="is_free"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Is Free:</FormLabel>
-                            <FormControl>
-                                <Switch
-                                    checked={field.value}
-                                    onCheckedChange={field.onChange}
-                                />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                {!form.watch('is_free') && (
-                    <FormField
-                        control={form.control}
-                        name="price"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Price:</FormLabel>
-                                <FormControl>
-                                    <Input
-                                        className="bg-secondary"
-                                        type="number"
-                                        placeholder="6.90"
-                                        {...field}
-                                    />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                )}
-                <FormItem>
-                    <FormLabel>File:</FormLabel>
-                    <UploadDropzone
-                        endpoint={'productDownloadUploader'}
-                        onClientUploadComplete={(res) => {
-                            if (!res[0]) return
-
-                            form.setValue('download', res[0].key)
-                            setCurrentFile({
-                                filename: res[0].name,
-                                size: res[0].size,
-                                ut_key: res[0].key
-                            })
-                        }}
-                        onUploadError={(error) => {
-                            toast.error('Oh Nyo! Something went wrong', {
-                                description: error.message
-                            })
-                        }}
-                    />
-                    {currentFile && (
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>{currentFile.filename}</CardTitle>
-                                <CardDescription>
-                                    {format_file_size(currentFile.size ?? 0)}
-                                </CardDescription>
-                            </CardHeader>
-                        </Card>
-                    )}
-                </FormItem>
-                <div className="flex w-full justify-between">
-                    <Button variant="outline" asChild>
-                        <Link href={`/dashboard/artist-corner/${props.product.id}`}>
-                            Cancel
-                        </Link>
-                    </Button>
-                    <Button
-                        type="submit"
-                        disabled={updateProduct.isPending || updateProduct.isSuccess}
-                    >
-                        Update
-                    </Button>
-                </div>
-            </form>
-        </Form>
+        <ProductForm
+            mode="update"
+            initialData={{
+                id: props.product.id,
+                name: props.product.name,
+                description: props.product.description!,
+                price: props.product.price,
+                images: props.product.images,
+                download: props.product.download,
+                is_free: props.product.is_free
+            }}
+        />
     )
 }

@@ -5,7 +5,7 @@ import { type JSONContent } from '@tiptap/react'
 import { commissions, products } from '~/server/db/schema'
 import { createTRPCRouter, publicProcedure } from '~/server/api/trpc'
 
-import { format_to_currency, get_ut_url } from '~/lib/utils'
+import { formatToCurrency, get_ut_url } from '~/lib/utils'
 import type { CommissionAvailability } from '~/lib/structures'
 import { cache, get_redis_key } from '~/server/redis'
 
@@ -63,7 +63,7 @@ export const home_router = createTRPCRouter({
                 slug: commission.slug,
                 availability: commission.availability,
                 featured_image: get_ut_url(commission.images[0]?.ut_key ?? ''),
-                price: format_to_currency(commission.price / 100),
+                price: formatToCurrency(commission.price / 100),
                 artist: {
                     handle: commission.artist.handle
                 }
@@ -99,7 +99,7 @@ export const home_router = createTRPCRouter({
                 name: product.name,
                 description: product.description,
                 featured_image: get_ut_url(product.images[0] ?? ''),
-                price: format_to_currency(product.price / 100),
+                price: formatToCurrency(product.price / 100),
                 artist: {
                     handle: product.artist.handle
                 }
@@ -125,7 +125,7 @@ export const home_router = createTRPCRouter({
                     name: product.name,
                     description: product.description,
                     featured_image: get_ut_url(product.images[0] ?? ''),
-                    price: format_to_currency(product.price / 100),
+                    price: formatToCurrency(product.price / 100),
                     artist: {
                         handle: product.artist.handle
                     }

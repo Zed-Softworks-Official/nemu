@@ -8,7 +8,7 @@ import { Separator } from '~/components/ui/separator'
 import { Skeleton } from '~/components/ui/skeleton'
 import { TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 import { SocialAgent } from '~/lib/structures'
-import { cn, format_to_currency } from '~/lib/utils'
+import { cn, formatToCurrency } from '~/lib/utils'
 import { api } from '~/trpc/react'
 import Link from 'next/link'
 import { Badge } from '~/components/ui/badge'
@@ -269,9 +269,7 @@ function CommissionsList(props: { handle: string }) {
                                         FROM
                                     </span>
                                     <span className="text-lg font-medium">
-                                        {format_to_currency(
-                                            Number(commission.price) / 100
-                                        )}
+                                        {formatToCurrency(Number(commission.price) / 100)}
                                     </span>
                                 </div>
                                 <Button size="lg" asChild>
