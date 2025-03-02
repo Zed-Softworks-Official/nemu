@@ -27,7 +27,7 @@ export function GenerateAristCode() {
     const [toastId, setToastId] = useState<string | number | null>(null)
     const [generatedCodes, setGeneratedCodes] = useState<string[]>([])
 
-    const mutation = api.artist_verification.generate_artist_code.useMutation({
+    const mutation = api.artistVerification.generateArtistCode.useMutation({
         onMutate: () => {
             setToastId(toast.loading('Generating codes...'))
         },
@@ -39,7 +39,7 @@ export function GenerateAristCode() {
                 id: toastId
             })
 
-            void utils.artist_verification.get_artist_codes.invalidate()
+            void utils.artistVerification.getArtistCodes.invalidate()
         },
         onError: (error) => {
             if (!toastId) return
@@ -120,7 +120,7 @@ export function GenerateAristCode() {
 }
 
 export function CurrentArtistCodes() {
-    const { data, isLoading } = api.artist_verification.get_artist_codes.useQuery()
+    const { data, isLoading } = api.artistVerification.getArtistCodes.useQuery()
 
     if (isLoading) {
         return (

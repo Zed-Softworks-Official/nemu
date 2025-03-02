@@ -62,7 +62,7 @@ export function InvoiceEditor() {
 
     const utils = api.useUtils()
 
-    const updateItems = api.request.update_invoice_items.useMutation({
+    const updateItems = api.request.updateInvoiceItems.useMutation({
         onMutate: () => {
             const toast_id = toast.loading('Updating Invoice...')
 
@@ -80,7 +80,7 @@ export function InvoiceEditor() {
         }
     })
 
-    const sendInvoice = api.request.send_invoice.useMutation({
+    const sendInvoice = api.request.setInvoice.useMutation({
         onMutate: () => {
             const toast_id = toast.loading('Sending Invoice...')
 
@@ -96,7 +96,7 @@ export function InvoiceEditor() {
                 id: context?.toast_id
             })
 
-            void utils.request.get_request_by_id.invalidate()
+            void utils.request.getRequestById.invalidate()
         }
     })
 

@@ -47,7 +47,7 @@ type SchemaType = z.infer<typeof schema>
 
 export function CreateForm() {
     const { uploadImages } = useNemuUploadThing()
-    const createPortfolio = api.portfolio.set_portfolio.useMutation()
+    const createPortfolio = api.portfolio.setPortfolio.useMutation()
 
     const form = useForm<SchemaType>({
         resolver: zodResolver(schema),
@@ -136,7 +136,7 @@ export function UpdateForm(props: { id: string }) {
     const router = useRouter()
     const utils = api.useUtils()
 
-    const updatePortfolio = api.portfolio.update_portfolio.useMutation({
+    const updatePortfolio = api.portfolio.updatePortfolio.useMutation({
         onMutate: () => {
             const toast_id = toast.loading('Updating Portfolio')
 
@@ -154,12 +154,12 @@ export function UpdateForm(props: { id: string }) {
                 id: context?.toast_id
             })
 
-            void utils.portfolio.get_portfolio_list.invalidate()
+            void utils.portfolio.getPortfolioList.invalidate()
             router.push('/dashboard/portfolio')
         }
     })
 
-    const destroyPortfolio = api.portfolio.destroy_portfolio.useMutation({
+    const destroyPortfolio = api.portfolio.destroyPortfolio.useMutation({
         onMutate: () => {
             const toast_id = toast.loading('Deleting Portfolio')
 
@@ -177,12 +177,12 @@ export function UpdateForm(props: { id: string }) {
                 id: context?.toast_id
             })
 
-            void utils.portfolio.get_portfolio_list.invalidate()
+            void utils.portfolio.getPortfolioList.invalidate()
             router.push('/dashboard/portfolio')
         }
     })
 
-    const { data: portfolio, isLoading } = api.portfolio.get_portfolio_by_id.useQuery({
+    const { data: portfolio, isLoading } = api.portfolio.getPortfolioById.useQuery({
         id: props.id
     })
 

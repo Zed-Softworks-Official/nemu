@@ -75,8 +75,8 @@ export function CreateForm() {
     })
 
     const { data, isLoading: formsLoading } =
-        api.request.get_forms_list_and_payment_method.useQuery()
-    const createCommission = api.commission.set_commission.useMutation()
+        api.request.getFormsListAndPaymentMethod.useQuery()
+    const createCommission = api.commission.setCommission.useMutation()
 
     const process_form = async (values: CommissionSchemaType) => {
         const toast_id = toast.loading('Uploading Images')
@@ -431,7 +431,7 @@ export function UpdateForm(props: { commission: ClientCommissionItemEditable }) 
         }
     })
 
-    const updateCommission = api.commission.update_commission.useMutation()
+    const updateCommission = api.commission.updateCommission.useMutation()
 
     const process_form = async (values: UpdateSchemaType) => {
         const toast_id = toast.loading('Uploading Images')

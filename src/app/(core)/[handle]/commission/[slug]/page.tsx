@@ -8,7 +8,7 @@ type Props = { params: Promise<{ handle: string; slug: string }> }
 export async function generateMetadata(props: Props): Promise<Metadata> {
     const params = await props.params
     const handle = params.handle.substring(3, params.handle.length + 1)
-    const commission = await api.commission.get_commission({
+    const commission = await api.commission.getCommission({
         handle,
         slug: params.slug
     })

@@ -125,7 +125,7 @@ export function ProductForm({ mode, initialData }: ProductFormProps) {
         defaultValues
     })
 
-    const createProduct = api.artist_corner.set_product.useMutation({
+    const createProduct = api.artistCorner.setProduct.useMutation({
         onMutate: () => {
             const toast_id = toast.loading('Creating Product')
             return { toast_id }
@@ -143,7 +143,7 @@ export function ProductForm({ mode, initialData }: ProductFormProps) {
         }
     })
 
-    const updateProduct = api.artist_corner.update_product.useMutation({
+    const updateProduct = api.artistCorner.updateProduct.useMutation({
         onMutate: () => {
             const toast_id = toast.loading('Updating Product')
             return { toast_id }
@@ -386,7 +386,7 @@ export function CreateForm() {
 
 export function UpdateForm(props: {
     product: NonNullable<
-        RouterOutputs['artist_corner']['get_product_by_id_dashboard']['product']
+        RouterOutputs['artistCorner']['getProductByIdDashboard']['product']
     >
 }) {
     return (

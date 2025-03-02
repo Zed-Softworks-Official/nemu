@@ -7,15 +7,15 @@ import {
     StripeCreateAccountLink,
     StripeCreateLoginLink
 } from '~/lib/payments'
-import { get_redis_key } from '~/server/redis'
+import { getRedisKey } from '~/server/redis'
 
-export const stripe_router = createTRPCRouter({
-    get_dashboard_links: artistProcedure.query(async ({ ctx }) => {
-        const redis_key = get_redis_key('dashboard_links', ctx.artist.id)
-        const cached_data = await ctx.redis.get(redis_key)
+export const stripeRouter = createTRPCRouter({
+    getDashboardLinks: artistProcedure.query(async ({ ctx }) => {
+        const redisKey = getRedisKey('dashboard_links', ctx.artist.id)
+        const cachedData = await ctx.redis.get(redisKey)
 
-        if (cached_data) {
-            return cached_data as StripeDashboardData
+        if (cachedData) {
+            return cachedData as StripeDashboardData
         }
 
         const result: StripeDashboardData = {
@@ -26,24 +26,24 @@ export const stripe_router = createTRPCRouter({
             }
         }
 
-        const stripe_account = await StripeGetAccount(ctx.artist.stripe_account)
+        const stripeAccount = await StripeGetAccount(ctx.artist.stripe_account)
 
         // If the user has not completed the onboarding, return an onboarding url
         // else return the stripe connect url
-        if (!stripe_account.charges_enabled) {
+        if (!stripeAccount.charges_enabled) {
             result.managment = {
                 type: 'onboarding',
-                url: (await StripeCreateAccountLink(stripe_account.id)).url
+                url: (await StripeCreateAccountLink(stripeAccount.id)).url
             }
         } else {
             result.onboarded = true
             result.managment = {
                 type: 'dashboard',
-                url: (await StripeCreateLoginLink(stripe_account.id)).url
+                url: (await StripeCreateLoginLink(stripeAccount.id)).url
             }
         }
 
-        await ctx.redis.set(redis_key, result, {
+        await ctx.redis.set(redisKey, result, {
             ex: 3600
         })
 

@@ -38,7 +38,7 @@ export default function ArtistApplySuccessPage() {
 }
 
 async function ArtistOnboardingButton() {
-    const dashboard_links = await api.stripe.get_dashboard_links()
+    const dashboard_links = await api.stripe.getDashboardLinks()
 
     return (
         <Button asChild size={'lg'}>

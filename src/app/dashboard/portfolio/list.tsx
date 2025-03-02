@@ -6,7 +6,7 @@ import Loading from '~/components/ui/loading'
 import { api } from '~/trpc/react'
 
 export function PortfolioList() {
-    const { data, isLoading } = api.portfolio.get_portfolio_list.useQuery()
+    const { data, isLoading } = api.portfolio.getPortfolioList.useQuery()
 
     if (isLoading) {
         return <Loading />

@@ -8,7 +8,7 @@ import Loading from '~/components/ui/loading'
 type StandardOrderContextType = {
     order_id: string
 
-    request_data: RouterOutputs['request']['get_request_by_id']
+    request_data: RouterOutputs['request']['getRequestById']
 }
 
 const StandardOrderContext = createContext<StandardOrderContextType | null>(null)
@@ -19,7 +19,7 @@ export function StandardOrderProvider(props: {
 }) {
     const [orderId] = useState(props.order_id)
 
-    const { data: request_data, isLoading } = api.request.get_request_by_id.useQuery({
+    const { data: request_data, isLoading } = api.request.getRequestById.useQuery({
         order_id: props.order_id,
         requester: 'user'
     })

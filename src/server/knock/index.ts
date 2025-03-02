@@ -86,7 +86,7 @@ export type WorkflowData = {
       }
 )
 
-export async function send_notification(data: WorkflowData) {
+export async function sendNotification(data: WorkflowData) {
     return await knock.workflows.trigger(data.type, {
         recipients: data.recipients,
         data: data.data,

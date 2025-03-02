@@ -9,7 +9,7 @@ import { api, type RouterOutputs } from '~/trpc/react'
 import { Button } from '~/components/ui/button'
 
 export function ConTable() {
-    const { data: cons, isLoading } = api.con.get_cons.useQuery()
+    const { data: cons, isLoading } = api.con.getCons.useQuery()
 
     if (isLoading) return <Loading />
 
@@ -46,7 +46,7 @@ export function ConTable() {
                     cellRenderer: ({
                         data
                     }: {
-                        data: RouterOutputs['con']['get_cons'][number]
+                        data: RouterOutputs['con']['getCons'][number]
                     }) => {
                         return (
                             <Button asChild variant={'ghost'} size={'icon'}>

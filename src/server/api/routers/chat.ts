@@ -7,13 +7,13 @@ import { z } from 'zod'
 import { clerkClient } from '@clerk/nextjs/server'
 
 import { chats } from '~/server/db/schema'
-import { get_redis_key, redis } from '~/server/redis'
+import { getRedisKey, redis } from '~/server/redis'
 import type { Chat, Message } from '~/lib/structures'
-import { pusher_server } from '~/server/pusher'
-import { to_pusher_key } from '~/lib/utils'
+import { pusherServer } from '~/server/pusher'
+import { toPusherKey } from '~/lib/utils'
 
-export const chat_router = createTRPCRouter({
-    get_chats: protectedProcedure.query(async ({ ctx }) => {
+export const chatRouter = createTRPCRouter({
+    getChats: protectedProcedure.query(async ({ ctx }) => {
         const all_chats = await ctx.db.query.chats.findMany({
             where: arrayContains(chats.user_ids, [ctx.auth.userId]),
             with: {
@@ -65,7 +65,7 @@ export const chat_router = createTRPCRouter({
         return result
     }),
 
-    get_chat: protectedProcedure
+    getChat: protectedProcedure
         .input(
             z.object({
                 chat_id: z.string()
@@ -73,8 +73,8 @@ export const chat_router = createTRPCRouter({
         )
         .mutation(async ({ ctx, input }) => {
             const clerk_client = await clerkClient()
-            const redis_key = get_redis_key('chats', input.chat_id)
-            const chat: Chat | null = await redis.json.get(redis_key)
+            const redisKey = getRedisKey('chats', input.chat_id)
+            const chat: Chat | null = await redis.json.get(redisKey)
 
             if (!chat) {
                 throw new TRPCError({
@@ -106,7 +106,7 @@ export const chat_router = createTRPCRouter({
             }
         }),
 
-    send_message: protectedProcedure
+    sendMessage: protectedProcedure
         .input(
             z.object({
                 chat_id: z.string(),
@@ -115,8 +115,8 @@ export const chat_router = createTRPCRouter({
             })
         )
         .mutation(async ({ ctx, input }) => {
-            const redis_key = get_redis_key('chats', input.chat_id)
-            const chat: Chat | null = await redis.json.get(redis_key)
+            const redisKey = getRedisKey('chats', input.chat_id)
+            const chat: Chat | null = await redis.json.get(redisKey)
 
             if (!chat) {
                 throw new TRPCError({
@@ -147,12 +147,12 @@ export const chat_router = createTRPCRouter({
                 timestamp: Date.now()
             }
 
-            await pusher_server.trigger(
-                to_pusher_key(`${input.chat_id}:messages`),
+            await pusherServer.trigger(
+                toPusherKey(`${input.chat_id}:messages`),
                 'message',
                 message
             )
 
-            await redis.json.arrappend(redis_key, '$.messages', message)
+            await redis.json.arrappend(redisKey, '$.messages', message)
         })
 })

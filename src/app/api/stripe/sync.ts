@@ -5,9 +5,9 @@ import { env } from '~/env'
 
 import { db } from '~/server/db'
 import { artists, invoices, purchase } from '~/server/db/schema'
-import { KnockWorkflows, send_notification } from '~/server/knock'
+import { KnockWorkflows, sendNotification } from '~/server/knock'
 import { stripe } from '~/server/stripe'
-import { get_redis_key, redis } from '~/server/redis'
+import { getRedisKey, redis } from '~/server/redis'
 
 import {
     type StripeSubData,
@@ -67,14 +67,14 @@ export async function sync_sub_stripe_data(customer_id: string) {
 
     if (subscriptions.data.length === 0) {
         const subData = { status: 'none' } satisfies StripeSubData
-        await redis.set(get_redis_key('stripe:customer', customer_id), subData)
+        await redis.set(getRedisKey('stripe:customer', customer_id), subData)
         return subData
     }
 
     const subscription = subscriptions.data[0]
     if (!subscription) {
         const subData = { status: 'none' } satisfies StripeSubData
-        await redis.set(get_redis_key('stripe:customer', customer_id), subData)
+        await redis.set(getRedisKey('stripe:customer', customer_id), subData)
         return subData
     }
 
@@ -95,7 +95,7 @@ export async function sync_sub_stripe_data(customer_id: string) {
                 : null
     } satisfies StripeSubData
 
-    await redis.set(get_redis_key('stripe:customer', customer_id), subData)
+    await redis.set(getRedisKey('stripe:customer', customer_id), subData)
     return subData
 }
 
@@ -115,14 +115,14 @@ async function invoice_paid(invoice_id: string, stripe_account: string) {
     }
 
     const invoice_data = await redis.get<StripeInvoiceData>(
-        get_redis_key('invoices', invoice_id)
+        getRedisKey('invoices', invoice_id)
     )
 
     if (!invoice_data) {
         throw new Error('[STRIPE HOOK] Invoice not found')
     }
 
-    await redis.set(get_redis_key('invoices', invoice_id), {
+    await redis.set(getRedisKey('invoices', invoice_id), {
         ...invoice_data,
         status: 'paid'
     } satisfies StripeInvoiceData)
@@ -162,7 +162,7 @@ async function invoice_paid(invoice_id: string, stripe_account: string) {
         throw new Error('[STRIPE HOOK] Invoice not found')
     }
 
-    await send_notification({
+    await sendNotification({
         type: KnockWorkflows.InvoicePaid,
         recipients: [invoice.artist.user_id],
         data: {
@@ -198,7 +198,7 @@ async function account_updated(stripe_account: string) {
         })
         .where(eq(artists.id, artist.id))
 
-    const redis_promise = redis.del(get_redis_key('dashboard_links', artist.id))
+    const redis_promise = redis.del(getRedisKey('dashboard_links', artist.id))
 
     await Promise.all([update_promise, redis_promise])
 }
@@ -206,11 +206,11 @@ async function account_updated(stripe_account: string) {
 export async function is_supporter(user_id: string) {
     let supporter = false
     const stripe_customer_id = await redis.get<string>(
-        get_redis_key('stripe:user', user_id)
+        getRedisKey('stripe:user', user_id)
     )
     if (stripe_customer_id) {
         const sub_data = await redis.get<StripeSubData>(
-            get_redis_key('stripe:customer', stripe_customer_id)
+            getRedisKey('stripe:customer', stripe_customer_id)
         )
 
         if (sub_data?.status === 'active') {

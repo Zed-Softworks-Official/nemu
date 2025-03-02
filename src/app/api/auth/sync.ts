@@ -6,7 +6,7 @@ import { artists } from '~/server/db/schema'
 
 import type { NemuPublicUserMetadata, UserRole } from '~/lib/structures'
 import { eq } from 'drizzle-orm'
-import { update_index } from '~/server/algolia/collections'
+import { updateIndex } from '~/server/algolia/collections'
 
 export async function sync_clerk_data(event: WebhookEvent) {
     switch (event.type) {
@@ -51,7 +51,7 @@ async function user_updated(clerk_id: string, role: UserRole, image_url: string)
 
     if (!artist) return
 
-    await update_index('artists', {
+    await updateIndex('artists', {
         objectID: artist.id,
         handle: artist.handle,
         about: artist.about,

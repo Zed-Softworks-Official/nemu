@@ -6,8 +6,7 @@ import Loading from '~/components/ui/loading'
 import { api } from '~/trpc/react'
 
 export default function VertificationDataTable() {
-    const { data, isLoading } =
-        api.artist_verification.get_artist_verifications.useQuery()
+    const { data, isLoading } = api.artistVerification.getArtistVerifications.useQuery()
 
     if (isLoading) {
         return (

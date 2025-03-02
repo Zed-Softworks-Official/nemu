@@ -13,7 +13,7 @@ import { Badge } from '~/components/ui/badge'
 import { Eye } from 'lucide-react'
 
 export function RequestTable() {
-    const { data: requests, isLoading } = api.request.get_request_list.useQuery()
+    const { data: requests, isLoading } = api.request.getRequestList.useQuery()
 
     if (isLoading) {
         return <Loading />
