@@ -27,7 +27,7 @@ export default async function ConPage(props: { params: Promise<{ slug: string }>
         return redirect('/')
     }
 
-    if (validSlug.is_expired) {
+    if (validSlug.isExpired) {
         toast.error('This con link has expired')
         return redirect('/')
     }

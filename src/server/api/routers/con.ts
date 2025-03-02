@@ -53,6 +53,7 @@ export const conRouter = createTRPCRouter({
         .query(async ({ ctx, input }) => {
             return await cache(
                 getRedisKey('con', input.slug),
+
                 async () => {
                     const con = await ctx.db.query.con_sign_up.findFirst({
                         where: eq(con_sign_up.slug, input.slug)
@@ -61,8 +62,8 @@ export const conRouter = createTRPCRouter({
                     if (!con) return null
 
                     return {
-                        is_valid: true,
-                        is_expired: con.expires_at < new Date(),
+                        isValid: true,
+                        isExpired: con.expires_at < new Date(),
                         name: con.name
                     }
                 },
