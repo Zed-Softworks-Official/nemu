@@ -86,10 +86,10 @@ export const artistCornerRouter = createTRPCRouter({
             // Add to algolia
             await setIndex('products', {
                 objectID: id,
-                id,
                 artistHandle: ctx.artist.handle,
                 name: input.name,
                 price: formatToCurrency(input.price / 100),
+                priceRaw: input.price,
                 imageUrl: getUTUrl(input.images[0] ?? ''),
                 published: false
             })
@@ -285,6 +285,7 @@ export const artistCornerRouter = createTRPCRouter({
                     objectID: input.id,
                     ...items,
                     price: input.price ? formatToCurrency(input.price / 100) : undefined,
+                    priceRaw: input.price ?? undefined,
                     imageUrl: input.images[0] ? getUTUrl(input.images[0]) : undefined
                 } satisfies ProductEditIndex)
 

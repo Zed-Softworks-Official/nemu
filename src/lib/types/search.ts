@@ -54,7 +54,7 @@ export type ProductIndex = {
     artistHandle: string
     name: string
     price: string
-    id: string
+    priceRaw: number
     imageUrl: string
     published: boolean
 } & BaseSearchIndex
@@ -63,7 +63,7 @@ export type ProductEditIndex = {
     artistHandle?: string
     name?: string
     price?: string
-    id?: string
+    priceRaw?: number
     imageUrl?: string
     published?: boolean
 } & BaseSearchIndex

@@ -171,7 +171,7 @@ function ProductHit(props: { hit: ProductIndex }) {
     return (
         <CommandItem className="rounded-xl">
             <Link
-                href={`/@${props.hit.artistHandle}/artist-corner/${props.hit.id}`}
+                href={`/@${props.hit.artistHandle}/artist-corner/${props.hit.objectID}`}
                 className="flex flex-row items-center gap-3"
             >
                 <NemuImage
