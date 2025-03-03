@@ -231,6 +231,7 @@ export function ProductForm({ mode, initialData }: ProductFormProps) {
                                             ? initialData?.description
                                             : undefined
                                     }
+                                    placeholder="Write a description for your product"
                                 />
                             </FormControl>
                             <FormMessage />
