@@ -48,13 +48,13 @@ export async function StripeUpdateInvoice(
     }
 ) {
     // Clear the invoice items if any
-    const line_items = await stripe.invoices.listLineItems(invoiceStripeId, {
+    const lineItems = await stripe.invoices.listLineItems(invoiceStripeId, {
         stripeAccount: stripeAccount
     })
 
-    if (line_items.data.length > 0) {
-        for (const line_item of line_items.data) {
-            await stripe.invoiceItems.del(line_item.id, {
+    if (lineItems.data.length > 0) {
+        for (const lineItem of lineItems.data) {
+            await stripe.invoiceItems.del(lineItem.id, {
                 stripeAccount: stripeAccount
             })
         }
@@ -76,7 +76,7 @@ export async function StripeUpdateInvoice(
 
     // Add downpayment discount if there is one
     if (downpayment && downpayment.index === 0) {
-        const stripe_discount = await stripe.coupons.create(
+        const stripeDiscount = await stripe.coupons.create(
             {
                 percent_off: Math.abs(downpayment.percentage - 100),
                 duration: 'once',
@@ -90,14 +90,14 @@ export async function StripeUpdateInvoice(
             {
                 discounts: [
                     {
-                        coupon: stripe_discount.id
+                        coupon: stripeDiscount.id
                     }
                 ]
             },
             { stripeAccount: stripeAccount }
         )
     } else if (downpayment && downpayment.index === 1) {
-        const stripe_discount = await stripe.coupons.create(
+        const stripeDiscount = await stripe.coupons.create(
             {
                 percent_off: downpayment.percentage,
                 duration: 'once',
@@ -113,7 +113,7 @@ export async function StripeUpdateInvoice(
             {
                 discounts: [
                     {
-                        coupon: stripe_discount.id
+                        coupon: stripeDiscount.id
                     }
                 ]
             },
@@ -141,9 +141,9 @@ export async function StripeFinalizeInvoice(
     })
 
     // Add Application fee to invoice
-    let application_fee_amount: number | undefined
+    let applicationFeeAmount: number | undefined
     if (!supporter) {
-        application_fee_amount = Math.floor(calculateApplicationFee(invoice.amount_due))
+        applicationFeeAmount = Math.floor(calculateApplicationFee(invoice.amount_due))
     }
 
     // Set the due date to 48 hours from now
@@ -152,7 +152,7 @@ export async function StripeFinalizeInvoice(
         {
             collection_method: 'send_invoice',
             days_until_due: 2,
-            application_fee_amount,
+            application_fee_amount: applicationFeeAmount,
             payment_settings: {
                 payment_method_types: ['card', 'link']
             }

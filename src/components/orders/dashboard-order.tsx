@@ -39,9 +39,9 @@ const DashboardOrderContext = createContext<DashboardOrderContextType | null>(nu
 
 export function DashboardOrderProvider(props: {
     children: React.ReactNode
-    order_id: string
+    orderId: string
 }) {
-    const [orderId, setOrderId] = useState(props.order_id)
+    const [orderId, setOrderId] = useState(props.orderId)
     const [containers, setContainers] = useState<KanbanContainerData[]>([])
     const [tasks, setTasks] = useState<KanbanTaskData[]>([])
     const [currentInvoice, setCurrentInvoice] = useState<InferSelectModel<
@@ -51,7 +51,7 @@ export function DashboardOrderProvider(props: {
     const [kanbanId, setKanbanId] = useState('')
 
     const { data: requestData, isLoading } = api.request.getRequestById.useQuery({
-        orderId: props.order_id,
+        orderId: props.orderId,
         requester: 'artist'
     })
 

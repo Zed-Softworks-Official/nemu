@@ -32,8 +32,8 @@ export const commissionRouter = createTRPCRouter({
                         utKey: z.string()
                     })
                 ),
-                maxCommissionsUntilWaitlist: z.number(),
-                maxCommissionsUntilClosed: z.number(),
+                maxCommissionsUntilWaitlist: z.number().min(0),
+                maxCommissionsUntilClosed: z.number().min(0),
                 published: z.boolean(),
                 formId: z.string(),
                 chargeMethod: z.enum(chargeMethods),
@@ -48,14 +48,14 @@ export const commissionRouter = createTRPCRouter({
                 .replaceAll(' ', '-')
 
             // Check if it already exists for the artist
-            const slug_exists = await ctx.db.query.commissions.findFirst({
+            const existingSlug = await ctx.db.query.commissions.findFirst({
                 where: and(
                     eq(commissions.artistId, ctx.artist.id),
                     eq(commissions.slug, slug)
                 )
             })
 
-            if (slug_exists) {
+            if (existingSlug) {
                 throw new TRPCError({
                     code: 'BAD_REQUEST',
                     message: 'Slug already exists'

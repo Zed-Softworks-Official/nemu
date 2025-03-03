@@ -72,7 +72,7 @@ export const dashboardRouter = createTRPCRouter({
                 ])
 
                 // Format the recent requests
-                const recent_requests: RecentSalesData['recentRequests'] = []
+                const recentRequests: RecentSalesData['recentRequests'] = []
                 for (const commission of requests_data) {
                     if (!commission.requests) {
                         continue
@@ -87,7 +87,7 @@ export const dashboardRouter = createTRPCRouter({
                             })
                         }
 
-                        recent_requests.push({
+                        recentRequests.push({
                             commissionTitle: commission.title,
                             requesterUsername: user.username ?? 'Unknown',
                             createdAt: request.createdAt.toLocaleDateString()
@@ -96,7 +96,7 @@ export const dashboardRouter = createTRPCRouter({
                 }
 
                 // Format the recent sales (invoices recently paid)
-                const recent_sales: RecentSalesData['recentSales'] = []
+                const recentSales: RecentSalesData['recentSales'] = []
                 for (const invoice of invoice_data) {
                     const user = await clerk.users.getUser(invoice.userId)
                     if (!user) {
@@ -106,7 +106,7 @@ export const dashboardRouter = createTRPCRouter({
                         })
                     }
 
-                    recent_sales.push({
+                    recentSales.push({
                         commissionTitle: invoice.request.commission.title,
                         requesterUsername: user.username ?? 'Unknown',
                         price: formatToCurrency(invoice.total)
@@ -114,17 +114,17 @@ export const dashboardRouter = createTRPCRouter({
                 }
 
                 // Get the sales data
-                const start_date = new Date()
-                const last_month = new Date()
-                last_month.setMonth(last_month.getMonth() - 1)
-                start_date.setMonth(start_date.getMonth() - 6)
+                const startDate = new Date()
+                const lastMonth = new Date()
+                lastMonth.setMonth(lastMonth.getMonth() - 1)
+                startDate.setMonth(startDate.getMonth() - 6)
 
                 const six_month_requests_data = await ctx.db.query.commissions.findMany({
                     where: eq(commissions.artistId, ctx.artist.id),
                     with: {
                         requests: {
                             where: and(
-                                gte(requests.createdAt, start_date),
+                                gte(requests.createdAt, startDate),
                                 eq(requests.status, 'delivered')
                             ),
                             with: {
@@ -134,11 +134,11 @@ export const dashboardRouter = createTRPCRouter({
                     }
                 })
 
-                let monthly_open_commissions = 0
-                let previous_monthly_open_commissions = 0
+                let monthlyOpenCommissions = 0
+                let previousMonthlyOpenCommissions = 0
 
-                let total_revenue = 0
-                let previous_total_revenue = 0
+                let totalRevenue = 0
+                let previousTotalRevenue = 0
 
                 const sales_data: Record<string, SalesData> = {}
 
@@ -160,29 +160,29 @@ export const dashboardRouter = createTRPCRouter({
 
                         if (
                             request.status === 'accepted' &&
-                            request.createdAt > last_month
+                            request.createdAt > lastMonth
                         ) {
-                            monthly_open_commissions += 1
+                            monthlyOpenCommissions += 1
                         } else if (
                             request.status === 'accepted' &&
-                            request.createdAt < last_month
+                            request.createdAt < lastMonth
                         ) {
-                            previous_monthly_open_commissions += 1
+                            previousMonthlyOpenCommissions += 1
                         }
 
                         if (
                             request.status === 'delivered' &&
-                            request.createdAt < last_month
+                            request.createdAt < lastMonth
                         ) {
-                            previous_total_revenue += request.invoices.reduce(
+                            previousTotalRevenue += request.invoices.reduce(
                                 (acc, invoice) => acc + invoice.total,
                                 0
                             )
                         } else if (
                             request.status === 'delivered' &&
-                            request.createdAt > last_month
+                            request.createdAt > lastMonth
                         ) {
-                            total_revenue += request.invoices.reduce(
+                            totalRevenue += request.invoices.reduce(
                                 (acc, invoice) => acc + invoice.total,
                                 0
                             )
@@ -192,21 +192,21 @@ export const dashboardRouter = createTRPCRouter({
 
                 const result: RecentSalesData = {
                     monthlyRevenue: {
-                        amount: total_revenue,
+                        amount: totalRevenue,
                         change: calculatePercentageChange(
-                            total_revenue,
-                            previous_total_revenue
+                            totalRevenue,
+                            previousTotalRevenue
                         )
                     },
                     monthlyOpenCommissions: {
-                        count: monthly_open_commissions,
+                        count: monthlyOpenCommissions,
                         change: calculatePercentageChange(
-                            monthly_open_commissions,
-                            previous_monthly_open_commissions
+                            monthlyOpenCommissions,
+                            previousMonthlyOpenCommissions
                         )
                     },
-                    recentSales: recent_sales,
-                    recentRequests: recent_requests,
+                    recentSales: recentSales,
+                    recentRequests: recentRequests,
                     chartData: Object.entries(sales_data).map(([key, value]) => ({
                         month: key,
                         totalSales: value.totalSales

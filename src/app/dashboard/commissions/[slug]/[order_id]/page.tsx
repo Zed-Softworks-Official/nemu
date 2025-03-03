@@ -8,7 +8,7 @@ export default async function CommissionRequestOrderPage(props: {
     const params = await props.params
 
     return (
-        <DashboardOrderProvider order_id={params.order_id}>
+        <DashboardOrderProvider orderId={params.order_id}>
             <div className="container mx-auto px-5">
                 <CommissionHeader />
                 <Separator className="my-5" />
