@@ -6,7 +6,7 @@ import { NextResponse } from 'next/server'
 
 import { env } from '~/env'
 
-import { type RequestQueue, type StripeInvoiceData } from '~/lib/structures'
+import { type RequestQueue, type StripeInvoiceData } from '~/lib/types'
 import { tryCatch } from '~/lib/try-catch'
 import { db } from '~/server/db'
 import { commissions, invoices, requests } from '~/server/db/schema'
@@ -27,11 +27,11 @@ async function processEvent(expiredInvoices: string[]) {
             }
 
             const requestQueue = await redis.json.get<RequestQueue>(
-                getRedisKey('request_queue', invoice.commission_id)
+                getRedisKey('request_queue', invoice.commissionId)
             )
 
             const commission_promise = db.query.commissions.findFirst({
-                where: eq(commissions.id, invoice.commission_id),
+                where: eq(commissions.id, invoice.commissionId),
                 with: {
                     artist: true
                 }
@@ -42,7 +42,7 @@ async function processEvent(expiredInvoices: string[]) {
             }
 
             const invoiceIndex = requestQueue.requests.findIndex(
-                (request) => request === invoice.order_id
+                (request) => request === invoice.orderId
             )
 
             if (invoiceIndex === -1) {
@@ -64,7 +64,7 @@ async function processEvent(expiredInvoices: string[]) {
                 requestQueue.requests.push(newRequest)
 
                 await redis.json.set(
-                    getRedisKey('request_queue', invoice.commission_id),
+                    getRedisKey('request_queue', invoice.commissionId),
                     '$',
                     requestQueue as unknown as Record<string, unknown>
                 )
@@ -79,14 +79,14 @@ async function processEvent(expiredInvoices: string[]) {
             return Promise.all([
                 // Void the invoice
                 stripe.invoices.voidInvoice(invoiceId, {
-                    stripeAccount: invoice.stripe_account
+                    stripeAccount: invoice.stripeAccount
                 }),
                 // Remove from cron
-                redis.zrem('invoices_due_cron', invoiceId),
+                redis.zrem('invoicesDueCron', invoiceId),
                 // Send notification to user
                 sendNotification({
                     type: KnockWorkflows.InvoiceOverdue,
-                    recipients: [invoice.user_id],
+                    recipients: [invoice.userId],
                     data: {
                         artist_handle: commission.artist.handle,
                         commission_title: commission.title,
@@ -99,14 +99,14 @@ async function processEvent(expiredInvoices: string[]) {
                     .set({
                         status: 'cancelled'
                     })
-                    .where(eq(requests.id, invoice.request_id)),
+                    .where(eq(requests.id, invoice.requestId)),
                 // Update the invoice in the database
                 db
                     .update(invoices)
                     .set({
                         status: 'cancelled'
                     })
-                    .where(eq(invoices.id, invoice.db_id)),
+                    .where(eq(invoices.id, invoice.dbId)),
                 // Update the invoice in redis to reflect new state
                 redis.set(getRedisKey('invoices', invoice.id), {
                     ...invoice,
@@ -119,23 +119,23 @@ async function processEvent(expiredInvoices: string[]) {
 
 export const { POST } = serve(
     async (context) => {
-        await context.run('invoices_due_cron', async () => {
-            const current_time = Math.floor(Date.now() / 1000)
-            const expired_invoices = await redis.zrange<string[]>(
-                'invoices_due_cron',
+        await context.run('invoicesDueCron', async () => {
+            const currentTime = Math.floor(Date.now() / 1000)
+            const expiredInvoices = await redis.zrange<string[]>(
+                'invoicesDueCron',
                 0,
-                current_time,
+                currentTime,
                 {
                     byScore: true
                 }
             )
 
-            if (expired_invoices.length === 0) {
+            if (expiredInvoices.length === 0) {
                 return NextResponse.json({ received: true })
             }
 
             async function doEventProcessing() {
-                waitUntil(processEvent(expired_invoices))
+                waitUntil(processEvent(expiredInvoices))
             }
 
             const { error } = await tryCatch(doEventProcessing())

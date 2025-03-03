@@ -63,7 +63,7 @@ export function CreateForm() {
         }
     })
 
-    const process_form = (values: Schema) => {
+    const processForm = (values: Schema) => {
         createCon.mutate(values)
     }
 
@@ -71,7 +71,7 @@ export function CreateForm() {
         <Form {...form}>
             <form
                 className="mx-auto flex w-full max-w-xl flex-col gap-4"
-                onSubmit={form.handleSubmit(process_form)}
+                onSubmit={form.handleSubmit(processForm)}
             >
                 <FormField
                     control={form.control}

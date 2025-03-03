@@ -23,10 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card'
 
 import { useDashboardOrder } from '~/components/orders/dashboard-order'
 
-import type {
-    KanbanContainerData,
-    KanbanTaskData
-} from '~/lib/structures/kanban-structures'
+import type { KanbanContainerData, KanbanTaskData } from '~/lib/types'
 import { Input } from '~/components/ui/input'
 import { api } from '~/trpc/react'
 import { toast } from 'sonner'
@@ -37,26 +34,25 @@ export function Kanban() {
     )
     const [activeTask, setActiveTask] = useState<KanbanTaskData | null>(null)
 
-    const { containers, tasks, set_containers, set_tasks, kanban_id } =
-        useDashboardOrder()
+    const { containers, tasks, setContainers, setTasks, kanbanId } = useDashboardOrder()
     const saveKanban = api.kanban.updateKanban.useMutation({
         onMutate: () => {
-            const toast_id = toast.loading('Saving Kanban...')
+            const toastId = toast.loading('Saving Kanban...')
 
-            return { toast_id }
+            return { toastId }
         },
         onError: (_, __, context) => {
-            if (!context?.toast_id) return
+            if (!context?.toastId) return
 
             toast.error('Failed to save Kanban', {
-                id: context.toast_id
+                id: context.toastId
             })
         },
         onSuccess: (_, __, context) => {
-            if (!context?.toast_id) return
+            if (!context?.toastId) return
 
             toast.success('Kanban Saved!', {
-                id: context.toast_id
+                id: context.toastId
             })
         }
     })
@@ -83,7 +79,7 @@ export function Kanban() {
             title: `Container ${containers?.length + 1}`
         }
 
-        set_containers([...containers, containerData])
+        setContainers([...containers, containerData])
     }
 
     function deleteContainer(containerId: UniqueIdentifier) {
@@ -95,10 +91,10 @@ export function Kanban() {
             (container) => container.id !== containerId
         )
 
-        set_containers(filteredContainers)
+        setContainers(filteredContainers)
 
-        const newTasks = tasks.filter((task) => task.container_id !== containerId)
-        set_tasks(newTasks)
+        const newTasks = tasks.filter((task) => task.containerId !== containerId)
+        setTasks(newTasks)
     }
 
     function updateContainer(containerId: UniqueIdentifier, title: string) {
@@ -112,7 +108,7 @@ export function Kanban() {
             return { ...container, title }
         })
 
-        set_containers(newContainers)
+        setContainers(newContainers)
     }
 
     function addTask(containerId: UniqueIdentifier) {
@@ -122,11 +118,11 @@ export function Kanban() {
 
         const newTask: KanbanTaskData = {
             id: createId(),
-            container_id: containerId,
+            containerId: containerId,
             content: 'New Item'
         }
 
-        set_tasks([...tasks, newTask])
+        setTasks([...tasks, newTask])
     }
 
     function deleteTask(taskId: UniqueIdentifier) {
@@ -135,7 +131,7 @@ export function Kanban() {
         }
 
         const newTasks = tasks.filter((task) => task.id !== taskId)
-        set_tasks(newTasks)
+        setTasks(newTasks)
     }
 
     function updateTask(taskId: UniqueIdentifier, content: string) {
@@ -149,20 +145,20 @@ export function Kanban() {
             return task
         })
 
-        set_tasks(newTasks)
+        setTasks(newTasks)
     }
 
     function onDragStart(event: DragStartEvent) {
         if (event.active.data.current?.type === 'container') {
             setActiveContainer(
-                event.active.data.current.container_data as KanbanContainerData
+                event.active.data.current.containerData as KanbanContainerData
             )
 
             return
         }
 
         if (event.active.data.current?.type === 'task') {
-            setActiveTask(event.active.data.current.task_data as KanbanTaskData)
+            setActiveTask(event.active.data.current.taskData as KanbanTaskData)
 
             return
         }
@@ -175,20 +171,20 @@ export function Kanban() {
         const { active, over } = event
         if (!over) return
 
-        const active_id = active.id
-        const over_id = over.id
+        const activeId = active.id
+        const overId = over.id
 
-        if (active_id === over_id) return
+        if (activeId === overId) return
 
-        set_containers((prev) => {
-            const active_container_index = prev.findIndex(
-                (container) => container.id === active_id
+        setContainers((prev) => {
+            const activeContainerIndex = prev.findIndex(
+                (container) => container.id === activeId
             )
-            const over_container_index = prev.findIndex(
-                (container) => container.id === over_id
+            const overContainerIndex = prev.findIndex(
+                (container) => container.id === overId
             )
 
-            return arrayMove(prev, active_container_index, over_container_index)
+            return arrayMove(prev, activeContainerIndex, overContainerIndex)
         })
     }
 
@@ -196,10 +192,10 @@ export function Kanban() {
         const { active, over } = event
         if (!over) return
 
-        const active_id = active.id
-        const over_id = over.id
+        const activeId = active.id
+        const overId = over.id
 
-        if (active_id === over_id) return
+        if (activeId === overId) return
 
         // Dropping task over task
         const isActiveTask = active.data.current?.type === 'task'
@@ -208,26 +204,32 @@ export function Kanban() {
         if (!isActiveTask) return
 
         if (isActiveTask && isOverTask) {
-            set_tasks((prev) => {
-                const active_index = prev.findIndex((task) => task.id === active_id)
-                const over_index = prev.findIndex((task) => task.id === over_id)
+            setTasks((prev) => {
+                const activeIndex = prev.findIndex((task) => task.id === activeId)
+                const overIndex = prev.findIndex((task) => task.id === overId)
 
-                if (prev[active_index]?.container_id !== prev[over_index]?.container_id) {
-                    prev[active_index]!.container_id = prev[over_index]!.container_id
+                if (
+                    prev[activeIndex]?.containerId !== prev[overIndex]?.containerId &&
+                    prev[overIndex]?.containerId &&
+                    prev[activeIndex]?.containerId
+                ) {
+                    prev[activeIndex].containerId = prev[overIndex].containerId
                 }
 
-                return arrayMove(prev, active_index, over_index)
+                return arrayMove(prev, activeIndex, overIndex)
             })
         }
 
         const isOverContainer = over.data.current?.type === 'container'
         if (isActiveTask && isOverContainer) {
-            set_tasks((prev) => {
-                const active_index = prev.findIndex((task) => task.id === active_id)
+            setTasks((prev) => {
+                const activeIndex = prev.findIndex((task) => task.id === activeId)
 
-                prev[active_index]!.container_id = over_id
+                if (prev[activeIndex]) {
+                    prev[activeIndex].containerId = overId
+                }
 
-                return arrayMove(prev, active_index, active_index)
+                return arrayMove(prev, activeIndex, activeIndex)
             })
         }
     }
@@ -248,7 +250,7 @@ export function Kanban() {
                                 disabled={saveKanban.isPending}
                                 onClick={() => {
                                     saveKanban.mutate({
-                                        kanban_id,
+                                        kanbanId,
                                         containers: JSON.stringify(containers),
                                         tasks: JSON.stringify(tasks)
                                     })
@@ -274,14 +276,14 @@ export function Kanban() {
                                     container={container}
                                     tasks={
                                         tasks?.filter(
-                                            (task) => task.container_id === container.id
+                                            (task) => task.containerId === container.id
                                         ) ?? []
                                     }
-                                    add_task={addTask}
-                                    delete_task={deleteTask}
-                                    update_task={updateTask}
-                                    delete_container={deleteContainer}
-                                    update_container={updateContainer}
+                                    addTask={addTask}
+                                    deleteTask={deleteTask}
+                                    updateTask={updateTask}
+                                    deleteContainer={deleteContainer}
+                                    updateContainer={updateContainer}
                                 />
                             ))}
                         </div>
@@ -294,21 +296,21 @@ export function Kanban() {
                         container={activeContainer}
                         tasks={
                             tasks?.filter(
-                                (task) => task.container_id === activeContainer.id
+                                (task) => task.containerId === activeContainer.id
                             ) ?? []
                         }
-                        add_task={addTask}
-                        delete_task={deleteTask}
-                        update_task={updateTask}
-                        delete_container={deleteContainer}
-                        update_container={updateContainer}
+                        addTask={addTask}
+                        deleteTask={deleteTask}
+                        updateTask={updateTask}
+                        deleteContainer={deleteContainer}
+                        updateContainer={updateContainer}
                     />
                 )}
                 {activeTask && (
                     <Task
                         task={activeTask}
-                        update_task={updateTask}
-                        delete_task={deleteTask}
+                        updateTask={updateTask}
+                        deleteTask={deleteTask}
                     />
                 )}
             </DragOverlay>
@@ -319,11 +321,11 @@ export function Kanban() {
 function Container(props: {
     container: KanbanContainerData
     tasks: KanbanTaskData[]
-    add_task: (container_id: UniqueIdentifier) => void
-    delete_task: (task_id: UniqueIdentifier) => void
-    update_task: (task_id: UniqueIdentifier, content: string) => void
-    delete_container: (container_id: UniqueIdentifier) => void
-    update_container: (container_id: UniqueIdentifier, title: string) => void
+    addTask: (containerId: UniqueIdentifier) => void
+    deleteTask: (taskId: UniqueIdentifier) => void
+    updateTask: (taskId: UniqueIdentifier, content: string) => void
+    deleteContainer: (containerId: UniqueIdentifier) => void
+    updateContainer: (containerId: UniqueIdentifier, title: string) => void
 }) {
     const [editMode, setEditMode] = useState(false)
 
@@ -332,7 +334,7 @@ function Container(props: {
             id: props.container.id,
             data: {
                 type: 'container',
-                container_data: props.container
+                containerData: props.container
             },
             disabled: editMode
         })
@@ -365,8 +367,8 @@ function Container(props: {
                                 <Task
                                     key={task.id}
                                     task={task}
-                                    update_task={props.update_task}
-                                    delete_task={props.delete_task}
+                                    updateTask={props.updateTask}
+                                    deleteTask={props.deleteTask}
                                 />
                             ))}
                         </SortableContext>
@@ -395,7 +397,7 @@ function Container(props: {
                             value={props.container.title}
                             autoFocus
                             onChange={(e) =>
-                                props.update_container(props.container.id, e.target.value)
+                                props.updateContainer(props.container.id, e.target.value)
                             }
                             onBlur={() => setEditMode(false)}
                             onKeyDown={(e) => {
@@ -408,13 +410,13 @@ function Container(props: {
                     <div className="flex items-center gap-2">
                         <Button
                             variant={'ghost'}
-                            onClick={() => props.add_task(props.container.id)}
+                            onClick={() => props.addTask(props.container.id)}
                         >
                             <Plus className="size-4" />
                         </Button>
                         <Button
                             variant={'ghost'}
-                            onClick={() => props.delete_container(props.container.id)}
+                            onClick={() => props.deleteContainer(props.container.id)}
                             className="hover:bg-destructive"
                         >
                             <Trash2 className="size-4" />
@@ -430,8 +432,8 @@ function Container(props: {
                             <Task
                                 key={task.id}
                                 task={task}
-                                update_task={props.update_task}
-                                delete_task={props.delete_task}
+                                updateTask={props.updateTask}
+                                deleteTask={props.deleteTask}
                             />
                         ))}
                     </SortableContext>
@@ -443,8 +445,8 @@ function Container(props: {
 
 function Task(props: {
     task: KanbanTaskData
-    update_task: (task_id: UniqueIdentifier, content: string) => void
-    delete_task: (task_id: UniqueIdentifier) => void
+    updateTask: (taskId: UniqueIdentifier, content: string) => void
+    deleteTask: (taskId: UniqueIdentifier) => void
 }) {
     const [editMode, setEditMode] = useState(false)
 
@@ -453,7 +455,7 @@ function Task(props: {
             id: props.task.id,
             data: {
                 type: 'task',
-                task_data: props.task
+                taskData: props.task
             },
             disabled: editMode
         })
@@ -485,12 +487,12 @@ function Task(props: {
                             if (e.key === 'Enter' && !e.shiftKey) {
                                 e.preventDefault()
 
-                                props.update_task(props.task.id, e.currentTarget.value)
+                                props.updateTask(props.task.id, e.currentTarget.value)
                                 setEditMode(false)
                             }
                         }}
                         onBlur={(e) => {
-                            props.update_task(props.task.id, e.currentTarget.value)
+                            props.updateTask(props.task.id, e.currentTarget.value)
                             setEditMode(false)
                         }}
                     />
@@ -508,7 +510,7 @@ function Task(props: {
                 <div className="flex">
                     <Button
                         variant={'ghost'}
-                        onClick={() => props.delete_task(props.task.id)}
+                        onClick={() => props.deleteTask(props.task.id)}
                         className="hover:bg-destructive"
                     >
                         <Trash2 className="size-4" />

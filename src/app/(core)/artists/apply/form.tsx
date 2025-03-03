@@ -12,7 +12,7 @@ import {
 import { RadioGroup, RadioGroupItem } from '~/components/ui/radio-group'
 import { allCountries } from 'country-region-data'
 import { Label } from '~/components/ui/label'
-import { VerificationMethod } from '~/lib/structures'
+import { verificationMethods, type VerificationMethod } from '~/lib/types'
 
 import { toast } from 'sonner'
 import { z } from 'zod'
@@ -35,7 +35,7 @@ const schema = z.object({
     twitter: z.string().url().optional(),
     website: z.string().url().optional(),
     location: z.string().optional(),
-    method: z.enum([VerificationMethod.Code, VerificationMethod.Twitter]),
+    method: z.enum(verificationMethods),
     artist_code: z.string().optional()
 })
 
@@ -76,12 +76,11 @@ export default function ArtistApplyForm() {
         }
     })
 
-    async function process_form(data: SchemaType) {
+    async function processForm(data: SchemaType) {
         verifyArtist.mutate({
-            requested_handle: data.requested_handle,
+            requestedHandle: data.requested_handle,
             method: data.method,
-            artist_code:
-                data.method === VerificationMethod.Code ? data.artist_code : undefined,
+            artistCode: data.method === 'artist_code' ? data.artist_code : undefined,
             location: data.location,
             twitter: data.twitter,
             website: data.website
@@ -92,7 +91,7 @@ export default function ArtistApplyForm() {
         <Form {...form}>
             <form
                 className="flex w-full flex-col gap-5"
-                onSubmit={form.handleSubmit(process_form)}
+                onSubmit={form.handleSubmit(processForm)}
             >
                 <FormField
                     control={form.control}
@@ -188,21 +187,14 @@ export default function ArtistApplyForm() {
                                 <RadioGroup name="method" onValueChange={field.onChange}>
                                     <div className="flex items-center gap-2">
                                         <RadioGroupItem
-                                            value={VerificationMethod.Code}
-                                            id={VerificationMethod.Code}
+                                            value="artist_code"
+                                            id="artist_code"
                                         />
-                                        <Label htmlFor={VerificationMethod.Code}>
-                                            Artist Code
-                                        </Label>
+                                        <Label htmlFor="artist_code">Artist Code</Label>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <RadioGroupItem
-                                            value={VerificationMethod.Twitter}
-                                            id={VerificationMethod.Twitter}
-                                        />
-                                        <Label htmlFor={VerificationMethod.Twitter}>
-                                            Twitter
-                                        </Label>
+                                        <RadioGroupItem value="twitter" id="twitter" />
+                                        <Label htmlFor="twitter">Twitter</Label>
                                     </div>
                                 </RadioGroup>
                             </FormControl>
@@ -252,7 +244,7 @@ function VerificationStep(props: {
 }) {
     if (!props.verificationMethod) return <p>Please select a verification method</p>
 
-    if (props.verificationMethod === VerificationMethod.Code) {
+    if (props.verificationMethod === 'artist_code') {
         return <>{props.children}</>
     }
 

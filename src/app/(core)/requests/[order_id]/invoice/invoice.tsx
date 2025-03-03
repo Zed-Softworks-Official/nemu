@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 
-import { type InvoiceStatus } from '~/lib/structures'
+import { type InvoiceStatus } from '~/lib/types'
 import { formatToCurrency } from '~/lib/utils'
 
 import { DataTable } from '~/components/data-table'
@@ -27,7 +27,7 @@ export default function Invoice() {
                 columnDefs={[
                     {
                         headerName: 'Invoice Id',
-                        field: 'stripe_id',
+                        field: 'stripeId',
                         flex: 1,
                         cellRenderer: ({
                             data
@@ -35,7 +35,7 @@ export default function Invoice() {
                             data: (typeof request_data.invoices)[number]
                         }) => (
                             <div className="flex items-center gap-3">
-                                <span>{data.stripe_id}</span>
+                                <span>{data.stripeId}</span>
                                 <InvoiceStatusBadge status={data.status} />
                             </div>
                         )
@@ -51,7 +51,7 @@ export default function Invoice() {
                     },
                     {
                         headerName: 'Actions',
-                        field: 'hosted_url',
+                        field: 'hostedUrl',
                         flex: 1,
                         cellRenderer: ({
                             data
@@ -60,13 +60,13 @@ export default function Invoice() {
                         }) => {
                             const invoice = data
 
-                            if (!invoice.hosted_url) {
+                            if (!invoice.hostedUrl) {
                                 return null
                             }
 
                             return (
                                 <Button asChild variant={'outline'} size={'sm'}>
-                                    <Link href={invoice.hosted_url} target="_blank">
+                                    <Link href={invoice.hostedUrl} target="_blank">
                                         View Invoice
                                     </Link>
                                 </Button>

@@ -14,13 +14,13 @@ export async function GET() {
     }
 
     const artist = await db.query.artists.findFirst({
-        where: eq(artists.user_id, user.id)
+        where: eq(artists.userId, user.id)
     })
 
     if (!artist) {
         return redirect('/')
     }
 
-    const account_link = await StripeCreateAccountLink(artist.stripe_account)
-    return NextResponse.redirect(account_link.url)
+    const accountLink = await StripeCreateAccountLink(artist.stripeAccount)
+    return NextResponse.redirect(accountLink.url)
 }

@@ -38,20 +38,20 @@ import {
     type NemuEditImageData,
     chargeMethods,
     commissionAvalabilities
-} from '~/lib/structures'
+} from '~/lib/types'
 
 import { api } from '~/trpc/react'
 
 const commissionSchema = z.object({
     title: z.string().min(2).max(64),
     description: z.string(),
-    form_id: z.string(),
+    formId: z.string(),
     price: z.string().refine((value) => !isNaN(Number(value))),
-    max_commissions_until_waitlist: z.number().min(0),
-    max_commissions_until_closed: z.number().min(0),
-    commission_availability: z.enum(commissionAvalabilities),
-    charge_method: z.enum(chargeMethods),
-    downpayment_percentage: z.number().min(0).max(100)
+    maxCommissionsUntilWaitlist: z.number().min(0),
+    maxCommissionsUntilClosed: z.number().min(0),
+    commissionAvailability: z.enum(commissionAvalabilities),
+    chargeMethod: z.enum(chargeMethods),
+    downpaymentPercentage: z.number().min(0).max(100)
 })
 
 type CommissionSchemaType = z.infer<typeof commissionSchema>
@@ -64,13 +64,13 @@ export function CreateForm() {
         defaultValues: {
             title: '',
             description: '',
-            form_id: '',
+            formId: '',
             price: '0',
-            max_commissions_until_waitlist: 0,
-            max_commissions_until_closed: 0,
-            commission_availability: 'open',
-            charge_method: 'in_full',
-            downpayment_percentage: 50
+            maxCommissionsUntilWaitlist: 0,
+            maxCommissionsUntilClosed: 0,
+            commissionAvailability: 'open',
+            chargeMethod: 'in_full',
+            downpaymentPercentage: 50
         }
     })
 
@@ -78,7 +78,7 @@ export function CreateForm() {
         api.request.getFormsListAndPaymentMethod.useQuery()
     const createCommission = api.commission.setCommission.useMutation()
 
-    const process_form = async (values: CommissionSchemaType) => {
+    const processForm = async (values: CommissionSchemaType) => {
         const toast_id = toast.loading('Uploading Images')
 
         // Check if we have images to upload
@@ -97,7 +97,7 @@ export function CreateForm() {
 
         // Format the images response to for the commission
         const uploaded_images = res.map((image) => ({
-            ut_key: image.key
+            utKey: image.key
         }))
 
         // Update the toast
@@ -108,15 +108,15 @@ export function CreateForm() {
             {
                 title: values.title,
                 description: values.description,
-                form_id: values.form_id,
+                formId: values.formId,
                 price: Number(values.price) * 100,
-                max_commissions_until_waitlist: values.max_commissions_until_waitlist,
-                max_commissions_until_closed: values.max_commissions_until_closed,
+                maxCommissionsUntilWaitlist: values.maxCommissionsUntilWaitlist,
+                maxCommissionsUntilClosed: values.maxCommissionsUntilClosed,
                 images: uploaded_images,
-                availability: values.commission_availability,
+                availability: values.commissionAvailability,
                 published: false,
-                charge_method: values.charge_method,
-                downpayment_percentage: values.downpayment_percentage
+                chargeMethod: values.chargeMethod,
+                downpaymentPercentage: values.downpaymentPercentage
             },
             {
                 onError: (error) => {
@@ -133,7 +133,7 @@ export function CreateForm() {
 
     useEffect(() => {
         if (data) {
-            form.setValue('charge_method', data.default_charge_method)
+            form.setValue('chargeMethod', data.defaultChargeMethod)
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [data])
@@ -142,7 +142,7 @@ export function CreateForm() {
         <Form {...form}>
             <form
                 className="container mx-auto flex max-w-xl flex-col gap-5"
-                onSubmit={form.handleSubmit(process_form)}
+                onSubmit={form.handleSubmit(processForm)}
             >
                 <h1 className="text-2xl font-bold">Create Commission</h1>
                 <Separator />
@@ -206,7 +206,7 @@ export function CreateForm() {
                 />
                 <FormField
                     control={form.control}
-                    name="charge_method"
+                    name="chargeMethod"
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel>Payment Method:</FormLabel>
@@ -229,10 +229,10 @@ export function CreateForm() {
                         </FormItem>
                     )}
                 />
-                {form.watch('charge_method') === 'down_payment' && (
+                {form.watch('chargeMethod') === 'down_payment' && (
                     <FormField
                         control={form.control}
-                        name="downpayment_percentage"
+                        name="downpaymentPercentage"
                         render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Down Payment Percentage:</FormLabel>
@@ -283,7 +283,7 @@ export function CreateForm() {
                 <Separator />
                 <FormField
                     control={form.control}
-                    name="form_id"
+                    name="formId"
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel>User Form:</FormLabel>
@@ -311,7 +311,7 @@ export function CreateForm() {
                 />
                 <FormField
                     control={form.control}
-                    name="commission_availability"
+                    name="commissionAvailability"
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel>Availability:</FormLabel>
@@ -332,7 +332,7 @@ export function CreateForm() {
                 />
                 <FormField
                     control={form.control}
-                    name="max_commissions_until_waitlist"
+                    name="maxCommissionsUntilWaitlist"
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel>Commissions Until Auto Waitlist:</FormLabel>
@@ -356,7 +356,7 @@ export function CreateForm() {
                 />
                 <FormField
                     control={form.control}
-                    name="max_commissions_until_closed"
+                    name="maxCommissionsUntilClosed"
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel>Commissions Until Auto Close:</FormLabel>
@@ -409,13 +409,13 @@ export function CreateForm() {
 const updateSchema = z.object({
     title: z.string().min(2).max(64),
     description: z.string(),
-    form_name: z.string(),
+    formName: z.string(),
     price: z.string().refine((value) => !isNaN(Number(value))),
-    max_commissions_until_waitlist: z.number().min(0),
-    max_commissions_until_closed: z.number().min(0),
+    maxCommissionsUntilWaitlist: z.number().min(0),
+    maxCommissionsUntilClosed: z.number().min(0),
     availability: z.enum(commissionAvalabilities),
-    charge_method: z.enum(chargeMethods),
-    downpayment_percentage: z.number().min(0).max(100)
+    chargeMethod: z.enum(chargeMethods),
+    downpaymentPercentage: z.number().min(0).max(100)
 })
 
 type UpdateSchemaType = z.infer<typeof updateSchema>
@@ -433,7 +433,7 @@ export function UpdateForm(props: { commission: ClientCommissionItemEditable }) 
 
     const updateCommission = api.commission.updateCommission.useMutation()
 
-    const process_form = async (values: UpdateSchemaType) => {
+    const processForm = async (values: UpdateSchemaType) => {
         const toast_id = toast.loading('Uploading Images')
 
         const editor_state: {
@@ -490,8 +490,8 @@ export function UpdateForm(props: { commission: ClientCommissionItemEditable }) 
 
             uploaded_images = res.map((file) => ({
                 action: 'create',
-                image_data: {
-                    ut_key: file.key
+                imageData: {
+                    utKey: file.key
                 }
             }))
         }
@@ -500,12 +500,12 @@ export function UpdateForm(props: { commission: ClientCommissionItemEditable }) 
             .concat(
                 editor_state.update.map((image) => ({
                     action: 'update',
-                    image_data: {
-                        ut_key: image.data.image_data.ut_key ?? ''
+                    imageData: {
+                        utKey: image.data.imageData.utKey ?? ''
                     }
                 }))
             )
-            .map((image) => image.image_data.ut_key ?? '')
+            .map((image) => image.imageData.utKey ?? '')
 
         updateCommission.mutate(
             {
@@ -514,16 +514,16 @@ export function UpdateForm(props: { commission: ClientCommissionItemEditable }) 
                     title: values.title,
                     description: values.description,
                     price: Number(values.price) * 100,
-                    max_commissions_until_closed: values.max_commissions_until_closed,
-                    max_commissions_until_waitlist: values.max_commissions_until_waitlist,
+                    maxCommissionsUntilClosed: values.maxCommissionsUntilClosed,
+                    maxCommissionsUntilWaitlist: values.maxCommissionsUntilWaitlist,
                     availability: values.availability,
                     published: false,
                     images: images_to_update,
-                    deleted_images: editor_state.delete.map(
-                        (image) => image.data.image_data.ut_key ?? ''
+                    deletedImages: editor_state.delete.map(
+                        (image) => image.data.imageData.utKey ?? ''
                     ),
-                    charge_method: values.charge_method,
-                    downpayment_percentage: values.downpayment_percentage
+                    chargeMethod: values.chargeMethod,
+                    downpaymentPercentage: values.downpaymentPercentage
                 }
             },
             {
@@ -545,7 +545,7 @@ export function UpdateForm(props: { commission: ClientCommissionItemEditable }) 
         <Form {...form}>
             <form
                 className="mt-5 flex flex-col gap-5"
-                onSubmit={form.handleSubmit(process_form)}
+                onSubmit={form.handleSubmit(processForm)}
             >
                 <FormField
                     control={form.control}
@@ -607,7 +607,7 @@ export function UpdateForm(props: { commission: ClientCommissionItemEditable }) 
                 />
                 <FormField
                     control={form.control}
-                    name="charge_method"
+                    name="chargeMethod"
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel>Payment Method:</FormLabel>
@@ -630,10 +630,10 @@ export function UpdateForm(props: { commission: ClientCommissionItemEditable }) 
                         </FormItem>
                     )}
                 />
-                {form.watch('charge_method') === 'down_payment' && (
+                {form.watch('chargeMethod') === 'down_payment' && (
                     <FormField
                         control={form.control}
-                        name="downpayment_percentage"
+                        name="downpaymentPercentage"
                         render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Down Payment Percentage:</FormLabel>
@@ -684,7 +684,7 @@ export function UpdateForm(props: { commission: ClientCommissionItemEditable }) 
                 <Separator />
                 <FormField
                     control={form.control}
-                    name="form_name"
+                    name="formName"
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel>User Form:</FormLabel>
@@ -736,7 +736,7 @@ export function UpdateForm(props: { commission: ClientCommissionItemEditable }) 
                 />
                 <FormField
                     control={form.control}
-                    name="max_commissions_until_waitlist"
+                    name="maxCommissionsUntilWaitlist"
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel>Commissions Until Auto Waitlist:</FormLabel>
@@ -760,7 +760,7 @@ export function UpdateForm(props: { commission: ClientCommissionItemEditable }) 
                 />
                 <FormField
                     control={form.control}
-                    name="max_commissions_until_closed"
+                    name="maxCommissionsUntilClosed"
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel>Commissions Until Auto Close:</FormLabel>

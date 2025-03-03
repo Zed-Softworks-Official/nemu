@@ -9,7 +9,7 @@ import type { UniqueIdentifier } from '@dnd-kit/core'
  */
 export type KanbanTaskData = {
     id: UniqueIdentifier
-    container_id: UniqueIdentifier
+    containerId: UniqueIdentifier
     content: string
 }
 

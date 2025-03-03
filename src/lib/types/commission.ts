@@ -5,7 +5,7 @@ import type {
     ClientNemuImageData,
     ChargeMethod,
     InvoiceStatus
-} from '~/lib/structures'
+} from '~/lib/types'
 
 import type {
     artists,
@@ -28,20 +28,20 @@ export type CommissionAvailability = (typeof commissionAvalabilities)[number]
 /**
  * Order Details
  *
- * @prop {string} user_id - The user id of the customer
- * @prop {string} customer_id - The stripe customer id of the user
+ * @prop {string} userId - The user id of the customer
+ * @prop {string} customerId - The stripe customer id of the user
  * @prop {boolean} rush - Is this a rush order?
  *
  * @prop {KanbanContainerData[] | undefined} - The kanban data for the user
  * @prop {string | undefined} - The order id
  */
 export type CommissionOrders = {
-    user_id: string
-    customer_id: string
+    userId: string
+    customerId: string
     rush: boolean
 
     containers?: KanbanContainerData[]
-    order_id?: string
+    orderId?: string
 }
 
 /**
@@ -58,7 +58,7 @@ export type ClientRequestData = InferSelectModel<typeof requests> & {
     }
     delivery?: InferSelectModel<typeof delivery>
     invoices?: InferSelectModel<typeof invoices>[]
-    current_invoice_index?: number
+    currentInvoiceIndex?: number
     kanban?: InferSelectModel<typeof kanbans>
 }
 
@@ -72,7 +72,7 @@ export type ClientCommissionItem = {
     description: string
 
     price: string
-    raw_price?: number
+    rawPrice?: number
 
     images: ClientNemuImageData[]
     rating: number
@@ -81,17 +81,17 @@ export type ClientCommissionItem = {
     slug: string
     published: boolean
 
-    total_requests?: number
-    new_requests?: number
+    totalRequests?: number
+    newRequests?: number
 
-    max_commissions_until_waitlist?: number
-    max_commissions_until_closed?: number
+    maxCommissionsUntilWaitlist?: number
+    maxCommissionsUntilClosed?: number
 
-    charge_method: ChargeMethod
-    downpayment_percentage: number
+    chargeMethod: ChargeMethod
+    downpaymentPercentage: number
 
     id?: string
-    form_id?: string
+    formId?: string
 
     // Artist Data
     artist?: {
@@ -125,13 +125,13 @@ export type ClientCommissionItemEditable = {
 
     price: string
 
-    max_commissions_until_waitlist: number
-    max_commissions_until_closed: number
+    maxCommissionsUntilWaitlist: number
+    maxCommissionsUntilClosed: number
 
-    form_name: string
+    formName: string
 
-    charge_method: ChargeMethod
-    downpayment_percentage: number
+    chargeMethod: ChargeMethod
+    downpaymentPercentage: number
 
     images: ImageEditorData[]
 }
@@ -168,13 +168,13 @@ export interface RequestQueue {
 
 export interface StripeInvoiceData {
     id: string
-    db_id: string
-    customer_id: string
-    stripe_account: string
-    due_date: number
+    dbId: string
+    customerId: string
+    stripeAccount: string
+    dueDate: number
     status: InvoiceStatus
-    request_id: string
-    user_id: string
-    order_id: string
-    commission_id: string
+    requestId: string
+    userId: string
+    orderId: string
+    commissionId: string
 }

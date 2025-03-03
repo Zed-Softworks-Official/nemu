@@ -22,12 +22,12 @@ export function ConTable() {
                 },
                 {
                     headerName: 'Expires at',
-                    field: 'expires_at',
+                    field: 'expiresAt',
                     filter: 'agDateColumnFilter'
                 },
                 {
                     headerName: 'Sign Ups',
-                    field: 'sign_up_count'
+                    field: 'signUpCount'
                 },
                 {
                     headerName: 'Slug',

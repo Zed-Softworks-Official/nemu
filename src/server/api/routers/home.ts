@@ -6,14 +6,14 @@ import { commissions, products } from '~/server/db/schema'
 import { createTRPCRouter, publicProcedure } from '~/server/api/trpc'
 
 import { formatToCurrency, getUTUrl } from '~/lib/utils'
-import type { CommissionAvailability } from '~/lib/structures'
+import type { CommissionAvailability } from '~/lib/types'
 import { cache, getRedisKey } from '~/server/redis'
 
 type CommissionResult = {
     id: string
     title: string
     description: string
-    featured_image: string
+    featuredImage: string
     slug: string
     availability: CommissionAvailability
     price: string
@@ -26,7 +26,7 @@ type ProductResult = {
     id: string
     name: string
     description: JSONContent | null
-    featured_image: string
+    featuredImage: string
     price: string
     artist: {
         handle: string
@@ -47,10 +47,10 @@ export const homeRouter = createTRPCRouter({
                 with: {
                     artist: true
                 },
-                orderBy: (commission) => asc(commission.created_at),
+                orderBy: (commission) => asc(commission.createdAt),
                 where: input.cursor
                     ? and(
-                          gt(commissions.created_at, input.cursor),
+                          gt(commissions.createdAt, input.cursor),
                           eq(commissions.published, true)
                       )
                     : eq(commissions.published, true)
@@ -62,14 +62,14 @@ export const homeRouter = createTRPCRouter({
                 description: commission.description,
                 slug: commission.slug,
                 availability: commission.availability,
-                featured_image: getUTUrl(commission.images[0]?.ut_key ?? ''),
+                featuredImage: getUTUrl(commission.images[0]?.utKey ?? ''),
                 price: formatToCurrency(commission.price / 100),
                 artist: {
                     handle: commission.artist.handle
                 }
             }))
 
-            return { res, next_cursor: data[data.length - 1]?.created_at }
+            return { res, next_cursor: data[data.length - 1]?.createdAt }
         }),
 
     getProductsInfinite: publicProcedure
@@ -85,10 +85,10 @@ export const homeRouter = createTRPCRouter({
                 with: {
                     artist: true
                 },
-                orderBy: (product) => asc(product.created_at),
+                orderBy: (product) => asc(product.createdAt),
                 where: input.cursor
                     ? and(
-                          gt(products.created_at, input.cursor),
+                          gt(products.createdAt, input.cursor),
                           eq(products.published, true)
                       )
                     : eq(products.published, true)
@@ -98,14 +98,14 @@ export const homeRouter = createTRPCRouter({
                 id: product.id,
                 name: product.name,
                 description: product.description,
-                featured_image: getUTUrl(product.images[0] ?? ''),
+                featuredImage: getUTUrl(product.images[0] ?? ''),
                 price: formatToCurrency(product.price / 100),
                 artist: {
                     handle: product.artist.handle
                 }
             }))
 
-            return { res, next_cursor: data[data.length - 1]?.created_at }
+            return { res, nextCursor: data[data.length - 1]?.createdAt }
         }),
 
     getFeaturedProducts: publicProcedure.query(async ({ ctx }) => {
@@ -124,7 +124,7 @@ export const homeRouter = createTRPCRouter({
                     id: product.id,
                     name: product.name,
                     description: product.description,
-                    featured_image: getUTUrl(product.images[0] ?? ''),
+                    featuredImage: getUTUrl(product.images[0] ?? ''),
                     price: formatToCurrency(product.price / 100),
                     artist: {
                         handle: product.artist.handle

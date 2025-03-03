@@ -5,7 +5,7 @@ import type {
     CommissionAvailability,
     ClientNemuImageData,
     NemuImageData
-} from '~/lib/structures'
+} from '~/lib/types'
 import { env } from '~/env'
 
 export function cn(...inputs: ClassValue[]) {
@@ -81,7 +81,7 @@ export async function convertImagesToNemuImages(images: NemuImageData[]) {
 
     for (const image of images) {
         result.push({
-            url: getUTUrl(image.ut_key)
+            url: getUTUrl(image.utKey)
         })
     }
 
@@ -90,6 +90,6 @@ export async function convertImagesToNemuImages(images: NemuImageData[]) {
 
 export const toPusherKey = (key: string) => key.replace(/:/g, '__')
 
-export function getUTUrl(ut_key: string) {
-    return `https://utfs.io/a/${env.NEXT_PUBLIC_UPLOADTHING_APP_ID}/${ut_key}`
+export function getUTUrl(utKey: string) {
+    return `https://utfs.io/a/${env.NEXT_PUBLIC_UPLOADTHING_APP_ID}/${utKey}`
 }

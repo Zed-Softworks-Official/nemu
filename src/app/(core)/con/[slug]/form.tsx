@@ -27,7 +27,7 @@ import { api } from '~/trpc/react'
 import { toast } from 'sonner'
 
 const schema = z.object({
-    requested_handle: z.string(),
+    requestedHandle: z.string(),
     twitter: z.string().url().optional(),
     website: z.string().url().optional(),
     location: z.string()
@@ -61,17 +61,17 @@ export default function ApplyConForm(props: { slug: string }) {
         resolver: zodResolver(schema),
         mode: 'onSubmit',
         defaultValues: {
-            requested_handle: '',
+            requestedHandle: '',
             twitter: '',
             website: '',
             location: ''
         }
     })
 
-    async function process_form(data: SchemaType) {
+    async function processForm(data: SchemaType) {
         createArtist.mutate({
             ...data,
-            con_slug: props.slug
+            conSlug: props.slug
         })
     }
 
@@ -79,11 +79,11 @@ export default function ApplyConForm(props: { slug: string }) {
         <Form {...form}>
             <form
                 className="flex w-full flex-col gap-5"
-                onSubmit={form.handleSubmit(process_form)}
+                onSubmit={form.handleSubmit(processForm)}
             >
                 <FormField
                     control={form.control}
-                    name="requested_handle"
+                    name="requestedHandle"
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel>Requested Handle:</FormLabel>

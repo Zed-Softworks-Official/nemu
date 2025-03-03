@@ -1,5 +1,5 @@
 export type Sender = {
-    user_id: string
+    userId: string
     username: string
 }
 
@@ -10,12 +10,12 @@ export type Message = {
     content: string
 
     timestamp: number
-    reply_to?: Message
+    replyTo?: Message
 }
 
 export type Chat = {
     id: string
-    commission_title: string
+    commissionTitle: string
 
     messages: Message[]
     users: Sender[]

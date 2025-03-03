@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { SearchIcon } from 'lucide-react'
 
 import debounce from 'lodash.debounce'
-import type { ArtistIndex, CommissionIndex } from '~/lib/structures'
+import type { ArtistIndex, CommissionIndex } from '~/lib/types'
 import { client } from '~/server/algolia'
 
 import {
@@ -165,7 +165,7 @@ function ArtistHit(props: { hit: ArtistIndex | undefined }) {
                 className="flex flex-row items-center gap-3"
             >
                 <Avatar>
-                    <AvatarImage src={props.hit.image_url} alt="Avatar" />
+                    <AvatarImage src={props.hit.imageUrl} alt="Avatar" />
                     <AvatarFallback>
                         <NemuImage
                             src={'/profile.png'}
@@ -187,11 +187,11 @@ function CommissionHit(props: { hit: CommissionIndex }) {
     return (
         <CommandItem className="rounded-xl">
             <Link
-                href={`/@${props.hit.artist_handle}/commission/${props.hit.slug}`}
+                href={`/@${props.hit.artistHandle}/commission/${props.hit.slug}`}
                 className="flex flex-row items-center gap-3"
             >
                 <NemuImage
-                    src={props.hit.featured_image}
+                    src={props.hit.featuredImage}
                     alt="Featured Image"
                     width={80}
                     height={80}
@@ -200,7 +200,7 @@ function CommissionHit(props: { hit: CommissionIndex }) {
                 <div className="flex flex-col gap-3">
                     <span className="text-base-content text-sm">{props.hit.title}</span>
                     <span className="text-base-content/40 text-sm">
-                        @{props.hit.artist_handle}
+                        @{props.hit.artistHandle}
                     </span>
                     <span className="text-base-content/80 text-sm">
                         {props.hit.description}

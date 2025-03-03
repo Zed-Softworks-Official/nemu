@@ -5,5 +5,5 @@ export default async function MessagesPage(props: {
 }) {
     const params = await props.params
 
-    return <MessagesClient list_hidden={true} current_order_id={params.order_id} />
+    return <MessagesClient listHidden={true} currentOrderId={params.order_id} />
 }

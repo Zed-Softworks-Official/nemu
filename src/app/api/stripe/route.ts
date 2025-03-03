@@ -7,8 +7,8 @@ import { env } from '~/env'
 import { stripe } from '~/server/stripe'
 
 import { tryCatch } from '~/lib/try-catch'
-import { sync_stripe_data } from '~/app/api/stripe/sync'
-import { type StripePaymentMetadata } from '~/lib/structures'
+import { syncStripeData } from '~/app/api/stripe/sync'
+import { type StripePaymentMetadata } from '~/lib/types'
 
 const allowed_events = [
     'invoice.paid',
@@ -41,7 +41,7 @@ async function process_event(event: Stripe.Event) {
         throw new Error(`[STRIPE HOOK]: Id isn\'t a string.\nEvent Type: ${event.type}`)
     }
 
-    return sync_stripe_data(customer_id, metadata, {
+    return syncStripeData(customer_id, metadata, {
         id,
         type: event.type
     })

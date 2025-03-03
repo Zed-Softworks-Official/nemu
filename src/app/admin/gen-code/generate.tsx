@@ -150,7 +150,7 @@ export function CurrentArtistCodes() {
                             }
                         },
                         {
-                            field: 'created_at',
+                            field: 'createdAt',
                             headerName: 'Created At',
                             flex: 1,
                             filter: true

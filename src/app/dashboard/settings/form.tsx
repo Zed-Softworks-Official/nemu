@@ -16,7 +16,7 @@ import {
     FormLabel,
     FormMessage
 } from '~/components/ui/form'
-import { chargeMethods, SocialAgent } from '~/lib/structures'
+import { chargeMethods, type SocialAgent, socialAgents } from '~/lib/types'
 import { Textarea } from '~/components/ui/textarea'
 import {
     Select,
@@ -38,17 +38,17 @@ const schema = z.object({
     about: z.string().min(1, { message: 'About is required' }),
     location: z.string().min(1, { message: 'Location is required' }),
     terms: z.string().min(1, { message: 'Terms is required' }),
-    tip_jar_url: z.string().min(1, { message: 'Tip jar URL is required' }).nullable(),
+    tipJarUrl: z.string().min(1, { message: 'Tip jar URL is required' }).nullable(),
     socials: z.array(
         z.object({
-            agent: z.nativeEnum(SocialAgent),
+            agent: z.enum(socialAgents),
             url: z.string().url()
         })
     ),
-    default_charge_method: z.enum(chargeMethods)
+    defaultChargeMethod: z.enum(chargeMethods)
 })
 
-type SettingsForm = z.infer<typeof schema>
+type SettingsSchema = z.infer<typeof schema>
 
 export function SettingsForm() {
     const [pending, setPending] = useState(false)
@@ -57,24 +57,24 @@ export function SettingsForm() {
 
     const updateSettings = api.artist.setArtistSettings.useMutation()
 
-    const form = useForm<SettingsForm>({
+    const form = useForm<SettingsSchema>({
         resolver: zodResolver(schema),
         mode: 'onSubmit',
         defaultValues: {
             about: '',
             location: '',
             terms: '',
-            tip_jar_url: '',
+            tipJarUrl: '',
             socials: [],
-            default_charge_method: 'in_full'
+            defaultChargeMethod: 'in_full'
         }
     })
 
-    const process_form = async (values: SettingsForm) => {
+    const processForm = async (values: SettingsSchema) => {
         setPending(true)
 
         const toast_id = toast.loading('Saving...')
-        let header_image_key: string | undefined
+        let headerImageKey: string | undefined
 
         if (images.length != 0) {
             const res = await uploadImages()
@@ -85,13 +85,13 @@ export function SettingsForm() {
                 return
             }
 
-            header_image_key = res[0]?.key ?? undefined
+            headerImageKey = res[0]?.key ?? undefined
         }
 
         await updateSettings.mutateAsync(
             {
                 ...values,
-                header_image_key
+                headerImageKey
             },
             {
                 onError: (e) => {
@@ -124,7 +124,7 @@ export function SettingsForm() {
     return (
         <Form {...form}>
             <form
-                onSubmit={form.handleSubmit(process_form)}
+                onSubmit={form.handleSubmit(processForm)}
                 className="flex flex-col gap-5"
             >
                 <div className="mt-3 flex items-center justify-between">
@@ -208,7 +208,7 @@ export function SettingsForm() {
                 />
                 <FormField
                     control={form.control}
-                    name="default_charge_method"
+                    name="defaultChargeMethod"
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel>Default Charge Method:</FormLabel>
@@ -234,7 +234,7 @@ export function SettingsForm() {
                 />
                 <FormField
                     control={form.control}
-                    name="tip_jar_url"
+                    name="tipJarUrl"
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel>Tip Jar URL:</FormLabel>
@@ -268,16 +268,16 @@ export function SettingsForm() {
                                             const url = e.target.value
 
                                             // Determine social agent type
-                                            let agent = SocialAgent.Website
+                                            let agent: SocialAgent = 'website'
                                             if (
                                                 url.toLowerCase().includes('twitter') ||
                                                 url.toLowerCase().includes('x.com')
                                             ) {
-                                                agent = SocialAgent.Twitter
+                                                agent = 'twitter'
                                             } else if (
                                                 url.toLowerCase().includes('pixiv')
                                             ) {
-                                                agent = SocialAgent.Pixiv
+                                                agent = 'pixiv'
                                             }
 
                                             // Get current socials array
@@ -289,7 +289,7 @@ export function SettingsForm() {
                                             while (paddedSocials.length <= index) {
                                                 paddedSocials.push({
                                                     url: '',
-                                                    agent: SocialAgent.Website
+                                                    agent: 'website'
                                                 })
                                             }
 

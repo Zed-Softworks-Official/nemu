@@ -39,7 +39,7 @@ export default function Delivery() {
                     <CardTitle>Delivery</CardTitle>
                     <CardDescription>
                         <p>Download files here.</p>
-                        <p>{request_data.delivery.updated_at.toLocaleDateString()}</p>
+                        <p>{request_data.delivery.updatedAt.toLocaleDateString()}</p>
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -48,7 +48,7 @@ export default function Delivery() {
                             size={'lg'}
                             onClick={() => {
                                 const download_url = getUTUrl(
-                                    request_data.delivery?.ut_key ?? 'Unknown'
+                                    request_data.delivery?.utKey ?? 'Unknown'
                                 )
 
                                 // Create an anchor element and trigger download

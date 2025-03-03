@@ -7,7 +7,7 @@ import {
     protectedProcedure,
     publicProcedure
 } from '~/server/api/trpc'
-import { con_sign_up } from '~/server/db/schema'
+import { conSignUp } from '~/server/db/schema'
 import { eq } from 'drizzle-orm'
 import { cache, getRedisKey } from '~/server/redis'
 
@@ -20,16 +20,16 @@ export const conRouter = createTRPCRouter({
             })
         )
         .mutation(async ({ ctx, input }) => {
-            await ctx.db.insert(con_sign_up).values({
+            await ctx.db.insert(conSignUp).values({
                 id: createId(),
                 name: input.name,
                 slug: crypto.randomUUID(),
-                expires_at: input.expires_at
+                expiresAt: input.expires_at
             })
         }),
 
     getCons: protectedProcedure.query(async ({ ctx }) => {
-        return await ctx.db.query.con_sign_up.findMany()
+        return await ctx.db.query.conSignUp.findMany()
     }),
 
     getCon: protectedProcedure
@@ -39,8 +39,8 @@ export const conRouter = createTRPCRouter({
             })
         )
         .query(async ({ ctx, input }) => {
-            return await ctx.db.query.con_sign_up.findFirst({
-                where: eq(con_sign_up.id, input.id)
+            return await ctx.db.query.conSignUp.findFirst({
+                where: eq(conSignUp.id, input.id)
             })
         }),
 
@@ -55,15 +55,15 @@ export const conRouter = createTRPCRouter({
                 getRedisKey('con', input.slug),
 
                 async () => {
-                    const con = await ctx.db.query.con_sign_up.findFirst({
-                        where: eq(con_sign_up.slug, input.slug)
+                    const con = await ctx.db.query.conSignUp.findFirst({
+                        where: eq(conSignUp.slug, input.slug)
                     })
 
                     if (!con) return null
 
                     return {
                         isValid: true,
-                        isExpired: con.expires_at < new Date(),
+                        isExpired: con.expiresAt < new Date(),
                         name: con.name
                     }
                 },

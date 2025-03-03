@@ -3,7 +3,7 @@ import { z } from 'zod'
 
 import { artistProcedure, createTRPCRouter, publicProcedure } from '~/server/api/trpc'
 import { portfolios } from '~/server/db/schema'
-import type { ClientPortfolioItem } from '~/lib/structures'
+import type { ClientPortfolioItem } from '~/lib/types'
 import { createId } from '@paralleldrive/cuid2'
 
 import { getUTUrl } from '~/lib/utils'
@@ -21,8 +21,8 @@ export const portfolioRouter = createTRPCRouter({
         .mutation(async ({ ctx, input }) => {
             await ctx.db.insert(portfolios).values({
                 id: createId(),
-                artist_id: ctx.artist.id,
-                ut_key: input.ut_key,
+                artistId: ctx.artist.id,
+                utKey: input.ut_key,
                 title: input.title
             })
         }),
@@ -62,7 +62,7 @@ export const portfolioRouter = createTRPCRouter({
             }
 
             await Promise.all([
-                utapi.deleteFiles([portfolio.ut_key]),
+                utapi.deleteFiles([portfolio.utKey]),
                 ctx.db.delete(portfolios).where(eq(portfolios.id, input.id))
             ])
         }),
@@ -88,20 +88,20 @@ export const portfolioRouter = createTRPCRouter({
             return {
                 ...portfolio,
                 image: {
-                    url: getUTUrl(portfolio.ut_key)
+                    url: getUTUrl(portfolio.utKey)
                 }
             } satisfies ClientPortfolioItem
         }),
 
     getPortfolioList: artistProcedure.query(async ({ ctx }) => {
         const portfolio_items = await ctx.db.query.portfolios.findMany({
-            where: eq(portfolios.artist_id, ctx.artist.id)
+            where: eq(portfolios.artistId, ctx.artist.id)
         })
 
         const result: ClientPortfolioItem[] = portfolio_items.map((item) => ({
             ...item,
             image: {
-                url: getUTUrl(item.ut_key)
+                url: getUTUrl(item.utKey)
             }
         }))
 

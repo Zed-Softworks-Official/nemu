@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
 import { Separator } from '~/components/ui/separator'
 import { Skeleton } from '~/components/ui/skeleton'
 import { TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
-import { SocialAgent } from '~/lib/structures'
+import { type SocialAgent } from '~/lib/types'
 import { cn, formatToCurrency } from '~/lib/utils'
 import { api } from '~/trpc/react'
 import Link from 'next/link'
@@ -24,7 +24,7 @@ export function ArtistBanner(props: { handle: string }) {
         return <Skeleton className="h-full w-full" />
     }
 
-    if (!artist?.header_photo) {
+    if (!artist?.headerPhoto) {
         return (
             <NemuImage
                 src={'/curved0.jpg'}
@@ -38,7 +38,7 @@ export function ArtistBanner(props: { handle: string }) {
 
     return (
         <NemuImage
-            src={artist.header_photo}
+            src={artist.headerPhoto}
             alt="Artist Banner"
             width={1000}
             height={1000}
@@ -84,7 +84,7 @@ export function ArtistHeader(props: { handle: string }) {
                     )}
                     <Avatar className="h-24 w-24">
                         <AvatarImage
-                            src={artist?.user.profile_picture}
+                            src={artist?.user.profilePicture}
                             alt="Profile Picture"
                             width={200}
                             height={200}
@@ -174,11 +174,11 @@ export function ArtistBody(props: { handle: string }) {
 
 function get_social_icon(agent: SocialAgent) {
     switch (agent) {
-        case SocialAgent.Pixiv:
+        case 'pixiv':
             return <PixivIcon />
-        case SocialAgent.Twitter:
+        case 'twitter':
             return <XTwitterIcon />
-        case SocialAgent.Website:
+        case 'website':
             return <GlobeIcon className="h-6 w-6" />
     }
 }

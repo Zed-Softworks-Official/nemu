@@ -24,7 +24,7 @@ import {
     DropdownMenuTrigger
 } from '~/components/ui/dropdown-menu'
 
-import { type ClientCommissionItem } from '~/lib/structures'
+import { type ClientCommissionItem } from '~/lib/types'
 
 export function CommissionList() {
     const { data, isLoading } = api.commission.getCommissionList.useQuery()

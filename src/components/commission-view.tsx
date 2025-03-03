@@ -10,7 +10,7 @@ import { RedirectToSignIn, useUser } from '@clerk/nextjs'
 import { api } from '~/trpc/react'
 import { type forms } from '~/server/db/schema'
 import { getAvailabilityBadgeData } from '~/lib/utils'
-import { type ChargeMethod, type ClientCommissionItem } from '~/lib/structures'
+import { type ChargeMethod, type ClientCommissionItem } from '~/lib/types'
 
 import Loading from '~/components/ui/loading'
 import ImageViewer from '~/components/ui/image-viewer'
@@ -149,7 +149,7 @@ function CommissionContent(props: {
                         <div className="flex flex-col items-start gap-1">
                             <Price value={props.commission.price} />
                             <CommissionChargeMethod
-                                charge_method={props.commission.charge_method}
+                                chargeMethod={props.commission.chargeMethod}
                             />
                         </div>
                         <Button
@@ -174,12 +174,12 @@ function CommissionContent(props: {
     )
 }
 
-function CommissionChargeMethod(props: { charge_method: ChargeMethod }) {
-    if (props.charge_method === 'in_full') {
+function CommissionChargeMethod(props: { chargeMethod: ChargeMethod }) {
+    if (props.chargeMethod === 'in_full') {
         return <span className="text-muted-foreground text-sm italic">Pay In Full</span>
     }
 
-    if (props.charge_method === 'down_payment') {
+    if (props.chargeMethod === 'down_payment') {
         return (
             <span className="text-muted-foreground text-sm italic">
                 Down Payment Required

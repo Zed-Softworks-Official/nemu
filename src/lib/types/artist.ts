@@ -3,20 +3,14 @@ import { z } from 'zod'
 /**
  * Types of verification that can be used
  */
-export enum VerificationMethod {
-    Code = 'artist_code',
-    Twitter = 'twitter',
-    Email = 'email'
-}
+export const verificationMethods = ['artist_code', 'twitter', 'email'] as const
+export type VerificationMethod = (typeof verificationMethods)[number]
 
 /**
  * Enumeration for the different social agents
  */
-export enum SocialAgent {
-    Twitter = 'twitter',
-    Pixiv = 'pixiv',
-    Website = 'website'
-}
+export const socialAgents = ['twitter', 'pixiv', 'website'] as const
+export type SocialAgent = (typeof socialAgents)[number]
 
 /**
  * Social Account Type
@@ -28,7 +22,7 @@ export type SocialAccount = {
 
 export const verification_data = z.object({
     method: z.literal('artist_code').or(z.literal('twitter')),
-    requested_handle: z
+    requestedHandle: z
         .string()
         .min(1, 'Handles must be longer then one character')
         .refine(
@@ -38,7 +32,7 @@ export const verification_data = z.object({
     twitter: z.string().url('Must be a valid url'),
     website: z.string().url('Must be a valid url').optional().or(z.literal('')),
     location: z.string(),
-    artist_code: z.string().optional()
+    artistCode: z.string().optional()
 })
 
 export type VerificationDataType = z.infer<typeof verification_data>

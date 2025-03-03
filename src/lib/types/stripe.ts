@@ -18,18 +18,18 @@ export interface InvoiceItem {
 
 export type StripePaymentMetadata =
     | {
-          purchase_type: 'commission_invoice'
-          stripe_account: string
-          order_id: string
+          purchaseType: 'commission_invoice'
+          stripeAccount: string
+          orderId: string
       }
     | {
-          purchase_type: 'artist_corner'
-          stripe_account: string
-          purchase_id: string
+          purchaseType: 'artist_corner'
+          stripeAccount: string
+          purchaseId: string
       }
     | {
-          purchase_type: 'supporter'
-          stripe_account: string
+          purchaseType: 'supporter'
+          stripeAccount: string
       }
 
 export interface StripeDashboardData {
@@ -44,13 +44,13 @@ export interface StripeDashboardData {
 
 export type StripeSubData =
     | {
-          subscription_id: string | null
+          subscriptionId: string | null
           status: Stripe.Subscription.Status
-          price_id: string | null
-          current_period_start: number | null
-          current_period_end: number | null
-          cancel_at_period_end: boolean
-          payment_method: {
+          priceId: string | null
+          currentPeriodStart: number | null
+          currentPeriodEnd: number | null
+          cancelAtPeriodEnd: boolean
+          paymentMethod: {
               brand: string | null // e.g., "visa", "mastercard"
               last4: string | null // e.g., "4242"
           } | null
@@ -58,3 +58,8 @@ export type StripeSubData =
     | {
           status: 'none'
       }
+
+export type SalesData = {
+    month: string
+    totalSales: number
+}

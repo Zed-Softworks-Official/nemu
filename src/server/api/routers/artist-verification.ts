@@ -8,17 +8,11 @@ import { adminProcedure, createTRPCRouter, protectedProcedure } from '~/server/a
 import {
     type NemuPublicUserMetadata,
     type SocialAccount,
-    SocialAgent,
     type VerificationDataType,
-    VerificationMethod
-} from '~/lib/structures'
+    verificationMethods
+} from '~/lib/types'
 
-import {
-    artist_codes,
-    artist_verifications,
-    artists,
-    con_sign_up
-} from '~/server/db/schema'
+import { artistCodes, artistVerifications, artists, conSignUp } from '~/server/db/schema'
 import { TRPCError } from '@trpc/server'
 import { db } from '~/server/db'
 import { eq } from 'drizzle-orm'
@@ -42,7 +36,7 @@ export const artistVerificationRouter = createTRPCRouter({
             }))
 
             // Batch insert all codes in a single database operation
-            await ctx.db.insert(artist_codes).values(codes)
+            await ctx.db.insert(artistCodes).values(codes)
 
             // Extract just the code strings for the result
             const result = codes.map((code) => code.code)
@@ -53,29 +47,29 @@ export const artistVerificationRouter = createTRPCRouter({
         }),
 
     getArtistCodes: adminProcedure.query(async ({ ctx }) => {
-        return await ctx.db.query.artist_codes.findMany()
+        return await ctx.db.query.artistCodes.findMany()
     }),
 
     getArtistVerifications: adminProcedure.query(async ({ ctx }) => {
-        return await ctx.db.query.artist_verifications.findMany()
+        return await ctx.db.query.artistVerifications.findMany()
     }),
 
     verifyArtist: protectedProcedure
         .input(
             z.object({
-                requested_handle: z.string(),
+                requestedHandle: z.string(),
                 twitter: z.string().url().optional(),
                 website: z.string().url().optional(),
                 location: z.string().optional(),
-                method: z.enum([VerificationMethod.Code, VerificationMethod.Twitter]),
-                artist_code: z.string().optional()
+                method: z.enum(verificationMethods),
+                artistCode: z.string().optional()
             })
         )
         .mutation(async ({ input, ctx }) => {
             switch (input.method) {
-                case VerificationMethod.Code:
+                case 'artist_code':
                     {
-                        if (!input.artist_code) {
+                        if (!input.artistCode) {
                             throw new TRPCError({
                                 code: 'BAD_REQUEST',
                                 message: 'Artist code is required'
@@ -83,11 +77,11 @@ export const artistVerificationRouter = createTRPCRouter({
                         }
 
                         // Check if the artist code exists
-                        const artist_code = await db.query.artist_codes.findFirst({
-                            where: eq(artist_codes.code, input.artist_code)
+                        const artistCode = await db.query.artistCodes.findFirst({
+                            where: eq(artistCodes.code, input.artistCode)
                         })
 
-                        if (!artist_code) {
+                        if (!artistCode) {
                             throw new TRPCError({
                                 code: 'BAD_REQUEST',
                                 message: 'Artist code does not exist'
@@ -96,12 +90,12 @@ export const artistVerificationRouter = createTRPCRouter({
 
                         const db_promise = createArtist(
                             {
-                                requested_handle: input.requested_handle,
+                                requestedHandle: input.requestedHandle,
                                 twitter: input.twitter ?? '',
                                 website: input.website ?? '',
                                 location: input.location ?? '',
-                                method: VerificationMethod.Code,
-                                artist_code: input.artist_code
+                                method: 'artist_code',
+                                artistCode: input.artistCode
                             },
                             ctx.auth.userId
                         )
@@ -111,25 +105,25 @@ export const artistVerificationRouter = createTRPCRouter({
                             type: KnockWorkflows.VerificationApproved,
                             recipients: [ctx.auth.userId],
                             data: {
-                                artist_handle: input.requested_handle
+                                artist_handle: input.requestedHandle
                             }
                         })
 
                         // Delete artist code
                         const delete_promise = db
-                            .delete(artist_codes)
-                            .where(eq(artist_codes.code, input.artist_code))
+                            .delete(artistCodes)
+                            .where(eq(artistCodes.code, input.artistCode))
 
                         await Promise.all([db_promise, knock_promise, delete_promise])
                     }
                     break
-                case VerificationMethod.Twitter:
+                case 'twitter':
                     {
                         // Create the artist verification object in the db
-                        const db_promise = db.insert(artist_verifications).values({
+                        const db_promise = db.insert(artistVerifications).values({
                             id: createId(),
-                            user_id: ctx.auth.userId,
-                            requested_handle: input.requested_handle,
+                            userId: ctx.auth.userId,
+                            requestedHandle: input.requestedHandle,
                             location: input.location ?? '',
                             twitter: input.twitter ?? '',
                             website: input.website ?? ''
@@ -149,7 +143,7 @@ export const artistVerificationRouter = createTRPCRouter({
 
             return {
                 route:
-                    input.method === VerificationMethod.Code
+                    input.method === 'artist_code'
                         ? '/artists/apply/success'
                         : '/artists/apply/further-steps'
             }
@@ -158,23 +152,23 @@ export const artistVerificationRouter = createTRPCRouter({
     verifyFromCon: protectedProcedure
         .input(
             z.object({
-                requested_handle: z.string(),
+                requestedHandle: z.string(),
                 location: z.string(),
                 twitter: z.string().url().optional(),
                 website: z.string().url().optional(),
-                con_slug: z.string()
+                conSlug: z.string()
             })
         )
         .mutation(async ({ input, ctx }) => {
-            const artist_promise = ctx.db.query.artists.findFirst({
-                where: eq(artists.handle, input.requested_handle)
+            const artistPromise = ctx.db.query.artists.findFirst({
+                where: eq(artists.handle, input.requestedHandle)
             })
 
-            const con_promise = ctx.db.query.con_sign_up.findFirst({
-                where: eq(con_sign_up.slug, input.con_slug)
+            const conPromise = ctx.db.query.conSignUp.findFirst({
+                where: eq(conSignUp.slug, input.conSlug)
             })
 
-            const [artist, con] = await Promise.all([artist_promise, con_promise])
+            const [artist, con] = await Promise.all([artistPromise, conPromise])
 
             if (artist) {
                 throw new TRPCError({
@@ -183,7 +177,7 @@ export const artistVerificationRouter = createTRPCRouter({
                 })
             }
 
-            if (con?.expires_at && con.expires_at < new Date()) {
+            if (con?.expiresAt && con.expiresAt < new Date()) {
                 throw new TRPCError({
                     code: 'BAD_REQUEST',
                     message: 'Con has expired'
@@ -192,10 +186,10 @@ export const artistVerificationRouter = createTRPCRouter({
 
             await createArtist(
                 {
-                    requested_handle: input.requested_handle,
+                    requestedHandle: input.requestedHandle,
                     location: input.location,
                     twitter: input.twitter ?? '',
-                    method: VerificationMethod.Code,
+                    method: 'artist_code',
                     website: input.website ?? ''
                 },
                 ctx.auth.userId
@@ -203,26 +197,26 @@ export const artistVerificationRouter = createTRPCRouter({
         })
 })
 
-async function createArtist(input: VerificationDataType, user_id: string) {
+async function createArtist(input: VerificationDataType, userId: string) {
     const social_accounts: SocialAccount[] = []
-    const clerk_client = await clerkClient()
+    const clerk = await clerkClient()
 
     if (input.twitter) {
         social_accounts.push({
-            agent: SocialAgent.Twitter,
+            agent: 'twitter',
             url: input.twitter
         })
     }
 
     if (input.website) {
         social_accounts.push({
-            agent: SocialAgent.Website,
+            agent: 'website',
             url: input.website
         })
     }
 
     // Get the user from the database
-    const user = await clerk_client.users.getUser(user_id)
+    const user = await clerk.users.getUser(userId)
     if (!user) {
         throw new Error('User could not be found!')
     }
@@ -236,10 +230,10 @@ async function createArtist(input: VerificationDataType, user_id: string) {
     // Create the artist in the database
     await db.insert(artists).values({
         id: generated_id,
-        stripe_account: generated_stripe_account.id,
+        stripeAccount: generated_stripe_account.id,
         location: input.location,
-        user_id: user.id,
-        handle: input.requested_handle,
+        userId: user.id,
+        handle: input.requestedHandle,
         socials: social_accounts
     })
 
@@ -252,14 +246,14 @@ async function createArtist(input: VerificationDataType, user_id: string) {
     }
 
     // Update the user in clerk
-    const clerk_promise = clerk_client.users.updateUserMetadata(user.id, {
+    const clerk_promise = clerk.users.updateUserMetadata(user.id, {
         publicMetadata: {
             handle: artist.handle,
             role: 'artist',
-            artist_id: artist.id
+            artistId: artist.id
         } satisfies NemuPublicUserMetadata,
         privateMetadata: {
-            artist_id: artist.id
+            artistId: artist.id
         }
     })
 
@@ -268,7 +262,7 @@ async function createArtist(input: VerificationDataType, user_id: string) {
         objectID: artist.id,
         handle: artist.handle,
         about: artist.about,
-        image_url: user.imageUrl
+        imageUrl: user.imageUrl
     })
 
     await Promise.all([clerk_promise, algolia_promise])
