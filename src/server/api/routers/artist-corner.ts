@@ -6,6 +6,7 @@ import { z } from 'zod'
 
 import { type StripeProductData } from '~/lib/types'
 import { formatToCurrency, getUTUrl } from '~/lib/utils'
+import { setIndex, updateIndex } from '~/server/algolia/collections'
 
 import {
     artistProcedure,
@@ -80,6 +81,17 @@ export const artistCornerRouter = createTRPCRouter({
                 artistId: ctx.artist.id,
                 ...input,
                 description
+            })
+
+            // Add to algolia
+            await setIndex('products', {
+                objectID: id,
+                id,
+                artistHandle: ctx.artist.handle,
+                name: input.name,
+                price: formatToCurrency(input.price / 100),
+                imageUrl: getUTUrl(input.images[0] ?? ''),
+                published: false
             })
 
             // Step 3: Update Redis only after database insertion succeeds
@@ -195,6 +207,12 @@ export const artistCornerRouter = createTRPCRouter({
                             }
                         )
 
+                        // Update Algolia
+                        await updateIndex('products', {
+                            objectID: input.id,
+                            price: formatToCurrency(input.price / 100)
+                        })
+
                         // Update Redis with new price
                         await ctx.redis.set(getRedisKey('product:stripe', input.id), {
                             ...stripe_data,
@@ -267,6 +285,12 @@ export const artistCornerRouter = createTRPCRouter({
                     .where(eq(products.id, input.id))
 
                 changes.dbUpdated = true
+
+                // Update Algolia
+                await updateIndex('products', {
+                    objectID: input.id,
+                    ...items
+                })
 
                 // Step 5: Update Redis
                 await Promise.all([
@@ -437,6 +461,12 @@ export const artistCornerRouter = createTRPCRouter({
                     published: input.published
                 })
                 .where(eq(products.id, input.id))
+
+            // Update Algolia
+            await updateIndex('products', {
+                objectID: input.id,
+                published: input.published
+            })
         }),
 
     getPurchased: protectedProcedure

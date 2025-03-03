@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { SearchIcon } from 'lucide-react'
 
 import debounce from 'lodash.debounce'
-import type { ArtistIndex, CommissionIndex } from '~/lib/types'
+import type { ArtistIndex, CommissionIndex, ProductIndex } from '~/lib/types'
 import { client } from '~/server/algolia'
 
 import {
@@ -29,6 +29,7 @@ export default function SearchBar() {
 
     const [artistHits, setArtistHits] = useState<ArtistIndex[]>([])
     const [commissionHits, setCommissionHits] = useState<CommissionIndex[]>([])
+    const [productHits, setProductHits] = useState<ProductIndex[]>([])
 
     useEffect(() => {
         const down = (e: KeyboardEvent) => {
@@ -46,37 +47,38 @@ export default function SearchBar() {
         () =>
             debounce(async (query: string) => {
                 if (query.length > 0) {
-                    const artists = client.searchForHits({
+                    const hits = await client.searchForHits({
                         requests: [
                             {
                                 indexName: 'artists',
                                 query,
                                 hitsPerPage: 5
-                            }
-                        ]
-                    })
-
-                    const commissions = client.searchForHits({
-                        requests: [
+                            },
                             {
                                 indexName: 'commissions',
+                                query,
+                                hitsPerPage: 5
+                            },
+                            {
+                                indexName: 'products',
                                 query,
                                 hitsPerPage: 5
                             }
                         ]
                     })
 
-                    const res = await Promise.all([artists, commissions])
-
-                    const artistHits = res[0].results[0]?.hits as unknown as ArtistIndex[]
-                    const commissionHits = res[1].results[0]
+                    const artistHits = hits.results[0]?.hits as unknown as ArtistIndex[]
+                    const commissionHits = hits.results[0]
                         ?.hits as unknown as CommissionIndex[]
+                    const productHits = hits.results[2]?.hits as unknown as ProductIndex[]
 
                     setArtistHits(artistHits)
                     setCommissionHits(commissionHits)
+                    setProductHits(productHits)
                 } else {
                     setArtistHits([])
                     setCommissionHits([])
+                    setProductHits([])
                 }
             }, 500),
         []
@@ -123,6 +125,7 @@ export default function SearchBar() {
                     <SearchResults
                         artistHits={artistHits}
                         commissionHits={commissionHits}
+                        productHits={productHits}
                     />
                 </CommandList>
             </CommandDialog>
@@ -133,6 +136,7 @@ export default function SearchBar() {
 function SearchResults(props: {
     artistHits: ArtistIndex[]
     commissionHits: CommissionIndex[]
+    productHits: ProductIndex[]
 }) {
     if (props.artistHits.length === 0 && props.commissionHits.length === 0) {
         return <CommandEmpty>No Results Found</CommandEmpty>
@@ -151,7 +155,43 @@ function SearchResults(props: {
                     <CommissionHit key={commission.objectID} hit={commission} />
                 ))}
             </CommandGroup>
+            <CommandSeparator />
+            <CommandGroup heading="Products">
+                {props.productHits.map((product) => (
+                    <ProductHit key={product.objectID} hit={product} />
+                ))}
+            </CommandGroup>
         </>
+    )
+}
+
+function ProductHit(props: { hit: ProductIndex }) {
+    if (!props.hit.published) return null
+
+    return (
+        <CommandItem className="rounded-xl">
+            <Link
+                href={`/@${props.hit.artistHandle}/artist-corner/${props.hit.id}`}
+                className="flex flex-row items-center gap-3"
+            >
+                <NemuImage
+                    src={props.hit.imageUrl}
+                    alt={props.hit.name}
+                    width={80}
+                    height={80}
+                    className="rounded-xl"
+                />
+                <div className="flex flex-col gap-3">
+                    <span className="text-base-content text-sm">{props.hit.name}</span>
+                    <span className="text-base-content/40 text-sm">
+                        @{props.hit.artistHandle}
+                    </span>
+                    <span className="text-base-content/80 text-sm">
+                        {props.hit.price}
+                    </span>
+                </div>
+            </Link>
+        </CommandItem>
     )
 }
 
@@ -201,9 +241,6 @@ function CommissionHit(props: { hit: CommissionIndex }) {
                     <span className="text-base-content text-sm">{props.hit.title}</span>
                     <span className="text-base-content/40 text-sm">
                         @{props.hit.artistHandle}
-                    </span>
-                    <span className="text-base-content/80 text-sm">
-                        {props.hit.description}
                     </span>
                     <span className="text-base-content/60 text-sm">
                         {props.hit.price}
