@@ -22,7 +22,7 @@ import {
 } from '~/components/ui/card'
 import { Button } from '~/components/ui/button'
 
-import type { InvoiceItem } from '~/lib/structures'
+import type { InvoiceItem } from '~/lib/types'
 import { formatToCurrency } from '~/lib/utils'
 
 import {
@@ -57,8 +57,8 @@ import {
 import { type ColDef } from 'ag-grid-community'
 
 export function InvoiceEditor() {
-    const { current_invoice, is_downpayment_invoice } = useDashboardOrder()
-    const [items, setItems] = useState<InvoiceItem[]>(current_invoice?.items ?? [])
+    const { currentInvoice, isDownpaymentInvoice } = useDashboardOrder()
+    const [items, setItems] = useState<InvoiceItem[]>(currentInvoice?.items ?? [])
 
     const utils = api.useUtils()
 
@@ -102,7 +102,7 @@ export function InvoiceEditor() {
 
     useRevalidateInvoiceItems(items, setItems)
 
-    if (!current_invoice) {
+    if (!currentInvoice) {
         return <div>No invoice found</div>
     }
 
@@ -132,7 +132,7 @@ export function InvoiceEditor() {
                             <CardDescription>
                                 Edit the invoice for this order
                             </CardDescription>
-                            {!current_invoice.is_final && (
+                            {!currentInvoice.isFinal && (
                                 <CardDescription>
                                     Note: This invoice will be a downpayment of the full
                                     amount. User will{' '}
@@ -146,7 +146,7 @@ export function InvoiceEditor() {
                                 disabled={updateItems.isPending}
                                 onClick={() => {
                                     updateItems.mutate({
-                                        invoice_id: current_invoice.id,
+                                        invoiceId: currentInvoice.id,
                                         items: items.map((item) => ({
                                             id: item.id ?? createId(),
                                             name: item.name,
@@ -171,7 +171,7 @@ export function InvoiceEditor() {
                                             <Button
                                                 className="w-full justify-start"
                                                 variant={'ghost'}
-                                                disabled={current_invoice.sent}
+                                                disabled={currentInvoice.sent}
                                             >
                                                 <PencilIcon className="h-4 w-4" />
                                                 Edit
@@ -183,7 +183,7 @@ export function InvoiceEditor() {
                                             <Button
                                                 className="w-full justify-start"
                                                 variant={'ghost'}
-                                                disabled={current_invoice.sent}
+                                                disabled={currentInvoice.sent}
                                             >
                                                 <Send className="h-4 w-4" />
                                                 Send
@@ -248,8 +248,8 @@ export function InvoiceEditor() {
                         <AlertDialogAction
                             onClick={() => {
                                 sendInvoice.mutate({
-                                    invoice_id: current_invoice.id,
-                                    is_downpayment_invoice
+                                    invoiceId: currentInvoice.id,
+                                    isDownpaymentInvoice
                                 })
                             }}
                         >

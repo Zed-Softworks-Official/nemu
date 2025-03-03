@@ -4,14 +4,14 @@ import { type NextRequest } from 'next/server'
 import { and, eq } from 'drizzle-orm'
 import { createId } from '@paralleldrive/cuid2'
 
-import type { StripePaymentMetadata, StripeProductData } from '~/lib/structures'
+import type { StripePaymentMetadata, StripeProductData } from '~/lib/types'
 import { db } from '~/server/db'
 import { artists, purchase } from '~/server/db/schema'
 import { getRedisKey, redis } from '~/server/redis'
 
 import { stripe } from '~/server/stripe'
 import { env } from '~/env'
-import { is_supporter } from '~/app/api/stripe/sync'
+import { isSupporter } from '~/app/api/stripe/sync'
 import { calculate_application_fee } from '~/lib/payments'
 
 export async function GET(
@@ -32,9 +32,9 @@ export async function GET(
 
     const alreadyPurchased = await db.query.purchase.findFirst({
         where: and(
-            eq(purchase.product_id, params.id),
-            eq(purchase.user_id, auth.userId),
-            eq(purchase.artist_id, artist.id),
+            eq(purchase.productId, params.id),
+            eq(purchase.userId, auth.userId),
+            eq(purchase.artistId, artist.id),
             eq(purchase.status, 'completed')
         )
     })
@@ -61,7 +61,7 @@ export async function GET(
                 name: user.username ?? user.emailAddresses[0]?.emailAddress ?? 'Unknown',
                 email: user.emailAddresses[0]?.emailAddress
             },
-            { stripeAccount: artist.stripe_account }
+            { stripeAccount: artist.stripeAccount }
         )
         stripeCustomer = customer.id
 
@@ -76,7 +76,7 @@ export async function GET(
     )
     if (!productData) return notFound()
 
-    const applicationFeeAmount = !(await is_supporter(artist.user_id))
+    const applicationFeeAmount = !(await isSupporter(artist.userId))
         ? calculate_application_fee(productData.price)
         : undefined
 
@@ -92,9 +92,9 @@ export async function GET(
                 }
             ],
             metadata: {
-                purchase_type: 'artist_corner',
-                stripe_account: artist.stripe_account,
-                purchase_id: purchaseId
+                purchaseType: 'artist_corner',
+                stripeAccount: artist.stripeAccount,
+                purchaseId: purchaseId
             } satisfies StripePaymentMetadata,
             mode: 'payment',
             currency: 'usd',
@@ -108,7 +108,7 @@ export async function GET(
             expires_at: Math.floor(Date.now() / 1000) + 60 * 60 * 24 // 24 hours
         },
         {
-            stripeAccount: artist.stripe_account
+            stripeAccount: artist.stripeAccount
         }
     )
 
@@ -126,9 +126,9 @@ export async function GET(
 
     await db.insert(purchase).values({
         id: purchaseId,
-        product_id: params.id,
-        user_id: auth.userId,
-        artist_id: artist.id,
+        productId: params.id,
+        userId: auth.userId,
+        artistId: artist.id,
         status: 'pending'
     })
 

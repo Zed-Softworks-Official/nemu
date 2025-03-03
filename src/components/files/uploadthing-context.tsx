@@ -14,7 +14,7 @@ import { generatePermittedFileTypes } from 'uploadthing/client'
 import { type EndpointHelper, useUploadThing } from '~/components/files/uploadthing'
 import { type NemuFileRouterType } from '~/app/api/uploadthing/core'
 import { type ClientUploadedFileData } from 'uploadthing/types'
-import { type ImageEditorData } from '~/lib/structures'
+import { type ImageEditorData } from '~/lib/types'
 
 type EditorState = {
     create: ImageEditorData[]
@@ -72,7 +72,7 @@ export default function UploadThingProvider({
         return () => {
             for (const preview of images) {
                 if (preview.data.action === 'create') {
-                    URL.revokeObjectURL(preview.data.image_data.url ?? '')
+                    URL.revokeObjectURL(preview.data.imageData.url ?? '')
                 }
             }
         }
@@ -83,7 +83,7 @@ export default function UploadThingProvider({
             return
         }
 
-        return await startUpload(images.map((image) => image.data.image_data.file_data!))
+        return await startUpload(images.map((image) => image.data.imageData.fileData!))
     }
 
     return (

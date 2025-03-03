@@ -6,7 +6,7 @@ import type {
     ArtistIndex,
     CommissionEditIndex,
     CommissionIndex
-} from '~/lib/structures'
+} from '~/lib/types'
 import { env } from '~/env'
 
 type SearchType = 'artists' | 'commissions'
@@ -26,12 +26,12 @@ export async function setIndex(index: SearchType, data: ArtistIndex | Commission
 
 /**
  * @param {SearchType} index - The type of index to delete
- * @param {string} object_id - The object id to delete
+ * @param {string} objectId - The object id to delete
  */
-export async function delIndex(index: SearchType, object_id: string) {
+export async function delIndex(index: SearchType, objectId: string) {
     return await client.deleteObject({
         indexName: index,
-        objectID: object_id
+        objectID: objectId
     })
 }
 

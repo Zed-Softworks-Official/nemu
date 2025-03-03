@@ -1,46 +1,46 @@
 import { stripe } from '~/server/stripe'
-import { type InvoiceItem, type StripePaymentMetadata } from '~/lib/structures'
+import { type InvoiceItem, type StripePaymentMetadata } from '~/lib/types'
 import { calculate_application_fee } from '.'
 
 /**
  * Creates a new commission invoice for the given commission
  *
- * @param {string} stripe_account - The connect account id
- * @param {string} customer_id - The customer id of the user
- * @param {string} order_id - The order id of the commission
+ * @param {string} stripeAccount - The connect account id
+ * @param {string} customerId - The customer id of the user
+ * @param {string} orderId - The order id of the commission
  * @returns {Promise<Stripe.Invoice>} - The stripe invoice object
  */
 export async function StripeCreateInvoice(
-    stripe_account: string,
-    customer_id: string,
-    order_id: string
+    stripeAccount: string,
+    customerId: string,
+    orderId: string
 ) {
     return await stripe.invoices.create(
         {
-            customer: customer_id,
+            customer: customerId,
             metadata: {
-                purchase_type: 'commission_invoice',
-                order_id,
-                stripe_account
+                purchaseType: 'commission_invoice',
+                orderId,
+                stripeAccount
             } satisfies StripePaymentMetadata
         },
-        { stripeAccount: stripe_account }
+        { stripeAccount: stripeAccount }
     )
 }
 
 /**
  * Updates the existing invoice items for a given invoice id
  *
- * @param {string} customer_id - The customer id of the user
- * @param {string} stripe_account - The stripe account id
- * @param {string} invoice_id - The invoice id to update
+ * @param {string} customerId - The customer id of the user
+ * @param {string} stripeAccount - The stripe account id
+ * @param {string} invoiceStripeId - The invoice id to update
  * @param {InvoiceItem[]} items - The items to add to the invoice
  * @param {boolean} supporter - Whether the artist is a supporter or not
  */
 export async function StripeUpdateInvoice(
-    customer_id: string,
-    stripe_account: string,
-    invoice_stripe_id: string,
+    customerId: string,
+    stripeAccount: string,
+    invoiceStripeId: string,
     items: InvoiceItem[],
     downpayment?: {
         index: number
@@ -48,14 +48,14 @@ export async function StripeUpdateInvoice(
     }
 ) {
     // Clear the invoice items if any
-    const line_items = await stripe.invoices.listLineItems(invoice_stripe_id, {
-        stripeAccount: stripe_account
+    const line_items = await stripe.invoices.listLineItems(invoiceStripeId, {
+        stripeAccount: stripeAccount
     })
 
     if (line_items.data.length > 0) {
         for (const line_item of line_items.data) {
             await stripe.invoiceItems.del(line_item.id, {
-                stripeAccount: stripe_account
+                stripeAccount: stripeAccount
             })
         }
     }
@@ -64,13 +64,13 @@ export async function StripeUpdateInvoice(
     for (const item of items) {
         await stripe.invoiceItems.create(
             {
-                customer: customer_id,
+                customer: customerId,
                 unit_amount: item.price,
                 quantity: item.quantity,
-                invoice: invoice_stripe_id,
+                invoice: invoiceStripeId,
                 description: item.name
             },
-            { stripeAccount: stripe_account }
+            { stripeAccount: stripeAccount }
         )
     }
 
@@ -82,11 +82,11 @@ export async function StripeUpdateInvoice(
                 duration: 'once',
                 max_redemptions: 1
             },
-            { stripeAccount: stripe_account }
+            { stripeAccount: stripeAccount }
         )
 
         await stripe.invoices.update(
-            invoice_stripe_id,
+            invoiceStripeId,
             {
                 discounts: [
                     {
@@ -94,7 +94,7 @@ export async function StripeUpdateInvoice(
                     }
                 ]
             },
-            { stripeAccount: stripe_account }
+            { stripeAccount: stripeAccount }
         )
     } else if (downpayment && downpayment.index === 1) {
         const stripe_discount = await stripe.coupons.create(
@@ -104,12 +104,12 @@ export async function StripeUpdateInvoice(
                 max_redemptions: 1
             },
             {
-                stripeAccount: stripe_account
+                stripeAccount: stripeAccount
             }
         )
 
         await stripe.invoices.update(
-            invoice_stripe_id,
+            invoiceStripeId,
             {
                 discounts: [
                     {
@@ -118,7 +118,7 @@ export async function StripeUpdateInvoice(
                 ]
             },
             {
-                stripeAccount: stripe_account
+                stripeAccount: stripeAccount
             }
         )
     }
@@ -127,17 +127,17 @@ export async function StripeUpdateInvoice(
 /**
  * Finalizes the invoice and sends it to the user
  *
- * @param {string} invoice_id - The invoice id to finalize
- * @param {string} stripe_account - The stripe account id
+ * @param {string} invoiceStripeId - The invoice id to finalize
+ * @param {string} stripeAccount - The stripe account id
  * @returns {Promise<Stripe.Invoice>} - The finalized invoice object
  */
 export async function StripeFinalizeInvoice(
-    invoice_stripe_id: string,
-    stripe_account: string,
+    invoiceStripeId: string,
+    stripeAccount: string,
     supporter: boolean
 ) {
-    const invoice = await stripe.invoices.retrieve(invoice_stripe_id, {
-        stripeAccount: stripe_account
+    const invoice = await stripe.invoices.retrieve(invoiceStripeId, {
+        stripeAccount: stripeAccount
     })
 
     // Add Application fee to invoice
@@ -148,7 +148,7 @@ export async function StripeFinalizeInvoice(
 
     // Set the due date to 48 hours from now
     await stripe.invoices.update(
-        invoice_stripe_id,
+        invoiceStripeId,
         {
             collection_method: 'send_invoice',
             days_until_due: 2,
@@ -157,10 +157,10 @@ export async function StripeFinalizeInvoice(
                 payment_method_types: ['card', 'link']
             }
         },
-        { stripeAccount: stripe_account }
+        { stripeAccount: stripeAccount }
     )
 
-    return await stripe.invoices.finalizeInvoice(invoice_stripe_id, {
-        stripeAccount: stripe_account
+    return await stripe.invoices.finalizeInvoice(invoiceStripeId, {
+        stripeAccount: stripeAccount
     })
 }

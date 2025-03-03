@@ -4,7 +4,7 @@ import { TRPCError } from '@trpc/server'
 import { and, desc, eq, lt } from 'drizzle-orm'
 import { z } from 'zod'
 
-import { type StripeProductData } from '~/lib/structures'
+import { type StripeProductData } from '~/lib/types'
 import { formatToCurrency, getUTUrl } from '~/lib/utils'
 
 import {
@@ -28,7 +28,7 @@ const productSchema = z.object({
         size: z.number()
     }),
     images: z.array(z.string()),
-    is_free: z.boolean()
+    isFree: z.boolean()
 })
 
 export const artistCornerRouter = createTRPCRouter({
@@ -41,7 +41,7 @@ export const artistCornerRouter = createTRPCRouter({
             // This is the external dependency most likely to fail
             let stripeData: StripeProductData | undefined = undefined
 
-            if (!input.is_free) {
+            if (!input.isFree) {
                 const stripe_product = await stripe.products.create(
                     {
                         name: input.name,
@@ -55,7 +55,7 @@ export const artistCornerRouter = createTRPCRouter({
                         }
                     },
                     {
-                        stripeAccount: ctx.artist.stripe_account
+                        stripeAccount: ctx.artist.stripeAccount
                     }
                 )
 
@@ -77,7 +77,7 @@ export const artistCornerRouter = createTRPCRouter({
             // Step 2: Insert into database
             await ctx.db.insert(products).values({
                 id,
-                artist_id: ctx.artist.id,
+                artistId: ctx.artist.id,
                 ...input,
                 description
             })
@@ -102,14 +102,14 @@ export const artistCornerRouter = createTRPCRouter({
                 await ctx.db.delete(products).where(eq(products.id, id))
 
                 // Rollback: Delete Stripe product if it was created
-                if (!input.is_free) {
+                if (!input.isFree) {
                     const stripeData = await ctx.redis.get<StripeProductData>(
                         getRedisKey('product:stripe', id)
                     )
 
                     if (stripeData) {
                         await stripe.products.del(stripeData.productId, {
-                            stripeAccount: ctx.artist.stripe_account
+                            stripeAccount: ctx.artist.stripeAccount
                         })
 
                         await ctx.redis.del(getRedisKey('product:stripe', id))
@@ -163,7 +163,7 @@ export const artistCornerRouter = createTRPCRouter({
 
             try {
                 // Step 2: Handle Stripe updates first (most likely to fail)
-                if (product.price !== input.price || product.is_free !== input.is_free) {
+                if (product.price !== input.price || product.isFree !== input.isFree) {
                     const stripe_data = await ctx.redis.get<StripeProductData>(
                         getRedisKey('product:stripe', input.id)
                     )
@@ -191,7 +191,7 @@ export const artistCornerRouter = createTRPCRouter({
                                 name: input.name
                             },
                             {
-                                stripeAccount: ctx.artist.stripe_account
+                                stripeAccount: ctx.artist.stripeAccount
                             }
                         )
 
@@ -203,7 +203,7 @@ export const artistCornerRouter = createTRPCRouter({
                         })
 
                         changes.stripeUpdated = true
-                    } else if (!input.is_free) {
+                    } else if (!input.isFree) {
                         // Create new Stripe product if switching from free to paid
                         const stripe_product = await stripe.products.create(
                             {
@@ -218,7 +218,7 @@ export const artistCornerRouter = createTRPCRouter({
                                 }
                             },
                             {
-                                stripeAccount: ctx.artist.stripe_account
+                                stripeAccount: ctx.artist.stripeAccount
                             }
                         )
 
@@ -292,7 +292,7 @@ export const artistCornerRouter = createTRPCRouter({
                                 price: originalProduct.price,
                                 images: originalProduct.images,
                                 download: originalProduct.download,
-                                is_free: originalProduct.is_free
+                                isFree: originalProduct.isFree
                             })
                             .where(eq(products.id, input.id))
                     }
@@ -306,16 +306,16 @@ export const artistCornerRouter = createTRPCRouter({
                         if (changes.newStripeProductId) {
                             // Delete newly created Stripe product
                             await stripe.products.del(changes.newStripeProductId, {
-                                stripeAccount: ctx.artist.stripe_account
+                                stripeAccount: ctx.artist.stripeAccount
                             })
                         } else if (stripe_data) {
                             // Restore original price and state
-                            if (originalProduct.is_free) {
+                            if (originalProduct.isFree) {
                                 // If it was originally free, archive the product
                                 await stripe.products.update(
                                     stripe_data.productId,
                                     { active: false },
-                                    { stripeAccount: ctx.artist.stripe_account }
+                                    { stripeAccount: ctx.artist.stripeAccount }
                                 )
 
                                 await ctx.redis.del(
@@ -338,7 +338,7 @@ export const artistCornerRouter = createTRPCRouter({
                                             ),
                                             name: originalProduct.name
                                         },
-                                        { stripeAccount: ctx.artist.stripe_account }
+                                        { stripeAccount: ctx.artist.stripeAccount }
                                     )
                                 }
                             }
@@ -359,7 +359,7 @@ export const artistCornerRouter = createTRPCRouter({
 
     getProducts: artistProcedure.query(async ({ ctx }) => {
         const all_products = await ctx.db.query.products.findMany({
-            where: eq(products.artist_id, ctx.artist.id)
+            where: eq(products.artistId, ctx.artist.id)
         })
 
         return all_products.map((product) => ({
@@ -388,7 +388,7 @@ export const artistCornerRouter = createTRPCRouter({
                     },
                     status: 'complete'
                 },
-                { stripeAccount: ctx.artist.stripe_account }
+                { stripeAccount: ctx.artist.stripeAccount }
             )
 
             const [product, sales, charges] = await Promise.all([
@@ -424,7 +424,7 @@ export const artistCornerRouter = createTRPCRouter({
                 description: data.description,
                 images: data.images.map((key) => getUTUrl(key)),
                 price: formatToCurrency(data.price / 100),
-                is_free: data.is_free
+                isFree: data.isFree
             }
         }),
 
@@ -452,10 +452,10 @@ export const artistCornerRouter = createTRPCRouter({
 
             // Build the where clause
             const where = and(
-                eq(purchase.user_id, ctx.auth.userId),
+                eq(purchase.userId, ctx.auth.userId),
                 eq(purchase.status, 'completed'),
                 // Add cursor-based filtering if cursor is provided
-                cursor ? lt(purchase.created_at, new Date(cursor)) : undefined
+                cursor ? lt(purchase.createdAt, new Date(cursor)) : undefined
             )
 
             // Fetch one more item than requested to determine if there are more items
@@ -463,7 +463,7 @@ export const artistCornerRouter = createTRPCRouter({
                 where,
                 limit: limit + 1,
                 offset: skip,
-                orderBy: desc(purchase.created_at),
+                orderBy: desc(purchase.createdAt),
                 with: {
                     product: true,
                     artist: true
@@ -478,13 +478,13 @@ export const artistCornerRouter = createTRPCRouter({
             // Get the next cursor (timestamp of the last item)
             const nextCursor =
                 items.length > 0
-                    ? items[items.length - 1]?.created_at?.toISOString()
+                    ? items[items.length - 1]?.createdAt?.toISOString()
                     : null
 
             // Transform the data
             const transformedItems = items.map((data) => ({
                 id: data.id,
-                created_at: data.created_at,
+                createdAt: data.createdAt,
                 product: {
                     id: data.product.id,
                     name: data.product.name,

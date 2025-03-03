@@ -29,7 +29,7 @@ export default function VertificationDataTable() {
         <DataTable
             columnDefs={[
                 {
-                    field: 'requested_handle',
+                    field: 'requestedHandle',
                     headerName: 'Handle'
                 },
                 {
@@ -41,7 +41,7 @@ export default function VertificationDataTable() {
                     headerName: 'Website'
                 },
                 {
-                    field: 'created_at',
+                    field: 'createdAt',
                     headerName: 'Created At'
                 }
             ]}

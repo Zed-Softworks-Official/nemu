@@ -4,21 +4,21 @@ import type { UniqueIdentifier } from '@dnd-kit/core'
  * Contains the url for the image as well as the blur data for the placeholder
  */
 export type NemuImageData = {
-    ut_key: string
-    blur_data?: string
+    utKey: string
+    blurData?: string
 }
 
 export type ClientNemuImageData = {
     url: string
-    blur_data?: string
+    blurData?: string
 }
 
 export type NemuEditImageData = {
     action: 'create' | 'update' | 'delete'
-    image_data: {
+    imageData: {
         url?: string
-        ut_key?: string
-        file_data?: File
+        utKey?: string
+        fileData?: File
     }
 }
 

@@ -36,7 +36,7 @@ import {
 import { Switch } from '~/components/ui/switch'
 
 import { formatFileSize } from '~/lib/utils'
-import { type DownloadData } from '~/lib/structures'
+import { type DownloadData } from '~/lib/types'
 
 import { api, type RouterOutputs } from '~/trpc/react'
 import { type JSONContent } from '@tiptap/react'
@@ -55,12 +55,12 @@ const productSchema = z
         price: z.union([z.string(), z.number()]),
         images: z.array(z.string()).min(1).max(5),
         download: z.string().min(1),
-        is_free: z.boolean()
+        isFree: z.boolean()
     })
     .superRefine((data, ctx) => {
         const numericPrice =
             typeof data.price === 'string' ? Number.parseFloat(data.price) : data.price
-        if (!data.is_free) {
+        if (!data.isFree) {
             if (isNaN(numericPrice) || numericPrice <= 0 || numericPrice < 1) {
                 ctx.addIssue({
                     code: z.ZodIssueCode.custom,
@@ -90,7 +90,7 @@ type ProductFormProps = {
         price: number
         images: string[]
         download: DownloadData
-        is_free: boolean
+        isFree: boolean
     }
 }
 
@@ -108,7 +108,7 @@ export function ProductForm({ mode, initialData }: ProductFormProps) {
                   price: '0',
                   images: [],
                   download: '',
-                  is_free: false
+                  isFree: false
               }
             : {
                   name: initialData?.name,
@@ -116,7 +116,7 @@ export function ProductForm({ mode, initialData }: ProductFormProps) {
                   price: ((initialData?.price ?? 0) / 100).toFixed(2),
                   images: initialData?.images,
                   download: initialData?.download.utKey,
-                  is_free: initialData?.is_free
+                  isFree: initialData?.isFree
               }
 
     const form = useForm<ProductSchemaType>({
@@ -163,7 +163,7 @@ export function ProductForm({ mode, initialData }: ProductFormProps) {
 
     const mutation = mode === 'create' ? createProduct : updateProduct
 
-    const process_form = async (data: ProductSchemaType) => {
+    const processForm = async (data: ProductSchemaType) => {
         if (!currentFile) {
             toast.error('Download File Invalid')
             return
@@ -198,7 +198,7 @@ export function ProductForm({ mode, initialData }: ProductFormProps) {
         <Form {...form}>
             <form
                 className="flex flex-col gap-4"
-                onSubmit={form.handleSubmit(process_form)}
+                onSubmit={form.handleSubmit(processForm)}
             >
                 <FormField
                     control={form.control}
@@ -291,7 +291,7 @@ export function ProductForm({ mode, initialData }: ProductFormProps) {
                 </FormItem>
                 <FormField
                     control={form.control}
-                    name="is_free"
+                    name="isFree"
                     render={({ field }) => (
                         <FormItem className="bg-background-secondary flex items-center justify-between rounded-md p-2">
                             <FormLabel>Is Free:</FormLabel>
@@ -305,7 +305,7 @@ export function ProductForm({ mode, initialData }: ProductFormProps) {
                         </FormItem>
                     )}
                 />
-                {!form.watch('is_free') && (
+                {!form.watch('isFree') && (
                     <FormField
                         control={form.control}
                         name="price"
@@ -399,7 +399,7 @@ export function UpdateForm(props: {
                 price: props.product.price,
                 images: props.product.images,
                 download: props.product.download,
-                is_free: props.product.is_free
+                isFree: props.product.isFree
             }}
         />
     )

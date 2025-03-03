@@ -16,29 +16,29 @@ export default function QrPage() {
         return notFound()
     }
 
-    const con = api.con.getCon.useQuery({ id: id as string })
+    const { data: conData, isLoading } = api.con.getCon.useQuery({ id: id as string })
 
     const handle_download = () => {
         ref.current?.download({
-            name: `${con.data?.name}-qr`,
+            name: `${conData?.name}-qr`,
             format: 'png',
             size: 1024
         })
     }
 
-    if (con.isLoading) return <Loading />
+    if (isLoading) return <Loading />
 
-    if (!con.data?.slug || !con.data?.name) {
+    if (!conData?.slug || !conData?.name) {
         return notFound()
     }
 
     return (
         <div className="container mx-auto flex max-w-4xl flex-1 flex-col items-center justify-center gap-4">
-            <h1 className="text-2xl font-bold">Con: {con.data.name}</h1>
+            <h1 className="text-2xl font-bold">Con: {conData.name}</h1>
 
             <ReactQRCode
                 ref={ref}
-                value={`https://nemu.art/cons/${con.data.slug}`}
+                value={`https://nemu.art/cons/${conData.slug}`}
                 size={1024}
                 imageSettings={{
                     src: '/profile.png',

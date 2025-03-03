@@ -45,15 +45,15 @@ import { Label } from '~/components/ui/label'
 import { Checkbox } from '~/components/ui/checkbox'
 
 export function CommissionHeader() {
-    const { request_data } = useDashboardOrder()
+    const { requestData } = useDashboardOrder()
 
     return (
         <div className="flex flex-col gap-2">
             <h1 className="text-2xl font-bold">
-                {request_data?.user.username} | {request_data?.commission?.title}
+                {requestData?.user.username} | {requestData?.commission?.title}
             </h1>
             <span className="text-muted-foreground text-sm">
-                {request_data?.created_at?.toLocaleDateString()}
+                {requestData?.createdAt?.toLocaleDateString()}
             </span>
         </div>
     )
@@ -61,7 +61,7 @@ export function CommissionHeader() {
 
 export function CommissionDetails() {
     const [acceptDialogStatus, setAcceptDialogStatus] = useState(true)
-    const { request_data } = useDashboardOrder()
+    const { requestData } = useDashboardOrder()
     const utils = api.useUtils()
 
     const determineRequest = api.request.determineRequest.useMutation({
@@ -86,7 +86,7 @@ export function CommissionDetails() {
         }
     })
 
-    if (!request_data?.content) {
+    if (!requestData?.content) {
         return notFound()
     }
 
@@ -95,7 +95,7 @@ export function CommissionDetails() {
             <Card>
                 <CardHeader className="flex w-full flex-row items-center justify-between">
                     <CardTitle>Request Details</CardTitle>
-                    {request_data?.status === 'pending' && (
+                    {requestData?.status === 'pending' && (
                         <div className="flex flex-col gap-2 sm:flex-row">
                             <DropdownMenu>
                                 <DropdownMenuTrigger
@@ -149,7 +149,7 @@ export function CommissionDetails() {
                                 wrapText: true
                             }
                         ]}
-                        rowData={Object.entries(request_data?.content).map(
+                        rowData={Object.entries(requestData?.content).map(
                             ([key, value]) => ({
                                 key,
                                 value
@@ -173,7 +173,7 @@ export function CommissionDetails() {
                     <AlertDialogAction
                         onClick={() => {
                             determineRequest.mutate({
-                                request_id: request_data.id,
+                                requestId: requestData.id,
                                 accepted: acceptDialogStatus
                             })
                         }}
@@ -187,9 +187,9 @@ export function CommissionDetails() {
 }
 
 export function CommissionDetailsTabs() {
-    const { request_data } = useDashboardOrder()
+    const { requestData } = useDashboardOrder()
 
-    if (request_data?.status === 'pending') {
+    if (requestData?.status === 'pending') {
         return null
     }
 
@@ -205,7 +205,7 @@ export function CommissionDetailsTabs() {
                 <Kanban />
             </TabsContent>
             <TabsContent value="messages">
-                <MessagesClient current_order_id={request_data?.order_id} list_hidden />
+                <MessagesClient currentOrderId={requestData?.orderId} listHidden />
             </TabsContent>
             <TabsContent value="invoice">
                 <InvoiceEditor />
@@ -219,7 +219,7 @@ export function CommissionDetailsTabs() {
 
 function Delivery() {
     const [isFinal, setIsFinal] = useState(false)
-    const { request_data } = useDashboardOrder()
+    const { requestData } = useDashboardOrder()
     const utils = api.useUtils()
 
     const requestFailed = api.request.requestFailed.useMutation()
@@ -231,7 +231,7 @@ function Delivery() {
         },
         onError: (err, data, context) => {
             requestFailed.mutate({
-                file_key: data.file_key
+                fileKey: data.fileKey
             })
 
             toast.error(err.message, {
@@ -247,20 +247,20 @@ function Delivery() {
         }
     })
 
-    if (!request_data?.id) return null
+    if (!requestData?.id) return null
 
-    if (request_data.delivery?.is_final) {
+    if (requestData.delivery?.isFinal) {
         return (
             <Card>
                 <CardHeader>
                     <CardTitle>Delivery</CardTitle>
-                    {request_data?.delivery && (
+                    {requestData?.delivery && (
                         <CardDescription className="flex flex-col gap-2">
                             <p>
                                 Delivery Date:{' '}
-                                {request_data.delivery?.updated_at.toLocaleDateString()}
+                                {requestData.delivery?.updatedAt.toLocaleDateString()}
                             </p>
-                            <p>Version: {request_data.delivery?.version}</p>
+                            <p>Version: {requestData.delivery?.version}</p>
                         </CardDescription>
                     )}
                 </CardHeader>
@@ -268,7 +268,7 @@ function Delivery() {
         )
     }
 
-    if (request_data.invoices?.[0]?.status !== 'paid') {
+    if (requestData.invoices?.[0]?.status !== 'paid') {
         return (
             <Card>
                 <CardHeader>
@@ -285,13 +285,13 @@ function Delivery() {
         <Card>
             <CardHeader>
                 <CardTitle>Delivery</CardTitle>
-                {request_data?.delivery && (
+                {requestData?.delivery && (
                     <CardDescription className="flex flex-col gap-2">
                         <p>
                             Delivery Date:{' '}
-                            {request_data.delivery?.updated_at.toLocaleDateString()}
+                            {requestData.delivery?.updatedAt.toLocaleDateString()}
                         </p>
-                        <p>Version: {request_data.delivery?.version}</p>
+                        <p>Version: {requestData.delivery?.version}</p>
                     </CardDescription>
                 )}
             </CardHeader>
@@ -301,8 +301,8 @@ function Delivery() {
                         value={isFinal ? 'checked' : undefined}
                         onCheckedChange={(checked) => setIsFinal(checked ? true : false)}
                         disabled={
-                            request_data.invoices?.length !==
-                            request_data.current_invoice_index
+                            requestData.invoices?.length !==
+                            requestData.currentInvoiceIndex
                         }
                         name="isFinal"
                         id="isFinal"
@@ -319,10 +319,10 @@ function Delivery() {
                         }
 
                         createDelivery.mutate({
-                            order_id: request_data.order_id,
-                            file_key: res[0].key,
-                            file_type: res[0].type,
-                            is_final: isFinal
+                            orderId: requestData.orderId,
+                            fileKey: res[0].key,
+                            fileType: res[0].type,
+                            isFinal: isFinal
                         })
                     }}
                 />

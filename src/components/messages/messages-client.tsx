@@ -19,7 +19,7 @@ import {
 import TextareaAutosize from 'react-textarea-autosize'
 import Loading from '~/components/ui/loading'
 
-import { type Message } from '~/lib/structures'
+import { type Message } from '~/lib/types'
 import { MessagesProvider, useMessages } from './messages-context'
 import { api } from '~/trpc/react'
 import { toast } from 'sonner'
@@ -27,14 +27,11 @@ import { format } from 'date-fns'
 import { useUser } from '@clerk/nextjs'
 import { usePusher } from '~/hooks/use-pusher'
 
-export function MessagesClient(props: {
-    list_hidden?: boolean
-    current_order_id?: string
-}) {
+export function MessagesClient(props: { listHidden?: boolean; currentOrderId?: string }) {
     return (
-        <MessagesProvider current_order_id={props.current_order_id}>
+        <MessagesProvider current_order_id={props.currentOrderId}>
             <div className="bg-background-tertiary mx-auto flex h-[80vh] w-full rounded-xl shadow-xl">
-                {!props.list_hidden && (
+                {!props.listHidden && (
                     <div className="flex w-full max-w-[400px] flex-col p-10">
                         <h1 className="text-xl font-bold">Commissions</h1>
                         <Separator className="my-5" />
@@ -45,7 +42,7 @@ export function MessagesClient(props: {
                     className={cn(
                         'bg-background-secondary flex h-full w-full grow rounded-xl p-10',
                         {
-                            'rounded-l-none': !props.list_hidden
+                            'rounded-l-none': !props.listHidden
                         }
                     )}
                 >
@@ -57,9 +54,9 @@ export function MessagesClient(props: {
 }
 
 function MessageClientBody() {
-    const { current_chat_id, is_loading } = useMessages()
+    const { currentChatId, isLoading } = useMessages()
 
-    if (!current_chat_id || current_chat_id === '') {
+    if (!currentChatId || currentChatId === '') {
         return (
             <div className="flex h-full w-full flex-col items-center justify-center">
                 <Image
@@ -77,7 +74,7 @@ function MessageClientBody() {
         )
     }
 
-    if (is_loading) {
+    if (isLoading) {
         return (
             <div className="flex h-full w-full flex-col items-center justify-center">
                 <Loading />
@@ -95,16 +92,16 @@ function MessageClientBody() {
 }
 
 function MessagesContent() {
-    const { messages, set_messages, current_user_id, current_chat_id } = useMessages()
+    const { messages, setMessages, currentUserId, currentChatId } = useMessages()
     const scrollDownRef = useRef<HTMLDivElement | null>(null)
 
     usePusher({
-        key: `${current_chat_id}:messages`,
+        key: `${currentChatId}:messages`,
         event_name: 'message',
         callback: (data: Message) => {
-            if (data.sender.user_id === current_user_id) return
+            if (data.sender.userId === currentUserId) return
 
-            set_messages((prev) => [data, ...prev])
+            setMessages((prev) => [data, ...prev])
         }
     })
 
@@ -114,7 +111,7 @@ function MessagesContent() {
             {messages.map((message, index) => (
                 <Message
                     message={message}
-                    current_user_id={current_user_id}
+                    currentUserId={currentUserId}
                     index={index}
                     key={message.id}
                 />
@@ -124,7 +121,7 @@ function MessagesContent() {
 }
 
 function MessagesInput() {
-    const { chat_partner, current_chat_id, set_messages } = useMessages()
+    const { chatPartner, currentChatId, setMessages } = useMessages()
     const { user } = useUser()
 
     const [input, setInput] = useState('')
@@ -137,14 +134,14 @@ function MessagesInput() {
     })
 
     const handleSendMessage = (type: 'text' | 'image') => {
-        if (!current_chat_id || sendMessage.isPending || !input) return
+        if (!currentChatId || sendMessage.isPending || !input) return
 
-        set_messages((prev) => [
+        setMessages((prev) => [
             {
                 id: crypto.randomUUID(),
                 content: input,
                 sender: {
-                    user_id: user?.id ?? 'unknown',
+                    userId: user?.id ?? 'unknown',
                     username: user?.username ?? 'unknown'
                 },
                 type: type,
@@ -154,7 +151,7 @@ function MessagesInput() {
         ])
 
         sendMessage.mutate({
-            chat_id: current_chat_id,
+            chatId: currentChatId,
             text: input,
             type: type
         })
@@ -177,7 +174,7 @@ function MessagesInput() {
                     rows={1}
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    placeholder={`Message ${chat_partner?.username}`}
+                    placeholder={`Message ${chatPartner?.username}`}
                     className="rouned-lg block w-full resize-none border-0 bg-transparent outline-hidden sm:p-1.5 sm:text-sm sm:leading-6"
                 />
                 <div
@@ -192,7 +189,7 @@ function MessagesInput() {
                 <div className="absolute right-0 bottom-0 flex justify-between py-2 pr-2 pl-3">
                     <div className="shrink-0">
                         <Button
-                            disabled={!current_chat_id || sendMessage.isPending}
+                            disabled={!currentChatId || sendMessage.isPending}
                             variant={'ghost'}
                             size={'icon'}
                             onClick={() => handleSendMessage('text')}
@@ -208,7 +205,7 @@ function MessagesInput() {
 
 function ChannelList() {
     const { data: chats, isLoading } = api.chat.getChats.useQuery()
-    const { set_current_chat_id: set_current_order_id } = useMessages()
+    const { setCurrentChatId } = useMessages()
 
     if (isLoading) {
         return <Loading />
@@ -220,7 +217,7 @@ function ChannelList() {
                 <div
                     key={chat.id}
                     className="bg-background hover:bg-primary flex cursor-pointer items-center gap-2 rounded-xl p-5 transition-colors duration-200 ease-in-out"
-                    onClick={() => set_current_order_id(chat.request.order_id)}
+                    onClick={() => setCurrentChatId(chat.request.orderId)}
                 >
                     <Avatar>
                         <AvatarImage src={chat.other_user.profile_image} />
@@ -241,29 +238,29 @@ function ChannelList() {
 }
 
 function MessagesHeader() {
-    const { chat_partner, commission_title } = useMessages()
+    const { chatPartner, commissionTitle } = useMessages()
 
     return (
         <div>
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-5">
                     <Avatar>
-                        <AvatarImage src={chat_partner?.profile_image} />
+                        <AvatarImage src={chatPartner?.profileImage} />
                         <AvatarFallback>
-                            {chat_partner?.username?.at(0) ?? 'N'}
+                            {chatPartner?.username?.at(0) ?? 'N'}
                         </AvatarFallback>
                     </Avatar>
                     <div className="flex flex-col">
                         <h1 className="text-lg font-bold">
                             <Link
-                                href={`/@${chat_partner?.username}`}
+                                href={`/@${chatPartner?.username}`}
                                 className="hover:underline"
                             >
-                                {chat_partner?.username}
+                                {chatPartner?.username}
                             </Link>
                         </h1>
                         <h2 className="text-md text-muted-foreground">
-                            {commission_title ?? 'No Commission Title'}
+                            {commissionTitle ?? 'No Commission Title'}
                         </h2>
                     </div>
                 </div>
@@ -286,33 +283,33 @@ function MessagesHeader() {
 
 function Message(props: {
     message: Message
-    current_user_id: string | undefined
+    currentUserId: string | undefined
     index: number
 }) {
-    const { messages, chat_partner } = useMessages()
+    const { messages, chatPartner } = useMessages()
     const { user } = useUser()
 
-    const is_current_user = props.message.sender.user_id === props.current_user_id
-    const concurrent_message =
-        messages[props.index - 1]?.sender.user_id === props.message.sender.user_id
+    const isCurrentUser = props.message.sender.userId === props.currentUserId
+    const concurrentMessage =
+        messages[props.index - 1]?.sender.userId === props.message.sender.userId
 
     const formatTimestamp = (timestamp: number) => format(timestamp, 'HH:mm')
-    const image_url = is_current_user ? user?.imageUrl : chat_partner?.profile_image
+    const imageUrl = isCurrentUser ? user?.imageUrl : chatPartner?.profileImage
 
     return (
-        <div className={cn('flex items-end', { 'justify-end': is_current_user })}>
+        <div className={cn('flex items-end', { 'justify-end': isCurrentUser })}>
             <div
                 className={cn('mx-2 flex max-w-xs flex-col space-y-2 text-base', {
-                    'order-1 items-end': is_current_user,
-                    'order-2 items-start': !is_current_user
+                    'order-1 items-end': isCurrentUser,
+                    'order-2 items-start': !isCurrentUser
                 })}
             >
                 <span
                     className={cn('inline-block rounded-lg px-4 py-2', {
-                        'bg-primary text-foreground': is_current_user,
-                        'bg-background-tertiary': !is_current_user,
-                        'rounded-br-none': !concurrent_message && is_current_user,
-                        'rounded-bl-none': !concurrent_message && !is_current_user
+                        'bg-primary text-foreground': isCurrentUser,
+                        'bg-background-tertiary': !isCurrentUser,
+                        'rounded-br-none': !concurrentMessage && isCurrentUser,
+                        'rounded-bl-none': !concurrentMessage && !isCurrentUser
                     })}
                 >
                     {props.message.content}{' '}
@@ -323,11 +320,11 @@ function Message(props: {
             </div>
             <Avatar
                 className={cn('h-10 w-10', {
-                    'order-1': is_current_user,
-                    invisible: concurrent_message
+                    'order-1': isCurrentUser,
+                    invisible: concurrentMessage
                 })}
             >
-                <AvatarImage src={image_url} />
+                <AvatarImage src={imageUrl} />
                 <AvatarFallback>
                     {props.message.sender.username?.at(0) ?? 'N'}
                 </AvatarFallback>

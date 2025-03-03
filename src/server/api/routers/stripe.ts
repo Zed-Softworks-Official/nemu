@@ -1,6 +1,6 @@
 import { artistProcedure, createTRPCRouter } from '../trpc'
 
-import { type StripeDashboardData } from '~/lib/structures'
+import { type StripeDashboardData } from '~/lib/types'
 
 import {
     StripeGetAccount,
@@ -26,7 +26,7 @@ export const stripeRouter = createTRPCRouter({
             }
         }
 
-        const stripeAccount = await StripeGetAccount(ctx.artist.stripe_account)
+        const stripeAccount = await StripeGetAccount(ctx.artist.stripeAccount)
 
         // If the user has not completed the onboarding, return an onboarding url
         // else return the stripe connect url

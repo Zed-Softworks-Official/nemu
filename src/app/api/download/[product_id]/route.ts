@@ -19,8 +19,8 @@ export async function GET(
     // Verify purchase
     const res = await db.query.purchase.findFirst({
         where: and(
-            eq(purchase.product_id, product_id),
-            eq(purchase.user_id, auth.userId),
+            eq(purchase.productId, product_id),
+            eq(purchase.userId, auth.userId),
             eq(purchase.status, 'completed')
         ),
         with: {

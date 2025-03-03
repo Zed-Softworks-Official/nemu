@@ -13,7 +13,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger
 } from '~/components/ui/dropdown-menu'
-import { type ClientRequestData } from '~/lib/structures'
+import { type ClientRequestData } from '~/lib/types'
 import { api } from '~/trpc/react'
 
 export function PublishButton(props: { id: string; published: boolean }) {
@@ -77,9 +77,9 @@ export function RequestList(props: { requests: ClientRequestData[]; slug: string
                     },
                     {
                         headerName: 'Date',
-                        field: 'created_at',
+                        field: 'createdAt',
                         cellRenderer: ({ data }: { data: ClientRequestData }) =>
-                            new Date(data.created_at).toLocaleDateString()
+                            new Date(data.createdAt).toLocaleDateString()
                     },
                     {
                         headerName: 'Status',
@@ -109,7 +109,7 @@ export function RequestList(props: { requests: ClientRequestData[]; slug: string
                                     <DropdownMenuContent>
                                         <DropdownMenuItem asChild>
                                             <Link
-                                                href={`/dashboard/commissions/${props.slug}/${request.order_id}`}
+                                                href={`/dashboard/commissions/${props.slug}/${request.orderId}`}
                                             >
                                                 View Request
                                             </Link>

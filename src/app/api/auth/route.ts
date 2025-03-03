@@ -8,14 +8,14 @@ import { env } from '~/env'
 
 import { waitUntil } from '@vercel/functions'
 import { tryCatch } from '~/lib/try-catch'
-import { sync_clerk_data } from './sync'
+import { syncClerkData } from './sync'
 
 const allowed_events = ['user.created', 'user.updated'] as WebhookEventType[]
 
 async function process_event(event: WebhookEvent) {
     if (!allowed_events.includes(event.type)) return
 
-    return sync_clerk_data(event)
+    return syncClerkData(event)
 }
 
 export async function POST(req: NextRequest) {

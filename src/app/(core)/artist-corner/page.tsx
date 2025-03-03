@@ -65,7 +65,7 @@ function Product(props: {
         >
             <div className="group bg-secondary hover:border-primary relative flex h-full w-full items-center justify-center overflow-hidden rounded-lg border">
                 <NemuImage
-                    src={props.product.featured_image}
+                    src={props.product.featuredImage}
                     alt="/"
                     width={300}
                     height={300}

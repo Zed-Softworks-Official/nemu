@@ -106,7 +106,7 @@ function CommissionCard(props: {
             <Card>
                 <CardHeader className="aspect-square w-full overflow-hidden rounded-md">
                     <NemuImage
-                        src={props.commission.featured_image}
+                        src={props.commission.featuredImage}
                         alt={props.commission.title}
                         width={200}
                         height={200}

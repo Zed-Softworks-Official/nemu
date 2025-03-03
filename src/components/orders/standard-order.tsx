@@ -20,7 +20,7 @@ export function StandardOrderProvider(props: {
     const [orderId] = useState(props.order_id)
 
     const { data: request_data, isLoading } = api.request.getRequestById.useQuery({
-        order_id: props.order_id,
+        orderId: props.order_id,
         requester: 'user'
     })
 

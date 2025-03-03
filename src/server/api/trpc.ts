@@ -15,7 +15,7 @@ import { db } from '~/server/db'
 import { redis } from '~/server/redis'
 import { artists } from '../db/schema'
 import { eq } from 'drizzle-orm'
-import { type UserRole } from '~/lib/structures'
+import { type UserRole } from '~/lib/types'
 
 /**
  * 1. CONTEXT
@@ -146,7 +146,7 @@ export const protectedProcedure = t.procedure
  */
 export const artistProcedure = protectedProcedure.use(async ({ next, ctx }) => {
     const artist = await ctx.db.query.artists.findFirst({
-        where: eq(artists.user_id, ctx.auth.userId)
+        where: eq(artists.userId, ctx.auth.userId)
     })
 
     if (!artist) {

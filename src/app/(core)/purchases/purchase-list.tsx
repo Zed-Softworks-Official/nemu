@@ -58,7 +58,7 @@ export default function PurchaseList() {
                             <span className="block">By {purchase.artist.handle}</span>
                             <span className="text-muted-foreground text-xs">
                                 Purchased{' '}
-                                {formatDistanceToNow(purchase.created_at ?? new Date(), {
+                                {formatDistanceToNow(purchase.createdAt ?? new Date(), {
                                     addSuffix: true
                                 })}
                             </span>
@@ -66,7 +66,7 @@ export default function PurchaseList() {
                     </CardHeader>
                     <CardContent>
                         <DownloadButton
-                            product_id={purchase.product.id}
+                            productId={purchase.product.id}
                             filename={purchase.product.download.filename}
                         />
                     </CardContent>
@@ -93,7 +93,7 @@ export default function PurchaseList() {
     )
 }
 
-function DownloadButton(props: { product_id: string; filename: string }) {
+function DownloadButton(props: { productId: string; filename: string }) {
     const [isDownloading, setIsDownloading] = useState(false)
 
     const handleDownload = () => {
@@ -104,7 +104,7 @@ function DownloadButton(props: { product_id: string; filename: string }) {
     return (
         <Button size={'lg'} disabled={isDownloading} asChild>
             <Link
-                href={`/api/download/${props.product_id}`}
+                href={`/api/download/${props.productId}`}
                 download={props.filename}
                 onClick={handleDownload}
             >

@@ -4,7 +4,7 @@ import Loading from '~/components/ui/loading'
 import NemuImage from '~/components/nemu-image'
 import { api } from '~/trpc/react'
 
-import { type ClientRequestData } from '~/lib/structures'
+import { type ClientRequestData } from '~/lib/types'
 import { Button } from '~/components/ui/button'
 import Link from 'next/link'
 import { DataTable } from '~/components/data-table'
@@ -103,7 +103,7 @@ export function RequestTable() {
                         return (
                             <div className="flex h-full w-full items-center justify-start">
                                 <Button variant={'outline'} asChild>
-                                    <Link href={`/requests/${data.order_id}/details`}>
+                                    <Link href={`/requests/${data.orderId}/details`}>
                                         <Eye className="size-4" />
                                         View
                                     </Link>

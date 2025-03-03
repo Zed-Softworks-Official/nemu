@@ -33,10 +33,10 @@ export async function generateMetadata(
         twitter: {
             title: `Nemu | @${artist.handle}`,
             description: `Check out ${artist.handle}'s profile on Nemu!`,
-            images: [artist.user.profile_picture]
+            images: [artist.user.profilePicture]
         },
         openGraph: {
-            images: [artist.user.profile_picture]
+            images: [artist.user.profilePicture]
         }
     }
 }

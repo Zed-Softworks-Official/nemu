@@ -1,33 +1,33 @@
-import { type SalesData } from '~/lib/structures'
-import { artistProcedure, createTRPCRouter } from '../trpc'
+import { artistProcedure, createTRPCRouter } from '~/server/api/trpc'
 import { and, desc, eq, gte } from 'drizzle-orm'
-import { commissions, invoices, requests } from '~/server/db/schema'
-import { clerkClient } from '@clerk/nextjs/server'
 import { TRPCError } from '@trpc/server'
+import { clerkClient } from '@clerk/nextjs/server'
+
+import { commissions, invoices, requests } from '~/server/db/schema'
 import { calculatePercentageChange, formatToCurrency } from '~/lib/utils'
 import { cache, getRedisKey } from '~/server/redis'
+import { type SalesData } from '~/lib/types'
 
 interface RecentSalesData {
-    monthly_revenue: {
+    monthlyRevenue: {
         amount: number
         change: string
     }
-    monthly_open_commissions: {
+    monthlyOpenCommissions: {
         count: number
         change: string
     }
-    recent_sales: {
-        commission_title: string
-        requester_username: string
+    recentSales: {
+        commissionTitle: string
+        requesterUsername: string
         price: string
     }[]
-    recent_requests: {
-        commission_title: string
-        requester_username: string
-        created_at: string
+    recentRequests: {
+        commissionTitle: string
+        requesterUsername: string
+        createdAt: string
     }[]
-
-    chart_data: SalesData[]
+    chartData: SalesData[]
 }
 
 export const dashboardRouter = createTRPCRouter({
@@ -38,23 +38,23 @@ export const dashboardRouter = createTRPCRouter({
                 const client_promise = clerkClient()
                 const requests_promise = ctx.db.query.commissions.findMany({
                     where: and(
-                        eq(commissions.artist_id, commissions.id),
+                        eq(commissions.artistId, ctx.artist.id),
                         eq(commissions.published, true)
                     ),
                     with: {
                         requests: {
                             where: eq(requests.status, 'pending'),
-                            orderBy: desc(requests.created_at)
+                            orderBy: desc(requests.createdAt)
                         }
                     }
                 })
 
                 const invoices_promise = ctx.db.query.invoices.findMany({
                     where: and(
-                        eq(invoices.artist_id, ctx.artist.id),
+                        eq(invoices.artistId, ctx.artist.id),
                         eq(invoices.status, 'paid')
                     ),
-                    orderBy: desc(invoices.created_at),
+                    orderBy: desc(invoices.createdAt),
                     limit: 10,
                     with: {
                         request: {
@@ -72,14 +72,14 @@ export const dashboardRouter = createTRPCRouter({
                 ])
 
                 // Format the recent requests
-                const recent_requests: RecentSalesData['recent_requests'] = []
+                const recent_requests: RecentSalesData['recentRequests'] = []
                 for (const commission of requests_data) {
                     if (!commission.requests) {
                         continue
                     }
 
                     for (const request of commission.requests) {
-                        const user = await clerk_client.users.getUser(request.user_id)
+                        const user = await clerk_client.users.getUser(request.userId)
                         if (!user) {
                             throw new TRPCError({
                                 code: 'INTERNAL_SERVER_ERROR',
@@ -88,17 +88,17 @@ export const dashboardRouter = createTRPCRouter({
                         }
 
                         recent_requests.push({
-                            commission_title: commission.title,
-                            requester_username: user.username!,
-                            created_at: request.created_at.toLocaleDateString()
+                            commissionTitle: commission.title,
+                            requesterUsername: user.username!,
+                            createdAt: request.createdAt.toLocaleDateString()
                         })
                     }
                 }
 
                 // Format the recent sales (invoices recently paid)
-                const recent_sales: RecentSalesData['recent_sales'] = []
+                const recent_sales: RecentSalesData['recentSales'] = []
                 for (const invoice of invoice_data) {
-                    const user = await clerk_client.users.getUser(invoice.user_id)
+                    const user = await clerk_client.users.getUser(invoice.userId)
                     if (!user) {
                         throw new TRPCError({
                             code: 'INTERNAL_SERVER_ERROR',
@@ -107,8 +107,8 @@ export const dashboardRouter = createTRPCRouter({
                     }
 
                     recent_sales.push({
-                        commission_title: invoice.request.commission.title,
-                        requester_username: user.username!,
+                        commissionTitle: invoice.request.commission.title,
+                        requesterUsername: user.username!,
                         price: formatToCurrency(invoice.total)
                     })
                 }
@@ -120,11 +120,11 @@ export const dashboardRouter = createTRPCRouter({
                 start_date.setMonth(start_date.getMonth() - 6)
 
                 const six_month_requests_data = await ctx.db.query.commissions.findMany({
-                    where: eq(commissions.artist_id, ctx.artist.id),
+                    where: eq(commissions.artistId, ctx.artist.id),
                     with: {
                         requests: {
                             where: and(
-                                gte(requests.created_at, start_date),
+                                gte(requests.createdAt, start_date),
                                 eq(requests.status, 'delivered')
                             ),
                             with: {
@@ -145,14 +145,14 @@ export const dashboardRouter = createTRPCRouter({
                 // TODO: Finish the stats collection after all improvements have been made
                 for (const commission of six_month_requests_data) {
                     for (const request of commission.requests) {
-                        const charge_month = request.created_at.toLocaleString('en-US', {
+                        const charge_month = request.createdAt.toLocaleString('en-US', {
                             month: 'long'
                         })
                         sales_data[charge_month] = {
-                            month: request.created_at.toLocaleString('en-US', {
+                            month: request.createdAt.toLocaleString('en-US', {
                                 month: 'long'
                             }),
-                            total_sales: request.invoices.reduce(
+                            totalSales: request.invoices.reduce(
                                 (acc, invoice) => acc + invoice.total,
                                 0
                             )
@@ -160,19 +160,19 @@ export const dashboardRouter = createTRPCRouter({
 
                         if (
                             request.status === 'accepted' &&
-                            request.created_at > last_month
+                            request.createdAt > last_month
                         ) {
                             monthly_open_commissions += 1
                         } else if (
                             request.status === 'accepted' &&
-                            request.created_at < last_month
+                            request.createdAt < last_month
                         ) {
                             previous_monthly_open_commissions += 1
                         }
 
                         if (
                             request.status === 'delivered' &&
-                            request.created_at < last_month
+                            request.createdAt < last_month
                         ) {
                             previous_total_revenue += request.invoices.reduce(
                                 (acc, invoice) => acc + invoice.total,
@@ -180,7 +180,7 @@ export const dashboardRouter = createTRPCRouter({
                             )
                         } else if (
                             request.status === 'delivered' &&
-                            request.created_at > last_month
+                            request.createdAt > last_month
                         ) {
                             total_revenue += request.invoices.reduce(
                                 (acc, invoice) => acc + invoice.total,
@@ -191,25 +191,25 @@ export const dashboardRouter = createTRPCRouter({
                 }
 
                 const result: RecentSalesData = {
-                    monthly_revenue: {
+                    monthlyRevenue: {
                         amount: total_revenue,
                         change: calculatePercentageChange(
                             total_revenue,
                             previous_total_revenue
                         )
                     },
-                    monthly_open_commissions: {
+                    monthlyOpenCommissions: {
                         count: monthly_open_commissions,
                         change: calculatePercentageChange(
                             monthly_open_commissions,
                             previous_monthly_open_commissions
                         )
                     },
-                    recent_sales: recent_sales,
-                    recent_requests: recent_requests,
-                    chart_data: Object.entries(sales_data).map(([key, value]) => ({
+                    recentSales: recent_sales,
+                    recentRequests: recent_requests,
+                    chartData: Object.entries(sales_data).map(([key, value]) => ({
                         month: key,
-                        total_sales: value.total_sales
+                        totalSales: value.totalSales
                     }))
                 }
 

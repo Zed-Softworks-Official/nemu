@@ -2,8 +2,8 @@ import { clerkClient } from '@clerk/nextjs/server'
 import { TRPCError } from '@trpc/server'
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
-import { is_supporter } from '~/app/api/stripe/sync'
-import { chargeMethods, SocialAgent } from '~/lib/structures'
+import { isSupporter } from '~/app/api/stripe/sync'
+import { chargeMethods, socialAgents } from '~/lib/types'
 import { getUTUrl } from '~/lib/utils'
 import { updateIndex } from '~/server/algolia/collections'
 
@@ -19,8 +19,8 @@ export const artistRouter = createTRPCRouter({
             })
         )
         .query(async ({ ctx, input }) => {
-            const clerk_client_promise = clerkClient()
-            const artist_promise = ctx.db.query.artists.findFirst({
+            const clerkClientPromise = clerkClient()
+            const artistPromise = ctx.db.query.artists.findFirst({
                 where: eq(artists.handle, input.handle),
                 with: {
                     commissions: {
@@ -31,10 +31,7 @@ export const artistRouter = createTRPCRouter({
                 }
             })
 
-            const [clerk_client, artist] = await Promise.all([
-                clerk_client_promise,
-                artist_promise
-            ])
+            const [clerk, artist] = await Promise.all([clerkClientPromise, artistPromise])
 
             if (!artist) {
                 throw new TRPCError({
@@ -43,31 +40,31 @@ export const artistRouter = createTRPCRouter({
                 })
             }
 
-            const user = await clerk_client.users.getUser(artist.user_id)
-            const portfolio_items = artist.portfolio.map((portfolio) => ({
+            const user = await clerk.users.getUser(artist.userId)
+            const portfolioItems = artist.portfolio.map((portfolio) => ({
                 ...portfolio,
                 image: {
-                    url: getUTUrl(portfolio.ut_key)
+                    url: getUTUrl(portfolio.utKey)
                 }
             }))
 
-            const commission_list = artist.commissions.map((commission) => ({
+            const commissionList = artist.commissions.map((commission) => ({
                 ...commission,
                 images: commission.images.map((image) => ({
-                    url: getUTUrl(image.ut_key ?? '')
+                    url: getUTUrl(image.utKey)
                 }))
             }))
 
-            const supporter = await is_supporter(artist.user_id)
+            const supporter = await isSupporter(artist.userId)
             return {
                 ...artist,
                 supporter,
-                header_photo: getUTUrl(artist.header_photo),
-                portfolio: portfolio_items,
-                commissions: commission_list,
+                headerPhoto: getUTUrl(artist.headerPhoto),
+                portfolio: portfolioItems,
+                commissions: commissionList,
                 user: {
                     username: user.username,
-                    profile_picture: user.imageUrl
+                    profilePicture: user.imageUrl
                 }
             }
         }),
@@ -77,9 +74,9 @@ export const artistRouter = createTRPCRouter({
             about: ctx.artist.about,
             location: ctx.artist.location,
             terms: ctx.artist.terms,
-            tip_jar_url: ctx.artist.tip_jar_url,
+            tipJarUrl: ctx.artist.tipJarUrl,
             socials: ctx.artist.socials,
-            charge_method: ctx.artist.default_charge_method
+            chargeMethod: ctx.artist.defaultChargeMethod
         }
     }),
 
@@ -89,31 +86,31 @@ export const artistRouter = createTRPCRouter({
                 about: z.string().optional(),
                 location: z.string().optional(),
                 terms: z.string().optional(),
-                tip_jar_url: z.string().url().nullable(),
+                tipJarUrl: z.string().url().nullable(),
                 socials: z
                     .array(
                         z.object({
                             url: z.string().url(),
-                            agent: z.nativeEnum(SocialAgent)
+                            agent: z.enum(socialAgents)
                         })
                     )
                     .optional(),
-                header_image_key: z.string().optional(),
-                default_charge_method: z.enum(chargeMethods)
+                headerImageKey: z.string().optional(),
+                defaultChargeMethod: z.enum(chargeMethods)
             })
         )
         .mutation(async ({ ctx, input }) => {
-            if (input.header_image_key) {
-                const delete_promise = utapi.deleteFiles(ctx.artist.header_photo)
+            if (input.headerImageKey) {
+                const deletePromise = utapi.deleteFiles(ctx.artist.headerPhoto)
 
-                const algolia_update = updateIndex('artists', {
+                const algoliaUpdate = updateIndex('artists', {
                     objectID: ctx.artist.id,
                     handle: ctx.artist.handle,
                     about: ctx.artist.about,
-                    image_url: getUTUrl(input.header_image_key)
+                    imageUrl: getUTUrl(input.headerImageKey)
                 })
 
-                await Promise.all([delete_promise, algolia_update])
+                await Promise.all([deletePromise, algoliaUpdate])
             }
 
             await ctx.db
@@ -122,10 +119,10 @@ export const artistRouter = createTRPCRouter({
                     about: input.about,
                     location: input.location,
                     terms: input.terms,
-                    tip_jar_url: input.tip_jar_url,
+                    tipJarUrl: input.tipJarUrl,
                     socials: input.socials,
-                    header_photo: input.header_image_key,
-                    default_charge_method: input.default_charge_method
+                    headerPhoto: input.headerImageKey,
+                    defaultChargeMethod: input.defaultChargeMethod
                 })
                 .where(eq(artists.id, ctx.artist.id))
         })

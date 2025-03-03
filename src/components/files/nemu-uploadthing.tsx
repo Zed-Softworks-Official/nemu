@@ -20,7 +20,7 @@ import { useDropzone } from '@uploadthing/react'
 
 import { useNemuUploadThing } from '~/components/files/uploadthing-context'
 
-import type { ImageEditorData } from '~/lib/structures'
+import type { ImageEditorData } from '~/lib/types'
 
 import { Progress } from '~/components/ui/progress'
 import { toast } from 'sonner'
@@ -137,9 +137,9 @@ function NemuUploadDropzone(props: {
                 id: crypto.randomUUID(),
                 data: {
                     action: 'create',
-                    image_data: {
+                    imageData: {
                         url: URL.createObjectURL(file),
-                        file_data: file
+                        fileData: file
                     }
                 }
             }))
@@ -193,7 +193,7 @@ function NemuUploadPreview(props: {
                 <figure>
                     <NemuImage
                         src={
-                            props.images[0]?.data.image_data.url ??
+                            props.images[0]?.data.imageData.url ??
                             '/nemu/not-like-this.png'
                         }
                         alt="Image Preview"
@@ -219,7 +219,7 @@ function NemuUploadPreview(props: {
                         preview.data.action !== 'delete' && (
                             <NemuPreviewItem
                                 onDelete={props.onDelete}
-                                key={preview.data.image_data.url}
+                                key={preview.data.imageData.url}
                                 preview={preview}
                                 index={i}
                             />
@@ -270,7 +270,7 @@ function NemuPreviewItem(props: {
                 >
                     <Image
                         src={
-                            props.preview.data.image_data.url ?? '/nemu/not-like-this.png'
+                            props.preview.data.imageData.url ?? '/nemu/not-like-this.png'
                         }
                         alt="Image Preview"
                         className="h-fit w-full rounded-xl"
@@ -299,7 +299,7 @@ export function NemuSingleDropzone() {
             {images.length > 0 && (
                 <div className="flex h-full w-full">
                     <NemuImage
-                        src={images[0]?.data.image_data.url ?? '/profile.png'}
+                        src={images[0]?.data.imageData.url ?? '/profile.png'}
                         alt="Image Preview"
                         width={200}
                         height={200}

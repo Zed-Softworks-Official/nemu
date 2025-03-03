@@ -32,9 +32,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
 import { Button } from '~/components/ui/button'
 import { Notifications } from '~/components/notifications'
 import { Skeleton } from '~/components/ui/skeleton'
-import { type UserRole } from '~/lib/structures'
+import { type UserRole } from '~/lib/types'
 
-import { is_supporter } from '~/app/api/stripe/sync'
+import { isSupporter } from '~/app/api/stripe/sync'
 import { NavigationSheet } from './navigation'
 
 export default function StandarLayout(props: {
@@ -83,7 +83,7 @@ async function UserDropdown() {
         return <RedirectToSignIn />
     }
 
-    const supporter = await is_supporter(current_user?.id)
+    const supporter = await isSupporter(current_user?.id)
 
     return (
         <DropdownMenu>

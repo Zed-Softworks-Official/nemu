@@ -13,13 +13,13 @@ type BaseSearchIndex = {
 export type ArtistIndex = {
     handle: string
     about: string
-    image_url: string
+    imageUrl: string
 } & BaseSearchIndex
 
 export type ArtistEditIndex = {
     handle?: string
     about?: string
-    image_url?: string
+    imageUrl?: string
 } & BaseSearchIndex
 
 /**
@@ -28,21 +28,21 @@ export type ArtistEditIndex = {
  * Contains all of the information relavent for a commission search
  */
 export type CommissionIndex = {
-    artist_handle: string
+    artistHandle: string
     title: string
     price: string
     description: string
-    featured_image: string
+    featuredImage: string
     slug: string
     published: boolean
 } & BaseSearchIndex
 
 export type CommissionEditIndex = {
-    artist_handle?: string
+    artistHandle?: string
     title?: string
     price?: string
     description?: string
-    featured_image?: string
+    featuredImage?: string
     slug?: string
     published?: boolean
 } & BaseSearchIndex

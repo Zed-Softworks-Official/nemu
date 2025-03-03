@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { artistProcedure, createTRPCRouter, protectedProcedure } from '../trpc'
 import { eq } from 'drizzle-orm'
 import { kanbans, requests } from '~/server/db/schema'
-import { type KanbanContainerData, type KanbanTaskData } from '~/lib/structures'
+import { type KanbanContainerData, type KanbanTaskData } from '~/lib/types'
 import { db } from '~/server/db'
 import { TRPCError } from '@trpc/server'
 
@@ -10,12 +10,12 @@ export const kanbanRouter = createTRPCRouter({
     getKanbanMessages: protectedProcedure
         .input(
             z.object({
-                order_id: z.string()
+                orderId: z.string()
             })
         )
         .query(async ({ ctx, input }) => {
             const request = await ctx.db.query.requests.findFirst({
-                where: eq(requests.order_id, input.order_id),
+                where: eq(requests.orderId, input.orderId),
                 with: {
                     kanban: true
                 }
@@ -38,14 +38,14 @@ export const kanbanRouter = createTRPCRouter({
     addToKanban: artistProcedure
         .input(
             z.object({
-                kanban_id: z.string(),
-                container_id: z.string(),
+                kanbanId: z.string(),
+                containerId: z.string(),
                 content: z.string()
             })
         )
         .mutation(async ({ input, ctx }) => {
             const kanban = await ctx.db.query.kanbans.findFirst({
-                where: eq(kanbans.id, input.kanban_id)
+                where: eq(kanbans.id, input.kanbanId)
             })
 
             if (!kanban) {
@@ -67,18 +67,18 @@ export const kanbanRouter = createTRPCRouter({
                         ...prev_tasks,
                         {
                             id: crypto.randomUUID(),
-                            container_id: input.container_id,
+                            containerId: input.containerId,
                             content: input.content
                         }
                     ]
                 })
-                .where(eq(kanbans.id, input.kanban_id))
+                .where(eq(kanbans.id, input.kanbanId))
         }),
 
     updateKanban: artistProcedure
         .input(
             z.object({
-                kanban_id: z.string(),
+                kanbanId: z.string(),
                 containers: z.string(),
                 tasks: z.string()
             })
@@ -90,6 +90,6 @@ export const kanbanRouter = createTRPCRouter({
                     containers: input.containers,
                     tasks: input.tasks
                 })
-                .where(eq(kanbans.id, input.kanban_id))
+                .where(eq(kanbans.id, input.kanbanId))
         })
 })

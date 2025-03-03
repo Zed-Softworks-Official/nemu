@@ -9,7 +9,7 @@ import {
     type SetStateAction
 } from 'react'
 
-import { type KanbanContainerData, type KanbanTaskData } from '~/lib/structures'
+import { type KanbanContainerData, type KanbanTaskData } from '~/lib/types'
 
 import { api, type RouterOutputs } from '~/trpc/react'
 
@@ -18,21 +18,21 @@ import { type InferSelectModel } from 'drizzle-orm'
 import { type invoices } from '~/server/db/schema'
 
 type DashboardOrderContextType = {
-    order_id: string
-    set_order_id: Dispatch<SetStateAction<string>>
+    orderId: string
+    setOrderId: Dispatch<SetStateAction<string>>
 
     containers?: KanbanContainerData[]
-    set_containers: Dispatch<SetStateAction<KanbanContainerData[]>>
+    setContainers: Dispatch<SetStateAction<KanbanContainerData[]>>
 
     tasks?: KanbanTaskData[]
-    set_tasks: Dispatch<SetStateAction<KanbanTaskData[]>>
+    setTasks: Dispatch<SetStateAction<KanbanTaskData[]>>
 
-    kanban_id: string
+    kanbanId: string
 
-    is_downpayment_invoice: boolean
-    current_invoice: InferSelectModel<typeof invoices> | null
+    isDownpaymentInvoice: boolean
+    currentInvoice: InferSelectModel<typeof invoices> | null
 
-    request_data: RouterOutputs['request']['getRequestById']
+    requestData: RouterOutputs['request']['getRequestById']
 }
 
 const DashboardOrderContext = createContext<DashboardOrderContextType | null>(null)
@@ -50,35 +50,33 @@ export function DashboardOrderProvider(props: {
     const [isDownpaymentInvoice, setIsDownpaymentInvoice] = useState(false)
     const [kanbanId, setKanbanId] = useState('')
 
-    const { data: request_data, isLoading } = api.request.getRequestById.useQuery({
-        order_id: props.order_id,
+    const { data: requestData, isLoading } = api.request.getRequestById.useQuery({
+        orderId: props.order_id,
         requester: 'artist'
     })
 
     useEffect(() => {
-        if (request_data) {
-            setContainers(
-                (request_data.kanban?.containers as KanbanContainerData[]) ?? []
-            )
-            setTasks((request_data.kanban?.tasks as KanbanTaskData[]) ?? [])
-            setKanbanId(request_data.kanban?.id ?? '')
+        if (requestData) {
+            setContainers((requestData.kanban?.containers as KanbanContainerData[]) ?? [])
+            setTasks((requestData.kanban?.tasks as KanbanTaskData[]) ?? [])
+            setKanbanId(requestData.kanban?.id ?? '')
 
-            if (!request_data.invoices) {
+            if (!requestData.invoices) {
                 return
             }
 
-            let current_invoice_index = 0
-            for (let i = 0; i < request_data.invoices.length; i++) {
-                if (request_data.invoices[i]?.sent === false) {
+            let currentInvoiceIndex = 0
+            for (let i = 0; i < requestData.invoices.length; i++) {
+                if (requestData.invoices[i]?.sent === false) {
                     setIsDownpaymentInvoice(i > 0 ? true : false)
-                    current_invoice_index = i
+                    currentInvoiceIndex = i
                     break
                 }
             }
 
-            setCurrentInvoice(request_data.invoices[current_invoice_index]!)
+            setCurrentInvoice(requestData.invoices[currentInvoiceIndex]!)
         }
-    }, [request_data])
+    }, [requestData])
 
     if (isLoading) {
         return (
@@ -91,16 +89,16 @@ export function DashboardOrderProvider(props: {
     return (
         <DashboardOrderContext.Provider
             value={{
-                order_id: orderId,
-                set_order_id: setOrderId,
-                request_data,
+                orderId,
+                setOrderId,
+                requestData,
                 containers,
-                set_containers: setContainers,
+                setContainers,
                 tasks,
-                is_downpayment_invoice: isDownpaymentInvoice,
-                current_invoice: currentInvoice,
-                set_tasks: setTasks,
-                kanban_id: kanbanId
+                setTasks,
+                isDownpaymentInvoice,
+                currentInvoice,
+                kanbanId
             }}
         >
             {props.children}
