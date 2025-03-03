@@ -14,7 +14,7 @@ import {
 } from '~/lib/types'
 import { convertImagesToNemuImages, formatToCurrency, getUTUrl } from '~/lib/utils'
 import { utapi } from '~/server/uploadthing'
-import { updateIndex } from '~/server/algolia/collections'
+import { setIndex, updateIndex } from '~/server/algolia/collections'
 import { clerkClient } from '@clerk/nextjs/server'
 import { getRedisKey } from '~/server/redis'
 import { isSupporter } from '~/app/api/stripe/sync'
@@ -88,6 +88,17 @@ export const commissionRouter = createTRPCRouter({
                 requests: [],
                 waitlist: []
             } satisfies RequestQueue)
+
+            // Add to algolia
+            await setIndex('commissions', {
+                objectID: commission_id,
+                artistHandle: ctx.artist.handle,
+                title: input.title,
+                price: formatToCurrency(input.price / 100),
+                featuredImage: getUTUrl(input.images[0]?.utKey ?? ''),
+                slug: slug,
+                published: input.published
+            })
         }),
 
     updateCommission: artistProcedure
@@ -151,7 +162,6 @@ export const commissionRouter = createTRPCRouter({
                 price: updatedData.price
                     ? formatToCurrency(updatedData.price / 100)
                     : undefined,
-                description: updatedData.description,
                 featuredImage: getUTUrl(updatedData.images?.[0]?.utKey ?? ''),
                 artistHandle: ctx.artist.handle,
                 published: updatedData.published

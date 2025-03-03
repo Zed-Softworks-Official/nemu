@@ -5,19 +5,24 @@ import type {
     ArtistEditIndex,
     ArtistIndex,
     CommissionEditIndex,
-    CommissionIndex
+    CommissionIndex,
+    ProductEditIndex,
+    ProductIndex
 } from '~/lib/types'
 import { env } from '~/env'
 
-type SearchType = 'artists' | 'commissions'
+type SearchType = 'artists' | 'commissions' | 'products'
 
 const client = algoliasearch(env.ALGOLIA_APP_ID, env.ALGOLIA_API_KEY)
 
 /**
  * @param {SearchType} index - The type of index to create
- * @param {ArtistIndex | CommissionIndex} data - The data to save
+ * @param {ArtistIndex | CommissionIndex | ProductIndex} data - The data to save
  */
-export async function setIndex(index: SearchType, data: ArtistIndex | CommissionIndex) {
+export async function setIndex(
+    index: SearchType,
+    data: ArtistIndex | CommissionIndex | ProductIndex
+) {
     return await client.saveObject({
         indexName: index,
         body: data
@@ -41,7 +46,7 @@ export async function delIndex(index: SearchType, objectId: string) {
  */
 export async function updateIndex(
     index: SearchType,
-    data: ArtistEditIndex | CommissionEditIndex
+    data: ArtistEditIndex | CommissionEditIndex | ProductEditIndex
 ) {
     return await client.partialUpdateObject({
         indexName: index,

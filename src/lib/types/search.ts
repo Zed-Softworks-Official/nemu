@@ -31,7 +31,6 @@ export type CommissionIndex = {
     artistHandle: string
     title: string
     price: string
-    description: string
     featuredImage: string
     slug: string
     published: boolean
@@ -41,8 +40,30 @@ export type CommissionEditIndex = {
     artistHandle?: string
     title?: string
     price?: string
-    description?: string
     featuredImage?: string
     slug?: string
+    published?: boolean
+} & BaseSearchIndex
+
+/**
+ * Product Search Index
+ *
+ * Contains all of the information relavent for a product search
+ */
+export type ProductIndex = {
+    artistHandle: string
+    name: string
+    price: string
+    priceRaw: number
+    imageUrl: string
+    published: boolean
+} & BaseSearchIndex
+
+export type ProductEditIndex = {
+    artistHandle?: string
+    name?: string
+    price?: string
+    priceRaw?: number
+    imageUrl?: string
     published?: boolean
 } & BaseSearchIndex

@@ -4,8 +4,9 @@ import { TRPCError } from '@trpc/server'
 import { and, desc, eq, lt } from 'drizzle-orm'
 import { z } from 'zod'
 
-import { type StripeProductData } from '~/lib/types'
+import type { ProductEditIndex, StripeProductData } from '~/lib/types'
 import { formatToCurrency, getUTUrl } from '~/lib/utils'
+import { setIndex, updateIndex } from '~/server/algolia/collections'
 
 import {
     artistProcedure,
@@ -80,6 +81,17 @@ export const artistCornerRouter = createTRPCRouter({
                 artistId: ctx.artist.id,
                 ...input,
                 description
+            })
+
+            // Add to algolia
+            await setIndex('products', {
+                objectID: id,
+                artistHandle: ctx.artist.handle,
+                name: input.name,
+                price: formatToCurrency(input.price / 100),
+                priceRaw: input.price,
+                imageUrl: getUTUrl(input.images[0] ?? ''),
+                published: false
             })
 
             // Step 3: Update Redis only after database insertion succeeds
@@ -268,6 +280,15 @@ export const artistCornerRouter = createTRPCRouter({
 
                 changes.dbUpdated = true
 
+                // Update Algolia
+                await updateIndex('products', {
+                    objectID: input.id,
+                    ...items,
+                    price: input.price ? formatToCurrency(input.price / 100) : undefined,
+                    priceRaw: input.price ?? undefined,
+                    imageUrl: input.images[0] ? getUTUrl(input.images[0]) : undefined
+                } satisfies ProductEditIndex)
+
                 // Step 5: Update Redis
                 await Promise.all([
                     ctx.redis.zrem('product:images', ...input.images),
@@ -437,6 +458,12 @@ export const artistCornerRouter = createTRPCRouter({
                     published: input.published
                 })
                 .where(eq(products.id, input.id))
+
+            // Update Algolia
+            await updateIndex('products', {
+                objectID: input.id,
+                published: input.published
+            })
         }),
 
     getPurchased: protectedProcedure
