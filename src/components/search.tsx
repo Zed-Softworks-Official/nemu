@@ -68,7 +68,7 @@ export default function SearchBar() {
                     })
 
                     const artistHits = hits.results[0]?.hits as unknown as ArtistIndex[]
-                    const commissionHits = hits.results[0]
+                    const commissionHits = hits.results[1]
                         ?.hits as unknown as CommissionIndex[]
                     const productHits = hits.results[2]?.hits as unknown as ProductIndex[]
 
@@ -182,11 +182,11 @@ function ProductHit(props: { hit: ProductIndex }) {
                     className="rounded-xl"
                 />
                 <div className="flex flex-col gap-3">
-                    <span className="text-base-content text-sm">{props.hit.name}</span>
-                    <span className="text-base-content/40 text-sm">
+                    <span className="text-foreground text-sm">{props.hit.name}</span>
+                    <span className="text-muted-foreground text-sm">
                         @{props.hit.artistHandle}
                     </span>
-                    <span className="text-base-content/80 text-sm">
+                    <span className="text-muted-foreground text-sm">
                         {props.hit.price}
                     </span>
                 </div>
@@ -238,11 +238,11 @@ function CommissionHit(props: { hit: CommissionIndex }) {
                     className="rounded-xl"
                 />
                 <div className="flex flex-col gap-3">
-                    <span className="text-base-content text-sm">{props.hit.title}</span>
-                    <span className="text-base-content/40 text-sm">
+                    <span className="text-foreground text-sm">{props.hit.title}</span>
+                    <span className="text-muted-foreground text-sm">
                         @{props.hit.artistHandle}
                     </span>
-                    <span className="text-base-content/60 text-sm">
+                    <span className="text-muted-foreground text-sm">
                         {props.hit.price}
                     </span>
                 </div>

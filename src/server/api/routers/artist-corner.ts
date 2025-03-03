@@ -4,7 +4,7 @@ import { TRPCError } from '@trpc/server'
 import { and, desc, eq, lt } from 'drizzle-orm'
 import { z } from 'zod'
 
-import { type StripeProductData } from '~/lib/types'
+import type { ProductEditIndex, StripeProductData } from '~/lib/types'
 import { formatToCurrency, getUTUrl } from '~/lib/utils'
 import { setIndex, updateIndex } from '~/server/algolia/collections'
 
@@ -207,12 +207,6 @@ export const artistCornerRouter = createTRPCRouter({
                             }
                         )
 
-                        // Update Algolia
-                        await updateIndex('products', {
-                            objectID: input.id,
-                            price: formatToCurrency(input.price / 100)
-                        })
-
                         // Update Redis with new price
                         await ctx.redis.set(getRedisKey('product:stripe', input.id), {
                             ...stripe_data,
@@ -289,8 +283,10 @@ export const artistCornerRouter = createTRPCRouter({
                 // Update Algolia
                 await updateIndex('products', {
                     objectID: input.id,
-                    ...items
-                })
+                    ...items,
+                    price: input.price ? formatToCurrency(input.price / 100) : undefined,
+                    imageUrl: input.images[0] ? getUTUrl(input.images[0]) : undefined
+                } satisfies ProductEditIndex)
 
                 // Step 5: Update Redis
                 await Promise.all([
