@@ -172,7 +172,7 @@ function PropertiesComponent(props: { element_instance: FormElementInstance }) {
         form.reset(element.metadata)
     }, [element, form])
 
-    function process_form(values: PropertiesFormSchemaType) {
+    function processForm(values: PropertiesFormSchemaType) {
         update_element(element.id, {
             ...element,
             metadata: values
@@ -182,7 +182,7 @@ function PropertiesComponent(props: { element_instance: FormElementInstance }) {
     return (
         <Form {...form}>
             <form
-                onBlur={form.handleSubmit(process_form)}
+                onBlur={form.handleSubmit(processForm)}
                 className="space-y-3"
                 onSubmit={(e) => e.preventDefault()}
             >

@@ -199,7 +199,7 @@ export const artistVerificationRouter = createTRPCRouter({
 
 async function createArtist(input: VerificationDataType, userId: string) {
     const social_accounts: SocialAccount[] = []
-    const clerk_client = await clerkClient()
+    const clerk = await clerkClient()
 
     if (input.twitter) {
         social_accounts.push({
@@ -216,7 +216,7 @@ async function createArtist(input: VerificationDataType, userId: string) {
     }
 
     // Get the user from the database
-    const user = await clerk_client.users.getUser(userId)
+    const user = await clerk.users.getUser(userId)
     if (!user) {
         throw new Error('User could not be found!')
     }
@@ -246,7 +246,7 @@ async function createArtist(input: VerificationDataType, userId: string) {
     }
 
     // Update the user in clerk
-    const clerk_promise = clerk_client.users.updateUserMetadata(user.id, {
+    const clerk_promise = clerk.users.updateUserMetadata(user.id, {
         publicMetadata: {
             handle: artist.handle,
             role: 'artist',

@@ -237,8 +237,8 @@ export const requestRouter = createTRPCRouter({
                 )
             )
 
-            const clerk_client = await clerkClient()
-            const request_user = await clerk_client.users.getUser(request.userId)
+            const clerk = await clerkClient()
+            const request_user = await clerk.users.getUser(request.userId)
 
             if (!customer_id) {
                 const customer = await StripeCreateCustomer(
@@ -451,7 +451,7 @@ export const requestRouter = createTRPCRouter({
         }),
 
     getRequestList: protectedProcedure.query(async ({ ctx }) => {
-        const clerk_client = await clerkClient()
+        const clerk = await clerkClient()
         const db_requests = await ctx.db.query.requests.findMany({
             where: eq(requests.userId, ctx.auth.userId),
             with: {
@@ -470,7 +470,7 @@ export const requestRouter = createTRPCRouter({
         // Format for client
         const result: ClientRequestData[] = []
         for (const request of db_requests) {
-            const user = await clerk_client.users.getUser(request.userId)
+            const user = await clerk.users.getUser(request.userId)
 
             result.push({
                 ...request,
@@ -500,7 +500,7 @@ export const requestRouter = createTRPCRouter({
             })
         )
         .query(async ({ ctx, input }) => {
-            const clerk_client = await clerkClient()
+            const clerk = await clerkClient()
             const request = await ctx.db.query.requests.findFirst({
                 where: eq(requests.orderId, input.orderId),
                 with: {
@@ -535,7 +535,7 @@ export const requestRouter = createTRPCRouter({
                 }
             }
 
-            const user = await clerk_client.users.getUser(request.userId)
+            const user = await clerk.users.getUser(request.userId)
             const result: ClientRequestData = {
                 ...request,
                 commission: {

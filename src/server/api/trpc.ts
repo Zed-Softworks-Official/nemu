@@ -175,8 +175,8 @@ export const artistProcedure = protectedProcedure.use(async ({ next, ctx }) => {
  * unauthorized error.
  */
 export const adminProcedure = protectedProcedure.use(async ({ next, ctx }) => {
-    const clerk_client = await clerkClient()
-    const user = await clerk_client.users.getUser(ctx.auth.userId)
+    const clerk = await clerkClient()
+    const user = await clerk.users.getUser(ctx.auth.userId)
 
     if ((user.publicMetadata.role as UserRole) !== 'admin') {
         throw new TRPCError({

@@ -83,7 +83,15 @@ export default function UploadThingProvider({
             return
         }
 
-        return await startUpload(images.map((image) => image.data.imageData.fileData!))
+        return await startUpload(
+            images.map((image) => {
+                if (!image.data.imageData.fileData) {
+                    throw new Error('No file data found')
+                }
+
+                return image.data.imageData.fileData
+            })
+        )
     }
 
     return (

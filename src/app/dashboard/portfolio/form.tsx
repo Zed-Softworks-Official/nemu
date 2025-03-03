@@ -57,7 +57,7 @@ export function CreateForm() {
         }
     })
 
-    const process_form = async (values: SchemaType) => {
+    const processForm = async (values: SchemaType) => {
         const toast_id = toast.loading('Uploading Images')
         const res = await uploadImages()
         if (!res) {
@@ -95,7 +95,7 @@ export function CreateForm() {
     return (
         <Form {...form}>
             <form
-                onSubmit={form.handleSubmit(process_form)}
+                onSubmit={form.handleSubmit(processForm)}
                 className="mx-auto flex w-full max-w-xl flex-col gap-5"
             >
                 <h1 className="text-2xl font-bold">Create Portfolio</h1>
@@ -194,7 +194,7 @@ export function UpdateForm(props: { id: string }) {
         }
     })
 
-    const process_form = async (values: SchemaType) => {
+    const processForm = async (values: SchemaType) => {
         updatePortfolio.mutate({
             id: props.id,
             title: values.title
@@ -223,7 +223,7 @@ export function UpdateForm(props: { id: string }) {
             <Form {...form}>
                 <form
                     className="flex flex-col gap-5"
-                    onSubmit={form.handleSubmit(process_form)}
+                    onSubmit={form.handleSubmit(processForm)}
                 >
                     <FormField
                         control={form.control}

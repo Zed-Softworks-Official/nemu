@@ -12,7 +12,7 @@ import { getRedisKey, redis } from '~/server/redis'
 import { stripe } from '~/server/stripe'
 import { env } from '~/env'
 import { isSupporter } from '~/app/api/stripe/sync'
-import { calculate_application_fee } from '~/lib/payments'
+import { calculateApplicationFee } from '~/lib/payments'
 
 export async function GET(
     req: NextRequest,
@@ -77,7 +77,7 @@ export async function GET(
     if (!productData) return notFound()
 
     const applicationFeeAmount = !(await isSupporter(artist.userId))
-        ? calculate_application_fee(productData.price)
+        ? calculateApplicationFee(productData.price)
         : undefined
 
     const purchaseId = createId()

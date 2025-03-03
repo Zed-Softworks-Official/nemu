@@ -76,7 +76,7 @@ export default function ArtistApplyForm() {
         }
     })
 
-    async function process_form(data: SchemaType) {
+    async function processForm(data: SchemaType) {
         verifyArtist.mutate({
             requestedHandle: data.requested_handle,
             method: data.method,
@@ -91,7 +91,7 @@ export default function ArtistApplyForm() {
         <Form {...form}>
             <form
                 className="flex w-full flex-col gap-5"
-                onSubmit={form.handleSubmit(process_form)}
+                onSubmit={form.handleSubmit(processForm)}
             >
                 <FormField
                     control={form.control}

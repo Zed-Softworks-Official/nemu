@@ -12,7 +12,7 @@ import { syncClerkData } from './sync'
 
 const allowed_events = ['user.created', 'user.updated'] as WebhookEventType[]
 
-async function process_event(event: WebhookEvent) {
+async function processEvent(event: WebhookEvent) {
     if (!allowed_events.includes(event.type)) return
 
     return syncClerkData(event)
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     const payload = (await req.json()) as unknown
     const body = JSON.stringify(payload)
 
-    async function do_event_processing() {
+    async function doEventProcessing() {
         if (
             typeof svix_id !== 'string' ||
             typeof svix_timestamp !== 'string' ||
@@ -47,10 +47,10 @@ export async function POST(req: NextRequest) {
             'svix-signature': svix_signature
         }) as WebhookEvent
 
-        waitUntil(process_event(event))
+        waitUntil(processEvent(event))
     }
 
-    const { error } = await tryCatch(do_event_processing())
+    const { error } = await tryCatch(doEventProcessing())
 
     if (error) {
         console.error('[CLERK HOOK]: Error processing event', error)

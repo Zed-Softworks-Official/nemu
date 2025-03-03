@@ -1,6 +1,6 @@
 import { stripe } from '~/server/stripe'
 import { type InvoiceItem, type StripePaymentMetadata } from '~/lib/types'
-import { calculate_application_fee } from '.'
+import { calculateApplicationFee } from '.'
 
 /**
  * Creates a new commission invoice for the given commission
@@ -143,7 +143,7 @@ export async function StripeFinalizeInvoice(
     // Add Application fee to invoice
     let application_fee_amount: number | undefined
     if (!supporter) {
-        application_fee_amount = Math.floor(calculate_application_fee(invoice.amount_due))
+        application_fee_amount = Math.floor(calculateApplicationFee(invoice.amount_due))
     }
 
     // Set the due date to 48 hours from now

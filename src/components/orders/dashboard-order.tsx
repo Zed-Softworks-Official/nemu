@@ -68,13 +68,16 @@ export function DashboardOrderProvider(props: {
             let currentInvoiceIndex = 0
             for (let i = 0; i < requestData.invoices.length; i++) {
                 if (requestData.invoices[i]?.sent === false) {
-                    setIsDownpaymentInvoice(i > 0 ? true : false)
+                    setIsDownpaymentInvoice(i > 0)
                     currentInvoiceIndex = i
                     break
                 }
             }
 
-            setCurrentInvoice(requestData.invoices[currentInvoiceIndex]!)
+            const invoice = requestData.invoices[currentInvoiceIndex]
+            if (invoice) {
+                setCurrentInvoice(invoice)
+            }
         }
     }, [requestData])
 

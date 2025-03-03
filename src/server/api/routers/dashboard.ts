@@ -65,7 +65,7 @@ export const dashboardRouter = createTRPCRouter({
                     }
                 })
 
-                const [requests_data, invoice_data, clerk_client] = await Promise.all([
+                const [requests_data, invoice_data, clerk] = await Promise.all([
                     requests_promise,
                     invoices_promise,
                     client_promise
@@ -79,7 +79,7 @@ export const dashboardRouter = createTRPCRouter({
                     }
 
                     for (const request of commission.requests) {
-                        const user = await clerk_client.users.getUser(request.userId)
+                        const user = await clerk.users.getUser(request.userId)
                         if (!user) {
                             throw new TRPCError({
                                 code: 'INTERNAL_SERVER_ERROR',
@@ -89,7 +89,7 @@ export const dashboardRouter = createTRPCRouter({
 
                         recent_requests.push({
                             commissionTitle: commission.title,
-                            requesterUsername: user.username!,
+                            requesterUsername: user.username ?? 'Unknown',
                             createdAt: request.createdAt.toLocaleDateString()
                         })
                     }
@@ -98,7 +98,7 @@ export const dashboardRouter = createTRPCRouter({
                 // Format the recent sales (invoices recently paid)
                 const recent_sales: RecentSalesData['recentSales'] = []
                 for (const invoice of invoice_data) {
-                    const user = await clerk_client.users.getUser(invoice.userId)
+                    const user = await clerk.users.getUser(invoice.userId)
                     if (!user) {
                         throw new TRPCError({
                             code: 'INTERNAL_SERVER_ERROR',
@@ -108,7 +108,7 @@ export const dashboardRouter = createTRPCRouter({
 
                     recent_sales.push({
                         commissionTitle: invoice.request.commission.title,
-                        requesterUsername: user.username!,
+                        requesterUsername: user.username ?? 'Unknown',
                         price: formatToCurrency(invoice.total)
                     })
                 }

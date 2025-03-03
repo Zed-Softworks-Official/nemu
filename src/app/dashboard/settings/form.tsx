@@ -70,7 +70,7 @@ export function SettingsForm() {
         }
     })
 
-    const process_form = async (values: SettingsSchema) => {
+    const processForm = async (values: SettingsSchema) => {
         setPending(true)
 
         const toast_id = toast.loading('Saving...')
@@ -124,7 +124,7 @@ export function SettingsForm() {
     return (
         <Form {...form}>
             <form
-                onSubmit={form.handleSubmit(process_form)}
+                onSubmit={form.handleSubmit(processForm)}
                 className="flex flex-col gap-5"
             >
                 <div className="mt-3 flex items-center justify-between">

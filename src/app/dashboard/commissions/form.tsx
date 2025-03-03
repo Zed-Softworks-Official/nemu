@@ -78,7 +78,7 @@ export function CreateForm() {
         api.request.getFormsListAndPaymentMethod.useQuery()
     const createCommission = api.commission.setCommission.useMutation()
 
-    const process_form = async (values: CommissionSchemaType) => {
+    const processForm = async (values: CommissionSchemaType) => {
         const toast_id = toast.loading('Uploading Images')
 
         // Check if we have images to upload
@@ -142,7 +142,7 @@ export function CreateForm() {
         <Form {...form}>
             <form
                 className="container mx-auto flex max-w-xl flex-col gap-5"
-                onSubmit={form.handleSubmit(process_form)}
+                onSubmit={form.handleSubmit(processForm)}
             >
                 <h1 className="text-2xl font-bold">Create Commission</h1>
                 <Separator />
@@ -433,7 +433,7 @@ export function UpdateForm(props: { commission: ClientCommissionItemEditable }) 
 
     const updateCommission = api.commission.updateCommission.useMutation()
 
-    const process_form = async (values: UpdateSchemaType) => {
+    const processForm = async (values: UpdateSchemaType) => {
         const toast_id = toast.loading('Uploading Images')
 
         const editor_state: {
@@ -545,7 +545,7 @@ export function UpdateForm(props: { commission: ClientCommissionItemEditable }) 
         <Form {...form}>
             <form
                 className="mt-5 flex flex-col gap-5"
-                onSubmit={form.handleSubmit(process_form)}
+                onSubmit={form.handleSubmit(processForm)}
             >
                 <FormField
                     control={form.control}

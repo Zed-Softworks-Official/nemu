@@ -105,7 +105,7 @@ export const homeRouter = createTRPCRouter({
                 }
             }))
 
-            return { res, next_cursor: data[data.length - 1]?.createdAt }
+            return { res, nextCursor: data[data.length - 1]?.createdAt }
         }),
 
     getFeaturedProducts: publicProcedure.query(async ({ ctx }) => {

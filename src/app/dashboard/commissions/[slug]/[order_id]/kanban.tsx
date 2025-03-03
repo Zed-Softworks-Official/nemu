@@ -208,8 +208,12 @@ export function Kanban() {
                 const activeIndex = prev.findIndex((task) => task.id === activeId)
                 const overIndex = prev.findIndex((task) => task.id === overId)
 
-                if (prev[activeIndex]?.containerId !== prev[overIndex]?.containerId) {
-                    prev[activeIndex]!.containerId = prev[overIndex]!.containerId
+                if (
+                    prev[activeIndex]?.containerId !== prev[overIndex]?.containerId &&
+                    prev[overIndex]?.containerId &&
+                    prev[activeIndex]?.containerId
+                ) {
+                    prev[activeIndex].containerId = prev[overIndex].containerId
                 }
 
                 return arrayMove(prev, activeIndex, overIndex)
@@ -221,7 +225,9 @@ export function Kanban() {
             setTasks((prev) => {
                 const activeIndex = prev.findIndex((task) => task.id === activeId)
 
-                prev[activeIndex]!.containerId = overId
+                if (prev[activeIndex]) {
+                    prev[activeIndex].containerId = overId
+                }
 
                 return arrayMove(prev, activeIndex, activeIndex)
             })

@@ -166,7 +166,7 @@ export const commissionRouter = createTRPCRouter({
             })
         )
         .query(async ({ input, ctx }) => {
-            const clerk_client = await clerkClient()
+            const clerk = await clerkClient()
             const data = await ctx.db.query.artists.findFirst({
                 where: eq(artists.handle, input.handle),
                 with: {
@@ -214,7 +214,7 @@ export const commissionRouter = createTRPCRouter({
                 },
                 requests: await Promise.all(
                     data.commissions[0].requests.map(async (request) => {
-                        const user = await clerk_client.users.getUser(request.userId)
+                        const user = await clerk.users.getUser(request.userId)
                         return {
                             ...request,
                             user: {

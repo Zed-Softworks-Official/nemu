@@ -81,7 +81,7 @@ export async function syncStripeSubData(customer_id: string) {
     const subData = {
         subscriptionId: subscription.id,
         status: subscription.status,
-        priceId: subscription.items.data[0]!.price.id,
+        priceId: subscription.items.data[0]?.price.id ?? null,
         currentPeriodStart: subscription.current_period_start,
         currentPeriodEnd: subscription.current_period_end,
         cancelAtPeriodEnd: subscription.cancel_at_period_end,

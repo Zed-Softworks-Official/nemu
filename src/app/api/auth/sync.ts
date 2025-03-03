@@ -25,16 +25,16 @@ export async function syncClerkData(event: WebhookEvent) {
     }
 }
 
-async function userCreated(clerk_id: string, username: string, email: string) {
-    const clerk_client = await clerkClient()
+async function userCreated(clerkId: string, username: string, email: string) {
+    const clerk = await clerkClient()
 
-    const user_update = clerk_client.users.updateUserMetadata(clerk_id, {
+    const user_update = clerk.users.updateUserMetadata(clerkId, {
         publicMetadata: {
             role: 'standard'
         } satisfies NemuPublicUserMetadata
     })
 
-    const knock_identify = knock.users.identify(clerk_id, {
+    const knock_identify = knock.users.identify(clerkId, {
         username,
         email
     })

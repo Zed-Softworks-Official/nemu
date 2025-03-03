@@ -25,11 +25,17 @@ export const chatRouter = createTRPCRouter({
 
         const result = await Promise.all(
             all_chats.map(async (chat) => {
-                const clerk_client = await clerkClient()
-                const primary_user_promise = clerk_client.users.getUser(chat.userIds[0]!)
-                const secondary_user_promise = clerk_client.users.getUser(
-                    chat.userIds[1]!
-                )
+                const clerk = await clerkClient()
+                const [user_1, user_2] = chat.userIds
+                if (!user_1 || !user_2) {
+                    throw new TRPCError({
+                        code: 'INTERNAL_SERVER_ERROR',
+                        message: 'User not found'
+                    })
+                }
+
+                const primary_user_promise = clerk.users.getUser(user_1)
+                const secondary_user_promise = clerk.users.getUser(user_2)
 
                 const [primary_user, secondary_user] = await Promise.all([
                     primary_user_promise,
@@ -72,7 +78,7 @@ export const chatRouter = createTRPCRouter({
             })
         )
         .mutation(async ({ ctx, input }) => {
-            const clerk_client = await clerkClient()
+            const clerk = await clerkClient()
             const redisKey = getRedisKey('chats', input.chatId)
             const chat: Chat | null = await redis.json.get(redisKey)
 
@@ -94,7 +100,7 @@ export const chatRouter = createTRPCRouter({
                 ...chat,
                 users: await Promise.all(
                     chat.users.map(async (user) => {
-                        const userData = await clerk_client.users.getUser(user.userId)
+                        const userData = await clerk.users.getUser(user.userId)
 
                         return {
                             userId: user.userId,
