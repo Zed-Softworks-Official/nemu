@@ -35,7 +35,8 @@ export function MarkdownEditor(props: {
                 }
             }),
             Placeholder.configure({
-                placeholder: props.placeholder ?? 'Write something...'
+                placeholder: props.placeholder ?? 'Write something...',
+                emptyEditorClass: 'is-empty'
             })
         ],
         onUpdate: ({ editor }) => {

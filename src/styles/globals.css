@@ -192,3 +192,7 @@
         @apply bg-background text-foreground;
     }
 }
+
+.tiptap p.is-empty:first-child::before {
+  @apply text-muted-foreground content-[attr(data-placeholder)] pointer-events-none h-0 float-left;
+}
