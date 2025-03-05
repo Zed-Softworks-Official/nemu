@@ -12,7 +12,7 @@ import { cache, getRedisKey } from '~/server/redis'
 type CommissionResult = {
     id: string
     title: string
-    description: string
+    description: JSONContent
     featuredImage: string
     slug: string
     availability: CommissionAvailability

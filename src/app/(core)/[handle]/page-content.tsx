@@ -254,14 +254,13 @@ function CommissionsList(props: { handle: string }) {
                                 </h2>
                                 <Badge>{commission.availability}</Badge>
                             </div>
-                            <p className="text-muted-foreground mb-4">
-                                {commission.description.substring(
+                            <p className="text-muted-foreground mb-4 truncate">
+                                {/* {commission.description.substring(
                                     0,
                                     commission.description.length >= 250
                                         ? 250
                                         : commission.description.length
-                                )}
-                                ...
+                                )} */}
                             </p>
                             <div className="flex items-center justify-between">
                                 <div className="flex flex-col">
