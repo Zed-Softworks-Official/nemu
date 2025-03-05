@@ -28,6 +28,7 @@ import {
 import { Button } from '~/components/ui/button'
 import Price from '~/components/ui/price'
 import ShareButton from '~/components/ui/share-button'
+import { MarkdownEditor } from './ui/markdown-editor'
 
 export function CommissionView(props: { handle: string; slug: string }) {
     const { data: commission, isLoading } = api.commission.getCommission.useQuery({
@@ -91,8 +92,8 @@ function CommissionContent(props: {
     }
 
     return (
-        <div className="flex h-full max-h-fit flex-1 grow-0 overflow-y-auto">
-            <div className="flex flex-col gap-5 p-5">
+        <div className="flex h-full max-h-fit w-full flex-1 grow-0 overflow-y-auto">
+            <div className="flex w-full flex-col gap-5 p-5">
                 <div className="flex flex-row justify-between">
                     <div>
                         <h2 className="flex items-center gap-2 text-2xl font-bold">
@@ -121,8 +122,8 @@ function CommissionContent(props: {
                     <ShareButton />
                 </div>
                 <Separator />
-                <div className="h-full">
-                    <p>{props.commission.description}</p>
+                <div className="h-full w-full">
+                    <MarkdownEditor content={props.commission.description} disabled />
                 </div>
                 <Separator />
                 <Accordion type="single" collapsible className="w-full">

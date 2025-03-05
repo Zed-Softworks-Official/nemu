@@ -2,6 +2,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Check } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
@@ -15,12 +16,13 @@ import { api } from '~/trpc/react'
 
 const formSchema = z.object({
     name: z.string().min(1, { message: 'Name is required' }),
-    description: z.string().min(1, { message: 'Description is required' })
+    description: z.string().optional()
 })
 
 type FormSchemaType = z.infer<typeof formSchema>
 
 export function CreateForm() {
+    const router = useRouter()
     const form = useForm<FormSchemaType>({
         resolver: zodResolver(formSchema),
         mode: 'onSubmit'
@@ -37,10 +39,12 @@ export function CreateForm() {
                 description: values.description
             },
             {
-                onSuccess: () => {
+                onSuccess: (res) => {
                     toast.success('Form Created!', {
                         id: toastId
                     })
+
+                    router.push(`/dashboard/forms/${res.id}`)
                 },
                 onError: () => {
                     toast.error('Failed to create form', {
@@ -91,7 +95,10 @@ export function CreateForm() {
                     )}
                 />
                 <div className="flex justify-end">
-                    <Button type="submit" disabled={createForm.isPending}>
+                    <Button
+                        type="submit"
+                        disabled={createForm.isPending || createForm.isSuccess}
+                    >
                         <Check className="h-6 w-6" />
                         Create form
                     </Button>

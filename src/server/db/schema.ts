@@ -213,13 +213,13 @@ export const commissions = createTable('commission', {
     id: varchar('id', { length: 128 }).primaryKey(),
     artistId: text('artist_id').notNull(),
     price: int('price').notNull(),
-    rating: decimal('rating', { precision: 2, scale: 1 }).notNull(),
+    rating: int('rating').default(500),
     adultContent: boolean('adult_content').default(false).notNull(),
 
     formId: text('form_id').notNull(),
 
     title: text('title').notNull(),
-    description: text('description').notNull(),
+    description: json('description').$type<JSONContent>().notNull(),
     images: json('images')
         .$type<
             {

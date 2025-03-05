@@ -49,12 +49,17 @@ export const requestRouter = createTRPCRouter({
             })
         )
         .mutation(async ({ ctx, input }) => {
+            const formId = createId()
             await ctx.db.insert(forms).values({
-                id: createId(),
+                id: formId,
                 name: input.name,
                 description: input.description,
                 artistId: ctx.artist.id
             })
+
+            return {
+                id: formId
+            }
         }),
 
     setFormContent: artistProcedure

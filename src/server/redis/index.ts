@@ -20,6 +20,7 @@ type RedisKey =
     | 'product:stripe'
     | 'product:featured'
     | 'product:purchase'
+    | 'commission:images'
 
 export const redis = new Redis({
     url: env.UPSTASH_REDIS_REST_URL,

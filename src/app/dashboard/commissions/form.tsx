@@ -1,16 +1,17 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
-import { CircleDollarSign, XCircle } from 'lucide-react'
+import { CircleDollarSign, Trash2, XCircle } from 'lucide-react'
 import Link from 'next/link'
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
-
-import NemuUploadThing from '~/components/files/nemu-uploadthing'
-import { useNemuUploadThing } from '~/components/files/uploadthing-context'
+import type { JSONContent } from '@tiptap/react'
+import { UploadDropzone } from '~/components/files/uploadthing'
+import NemuImage from '~/components/nemu-image'
 import { Button } from '~/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card'
 import {
     Form,
     FormControl,
@@ -20,6 +21,7 @@ import {
     FormMessage
 } from '~/components/ui/form'
 import { Input } from '~/components/ui/input'
+import { MarkdownEditor } from '~/components/ui/markdown-editor'
 import {
     Select,
     SelectContent,
@@ -30,22 +32,23 @@ import {
 import { Separator } from '~/components/ui/separator'
 import { Skeleton } from '~/components/ui/skeleton'
 import { Slider } from '~/components/ui/slider'
-import { Textarea } from '~/components/ui/textarea'
+import { env } from '~/env'
 
 import {
-    type ClientCommissionItemEditable,
-    type ImageEditorData,
-    type NemuEditImageData,
+    type ChargeMethod,
     chargeMethods,
+    type CommissionAvailability,
     commissionAvalabilities
 } from '~/lib/types'
 
-import { api } from '~/trpc/react'
+import { api, type RouterOutputs } from '~/trpc/react'
+import { useRouter } from 'next/navigation'
 
 const commissionSchema = z.object({
     title: z.string().min(2).max(64),
-    description: z.string(),
+    description: z.any(),
     formId: z.string(),
+    images: z.array(z.string()).min(1),
     price: z.string().refine((value) => !isNaN(Number(value))),
     maxCommissionsUntilWaitlist: z.number().min(0),
     maxCommissionsUntilClosed: z.number().min(0),
@@ -56,108 +59,155 @@ const commissionSchema = z.object({
 
 type CommissionSchemaType = z.infer<typeof commissionSchema>
 
-export function CreateForm() {
-    const { images, uploadImages, isUploading } = useNemuUploadThing()
+type CommissionFormProps = {
+    mode: 'create' | 'update'
+    initialData?: {
+        id: string
+        title: string
+        description: JSONContent
+        price: number
+        formId: string
+        images: {
+            url: string
+            utKey: string
+        }[]
+        maxCommissionsUntilWaitlist: number
+        maxCommissionsUntilClosed: number
+        commissionAvailability: CommissionAvailability
+        chargeMethod: ChargeMethod
+        downpaymentPercentage: number
+        slug: string
+        published: boolean
+    }
+}
+
+function CommissionForm(props: CommissionFormProps) {
+    const { data: formsData, isLoading: formsLoading } =
+        api.request.getFormsListAndPaymentMethod.useQuery()
+    const router = useRouter()
+    const defaultValues = useMemo(() => {
+        if (props.mode === 'create') {
+            return {
+                title: '',
+                description: '',
+                formId: '',
+                images: [],
+                price: '0',
+                maxCommissionsUntilWaitlist: 0,
+                maxCommissionsUntilClosed: 0,
+                commissionAvailability: 'open' as CommissionAvailability,
+                chargeMethod: 'in_full' as ChargeMethod,
+                downpaymentPercentage: 0
+            }
+        }
+
+        return {
+            title: props.initialData?.title,
+            description: props.initialData?.description,
+            formId: props.initialData?.formId,
+            images: props.initialData?.images.map((image) => image.utKey),
+            price: ((props.initialData?.price ?? 0) / 100).toFixed(2),
+            maxCommissionsUntilWaitlist: props.initialData?.maxCommissionsUntilWaitlist,
+            maxCommissionsUntilClosed: props.initialData?.maxCommissionsUntilClosed,
+            commissionAvailability: props.initialData?.commissionAvailability,
+            chargeMethod: props.initialData?.chargeMethod,
+            downpaymentPercentage: props.initialData?.downpaymentPercentage
+        }
+    }, [props])
+
     const form = useForm<CommissionSchemaType>({
         resolver: zodResolver(commissionSchema),
         mode: 'onSubmit',
-        defaultValues: {
-            title: '',
-            description: '',
-            formId: '',
-            price: '0',
-            maxCommissionsUntilWaitlist: 0,
-            maxCommissionsUntilClosed: 0,
-            commissionAvailability: 'open',
-            chargeMethod: 'in_full',
-            downpaymentPercentage: 50
+        defaultValues
+    })
+
+    const createCommission = api.commission.setCommission.useMutation({
+        onMutate: () => {
+            const toastId = toast.loading('Creating Commission')
+
+            return { toastId }
+        },
+        onSuccess: (_, __, ctx) => {
+            toast.success('Commission Created', {
+                id: ctx.toastId
+            })
+            router.push('/dashboard/commissions')
+        },
+        onError: (_, __, ctx) => {
+            toast.error('Failed to create commission', {
+                id: ctx?.toastId
+            })
         }
     })
 
-    const { data, isLoading: formsLoading } =
-        api.request.getFormsListAndPaymentMethod.useQuery()
-    const createCommission = api.commission.setCommission.useMutation()
+    const updateCommission = api.commission.updateCommission.useMutation({
+        onMutate: () => {
+            const toastId = toast.loading('Updating Commission')
+            return { toastId }
+        },
+        onSuccess: (_, __, ctx) => {
+            toast.success('Commission Updated', {
+                id: ctx.toastId
+            })
+            router.push('/dashboard/commissions')
+        },
+        onError: (_, __, ctx) => {
+            toast.error('Failed to update commission', {
+                id: ctx?.toastId
+            })
+        }
+    })
 
-    const processForm = async (values: CommissionSchemaType) => {
-        const toast_id = toast.loading('Uploading Images')
+    useDefaultPaymentStructure({
+        defaultChargeMethod: formsData?.defaultChargeMethod,
+        onChange: (value) => form.setValue('chargeMethod', value),
+        mode: props.mode
+    })
 
-        // Check if we have images to upload
-        if (images.length === 0) {
-            toast.error('No images to upload', { id: toast_id })
-            return
+    const mutation = props.mode === 'create' ? createCommission : updateCommission
+
+    const processForm = async (data: CommissionSchemaType) => {
+        const commonData = {
+            ...data,
+            price: Number(data.price) * 100,
+            published: false
         }
 
-        // Upload the images
-        const res = await uploadImages()
-
-        if (!res) {
-            toast.error('Failed to upload images', { id: toast_id })
-            return
+        if (props.mode === 'create') {
+            createCommission.mutate(commonData)
+        } else if (props.initialData) {
+            updateCommission.mutate({
+                ...commonData,
+                id: props.initialData.id
+            })
         }
-
-        // Format the images response to for the commission
-        const uploaded_images = res.map((image) => ({
-            utKey: image.key
-        }))
-
-        // Update the toast
-        toast.loading('Creating Commission', { id: toast_id })
-
-        // Create the commission
-        createCommission.mutate(
-            {
-                title: values.title,
-                description: values.description,
-                formId: values.formId,
-                price: Number(values.price) * 100,
-                maxCommissionsUntilWaitlist: values.maxCommissionsUntilWaitlist,
-                maxCommissionsUntilClosed: values.maxCommissionsUntilClosed,
-                images: uploaded_images,
-                availability: values.commissionAvailability,
-                published: false,
-                chargeMethod: values.chargeMethod,
-                downpaymentPercentage: values.downpaymentPercentage
-            },
-            {
-                onError: (error) => {
-                    toast.error(error.message, {
-                        id: toast_id
-                    })
-                },
-                onSuccess: () => {
-                    toast.success('Commission Created', { id: toast_id })
-                }
-            }
-        )
     }
 
-    useEffect(() => {
-        if (data) {
-            form.setValue('chargeMethod', data.defaultChargeMethod)
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [data])
+    const cancelHref = useMemo(() => {
+        if (props.mode) return '/dashboard/commissions'
+
+        return `/dashboard/commissions/${props.initialData?.slug}`
+    }, [props.mode, props.initialData])
 
     return (
         <Form {...form}>
             <form
-                className="container mx-auto flex max-w-xl flex-col gap-5"
+                className="flex flex-col gap-4"
                 onSubmit={form.handleSubmit(processForm)}
             >
-                <h1 className="text-2xl font-bold">Create Commission</h1>
-                <Separator />
                 <FormField
                     control={form.control}
                     name="title"
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel>Title:</FormLabel>
-                            <Input
-                                placeholder="My Commission"
-                                className="bg-background-secondary"
-                                {...field}
-                                onChange={(e) => field.onChange(e.currentTarget.value)}
-                            />
+                            <FormControl>
+                                <Input
+                                    className="bg-secondary"
+                                    placeholder="My amazing commission"
+                                    {...field}
+                                />
+                            </FormControl>
                             <FormMessage />
                         </FormItem>
                     )}
@@ -168,13 +218,17 @@ export function CreateForm() {
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel>Description:</FormLabel>
-                            <Textarea
-                                placeholder="Description"
-                                {...field}
-                                className="bg-background-secondary resize-none"
-                                rows={8}
-                                onChange={(e) => field.onChange(e.currentTarget.value)}
-                            />
+                            <FormControl>
+                                <MarkdownEditor
+                                    content={
+                                        props.mode === 'update'
+                                            ? props.initialData?.description
+                                            : undefined
+                                    }
+                                    onUpdate={field.onChange}
+                                    placeholder="Write a description for your commission"
+                                />
+                            </FormControl>
                             <FormMessage />
                         </FormItem>
                     )}
@@ -187,17 +241,14 @@ export function CreateForm() {
                             <FormLabel>Price:</FormLabel>
                             <div className="flex">
                                 <div className="bg-background-tertiary flex items-center justify-center rounded-l-md px-5">
-                                    <CircleDollarSign className="h-6 w-6" />
+                                    <CircleDollarSign className="size-6" />
                                 </div>
                                 <Input
                                     placeholder="Starting Price"
                                     type="text"
                                     inputMode="numeric"
                                     className="bg-background-secondary w-full rounded-l-none"
-                                    ref={field.ref}
-                                    disabled={field.disabled}
-                                    defaultValue={field.value ?? ''}
-                                    onChange={field.onChange}
+                                    {...field}
                                 />
                             </div>
                             <FormMessage />
@@ -257,6 +308,15 @@ export function CreateForm() {
                                                 field.value
                                             }
                                             onChange={(e) => {
+                                                if (
+                                                    isNaN(e.currentTarget.valueAsNumber)
+                                                ) {
+                                                    toast.error(
+                                                        'Please enter a valid number'
+                                                    )
+
+                                                    return
+                                                }
                                                 if (e.currentTarget.valueAsNumber > 100) {
                                                     toast.error(
                                                         'Down Payment Percentage cannot be greater than 100'
@@ -292,12 +352,15 @@ export function CreateForm() {
                                     <Skeleton className="h-10 w-full" />
                                 </div>
                             ) : (
-                                <Select onValueChange={field.onChange}>
+                                <Select
+                                    value={field.value}
+                                    onValueChange={field.onChange}
+                                >
                                     <SelectTrigger className="bg-background-secondary">
                                         <SelectValue placeholder="Select User Form" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {data?.forms.map((form) => (
+                                        {formsData?.forms.map((form) => (
                                             <SelectItem key={form.id} value={form.id}>
                                                 {form.name}
                                             </SelectItem>
@@ -315,14 +378,13 @@ export function CreateForm() {
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel>Availability:</FormLabel>
-                            <Select onValueChange={field.onChange}>
+                            <Select value={field.value} onValueChange={field.onChange}>
                                 <SelectTrigger className="bg-background-secondary">
                                     <SelectValue placeholder="Select Availability" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value={'open'}>Open</SelectItem>
                                     <SelectItem value={'waitlist'}>Waitlist</SelectItem>
-                                    Waitlist
                                     <SelectItem value={'closed'}>Closed</SelectItem>
                                 </SelectContent>
                             </Select>
@@ -341,9 +403,7 @@ export function CreateForm() {
                                 type="number"
                                 inputMode="numeric"
                                 className="bg-background-secondary"
-                                ref={field.ref}
-                                defaultValue={field.value}
-                                disabled={field.disabled}
+                                {...field}
                                 onChange={(e) => {
                                     if (e.currentTarget.valueAsNumber) {
                                         field.onChange(e.currentTarget.valueAsNumber)
@@ -365,9 +425,7 @@ export function CreateForm() {
                                 type="number"
                                 inputMode="numeric"
                                 className="bg-background-secondary"
-                                ref={field.ref}
-                                disabled={field.disabled}
-                                defaultValue={field.value}
+                                {...field}
                                 onChange={(e) => {
                                     if (e.currentTarget.valueAsNumber) {
                                         field.onChange(e.currentTarget.valueAsNumber)
@@ -379,26 +437,79 @@ export function CreateForm() {
                     )}
                 />
                 <Separator />
-                <NemuUploadThing />
+                <FormItem>
+                    <FormLabel>Images:</FormLabel>
+                    <UploadDropzone
+                        endpoint={'commissionImageUploader'}
+                        onClientUploadComplete={(res) => {
+                            form.setValue(
+                                'images',
+                                res.map((image) => image.key)
+                            )
+                        }}
+                        onUploadError={(error) => {
+                            toast.error('Oh Nyo! Something went wrong', {
+                                description: error.message
+                            })
+                        }}
+                    />
+                    {form.watch('images').length > 0 && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Preview</CardTitle>
+                            </CardHeader>
+                            <CardContent className="flex gap-2 overflow-x-auto">
+                                {form.watch('images').map((image) => (
+                                    <div className="relative" key={image}>
+                                        <NemuImage
+                                            src={`https://utfs.io/a/${env.NEXT_PUBLIC_UPLOADTHING_APP_ID}/${image}`}
+                                            alt="commission image"
+                                            width={200}
+                                            height={200}
+                                            className="rounded-md object-cover"
+                                        />
+                                        <Button
+                                            variant={'ghost'}
+                                            size="icon"
+                                            className="absolute top-2 right-2"
+                                            onClick={() => {
+                                                form.setValue(
+                                                    'images',
+                                                    form
+                                                        .getValues('images')
+                                                        .filter((i) => i !== image)
+                                                )
+                                            }}
+                                        >
+                                            <Trash2 className="size-4" />
+                                        </Button>
+                                    </div>
+                                ))}
+                            </CardContent>
+                        </Card>
+                    )}
+                </FormItem>
                 <Separator />
-                <p className="text-muted-foreground">
-                    <i>
-                        Note: Commissions will need to be published. Make sure you have
-                        created the commission form for users to fill out upon a request.
-                    </i>
+                <p className="text-muted-foreground italic">
+                    Note: Commissions will need to be published. Make sure you have
+                    created the commission form for users to fill out upon a request.
                 </p>
                 <div className="flex items-center justify-between">
-                    <Button asChild variant={'outline'}>
-                        <Link href={'/dashboard/commissions'}>
-                            <XCircle className="h-6 w-6" />
+                    <Button variant={'outline'} asChild>
+                        <Link href={cancelHref}>
+                            <XCircle className="size-6" />
                             Cancel
                         </Link>
                     </Button>
                     <Button
                         type="submit"
-                        disabled={isUploading || createCommission.isPending}
+                        disabled={
+                            (props.mode === 'create' && !form.formState.isValid) ||
+                            mutation.isPending ||
+                            mutation.isSuccess
+                        }
                     >
-                        Create Commission
+                        {props.mode === 'create' ? 'Create' : 'Update'}
                     </Button>
                 </div>
             </form>
@@ -406,406 +517,44 @@ export function CreateForm() {
     )
 }
 
-const updateSchema = z.object({
-    title: z.string().min(2).max(64),
-    description: z.string(),
-    formName: z.string(),
-    price: z.string().refine((value) => !isNaN(Number(value))),
-    maxCommissionsUntilWaitlist: z.number().min(0),
-    maxCommissionsUntilClosed: z.number().min(0),
-    availability: z.enum(commissionAvalabilities),
-    chargeMethod: z.enum(chargeMethods),
-    downpaymentPercentage: z.number().min(0).max(100)
-})
-
-type UpdateSchemaType = z.infer<typeof updateSchema>
-
-export function UpdateForm(props: { commission: ClientCommissionItemEditable }) {
-    const { images, uploadImages, isUploading } = useNemuUploadThing()
-
-    const form = useForm<UpdateSchemaType>({
-        resolver: zodResolver(updateSchema),
-        mode: 'onSubmit',
-        defaultValues: {
-            ...props.commission
+function useDefaultPaymentStructure(props: {
+    defaultChargeMethod?: ChargeMethod
+    onChange: (value: ChargeMethod) => void
+    mode: 'create' | 'update'
+}) {
+    useEffect(() => {
+        if (props.defaultChargeMethod && props.mode === 'create') {
+            props.onChange(props.defaultChargeMethod)
         }
-    })
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [props.mode])
+}
 
-    const updateCommission = api.commission.updateCommission.useMutation()
+export function CreateForm() {
+    return <CommissionForm mode="create" />
+}
 
-    const processForm = async (values: UpdateSchemaType) => {
-        const toast_id = toast.loading('Uploading Images')
-
-        const editor_state: {
-            create: ImageEditorData[]
-            update: ImageEditorData[]
-            delete: ImageEditorData[]
-        } = {
-            create: [],
-            update: [],
-            delete: []
-        }
-
-        for (const image of images) {
-            switch (image.data.action) {
-                case 'create':
-                    editor_state.create.push(image)
-                    break
-                case 'update':
-                    editor_state.update.push(image)
-                    break
-                case 'delete':
-                    editor_state.delete.push(image)
-                    break
-            }
-        }
-
-        let uploaded_images: NemuEditImageData[] = []
-
-        // Check if we have any images to process
-        const totalImagesAfterChanges =
-            editor_state.create.length +
-            editor_state.update.length -
-            editor_state.delete.length
-
-        // Validate total images won't exceed 6
-        if (totalImagesAfterChanges > 6) {
-            toast.error('Too many images!', {
-                id: toast_id
-            })
-            return
-        }
-
-        // Only attempt upload if we have new images to create
-        if (editor_state.create.length > 0) {
-            const res = await uploadImages()
-
-            if (!res) {
-                toast.error('Uploading Images Failed!', {
-                    id: toast_id
-                })
-
-                return
-            }
-
-            uploaded_images = res.map((file) => ({
-                action: 'create',
-                imageData: {
-                    utKey: file.key
-                }
-            }))
-        }
-
-        const images_to_update = uploaded_images
-            .concat(
-                editor_state.update.map((image) => ({
-                    action: 'update',
-                    imageData: {
-                        utKey: image.data.imageData.utKey ?? ''
-                    }
-                }))
-            )
-            .map((image) => image.imageData.utKey ?? '')
-
-        updateCommission.mutate(
-            {
-                id: props.commission.id,
-                data: {
-                    title: values.title,
-                    description: values.description,
-                    price: Number(values.price) * 100,
-                    maxCommissionsUntilClosed: values.maxCommissionsUntilClosed,
-                    maxCommissionsUntilWaitlist: values.maxCommissionsUntilWaitlist,
-                    availability: values.availability,
-                    published: false,
-                    images: images_to_update,
-                    deletedImages: editor_state.delete.map(
-                        (image) => image.data.imageData.utKey ?? ''
-                    ),
-                    chargeMethod: values.chargeMethod,
-                    downpaymentPercentage: values.downpaymentPercentage
-                }
-            },
-            {
-                onError: (error) => {
-                    toast.error(error.message, {
-                        id: toast_id
-                    })
-                },
-                onSuccess: () => {
-                    toast.success('Commission Updated', {
-                        id: toast_id
-                    })
-                }
-            }
-        )
-    }
-
+export function UpdateForm(props: {
+    commission: NonNullable<RouterOutputs['commission']['getCommissionByIdDashboard']>
+}) {
     return (
-        <Form {...form}>
-            <form
-                className="mt-5 flex flex-col gap-5"
-                onSubmit={form.handleSubmit(processForm)}
-            >
-                <FormField
-                    control={form.control}
-                    name="title"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Title:</FormLabel>
-                            <Input
-                                placeholder="My Commission"
-                                className="bg-background-secondary"
-                                {...field}
-                                onChange={(e) => field.onChange(e.currentTarget.value)}
-                            />
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Description:</FormLabel>
-                            <Textarea
-                                placeholder="Description"
-                                {...field}
-                                className="bg-background-secondary resize-none"
-                                rows={8}
-                                onChange={(e) => field.onChange(e.currentTarget.value)}
-                            />
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="price"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Price:</FormLabel>
-                            <div className="flex">
-                                <div className="bg-background-tertiary flex items-center justify-center rounded-l-md px-5">
-                                    <CircleDollarSign className="h-6 w-6" />
-                                </div>
-                                <Input
-                                    placeholder="Starting Price"
-                                    type="text"
-                                    inputMode="numeric"
-                                    className="bg-background-secondary w-full rounded-l-none"
-                                    ref={field.ref}
-                                    disabled={field.disabled}
-                                    defaultValue={field.value ?? ''}
-                                    onChange={field.onChange}
-                                />
-                            </div>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="chargeMethod"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Payment Method:</FormLabel>
-                            <FormControl>
-                                <Select
-                                    value={field.value}
-                                    onValueChange={field.onChange}
-                                >
-                                    <SelectTrigger className="bg-background-secondary">
-                                        <SelectValue placeholder="Select Payment Method" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value={'in_full'}>In Full</SelectItem>
-                                        <SelectItem value={'down_payment'}>
-                                            Down Payment
-                                        </SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </FormControl>
-                        </FormItem>
-                    )}
-                />
-                {form.watch('chargeMethod') === 'down_payment' && (
-                    <FormField
-                        control={form.control}
-                        name="downpaymentPercentage"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Down Payment Percentage:</FormLabel>
-                                <div className="flex items-center justify-between gap-5">
-                                    <FormControl>
-                                        <Slider
-                                            value={[field.value]}
-                                            onValueChange={field.onChange}
-                                            min={0}
-                                            max={100}
-                                            step={1}
-                                        />
-                                    </FormControl>
-                                    <FormControl>
-                                        <Input
-                                            type="number"
-                                            inputMode="numeric"
-                                            className="bg-background-secondary w-[100px]"
-                                            ref={field.ref}
-                                            value={
-                                                (field.value as unknown as number[])[0] ??
-                                                field.value
-                                            }
-                                            onChange={(e) => {
-                                                if (e.currentTarget.valueAsNumber > 100) {
-                                                    toast.error(
-                                                        'Down Payment Percentage cannot be greater than 100'
-                                                    )
-                                                    field.onChange(100)
-
-                                                    return
-                                                }
-
-                                                if (e.currentTarget.valueAsNumber) {
-                                                    field.onChange(
-                                                        e.currentTarget.valueAsNumber
-                                                    )
-                                                }
-                                            }}
-                                        />
-                                    </FormControl>
-                                </div>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                )}
-                <Separator />
-                <FormField
-                    control={form.control}
-                    name="formName"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>User Form:</FormLabel>
-                            <Select value={field.value}>
-                                <SelectTrigger
-                                    disabled
-                                    className="bg-background-secondary"
-                                >
-                                    <SelectValue placeholder="Select User Form" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value={field.value}>
-                                        {field.value}
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="availability"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Availability:</FormLabel>
-                            <Select
-                                value={field.value}
-                                onValueChange={(value) => {
-                                    if (!value) {
-                                        return
-                                    }
-
-                                    field.onChange(value)
-                                }}
-                            >
-                                <SelectTrigger className="bg-background-secondary">
-                                    <SelectValue placeholder="Select Availability" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value={'open'}>Open</SelectItem>
-                                    <SelectItem value={'waitlist'}>Waitlist</SelectItem>
-                                    <SelectItem value={'closed'}>Closed</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="maxCommissionsUntilWaitlist"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Commissions Until Auto Waitlist:</FormLabel>
-                            <Input
-                                placeholder="0"
-                                type="number"
-                                inputMode="numeric"
-                                className="bg-background-secondary"
-                                ref={field.ref}
-                                defaultValue={field.value}
-                                disabled={field.disabled}
-                                onChange={(e) => {
-                                    if (e.currentTarget.valueAsNumber) {
-                                        field.onChange(e.currentTarget.valueAsNumber)
-                                    }
-                                }}
-                            />
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="maxCommissionsUntilClosed"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Commissions Until Auto Close:</FormLabel>
-                            <Input
-                                placeholder="0"
-                                type="number"
-                                inputMode="numeric"
-                                className="bg-background-secondary"
-                                ref={field.ref}
-                                disabled={field.disabled}
-                                defaultValue={field.value}
-                                onChange={(e) => {
-                                    if (e.currentTarget.valueAsNumber) {
-                                        field.onChange(e.currentTarget.valueAsNumber)
-                                    }
-                                }}
-                            />
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <Separator />
-                <NemuUploadThing />
-                <Separator />
-                <p className="text-muted-foreground">
-                    <i>
-                        Note: Commissions will need to be published. Make sure you have
-                        created the commission form for users to fill out upon a request.
-                    </i>
-                </p>
-                <div className="flex items-center justify-between">
-                    <Button asChild variant={'outline'}>
-                        <Link href={'/dashboard/commissions'}>
-                            <XCircle className="h-6 w-6" />
-                            Cancel
-                        </Link>
-                    </Button>
-                    <Button
-                        type="submit"
-                        disabled={isUploading || updateCommission.isPending}
-                    >
-                        Update Commission
-                    </Button>
-                </div>
-            </form>
-        </Form>
+        <CommissionForm
+            mode="update"
+            initialData={{
+                id: props.commission.id,
+                formId: props.commission.formId,
+                title: props.commission.title,
+                description: props.commission.description,
+                images: props.commission.images,
+                price: props.commission.price,
+                chargeMethod: props.commission.chargeMethod,
+                maxCommissionsUntilClosed: props.commission.maxCommissionsUntilClosed,
+                maxCommissionsUntilWaitlist: props.commission.maxCommissionsUntilWaitlist,
+                commissionAvailability: props.commission.availability,
+                downpaymentPercentage: props.commission.downpaymentPercentage,
+                slug: props.commission.slug,
+                published: props.commission.published
+            }}
+        />
     )
 }

@@ -1,16 +1,16 @@
-import UploadThingProvider from '~/components/files/uploadthing-context'
-import { UpdateForm } from '~/app/dashboard/commissions/form'
-import { api } from '~/trpc/server'
-import { Separator } from '~/components/ui/separator'
 import { notFound } from 'next/navigation'
 
+import { UpdateForm } from '~/app/dashboard/commissions/form'
+import { Separator } from '~/components/ui/separator'
+import { api } from '~/trpc/server'
+
 export default async function CommissionUpdatePage(props: {
-    params: Promise<{ slug: string }>
+    params: Promise<{ id: string }>
 }) {
     const params = await props.params
 
-    const commission = await api.commission.getCommissionForEditing({
-        slug: params.slug
+    const commission = await api.commission.getCommissionByIdDashboard({
+        id: params.id
     })
 
     if (!commission) {
@@ -23,12 +23,8 @@ export default async function CommissionUpdatePage(props: {
                 <h1 className="text-2xl font-bold">Update {commission.title}</h1>
             </div>
             <Separator />
-            <UploadThingProvider
-                endpoint="commissionImageUploader"
-                edit_previews={commission.images}
-            >
-                <UpdateForm commission={commission} />
-            </UploadThingProvider>
+
+            <UpdateForm commission={commission} />
         </div>
     )
 }

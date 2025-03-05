@@ -3,7 +3,7 @@ import { CommissionDetails, CommissionDetailsTabs, CommissionHeader } from './de
 import { DashboardOrderProvider } from '~/components/orders/dashboard-order'
 
 export default async function CommissionRequestOrderPage(props: {
-    params: Promise<{ slug: string; order_id: string }>
+    params: Promise<{ id: string; order_id: string }>
 }) {
     const params = await props.params
 

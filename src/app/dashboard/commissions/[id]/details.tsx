@@ -18,10 +18,10 @@ import { api } from '~/trpc/react'
 
 export function PublishButton(props: { id: string; published: boolean }) {
     const [currentlyPublished, setCurrentlyPublished] = useState(props.published)
-    const publishCommission = api.commission.updateCommission.useMutation({
+    const publishCommission = api.commission.publishCommission.useMutation({
         onMutate: () => {
-            const toast_id = toast.loading('Updating Commission')
-            return { toast_id }
+            const toastId = toast.loading('Updating Commission')
+            return { toast_id: toastId }
         },
         onSuccess: (_, __, { toast_id }) => {
             toast.success('Commission Updated', {
@@ -41,14 +41,12 @@ export function PublishButton(props: { id: string; published: boolean }) {
         <Button
             variant={currentlyPublished ? 'destructive' : 'default'}
             onClick={() => {
-                const new_state = !currentlyPublished
-                setCurrentlyPublished(new_state)
+                const newState = !currentlyPublished
+                setCurrentlyPublished(newState)
 
                 publishCommission.mutate({
                     id: props.id,
-                    data: {
-                        published: new_state
-                    }
+                    published: newState
                 })
             }}
             disabled={publishCommission.isPending}

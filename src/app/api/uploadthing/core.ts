@@ -15,17 +15,17 @@ const validate_auth = async (req: NextRequest, check_artist = false) => {
     }
 
     const user = await (await clerkClient()).users.getUser(auth.userId)
-    const artist_id = user.privateMetadata.artist_id as string | undefined
+    const artistId = user.privateMetadata.artist_id as string | undefined
 
     if (check_artist) {
-        if (!artist_id) {
+        if (!artistId) {
             throw new UploadThingError('Unauthorized')
         }
     }
 
     return {
         user,
-        artist_id
+        artistId
     }
 }
 
@@ -53,8 +53,13 @@ export const nemuFileRouter = {
      */
     commissionImageUploader: f({ image: { maxFileCount: 5, maxFileSize: '4MB' } })
         .middleware(async ({ req }) => await validate_auth(req, true))
-        .onUploadComplete(async () => {
-            console.log('Commission Image Upload Complete')
+        .onUploadComplete(async ({ metadata, file }) => {
+            if (!metadata.artistId) return
+
+            await redis.zadd('commission:images', {
+                member: file.key,
+                score: Math.floor((Date.now() + 3600000) / 1000)
+            })
         }),
 
     /**
@@ -72,7 +77,7 @@ export const nemuFileRouter = {
     productImageUploader: f({ image: { maxFileCount: 5, maxFileSize: '4MB' } })
         .middleware(async ({ req }) => await validate_auth(req, true))
         .onUploadComplete(async ({ metadata, file }) => {
-            if (!metadata.artist_id) return
+            if (!metadata.artistId) return
 
             await redis.zadd('product:images', {
                 member: file.key,
@@ -85,7 +90,7 @@ export const nemuFileRouter = {
     })
         .middleware(async ({ req }) => await validate_auth(req, true))
         .onUploadComplete(async ({ metadata, file }) => {
-            if (!metadata.artist_id) return
+            if (!metadata.artistId) return
 
             await redis.zadd('product:downloads', {
                 member: file.key,

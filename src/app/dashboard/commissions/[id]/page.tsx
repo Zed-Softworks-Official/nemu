@@ -10,7 +10,7 @@ import { notFound } from 'next/navigation'
 import { Separator } from '~/components/ui/separator'
 
 export default async function CommissionDetailPage(props: {
-    params: Promise<{ slug: string }>
+    params: Promise<{ id: string }>
 }) {
     const user = await currentUser()
     const params = await props.params
@@ -21,7 +21,7 @@ export default async function CommissionDetailPage(props: {
 
     const commission = await api.commission.getCommission({
         handle: user?.publicMetadata.handle as string,
-        slug: params.slug
+        id: params.id
     })
 
     if (!commission?.id) {
@@ -34,7 +34,7 @@ export default async function CommissionDetailPage(props: {
                 <h1 className="text-2xl font-bold">{commission.title}</h1>
                 <div className="flex gap-2">
                     <Button asChild variant={'outline'}>
-                        <Link href={`/dashboard/commissions/${params.slug}/update`}>
+                        <Link href={`/dashboard/commissions/${params.id}/update`}>
                             <Pencil className="h-6 w-6" />
                             Edit Commission
                         </Link>
@@ -44,7 +44,7 @@ export default async function CommissionDetailPage(props: {
             </div>
             <Separator />
 
-            <RequestList requests={commission.requests ?? []} slug={params.slug} />
+            <RequestList requests={commission.requests ?? []} slug={commission.slug} />
         </div>
     )
 }
