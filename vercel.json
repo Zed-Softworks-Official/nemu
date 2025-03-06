@@ -4,7 +4,11 @@
     "installCommand": "pnpm install",
     "crons": [
         {
-            "path": "/api/uploadthing/cron",
+            "path": "/api/cron/uploadthing",
+            "schedule": "0 10 * * *"
+        },
+        {
+            "path": "/api/cron/invoices",
             "schedule": "0 10 * * *"
         }
     ]
