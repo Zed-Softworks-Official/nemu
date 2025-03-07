@@ -6,7 +6,7 @@ import { createId } from '@paralleldrive/cuid2'
 
 import type { StripePaymentMetadata, StripeProductData } from '~/lib/types'
 import { db } from '~/server/db'
-import { artists, purchase } from '~/server/db/schema'
+import { products, purchase } from '~/server/db/schema'
 import { getRedisKey, redis } from '~/server/redis'
 
 import { stripe } from '~/server/stripe'
@@ -22,19 +22,31 @@ export async function GET(
     if (!auth.userId) return redirect('/u/login')
     const params = await props.params
 
-    const artist = await db.query.artists.findFirst({
-        where: eq(
-            artists.handle,
-            params.handle.substring(params.handle.indexOf('@') + 1, params.handle.length)
-        )
+    const product = await db.query.products.findFirst({
+        where: eq(products.id, params.id),
+        with: {
+            artist: true
+        }
     })
-    if (!artist) return notFound()
+    if (!product) return notFound()
+
+    if (product.isFree) {
+        await db.insert(purchase).values({
+            id: createId(),
+            productId: params.id,
+            userId: auth.userId,
+            artistId: product.artist.id,
+            status: 'completed'
+        })
+
+        return redirect(`${env.BASE_URL}/purchases`)
+    }
 
     const alreadyPurchased = await db.query.purchase.findFirst({
         where: and(
             eq(purchase.productId, params.id),
             eq(purchase.userId, auth.userId),
-            eq(purchase.artistId, artist.id),
+            eq(purchase.artistId, product.artist.id),
             eq(purchase.status, 'completed')
         )
     })
@@ -51,7 +63,7 @@ export async function GET(
     }
 
     let stripeCustomer = await redis.get<string>(
-        getRedisKey('stripe:artist:customer', auth.userId, artist.id)
+        getRedisKey('stripe:artist:customer', auth.userId, product.artist.id)
     )
 
     if (!stripeCustomer) {
@@ -61,12 +73,12 @@ export async function GET(
                 name: user.username ?? user.emailAddresses[0]?.emailAddress ?? 'Unknown',
                 email: user.emailAddresses[0]?.emailAddress
             },
-            { stripeAccount: artist.stripeAccount }
+            { stripeAccount: product.artist.stripeAccount }
         )
         stripeCustomer = customer.id
 
         await redis.set(
-            getRedisKey('stripe:artist:customer', auth.userId, artist.id),
+            getRedisKey('stripe:artist:customer', auth.userId, product.artist.id),
             stripeCustomer
         )
     }
@@ -76,7 +88,7 @@ export async function GET(
     )
     if (!productData) return notFound()
 
-    const applicationFeeAmount = !(await isSupporter(artist.userId))
+    const applicationFeeAmount = !(await isSupporter(product.artist.userId))
         ? calculateApplicationFee(productData.price)
         : undefined
 
@@ -93,7 +105,7 @@ export async function GET(
             ],
             metadata: {
                 purchaseType: 'artist_corner',
-                stripeAccount: artist.stripeAccount,
+                stripeAccount: product.artist.stripeAccount,
                 purchaseId: purchaseId
             } satisfies StripePaymentMetadata,
             mode: 'payment',
@@ -108,7 +120,7 @@ export async function GET(
             expires_at: Math.floor(Date.now() / 1000) + 60 * 60 * 24 // 24 hours
         },
         {
-            stripeAccount: artist.stripeAccount
+            stripeAccount: product.artist.stripeAccount
         }
     )
 
@@ -128,7 +140,7 @@ export async function GET(
         id: purchaseId,
         productId: params.id,
         userId: auth.userId,
-        artistId: artist.id,
+        artistId: product.artist.id,
         status: 'pending'
     })
 

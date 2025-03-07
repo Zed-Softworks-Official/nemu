@@ -167,7 +167,8 @@ export const commissionRouter = createTRPCRouter({
                         description: input.description as JSONContent,
                         images: input.images.map((image) => ({
                             utKey: image
-                        }))
+                        })),
+                        published: commission.published
                     })
                     .where(eq(commissions.id, input.id))
                 changes.dbUpdated = true
@@ -182,11 +183,13 @@ export const commissionRouter = createTRPCRouter({
                 changes.algoliaUpdated = true
 
                 // Step 5: Update Redis
-                await ctx.redis.zrem(
-                    getRedisKey('commission:images', ctx.artist.id),
-                    ...itemsToDelete.map((item) => item.utKey)
-                )
-                changes.redisUpdated = true
+                if (itemsToDelete.length > 0) {
+                    await ctx.redis.zrem(
+                        getRedisKey('commission:images', ctx.artist.id),
+                        ...itemsToDelete.map((item) => item.utKey)
+                    )
+                    changes.redisUpdated = true
+                }
 
                 return { success: true, id: input.id }
             } catch (error) {

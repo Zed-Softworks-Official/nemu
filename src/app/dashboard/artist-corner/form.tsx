@@ -329,41 +329,48 @@ export function ProductForm({ mode, initialData }: ProductFormProps) {
                         )}
                     />
                 )}
-                <FormItem>
-                    <FormLabel>File:</FormLabel>
-                    <UploadDropzone
-                        endpoint={'productDownloadUploader'}
-                        onUploadBegin={() => {
-                            if (!currentFile) return
-                            setCurrentFile(undefined)
-                        }}
-                        onClientUploadComplete={(res) => {
-                            if (!res[0]) return
+                <FormField
+                    control={form.control}
+                    name="download"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>File:</FormLabel>
+                            <UploadDropzone
+                                endpoint={'productDownloadUploader'}
+                                onUploadBegin={() => {
+                                    if (!currentFile) return
+                                    setCurrentFile(undefined)
+                                }}
+                                onClientUploadComplete={(res) => {
+                                    if (!res[0]) return
 
-                            form.setValue('download', res[0].key)
-                            setCurrentFile({
-                                filename: res[0].name,
-                                size: res[0].size,
-                                utKey: res[0].key
-                            })
-                        }}
-                        onUploadError={(error) => {
-                            toast.error('Oh Nyo! Something went wrong', {
-                                description: error.message
-                            })
-                        }}
-                    />
-                    {currentFile && (
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>{currentFile.filename}</CardTitle>
-                                <CardDescription>
-                                    {formatFileSize(currentFile.size ?? 0)}
-                                </CardDescription>
-                            </CardHeader>
-                        </Card>
+                                    field.onChange(res[0].key)
+                                    setCurrentFile({
+                                        filename: res[0].name,
+                                        size: res[0].size,
+                                        utKey: res[0].key
+                                    })
+                                }}
+                                onUploadError={(error) => {
+                                    toast.error('Oh Nyo! Something went wrong', {
+                                        description: error.message
+                                    })
+                                }}
+                            />
+                            {currentFile && (
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>{currentFile.filename}</CardTitle>
+                                        <CardDescription>
+                                            {formatFileSize(currentFile.size ?? 0)}
+                                        </CardDescription>
+                                    </CardHeader>
+                                </Card>
+                            )}
+                        </FormItem>
                     )}
-                </FormItem>
+                />
+
                 <div className="flex w-full justify-between">
                     <Button variant="outline" asChild>
                         <Link href={cancelHref}>Cancel</Link>

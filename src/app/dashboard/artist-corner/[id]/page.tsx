@@ -12,7 +12,7 @@ export default async function ArtistCornerProductPage(props: {
     const { id } = await props.params
     const data = await api.artistCorner.getProductByIdDashboard({ id })
 
-    if (!data.product || !data.sales) {
+    if (!data.product) {
         return notFound()
     }
 
