@@ -1,4 +1,6 @@
 import type { InferSelectModel } from 'drizzle-orm'
+import type { JSONContent } from '@tiptap/react'
+
 import type {
     KanbanContainerData,
     ImageEditorData,
@@ -63,13 +65,15 @@ export type ClientRequestData = InferSelectModel<typeof requests> & {
 }
 
 /**
+ * @deprecated Use tRPC return value
+ *
  * Client Side Commission Item, It basically contains all of same stuff as the db item
  * However, the images also includes blur data instead of just the url for the image
  */
 export type ClientCommissionItem = {
     // Commission Data
     title: string
-    description: string
+    description: JSONContent
 
     price: string
     rawPrice?: number
@@ -114,6 +118,9 @@ export type ClientCommissionItem = {
     requests?: ClientRequestData[]
 }
 
+/**
+ * @deprecated - Use tRPC return value
+ */
 export type ClientCommissionItemEditable = {
     id: string
     title: string

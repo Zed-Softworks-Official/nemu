@@ -2,6 +2,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Check } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
@@ -15,15 +16,20 @@ import { api } from '~/trpc/react'
 
 const formSchema = z.object({
     name: z.string().min(1, { message: 'Name is required' }),
-    description: z.string().min(1, { message: 'Description is required' })
+    description: z.string().optional()
 })
 
 type FormSchemaType = z.infer<typeof formSchema>
 
 export function CreateForm() {
+    const router = useRouter()
     const form = useForm<FormSchemaType>({
         resolver: zodResolver(formSchema),
-        mode: 'onSubmit'
+        mode: 'onSubmit',
+        defaultValues: {
+            name: '',
+            description: ''
+        }
     })
 
     const createForm = api.request.setForm.useMutation()
@@ -37,10 +43,12 @@ export function CreateForm() {
                 description: values.description
             },
             {
-                onSuccess: () => {
+                onSuccess: (res) => {
                     toast.success('Form Created!', {
                         id: toastId
                     })
+
+                    router.push(`/dashboard/forms/${res.id}`)
                 },
                 onError: () => {
                     toast.error('Failed to create form', {
@@ -66,10 +74,9 @@ export function CreateForm() {
                         <FormItem>
                             <FormLabel>Name:</FormLabel>
                             <Input
-                                {...form.register('name')}
                                 placeholder="Your form name here"
                                 className="bg-background-secondary"
-                                defaultValue={field.value ?? ''}
+                                {...field}
                             />
                         </FormItem>
                     )}
@@ -81,17 +88,19 @@ export function CreateForm() {
                         <FormItem>
                             <FormLabel>Description:</FormLabel>
                             <Textarea
-                                {...form.register('description')}
                                 placeholder="Something to describe the form (optional)"
                                 className="bg-background-secondary resize-none"
                                 rows={6}
-                                defaultValue={field.value ?? ''}
+                                {...field}
                             />
                         </FormItem>
                     )}
                 />
                 <div className="flex justify-end">
-                    <Button type="submit" disabled={createForm.isPending}>
+                    <Button
+                        type="submit"
+                        disabled={createForm.isPending || createForm.isSuccess}
+                    >
                         <Check className="h-6 w-6" />
                         Create form
                     </Button>

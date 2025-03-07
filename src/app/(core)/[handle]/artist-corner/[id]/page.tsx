@@ -26,10 +26,10 @@ export async function generateMetadata(props: Props) {
 
     return {
         title: `Nemu | @${handle}`,
-        description: `Get ${product.name} from @${handle} on Nemu!`,
+        description: `Get ${product.title} from @${handle} on Nemu!`,
         twitter: {
             title: `Nemu | @${handle}`,
-            description: `Get ${product.name} from @${handle} on Nemu!`,
+            description: `Get ${product.title} from @${handle} on Nemu!`,
             images: [image]
         },
         openGraph: {
@@ -68,7 +68,7 @@ async function ProductView(props: { id: string; handle: string }) {
             </div>
             <div className="bg-secondary basis-full rounded-md p-6 shadow-xl lg:basis-2/6">
                 <div className="mb-6 flex flex-col">
-                    <h1 className="mb-2 text-4xl font-medium">{product.name}</h1>
+                    <h1 className="mb-2 text-4xl font-medium">{product.title}</h1>
                     <span className="text-muted-foreground">
                         By{' '}
                         <Link href={`/@${props.handle}`} className="hover:underline">

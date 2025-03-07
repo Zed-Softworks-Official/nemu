@@ -1,19 +1,15 @@
-import { Receiver } from '@upstash/qstash'
-import { serve } from '@upstash/workflow/nextjs'
-import { waitUntil } from '@vercel/functions'
 import { eq } from 'drizzle-orm'
-import { NextResponse } from 'next/server'
-
+import { waitUntil } from '@vercel/functions'
+import { type NextRequest, NextResponse } from 'next/server'
 import { env } from '~/env'
-
-import { type RequestQueue, type StripeInvoiceData } from '~/lib/types'
 import { tryCatch } from '~/lib/try-catch'
-import { db } from '~/server/db'
-import { commissions, invoices, requests } from '~/server/db/schema'
-import { KnockWorkflows, sendNotification } from '~/server/knock'
+import type { RequestQueue, StripeInvoiceData } from '~/lib/types'
 
+import { db } from '~/server/db'
 import { getRedisKey, redis } from '~/server/redis'
+import { commissions, invoices, requests } from '~/server/db/schema'
 import { stripe } from '~/server/stripe'
+import { KnockWorkflows, sendNotification } from '~/server/knock'
 
 async function processEvent(expiredInvoices: string[]) {
     await Promise.all(
@@ -117,40 +113,35 @@ async function processEvent(expiredInvoices: string[]) {
     )
 }
 
-export const { POST } = serve(
-    async (context) => {
-        await context.run('invoicesDueCron', async () => {
-            const currentTime = Math.floor(Date.now() / 1000)
-            const expiredInvoices = await redis.zrange<string[]>(
-                'invoicesDueCron',
-                0,
-                currentTime,
-                {
-                    byScore: true
-                }
-            )
-
-            if (expiredInvoices.length === 0) {
-                return NextResponse.json({ received: true })
-            }
-
-            async function doEventProcessing() {
-                waitUntil(processEvent(expiredInvoices))
-            }
-
-            const { error } = await tryCatch(doEventProcessing())
-
-            if (error) {
-                console.error('[CRON]: Error processing event', error)
-            }
-
-            return NextResponse.json({ received: true })
-        })
-    },
-    {
-        receiver: new Receiver({
-            currentSigningKey: env.QSTASH_CURRENT_SIGNING_KEY,
-            nextSigningKey: env.QSTASH_NEXT_SIGNING_KEY
-        })
+export async function POST(req: NextRequest) {
+    if (req.headers.get('Authorization') !== `Bearer ${env.CRON_SECRET}`) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-)
+
+    const currentTime = Math.floor(Date.now() / 1000)
+    const expiredInvoices = await redis.zrange<string[]>(
+        'invoicesDueCron',
+        0,
+        currentTime,
+        {
+            byScore: true
+        }
+    )
+
+    if (expiredInvoices.length === 0) {
+        return NextResponse.json({ received: true })
+    }
+
+    async function doEventProcessing() {
+        waitUntil(processEvent(expiredInvoices))
+    }
+
+    const { error } = await tryCatch(doEventProcessing())
+
+    if (error) {
+        console.error('[CRON]: Error processing event', error)
+        return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    }
+
+    return NextResponse.json({ received: true })
+}

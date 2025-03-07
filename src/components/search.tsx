@@ -176,13 +176,13 @@ function ProductHit(props: { hit: ProductIndex }) {
             >
                 <NemuImage
                     src={props.hit.imageUrl}
-                    alt={props.hit.name}
+                    alt={props.hit.title}
                     width={80}
                     height={80}
                     className="rounded-xl"
                 />
                 <div className="flex flex-col gap-3">
-                    <span className="text-foreground text-sm">{props.hit.name}</span>
+                    <span className="text-foreground text-sm">{props.hit.title}</span>
                     <span className="text-muted-foreground text-sm">
                         @{props.hit.artistHandle}
                     </span>

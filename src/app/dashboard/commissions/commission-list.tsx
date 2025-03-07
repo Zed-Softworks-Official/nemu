@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { Eye, MoreHorizontal, Paintbrush } from 'lucide-react'
 
-import { api } from '~/trpc/react'
+import { api, type RouterOutputs } from '~/trpc/react'
 
 import { Button } from '~/components/ui/button'
 import { Badge, type BadgeProps } from '~/components/ui/badge'
@@ -24,7 +24,8 @@ import {
     DropdownMenuTrigger
 } from '~/components/ui/dropdown-menu'
 
-import { type ClientCommissionItem } from '~/lib/types'
+type CommissionList = RouterOutputs['commission']['getCommissionList']
+type Commission = RouterOutputs['commission']['getCommissionList'][number]
 
 export function CommissionList() {
     const { data, isLoading } = api.commission.getCommissionList.useQuery()
@@ -52,7 +53,7 @@ export function CommissionList() {
     )
 }
 
-function CommissionTable(props: { commissions: ClientCommissionItem[] }) {
+function CommissionTable(props: { commissions: CommissionList }) {
     return (
         <div className="mb-4 flex flex-col space-x-4">
             <DataTable
@@ -69,7 +70,7 @@ function CommissionTable(props: { commissions: ClientCommissionItem[] }) {
                     {
                         field: 'availability',
                         headerName: 'Availability',
-                        cellRenderer: ({ data }: { data: ClientCommissionItem }) => {
+                        cellRenderer: ({ data }: { data: Commission }) => {
                             let variant: BadgeProps['variant'] = 'default'
                             switch (data.availability) {
                                 case 'open':
@@ -94,7 +95,7 @@ function CommissionTable(props: { commissions: ClientCommissionItem[] }) {
                         flex: 1,
                         field: 'slug',
                         headerName: 'Actions',
-                        cellRenderer: ({ data }: { data: ClientCommissionItem }) => {
+                        cellRenderer: ({ data }: { data: Commission }) => {
                             return (
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
@@ -109,7 +110,7 @@ function CommissionTable(props: { commissions: ClientCommissionItem[] }) {
                                     >
                                         <DropdownMenuItem asChild>
                                             <Link
-                                                href={`/dashboard/commissions/${data.slug}`}
+                                                href={`/dashboard/commissions/${data.id}`}
                                             >
                                                 <Eye className="h-6 w-6" />
                                                 View

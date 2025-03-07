@@ -3,51 +3,48 @@ import { createTRPCRouter, publicProcedure, artistProcedure } from '../trpc'
 import { TRPCError } from '@trpc/server'
 import { z } from 'zod'
 import { createId } from '@paralleldrive/cuid2'
+import type { JSONContent } from '@tiptap/react'
 
 import { artists, commissions } from '~/server/db/schema'
 import {
     commissionAvalabilities,
     chargeMethods,
-    type ClientCommissionItem,
-    type ClientCommissionItemEditable,
-    type RequestQueue
+    type RequestQueue,
+    type CommissionEditIndex
 } from '~/lib/types'
 import { convertImagesToNemuImages, formatToCurrency, getUTUrl } from '~/lib/utils'
 import { utapi } from '~/server/uploadthing'
-import { setIndex, updateIndex } from '~/server/algolia/collections'
+import { delIndex, setIndex, updateIndex } from '~/server/algolia/collections'
 import { clerkClient } from '@clerk/nextjs/server'
 import { getRedisKey } from '~/server/redis'
 import { isSupporter } from '~/app/api/stripe/sync'
 
+const commissionSchema = z.object({
+    title: z.string(),
+    description: z.any(),
+    price: z.number(),
+    commissionAvailability: z.enum(commissionAvalabilities),
+    images: z.array(z.string()),
+    maxCommissionsUntilWaitlist: z.number().min(0),
+    maxCommissionsUntilClosed: z.number().min(0),
+    published: z.boolean(),
+    formId: z.string(),
+    chargeMethod: z.enum(chargeMethods),
+    downpaymentPercentage: z.number().optional()
+})
+
 export const commissionRouter = createTRPCRouter({
     setCommission: artistProcedure
-        .input(
-            z.object({
-                title: z.string(),
-                description: z.string(),
-                price: z.number(),
-                availability: z.enum(commissionAvalabilities),
-                images: z.array(
-                    z.object({
-                        utKey: z.string()
-                    })
-                ),
-                maxCommissionsUntilWaitlist: z.number().min(0),
-                maxCommissionsUntilClosed: z.number().min(0),
-                published: z.boolean(),
-                formId: z.string(),
-                chargeMethod: z.enum(chargeMethods),
-                downpaymentPercentage: z.number().optional()
-            })
-        )
+        .input(commissionSchema)
         .mutation(async ({ ctx, input }) => {
-            // Create Slug
+            const id = createId()
+            const description = input.description as JSONContent
+
             const slug = input.title
                 .toLowerCase()
                 .replace(/[^a-zA-Z ]/g, '')
                 .replaceAll(' ', '-')
 
-            // Check if it already exists for the artist
             const existingSlug = await ctx.db.query.commissions.findFirst({
                 where: and(
                     eq(commissions.artistId, ctx.artist.id),
@@ -62,168 +59,277 @@ export const commissionRouter = createTRPCRouter({
                 })
             }
 
-            // Create database object
-            const commission_id = createId()
+            try {
+                // Step 1: Insert into database first
+                await ctx.db.insert(commissions).values({
+                    id,
+                    ...input,
+                    description,
+                    slug,
+                    images: input.images.map((image) => ({
+                        utKey: image
+                    })),
+                    artistId: ctx.artist.id,
+                    availability: input.commissionAvailability
+                })
 
-            await ctx.db.insert(commissions).values({
-                id: commission_id,
-                artistId: ctx.artist.id,
-                title: input.title,
-                description: input.description,
-                price: input.price,
-                images: input.images,
-                availability: input.availability,
-                slug: slug,
-                maxCommissionsUntilWaitlist: input.maxCommissionsUntilWaitlist,
-                maxCommissionsUntilClosed: input.maxCommissionsUntilClosed,
-                published: input.published ?? false,
-                formId: input.formId,
-                rating: '5.00',
-                chargeMethod: input.chargeMethod,
-                downpaymentPercentage: input.downpaymentPercentage
-            })
+                // Step 2: Set up Redis request queue
+                await ctx.redis.json.set(getRedisKey('request_queue', id), '$', {
+                    requests: [],
+                    waitlist: []
+                } satisfies RequestQueue)
 
-            // Create request queue
-            await ctx.redis.json.set(getRedisKey('request_queue', commission_id), '$', {
-                requests: [],
-                waitlist: []
-            } satisfies RequestQueue)
+                const featuredImageKey = input.images[0]
+                if (!featuredImageKey) {
+                    throw new TRPCError({
+                        code: 'BAD_REQUEST',
+                        message: 'HOW???'
+                    })
+                }
 
-            // Add to algolia
-            await setIndex('commissions', {
-                objectID: commission_id,
-                artistHandle: ctx.artist.handle,
-                title: input.title,
-                price: formatToCurrency(input.price / 100),
-                featuredImage: getUTUrl(input.images[0]?.utKey ?? ''),
-                slug: slug,
-                published: input.published
-            })
+                // Step 3: Update search index
+                await setIndex('commissions', {
+                    objectID: id,
+                    artistHandle: ctx.artist.handle,
+                    title: input.title,
+                    price: formatToCurrency(input.price / 100),
+                    featuredImage: getUTUrl(featuredImageKey),
+                    published: false,
+                    slug
+                })
+
+                // Step 4: Remove images from Redis
+                await ctx.redis.zrem('commission:images', ...input.images)
+
+                return { id, slug }
+            } catch (error) {
+                // Attempt to clean up if any step fails
+                try {
+                    // Try to delete from database if it was created
+                    await ctx.db.delete(commissions).where(eq(commissions.id, id))
+
+                    // Try to delete from Redis if it was created
+                    await ctx.redis.del(getRedisKey('request_queue', id))
+
+                    // Try to delete from search index if it was created
+                    await delIndex('commissions', id)
+                } catch (cleanupError) {
+                    console.error('Error during cleanup:', cleanupError)
+                }
+
+                throw error
+            }
         }),
 
     updateCommission: artistProcedure
-        .input(
-            z.object({
-                id: z.string(),
-                data: z.object({
-                    title: z.string().optional(),
-                    description: z.string().optional(),
-                    price: z.number().optional(),
-                    availability: z.enum(commissionAvalabilities).optional(),
-                    images: z.array(z.string()).optional(),
-                    deletedImages: z.array(z.string()).optional(),
-                    maxCommissionsUntilWaitlist: z.number().optional(),
-                    maxCommissionsUntilClosed: z.number().optional(),
-                    published: z.boolean().optional(),
-                    chargeMethod: z.enum(chargeMethods).optional(),
-                    downpaymentPercentage: z.number().optional()
-                })
-            })
-        )
+        .input(commissionSchema.merge(z.object({ id: z.string() })))
         .mutation(async ({ ctx, input }) => {
-            // Delete the images from uploadthing
-            let deletedImagesPromise: Promise<{
-                readonly success: boolean
-                readonly deletedCount: number
-            }> | null = null
+            // Step 1: Fetch the current commission state for comparison and potential rollback
+            const commission = await ctx.db.query.commissions.findFirst({
+                where: eq(commissions.id, input.id)
+            })
 
-            if (input.data.deletedImages) {
-                deletedImagesPromise = utapi.deleteFiles(input.data.deletedImages)
+            if (!commission) {
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Commission not found'
+                })
             }
 
-            // Update the database with the relavent information that has been changed
-            const updatedData = {
-                title: input.data.title,
-                description: input.data.description,
-                price: input.data.price,
-                availability: input.data.availability,
-                maxCommissionsUntilWaitlist: input.data.maxCommissionsUntilWaitlist,
-                maxCommissionsUntilClosed: input.data.maxCommissionsUntilClosed,
-                images: input.data.images?.map((image) => ({
-                    utKey: image
-                })),
-                published: input.data.published,
-                chargeMethod: input.data.chargeMethod,
-                downpaymentPercentage: input.data.downpaymentPercentage
+            const originalCommission = { ...commission }
+
+            // Identify files to delete
+            const itemsToDelete = commission.images.filter((image) => {
+                return !input.images.find((value) => value === image.utKey)
+            })
+
+            const changes = {
+                filesDeleted: false,
+                dbUpdated: false,
+                redisUpdated: false,
+                algoliaUpdated: false
             }
 
-            const updatedCommissionPromise = ctx.db
+            try {
+                // Step 2: Delete files from uploadthing
+                if (itemsToDelete.length > 0) {
+                    await utapi.deleteFiles(itemsToDelete.map((image) => image.utKey))
+                    changes.filesDeleted = true
+                }
+
+                // Step 3: Update database
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                const { id, ...items } = input
+                await ctx.db
+                    .update(commissions)
+                    .set({
+                        ...items,
+                        description: input.description as JSONContent,
+                        images: input.images.map((image) => ({
+                            utKey: image
+                        })),
+                        published: commission.published
+                    })
+                    .where(eq(commissions.id, input.id))
+                changes.dbUpdated = true
+
+                // Step 4: Update search index
+                await updateIndex('commissions', {
+                    objectID: input.id,
+                    ...items,
+                    price: input.price ? formatToCurrency(input.price / 100) : undefined,
+                    featuredImage: input.images[0] ? getUTUrl(input.images[0]) : undefined
+                } satisfies CommissionEditIndex)
+                changes.algoliaUpdated = true
+
+                // Step 5: Update Redis
+                if (itemsToDelete.length > 0) {
+                    await ctx.redis.zrem(
+                        getRedisKey('commission:images', ctx.artist.id),
+                        ...itemsToDelete.map((item) => item.utKey)
+                    )
+                    changes.redisUpdated = true
+                }
+
+                return { success: true, id: input.id }
+            } catch (error) {
+                // Step 6: Handle failures with rollback
+                try {
+                    console.error('Update failed, attempting rollback:', error)
+
+                    // Rollback database if it was updated
+                    if (changes.dbUpdated) {
+                        await ctx.db
+                            .update(commissions)
+                            .set({
+                                title: originalCommission.title,
+                                description: originalCommission.description,
+                                price: originalCommission.price,
+                                images: originalCommission.images,
+                                availability: originalCommission.availability,
+                                chargeMethod: originalCommission.chargeMethod,
+                                downpaymentPercentage:
+                                    originalCommission.downpaymentPercentage,
+                                published: originalCommission.published
+                            })
+                            .where(eq(commissions.id, input.id))
+                    }
+
+                    // Rollback Algolia if it was updated
+                    if (changes.algoliaUpdated) {
+                        await updateIndex('commissions', {
+                            objectID: input.id,
+                            title: originalCommission.title,
+                            price: formatToCurrency(
+                                Number(originalCommission.price) / 100
+                            ),
+                            featuredImage: originalCommission.images[0]
+                                ? getUTUrl(originalCommission.images[0].utKey)
+                                : undefined,
+                            published: originalCommission.published
+                        })
+                    }
+
+                    // Note: We can't rollback deleted files from uploadthing
+                    // But we can restore Redis references if needed
+                    if (changes.redisUpdated && itemsToDelete.length > 0) {
+                        // Re-add the deleted image keys to Redis if possible
+                        for (const item of itemsToDelete) {
+                            await ctx.redis.zadd('commission:images', {
+                                member: item.utKey,
+                                score: Math.floor((Date.now() + 3600000) / 1000)
+                            })
+                        }
+                    }
+
+                    console.error('Rollback completed with best effort')
+                } catch (rollbackError) {
+                    console.error('Rollback failed:', rollbackError)
+                }
+
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Failed to update commission. Changes have been rolled back.'
+                })
+            }
+        }),
+
+    publishCommission: artistProcedure
+        .input(z.object({ id: z.string(), published: z.boolean() }))
+        .mutation(async ({ ctx, input }) => {
+            await ctx.db
                 .update(commissions)
-                .set(updatedData)
+                .set({
+                    published: input.published
+                })
                 .where(eq(commissions.id, input.id))
 
-            // Wait for all promises to resolve
-            await Promise.all([deletedImagesPromise, updatedCommissionPromise])
-
-            // Update algolia
             await updateIndex('commissions', {
                 objectID: input.id,
-                title: updatedData.title,
-                price: updatedData.price
-                    ? formatToCurrency(updatedData.price / 100)
-                    : undefined,
-                featuredImage: getUTUrl(updatedData.images?.[0]?.utKey ?? ''),
-                artistHandle: ctx.artist.handle,
-                published: updatedData.published
+                published: input.published
             })
         }),
 
     getCommission: publicProcedure
         .input(
-            z.object({
-                handle: z.string(),
-                slug: z.string()
-            })
+            z
+                .object({
+                    handle: z.string(),
+                    slug: z.string().optional(),
+                    id: z.string().optional()
+                })
+                .refine((data) => (data.slug !== undefined) !== (data.id !== undefined), {
+                    message: 'Either slug or id must be provided, but not both'
+                })
         )
         .query(async ({ input, ctx }) => {
             const clerk = await clerkClient()
-            const data = await ctx.db.query.artists.findFirst({
-                where: eq(artists.handle, input.handle),
+            const commission = await ctx.db.query.commissions.findFirst({
+                where: input.slug
+                    ? eq(commissions.slug, input.slug)
+                    : eq(commissions.id, input.id!),
                 with: {
-                    commissions: {
-                        where: eq(commissions.slug, input.slug),
-                        with: {
-                            requests: true,
-                            form: true
-                        }
-                    }
+                    artist: true,
+                    requests: true,
+                    form: true
                 }
             })
 
-            if (!data?.commissions[0]) {
+            if (!commission) {
                 throw new TRPCError({
                     code: 'INTERNAL_SERVER_ERROR',
                     message: 'Artist or Commission not found'
                 })
             }
 
-            const supporter = await isSupporter(data.userId)
+            const supporter = await isSupporter(commission.artist.userId)
 
             // Format images for client
-            const images = await convertImagesToNemuImages(data.commissions[0].images)
-            const result: ClientCommissionItem = {
-                title: data.commissions[0].title,
-                description: data.commissions[0].description,
-                price: formatToCurrency(Number(data.commissions[0].price / 100)),
-                availability: data.commissions[0].availability,
-                rating: Number(data.commissions[0].rating),
+            const images = await convertImagesToNemuImages(commission.images)
+
+            return {
+                title: commission.title,
+                description: commission.description,
+                price: formatToCurrency(Number(commission.price / 100)),
+                availability: commission.availability,
+                rating: Number(commission.rating),
                 images: images,
-                slug: data.commissions[0].slug,
-                published: data.commissions[0].published,
+                slug: commission.slug,
+                published: commission.published,
 
-                chargeMethod: data.commissions[0].chargeMethod,
-                downpaymentPercentage: data.commissions[0].downpaymentPercentage,
+                chargeMethod: commission.chargeMethod,
+                downpaymentPercentage: commission.downpaymentPercentage,
 
-                id: data.commissions[0].id,
-                formId: data.commissions[0].formId,
+                id: commission.id,
+                formId: commission.formId,
 
                 artist: {
-                    handle: data.handle,
+                    handle: commission.artist.handle,
                     supporter,
-                    terms: data.terms
+                    terms: commission.artist.terms
                 },
                 requests: await Promise.all(
-                    data.commissions[0].requests.map(async (request) => {
+                    commission.requests.map(async (request) => {
                         const user = await clerk.users.getUser(request.userId)
                         return {
                             ...request,
@@ -234,67 +340,31 @@ export const commissionRouter = createTRPCRouter({
                         }
                     })
                 ),
-                form: data.commissions[0].form
+                form: commission.form
             }
-
-            return result
         }),
 
-    getCommissionForEditing: artistProcedure
-        .input(
-            z.object({
-                slug: z.string()
-            })
-        )
+    getCommissionByIdDashboard: artistProcedure
+        .input(z.object({ id: z.string() }))
         .query(async ({ ctx, input }) => {
             const commission = await ctx.db.query.commissions.findFirst({
-                where: and(
-                    eq(commissions.slug, input.slug),
-                    eq(commissions.artistId, ctx.artist.id)
-                ),
-                with: {
-                    form: true
-                }
+                where: eq(commissions.id, input.id)
             })
 
             if (!commission) {
                 throw new TRPCError({
                     code: 'INTERNAL_SERVER_ERROR',
-                    message: 'Commission not found'
+                    message: 'Could not find commission'
                 })
             }
 
-            const result: ClientCommissionItemEditable = {
-                id: commission.id,
-                title: commission.title,
-                description: commission.description,
-                price: (commission.price / 100).toFixed(2),
-
-                formName: commission.form.name,
-
-                availability: commission.availability,
-                slug: commission.slug,
-                published: commission.published,
-
+            return {
+                ...commission,
                 images: commission.images.map((image) => ({
-                    id: createId(),
-                    data: {
-                        action: 'update',
-                        imageData: {
-                            url: getUTUrl(image.utKey),
-                            utKey: image.utKey
-                        }
-                    }
-                })),
-
-                chargeMethod: commission.chargeMethod,
-                downpaymentPercentage: commission.downpaymentPercentage,
-
-                maxCommissionsUntilClosed: commission.maxCommissionsUntilClosed,
-                maxCommissionsUntilWaitlist: commission.maxCommissionsUntilWaitlist
+                    url: getUTUrl(image.utKey),
+                    utKey: image.utKey
+                }))
             }
-
-            return result
         }),
 
     getCommissionList: artistProcedure.query(async ({ ctx }) => {
@@ -318,9 +388,10 @@ export const commissionRouter = createTRPCRouter({
 
         const supporter = await isSupporter(artist.userId)
 
-        const result: ClientCommissionItem[] = []
+        const result = []
         for (const commission of artist.commissions) {
             result.push({
+                id: commission.id,
                 title: commission.title,
                 description: commission.description,
                 price: formatToCurrency(Number(commission.price / 100)),

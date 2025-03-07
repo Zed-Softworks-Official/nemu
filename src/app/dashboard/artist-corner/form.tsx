@@ -13,7 +13,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 
 import { Trash2 } from 'lucide-react'
 
-import { UploadDropzone } from '~/components/files/uploadthing'
+import { UploadDropzone } from '~/components/uploadthing'
 import { Button } from '~/components/ui/button'
 import {
     Form,
@@ -50,7 +50,7 @@ const MarkdownEditor = dynamic(
 
 const productSchema = z
     .object({
-        name: z.string().min(2).max(64),
+        title: z.string().min(2).max(64),
         description: z.any(),
         price: z.union([z.string(), z.number()]),
         images: z.array(z.string()).min(1).max(5),
@@ -85,7 +85,7 @@ type ProductFormProps = {
     mode: 'create' | 'update'
     initialData?: {
         id: string
-        name: string
+        title: string
         description: JSONContent
         price: number
         images: string[]
@@ -103,7 +103,7 @@ export function ProductForm({ mode, initialData }: ProductFormProps) {
     const defaultValues =
         mode === 'create'
             ? {
-                  name: '',
+                  title: '',
                   description: '',
                   price: '0',
                   images: [],
@@ -111,7 +111,7 @@ export function ProductForm({ mode, initialData }: ProductFormProps) {
                   isFree: false
               }
             : {
-                  name: initialData?.name,
+                  title: initialData?.title,
                   description: JSON.stringify(initialData?.description),
                   price: ((initialData?.price ?? 0) / 100).toFixed(2),
                   images: initialData?.images,
@@ -202,7 +202,7 @@ export function ProductForm({ mode, initialData }: ProductFormProps) {
             >
                 <FormField
                     control={form.control}
-                    name="name"
+                    name="title"
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel>Name:</FormLabel>
@@ -238,58 +238,61 @@ export function ProductForm({ mode, initialData }: ProductFormProps) {
                         </FormItem>
                     )}
                 />
-                <FormItem>
-                    <FormLabel>Images:</FormLabel>
-                    <UploadDropzone
-                        endpoint={'productImageUploader'}
-                        onClientUploadComplete={(res) => {
-                            form.setValue(
-                                'images',
-                                res.map((image) => image.key)
-                            )
-                        }}
-                        onUploadError={(error) => {
-                            toast.error('Oh Nyo! Something went wrong', {
-                                description: error.message
-                            })
-                        }}
-                    />
-                    {form.watch('images').length > 0 && (
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Preview</CardTitle>
-                            </CardHeader>
-                            <CardContent className="flex gap-2 overflow-x-auto">
-                                {form.watch('images').map((image) => (
-                                    <div className="relative" key={image}>
-                                        <Image
-                                            src={`https://utfs.io/a/${env.NEXT_PUBLIC_UPLOADTHING_APP_ID}/${image}`}
-                                            alt="Product Image"
-                                            width={200}
-                                            height={200}
-                                            className="rounded-md object-cover"
-                                        />
-                                        <Button
-                                            variant={'ghost'}
-                                            size="icon"
-                                            className="absolute top-2 right-2"
-                                            onClick={() => {
-                                                form.setValue(
-                                                    'images',
-                                                    form
-                                                        .getValues('images')
-                                                        .filter((i) => i !== image)
-                                                )
-                                            }}
-                                        >
-                                            <Trash2 className="size-4" />
-                                        </Button>
-                                    </div>
-                                ))}
-                            </CardContent>
-                        </Card>
+                <FormField
+                    control={form.control}
+                    name="images"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Images:</FormLabel>
+                            <UploadDropzone
+                                endpoint={'productImageUploader'}
+                                onClientUploadComplete={(res) => {
+                                    field.onChange(res.map((image) => image.key))
+                                }}
+                                onUploadError={(error) => {
+                                    toast.error('Oh Nyo! Something went wrong', {
+                                        description: error.message
+                                    })
+                                }}
+                            />
+                            {field.value.length > 0 && (
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Preview</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="flex gap-2 overflow-x-auto">
+                                        {field.value.map((image) => (
+                                            <div className="relative" key={image}>
+                                                <Image
+                                                    src={`https://utfs.io/a/${env.NEXT_PUBLIC_UPLOADTHING_APP_ID}/${image}`}
+                                                    alt="Product Image"
+                                                    width={200}
+                                                    height={200}
+                                                    className="rounded-md object-cover"
+                                                />
+                                                <Button
+                                                    variant={'ghost'}
+                                                    size="icon"
+                                                    className="absolute top-2 right-2"
+                                                    onClick={() => {
+                                                        field.onChange(
+                                                            field.value.filter(
+                                                                (i) => i !== image
+                                                            )
+                                                        )
+                                                    }}
+                                                >
+                                                    <Trash2 className="size-4" />
+                                                </Button>
+                                            </div>
+                                        ))}
+                                    </CardContent>
+                                </Card>
+                            )}
+                        </FormItem>
                     )}
-                </FormItem>
+                />
+
                 <FormField
                     control={form.control}
                     name="isFree"
@@ -326,41 +329,48 @@ export function ProductForm({ mode, initialData }: ProductFormProps) {
                         )}
                     />
                 )}
-                <FormItem>
-                    <FormLabel>File:</FormLabel>
-                    <UploadDropzone
-                        endpoint={'productDownloadUploader'}
-                        onUploadBegin={() => {
-                            if (!currentFile) return
-                            setCurrentFile(undefined)
-                        }}
-                        onClientUploadComplete={(res) => {
-                            if (!res[0]) return
+                <FormField
+                    control={form.control}
+                    name="download"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>File:</FormLabel>
+                            <UploadDropzone
+                                endpoint={'productDownloadUploader'}
+                                onUploadBegin={() => {
+                                    if (!currentFile) return
+                                    setCurrentFile(undefined)
+                                }}
+                                onClientUploadComplete={(res) => {
+                                    if (!res[0]) return
 
-                            form.setValue('download', res[0].key)
-                            setCurrentFile({
-                                filename: res[0].name,
-                                size: res[0].size,
-                                utKey: res[0].key
-                            })
-                        }}
-                        onUploadError={(error) => {
-                            toast.error('Oh Nyo! Something went wrong', {
-                                description: error.message
-                            })
-                        }}
-                    />
-                    {currentFile && (
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>{currentFile.filename}</CardTitle>
-                                <CardDescription>
-                                    {formatFileSize(currentFile.size ?? 0)}
-                                </CardDescription>
-                            </CardHeader>
-                        </Card>
+                                    field.onChange(res[0].key)
+                                    setCurrentFile({
+                                        filename: res[0].name,
+                                        size: res[0].size,
+                                        utKey: res[0].key
+                                    })
+                                }}
+                                onUploadError={(error) => {
+                                    toast.error('Oh Nyo! Something went wrong', {
+                                        description: error.message
+                                    })
+                                }}
+                            />
+                            {currentFile && (
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>{currentFile.filename}</CardTitle>
+                                        <CardDescription>
+                                            {formatFileSize(currentFile.size ?? 0)}
+                                        </CardDescription>
+                                    </CardHeader>
+                                </Card>
+                            )}
+                        </FormItem>
                     )}
-                </FormItem>
+                />
+
                 <div className="flex w-full justify-between">
                     <Button variant="outline" asChild>
                         <Link href={cancelHref}>Cancel</Link>
@@ -395,7 +405,7 @@ export function UpdateForm(props: {
             mode="update"
             initialData={{
                 id: props.product.id,
-                name: props.product.name,
+                title: props.product.title,
                 description: props.product.description!,
                 price: props.product.price,
                 images: props.product.images,

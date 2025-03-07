@@ -12,7 +12,7 @@ export default async function ArtistCornerProductPage(props: {
     const { id } = await props.params
     const data = await api.artistCorner.getProductByIdDashboard({ id })
 
-    if (!data.product || !data.sales) {
+    if (!data.product) {
         return notFound()
     }
 
@@ -20,7 +20,7 @@ export default async function ArtistCornerProductPage(props: {
         <div className="container mx-auto">
             <div className="flex flex-col gap-4">
                 <div className="flex justify-between gap-2">
-                    <h1 className="text-2xl font-bold">{data.product.name}</h1>
+                    <h1 className="text-2xl font-bold">{data.product.title}</h1>
                     <div className="flex items-center gap-2">
                         <PublishProduct id={id} published={data.product.published} />
                         <Button asChild size="icon">

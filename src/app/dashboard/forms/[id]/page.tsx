@@ -6,7 +6,7 @@ export default async function FormBuilderPage(props: {
     const params = await props.params
 
     return (
-        <div className="mx-auto max-w-6xl">
+        <div className="mx-auto w-full">
             <FormBuilderElement id={params.id} />
         </div>
     )

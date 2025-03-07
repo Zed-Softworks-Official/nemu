@@ -52,7 +52,7 @@ export type CommissionEditIndex = {
  */
 export type ProductIndex = {
     artistHandle: string
-    name: string
+    title: string
     price: string
     priceRaw: number
     imageUrl: string
@@ -61,7 +61,7 @@ export type ProductIndex = {
 
 export type ProductEditIndex = {
     artistHandle?: string
-    name?: string
+    title?: string
     price?: string
     priceRaw?: number
     imageUrl?: string

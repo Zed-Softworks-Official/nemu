@@ -86,7 +86,7 @@
         "lodash.debounce": "^4.0.8",
         "lucide-react": "^0.475.0",
         "motion": "^11.18.2",
-        "next": "^15.2.0",
+        "next": "^15.2.1",
         "next-plausible": "^3.12.4",
         "next-themes": "^0.4.4",
         "nextjs-toploader": "^3.7.15",
@@ -120,7 +120,7 @@
         "@typescript-eslint/parser": "^8.24.1",
         "drizzle-kit": "^0.24.2",
         "eslint": "^8.57.1",
-        "eslint-config-next": "^15.1.7",
+        "eslint-config-next": "^15.2.1",
         "eslint-plugin-drizzle": "^0.2.3",
         "postcss": "^8.5.2",
         "prettier": "^3.5.1",
@@ -131,7 +131,7 @@
     "ct3aMetadata": {
         "initVersion": "7.38.1"
     },
-    "packageManager": "pnpm@10.5.2",
+    "packageManager": "pnpm@10.6.1",
     "pnpm": {
         "onlyBuiltDependencies": [
             "@clerk/shared",

@@ -12,7 +12,7 @@ import { cache, getRedisKey } from '~/server/redis'
 type CommissionResult = {
     id: string
     title: string
-    description: string
+    description: JSONContent
     featuredImage: string
     slug: string
     availability: CommissionAvailability
@@ -24,7 +24,7 @@ type CommissionResult = {
 
 type ProductResult = {
     id: string
-    name: string
+    title: string
     description: JSONContent | null
     featuredImage: string
     price: string
@@ -96,7 +96,7 @@ export const homeRouter = createTRPCRouter({
 
             const res: ProductResult[] = data.map((product) => ({
                 id: product.id,
-                name: product.name,
+                title: product.title,
                 description: product.description,
                 featuredImage: getUTUrl(product.images[0] ?? ''),
                 price: formatToCurrency(product.price / 100),
@@ -122,7 +122,7 @@ export const homeRouter = createTRPCRouter({
 
                 const res: ProductResult[] = data.map((product) => ({
                     id: product.id,
-                    name: product.name,
+                    title: product.title,
                     description: product.description,
                     featuredImage: getUTUrl(product.images[0] ?? ''),
                     price: formatToCurrency(product.price / 100),

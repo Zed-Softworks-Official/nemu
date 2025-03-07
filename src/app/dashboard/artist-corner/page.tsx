@@ -33,8 +33,8 @@ async function Products() {
         <DataTable
             columnDefs={[
                 {
-                    headerName: 'Name',
-                    field: 'name'
+                    headerName: 'Title',
+                    field: 'title'
                 },
                 {
                     headerName: 'Price',

@@ -213,13 +213,13 @@ export const commissions = createTable('commission', {
     id: varchar('id', { length: 128 }).primaryKey(),
     artistId: text('artist_id').notNull(),
     price: int('price').notNull(),
-    rating: decimal('rating', { precision: 2, scale: 1 }).notNull(),
+    rating: int('rating').default(500),
     adultContent: boolean('adult_content').default(false).notNull(),
 
     formId: text('form_id').notNull(),
 
     title: text('title').notNull(),
-    description: text('description').notNull(),
+    description: json('description').$type<JSONContent>().notNull(),
     images: json('images')
         .$type<
             {
@@ -259,7 +259,7 @@ export const commissions = createTable('commission', {
 
 export const products = createTable('products', {
     id: varchar('id', { length: 128 }).primaryKey(),
-    name: varchar('name', { length: 128 }).notNull(),
+    title: varchar('title', { length: 128 }).notNull(),
     description: json('description').$type<JSONContent>(),
     published: boolean('published').default(false).notNull(),
     isFree: boolean('is_free').default(false).notNull(),
@@ -323,7 +323,7 @@ export const forms = createTable('form', {
     artistId: text('artist_id').notNull(),
     commissionId: json('commission_id').$type<string[]>(),
 
-    name: text('name').notNull(),
+    name: text('title').notNull(),
     description: text('description'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     content: json('content').$type<FormElementInstance[]>().default([])
@@ -384,7 +384,7 @@ export const conSignUp = createTable(
     {
         id: varchar('id', { length: 128 }).primaryKey(),
 
-        name: varchar('name', { length: 128 }).notNull(),
+        name: varchar('title', { length: 128 }).notNull(),
         slug: varchar('slug', { length: 128 }).notNull(),
         status: ConStatusEnum('status').$type<ConStatus>().default('active'),
 

@@ -4,9 +4,10 @@ import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import Link from 'next/link'
-import { XCircle } from 'lucide-react'
+import { Trash2, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
-import { notFound, useRouter } from 'next/navigation'
+import { useRouter } from 'next/navigation'
+import { useMemo } from 'react'
 
 import {
     Form,
@@ -17,14 +18,9 @@ import {
     FormMessage
 } from '~/components/ui/form'
 
-import { Separator } from '~/components/ui/separator'
-import { api } from '~/trpc/react'
+import { api, type RouterOutputs } from '~/trpc/react'
 import { Input } from '~/components/ui/input'
-import { useNemuUploadThing } from '~/components/files/uploadthing-context'
-import { NemuSingleDropzone } from '~/components/files/nemu-uploadthing'
 import { Button } from '~/components/ui/button'
-import Loading from '~/components/ui/loading'
-import { useEffect } from 'react'
 import NemuImage from '~/components/nemu-image'
 
 import {
@@ -38,259 +34,293 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger
 } from '~/components/ui/alert-dialog'
+import { UploadDropzone } from '~/components/uploadthing'
+import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card'
+import { env } from '~/env'
 
-const schema = z.object({
-    title: z.string().min(2).max(128)
+const portfolioSchema = z.object({
+    title: z.string().min(2).max(128),
+    image: z.string().min(1)
 })
 
-type SchemaType = z.infer<typeof schema>
+type PortfolioSchemaType = z.infer<typeof portfolioSchema>
 
-export function CreateForm() {
-    const { uploadImages } = useNemuUploadThing()
-    const createPortfolio = api.portfolio.setPortfolio.useMutation()
+type PortfolioFormProps = {
+    mode: 'create' | 'update'
+    initialData?: {
+        id: string
+        title: string
+        imageKey: string
+        imageUrl: string
+    }
+}
 
-    const form = useForm<SchemaType>({
-        resolver: zodResolver(schema),
+function PortfolioForm(props: PortfolioFormProps) {
+    const router = useRouter()
+
+    const defaultValues = useMemo(() => {
+        if (props.mode === 'create') {
+            return {
+                title: '',
+                image: ''
+            }
+        }
+
+        return {
+            title: props.initialData?.title,
+            image: props.initialData?.imageKey
+        }
+    }, [props.mode, props.initialData])
+
+    const form = useForm<PortfolioSchemaType>({
+        resolver: zodResolver(portfolioSchema),
         mode: 'onSubmit',
-        defaultValues: {
-            title: ''
+        defaultValues
+    })
+
+    const createPortfolio = api.portfolio.setPortfolio.useMutation({
+        onMutate: () => {
+            const toastId = toast.loading('Creating portfolio item')
+
+            return { toastId }
+        },
+        onSuccess: (_, __, ctx) => {
+            toast.success('Portfolio item created', {
+                id: ctx.toastId
+            })
+
+            router.push('/dashboard/portfolio')
+        },
+        onError: (e, __, ctx) => {
+            toast.error('Oh Nyo! Something went wrong', {
+                id: ctx?.toastId,
+                description: e.message
+            })
         }
     })
 
-    const processForm = async (values: SchemaType) => {
-        const toast_id = toast.loading('Uploading Images')
-        const res = await uploadImages()
-        if (!res) {
-            toast.error('Failed to upload images', {
-                id: toast_id
+    const updatePortfolio = api.portfolio.updatePortfolio.useMutation({
+        onMutate: () => {
+            const toastId = toast.loading('Updating Portfolio')
+
+            return { toastId }
+        },
+        onSuccess: (_, __, ctx) => {
+            toast.success('Portfolio item updated', {
+                id: ctx.toastId
             })
 
-            return
+            router.push(`/dashboard/portfolio/${props.initialData?.id}`)
+        },
+        onError: (e, __, ctx) => {
+            toast.error('Oh Nyo! Something went wrong', {
+                id: ctx?.toastId,
+                description: e.message
+            })
         }
+    })
 
-        toast.loading('Creating Portfolio Item', {
-            id: toast_id
-        })
+    const destroyPortfolio = api.portfolio.destroyPortfolio.useMutation({
+        onMutate: () => {
+            const toastId = toast.loading('Deleting portfolio item')
 
-        await createPortfolio.mutateAsync(
-            {
-                title: values.title,
-                ut_key: res[0]?.key ?? ''
-            },
-            {
-                onError: (e) => {
-                    toast.error(e.message, {
-                        id: toast_id
-                    })
-                },
-                onSuccess: () => {
-                    toast.success('Portfolio Item Created', {
-                        id: toast_id
-                    })
-                }
-            }
-        )
+            return { toastId }
+        },
+        onSuccess: (_, __, ctx) => {
+            toast.success('Portfolio item deleted', {
+                id: ctx.toastId
+            })
+        },
+        onError: (e, _, ctx) => {
+            toast.error('Oh Nyo! Something went wrong', {
+                id: ctx?.toastId,
+                description: e.message
+            })
+        }
+    })
+
+    const mutation = props.mode === 'create' ? createPortfolio : updatePortfolio
+
+    const processForm = async (values: PortfolioSchemaType) => {
+        const commonData = { ...values }
+
+        if (props.mode === 'create') {
+            createPortfolio.mutate(commonData)
+        } else if (props.initialData) {
+            updatePortfolio.mutate({
+                ...commonData,
+                id: props.initialData.id
+            })
+        }
     }
+
+    const cancelHref = useMemo(() => {
+        if (props.mode === 'create') return '/dashboard/portfolio'
+
+        return `/dashboard/portfolio/${props.initialData?.id}`
+    }, [props.mode, props.initialData])
 
     return (
         <Form {...form}>
             <form
+                className="flex flex-col gap-4"
                 onSubmit={form.handleSubmit(processForm)}
-                className="mx-auto flex w-full max-w-xl flex-col gap-5"
             >
-                <h1 className="text-2xl font-bold">Create Portfolio</h1>
-                <Separator />
                 <FormField
                     control={form.control}
                     name="title"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Title</FormLabel>
+                            <FormLabel>Title:</FormLabel>
                             <FormControl>
                                 <Input
+                                    className="bg-secondary"
+                                    placeholder="My portfolio item"
                                     {...field}
-                                    placeholder="My Beautiful Artwork"
-                                    className="bg-background-secondary"
                                 />
                             </FormControl>
                             <FormMessage />
                         </FormItem>
                     )}
                 />
-                <NemuSingleDropzone />
-                <div className="flex w-full justify-between">
-                    <Button asChild variant={'outline'}>
-                        <Link href="/dashboard/portfolio">
-                            <XCircle className="h-6 w-6" />
+                <FormField
+                    control={form.control}
+                    name="image"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Image</FormLabel>
+                            <UploadDropzone
+                                endpoint={'portfolioUploader'}
+                                onClientUploadComplete={(res) => {
+                                    const image = res[0]?.key
+                                    if (!image) {
+                                        toast.error('An unexpected error occured')
+                                        return
+                                    }
+
+                                    field.onChange(image)
+                                }}
+                                onUploadError={(error) => {
+                                    toast.error('Oh Nyo! Something went wrong', {
+                                        description: error.message
+                                    })
+                                }}
+                            />
+                            {form.watch('image') !== '' && (
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Preview</CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="relative">
+                                            <NemuImage
+                                                src={`https://utfs.io/a/${env.NEXT_PUBLIC_UPLOADTHING_APP_ID}/${field.value}`}
+                                                alt="Preview Image"
+                                                width={200}
+                                                height={200}
+                                                className="rounded-md object-cover"
+                                            />
+                                            <Button
+                                                variant={'ghost'}
+                                                size={'icon'}
+                                                className="absolute top-2 right-2"
+                                                onClick={() => {
+                                                    field.onChange('')
+                                                }}
+                                            >
+                                                <span className="sr-only">Trash</span>
+                                                <Trash2 className="size-4" />
+                                            </Button>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            )}
+                        </FormItem>
+                    )}
+                />
+                <div className="flex items-center justify-between">
+                    <Button variant={'outline'} asChild>
+                        <Link href={cancelHref}>
+                            <XCircle className="size-4" />
                             Cancel
                         </Link>
                     </Button>
-                    <Button type="submit">Create</Button>
+                    <div className="flex items-center gap-4">
+                        {props.mode === 'update' && (
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button
+                                        variant={'destructive'}
+                                        disabled={
+                                            destroyPortfolio.isPending ||
+                                            destroyPortfolio.isSuccess
+                                        }
+                                    >
+                                        Delete
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            This action cannot be undone.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction asChild>
+                                            <Button
+                                                onClick={(e) => {
+                                                    e.preventDefault()
+                                                    if (!props.initialData) return
+
+                                                    destroyPortfolio.mutate({
+                                                        id: props.initialData.id
+                                                    })
+                                                }}
+                                            >
+                                                Delete
+                                            </Button>
+                                        </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        )}
+                        <Button
+                            type="submit"
+                            disabled={
+                                (props.mode === 'create' && !form.formState.isValid) ||
+                                mutation.isPending ||
+                                mutation.isSuccess ||
+                                destroyPortfolio.isPending ||
+                                destroyPortfolio.isSuccess
+                            }
+                        >
+                            {props.mode === 'create' ? 'Create' : 'Update'}
+                        </Button>
+                    </div>
                 </div>
             </form>
         </Form>
     )
 }
 
-export function UpdateForm(props: { id: string }) {
-    const router = useRouter()
-    const utils = api.useUtils()
+export function CreateForm() {
+    return <PortfolioForm mode="create" />
+}
 
-    const updatePortfolio = api.portfolio.updatePortfolio.useMutation({
-        onMutate: () => {
-            const toast_id = toast.loading('Updating Portfolio')
-
-            return {
-                toast_id
-            }
-        },
-        onError: (e, _, context) => {
-            toast.error(e.message, {
-                id: context?.toast_id
-            })
-        },
-        onSuccess: (_, __, context) => {
-            toast.success('Portfolio Updated', {
-                id: context?.toast_id
-            })
-
-            void utils.portfolio.getPortfolioList.invalidate()
-            router.push('/dashboard/portfolio')
-        }
-    })
-
-    const destroyPortfolio = api.portfolio.destroyPortfolio.useMutation({
-        onMutate: () => {
-            const toast_id = toast.loading('Deleting Portfolio')
-
-            return {
-                toast_id
-            }
-        },
-        onError: (e, _, context) => {
-            toast.error(e.message, {
-                id: context?.toast_id
-            })
-        },
-        onSuccess: (_, __, context) => {
-            toast.success('Portfolio Deleted', {
-                id: context?.toast_id
-            })
-
-            void utils.portfolio.getPortfolioList.invalidate()
-            router.push('/dashboard/portfolio')
-        }
-    })
-
-    const { data: portfolio, isLoading } = api.portfolio.getPortfolioById.useQuery({
-        id: props.id
-    })
-
-    const form = useForm<SchemaType>({
-        resolver: zodResolver(schema),
-        mode: 'onSubmit',
-        defaultValues: {
-            title: portfolio?.title ?? ''
-        }
-    })
-
-    const processForm = async (values: SchemaType) => {
-        updatePortfolio.mutate({
-            id: props.id,
-            title: values.title
-        })
-    }
-
-    useEffect(() => {
-        if (portfolio) {
-            form.reset({
-                title: portfolio.title
-            })
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [portfolio])
-
-    if (isLoading) {
-        return <Loading />
-    }
-
-    if (!portfolio) {
-        return notFound()
-    }
-
+export function UpdateForm(props: {
+    portfolio: NonNullable<RouterOutputs['portfolio']['getPortfolioById']>
+}) {
     return (
-        <AlertDialog>
-            <Form {...form}>
-                <form
-                    className="flex flex-col gap-5"
-                    onSubmit={form.handleSubmit(processForm)}
-                >
-                    <FormField
-                        control={form.control}
-                        name="title"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Title</FormLabel>
-                                <FormControl>
-                                    <Input
-                                        {...field}
-                                        placeholder="My Beautiful Artwork"
-                                        className="bg-background-secondary"
-                                    />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                    <NemuImage
-                        src={portfolio.image.url}
-                        alt={portfolio.title}
-                        className="h-full w-full rounded-xl"
-                        width={300}
-                        height={300}
-                    />
-                    <div className="flex w-full justify-between">
-                        <Button asChild variant={'outline'}>
-                            <Link href="/dashboard/portfolio">
-                                <XCircle className="h-6 w-6" />
-                                Cancel
-                            </Link>
-                        </Button>
-                        <div className="flex gap-2">
-                            <Button type="submit">Update</Button>
-                            <AlertDialogTrigger asChild>
-                                <Button type="button" variant={'destructive'}>
-                                    Delete
-                                </Button>
-                            </AlertDialogTrigger>
-                        </div>
-                    </div>
-                </form>
-            </Form>
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                        This action cannot be undone.
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction asChild>
-                        <Button
-                            variant={'destructive'}
-                            className="bg-destructive!"
-                            onClick={() => {
-                                destroyPortfolio.mutate({
-                                    id: props.id
-                                })
-                            }}
-                        >
-                            Delete
-                        </Button>
-                    </AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
+        <PortfolioForm
+            mode="update"
+            initialData={{
+                id: props.portfolio.id,
+                title: props.portfolio.title,
+                imageKey: props.portfolio.image.utKey,
+                imageUrl: props.portfolio.image.url
+            }}
+        />
     )
 }

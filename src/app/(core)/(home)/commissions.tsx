@@ -10,7 +10,6 @@ import { Badge, type BadgeProps } from '~/components/ui/badge'
 import {
     Card,
     CardTitle,
-    CardDescription,
     CardHeader,
     CardContent,
     CardFooter
@@ -120,9 +119,6 @@ function CommissionCard(props: {
                             {props.commission.availability}
                         </Badge>
                     </div>
-                    <CardDescription className="text-muted-foreground">
-                        {props.commission.description}
-                    </CardDescription>
                 </CardContent>
                 <CardFooter className="flex flex-col items-start">
                     <span className="text-sm font-medium">{props.commission.price}</span>
