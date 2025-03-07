@@ -38,7 +38,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 import { api } from '~/trpc/react'
 import { Kanban } from './kanban'
 
-import { UploadDropzone } from '~/components/files/uploadthing'
+import { UploadDropzone } from '~/components/uploadthing'
 import { InvoiceEditor } from './invoice-editor'
 import { MessagesClient } from '~/components/messages/messages-client'
 import { Label } from '~/components/ui/label'

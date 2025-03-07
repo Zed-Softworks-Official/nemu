@@ -74,7 +74,7 @@ function Product(props: {
                     <div className="bg-background/80 text-foreground flex items-center rounded-md border p-1 text-xs font-semibold backdrop-blur-md">
                         <div className="flex flex-col">
                             <h3 className="mr-4 line-clamp-2 grow pl-2 text-sm leading-none tracking-tight">
-                                {props.product.name}
+                                {props.product.title}
                             </h3>
                             <span className="text-muted-foreground pr-2 pl-2 text-xs">
                                 @{props.product.artist.handle}

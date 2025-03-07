@@ -25,7 +25,11 @@ export function CreateForm() {
     const router = useRouter()
     const form = useForm<FormSchemaType>({
         resolver: zodResolver(formSchema),
-        mode: 'onSubmit'
+        mode: 'onSubmit',
+        defaultValues: {
+            name: '',
+            description: ''
+        }
     })
 
     const createForm = api.request.setForm.useMutation()
@@ -70,10 +74,9 @@ export function CreateForm() {
                         <FormItem>
                             <FormLabel>Name:</FormLabel>
                             <Input
-                                {...form.register('name')}
                                 placeholder="Your form name here"
                                 className="bg-background-secondary"
-                                defaultValue={field.value ?? ''}
+                                {...field}
                             />
                         </FormItem>
                     )}
@@ -85,11 +88,10 @@ export function CreateForm() {
                         <FormItem>
                             <FormLabel>Description:</FormLabel>
                             <Textarea
-                                {...form.register('description')}
                                 placeholder="Something to describe the form (optional)"
                                 className="bg-background-secondary resize-none"
                                 rows={6}
-                                defaultValue={field.value ?? ''}
+                                {...field}
                             />
                         </FormItem>
                     )}

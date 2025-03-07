@@ -13,7 +13,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 
 import { Trash2 } from 'lucide-react'
 
-import { UploadDropzone } from '~/components/files/uploadthing'
+import { UploadDropzone } from '~/components/uploadthing'
 import { Button } from '~/components/ui/button'
 import {
     Form,
@@ -50,7 +50,7 @@ const MarkdownEditor = dynamic(
 
 const productSchema = z
     .object({
-        name: z.string().min(2).max(64),
+        title: z.string().min(2).max(64),
         description: z.any(),
         price: z.union([z.string(), z.number()]),
         images: z.array(z.string()).min(1).max(5),
@@ -85,7 +85,7 @@ type ProductFormProps = {
     mode: 'create' | 'update'
     initialData?: {
         id: string
-        name: string
+        title: string
         description: JSONContent
         price: number
         images: string[]
@@ -103,7 +103,7 @@ export function ProductForm({ mode, initialData }: ProductFormProps) {
     const defaultValues =
         mode === 'create'
             ? {
-                  name: '',
+                  title: '',
                   description: '',
                   price: '0',
                   images: [],
@@ -111,7 +111,7 @@ export function ProductForm({ mode, initialData }: ProductFormProps) {
                   isFree: false
               }
             : {
-                  name: initialData?.name,
+                  title: initialData?.title,
                   description: JSON.stringify(initialData?.description),
                   price: ((initialData?.price ?? 0) / 100).toFixed(2),
                   images: initialData?.images,
@@ -202,7 +202,7 @@ export function ProductForm({ mode, initialData }: ProductFormProps) {
             >
                 <FormField
                     control={form.control}
-                    name="name"
+                    name="title"
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel>Name:</FormLabel>
@@ -395,7 +395,7 @@ export function UpdateForm(props: {
             mode="update"
             initialData={{
                 id: props.product.id,
-                name: props.product.name,
+                title: props.product.title,
                 description: props.product.description!,
                 price: props.product.price,
                 images: props.product.images,

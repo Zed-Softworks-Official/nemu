@@ -20,7 +20,7 @@ import { stripe } from '~/server/stripe'
 import { utapi } from '~/server/uploadthing'
 
 const productSchema = z.object({
-    name: z.string(),
+    title: z.string(),
     description: z.any(),
     price: z.number(),
     download: z.object({
@@ -45,7 +45,7 @@ export const artistCornerRouter = createTRPCRouter({
             if (!input.isFree) {
                 const stripe_product = await stripe.products.create(
                     {
-                        name: input.name,
+                        name: input.title,
                         images: input.images.map((image) => getUTUrl(image)),
                         default_price_data: {
                             currency: 'usd',
@@ -87,7 +87,7 @@ export const artistCornerRouter = createTRPCRouter({
             await setIndex('products', {
                 objectID: id,
                 artistHandle: ctx.artist.handle,
-                name: input.name,
+                title: input.title,
                 price: formatToCurrency(input.price / 100),
                 priceRaw: input.price,
                 imageUrl: getUTUrl(input.images[0] ?? ''),
@@ -200,7 +200,7 @@ export const artistCornerRouter = createTRPCRouter({
                             {
                                 default_price: stripe_price_id.id,
                                 images: input.images.map((image) => getUTUrl(image)),
-                                name: input.name
+                                name: input.title
                             },
                             {
                                 stripeAccount: ctx.artist.stripeAccount
@@ -219,7 +219,7 @@ export const artistCornerRouter = createTRPCRouter({
                         // Create new Stripe product if switching from free to paid
                         const stripe_product = await stripe.products.create(
                             {
-                                name: input.name,
+                                name: input.title,
                                 images: input.images.map((image) => getUTUrl(image)),
                                 default_price_data: {
                                     currency: 'usd',
@@ -308,7 +308,7 @@ export const artistCornerRouter = createTRPCRouter({
                         await ctx.db
                             .update(products)
                             .set({
-                                name: originalProduct.name,
+                                title: originalProduct.title,
                                 description: originalProduct.description,
                                 price: originalProduct.price,
                                 images: originalProduct.images,
@@ -357,7 +357,7 @@ export const artistCornerRouter = createTRPCRouter({
                                             images: originalProduct.images.map((image) =>
                                                 getUTUrl(image)
                                             ),
-                                            name: originalProduct.name
+                                            name: originalProduct.title
                                         },
                                         { stripeAccount: ctx.artist.stripeAccount }
                                     )
@@ -385,7 +385,7 @@ export const artistCornerRouter = createTRPCRouter({
 
         return all_products.map((product) => ({
             id: product.id,
-            name: product.name,
+            title: product.title,
             price: formatToCurrency(product.price / 100),
             published: product.published
         }))
@@ -441,7 +441,7 @@ export const artistCornerRouter = createTRPCRouter({
             }
 
             return {
-                name: data.name,
+                title: data.title,
                 description: data.description,
                 images: data.images.map((key) => getUTUrl(key)),
                 price: formatToCurrency(data.price / 100),
@@ -514,7 +514,7 @@ export const artistCornerRouter = createTRPCRouter({
                 createdAt: data.createdAt,
                 product: {
                     id: data.product.id,
-                    name: data.product.name,
+                    title: data.product.title,
                     download: {
                         filename: data.product.download.filename
                     }

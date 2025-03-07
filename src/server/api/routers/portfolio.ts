@@ -15,14 +15,14 @@ export const portfolioRouter = createTRPCRouter({
         .input(
             z.object({
                 title: z.string().min(2).max(128),
-                ut_key: z.string()
+                image: z.string().min(1)
             })
         )
         .mutation(async ({ ctx, input }) => {
             await ctx.db.insert(portfolios).values({
                 id: createId(),
                 artistId: ctx.artist.id,
-                utKey: input.ut_key,
+                utKey: input.image,
                 title: input.title
             })
         }),
@@ -31,14 +31,16 @@ export const portfolioRouter = createTRPCRouter({
         .input(
             z.object({
                 id: z.string(),
-                title: z.string().min(2).max(128)
+                title: z.string().min(2).max(128),
+                image: z.string().min(1)
             })
         )
         .mutation(async ({ ctx, input }) => {
             await ctx.db
                 .update(portfolios)
                 .set({
-                    title: input.title
+                    title: input.title,
+                    utKey: input.image
                 })
                 .where(eq(portfolios.id, input.id))
         }),
@@ -86,11 +88,13 @@ export const portfolioRouter = createTRPCRouter({
             }
 
             return {
-                ...portfolio,
+                id: portfolio.id,
+                title: portfolio.title,
                 image: {
-                    url: getUTUrl(portfolio.utKey)
+                    url: getUTUrl(portfolio.utKey),
+                    utKey: portfolio.utKey
                 }
-            } satisfies ClientPortfolioItem
+            }
         }),
 
     getPortfolioList: artistProcedure.query(async ({ ctx }) => {

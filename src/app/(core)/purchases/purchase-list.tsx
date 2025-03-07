@@ -53,7 +53,7 @@ export default function PurchaseList() {
                     className="flex flex-row items-center justify-between"
                 >
                     <CardHeader>
-                        <CardTitle>{purchase.product.name}</CardTitle>
+                        <CardTitle>{purchase.product.title}</CardTitle>
                         <CardDescription>
                             <span className="block">By {purchase.artist.handle}</span>
                             <span className="text-muted-foreground text-xs">

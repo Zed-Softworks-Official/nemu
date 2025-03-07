@@ -23,7 +23,7 @@ export default async function ArtistCornerUpdatePage(props: {
     return (
         <div className="container mx-auto max-w-4xl">
             <div className="flex items-center justify-between gap-2">
-                <h1 className="text-2xl font-bold">{data.product.name}</h1>
+                <h1 className="text-2xl font-bold">{data.product.title}</h1>
                 <Button asChild>
                     <Link href={`/dashboard/artist-corner/${id}`}>
                         <ArrowLeft className="size-4" />

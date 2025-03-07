@@ -1,10 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { allCountries } from 'country-region-data'
+import { Save } from 'lucide-react'
+import { toast } from 'sonner'
 
 import { api } from '~/trpc/react'
 import Loading from '~/components/ui/loading'
@@ -26,13 +28,10 @@ import {
     SelectValue
 } from '~/components/ui/select'
 import { Input } from '~/components/ui/input'
-import { useNemuUploadThing } from '~/components/files/uploadthing-context'
-import { NemuSingleDropzone } from '~/components/files/nemu-uploadthing'
 import { Label } from '~/components/ui/label'
 import { Button } from '~/components/ui/button'
 import { Separator } from '~/components/ui/separator'
-import { Save } from 'lucide-react'
-import { toast } from 'sonner'
+import { UploadDropzone } from '~/components/uploadthing'
 
 const schema = z.object({
     about: z.string().min(1, { message: 'About is required' }),
@@ -51,8 +50,6 @@ const schema = z.object({
 type SettingsSchema = z.infer<typeof schema>
 
 export function SettingsForm() {
-    const [pending, setPending] = useState(false)
-    const { uploadImages, images } = useNemuUploadThing()
     const { data: settings, isLoading } = api.artist.getArtistSettings.useQuery()
 
     const updateSettings = api.artist.setArtistSettings.useMutation()
@@ -71,27 +68,11 @@ export function SettingsForm() {
     })
 
     const processForm = async (values: SettingsSchema) => {
-        setPending(true)
-
         const toast_id = toast.loading('Saving...')
-        let headerImageKey: string | undefined
-
-        if (images.length != 0) {
-            const res = await uploadImages()
-            if (!res) {
-                toast.error('Failed to upload image', {
-                    id: toast_id
-                })
-                return
-            }
-
-            headerImageKey = res[0]?.key ?? undefined
-        }
 
         await updateSettings.mutateAsync(
             {
-                ...values,
-                headerImageKey
+                ...values
             },
             {
                 onError: (e) => {
@@ -106,8 +87,6 @@ export function SettingsForm() {
                 }
             }
         )
-
-        setPending(false)
     }
 
     useEffect(() => {
@@ -129,7 +108,7 @@ export function SettingsForm() {
             >
                 <div className="mt-3 flex items-center justify-between">
                     <h1 className="text-3xl font-bold">Aritst Settings</h1>
-                    <Button type="submit" disabled={pending}>
+                    <Button type="submit" disabled={updateSettings.isPending}>
                         <Save className="h-6 w-6" />
                         Save
                     </Button>
@@ -137,7 +116,17 @@ export function SettingsForm() {
                 <Separator className="mb-5" />
                 <div className="flex flex-col gap-2">
                     <Label>Header Photo:</Label>
-                    <NemuSingleDropzone />
+                    <UploadDropzone
+                        endpoint={'headerPhotoUploader'}
+                        onClientUploadComplete={() => {
+                            toast.success('Header photo upldated')
+                        }}
+                        onUploadError={(error) => {
+                            toast.error('Failed to upload header photo', {
+                                description: error.message
+                            })
+                        }}
+                    />
                 </div>
                 <FormField
                     control={form.control}

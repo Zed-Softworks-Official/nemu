@@ -5,6 +5,9 @@ import { type NextRequest } from 'next/server'
 import { UploadThingError } from 'uploadthing/server'
 import { createUploadthing, type FileRouter } from 'uploadthing/next'
 import { redis } from '~/server/redis'
+import { db } from '~/server/db'
+import { artists } from '~/server/db/schema'
+import { eq } from 'drizzle-orm'
 
 const f = createUploadthing()
 
@@ -35,8 +38,15 @@ export const nemuFileRouter = {
      */
     headerPhotoUploader: f({ image: { maxFileCount: 1, maxFileSize: '4MB' } })
         .middleware(async ({ req }) => await validate_auth(req, true))
-        .onUploadComplete(async () => {
-            console.log('Header Photo Upload Complete')
+        .onUploadComplete(async ({ metadata, file }) => {
+            if (!metadata.artistId) return
+
+            await db
+                .update(artists)
+                .set({
+                    headerPhoto: file.key
+                })
+                .where(eq(artists.id, metadata.artistId))
         }),
 
     /**
@@ -44,8 +54,13 @@ export const nemuFileRouter = {
      */
     portfolioUploader: f({ image: { maxFileCount: 1, maxFileSize: '4MB' } })
         .middleware(async ({ req }) => await validate_auth(req, true))
-        .onUploadComplete(async () => {
-            console.log('Portfolio Upload Complete')
+        .onUploadComplete(async ({ metadata, file }) => {
+            if (!metadata.artistId) return
+
+            await redis.zadd('portfolio:images', {
+                member: file.key,
+                score: Math.floor((Date.now() + 3600000) / 1000)
+            })
         }),
 
     /**

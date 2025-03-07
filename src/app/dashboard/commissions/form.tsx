@@ -8,7 +8,7 @@ import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import type { JSONContent } from '@tiptap/react'
-import { UploadDropzone } from '~/components/files/uploadthing'
+import { UploadDropzone } from '~/components/uploadthing'
 import NemuImage from '~/components/nemu-image'
 import { Button } from '~/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card'
@@ -184,7 +184,7 @@ function CommissionForm(props: CommissionFormProps) {
     }
 
     const cancelHref = useMemo(() => {
-        if (props.mode) return '/dashboard/commissions'
+        if (props.mode === 'create') return '/dashboard/commissions'
 
         return `/dashboard/commissions/${props.initialData?.slug}`
     }, [props.mode, props.initialData])
@@ -481,6 +481,7 @@ function CommissionForm(props: CommissionFormProps) {
                                                 )
                                             }}
                                         >
+                                            <span className="sr-only">Trash</span>
                                             <Trash2 className="size-4" />
                                         </Button>
                                     </div>
@@ -497,7 +498,7 @@ function CommissionForm(props: CommissionFormProps) {
                 <div className="flex items-center justify-between">
                     <Button variant={'outline'} asChild>
                         <Link href={cancelHref}>
-                            <XCircle className="size-6" />
+                            <XCircle className="size-4" />
                             Cancel
                         </Link>
                     </Button>
