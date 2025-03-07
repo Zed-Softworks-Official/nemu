@@ -38,12 +38,12 @@ import { UploadDropzone } from '~/components/uploadthing'
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card'
 import { env } from '~/env'
 
-const schema = z.object({
+const portfolioSchema = z.object({
     title: z.string().min(2).max(128),
     image: z.string().min(1)
 })
 
-type SchemaType = z.infer<typeof schema>
+type PortfolioSchemaType = z.infer<typeof portfolioSchema>
 
 type PortfolioFormProps = {
     mode: 'create' | 'update'
@@ -62,7 +62,7 @@ function PortfolioForm(props: PortfolioFormProps) {
         if (props.mode === 'create') {
             return {
                 title: '',
-                utKey: ''
+                image: ''
             }
         }
 
@@ -72,8 +72,8 @@ function PortfolioForm(props: PortfolioFormProps) {
         }
     }, [props.mode, props.initialData])
 
-    const form = useForm<SchemaType>({
-        resolver: zodResolver(schema),
+    const form = useForm<PortfolioSchemaType>({
+        resolver: zodResolver(portfolioSchema),
         mode: 'onSubmit',
         defaultValues
     })
@@ -141,7 +141,7 @@ function PortfolioForm(props: PortfolioFormProps) {
 
     const mutation = props.mode === 'create' ? createPortfolio : updatePortfolio
 
-    const processForm = async (values: SchemaType) => {
+    const processForm = async (values: PortfolioSchemaType) => {
         const commonData = { ...values }
 
         if (props.mode === 'create') {
@@ -214,7 +214,7 @@ function PortfolioForm(props: PortfolioFormProps) {
                                     <CardContent>
                                         <div className="relative">
                                             <NemuImage
-                                                src={`https://utfs.io/a/${env.NEXT_PUBLIC_UPLOADTHING_APP_ID}/${form.getValues('image')}`}
+                                                src={`https://utfs.io/a/${env.NEXT_PUBLIC_UPLOADTHING_APP_ID}/${field.value}`}
                                                 alt="Preview Image"
                                                 width={200}
                                                 height={200}
@@ -224,7 +224,9 @@ function PortfolioForm(props: PortfolioFormProps) {
                                                 variant={'ghost'}
                                                 size={'icon'}
                                                 className="absolute top-2 right-2"
-                                                onClick={() => form.setValue('image', '')}
+                                                onClick={() => {
+                                                    field.onChange('')
+                                                }}
                                             >
                                                 <span className="sr-only">Trash</span>
                                                 <Trash2 className="size-4" />

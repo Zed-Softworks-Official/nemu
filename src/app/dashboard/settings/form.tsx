@@ -119,7 +119,7 @@ export function SettingsForm() {
                     <UploadDropzone
                         endpoint={'headerPhotoUploader'}
                         onClientUploadComplete={() => {
-                            toast.success('Header photo upldated')
+                            toast.success('Header photo upadated')
                         }}
                         onUploadError={(error) => {
                             toast.error('Failed to upload header photo', {
