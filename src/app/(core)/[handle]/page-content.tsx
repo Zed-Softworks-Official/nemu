@@ -9,20 +9,16 @@ import { Skeleton } from '~/components/ui/skeleton'
 import { TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 import { type SocialAgent } from '~/lib/types'
 import { cn, formatToCurrency } from '~/lib/utils'
-import { api } from '~/trpc/react'
 import Link from 'next/link'
 import { Badge } from '~/components/ui/badge'
 import Loading from '~/components/ui/loading'
 import { AspectRatio } from '~/components/ui/aspect-ratio'
+import { Card, CardContent } from '~/components/ui/card'
 
-export function ArtistBanner(props: { handle: string }) {
-    const { data: artist, isLoading } = api.artist.getArtistData.useQuery({
-        handle: props.handle
-    })
+import { useArtist } from './page-context'
 
-    if (isLoading) {
-        return <Skeleton className="h-full w-full" />
-    }
+export function ArtistBanner() {
+    const { artist } = useArtist()
 
     if (!artist?.headerPhoto) {
         return (
@@ -47,10 +43,8 @@ export function ArtistBanner(props: { handle: string }) {
     )
 }
 
-export function ArtistHeader(props: { handle: string }) {
-    const { data: artist, isLoading } = api.artist.getArtistData.useQuery({
-        handle: props.handle
-    })
+export function ArtistHeader() {
+    const { artist, isLoading } = useArtist()
 
     if (isLoading) {
         return (
@@ -106,16 +100,15 @@ export function ArtistHeader(props: { handle: string }) {
                         Commissions
                     </TabsTrigger>
                     <TabsTrigger value="portfolio">Portfolio</TabsTrigger>
+                    <TabsTrigger value="artist-corner">Artist&apos;s Corner</TabsTrigger>
                 </TabsList>
             </div>
         </div>
     )
 }
 
-export function ArtistBody(props: { handle: string }) {
-    const { data: artist, isLoading } = api.artist.getArtistData.useQuery({
-        handle: props.handle
-    })
+export function ArtistBody() {
+    const { artist, isLoading } = useArtist()
 
     if (isLoading) {
         return <Skeleton className="h-full w-full" />
@@ -159,12 +152,17 @@ export function ArtistBody(props: { handle: string }) {
                     <TabsContent value="commissions">
                         <h2 className="mb-5 font-bold uppercase">Commissions</h2>
                         <Separator className="bg-foreground/[0.1] mb-5" />
-                        <CommissionsList handle={props.handle} />
+                        <CommissionsList />
                     </TabsContent>
                     <TabsContent value="portfolio">
                         <h2 className="mb-5 font-bold uppercase">Portfolio</h2>
                         <Separator className="bg-foreground/[0.1] mb-5" />
-                        <PortfolioList handle={props.handle} />
+                        <PortfolioList />
+                    </TabsContent>
+                    <TabsContent value="artist-corner">
+                        <h2 className="mb-5 font-bold uppercase">Artist Corner</h2>
+                        <Separator className="bg-foreground/[0.1] mb-5" />
+                        <ArtistCornerList />
                     </TabsContent>
                 </div>
             </div>
@@ -217,10 +215,8 @@ function PixivIcon({ className }: SocialIconProps) {
     )
 }
 
-function CommissionsList(props: { handle: string }) {
-    const { data: artist, isLoading } = api.artist.getArtistData.useQuery({
-        handle: props.handle
-    })
+function CommissionsList() {
+    const { artist, isLoading } = useArtist()
 
     if (isLoading) {
         return <Loading />
@@ -275,7 +271,7 @@ function CommissionsList(props: { handle: string }) {
                                     <Link
                                         prefetch={true}
                                         scroll={false}
-                                        href={`/@${props.handle}/commission/${commission.slug}`}
+                                        href={`/@${artist.handle}/commission/${commission.slug}`}
                                     >
                                         <Eye className="h-6 w-6" />
                                         View
@@ -290,10 +286,8 @@ function CommissionsList(props: { handle: string }) {
     )
 }
 
-function PortfolioList(props: { handle: string }) {
-    const { data: artist, isLoading } = api.artist.getArtistData.useQuery({
-        handle: props.handle
-    })
+function PortfolioList() {
+    const { artist, isLoading } = useArtist()
 
     if (isLoading) {
         return <Loading />
@@ -321,6 +315,58 @@ function PortfolioList(props: { handle: string }) {
                         </h3>
                     </div>
                 </div>
+            ))}
+        </div>
+    )
+}
+
+function ArtistCornerList() {
+    const { artist, isLoading } = useArtist()
+
+    if (isLoading) {
+        return <Loading />
+    }
+
+    if (!artist?.products) {
+        return null
+    }
+
+    return (
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
+            {artist.products.map((product) => (
+                <Card
+                    key={product.id}
+                    className="hover:border-primary aspect-square border"
+                >
+                    <Link
+                        href={`/@${artist.handle}/artist-corner/${product.id}`}
+                        prefetch={true}
+                    >
+                        <CardContent className="relative flex flex-col items-center gap-6 sm:flex-row">
+                            <AspectRatio ratio={1}>
+                                <NemuImage
+                                    src={product.images[0]?.url ?? '/profile.png'}
+                                    alt={`${product.title} featured image`}
+                                    width={200}
+                                    height={200}
+                                    className="h-48 w-full object-cover md:h-full md:w-48"
+                                />
+                            </AspectRatio>
+                            <div className="h-fuit absolute bottom-0 left-0 flex w-full px-4 pb-4 lg:px-10 lg:pb-[10%]">
+                                <div className="bg-background/80 text-foreground flex items-center rounded-md border p-1 text-xs font-semibold backdrop-blur-md">
+                                    <div className="flex flex-col">
+                                        <h3 className="tracking-right mr-4 line-clamp-2 grow pl-2 text-sm leading-none">
+                                            {product.title}
+                                        </h3>
+                                    </div>
+                                    <p className="bg-primary text-foreground flex-none rounded-md p-2">
+                                        {product.price}
+                                    </p>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Link>
+                </Card>
             ))}
         </div>
     )

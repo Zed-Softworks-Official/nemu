@@ -5,6 +5,7 @@ import { AspectRatio } from '~/components/ui/aspect-ratio'
 import { Tabs } from '~/components/ui/tabs'
 import { api } from '~/trpc/server'
 import { ArtistBanner, ArtistHeader, ArtistBody } from './page-content'
+import { ArtistPageProvider } from './page-context'
 
 type Props = { params: Promise<{ handle: string }> }
 
@@ -46,17 +47,19 @@ export default async function ArtistPage(props: Props) {
     const handle = params.handle.substring(3, params.handle.length + 1)
 
     return (
-        <Tabs defaultValue="commissions">
-            <div className="container mx-auto flex flex-1 flex-col flex-wrap">
-                <AspectRatio ratio={12 / 3}>
-                    <ArtistBanner handle={handle} />
-                </AspectRatio>
-                <div className="bg-background-tertiary/70 mx-auto my-28 w-full rounded-xl px-10 py-14 shadow-lg backdrop-blur-xl sm:max-w-[85%] lg:-my-20 lg:py-14 xl:-my-28">
-                    <ArtistHeader handle={handle} />
+        <ArtistPageProvider handle={handle}>
+            <Tabs defaultValue="commissions">
+                <div className="container mx-auto flex flex-1 flex-col flex-wrap">
+                    <AspectRatio ratio={12 / 3}>
+                        <ArtistBanner />
+                    </AspectRatio>
+                    <div className="bg-background-tertiary/70 mx-auto my-28 w-full rounded-xl px-10 py-14 shadow-lg backdrop-blur-xl sm:max-w-[85%] lg:-my-20 lg:py-14 xl:-my-28">
+                        <ArtistHeader />
+                    </div>
                 </div>
-            </div>
 
-            <ArtistBody handle={handle} />
-        </Tabs>
+                <ArtistBody />
+            </Tabs>
+        </ArtistPageProvider>
     )
 }

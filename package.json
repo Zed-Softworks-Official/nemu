@@ -83,6 +83,7 @@
         "drizzle-orm": "^0.33.0",
         "embla-carousel-autoplay": "^8.5.2",
         "embla-carousel-react": "^8.5.2",
+        "flags": "^3.1.1",
         "lodash.debounce": "^4.0.8",
         "lucide-react": "^0.475.0",
         "motion": "^11.18.2",

@@ -41,7 +41,6 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
 import { DashboardBreadcrumbs } from './breadcrumbs'
 import { Separator } from '~/components/ui/separator'
-import { api } from '~/trpc/server'
 
 export const metadata = {
     title: 'Nemu | Artist Dashboard'
@@ -198,17 +197,11 @@ async function SidebarUserdropdown() {
 }
 
 async function SidebarSettingsContent() {
-    const dashboard_links = await api.stripe.getDashboardLinks()
-
-    if (!dashboard_links) {
-        return null
-    }
-
     return (
         <SidebarMenu>
             <SidebarMenuItem>
                 <SidebarMenuButton asChild>
-                    <Link href={dashboard_links.managment.url}>
+                    <Link href={'/dashboard/managment'}>
                         <HandCoins className="h-6 w-6" />
                         Payout
                     </Link>
