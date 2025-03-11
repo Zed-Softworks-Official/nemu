@@ -15,7 +15,7 @@ type ArtistPageContextType = {
     currentHandle: string
     setCurrentHandle: Dispatch<SetStateAction<string>>
 
-    artist: NonNullable<RouterOutputs['artist']['getArtistData']>
+    artist?: NonNullable<RouterOutputs['artist']['getArtistData']>
     isLoading: boolean
 }
 
@@ -37,7 +37,7 @@ export function ArtistPageProvider(props: { handle: string; children: React.Reac
             value={{
                 currentHandle,
                 setCurrentHandle,
-                artist,
+                artist: artist,
                 isLoading
             }}
         >

@@ -38,7 +38,7 @@ export default function ArtistApplySuccessPage() {
 async function ArtistOnboardingButton() {
     return (
         <Button asChild size={'lg'}>
-            <Link target="_blank" href={'/dashboard/managment'}>
+            <Link target="_blank" href={'/dashboard/management'}>
                 Complete Onboarding
             </Link>
         </Button>
