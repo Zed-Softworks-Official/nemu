@@ -28,7 +28,7 @@ export function ArtistPageProvider(props: { handle: string; children: React.Reac
         handle: props.handle
     })
 
-    if (!artist) {
+    if (!artist && !isLoading) {
         return notFound()
     }
 
