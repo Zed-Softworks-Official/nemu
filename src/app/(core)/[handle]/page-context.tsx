@@ -25,7 +25,7 @@ export function ArtistPageProvider(props: { handle: string; children: React.Reac
     const [currentHandle, setCurrentHandle] = useState(props.handle)
 
     const { data: artist, isLoading } = api.artist.getArtistData.useQuery({
-        handle: props.handle
+        handle: currentHandle
     })
 
     if (!artist && !isLoading) {
