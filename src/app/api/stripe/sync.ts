@@ -191,16 +191,12 @@ async function accountUpdated(stripeAccount: string) {
         return
     }
 
-    const updatePromise = db
+    await db
         .update(artists)
         .set({
             onboarded: true
         })
         .where(eq(artists.id, artist.id))
-
-    const redisPromise = redis.del(getRedisKey('dashboard_links', artist.id))
-
-    await Promise.all([updatePromise, redisPromise])
 }
 
 export async function isSupporter(user_id: string) {

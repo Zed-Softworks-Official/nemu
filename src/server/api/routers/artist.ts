@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { isSupporter } from '~/app/api/stripe/sync'
 import { chargeMethods, socialAgents } from '~/lib/types'
-import { getUTUrl } from '~/lib/utils'
+import { formatToCurrency, getUTUrl } from '~/lib/utils'
 import { updateIndex } from '~/server/algolia/collections'
 
 import { artistProcedure, createTRPCRouter, publicProcedure } from '~/server/api/trpc'
@@ -27,7 +27,8 @@ export const artistRouter = createTRPCRouter({
                         where: eq(commissions.published, true)
                     },
                     portfolio: true,
-                    forms: true
+                    forms: true,
+                    products: true
                 }
             })
 
@@ -55,6 +56,15 @@ export const artistRouter = createTRPCRouter({
                 }))
             }))
 
+            const productsList = artist.products.map((product) => ({
+                ...product,
+                download: undefined,
+                price: formatToCurrency(product.price / 100),
+                images: product.images.map((image) => ({
+                    url: getUTUrl(image)
+                }))
+            }))
+
             const supporter = await isSupporter(artist.userId)
             return {
                 ...artist,
@@ -62,6 +72,7 @@ export const artistRouter = createTRPCRouter({
                 headerPhoto: getUTUrl(artist.headerPhoto),
                 portfolio: portfolioItems,
                 commissions: commissionList,
+                products: productsList,
                 user: {
                     username: user.username,
                     profilePicture: user.imageUrl

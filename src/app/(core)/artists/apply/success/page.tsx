@@ -5,8 +5,6 @@ import NemuImage from '~/components/nemu-image'
 import { Button } from '~/components/ui/button'
 import Loading from '~/components/ui/loading'
 
-import { api } from '~/trpc/server'
-
 export default function ArtistApplySuccessPage() {
     return (
         <div className="container mx-auto flex max-w-2xl flex-col items-center gap-8 px-4 py-12">
@@ -38,11 +36,9 @@ export default function ArtistApplySuccessPage() {
 }
 
 async function ArtistOnboardingButton() {
-    const dashboard_links = await api.stripe.getDashboardLinks()
-
     return (
         <Button asChild size={'lg'}>
-            <Link target="_blank" href={dashboard_links?.managment.url ?? '/dashboard'}>
+            <Link target="_blank" href={'/dashboard/management'}>
                 Complete Onboarding
             </Link>
         </Button>

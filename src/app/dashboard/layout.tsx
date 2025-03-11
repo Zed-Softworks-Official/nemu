@@ -41,7 +41,6 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
 import { DashboardBreadcrumbs } from './breadcrumbs'
 import { Separator } from '~/components/ui/separator'
-import { api } from '~/trpc/server'
 
 export const metadata = {
     title: 'Nemu | Artist Dashboard'
@@ -144,9 +143,9 @@ function DashboardSidebar() {
 }
 
 async function SidebarUserdropdown() {
-    const clerk_user = await currentUser()
+    const user = await currentUser()
 
-    if (!clerk_user) {
+    if (!user) {
         return <RedirectToSignIn redirectUrl={'/u/login'} />
     }
 
@@ -161,7 +160,7 @@ async function SidebarUserdropdown() {
                         >
                             <Avatar className="h-8 w-8">
                                 <AvatarImage
-                                    src={clerk_user.imageUrl}
+                                    src={user.imageUrl}
                                     alt="Avatar"
                                     className="h-full w-full"
                                 />
@@ -169,7 +168,7 @@ async function SidebarUserdropdown() {
                                     <User className="h-6 w-6" />
                                 </AvatarFallback>
                             </Avatar>
-                            {clerk_user.username}
+                            {user.username}
                             <ChevronUp className="ml-auto" />
                         </SidebarMenuButton>
                     </DropdownMenuTrigger>
@@ -180,7 +179,7 @@ async function SidebarUserdropdown() {
                         <DropdownMenuItem asChild>
                             <Link
                                 prefetch={true}
-                                href={`/@${clerk_user.publicMetadata.handle as string}`}
+                                href={`/@${user.publicMetadata.handle as string}`}
                             >
                                 My Page
                             </Link>
@@ -198,17 +197,11 @@ async function SidebarUserdropdown() {
 }
 
 async function SidebarSettingsContent() {
-    const dashboard_links = await api.stripe.getDashboardLinks()
-
-    if (!dashboard_links) {
-        return null
-    }
-
     return (
         <SidebarMenu>
             <SidebarMenuItem>
                 <SidebarMenuButton asChild>
-                    <Link href={dashboard_links.managment.url}>
+                    <Link target="_blank" href={'/dashboard/management'}>
                         <HandCoins className="h-6 w-6" />
                         Payout
                     </Link>
