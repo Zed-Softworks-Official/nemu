@@ -8,6 +8,7 @@ import { Separator } from '~/components/ui/separator'
 import { api } from '~/trpc/server'
 import { type RouterOutputs } from '~/trpc/react'
 import { HomeCarousel } from '../(home)/carousel'
+import { InfiniteProducts } from './products'
 
 export default function ArtistCornerPage() {
     return (
@@ -18,7 +19,7 @@ export default function ArtistCornerPage() {
             </Suspense>
 
             <Separator className="my-4" />
-            <ProductList />
+            <InfiniteProducts />
         </div>
     )
 }
@@ -39,16 +40,6 @@ async function FeaturedProducts() {
             <div className="md:col-span-2 md:row-span-1">
                 <Product product={featured_products[2]} />
             </div>
-        </div>
-    )
-}
-
-function ProductList() {
-    return (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-            {/* {products.map((product) => (
-                <Product key={product.id} href="/artist-corner" />
-            ))} */}
         </div>
     )
 }
