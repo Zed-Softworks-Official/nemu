@@ -26,6 +26,7 @@
         "@dnd-kit/sortable": "^9.0.0",
         "@dnd-kit/utilities": "^3.2.2",
         "@hookform/resolvers": "^3.10.0",
+        "@knocklabs/client": "^0.12.0",
         "@knocklabs/node": "^0.6.18",
         "@knocklabs/react": "^0.6.0",
         "@lglab/react-qr-code": "^1.4.2",

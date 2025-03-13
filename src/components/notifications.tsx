@@ -7,6 +7,7 @@ import {
     useNotifications,
     useNotificationStore
 } from '@knocklabs/react'
+import type { FeedItem, FeedItemOrItems, Feed } from '@knocklabs/client'
 import { useUser } from '@clerk/nextjs'
 import { useEffect, useMemo, useState } from 'react'
 import { Archive, BellIcon, Inbox } from 'lucide-react'
@@ -27,7 +28,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 
 import { cn } from '~/lib/utils'
 
-type Feed = ReturnType<typeof useNotifications>
 type NotificationInbox = 'inbox' | 'archive'
 
 export function Notifications() {
@@ -49,12 +49,12 @@ export function Notifications() {
 }
 
 function NotificationFeed() {
-    const knock_client = useKnockClient()
-    const feed_client = useNotifications(knock_client, env.NEXT_PUBLIC_KNOCK_FEED_ID, {
+    const knockClient = useKnockClient()
+    const feedClient = useNotifications(knockClient, env.NEXT_PUBLIC_KNOCK_FEED_ID, {
         archived: 'include'
     })
 
-    const { items, metadata } = useNotificationStore(feed_client)
+    const { items, metadata } = useNotificationStore(feedClient)
     const [selectedTab, setSelectedTab] = useState<NotificationInbox>('inbox')
 
     const notificationCounts = useMemo(() => {
@@ -67,7 +67,7 @@ function NotificationFeed() {
         )
     }, [items])
 
-    useFetchNotifications(feed_client)
+    useFetchNotifications(feedClient)
 
     return (
         <DropdownMenu>
@@ -77,7 +77,7 @@ function NotificationFeed() {
                     size={'icon'}
                     className="relative rounded-full focus-visible:ring-0"
                     onClick={() => {
-                        void feed_client.markAllAsRead()
+                        void feedClient.markAllAsRead()
                     }}
                 >
                     <BellIcon className="size-4" />
@@ -137,9 +137,9 @@ function NotificationFeed() {
                                 <NotificationItem
                                     key={item.id}
                                     item={item}
-                                    feed_client={feed_client}
+                                    feed_client={feedClient}
                                     onArchive={() => {
-                                        void feed_client.markAsArchived(item)
+                                        void feedClient.markAsArchived(item)
                                     }}
                                 />
                             ))}
@@ -157,7 +157,7 @@ function NotificationFeed() {
                                     className="text-muted-foreground w-full rounded-none"
                                     onClick={(e) => {
                                         e.stopPropagation()
-                                        void feed_client.markAllAsArchived()
+                                        void feedClient.markAllAsArchived()
                                     }}
                                 >
                                     <Archive className="size-4" />
@@ -173,7 +173,7 @@ function NotificationFeed() {
                                 <NotificationItem
                                     key={item.id}
                                     item={item}
-                                    feed_client={feed_client}
+                                    feed_client={feedClient}
                                 />
                             ))}
                         {/*Check if inbox is empty*/}
@@ -210,7 +210,7 @@ function EmptyState(props: { icon: React.ReactNode; message: string }) {
 }
 
 function NotificationItem(props: {
-    item: ReturnType<typeof useNotificationStore>['items'][number]
+    item: FeedItem
     feed_client: Feed
     onArchive?: () => void
 }) {
@@ -218,7 +218,7 @@ function NotificationItem(props: {
         <DropdownMenuItem
             className="border-muted flex items-center justify-center gap-2 rounded-none border-b-2"
             onClick={() => {
-                void props.feed_client.markAsRead(props.item)
+                void props.feed_client.markAsRead(props.item as FeedItemOrItems)
             }}
         >
             <div className="flex flex-col items-start gap-2">
