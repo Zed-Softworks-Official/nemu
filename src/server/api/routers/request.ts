@@ -24,7 +24,7 @@ import {
     type StripeInvoiceData
 } from '~/lib/types'
 
-import type { FormElementInstance } from '~/components/form-builder/elements/form-elements'
+import type { FormElementInstance } from '~/app/_components/form-builder/elements/form-elements'
 import { sendNotification, KnockWorkflows } from '~/server/knock'
 import { env } from '~/env'
 

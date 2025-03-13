@@ -7,13 +7,13 @@ import { toast } from 'sonner'
 import { z } from 'zod'
 
 import { api } from '~/trpc/react'
-import { Button } from '~/components/ui/button'
-import { Form, FormField, FormItem, FormLabel } from '~/components/ui/form'
-import { Input } from '~/components/ui/input'
-import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card'
-import { Separator } from '~/components/ui/separator'
-import Loading from '~/components/ui/loading'
-import { DataTable } from '~/components/data-table'
+import { Button } from '~/app/_components/ui/button'
+import { Form, FormField, FormItem, FormLabel } from '~/app/_components/ui/form'
+import { Input } from '~/app/_components/ui/input'
+import { Card, CardContent, CardHeader, CardTitle } from '~/app/_components/ui/card'
+import { Separator } from '~/app/_components/ui/separator'
+import Loading from '~/app/_components/ui/loading'
+import { DataTable } from '~/app/_components/data-table'
 
 const schema = z.object({
     quantity: z.number().min(1).max(100).default(1)

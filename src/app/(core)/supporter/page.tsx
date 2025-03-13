@@ -1,4 +1,4 @@
-import PricingCards from '~/components/pricing-cards'
+import PricingCards from '~/app/_components/pricing-cards'
 
 export default function GetSupporterPage() {
     return (

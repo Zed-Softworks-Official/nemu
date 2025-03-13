@@ -16,9 +16,9 @@ import { motion } from 'motion/react'
 import Link from 'next/link'
 import { useRef } from 'react'
 
-import NemuImage from '~/components/nemu-image'
-import { Button } from '~/components/ui/button'
-import { PricingCard } from '~/components/pricing-cards'
+import NemuImage from '~/app/_components/nemu-image'
+import { Button } from '~/app/_components/ui/button'
+import { PricingCard } from '~/app/_components/pricing-cards'
 
 import { useAnimations } from '~/hooks/use-animation'
 

@@ -4,7 +4,7 @@ import { Eye, EyeOff } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
-import { Button } from '~/components/ui/button'
+import { Button } from '~/app/_components/ui/button'
 import { api } from '~/trpc/react'
 
 export default function PublishProduct(props: { id: string; published: boolean }) {

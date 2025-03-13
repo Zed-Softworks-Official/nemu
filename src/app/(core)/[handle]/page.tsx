@@ -1,8 +1,8 @@
 import type { Metadata, ResolvingMetadata } from 'next'
 
-import { AspectRatio } from '~/components/ui/aspect-ratio'
+import { AspectRatio } from '~/app/_components/ui/aspect-ratio'
 
-import { Tabs } from '~/components/ui/tabs'
+import { Tabs } from '~/app/_components/ui/tabs'
 import { api } from '~/trpc/server'
 import { ArtistBanner, ArtistHeader, ArtistBody } from './page-content'
 import { ArtistPageProvider } from './page-context'

@@ -14,7 +14,7 @@ import {
     ShieldCheck
 } from 'lucide-react'
 
-import { Button } from '~/components/ui/button'
+import { Button } from '~/app/_components/ui/button'
 import {
     Sheet,
     SheetContent,
@@ -23,8 +23,8 @@ import {
     SheetHeader,
     SheetTitle,
     SheetTrigger
-} from '~/components/ui/sheet'
-import NemuImage from '~/components/nemu-image'
+} from '~/app/_components/ui/sheet'
+import NemuImage from '~/app/_components/nemu-image'
 
 export function NavigationSheet() {
     const [open, setOpen] = useState(false)

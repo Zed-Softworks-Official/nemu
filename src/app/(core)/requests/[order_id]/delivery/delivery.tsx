@@ -1,17 +1,17 @@
 'use client'
 
 import { DownloadIcon } from 'lucide-react'
-import NemuImage from '~/components/nemu-image'
-import { Button } from '~/components/ui/button'
+import NemuImage from '~/app/_components/nemu-image'
+import { Button } from '~/app/_components/ui/button'
 import {
     Card,
     CardContent,
     CardDescription,
     CardHeader,
     CardTitle
-} from '~/components/ui/card'
+} from '~/app/_components/ui/card'
 import { getUTUrl } from '~/lib/utils'
-import { useOrder } from '~/components/orders/standard-order'
+import { useOrder } from '~/app/_components/orders/standard-order'
 
 export default function Delivery() {
     const { request_data } = useOrder()

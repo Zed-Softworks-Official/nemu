@@ -17,14 +17,14 @@ import { Plus, Save, Trash2 } from 'lucide-react'
 import { createId } from '@paralleldrive/cuid2'
 import { CSS } from '@dnd-kit/utilities'
 
-import { Button } from '~/components/ui/button'
-import { Separator } from '~/components/ui/separator'
-import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card'
+import { Button } from '~/app/_components/ui/button'
+import { Separator } from '~/app/_components/ui/separator'
+import { Card, CardContent, CardHeader, CardTitle } from '~/app/_components/ui/card'
 
-import { useDashboardOrder } from '~/components/orders/dashboard-order'
+import { useDashboardOrder } from '~/app/_components/orders/dashboard-order'
 
 import type { KanbanContainerData, KanbanTaskData } from '~/lib/types'
-import { Input } from '~/components/ui/input'
+import { Input } from '~/app/_components/ui/input'
 import { api } from '~/trpc/react'
 import { toast } from 'sonner'
 

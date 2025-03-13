@@ -5,11 +5,11 @@ import Link from 'next/link'
 import { type InvoiceStatus } from '~/lib/types'
 import { formatToCurrency } from '~/lib/utils'
 
-import { DataTable } from '~/components/data-table'
-import { Badge } from '~/components/ui/badge'
-import { Button } from '~/components/ui/button'
-import { useOrder } from '~/components/orders/standard-order'
-import { Separator } from '~/components/ui/separator'
+import { DataTable } from '~/app/_components/data-table'
+import { Badge } from '~/app/_components/ui/badge'
+import { Button } from '~/app/_components/ui/button'
+import { useOrder } from '~/app/_components/orders/standard-order'
+import { Separator } from '~/app/_components/ui/separator'
 
 export default function Invoice() {
     const { request_data } = useOrder()

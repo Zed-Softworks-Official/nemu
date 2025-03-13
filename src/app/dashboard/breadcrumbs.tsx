@@ -9,7 +9,7 @@ import {
     BreadcrumbList,
     BreadcrumbPage,
     BreadcrumbSeparator
-} from '~/components/ui/breadcrumb'
+} from '~/app/_components/ui/breadcrumb'
 
 export function DashboardBreadcrumbs() {
     const pathname = usePathname().split('/')

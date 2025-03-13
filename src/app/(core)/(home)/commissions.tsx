@@ -5,16 +5,16 @@ import { useEffect } from 'react'
 import { motion } from 'motion/react'
 import { useIntersectionObserver } from '@uidotdev/usehooks'
 
-import NemuImage from '~/components/nemu-image'
-import { Badge, type BadgeProps } from '~/components/ui/badge'
+import NemuImage from '~/app/_components/nemu-image'
+import { Badge, type BadgeProps } from '~/app/_components/ui/badge'
 import {
     Card,
     CardTitle,
     CardHeader,
     CardContent,
     CardFooter
-} from '~/components/ui/card'
-import Loading from '~/components/ui/loading'
+} from '~/app/_components/ui/card'
+import Loading from '~/app/_components/ui/loading'
 
 import { api, type RouterOutputs } from '~/trpc/react'
 

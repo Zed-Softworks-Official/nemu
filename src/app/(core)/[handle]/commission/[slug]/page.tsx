@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 
 import { api } from '~/trpc/server'
-import { CommissionView } from '~/components/commission-view'
+import { CommissionView } from '~/app/_components/commission-view'
 
 type Props = { params: Promise<{ handle: string; slug: string }> }
 

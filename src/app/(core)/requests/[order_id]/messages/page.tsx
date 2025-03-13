@@ -1,4 +1,4 @@
-import { MessagesClient } from '~/components/messages/messages-client'
+import { MessagesClient } from '~/app/_components/messages/messages-client'
 
 export default async function MessagesPage(props: {
     params: Promise<{ order_id: string }>

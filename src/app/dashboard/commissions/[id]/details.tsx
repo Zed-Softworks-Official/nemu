@@ -4,15 +4,15 @@ import { Eye, EyeOff, MoreHorizontal } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { DataTable } from '~/components/data-table'
+import { DataTable } from '~/app/_components/data-table'
 
-import { Button } from '~/components/ui/button'
+import { Button } from '~/app/_components/ui/button'
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger
-} from '~/components/ui/dropdown-menu'
+} from '~/app/_components/ui/dropdown-menu'
 import { type ClientRequestData } from '~/lib/types'
 import { api } from '~/trpc/react'
 

@@ -4,8 +4,8 @@ import { ReactQRCode, type ReactQRCodeRef } from '@lglab/react-qr-code'
 import { notFound, useParams } from 'next/navigation'
 import { useRef } from 'react'
 
-import { Button } from '~/components/ui/button'
-import Loading from '~/components/ui/loading'
+import { Button } from '~/app/_components/ui/button'
+import Loading from '~/app/_components/ui/loading'
 
 import { api } from '~/trpc/react'
 

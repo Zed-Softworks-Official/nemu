@@ -10,8 +10,8 @@ import { createId } from '@paralleldrive/cuid2'
 
 import { toast } from 'sonner'
 
-import { DataTable } from '~/components/data-table'
-import { useDashboardOrder } from '~/components/orders/dashboard-order'
+import { DataTable } from '~/app/_components/data-table'
+import { useDashboardOrder } from '~/app/_components/orders/dashboard-order'
 
 import {
     Card,
@@ -19,8 +19,8 @@ import {
     CardDescription,
     CardHeader,
     CardTitle
-} from '~/components/ui/card'
-import { Button } from '~/components/ui/button'
+} from '~/app/_components/ui/card'
+import { Button } from '~/app/_components/ui/button'
 
 import type { InvoiceItem } from '~/lib/types'
 import { formatToCurrency } from '~/lib/utils'
@@ -32,9 +32,9 @@ import {
     DialogHeader,
     DialogTitle,
     DialogTrigger
-} from '~/components/ui/dialog'
-import { Form, FormControl, FormItem, FormLabel } from '~/components/ui/form'
-import { Input } from '~/components/ui/input'
+} from '~/app/_components/ui/dialog'
+import { Form, FormControl, FormItem, FormLabel } from '~/app/_components/ui/form'
+import { Input } from '~/app/_components/ui/input'
 import { api } from '~/trpc/react'
 
 import {
@@ -47,13 +47,13 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
     AlertDialogTrigger
-} from '~/components/ui/alert-dialog'
+} from '~/app/_components/ui/alert-dialog'
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger
-} from '~/components/ui/dropdown-menu'
+} from '~/app/_components/ui/dropdown-menu'
 import { type ColDef } from 'ag-grid-community'
 
 export function InvoiceEditor() {

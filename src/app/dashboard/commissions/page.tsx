@@ -1,4 +1,4 @@
-import { DashboardCreateButton } from '~/components/ui/button'
+import { DashboardCreateButton } from '~/app/_components/ui/button'
 import { CommissionList } from './commission-list'
 
 import { isOnboarded } from '~/lib/flags'

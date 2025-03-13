@@ -5,8 +5,8 @@ import { notFound } from 'next/navigation'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
-import { DataTable } from '~/components/data-table'
-import { useDashboardOrder } from '~/components/orders/dashboard-order'
+import { DataTable } from '~/app/_components/data-table'
+import { useDashboardOrder } from '~/app/_components/orders/dashboard-order'
 
 import {
     AlertDialog,
@@ -18,31 +18,31 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
     AlertDialogDescription
-} from '~/components/ui/alert-dialog'
-import { Button } from '~/components/ui/button'
+} from '~/app/_components/ui/alert-dialog'
+import { Button } from '~/app/_components/ui/button'
 import {
     Card,
     CardContent,
     CardDescription,
     CardHeader,
     CardTitle
-} from '~/components/ui/card'
+} from '~/app/_components/ui/card'
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger
-} from '~/components/ui/dropdown-menu'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
+} from '~/app/_components/ui/dropdown-menu'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/app/_components/ui/tabs'
 
 import { api } from '~/trpc/react'
 import { Kanban } from './kanban'
 
-import { UploadDropzone } from '~/components/uploadthing'
+import { UploadDropzone } from '~/app/_components/uploadthing'
 import { InvoiceEditor } from './invoice-editor'
-import { MessagesClient } from '~/components/messages/messages-client'
-import { Label } from '~/components/ui/label'
-import { Checkbox } from '~/components/ui/checkbox'
+import { MessagesClient } from '~/app/_components/messages/messages-client'
+import { Label } from '~/app/_components/ui/label'
+import { Checkbox } from '~/app/_components/ui/checkbox'
 
 export function CommissionHeader() {
     const { requestData } = useDashboardOrder()

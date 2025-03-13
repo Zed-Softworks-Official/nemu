@@ -1,6 +1,6 @@
-import NemuImage from '~/components/nemu-image'
+import NemuImage from '~/app/_components/nemu-image'
 import ArtistApplyForm from './form'
-import { Separator } from '~/components/ui/separator'
+import { Separator } from '~/app/_components/ui/separator'
 import { auth } from '@clerk/nextjs/server'
 import { RedirectToSignIn } from '@clerk/nextjs'
 

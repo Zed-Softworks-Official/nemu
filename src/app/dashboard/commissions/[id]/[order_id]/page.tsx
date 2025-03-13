@@ -1,6 +1,6 @@
-import { Separator } from '~/components/ui/separator'
+import { Separator } from '~/app/_components/ui/separator'
 import { CommissionDetails, CommissionDetailsTabs, CommissionHeader } from './details'
-import { DashboardOrderProvider } from '~/components/orders/dashboard-order'
+import { DashboardOrderProvider } from '~/app/_components/orders/dashboard-order'
 
 export default async function CommissionRequestOrderPage(props: {
     params: Promise<{ id: string; order_id: string }>

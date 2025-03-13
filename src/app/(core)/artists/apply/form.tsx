@@ -1,6 +1,6 @@
 'use client'
 
-import { Input } from '~/components/ui/input'
+import { Input } from '~/app/_components/ui/input'
 import {
     Form,
     FormControl,
@@ -8,10 +8,10 @@ import {
     FormItem,
     FormLabel,
     FormMessage
-} from '~/components/ui/form'
-import { RadioGroup, RadioGroupItem } from '~/components/ui/radio-group'
+} from '~/app/_components/ui/form'
+import { RadioGroup, RadioGroupItem } from '~/app/_components/ui/radio-group'
 import { allCountries } from 'country-region-data'
-import { Label } from '~/components/ui/label'
+import { Label } from '~/app/_components/ui/label'
 import { verificationMethods, type VerificationMethod } from '~/lib/types'
 
 import { toast } from 'sonner'
@@ -24,9 +24,9 @@ import {
     SelectItem,
     SelectTrigger,
     SelectValue
-} from '~/components/ui/select'
-import { Separator } from '~/components/ui/separator'
-import { Button } from '~/components/ui/button'
+} from '~/app/_components/ui/select'
+import { Separator } from '~/app/_components/ui/separator'
+import { Button } from '~/app/_components/ui/button'
 import { api } from '~/trpc/react'
 import { useRouter } from 'next/navigation'
 

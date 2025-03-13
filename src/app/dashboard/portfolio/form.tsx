@@ -16,12 +16,12 @@ import {
     FormItem,
     FormLabel,
     FormMessage
-} from '~/components/ui/form'
+} from '~/app/_components/ui/form'
 
 import { api, type RouterOutputs } from '~/trpc/react'
-import { Input } from '~/components/ui/input'
-import { Button } from '~/components/ui/button'
-import NemuImage from '~/components/nemu-image'
+import { Input } from '~/app/_components/ui/input'
+import { Button } from '~/app/_components/ui/button'
+import NemuImage from '~/app/_components/nemu-image'
 
 import {
     AlertDialog,
@@ -33,9 +33,9 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
     AlertDialogTrigger
-} from '~/components/ui/alert-dialog'
-import { UploadDropzone } from '~/components/uploadthing'
-import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card'
+} from '~/app/_components/ui/alert-dialog'
+import { UploadDropzone } from '~/app/_components/uploadthing'
+import { Card, CardContent, CardHeader, CardTitle } from '~/app/_components/ui/card'
 import { env } from '~/env'
 
 const portfolioSchema = z.object({

@@ -1,7 +1,7 @@
 'use client'
 
-import ParallelModal from '~/components/ui/parallel-modal'
-import { CommissionView } from '~/components/commission-view'
+import ParallelModal from '~/app/_components/ui/parallel-modal'
+import { CommissionView } from '~/app/_components/commission-view'
 import { useEffect, useState } from 'react'
 
 export default function CommissionModal(props: {

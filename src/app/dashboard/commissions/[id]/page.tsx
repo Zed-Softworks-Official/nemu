@@ -2,12 +2,12 @@ import { RedirectToSignIn } from '@clerk/nextjs'
 import { currentUser } from '@clerk/nextjs/server'
 import { Pencil } from 'lucide-react'
 import Link from 'next/link'
-import { Button } from '~/components/ui/button'
+import { Button } from '~/app/_components/ui/button'
 
 import { api } from '~/trpc/server'
 import { PublishButton, RequestList } from './details'
 import { notFound } from 'next/navigation'
-import { Separator } from '~/components/ui/separator'
+import { Separator } from '~/app/_components/ui/separator'
 
 export default async function CommissionDetailPage(props: {
     params: Promise<{ id: string }>

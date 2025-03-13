@@ -3,10 +3,10 @@ import { type Metadata } from 'next'
 import { CreditCard } from 'lucide-react'
 import { notFound } from 'next/navigation'
 
-import { Button } from '~/components/ui/button'
-import ImageViewer from '~/components/ui/image-viewer'
-import { MarkdownEditor } from '~/components/ui/markdown-editor'
-import { Separator } from '~/components/ui/separator'
+import { Button } from '~/app/_components/ui/button'
+import ImageViewer from '~/app/_components/ui/image-viewer'
+import { MarkdownEditor } from '~/app/_components/ui/markdown-editor'
+import { Separator } from '~/app/_components/ui/separator'
 
 import { api } from '~/trpc/server'
 

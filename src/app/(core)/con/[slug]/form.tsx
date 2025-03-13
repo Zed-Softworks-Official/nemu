@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 
-import { Input } from '~/components/ui/input'
+import { Input } from '~/app/_components/ui/input'
 import {
     Form,
     FormControl,
@@ -13,15 +13,15 @@ import {
     FormItem,
     FormLabel,
     FormMessage
-} from '~/components/ui/form'
-import { Button } from '~/components/ui/button'
+} from '~/app/_components/ui/form'
+import { Button } from '~/app/_components/ui/button'
 import {
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
     SelectValue
-} from '~/components/ui/select'
+} from '~/app/_components/ui/select'
 import { allCountries } from 'country-region-data'
 import { api } from '~/trpc/react'
 import { toast } from 'sonner'

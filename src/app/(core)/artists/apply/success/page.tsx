@@ -1,9 +1,9 @@
 import Link from 'next/link'
 import { Suspense } from 'react'
 
-import NemuImage from '~/components/nemu-image'
-import { Button } from '~/components/ui/button'
-import Loading from '~/components/ui/loading'
+import NemuImage from '~/app/_components/nemu-image'
+import { Button } from '~/app/_components/ui/button'
+import Loading from '~/app/_components/ui/loading'
 
 export default function ArtistApplySuccessPage() {
     return (

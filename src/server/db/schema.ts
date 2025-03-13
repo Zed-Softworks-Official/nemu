@@ -16,7 +16,7 @@ import {
     int,
     mysqlEnum
 } from 'drizzle-orm/mysql-core'
-import { type FormElementInstance } from '~/components/form-builder/elements/form-elements'
+import { type FormElementInstance } from '~/app/_components/form-builder/elements/form-elements'
 
 import {
     type SocialAccount,

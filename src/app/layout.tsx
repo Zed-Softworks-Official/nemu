@@ -13,10 +13,10 @@ import PlausibleProvider from 'next-plausible'
 import { env } from '~/env'
 import { TRPCReactProvider } from '~/trpc/react'
 
-import { ThemeProvider } from '~/components/themes/theme-provider'
-import { Toaster } from '~/components/ui/sonner'
-import { PosthogProvider } from '~/components/posthog-provider'
-import { Featurebase } from '~/components/featurebase'
+import { ThemeProvider } from '~/app/_components/themes/theme-provider'
+import { Toaster } from '~/app/_components/ui/sonner'
+import { PosthogProvider } from '~/app/_components/posthog-provider'
+import { Featurebase } from '~/app/_components/featurebase'
 
 const nunito = Nunito({
     subsets: ['latin']

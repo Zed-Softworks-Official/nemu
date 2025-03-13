@@ -3,10 +3,10 @@
 import Link from 'next/link'
 import { QrCode } from 'lucide-react'
 
-import Loading from '~/components/ui/loading'
-import { DataTable } from '~/components/data-table'
+import Loading from '~/app/_components/ui/loading'
+import { DataTable } from '~/app/_components/data-table'
 import { api, type RouterOutputs } from '~/trpc/react'
-import { Button } from '~/components/ui/button'
+import { Button } from '~/app/_components/ui/button'
 
 export function ConTable() {
     const { data: cons, isLoading } = api.con.getCons.useQuery()

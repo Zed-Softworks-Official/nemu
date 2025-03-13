@@ -9,11 +9,11 @@ import {
     CardDescription,
     CardHeader,
     CardTitle
-} from '~/components/ui/card'
-import { DataTable } from '~/components/data-table'
+} from '~/app/_components/ui/card'
+import { DataTable } from '~/app/_components/data-table'
 
-import { Separator } from '~/components/ui/separator'
-import { useOrder } from '~/components/orders/standard-order'
+import { Separator } from '~/app/_components/ui/separator'
+import { useOrder } from '~/app/_components/orders/standard-order'
 
 export default function Details() {
     const { request_data } = useOrder()

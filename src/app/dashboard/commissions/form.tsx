@@ -8,10 +8,10 @@ import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import type { JSONContent } from '@tiptap/react'
-import { UploadDropzone } from '~/components/uploadthing'
-import NemuImage from '~/components/nemu-image'
-import { Button } from '~/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card'
+import { UploadDropzone } from '~/app/_components/uploadthing'
+import NemuImage from '~/app/_components/nemu-image'
+import { Button } from '~/app/_components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '~/app/_components/ui/card'
 import {
     Form,
     FormControl,
@@ -19,19 +19,19 @@ import {
     FormItem,
     FormLabel,
     FormMessage
-} from '~/components/ui/form'
-import { Input } from '~/components/ui/input'
-import { MarkdownEditor } from '~/components/ui/markdown-editor'
+} from '~/app/_components/ui/form'
+import { Input } from '~/app/_components/ui/input'
+import { MarkdownEditor } from '~/app/_components/ui/markdown-editor'
 import {
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
     SelectValue
-} from '~/components/ui/select'
-import { Separator } from '~/components/ui/separator'
-import { Skeleton } from '~/components/ui/skeleton'
-import { Slider } from '~/components/ui/slider'
+} from '~/app/_components/ui/select'
+import { Separator } from '~/app/_components/ui/separator'
+import { Skeleton } from '~/app/_components/ui/skeleton'
+import { Slider } from '~/app/_components/ui/slider'
 import { env } from '~/env'
 
 import {

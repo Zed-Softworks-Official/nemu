@@ -13,8 +13,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 
 import { Trash2 } from 'lucide-react'
 
-import { UploadDropzone } from '~/components/uploadthing'
-import { Button } from '~/components/ui/button'
+import { UploadDropzone } from '~/app/_components/uploadthing'
+import { Button } from '~/app/_components/ui/button'
 import {
     Form,
     FormControl,
@@ -22,8 +22,8 @@ import {
     FormItem,
     FormLabel,
     FormMessage
-} from '~/components/ui/form'
-import { Input } from '~/components/ui/input'
+} from '~/app/_components/ui/form'
+import { Input } from '~/app/_components/ui/input'
 
 import { env } from '~/env'
 import {
@@ -32,8 +32,8 @@ import {
     CardDescription,
     CardHeader,
     CardTitle
-} from '~/components/ui/card'
-import { Switch } from '~/components/ui/switch'
+} from '~/app/_components/ui/card'
+import { Switch } from '~/app/_components/ui/switch'
 
 import { formatFileSize } from '~/lib/utils'
 import { type DownloadData } from '~/lib/types'
@@ -42,7 +42,8 @@ import { api, type RouterOutputs } from '~/trpc/react'
 import { type JSONContent } from '@tiptap/react'
 
 const MarkdownEditor = dynamic(
-    () => import('~/components/ui/markdown-editor').then((mod) => mod.MarkdownEditor),
+    () =>
+        import('~/app/_components/ui/markdown-editor').then((mod) => mod.MarkdownEditor),
     {
         ssr: false
     }

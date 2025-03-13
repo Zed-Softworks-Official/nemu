@@ -4,14 +4,14 @@ import { toast } from 'sonner'
 
 import { api } from '~/trpc/server'
 import ApplyConForm from './form'
-import NemuImage from '~/components/nemu-image'
+import NemuImage from '~/app/_components/nemu-image'
 import {
     Card,
     CardContent,
     CardDescription,
     CardHeader,
     CardTitle
-} from '~/components/ui/card'
+} from '~/app/_components/ui/card'
 
 export default async function ConPage(props: { params: Promise<{ slug: string }> }) {
     const { slug } = await props.params

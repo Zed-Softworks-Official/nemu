@@ -1,9 +1,9 @@
 import Link from 'next/link'
 import { Suspense } from 'react'
 
-import NemuImage from '~/components/nemu-image'
-import Loading from '~/components/ui/loading'
-import { Separator } from '~/components/ui/separator'
+import NemuImage from '~/app/_components/nemu-image'
+import Loading from '~/app/_components/ui/loading'
+import { Separator } from '~/app/_components/ui/separator'
 
 import { api } from '~/trpc/server'
 import { type RouterOutputs } from '~/trpc/react'

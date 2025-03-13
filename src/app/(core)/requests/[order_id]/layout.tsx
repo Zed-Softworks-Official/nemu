@@ -1,4 +1,4 @@
-import { StandardOrderProvider } from '~/components/orders/standard-order'
+import { StandardOrderProvider } from '~/app/_components/orders/standard-order'
 import RequestSidenavLink from './sidenav-link'
 
 export default async function Layout(props: {

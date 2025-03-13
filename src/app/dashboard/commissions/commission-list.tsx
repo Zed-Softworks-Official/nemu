@@ -5,8 +5,8 @@ import { Eye, MoreHorizontal, Paintbrush } from 'lucide-react'
 
 import { api, type RouterOutputs } from '~/trpc/react'
 
-import { Button } from '~/components/ui/button'
-import { Badge, type BadgeProps } from '~/components/ui/badge'
+import { Button } from '~/app/_components/ui/button'
+import { Badge, type BadgeProps } from '~/app/_components/ui/badge'
 
 import {
     Card,
@@ -14,15 +14,15 @@ import {
     CardTitle,
     CardDescription,
     CardContent
-} from '~/components/ui/card'
-import Loading from '~/components/ui/loading'
-import { DataTable } from '~/components/data-table'
+} from '~/app/_components/ui/card'
+import Loading from '~/app/_components/ui/loading'
+import { DataTable } from '~/app/_components/data-table'
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger
-} from '~/components/ui/dropdown-menu'
+} from '~/app/_components/ui/dropdown-menu'
 
 type CommissionList = RouterOutputs['commission']['getCommissionList']
 type Commission = RouterOutputs['commission']['getCommissionList'][number]

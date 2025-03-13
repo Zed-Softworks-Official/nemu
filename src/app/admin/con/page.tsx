@@ -2,7 +2,7 @@ import { Plus } from 'lucide-react'
 import Link from 'next/link'
 
 import { ConTable } from './table'
-import { Button } from '~/components/ui/button'
+import { Button } from '~/app/_components/ui/button'
 
 export default function ConListPage() {
     return (

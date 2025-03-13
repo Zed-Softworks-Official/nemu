@@ -16,8 +16,8 @@ import {
     SidebarMenuItem,
     SidebarProvider,
     SidebarTrigger
-} from '~/components/ui/sidebar'
-import { FullLogo } from '~/components/ui/logo'
+} from '~/app/_components/ui/sidebar'
+import { FullLogo } from '~/app/_components/ui/logo'
 import Link from 'next/link'
 import { ArrowLeft, Code, Check, MapPinCheck } from 'lucide-react'
 

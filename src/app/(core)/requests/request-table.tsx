@@ -1,15 +1,15 @@
 'use client'
 
-import Loading from '~/components/ui/loading'
-import NemuImage from '~/components/nemu-image'
+import Loading from '~/app/_components/ui/loading'
+import NemuImage from '~/app/_components/nemu-image'
 import { api } from '~/trpc/react'
 
 import { type ClientRequestData } from '~/lib/types'
-import { Button } from '~/components/ui/button'
+import { Button } from '~/app/_components/ui/button'
 import Link from 'next/link'
-import { DataTable } from '~/components/data-table'
-import { type BadgeProps } from '~/components/ui/badge'
-import { Badge } from '~/components/ui/badge'
+import { DataTable } from '~/app/_components/data-table'
+import { type BadgeProps } from '~/app/_components/ui/badge'
+import { Badge } from '~/app/_components/ui/badge'
 import { Eye } from 'lucide-react'
 
 export function RequestTable() {

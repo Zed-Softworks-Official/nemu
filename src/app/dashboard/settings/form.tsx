@@ -9,7 +9,7 @@ import { Save } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { api } from '~/trpc/react'
-import Loading from '~/components/ui/loading'
+import Loading from '~/app/_components/ui/loading'
 import {
     Form,
     FormControl,
@@ -17,21 +17,21 @@ import {
     FormItem,
     FormLabel,
     FormMessage
-} from '~/components/ui/form'
+} from '~/app/_components/ui/form'
 import { chargeMethods, type SocialAgent, socialAgents } from '~/lib/types'
-import { Textarea } from '~/components/ui/textarea'
+import { Textarea } from '~/app/_components/ui/textarea'
 import {
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
     SelectValue
-} from '~/components/ui/select'
-import { Input } from '~/components/ui/input'
-import { Label } from '~/components/ui/label'
-import { Button } from '~/components/ui/button'
-import { Separator } from '~/components/ui/separator'
-import { UploadDropzone } from '~/components/uploadthing'
+} from '~/app/_components/ui/select'
+import { Input } from '~/app/_components/ui/input'
+import { Label } from '~/app/_components/ui/label'
+import { Button } from '~/app/_components/ui/button'
+import { Separator } from '~/app/_components/ui/separator'
+import { UploadDropzone } from '~/app/_components/uploadthing'
 
 const schema = z.object({
     about: z.string().min(1, { message: 'About is required' }),

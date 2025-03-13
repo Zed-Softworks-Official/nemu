@@ -2,7 +2,7 @@ import { Pencil } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
-import { Button } from '~/components/ui/button'
+import { Button } from '~/app/_components/ui/button'
 import { api } from '~/trpc/server'
 import PublishProduct from './publish'
 

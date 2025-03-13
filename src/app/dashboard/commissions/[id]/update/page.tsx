@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 
 import { UpdateForm } from '~/app/dashboard/commissions/form'
-import { Separator } from '~/components/ui/separator'
+import { Separator } from '~/app/_components/ui/separator'
 import { api } from '~/trpc/server'
 
 export default async function CommissionUpdatePage(props: {

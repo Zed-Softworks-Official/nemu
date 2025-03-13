@@ -6,12 +6,12 @@ import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
-import { Button } from '~/components/ui/button'
+import { Button } from '~/app/_components/ui/button'
 
-import { Form, FormLabel, FormField, FormItem } from '~/components/ui/form'
-import { Input } from '~/components/ui/input'
-import { Separator } from '~/components/ui/separator'
-import { Textarea } from '~/components/ui/textarea'
+import { Form, FormLabel, FormField, FormItem } from '~/app/_components/ui/form'
+import { Input } from '~/app/_components/ui/input'
+import { Separator } from '~/app/_components/ui/separator'
+import { Textarea } from '~/app/_components/ui/textarea'
 import { api } from '~/trpc/react'
 
 const formSchema = z.object({

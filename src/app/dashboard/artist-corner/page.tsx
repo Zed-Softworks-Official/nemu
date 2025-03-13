@@ -1,8 +1,8 @@
 import { Suspense } from 'react'
-import { DataTable } from '~/components/data-table'
+import { DataTable } from '~/app/_components/data-table'
 
-import { DashboardCreateButton } from '~/components/ui/button'
-import Loading from '~/components/ui/loading'
+import { DashboardCreateButton } from '~/app/_components/ui/button'
+import Loading from '~/app/_components/ui/loading'
 import { isOnboarded } from '~/lib/flags'
 import { api } from '~/trpc/server'
 

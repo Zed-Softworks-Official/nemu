@@ -4,9 +4,9 @@ import { ArrowLeft } from 'lucide-react'
 
 import { api } from '~/trpc/server'
 import { UpdateForm } from '../../form'
-import { Button } from '~/components/ui/button'
+import { Button } from '~/app/_components/ui/button'
 import { Suspense } from 'react'
-import Loading from '~/components/ui/loading'
+import Loading from '~/app/_components/ui/loading'
 
 export default async function ArtistCornerUpdatePage(props: {
     params: Promise<{ id: string }>

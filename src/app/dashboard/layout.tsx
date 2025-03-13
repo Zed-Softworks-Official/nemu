@@ -16,7 +16,7 @@ import {
 import { currentUser } from '@clerk/nextjs/server'
 import { RedirectToSignIn } from '@clerk/nextjs'
 
-import { FullLogo, IconLogo } from '~/components/ui/logo'
+import { FullLogo, IconLogo } from '~/app/_components/ui/logo'
 import {
     SidebarProvider,
     Sidebar,
@@ -31,16 +31,16 @@ import {
     SidebarMenuButton,
     SidebarGroupLabel,
     SidebarInset
-} from '~/components/ui/sidebar'
+} from '~/app/_components/ui/sidebar'
 import {
     DropdownMenu,
     DropdownMenuTrigger,
     DropdownMenuContent,
     DropdownMenuItem
-} from '~/components/ui/dropdown-menu'
-import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
+} from '~/app/_components/ui/dropdown-menu'
+import { Avatar, AvatarFallback, AvatarImage } from '~/app/_components/ui/avatar'
 import { DashboardBreadcrumbs } from './breadcrumbs'
-import { Separator } from '~/components/ui/separator'
+import { Separator } from '~/app/_components/ui/separator'
 
 export const metadata = {
     title: 'Nemu | Artist Dashboard'

@@ -16,8 +16,8 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 
-import SearchBar from '~/components/search'
-import { FullLogo } from '~/components/ui/logo'
+import SearchBar from '~/app/_components/search'
+import { FullLogo } from '~/app/_components/ui/logo'
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -26,12 +26,12 @@ import {
     DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuTrigger
-} from '~/components/ui/dropdown-menu'
+} from '~/app/_components/ui/dropdown-menu'
 
-import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
-import { Button } from '~/components/ui/button'
-import { Notifications } from '~/components/notifications'
-import { Skeleton } from '~/components/ui/skeleton'
+import { Avatar, AvatarFallback, AvatarImage } from '~/app/_components/ui/avatar'
+import { Button } from '~/app/_components/ui/button'
+import { Notifications } from '~/app/_components/notifications'
+import { Skeleton } from '~/app/_components/ui/skeleton'
 import { type UserRole } from '~/lib/types'
 
 import { isSupporter } from '~/app/api/stripe/sync'

@@ -5,9 +5,9 @@ import { useEffect } from 'react'
 import { motion } from 'motion/react'
 import { useIntersectionObserver } from '@uidotdev/usehooks'
 
-import NemuImage from '~/components/nemu-image'
+import NemuImage from '~/app/_components/nemu-image'
 import { api, type RouterOutputs } from '~/trpc/react'
-import Loading from '~/components/ui/loading'
+import Loading from '~/app/_components/ui/loading'
 
 export function InfiniteProducts() {
     const [ref, entry] = useIntersectionObserver({

@@ -1,4 +1,4 @@
-import NemuImage from '~/components/nemu-image'
+import NemuImage from '~/app/_components/nemu-image'
 
 export default function ArtistApplySuccessPage() {
     return (

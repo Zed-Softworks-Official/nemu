@@ -1,11 +1,11 @@
 'use client'
 
 import { notFound } from 'next/navigation'
-import DesignerProvider from '~/components/form-builder/designer/designer-context'
-import { FormBuilder } from '~/components/form-builder/form-builder'
+import DesignerProvider from '~/app/_components/form-builder/designer/designer-context'
+import { FormBuilder } from '~/app/_components/form-builder/form-builder'
 // import { type FormElementInstance } from '~/components/form-builder/form-elements'
 
-import Loading from '~/components/ui/loading'
+import Loading from '~/app/_components/ui/loading'
 import { api } from '~/trpc/react'
 
 export function FormBuilderElement(props: { id: string }) {

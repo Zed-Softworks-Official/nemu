@@ -5,15 +5,15 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 
-import { Button } from '~/components/ui/button'
+import { Button } from '~/app/_components/ui/button'
 import {
     Card,
     CardContent,
     CardDescription,
     CardHeader,
     CardTitle
-} from '~/components/ui/card'
-import Loading from '~/components/ui/loading'
+} from '~/app/_components/ui/card'
+import Loading from '~/app/_components/ui/loading'
 import { api } from '~/trpc/react'
 
 export default function PurchaseList() {

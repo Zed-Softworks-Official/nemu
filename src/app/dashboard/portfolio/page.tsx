@@ -1,8 +1,8 @@
 import Link from 'next/link'
 import { Suspense } from 'react'
 
-import { DashboardCreateButton } from '~/components/ui/button'
-import NemuImage from '~/components/nemu-image'
+import { DashboardCreateButton } from '~/app/_components/ui/button'
+import NemuImage from '~/app/_components/nemu-image'
 
 import { api } from '~/trpc/server'
 import { isOnboarded } from '~/lib/flags'
