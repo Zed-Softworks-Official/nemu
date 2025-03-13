@@ -53,35 +53,64 @@ const convertEnum = (m_Enum: any) =>
     Object.values(m_Enum).map((value: any) => `${value}`) as [string, ...string[]]
 
 /**
- * An Enumeration for the user roles
+ * Creates a MySQL enum for user roles
+ * @param {string} name - The name of the enum column
+ * @returns {import('drizzle-orm/mysql-core').MySqlEnum} MySQL enum for user roles
  */
 export const UserRoleEnum = (name: string) => mysqlEnum(name, userRoles)
 
 /**
- * Enumeration for the different invoice statuses
+ * Creates a MySQL enum for invoice statuses
+ * @param {string} name - The name of the enum column
+ * @returns {import('drizzle-orm/mysql-core').MySqlEnum} MySQL enum for invoice statuses
  */
 export const InvoiceStatusEnum = (name: string) =>
     mysqlEnum(name, convertEnum(invoiceStatuses))
 
 /**
- * An Enumeration for the Request Status
+ * Creates a MySQL enum for request statuses
+ * @param {string} name - The name of the enum column
+ * @returns {import('drizzle-orm/mysql-core').MySqlEnum} MySQL enum for request statuses
  */
 export const RequestStatusEnum = (name: string) =>
     mysqlEnum(name, convertEnum(requestStatuses))
 
 /**
- * An Enumeration for the Commission Availability
+ * Creates a MySQL enum for commission availability states
+ * @param {string} name - The name of the enum column
+ * @returns {import('drizzle-orm/mysql-core').MySqlEnum} MySQL enum for commission availability
  */
 export const CommissionAvailabilityEnum = (name: string) =>
     mysqlEnum(name, convertEnum(commissionAvalabilities))
 
+/**
+ * Creates a MySQL enum for download types
+ * @param {string} name - The name of the enum column
+ * @returns {import('drizzle-orm/mysql-core').MySqlEnum} MySQL enum for download types
+ */
 export const DownloadTypeEnum = (name: string) =>
     mysqlEnum(name, convertEnum(downloadTypes))
 
+/**
+ * Creates a MySQL enum for charge methods
+ * @param {string} name - The name of the enum column
+ * @returns {import('drizzle-orm/mysql-core').MySqlEnum} MySQL enum for charge methods
+ */
 export const ChargeMethodEnum = (name: string) =>
     mysqlEnum(name, convertEnum(chargeMethods))
 
+/**
+ * Creates a MySQL enum for convention statuses
+ * @param {string} name - The name of the enum column
+ * @returns {import('drizzle-orm/mysql-core').MySqlEnum} MySQL enum for convention statuses
+ */
 export const ConStatusEnum = (name: string) => mysqlEnum(name, convertEnum(conStatus))
+
+/**
+ * Creates a MySQL enum for purchase statuses
+ * @param {string} name - The name of the enum column
+ * @returns {import('drizzle-orm/mysql-core').MySqlEnum} MySQL enum for purchase statuses
+ */
 export const PurchaseStatusEnum = (name: string) =>
     mysqlEnum(name, convertEnum(purchaseStatus))
 
@@ -90,10 +119,21 @@ export const PurchaseStatusEnum = (name: string) =>
 //////////////////////////////////////////////////////////
 
 /**
- * Delivery
+ * Delivery table
  *
- * Table for storing the delivery a user has on their account,
- * whether it's through purchasing products or through the commissions
+ * Stores digital deliveries for users, including both purchased products and commissioned works.
+ * Each delivery is associated with a user, artist, and optionally a request.
+ *
+ * @property {string} id - Unique identifier for the delivery
+ * @property {string} userId - ID of the user receiving the delivery
+ * @property {string} artistId - ID of the artist who created the content
+ * @property {string} requestId - Optional ID of the associated commission request
+ * @property {string} utKey - Unique transfer key for the delivery
+ * @property {DownloadType} type - Type of download (e.g., image, video)
+ * @property {Date} createdAt - When the delivery was created
+ * @property {Date} updatedAt - When the delivery was last updated
+ * @property {number} version - Version number of the delivery, increments on update
+ * @property {boolean} isFinal - Whether this is the final delivery for a commission
  */
 export const delivery = createTable('delivery', {
     id: varchar('id', { length: 128 }).primaryKey(),
@@ -119,9 +159,26 @@ export const delivery = createTable('delivery', {
 })
 
 /**
- * Artist
+ * Artists table
  *
- * Holds all the information for the artist
+ * Stores comprehensive information about artists on the platform, including
+ * their profile details, payment settings, and customization options.
+ *
+ * @property {string} id - Unique identifier for the artist
+ * @property {string} userId - ID of the user account associated with this artist
+ * @property {string} stripeAccount - Stripe account ID for payments
+ * @property {boolean} onboarded - Whether the artist has completed onboarding
+ * @property {Date} createdAt - When the artist profile was created
+ * @property {string} handle - Unique username/handle for the artist
+ * @property {string} about - Artist's bio/description
+ * @property {string} location - Artist's location
+ * @property {string} terms - Artist's terms of service
+ * @property {string} tipJarUrl - Optional URL for the artist's tip jar
+ * @property {string} headerPhoto - Key for the artist's header photo
+ * @property {boolean} automatedMessageEnabled - Whether automated messages are enabled
+ * @property {string} automatedMessage - Content of the automated message
+ * @property {ChargeMethod} defaultChargeMethod - Default payment method for commissions
+ * @property {SocialAccount[]} socials - Array of social media accounts
  */
 export const artists = createTable('artist', {
     id: varchar('id', { length: 128 }).primaryKey(),
@@ -152,9 +209,15 @@ export const artists = createTable('artist', {
 })
 
 /**
- * Artist Code
+ * Artist Codes table
  *
- * Artist Code used for verification and entry to become an artist
+ * Stores invitation codes that allow users to register as artists.
+ * Each code has an expiration date and can only be used once.
+ *
+ * @property {string} id - Unique identifier for the code entry
+ * @property {string} code - The actual invitation code
+ * @property {Date} createdAt - When the code was created
+ * @property {Date} expiresAt - When the code expires
  */
 export const artistCodes = createTable('artist_code', {
     id: varchar('id', { length: 128 }).primaryKey(),
@@ -164,9 +227,19 @@ export const artistCodes = createTable('artist_code', {
 })
 
 /**
- * Artist Verification
+ * Artist Verifications table
  *
- * Holds verification information for the submitted by the user
+ * Stores verification information submitted by users applying to become artists.
+ * This includes their requested handle and various platform links for verification.
+ *
+ * @property {string} id - Unique identifier for the verification request
+ * @property {string} userId - ID of the user requesting verification
+ * @property {string} requestedHandle - Desired artist handle (must be unique)
+ * @property {string} location - Artist's location
+ * @property {string} twitter - Optional Twitter/X profile link
+ * @property {string} pixiv - Optional Pixiv profile link
+ * @property {string} website - Optional personal website link
+ * @property {Date} createdAt - When the verification request was submitted
  */
 export const artistVerifications = createTable(
     'artist_verification',
@@ -188,9 +261,18 @@ export const artistVerifications = createTable(
 )
 
 /**
- * Portfolio
+ * Portfolios table
  *
- * Holds all information for an artist's portfolio
+ * Stores portfolio items for artists to showcase their work.
+ * Each portfolio item can be linked to a commission request.
+ *
+ * @property {string} id - Unique identifier for the portfolio item
+ * @property {string} artistId - ID of the artist who owns this portfolio item
+ * @property {string} utKey - Unique transfer key for the portfolio image
+ * @property {string} title - Title of the portfolio item
+ * @property {boolean} adultContent - Whether the item contains adult content
+ * @property {Date} createdAt - When the portfolio item was created
+ * @property {string} requestId - Optional ID of the commission request this was created from
  */
 export const portfolios = createTable('portfolio', {
     id: varchar('id', { length: 128 }).primaryKey(),
@@ -205,9 +287,35 @@ export const portfolios = createTable('portfolio', {
 })
 
 /**
- * Commissions
+ * Commissions table
  *
- * Holds all information for a commission
+ * Stores detailed information about commission offerings from artists.
+ * Includes pricing, availability, description, and configuration options.
+ *
+ * @property {string} id - Unique identifier for the commission
+ * @property {string} artistId - ID of the artist offering this commission
+ * @property {number} price - Base price of the commission in cents
+ * @property {number} rating - Popularity rating score
+ * @property {boolean} adultContent - Whether the commission allows adult content
+ * @property {string} formId - ID of the form used for commission requests
+ * @property {string} title - Title of the commission offering
+ * @property {JSONContent} description - Rich text description of the commission
+ * @property {Array<{utKey: string, blurData?: string}>} images - Example images for the commission
+ * @property {CommissionAvailability} availability - Current availability status
+ * @property {string} slug - URL-friendly identifier
+ * @property {boolean} published - Whether the commission is publicly visible
+ * @property {Date} createdAt - When the commission was created
+ * @property {number} maxCommissionsUntilWaitlist - Threshold for switching to waitlist
+ * @property {number} maxCommissionsUntilClosed - Threshold for closing commissions
+ * @property {number} totalRequests - Total number of requests received
+ * @property {number} newRequests - Number of new/pending requests
+ * @property {number} acceptedRequests - Number of accepted requests
+ * @property {number} rejectedRequests - Number of rejected requests
+ * @property {ChargeMethod} chargeMethod - Payment method (in_full, split, etc.)
+ * @property {number} downpaymentPercentage - Percentage required for downpayment
+ * @property {boolean} rushOrdersAllowed - Whether rush orders are accepted
+ * @property {number} rushCharge - Additional charge for rush orders
+ * @property {boolean} rushPercentage - Whether rush charge is a percentage
  */
 export const commissions = createTable('commission', {
     id: varchar('id', { length: 128 }).primaryKey(),
@@ -257,6 +365,22 @@ export const commissions = createTable('commission', {
     rushPercentage: boolean('rush_percentage').default(false)
 })
 
+/**
+ * Products table
+ *
+ * Stores digital products that artists can sell directly without commission process.
+ *
+ * @property {string} id - Unique identifier for the product
+ * @property {string} title - Product title
+ * @property {JSONContent} description - Rich text description of the product
+ * @property {boolean} published - Whether the product is publicly available
+ * @property {boolean} isFree - Whether the product is free
+ * @property {Date} createdAt - When the product was created
+ * @property {number} price - Price of the product in cents
+ * @property {string[]} images - Array of image keys for product display
+ * @property {DownloadData} download - Download information for the product
+ * @property {string} artistId - ID of the artist selling this product
+ */
 export const products = createTable('products', {
     id: varchar('id', { length: 128 }).primaryKey(),
     title: varchar('title', { length: 128 }).notNull(),
@@ -273,6 +397,18 @@ export const products = createTable('products', {
     artistId: varchar('artist_id', { length: 128 }).notNull()
 })
 
+/**
+ * Purchases table
+ *
+ * Tracks user purchases of products from artists.
+ *
+ * @property {string} id - Unique identifier for the purchase
+ * @property {string} productId - ID of the purchased product
+ * @property {string} userId - ID of the user making the purchase
+ * @property {string} artistId - ID of the artist who created the product
+ * @property {PurchaseStatus} status - Current status of the purchase
+ * @property {Date} createdAt - When the purchase was created
+ */
 export const purchase = createTable('purchase', {
     id: varchar('id', { length: 128 }).primaryKey(),
 
@@ -288,9 +424,25 @@ export const purchase = createTable('purchase', {
 })
 
 /**
- * Invoice
+ * Invoices table
  *
- * Holds all information for an invoice
+ * Stores invoice information for commission payments.
+ * Links to Stripe for payment processing.
+ *
+ * @property {string} id - Unique identifier for the invoice
+ * @property {boolean} sent - Whether the invoice has been sent to the customer
+ * @property {InvoiceStatus} status - Current status of the invoice
+ * @property {boolean} isFinal - Whether this is the final invoice for a commission
+ * @property {string} stripeId - Stripe invoice ID
+ * @property {string} hostedUrl - URL to the hosted invoice page
+ * @property {InvoiceItem[]} items - Line items included in the invoice
+ * @property {Date} createdAt - When the invoice was created
+ * @property {string} customerId - Stripe customer ID
+ * @property {string} stripeAccount - Stripe connected account ID
+ * @property {number} total - Total amount in cents
+ * @property {string} userId - ID of the user being invoiced
+ * @property {string} artistId - ID of the artist issuing the invoice
+ * @property {string} requestId - ID of the associated commission request
  */
 export const invoices = createTable('invoice', {
     id: varchar('id', { length: 128 }).primaryKey(),
@@ -314,9 +466,17 @@ export const invoices = createTable('invoice', {
 })
 
 /**
- * Form
+ * Forms table
  *
- * Holds all information for a form
+ * Stores customizable forms that artists create for commission requests.
+ *
+ * @property {string} id - Unique identifier for the form
+ * @property {string} artistId - ID of the artist who created the form
+ * @property {string[]} commissionId - IDs of commissions using this form
+ * @property {string} name - Name/title of the form
+ * @property {string} description - Description of the form's purpose
+ * @property {Date} createdAt - When the form was created
+ * @property {FormElementInstance[]} content - Form elements and structure
  */
 export const forms = createTable('form', {
     id: varchar('id', { length: 128 }).primaryKey(),
@@ -330,9 +490,22 @@ export const forms = createTable('form', {
 })
 
 /**
- * Request
+ * Requests table
  *
- * Holds all information for a request
+ * Stores commission requests submitted by users.
+ * Links to forms, commissions, invoices, and other related entities.
+ *
+ * @property {string} id - Unique identifier for the request
+ * @property {string} formId - ID of the form used for this request
+ * @property {string} userId - ID of the user who submitted the request
+ * @property {Date} createdAt - When the request was submitted
+ * @property {RequestStatus} status - Current status of the request
+ * @property {string} commissionId - ID of the commission type requested
+ * @property {string} orderId - Order identifier for this request
+ * @property {string[]} invoiceIds - IDs of invoices associated with this request
+ * @property {string} kanbanId - ID of the kanban board for this request
+ * @property {string} deliveryId - ID of the delivery for this request
+ * @property {Record<string, string>} content - Form submission data
  */
 export const requests = createTable('request', {
     id: varchar('id', { length: 128 }).primaryKey(),
@@ -352,9 +525,15 @@ export const requests = createTable('request', {
 })
 
 /**
- * Kanban
+ * Kanbans table
  *
- * Holds all information for a kanban
+ * Stores kanban board data for tracking commission progress.
+ *
+ * @property {string} id - Unique identifier for the kanban board
+ * @property {string} requestId - ID of the associated commission request
+ * @property {any} containers - JSON data for kanban containers/columns
+ * @property {any} tasks - JSON data for kanban tasks
+ * @property {Date} createdAt - When the kanban board was created
  */
 export const kanbans = createTable('kanban', {
     id: varchar('id', { length: 128 }).primaryKey(),
@@ -366,6 +545,19 @@ export const kanbans = createTable('kanban', {
     createdAt: timestamp('created_at').defaultNow().notNull()
 })
 
+/**
+ * Chats table
+ *
+ * Stores chat information for communication between artists and clients.
+ *
+ * @property {string} id - Unique identifier for the chat
+ * @property {string} requestId - ID of the associated commission request
+ * @property {string} commissionId - ID of the associated commission
+ * @property {string} artistId - ID of the artist in the chat
+ * @property {string[]} userIds - IDs of all users participating in the chat
+ * @property {string} messageRedisKey - Redis key for retrieving chat messages
+ * @property {Date} createdAt - When the chat was created
+ */
 export const chats = createTable('chats', {
     id: varchar('id', { length: 128 }).primaryKey(),
 
@@ -379,6 +571,19 @@ export const chats = createTable('chats', {
     createdAt: timestamp('created_at').defaultNow().notNull()
 })
 
+/**
+ * Convention Sign-Up table
+ *
+ * Stores information about convention sign-ups.
+ *
+ * @property {string} id - Unique identifier for the convention sign-up
+ * @property {string} name - Name of the convention
+ * @property {string} slug - URL-friendly identifier
+ * @property {ConStatus} status - Current status of the convention
+ * @property {Date} createdAt - When the convention entry was created
+ * @property {Date} expiresAt - When the sign-up period expires
+ * @property {number} signUpCount - Number of users signed up
+ */
 export const conSignUp = createTable(
     'con_sign_up',
     {
@@ -404,6 +609,8 @@ export const conSignUp = createTable(
 
 /**
  * Chat Relations
+ *
+ * Defines relationships between chats and related entities.
  */
 export const chatRelations = relations(chats, ({ one }) => ({
     commission: one(commissions, {
@@ -421,7 +628,9 @@ export const chatRelations = relations(chats, ({ one }) => ({
 }))
 
 /**
- * Download Relations
+ * Delivery Relations
+ *
+ * Defines relationships between deliveries and related entities.
  */
 export const deliveryRelations = relations(delivery, ({ one }) => ({
     artist: one(artists, {
@@ -436,6 +645,8 @@ export const deliveryRelations = relations(delivery, ({ one }) => ({
 
 /**
  * Artist Relations
+ *
+ * Defines relationships between artists and related entities.
  */
 export const artistRelations = relations(artists, ({ many }) => ({
     commissions: many(commissions),
@@ -448,6 +659,8 @@ export const artistRelations = relations(artists, ({ many }) => ({
 
 /**
  * Portfolio Relations
+ *
+ * Defines relationships between portfolio items and related entities.
  */
 export const portfolioRelations = relations(portfolios, ({ one }) => ({
     artist: one(artists, {
@@ -462,6 +675,8 @@ export const portfolioRelations = relations(portfolios, ({ one }) => ({
 
 /**
  * Commission Relations
+ *
+ * Defines relationships between commissions and related entities.
  */
 export const commissionRelations = relations(commissions, ({ one, many }) => ({
     artist: one(artists, {
@@ -478,6 +693,8 @@ export const commissionRelations = relations(commissions, ({ one, many }) => ({
 
 /**
  * Invoice Relations
+ *
+ * Defines relationships between invoices and related entities.
  */
 export const invoiceRelations = relations(invoices, ({ one }) => ({
     artist: one(artists, {
@@ -492,6 +709,8 @@ export const invoiceRelations = relations(invoices, ({ one }) => ({
 
 /**
  * Form Relations
+ *
+ * Defines relationships between forms and related entities.
  */
 export const formRelations = relations(forms, ({ one, many }) => ({
     artist: one(artists, {
@@ -504,6 +723,8 @@ export const formRelations = relations(forms, ({ one, many }) => ({
 
 /**
  * Request Relations
+ *
+ * Defines relationships between requests and related entities.
  */
 export const requestRelations = relations(requests, ({ one, many }) => ({
     form: one(forms, {
@@ -531,6 +752,8 @@ export const requestRelations = relations(requests, ({ one, many }) => ({
 
 /**
  * Kanban Relations
+ *
+ * Defines relationships between kanban boards and related entities.
  */
 export const kanbanRelations = relations(kanbans, ({ one }) => ({
     request: one(requests, {
@@ -541,6 +764,8 @@ export const kanbanRelations = relations(kanbans, ({ one }) => ({
 
 /**
  * Product Relations
+ *
+ * Defines relationships between products and related entities.
  */
 export const productRelations = relations(products, ({ one, many }) => ({
     artist: one(artists, {
@@ -550,6 +775,11 @@ export const productRelations = relations(products, ({ one, many }) => ({
     purchases: many(purchase)
 }))
 
+/**
+ * Purchase Relations
+ *
+ * Defines relationships between purchases and related entities.
+ */
 export const purchaseRelations = relations(purchase, ({ one }) => ({
     product: one(products, {
         fields: [purchase.productId],

@@ -4,6 +4,27 @@ import Script from 'next/script'
 import { useEffect } from 'react'
 import { useUser } from '@clerk/nextjs'
 
+// Define types for Featurebase
+interface FeaturebaseUser {
+    organization: string
+    email?: string
+    name?: string
+    id: string
+    profilePicture?: string
+    userHash: string
+}
+
+type FeaturebaseCallback = (error: Error | null) => void
+
+interface FeaturebaseFunction {
+    (method: 'identify', user: FeaturebaseUser, callback: FeaturebaseCallback): void
+    q?: unknown[]
+}
+
+interface WindowWithFeaturebase extends Window {
+    Featurebase: FeaturebaseFunction
+}
+
 export function Featurebase() {
     const { isSignedIn, user } = useUser()
 
@@ -12,33 +33,18 @@ export function Featurebase() {
         if (typeof window === 'undefined') return
         if (user.publicMetadata.role === 'admin') return
 
-        // Define types for Featurebase
-        interface FeaturebaseUser {
-            organization: string
-            email?: string
-            name?: string
-            id: string
-            profilePicture?: string
-            userHash: string
-        }
-
-        type FeaturebaseCallback = (error: Error | null) => void
-
-        interface FeaturebaseFunction {
-            (
-                method: 'identify',
-                user: FeaturebaseUser,
-                callback: FeaturebaseCallback
-            ): void
-            q?: unknown[]
-        }
-
-        interface WindowWithFeaturebase extends Window {
-            Featurebase: FeaturebaseFunction
-        }
-
         const win = window as unknown as WindowWithFeaturebase
 
+        // Skip Featurebase initialization in development environment
+        if (win.location.hostname.includes('localhost')) {
+            console.log(
+                '[Featurebase] Skipping initialization in development environment'
+            )
+
+            return
+        }
+
+        // Initialize Featurebase if it doesn't exist
         if (typeof win.Featurebase !== 'function') {
             win.Featurebase = function () {
                 // eslint-disable-next-line prefer-rest-params
