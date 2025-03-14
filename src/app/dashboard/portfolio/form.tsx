@@ -130,6 +130,8 @@ function PortfolioForm(props: PortfolioFormProps) {
             toast.success('Portfolio item deleted', {
                 id: ctx.toastId
             })
+
+            router.push('/dashboard/portfolio')
         },
         onError: (e, _, ctx) => {
             toast.error('Oh Nyo! Something went wrong', {
@@ -155,7 +157,7 @@ function PortfolioForm(props: PortfolioFormProps) {
     }
 
     const cancelHref = useMemo(() => {
-        if (props.mode === 'create') return '/dashboard/portfolio'
+        if (props.mode === 'update') return '/dashboard/portfolio'
 
         return `/dashboard/portfolio/${props.initialData?.id}`
     }, [props.mode, props.initialData])
@@ -205,6 +207,7 @@ function PortfolioForm(props: PortfolioFormProps) {
                                         description: error.message
                                     })
                                 }}
+                                className="ut-label:text-foreground ut-allowed-content:text-muted-foreground border-secondary border-2 border-dashed"
                             />
                             {form.watch('image') !== '' && (
                                 <Card>
@@ -278,6 +281,10 @@ function PortfolioForm(props: PortfolioFormProps) {
                                                         id: props.initialData.id
                                                     })
                                                 }}
+                                                disabled={
+                                                    destroyPortfolio.isPending ||
+                                                    destroyPortfolio.isSuccess
+                                                }
                                             >
                                                 Delete
                                             </Button>

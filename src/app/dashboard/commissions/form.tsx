@@ -453,6 +453,7 @@ function CommissionForm(props: CommissionFormProps) {
                                         description: error.message
                                     })
                                 }}
+                                className="ut-label:text-foreground ut-allowed-content:text-muted-foreground border-secondary border-2 border-dashed"
                             />
                             {field.value.length > 0 && (
                                 <Card>

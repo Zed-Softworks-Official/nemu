@@ -16,7 +16,7 @@ export function useParallelModal(dialogRef: React.RefObject<ElementRef<'dialog'>
         if (!pathname) return
 
         // Close modal when navigating to a non-commission page
-        if (!pathname.includes('/commission/')) {
+        if (!pathname.includes('/commission/') && !pathname.includes('/artist-corner/')) {
             setOpen(false)
             return
         }

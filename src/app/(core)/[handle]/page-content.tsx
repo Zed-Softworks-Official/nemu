@@ -332,7 +332,7 @@ function ArtistCornerList() {
     }
 
     return (
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3">
             {artist.products.map((product) => (
                 <Card
                     key={product.id}
@@ -341,6 +341,7 @@ function ArtistCornerList() {
                     <Link
                         href={`/@${artist.handle}/artist-corner/${product.id}`}
                         prefetch={true}
+                        scroll={false}
                     >
                         <CardContent className="relative flex flex-col items-center gap-6 sm:flex-row">
                             <AspectRatio ratio={1}>
@@ -352,7 +353,7 @@ function ArtistCornerList() {
                                     className="h-48 w-full object-cover md:h-full md:w-48"
                                 />
                             </AspectRatio>
-                            <div className="h-fuit absolute bottom-0 left-0 flex w-full px-4 pb-4 lg:px-10 lg:pb-[10%]">
+                            <div className="absolute bottom-0 left-0 flex h-fit w-full px-4 lg:px-10">
                                 <div className="bg-background/80 text-foreground flex items-center rounded-md border p-1 text-xs font-semibold backdrop-blur-md">
                                     <div className="flex flex-col">
                                         <h3 className="tracking-right mr-4 line-clamp-2 grow pl-2 text-sm leading-none">

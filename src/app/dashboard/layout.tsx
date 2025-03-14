@@ -58,8 +58,8 @@ const sidebar_items = [
         icon: <Layers className="size-6" />
     },
     {
-        title: 'Artist Corner',
-        href: '/dashboard/artist-corner',
+        title: 'Products',
+        href: '/dashboard/products',
         icon: <Store className="size-6" />
     },
     {

@@ -135,7 +135,7 @@ export function ProductForm({ mode, initialData }: ProductFormProps) {
             toast.success('Product Created', {
                 id: ctx.toast_id
             })
-            router.push('/dashboard/artist-corner')
+            router.push('/dashboard/products')
         },
         onError: (_, __, ctx) => {
             toast.error('Failed to create product', {
@@ -153,7 +153,7 @@ export function ProductForm({ mode, initialData }: ProductFormProps) {
             toast.success('Product Updated', {
                 id: ctx.toast_id
             })
-            router.push('/dashboard/artist-corner')
+            router.push('/dashboard/products')
         },
         onError: (_, __, ctx) => {
             toast.error('Failed to update product', {
@@ -192,8 +192,8 @@ export function ProductForm({ mode, initialData }: ProductFormProps) {
 
     const cancelHref =
         mode === 'create'
-            ? '/dashboard/artist-corner'
-            : `/dashboard/artist-corner/${initialData?.id}`
+            ? '/dashboard/products'
+            : `/dashboard/products/${initialData?.id}`
 
     return (
         <Form {...form}>
@@ -255,6 +255,7 @@ export function ProductForm({ mode, initialData }: ProductFormProps) {
                                         description: error.message
                                     })
                                 }}
+                                className="ut-label:text-foreground ut-allowed-content:text-muted-foreground border-secondary border-2 border-dashed"
                             />
                             {field.value.length > 0 && (
                                 <Card>
@@ -357,6 +358,7 @@ export function ProductForm({ mode, initialData }: ProductFormProps) {
                                         description: error.message
                                     })
                                 }}
+                                className="ut-label:text-foreground ut-allowed-content:text-muted-foreground border-secondary border-2 border-dashed"
                             />
                             {currentFile && (
                                 <Card>

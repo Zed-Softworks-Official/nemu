@@ -3,19 +3,22 @@
 import { useParams } from 'next/navigation'
 
 import ParallelModal from '~/app/_components/ui/parallel-modal'
-import { CommissionView } from '~/app/_components/commission-view'
+import { ProductView } from '~/app/_components/product-view'
 
 type RouteParams = {
     handle: string
-    slug: string
+    id: string
 }
 
-export default function CommissionModal() {
+export default function ArtistCornerModal() {
     const params = useParams<RouteParams>()
 
     return (
         <ParallelModal>
-            <CommissionView handle={params.handle} slug={params.slug} />
+            <ProductView
+                handle={params.handle.substring(3, params.handle.length)}
+                id={params.id}
+            />
         </ParallelModal>
     )
 }

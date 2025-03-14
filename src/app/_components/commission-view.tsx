@@ -7,10 +7,10 @@ import { notFound } from 'next/navigation'
 import { ClipboardListIcon } from 'lucide-react'
 import { RedirectToSignIn, useUser } from '@clerk/nextjs'
 
-import { api } from '~/trpc/react'
+import { api, type RouterOutputs } from '~/trpc/react'
 import { type forms } from '~/server/db/schema'
 import { getAvailabilityBadgeData } from '~/lib/utils'
-import { type ChargeMethod, type ClientCommissionItem } from '~/lib/types'
+import { type ChargeMethod } from '~/lib/types'
 
 import Loading from '~/app/_components/ui/loading'
 import ImageViewer from '~/app/_components/ui/image-viewer'
@@ -63,7 +63,7 @@ export function CommissionView(props: { handle: string; slug: string }) {
 }
 
 function CommissionContent(props: {
-    commission: ClientCommissionItem
+    commission: NonNullable<RouterOutputs['commission']['getCommission']>
     form_data: InferSelectModel<typeof forms>
     user_requested: boolean | undefined
 }) {

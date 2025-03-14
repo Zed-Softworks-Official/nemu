@@ -76,6 +76,7 @@ export function ProductCard(props: {
         <Link
             href={`/@${props.product.artist.handle}/artist-corner/${props.product.id}`}
             className="relative block aspect-square h-full w-full"
+            scroll={false}
         >
             <div className="group bg-secondary hover:border-primary relative flex h-full w-full items-center justify-center overflow-hidden rounded-lg border">
                 <NemuImage

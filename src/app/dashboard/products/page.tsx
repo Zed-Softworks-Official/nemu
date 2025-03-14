@@ -12,11 +12,11 @@ export default async function ArtistCornerDashboard() {
     return (
         <div className="container mx-auto px-5 py-10">
             <div className="mb-6 flex items-center justify-between">
-                <h1 className="text-3xl font-bold">Artist Corner</h1>
+                <h1 className="text-3xl font-bold">Products</h1>
                 <DashboardCreateButton
                     onboarded={onboarded}
                     text="Create Product"
-                    href="/dashboard/artist-corner/create"
+                    href="/dashboard/products/create"
                 />
             </div>
 
@@ -48,7 +48,7 @@ async function Products() {
             ]}
             rowData={products}
             columnActionData={{
-                url: `/dashboard/artist-corner`,
+                url: `/dashboard/products`,
                 field: 'id',
                 actionText: 'View'
             }}

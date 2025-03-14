@@ -25,6 +25,8 @@ export const portfolioRouter = createTRPCRouter({
                 utKey: input.image,
                 title: input.title
             })
+
+            await ctx.redis.zrem('portfolio:images', input.image)
         }),
 
     updatePortfolio: artistProcedure
