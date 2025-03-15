@@ -194,6 +194,85 @@ export const artistVerificationRouter = createTRPCRouter({
                 },
                 ctx.auth.userId
             )
+        }),
+
+    acceptArtist: adminProcedure
+        .input(
+            z.object({
+                id: z.string()
+            })
+        )
+        .mutation(async ({ input, ctx }) => {
+            const verificationData = await ctx.db.query.artistVerifications.findFirst({
+                where: eq(artistVerifications.id, input.id)
+            })
+
+            if (!verificationData) {
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Verification data not found'
+                })
+            }
+
+            const createArtistPromise = createArtist(
+                {
+                    requestedHandle: verificationData.requestedHandle,
+                    location: verificationData.location,
+                    twitter: verificationData.twitter ?? '',
+                    website: verificationData.website ?? '',
+                    method: 'twitter'
+                },
+                verificationData.userId
+            )
+
+            const deleteVerificationPromise = ctx.db
+                .delete(artistVerifications)
+                .where(eq(artistVerifications.id, input.id))
+
+            const knockPromise = sendNotification({
+                type: KnockWorkflows.VerificationApproved,
+                recipients: [verificationData.userId],
+                data: {
+                    artist_handle: verificationData.requestedHandle
+                }
+            })
+
+            await Promise.all([
+                createArtistPromise,
+                deleteVerificationPromise,
+                knockPromise
+            ])
+        }),
+
+    rejectArtist: adminProcedure
+        .input(
+            z.object({
+                id: z.string()
+            })
+        )
+        .mutation(async ({ input, ctx }) => {
+            const verificationData = await ctx.db.query.artistVerifications.findFirst({
+                where: eq(artistVerifications.id, input.id)
+            })
+
+            if (!verificationData) {
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Verification data not found'
+                })
+            }
+
+            const deleteVerificationPromise = ctx.db
+                .delete(artistVerifications)
+                .where(eq(artistVerifications.id, input.id))
+
+            const knockPromise = sendNotification({
+                type: KnockWorkflows.VerificationRejected,
+                recipients: [verificationData.userId],
+                data: undefined
+            })
+
+            await Promise.all([deleteVerificationPromise, knockPromise])
         })
 })
 
