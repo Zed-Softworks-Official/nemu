@@ -1,6 +1,5 @@
 import { z } from 'zod'
 import { clerkClient } from '@clerk/nextjs/server'
-import { revalidateTag } from 'next/cache'
 import { createId } from '@paralleldrive/cuid2'
 
 import { adminProcedure, createTRPCRouter, protectedProcedure } from '~/server/api/trpc'
@@ -20,6 +19,8 @@ import { StripeCreateAccount } from '~/lib/payments'
 
 import { setIndex } from '~/server/algolia/collections'
 import { sendNotification, KnockWorkflows } from '~/server/knock'
+import { fromPromise } from 'neverthrow'
+import { tryCatch } from '~/lib/try-catch'
 
 export const artistVerificationRouter = createTRPCRouter({
     generateArtistCode: adminProcedure
@@ -29,29 +30,59 @@ export const artistVerificationRouter = createTRPCRouter({
             })
         )
         .mutation(async ({ input, ctx }) => {
-            // Create the new artist codes
             const codes = Array.from({ length: input.amount }, () => ({
                 id: createId(),
                 code: 'NEMU-' + crypto.randomUUID()
             }))
 
-            // Batch insert all codes in a single database operation
-            await ctx.db.insert(artistCodes).values(codes)
+            const { error } = await tryCatch(ctx.db.insert(artistCodes).values(codes))
+            if (error) {
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Failed to generate artist codes',
+                    cause: error
+                })
+            }
 
-            // Extract just the code strings for the result
-            const result = codes.map((code) => code.code)
-
-            revalidateTag('artist_codes')
-
-            return { success: true, codes: result }
+            return { codes: codes.map((code) => code.code) }
         }),
 
     getArtistCodes: adminProcedure.query(async ({ ctx }) => {
-        return await ctx.db.query.artistCodes.findMany()
+        const result = await fromPromise(
+            ctx.db.query.artistCodes.findMany(),
+            (error) =>
+                new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Failed to get artist codes',
+                    cause: error
+                })
+        ).match(
+            (data) => data,
+            (error) => {
+                throw error
+            }
+        )
+
+        return result
     }),
 
     getArtistVerifications: adminProcedure.query(async ({ ctx }) => {
-        return await ctx.db.query.artistVerifications.findMany()
+        const result = await fromPromise(
+            ctx.db.query.artistVerifications.findMany(),
+            (error) =>
+                new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Failed to get artist verifications',
+                    cause: error
+                })
+        ).match(
+            (data) => data,
+            (error) => {
+                throw error
+            }
+        )
+
+        return result
     }),
 
     verifyArtist: protectedProcedure

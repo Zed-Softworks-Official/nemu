@@ -1,37 +1,14 @@
-import { and, asc, eq, gt } from 'drizzle-orm'
 import { z } from 'zod'
-import { type JSONContent } from '@tiptap/react'
+import { and, asc, eq, gt } from 'drizzle-orm'
+import { fromPromise } from 'neverthrow'
 
 import { commissions, products } from '~/server/db/schema'
 import { createTRPCRouter, publicProcedure } from '~/server/api/trpc'
 
 import { formatToCurrency, getUTUrl } from '~/lib/utils'
-import type { CommissionAvailability } from '~/lib/types'
+import type { CommissionResult, ProductResult } from '~/lib/types'
 import { cache, getRedisKey } from '~/server/redis'
-
-type CommissionResult = {
-    id: string
-    title: string
-    description: JSONContent
-    featuredImage: string
-    slug: string
-    availability: CommissionAvailability
-    price: string
-    artist: {
-        handle: string
-    }
-}
-
-type ProductResult = {
-    id: string
-    title: string
-    description: JSONContent | null
-    featuredImage: string
-    price: string
-    artist: {
-        handle: string
-    }
-}
+import { TRPCError } from '@trpc/server'
 
 export const homeRouter = createTRPCRouter({
     getCommissionsInfinite: publicProcedure
@@ -42,21 +19,34 @@ export const homeRouter = createTRPCRouter({
             })
         )
         .query(async ({ ctx, input }) => {
-            const data = await ctx.db.query.commissions.findMany({
-                limit: input.limit,
-                with: {
-                    artist: true
-                },
-                orderBy: (commission) => asc(commission.createdAt),
-                where: input.cursor
-                    ? and(
-                          gt(commissions.createdAt, input.cursor),
-                          eq(commissions.published, true)
-                      )
-                    : eq(commissions.published, true)
-            })
+            const result = await fromPromise(
+                ctx.db.query.commissions.findMany({
+                    limit: input.limit,
+                    with: {
+                        artist: true
+                    },
+                    orderBy: (commission) => asc(commission.createdAt),
+                    where: input.cursor
+                        ? and(
+                              gt(commissions.createdAt, input.cursor),
+                              eq(commissions.published, true)
+                          )
+                        : eq(commissions.published, true)
+                }),
+                (error) =>
+                    new TRPCError({
+                        code: 'INTERNAL_SERVER_ERROR',
+                        message: 'Failed to fetch commissions',
+                        cause: error
+                    })
+            ).match(
+                (data) => data,
+                (error) => {
+                    throw error
+                }
+            )
 
-            const res: CommissionResult[] = data.map((commission) => ({
+            const res: CommissionResult[] = result.map((commission) => ({
                 id: commission.id,
                 title: commission.title,
                 description: commission.description,
@@ -69,7 +59,10 @@ export const homeRouter = createTRPCRouter({
                 }
             }))
 
-            return { res, next_cursor: data[data.length - 1]?.createdAt }
+            return {
+                res,
+                nextCursor: result?.[result.length - 1]?.createdAt
+            }
         }),
 
     getProductsInfinite: publicProcedure
@@ -80,21 +73,34 @@ export const homeRouter = createTRPCRouter({
             })
         )
         .query(async ({ input, ctx }) => {
-            const data = await ctx.db.query.products.findMany({
-                limit: input.limit,
-                with: {
-                    artist: true
-                },
-                orderBy: (product) => asc(product.createdAt),
-                where: input.cursor
-                    ? and(
-                          gt(products.createdAt, input.cursor),
-                          eq(products.published, true)
-                      )
-                    : eq(products.published, true)
-            })
+            const result = await fromPromise(
+                ctx.db.query.products.findMany({
+                    limit: input.limit,
+                    with: {
+                        artist: true
+                    },
+                    orderBy: (product) => asc(product.createdAt),
+                    where: input.cursor
+                        ? and(
+                              gt(products.createdAt, input.cursor),
+                              eq(products.published, true)
+                          )
+                        : eq(products.published, true)
+                }),
+                (error) =>
+                    new TRPCError({
+                        code: 'INTERNAL_SERVER_ERROR',
+                        message: 'Failed to fetch products',
+                        cause: error
+                    })
+            ).match(
+                (data) => data,
+                (error) => {
+                    throw error
+                }
+            )
 
-            const res: ProductResult[] = data.map((product) => ({
+            const res: ProductResult[] = result.map((product) => ({
                 id: product.id,
                 title: product.title,
                 description: product.description,
@@ -105,7 +111,10 @@ export const homeRouter = createTRPCRouter({
                 }
             }))
 
-            return { res, nextCursor: data[data.length - 1]?.createdAt }
+            return {
+                res,
+                nextCursor: result?.[result.length - 1]?.createdAt
+            }
         }),
 
     getFeaturedProducts: publicProcedure.query(async ({ ctx }) => {

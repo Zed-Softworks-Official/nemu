@@ -2,6 +2,7 @@
 
 import { CheckCircle, Menu, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
+
 import { DataTable } from '~/app/_components/data-table'
 import NemuImage from '~/app/_components/nemu-image'
 import { Button } from '~/app/_components/ui/button'
@@ -15,7 +16,8 @@ import Loading from '~/app/_components/ui/loading'
 import { api, type RouterOutputs } from '~/trpc/react'
 
 export default function VertificationDataTable() {
-    const { data, isLoading } = api.artistVerification.getArtistVerifications.useQuery()
+    const { data, isLoading, isError } =
+        api.artistVerification.getArtistVerifications.useQuery()
 
     if (isLoading) {
         return (
@@ -25,7 +27,7 @@ export default function VertificationDataTable() {
         )
     }
 
-    if (!data) {
+    if (isError) {
         return (
             <div className="flex h-screen w-full items-center justify-center">
                 <NemuImage src="/nemu/sad.png" alt="Nemu Logo" />

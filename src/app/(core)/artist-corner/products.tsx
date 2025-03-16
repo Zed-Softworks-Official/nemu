@@ -6,8 +6,9 @@ import { motion } from 'motion/react'
 import { useIntersectionObserver } from '@uidotdev/usehooks'
 
 import NemuImage from '~/app/_components/nemu-image'
-import { api, type RouterOutputs } from '~/trpc/react'
+import { api } from '~/trpc/react'
 import Loading from '~/app/_components/ui/loading'
+import type { ProductResult } from '~/lib/types'
 
 export function InfiniteProducts() {
     const [ref, entry] = useIntersectionObserver({
@@ -21,7 +22,7 @@ export function InfiniteProducts() {
             limit: 10
         },
         {
-            getNextPageParam: (last_page) => last_page.nextCursor
+            getNextPageParam: (lastPage) => lastPage.nextCursor
         }
     )
 
@@ -44,8 +45,8 @@ export function InfiniteProducts() {
                 }}
                 initial={'hidden'}
             >
-                {query.data?.pages.map(({ res }) =>
-                    res.map((product) => (
+                {query.data?.pages.map((page) => {
+                    return page.res.map((product) => (
                         <motion.div
                             key={product.id}
                             initial={'hidden'}
@@ -59,7 +60,7 @@ export function InfiniteProducts() {
                             <ProductCard product={product} />
                         </motion.div>
                     ))
-                )}
+                })}
             </motion.div>
             <div ref={ref}></div>
             {query.isLoading && <Loading />}
@@ -67,9 +68,7 @@ export function InfiniteProducts() {
     )
 }
 
-export function ProductCard(props: {
-    product: NonNullable<RouterOutputs['home']['getProductsInfinite']['res'][number]>
-}) {
+export function ProductCard(props: { product: ProductResult }) {
     if (!props.product) return null
 
     return (

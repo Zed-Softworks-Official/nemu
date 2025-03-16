@@ -16,7 +16,8 @@ import {
 } from '~/app/_components/ui/card'
 import Loading from '~/app/_components/ui/loading'
 
-import { api, type RouterOutputs } from '~/trpc/react'
+import { api } from '~/trpc/react'
+import { type CommissionResult } from '~/lib/types'
 
 export function InfiniteCommissions() {
     const [ref, entry] = useIntersectionObserver({
@@ -30,7 +31,7 @@ export function InfiniteCommissions() {
             limit: 10
         },
         {
-            getNextPageParam: (last_page) => last_page.next_cursor
+            getNextPageParam: (lastPage) => lastPage.nextCursor
         }
     )
 
@@ -58,8 +59,8 @@ export function InfiniteCommissions() {
                 }}
                 initial={'hidden'}
             >
-                {query.data?.pages.map(({ res }) =>
-                    res.map((commission) => (
+                {query.data?.pages.map((page) => {
+                    return page.res.map((commission) => (
                         <motion.div
                             key={commission.id}
                             initial={'hidden'}
@@ -73,7 +74,7 @@ export function InfiniteCommissions() {
                             <CommissionCard commission={commission} />
                         </motion.div>
                     ))
-                )}
+                })}
             </motion.div>
             <div ref={ref}></div>
             {query.isLoading && <Loading />}
@@ -81,9 +82,7 @@ export function InfiniteCommissions() {
     )
 }
 
-function CommissionCard(props: {
-    commission: RouterOutputs['home']['getCommissionsInfinite']['res'][number]
-}) {
+function CommissionCard(props: { commission: CommissionResult }) {
     let badge_variant: BadgeProps['variant'] = 'default'
     switch (props.commission.availability) {
         case 'closed':
