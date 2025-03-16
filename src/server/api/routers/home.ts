@@ -6,7 +6,6 @@ import { commissions, products } from '~/server/db/schema'
 import { createTRPCRouter, publicProcedure } from '~/server/api/trpc'
 
 import { formatToCurrency, getUTUrl } from '~/lib/utils'
-import { tRPCResult } from '~/lib/trpc-result'
 import type { CommissionResult, ProductResult } from '~/lib/types'
 import { cache, getRedisKey } from '~/server/redis'
 import { TRPCError } from '@trpc/server'
@@ -34,18 +33,20 @@ export const homeRouter = createTRPCRouter({
                           )
                         : eq(commissions.published, true)
                 }),
-                () =>
+                (error) =>
                     new TRPCError({
                         code: 'INTERNAL_SERVER_ERROR',
-                        message: 'Failed to fetch commissions'
+                        message: 'Failed to fetch commissions',
+                        cause: error
                     })
+            ).match(
+                (data) => data,
+                (error) => {
+                    throw error
+                }
             )
 
-            if (result.isErr()) {
-                return tRPCResult({ result })
-            }
-
-            const res: CommissionResult[] = result.value.map((commission) => ({
+            const res: CommissionResult[] = result.map((commission) => ({
                 id: commission.id,
                 title: commission.title,
                 description: commission.description,
@@ -58,13 +59,10 @@ export const homeRouter = createTRPCRouter({
                 }
             }))
 
-            return tRPCResult({
-                result,
-                formattedData: {
-                    res,
-                    nextCursor: result.value?.[result.value.length - 1]?.createdAt
-                }
-            })
+            return {
+                res,
+                nextCursor: result?.[result.length - 1]?.createdAt
+            }
         }),
 
     getProductsInfinite: publicProcedure
@@ -89,18 +87,20 @@ export const homeRouter = createTRPCRouter({
                           )
                         : eq(products.published, true)
                 }),
-                () =>
+                (error) =>
                     new TRPCError({
                         code: 'INTERNAL_SERVER_ERROR',
-                        message: 'Failed to fetch products'
+                        message: 'Failed to fetch products',
+                        cause: error
                     })
+            ).match(
+                (data) => data,
+                (error) => {
+                    throw error
+                }
             )
 
-            if (result.isErr()) {
-                return tRPCResult({ result })
-            }
-
-            const res: ProductResult[] = result.value.map((product) => ({
+            const res: ProductResult[] = result.map((product) => ({
                 id: product.id,
                 title: product.title,
                 description: product.description,
@@ -111,13 +111,10 @@ export const homeRouter = createTRPCRouter({
                 }
             }))
 
-            return tRPCResult({
-                result,
-                formattedData: {
-                    res,
-                    nextCursor: result.value?.[result.value.length - 1]?.createdAt
-                }
-            })
+            return {
+                res,
+                nextCursor: result?.[result.length - 1]?.createdAt
+            }
         }),
 
     getFeaturedProducts: publicProcedure.query(async ({ ctx }) => {

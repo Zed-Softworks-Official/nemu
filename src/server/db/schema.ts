@@ -384,7 +384,7 @@ export const commissions = createTable('commission', {
 export const products = createTable('products', {
     id: varchar('id', { length: 128 }).primaryKey(),
     title: varchar('title', { length: 128 }).notNull(),
-    description: json('description').$type<JSONContent>(),
+    description: json('description').$type<JSONContent>().notNull(),
     published: boolean('published').default(false).notNull(),
     isFree: boolean('is_free').default(false).notNull(),
 

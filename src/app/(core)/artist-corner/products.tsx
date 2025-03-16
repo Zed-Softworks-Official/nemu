@@ -22,11 +22,7 @@ export function InfiniteProducts() {
             limit: 10
         },
         {
-            getNextPageParam: (lastPage) => {
-                if (!lastPage.isOk || !lastPage.formatted) return null
-
-                return lastPage.value?.nextCursor
-            }
+            getNextPageParam: (lastPage) => lastPage.nextCursor
         }
     )
 
@@ -50,9 +46,7 @@ export function InfiniteProducts() {
                 initial={'hidden'}
             >
                 {query.data?.pages.map((page) => {
-                    if (!page.isOk || !page.formatted) return null
-
-                    return page.value?.res.map((product) => (
+                    return page.res.map((product) => (
                         <motion.div
                             key={product.id}
                             initial={'hidden'}

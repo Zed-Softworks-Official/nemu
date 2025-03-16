@@ -18,7 +18,7 @@ export type CommissionResult = {
 export type ProductResult = {
     id: string
     title: string
-    description: JSONContent | null
+    description: JSONContent
     featuredImage: string
     price: string
     artist: {

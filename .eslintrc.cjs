@@ -46,7 +46,8 @@ const config = {
             {
                 drizzleObjectName: ['db', 'ctx.db']
             }
-        ]
+        ],
+        'neverthrow/must-use-result': 'error'
     }
 }
 module.exports = config

@@ -31,11 +31,7 @@ export function InfiniteCommissions() {
             limit: 10
         },
         {
-            getNextPageParam: (lastPage) => {
-                if (!lastPage.isOk || !lastPage.formatted) return null
-
-                return lastPage.value?.nextCursor
-            }
+            getNextPageParam: (lastPage) => lastPage.nextCursor
         }
     )
 
@@ -64,10 +60,7 @@ export function InfiniteCommissions() {
                 initial={'hidden'}
             >
                 {query.data?.pages.map((page) => {
-                    // Only proceed if the page is a success and has the res property
-                    if (!page.isOk || !page.formatted) return null
-
-                    return page.value?.res.map((commission) => (
+                    return page.res.map((commission) => (
                         <motion.div
                             key={commission.id}
                             initial={'hidden'}
