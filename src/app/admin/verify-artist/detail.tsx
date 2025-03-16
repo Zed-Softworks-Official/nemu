@@ -1,7 +1,9 @@
 'use client'
 
+import { type InferSelectModel } from 'drizzle-orm'
 import { CheckCircle, Menu, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
+
 import { DataTable } from '~/app/_components/data-table'
 import NemuImage from '~/app/_components/nemu-image'
 import { Button } from '~/app/_components/ui/button'
@@ -12,7 +14,8 @@ import {
     DropdownMenuTrigger
 } from '~/app/_components/ui/dropdown-menu'
 import Loading from '~/app/_components/ui/loading'
-import { api, type RouterOutputs } from '~/trpc/react'
+import { type artistVerifications } from '~/server/db/schema'
+import { api } from '~/trpc/react'
 
 export default function VertificationDataTable() {
     const { data, isLoading } = api.artistVerification.getArtistVerifications.useQuery()
@@ -25,7 +28,7 @@ export default function VertificationDataTable() {
         )
     }
 
-    if (!data) {
+    if (!data?.isOk) {
         return (
             <div className="flex h-screen w-full items-center justify-center">
                 <NemuImage src="/nemu/sad.png" alt="Nemu Logo" />
@@ -59,16 +62,12 @@ export default function VertificationDataTable() {
                     cellRenderer: VerifyButton
                 }
             ]}
-            rowData={data}
+            rowData={data.value}
         />
     )
 }
 
-function VerifyButton(props: {
-    data: NonNullable<
-        RouterOutputs['artistVerification']['getArtistVerifications']
-    >[number]
-}) {
+function VerifyButton(props: { data: InferSelectModel<typeof artistVerifications> }) {
     const utils = api.useUtils()
     const acceptArtist = api.artistVerification.acceptArtist.useMutation({
         onMutate: () => {

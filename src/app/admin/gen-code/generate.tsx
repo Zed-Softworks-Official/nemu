@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '~/app/_components/ui/c
 import { Separator } from '~/app/_components/ui/separator'
 import Loading from '~/app/_components/ui/loading'
 import { DataTable } from '~/app/_components/data-table'
+import { notFound } from 'next/navigation'
 
 const schema = z.object({
     quantity: z.number().min(1).max(100).default(1)
@@ -33,8 +34,9 @@ export function GenerateAristCode() {
         },
         onSuccess: (data) => {
             if (!toastId) return
+            if (!data.isOk) return
 
-            setGeneratedCodes(data.codes)
+            setGeneratedCodes(data.value as string[])
             toast.success('Codes generated successfully', {
                 id: toastId
             })
@@ -130,6 +132,10 @@ export function CurrentArtistCodes() {
         )
     }
 
+    if (!data?.isOk) {
+        return notFound()
+    }
+
     return (
         <div className="flex flex-1 flex-col gap-2 pt-10">
             <h1 className="text-xl font-bold">Current Artist Codes</h1>
@@ -156,7 +162,7 @@ export function CurrentArtistCodes() {
                             filter: true
                         }
                     ]}
-                    rowData={data}
+                    rowData={data.value}
                 />
             </div>
         </div>
