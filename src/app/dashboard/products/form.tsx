@@ -409,7 +409,7 @@ export function UpdateForm(props: {
             initialData={{
                 id: props.product.id,
                 title: props.product.title,
-                description: props.product.description!,
+                description: props.product.description,
                 price: props.product.price,
                 images: props.product.images,
                 download: props.product.download,
