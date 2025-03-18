@@ -29,13 +29,12 @@ export const metadata: Metadata = {
     openGraph: {
         images: [
             {
-                url: 'https://nemu.art/profile.png'
+                url: 'https://nemu.art/opengraph/nemu-full.jpg'
             }
         ],
         siteName: 'Nemu',
         title: 'Nemu',
-        description: 'The open-source platform for artists',
-        url: 'https://nemu.art'
+        description: 'The open-source platform for artists'
     },
     twitter: {
         card: 'summary_large_image',
@@ -43,7 +42,7 @@ export const metadata: Metadata = {
         description: 'The open-source platform for artists',
         images: [
             {
-                url: 'https://nemu.art/profile.png'
+                url: 'https://nemu.art/opengraph/nemu-full.jpg'
             }
         ]
     }
