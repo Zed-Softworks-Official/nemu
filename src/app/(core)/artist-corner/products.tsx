@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect } from 'react'
+import { toast } from 'sonner'
 import { motion } from 'motion/react'
 import { useIntersectionObserver } from '@uidotdev/usehooks'
 
@@ -22,7 +23,14 @@ export function InfiniteProducts() {
             limit: 10
         },
         {
-            getNextPageParam: (lastPage) => lastPage.nextCursor
+            getNextPageParam: (lastPage) => {
+                if (!lastPage.ok) {
+                    toast.error(lastPage.error.message)
+                    return undefined
+                }
+
+                return lastPage.data.nextCursor
+            }
         }
     )
 
@@ -46,7 +54,12 @@ export function InfiniteProducts() {
                 initial={'hidden'}
             >
                 {query.data?.pages.map((page) => {
-                    return page.res.map((product) => (
+                    if (!page.ok) {
+                        toast.error(page.error.message)
+                        return null
+                    }
+
+                    return page.data.res.map((product) => (
                         <motion.div
                             key={product.id}
                             initial={'hidden'}

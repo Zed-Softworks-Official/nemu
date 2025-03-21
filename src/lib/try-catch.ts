@@ -1,18 +1,20 @@
-/** Attempts to execute a promise and returns an object with the result or error. */
-export async function tryCatch<T>(promise: Promise<T>): Promise<{
-    data?: T
-    error?: Error
-}> {
+type Success<T> = {
+    data: T
+    error: null
+}
+
+type Failure<E> = {
+    data: null
+    error: E
+}
+
+export type Result<T, E> = Success<T> | Failure<E>
+
+export async function tryCatch<T, E>(promise: Promise<T>): Promise<Result<T, E>> {
     try {
         const data = await promise
-
-        return { data }
+        return { data, error: null }
     } catch (error) {
-        if (error instanceof Error) {
-            return { error }
-        }
-
-        // Handle non-Error throws by wrapping them
-        return { error: new Error(String(error)) }
+        return { data: null, error: error as E }
     }
 }

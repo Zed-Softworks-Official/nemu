@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { and, asc, eq, gt } from 'drizzle-orm'
-import { fromPromise } from 'neverthrow'
+import { err, fromPromise, ok } from 'neverthrow'
+import { TRPCError } from '@trpc/server'
 
 import { commissions, products } from '~/server/db/schema'
 import { createTRPCRouter, publicProcedure } from '~/server/api/trpc'
@@ -8,7 +9,8 @@ import { createTRPCRouter, publicProcedure } from '~/server/api/trpc'
 import { formatToCurrency, getUTUrl } from '~/lib/utils'
 import type { CommissionResult, ProductResult } from '~/lib/types'
 import { cache, getRedisKey } from '~/server/redis'
-import { TRPCError } from '@trpc/server'
+import { trpcResult } from '~/lib/trpc-result'
+import { captureException } from '~/lib/sentry'
 
 export const homeRouter = createTRPCRouter({
     getCommissionsInfinite: publicProcedure
@@ -40,13 +42,21 @@ export const homeRouter = createTRPCRouter({
                         cause: error
                     })
             ).match(
-                (data) => data,
+                (data) => {
+                    return trpcResult(ok(data))
+                },
                 (error) => {
-                    throw error
+                    captureException(error)
+
+                    return trpcResult(err(error))
                 }
             )
 
-            const res: CommissionResult[] = result.map((commission) => ({
+            if (!result.ok) {
+                return result
+            }
+
+            const res: CommissionResult[] = result.data.map((commission) => ({
                 id: commission.id,
                 title: commission.title,
                 description: commission.description,
@@ -59,10 +69,12 @@ export const homeRouter = createTRPCRouter({
                 }
             }))
 
-            return {
-                res,
-                nextCursor: result?.[result.length - 1]?.createdAt
-            }
+            return trpcResult(
+                ok({
+                    res,
+                    nextCursor: result.data?.[result.data.length - 1]?.createdAt
+                })
+            )
         }),
 
     getProductsInfinite: publicProcedure
@@ -94,13 +106,21 @@ export const homeRouter = createTRPCRouter({
                         cause: error
                     })
             ).match(
-                (data) => data,
+                (data) => {
+                    return trpcResult(ok(data))
+                },
                 (error) => {
-                    throw error
+                    captureException(error)
+
+                    return trpcResult(err(error))
                 }
             )
 
-            const res: ProductResult[] = result.map((product) => ({
+            if (!result.ok) {
+                return result
+            }
+
+            const res: ProductResult[] = result.data.map((product) => ({
                 id: product.id,
                 title: product.title,
                 description: product.description,
@@ -111,10 +131,12 @@ export const homeRouter = createTRPCRouter({
                 }
             }))
 
-            return {
-                res,
-                nextCursor: result?.[result.length - 1]?.createdAt
-            }
+            return trpcResult(
+                ok({
+                    res,
+                    nextCursor: result.data?.[result.data.length - 1]?.createdAt
+                })
+            )
         }),
 
     getFeaturedProducts: publicProcedure.query(async ({ ctx }) => {

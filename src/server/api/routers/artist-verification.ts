@@ -19,8 +19,10 @@ import { StripeCreateAccount } from '~/lib/payments'
 
 import { setIndex } from '~/server/algolia/collections'
 import { sendNotification, KnockWorkflows } from '~/server/knock'
-import { fromPromise } from 'neverthrow'
+import { err, fromPromise, ok } from 'neverthrow'
 import { tryCatch } from '~/lib/try-catch'
+import { trpcResult } from '~/lib/trpc-result'
+import { captureException } from '~/lib/sentry'
 
 export const artistVerificationRouter = createTRPCRouter({
     generateArtistCode: adminProcedure
@@ -37,14 +39,17 @@ export const artistVerificationRouter = createTRPCRouter({
 
             const { error } = await tryCatch(ctx.db.insert(artistCodes).values(codes))
             if (error) {
-                throw new TRPCError({
-                    code: 'INTERNAL_SERVER_ERROR',
-                    message: 'Failed to generate artist codes',
-                    cause: error
-                })
+                captureException(error)
+
+                return trpcResult(
+                    err({
+                        message: 'Failed to insert artist codes',
+                        cause: error
+                    })
+                )
             }
 
-            return { codes: codes.map((code) => code.code) }
+            return trpcResult(ok({ codes: codes.map((code) => code.code) }))
         }),
 
     getArtistCodes: adminProcedure.query(async ({ ctx }) => {

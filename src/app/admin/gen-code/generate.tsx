@@ -31,10 +31,14 @@ export function GenerateAristCode() {
         onMutate: () => {
             setToastId(toast.loading('Generating codes...'))
         },
-        onSuccess: (data) => {
+        onSuccess: (res) => {
             if (!toastId) return
+            if (!res.ok) {
+                toast.error(res.error.message)
+                return
+            }
 
-            setGeneratedCodes(data.codes)
+            setGeneratedCodes(res.data.codes)
             toast.success('Codes generated successfully', {
                 id: toastId
             })

@@ -18,6 +18,7 @@ import Loading from '~/app/_components/ui/loading'
 
 import { api } from '~/trpc/react'
 import { type CommissionResult } from '~/lib/types'
+import { toast } from 'sonner'
 
 export function InfiniteCommissions() {
     const [ref, entry] = useIntersectionObserver({
@@ -31,7 +32,14 @@ export function InfiniteCommissions() {
             limit: 10
         },
         {
-            getNextPageParam: (lastPage) => lastPage.nextCursor
+            getNextPageParam: (lastPage) => {
+                if (!lastPage.ok) {
+                    toast.error(lastPage.error.message)
+                    return undefined
+                }
+
+                return lastPage.data.nextCursor
+            }
         }
     )
 
@@ -60,7 +68,11 @@ export function InfiniteCommissions() {
                 initial={'hidden'}
             >
                 {query.data?.pages.map((page) => {
-                    return page.res.map((commission) => (
+                    if (!page.ok) {
+                        return null
+                    }
+
+                    return page.data.res.map((commission) => (
                         <motion.div
                             key={commission.id}
                             initial={'hidden'}
