@@ -13,14 +13,14 @@ const config = {
         remotePatterns: [
             {
                 protocol: 'https',
-                hostname: 'utfs.io',
-                pathname: '/a/74fsewdwmb/**',
+                hostname: '74fsewdwmb.ufs.sh',
+                pathname: '/f/**',
                 search: ''
             },
             {
                 protocol: 'https',
-                hostname: 'utfs.io',
-                pathname: '/a/vsku5b7hpr/**',
+                hostname: 'vsku5b7hpr.ufs.sh',
+                pathname: '/f/**',
                 search: ''
             },
             {

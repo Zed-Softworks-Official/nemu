@@ -91,5 +91,5 @@ export async function convertImagesToNemuImages(images: NemuImageData[]) {
 export const toPusherKey = (key: string) => key.replace(/:/g, '__')
 
 export function getUTUrl(utKey: string) {
-    return `https://utfs.io/a/${env.NEXT_PUBLIC_UPLOADTHING_APP_ID}/${utKey}`
+    return `https://${env.NEXT_PUBLIC_UPLOADTHING_APP_ID}.ufs.sh/f/${utKey}`
 }
