@@ -1,0 +1,9 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: nemu
+      POSTGRES_PASSWORD: nemu
+      POSTGRES_DB: nemu
+    ports:
+    - "5432:5432"
