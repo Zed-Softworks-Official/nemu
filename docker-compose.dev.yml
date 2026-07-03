@@ -1,4 +1,22 @@
 services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    volumes:
+      - ./infra/mosquitto:/mosquitto/config:ro
+    ports:
+      - "1883:1883"
+
+  zigbee2mqtt:
+    image: koenkk/zigbee2mqtt
+    volumes:
+      - ./infra/zigbee2mqtt:/app/data
+    devices:
+      - /dev/ttyUSB0:/dev/ttyUSB0
+    ports:
+      - "8081:8080"
+    depends_on:
+      - mosquitto
+
   postgres:
     image: postgres:16-alpine
     environment:
@@ -6,4 +24,4 @@ services:
       POSTGRES_PASSWORD: nemu
       POSTGRES_DB: nemu
     ports:
-    - "5432:5432"
+      - "5432:5432"
