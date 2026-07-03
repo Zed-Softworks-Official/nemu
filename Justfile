@@ -2,7 +2,6 @@ default:
     @just --list
 
 # Development
-
 build:
     cd apps/core && cargo build
 

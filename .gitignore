@@ -85,6 +85,7 @@ logs/
 /infra/zigbee2mqtt/state.json
 /infra/zigbee2mqtt/devices.yaml
 /infra/zigbee2mqtt/groups.yaml
+/infra/zigbee2mqtt/configuration_backup*.yaml
 !infra/zigbee2mqtt/configuration.yaml
 
 # ═══════════════════════════════════════════════════════════════════════════════
