@@ -1,35 +1,36 @@
-use axum::{Error, Router};
+use axum::Error;
 use diesel::prelude::*;
-use std::env;
+use std::{
+    env,
+    sync::{Arc, Mutex},
+};
 
-use crate::api;
+use crate::api::router::NemuRouter;
 
 pub struct NemuClient {
-    http_router: Router,
-    db_conn: PgConnection,
+    http_router: NemuRouter,
 }
 
 impl NemuClient {
     pub fn new() -> Self {
-        let conn = establish_connection();
+        let db_conn = Arc::new(Mutex::new(establish_db_connection()));
         println!("DB: Connection established");
 
         Self {
-            http_router: api::router::create_router(),
-            db_conn: conn,
+            http_router: NemuRouter::new(db_conn),
         }
     }
 
     pub async fn serve_http(&self) -> Result<(), Error> {
         let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
-        axum::serve(listener, self.http_router.clone())
+        axum::serve(listener, self.http_router.raw_router.clone())
             .await
             .unwrap();
         Ok(())
     }
 }
 
-fn establish_connection() -> PgConnection {
+fn establish_db_connection() -> PgConnection {
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     PgConnection::establish(&database_url)
         .unwrap_or_else(|_| panic!("Error connecting to {}", database_url))
