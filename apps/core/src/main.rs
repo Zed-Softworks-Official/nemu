@@ -4,7 +4,8 @@ use std::env;
 
 mod db;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     dotenv().ok();
 
     let _conn = establish_connection();

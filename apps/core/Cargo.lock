@@ -623,7 +623,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "nemu-core"
+name = "nemu"
 version = "0.1.0"
 dependencies = [
  "axum",
