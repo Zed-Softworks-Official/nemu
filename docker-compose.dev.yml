@@ -10,8 +10,8 @@ services:
     image: koenkk/zigbee2mqtt
     volumes:
       - ./infra/zigbee2mqtt:/app/data
-    devices:
-      - /dev/ttyUSB0:/dev/ttyUSB0
+    # devices:
+    #   - /dev/ttyUSB0:/dev/ttyUSB0
     ports:
       - "8081:8080"
     depends_on:

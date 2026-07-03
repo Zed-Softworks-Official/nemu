@@ -1,16 +1,30 @@
-homeassistant: false
-permit_join: false
-
+homeassistant:
+  enabled: false
 mqtt:
   base_topic: zigbee2mqtt
   server: mqtt://mosquitto:1883
-
 serial:
   port: /dev/ttyUSB0
-
 frontend:
+  enabled: true
   port: 8080
-
 advanced:
   log_level: info
-  network_key: GENERATE
+  network_key:
+    - 64
+    - 103
+    - 217
+    - 199
+    - 37
+    - 189
+    - 34
+    - 114
+    - 21
+    - 232
+    - 199
+    - 125
+    - 241
+    - 181
+    - 101
+    - 140
+version: 5
