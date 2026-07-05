@@ -22,7 +22,7 @@ impl NemuClient {
     }
 
     pub async fn serve_http(&self) -> Result<(), Error> {
-        let listener = tokio::net::TcpListener::bind("0.0.0.0:3001").await.unwrap();
+        let listener = tokio::net::TcpListener::bind("0.0.0.0:6368").await.unwrap();
         axum::serve(listener, self.http_router.raw_router.clone())
             .await
             .unwrap();
