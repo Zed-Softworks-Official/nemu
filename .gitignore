@@ -50,7 +50,7 @@ docker-compose.override.yml
 # ═══════════════════════════════════════════════════════════════════════════════
 *.sql
 !infra/postgres/init.sql
-!/apps/core/migrations/**/*.sql
+!/core/migrations/**/*.sql
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Backups
