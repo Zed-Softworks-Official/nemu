@@ -8,6 +8,6 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.101.2",
-    "axiom": "^0.52.2"
+    "axios": "^1.18.1"
   }
 }
