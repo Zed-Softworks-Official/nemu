@@ -1,0 +1,19 @@
+{
+    "extends": "@nemu/typescript-config/nextjs.json",
+    "compilerOptions": {
+        /* Path Aliases */
+        "baseUrl": ".",
+        "paths": {
+            "~/*": ["./src/*"]
+        }
+    },
+    "include": [
+        "next-env.d.ts",
+        "**/*.ts",
+        "**/*.tsx",
+        "**/*.cjs",
+        "**/*.js",
+        ".next/types/**/*.ts"
+    ],
+    "exclude": ["node_modules", "generated"]
+}
