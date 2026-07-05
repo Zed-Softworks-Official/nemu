@@ -1,0 +1,13 @@
+{
+    "name": "@nemu/core",
+    "private": true,
+    "scripts": {
+        "build": "cargo build",
+        "dev": "cargo watch -x run",
+        "db:migrate": "diesel migration run",
+        "db:revert": "diesel migration revert",
+        "db:new": "diesel migration generate",
+        "db:reset": "diesel migration reset",
+        "db:setup": "diesel setup"
+    }
+}

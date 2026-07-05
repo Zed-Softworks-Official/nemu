@@ -15,7 +15,11 @@
         },
         "dev": {
             "cache": false,
-            "persistent": true
+            "persistent": true,
+            "dependsOn": ["//#infra"]
+        },
+        "//#infra": {
+            "cache": false
         }
     }
 }
