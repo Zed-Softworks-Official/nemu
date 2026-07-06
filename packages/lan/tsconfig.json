@@ -1,0 +1,12 @@
+{
+    "extends": "@nemu/typescript-config/base.json",
+    "compilerOptions": {
+        /* Path Aliases */
+        "baseUrl": ".",
+        "paths": {
+            "~/*": ["./src/*"]
+        }
+    },
+    "include": ["src/**/*.ts", "src/**/*.tsx"],
+    "exclude": ["node_modules"]
+}

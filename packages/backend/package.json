@@ -1,0 +1,16 @@
+{
+  "name": "@nemu/backend",
+  "version": "0.0.0",
+  "private": true,
+  "dependencies": {
+    "@nemu/cloud": "workspace:*",
+    "@nemu/lan": "workspace:*",
+    "react": "catalog:"
+  },
+  "devDependencies": {
+    "@nemu/biome-config": "workspace:*",
+    "@nemu/typescript-config": "workspace:*",
+    "@types/react": "catalog:",
+    "@types/node": "catalog:"
+  }
+}

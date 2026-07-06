@@ -1,0 +1,18 @@
+{
+  "name": "@nemu/cloud",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "convex dev"
+  },
+  "devDependencies": {
+    "@nemu/biome-config": "workspace:*",
+    "@nemu/typescript-config": "workspace:*",
+    "@types/node": "catalog:"
+  },
+  "dependencies": {
+    "@t3-oss/env-core": "^0.13.11",
+    "convex": "^1.42.1",
+    "zod": "catalog:"
+  }
+}

@@ -1,13 +1,9 @@
 {
-  "name": "@nemu/controller",
+  "name": "@nemu/lan",
   "version": "0.0.0",
   "private": true,
   "devDependencies": {
     "@nemu/biome-config": "workspace:*",
     "@nemu/typescript-config": "workspace:*"
-  },
-  "dependencies": {
-    "@tanstack/react-query": "^5.101.2",
-    "axios": "^1.18.1"
   }
 }
