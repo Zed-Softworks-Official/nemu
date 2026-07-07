@@ -5,12 +5,13 @@
   "dependencies": {
     "@nemu/cloud": "workspace:*",
     "@nemu/lan": "workspace:*",
+    "@tanstack/react-query": "^5.101.2",
     "react": "catalog:"
   },
   "devDependencies": {
     "@nemu/biome-config": "workspace:*",
     "@nemu/typescript-config": "workspace:*",
-    "@types/react": "catalog:",
-    "@types/node": "catalog:"
+    "@types/node": "catalog:",
+    "@types/react": "catalog:"
   }
 }
