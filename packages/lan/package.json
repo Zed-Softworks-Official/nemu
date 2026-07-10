@@ -1,9 +1,0 @@
-{
-  "name": "@nemu/lan",
-  "version": "0.0.0",
-  "private": true,
-  "devDependencies": {
-    "@nemu/biome-config": "workspace:*",
-    "@nemu/typescript-config": "workspace:*"
-  }
-}

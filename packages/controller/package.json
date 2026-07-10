@@ -1,26 +1,28 @@
 {
-  "name": "@nemu/cloud",
+  "name": "@nemu/controller",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts",
-    "./api": "./convex/_generated/api.js"
+    ".": "./src/index.ts"
   },
   "scripts": {
-    "dev": "convex dev",
     "check-types": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@nemu/protocol": "workspace:*",
+    "axios": "^1.10.0",
+    "convex": "^1.42.1"
+  },
+  "peerDependencies": {
+    "react": "catalog:"
   },
   "devDependencies": {
     "@nemu/biome-config": "workspace:*",
     "@nemu/typescript-config": "workspace:*",
     "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "react": "catalog:",
     "typescript": "5.9.2"
-  },
-  "dependencies": {
-    "@t3-oss/env-core": "^0.13.11",
-    "convex": "^1.42.1",
-    "convex-helpers": "^0.1.104",
-    "zod": "catalog:"
   }
 }

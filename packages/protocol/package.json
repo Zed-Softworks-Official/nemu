@@ -1,17 +1,21 @@
 {
-  "name": "@nemu/backend",
+  "name": "@nemu/protocol",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "check-types": "tsc --noEmit"
+  },
   "dependencies": {
-    "@nemu/cloud": "workspace:*",
-    "@nemu/lan": "workspace:*",
-    "@tanstack/react-query": "^5.101.2",
-    "react": "catalog:"
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@nemu/biome-config": "workspace:*",
     "@nemu/typescript-config": "workspace:*",
     "@types/node": "catalog:",
-    "@types/react": "catalog:"
+    "typescript": "5.9.2"
   }
 }
