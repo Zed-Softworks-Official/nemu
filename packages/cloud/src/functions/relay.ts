@@ -1,12 +1,8 @@
 import { v } from 'convex/values'
+import { authedMutation, authedQuery } from '../lib/customFunctions'
 import type { Doc } from './_generated/dataModel'
 import type { MutationCtx, QueryCtx } from './_generated/server'
-import {
-    internalMutation,
-    internalQuery,
-    mutation,
-} from './_generated/server'
-import { authedMutation, authedQuery } from './lib/customFunctions'
+import { internalMutation, internalQuery, mutation } from './_generated/server'
 
 const RELAY_TTL_MS = 5 * 60 * 1000
 
@@ -28,7 +24,9 @@ async function requirePairing(
     const pairing = await ctx.db
         .query('pairings')
         .withIndex('by_user_and_controller', (q) =>
-            q.eq('userId', ctx.identity.subject).eq('controllerId', controllerId)
+            q
+                .eq('userId', ctx.identity.subject)
+                .eq('controllerId', controllerId)
         )
         .unique()
     if (!pairing) {
@@ -144,7 +142,9 @@ export const respond = mutation({
 
         const pending = await ctx.db
             .query('relayMessages')
-            .withIndex('by_request_id', (q) => q.eq('requestId', args.requestId))
+            .withIndex('by_request_id', (q) =>
+                q.eq('requestId', args.requestId)
+            )
             .collect()
         for (const message of pending) {
             if (

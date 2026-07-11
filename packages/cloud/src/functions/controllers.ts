@@ -1,7 +1,7 @@
 import { v } from 'convex/values'
-import { httpAction, internalMutation, query } from './_generated/server'
+import { authedQuery } from '../lib/customFunctions'
 import { internal } from './_generated/api'
-import { authedQuery } from './lib/customFunctions'
+import { httpAction, internalMutation, query } from './_generated/server'
 
 export const registerController = internalMutation({
     args: {

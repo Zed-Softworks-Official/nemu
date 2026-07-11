@@ -1,15 +1,15 @@
 import {
     type HealthResponse,
-    type IdentifyResponse,
     healthResponseSchema,
+    type IdentifyResponse,
     identifyResponseSchema,
 } from '@nemu/protocol'
 import { createControllerHttp } from './http'
 import { getRememberedBaseUrl } from './storage'
 
 export const DEFAULT_LAN_CANDIDATES = [
-    'http://nemu.local:3000',
-    'http://localhost:3000',
+    'http://nemu.local:6368',
+    'http://localhost:6368',
 ] as const
 
 export type ProbeResult = {

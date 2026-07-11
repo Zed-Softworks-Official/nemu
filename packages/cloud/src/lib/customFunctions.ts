@@ -1,8 +1,8 @@
+import { mutation, query } from '@nemu/cloud/server'
 import {
     customMutation,
     customQuery,
 } from 'convex-helpers/server/customFunctions'
-import { mutation, query } from '../_generated/server'
 import { requireIdentity } from './auth'
 
 export const authedQuery = customQuery(query, {

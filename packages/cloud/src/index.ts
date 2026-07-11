@@ -1,1 +1,1 @@
-export { api } from '../convex/_generated/api'
+export { api } from './functions/_generated/api'

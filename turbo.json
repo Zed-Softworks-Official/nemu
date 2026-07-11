@@ -18,6 +18,11 @@
             "persistent": true,
             "dependsOn": ["//#infra"]
         },
+        "convex:dev": {
+            "cache": false,
+            "persistent": true,
+            "dependsOn": ["//#infra"]
+        },
         "//#infra": {
             "cache": false
         }

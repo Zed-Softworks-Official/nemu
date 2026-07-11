@@ -1,5 +1,5 @@
 import { v } from 'convex/values'
-import { authedMutation, authedQuery } from './lib/customFunctions'
+import { authedMutation, authedQuery } from '../lib/customFunctions'
 
 const pairingValidator = v.object({
     _id: v.id('pairings'),
