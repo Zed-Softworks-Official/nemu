@@ -1,7 +1,6 @@
 {
   "extends": "@nemu/typescript-config/react-library.json",
   "compilerOptions": {
-    "baseUrl": ".",
     "paths": {
       "~/*": ["./src/*"]
     }

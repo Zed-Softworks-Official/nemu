@@ -14,3 +14,4 @@ catalog:
   "@types/react": ^19.0.10
   "@types/react-dom": ^19.0.10
   "@types/node": ^22.13.10
+  typescript: ^5.9.2

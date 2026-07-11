@@ -1,7 +1,6 @@
 {
   "extends": "@nemu/typescript-config/base.json",
   "compilerOptions": {
-    "baseUrl": ".",
     "paths": {
       "~/*": ["./src/*"]
     }

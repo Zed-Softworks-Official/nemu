@@ -21,6 +21,9 @@ catalogs:
     react-dom:
       specifier: ^19.0.0
       version: 19.2.7
+    typescript:
+      specifier: ^5.9.2
+      version: 5.9.2
     zod:
       specifier: ^3.25.76
       version: 3.25.76
@@ -135,7 +138,7 @@ importers:
         specifier: ^4.0.15
         version: 4.3.2
       typescript:
-        specifier: ^5.8.2
+        specifier: 'catalog:'
         version: 5.9.2
 
   packages/cloud:
@@ -163,7 +166,7 @@ importers:
         specifier: 'catalog:'
         version: 22.20.0
       typescript:
-        specifier: 5.9.2
+        specifier: 'catalog:'
         version: 5.9.2
 
   packages/controller:
@@ -194,7 +197,7 @@ importers:
         specifier: 'catalog:'
         version: 19.2.7
       typescript:
-        specifier: 5.9.2
+        specifier: 'catalog:'
         version: 5.9.2
 
   packages/protocol:
@@ -213,7 +216,7 @@ importers:
         specifier: 'catalog:'
         version: 22.20.0
       typescript:
-        specifier: 5.9.2
+        specifier: 'catalog:'
         version: 5.9.2
 
   tooling/biome-config: {}

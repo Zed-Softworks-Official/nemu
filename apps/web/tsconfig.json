@@ -2,7 +2,6 @@
     "extends": "@nemu/typescript-config/nextjs.json",
     "compilerOptions": {
         /* Path Aliases */
-        "baseUrl": ".",
         "paths": {
             "~/*": ["./src/*"]
         }

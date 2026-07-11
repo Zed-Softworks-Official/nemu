@@ -1,4 +1,4 @@
-import { HealthCheck } from '~/components/health'
+import { Waitlist } from '@clerk/nextjs'
 
 export default function HomePage() {
     return (
@@ -7,7 +7,7 @@ export default function HomePage() {
             <p className="text-muted-foreground text-sm">
                 Control Everything. Share Nothing.
             </p>
-            <HealthCheck />
+            <Waitlist />
         </main>
     )
 }
