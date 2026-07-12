@@ -4,13 +4,21 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-axum = "0.8.9"
-chrono = "0.4.45"
+axum = { version = "0.8.9", features = ["ws"] }
+chrono = { version = "0.4.45", features = ["serde"] }
+dashmap = "6.1.0"
+deadpool-diesel = { version = "0.6.1", features = ["postgres"] }
 diesel = { version = "2.3.10", features = ["postgres", "uuid", "chrono", "serde_json"] }
-diesel-async = "0.9.2"
 dotenvy = "0.15.7"
+futures-util = "0.3.31"
 rumqttc = "0.25.1"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.150"
+thiserror = "2.0.12"
 tokio = { version = "1.52.3", features = ["full"] }
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 uuid = { version = "1.23.4", features = ["v4", "serde"] }
+
+[dev-dependencies]
+tokio-test = "0.4.4"

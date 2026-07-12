@@ -1,0 +1,4 @@
+ALTER TABLE devices
+    DROP COLUMN IF EXISTS last_seen,
+    DROP COLUMN IF EXISTS enabled,
+    DROP COLUMN IF EXISTS room_id;

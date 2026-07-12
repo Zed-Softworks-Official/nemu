@@ -3,7 +3,7 @@
     "private": true,
     "scripts": {
         "build": "cargo build",
-        "dev": "cargo watch -x run",
+        "dev": "bash -c 'cleanup(){ kill -TERM -$$ 2>/dev/null || true; }; trap cleanup EXIT INT TERM; cargo watch -x run'",
         "db:migrate": "diesel migration run",
         "db:revert": "diesel migration revert",
         "db:new": "diesel migration generate",
