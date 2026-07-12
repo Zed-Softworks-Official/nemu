@@ -1,13 +1,29 @@
-import { Waitlist } from '@clerk/nextjs'
+import { ComparisonSection } from '~/components/landing/comparison-section'
+import { CtaBand } from '~/components/landing/cta-band'
+import { FeaturesGrid } from '~/components/landing/features-grid'
+import { Hero } from '~/components/landing/hero'
+import { HowItWorks } from '~/components/landing/how-it-works'
+import { OpenSourceSection } from '~/components/landing/open-source-section'
+import { Pillars } from '~/components/landing/pillars'
+import { SiteFooter } from '~/components/landing/site-footer'
+import { SiteHeader } from '~/components/landing/site-header'
+import { WaitlistSection } from '~/components/landing/waitlist-section'
 
 export default function HomePage() {
     return (
-        <main className="flex min-h-screen flex-col items-center justify-center gap-6 p-8">
-            <h1 className="font-semibold text-3xl tracking-tight">Nemu</h1>
-            <p className="text-muted-foreground text-sm">
-                Control Everything. Share Nothing.
-            </p>
-            <Waitlist />
-        </main>
+        <>
+            <SiteHeader />
+            <main>
+                <Hero />
+                <Pillars />
+                <HowItWorks />
+                <ComparisonSection />
+                <FeaturesGrid />
+                <OpenSourceSection />
+                <CtaBand />
+                <WaitlistSection />
+            </main>
+            <SiteFooter />
+        </>
     )
 }

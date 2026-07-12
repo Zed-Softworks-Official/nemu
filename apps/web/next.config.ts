@@ -5,6 +5,8 @@
 import './src/env'
 import type { NextConfig } from 'next'
 
-const config: NextConfig = {}
+const config: NextConfig = {
+    allowedDevOrigins: ['nemu.local', '*.nemu.local'],
+}
 
 export default config

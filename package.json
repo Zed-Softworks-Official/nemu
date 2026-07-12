@@ -4,7 +4,7 @@
     "license": "Apache-2.0",
     "scripts": {
         "build": "turbo run build",
-        "dev": "turbo run dev",
+        "dev": "bash scripts/dev.sh",
         "convex:dev": "turbo run convex:dev",
         "lint": "turbo run lint",
         "format": "prettier --write \"**/*.{ts,tsx,md}\"",
