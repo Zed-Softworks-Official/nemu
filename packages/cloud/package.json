@@ -21,6 +21,7 @@
   "scripts": {
     "dev": "convex dev",
     "convex:dev": "convex dev",
+    "deploy": "convex deploy --cmd 'cd ../.. && turbo run build --filter=@nemu/web' --cmd-url-env-var-name NEXT_PUBLIC_CONVEX_URL",
     "check-types": "tsc --noEmit"
   },
   "devDependencies": {
