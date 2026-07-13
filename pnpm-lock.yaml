@@ -58,15 +58,6 @@ importers:
       '@clerk/nextjs':
         specifier: ^7.5.12
         version: 7.5.12(next@16.2.10(@babel/core@7.29.7)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      '@nemu/cloud':
-        specifier: workspace:*
-        version: link:../../packages/cloud
-      '@nemu/controller':
-        specifier: workspace:*
-        version: link:../../packages/controller
-      '@nemu/protocol':
-        specifier: workspace:*
-        version: link:../../packages/protocol
       '@t3-oss/env-nextjs':
         specifier: ^0.12.0
         version: 0.12.0(typescript@5.9.2)(zod@3.25.76)

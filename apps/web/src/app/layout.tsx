@@ -3,7 +3,6 @@ import '~/styles/globals.css'
 import { ClerkProvider } from '@clerk/nextjs'
 import type { Metadata } from 'next'
 import { Nunito } from 'next/font/google'
-import { Providers } from '~/components/providers'
 import { ThemeProvider } from '~/components/theme-provider'
 import { env } from '~/env'
 import { cn } from '~/lib/utils'
@@ -42,7 +41,7 @@ export default function RootLayout({
                         disableTransitionOnChange
                         enableSystem
                     >
-                        <Providers>{children}</Providers>
+                        {children}
                     </ThemeProvider>
                 </body>
             </html>
