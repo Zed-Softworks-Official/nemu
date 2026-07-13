@@ -1,5 +1,5 @@
 {
     "$schema": "https://openapi.vercel.sh/vercel.json",
     "installCommand": "pnpm install",
-    "buildCommand": "pnpm build"
+    "buildCommand": "pnpm --filter @nemu/cloud exec convex deploy --cmd-url-env-var-name NEXT_PUBLIC_CONVEX_URL --cmd 'cd ../.. && turbo run build --filter=@nemu/web'"
 }
