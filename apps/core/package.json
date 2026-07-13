@@ -2,7 +2,7 @@
     "name": "@nemu/core",
     "private": true,
     "scripts": {
-        "build": "cargo build",
+        "build:rust": "cargo build",
         "dev": "bash scripts/dev.sh",
         "db:migrate": "diesel migration run",
         "db:revert": "diesel migration revert",

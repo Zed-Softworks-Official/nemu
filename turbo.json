@@ -11,8 +11,7 @@
         "CONVEX_DEPLOY_KEY"
     ],
     "tasks": {
-        "build": {
-            "dependsOn": ["^build"],
+        "build:web": {
             "inputs": ["$TURBO_DEFAULT$", ".env*"],
             "outputs": [".next/**", "!.next/cache/**", "!.next/dev/**"],
             "env": [
@@ -21,15 +20,13 @@
                 "CLERK_SECRET_KEY"
             ]
         },
-        "deploy": {
+        "build:rust": {
             "cache": false,
-            "env": [
-                "CONVEX_DEPLOY_KEY",
-                "CLERK_JWT_ISSUER_DOMAIN",
-                "NEXT_PUBLIC_CONVEX_URL",
-                "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
-                "CLERK_SECRET_KEY"
-            ]
+            "outputs": ["target/**"]
+        },
+        "convex:deploy": {
+            "cache": false,
+            "env": ["CONVEX_DEPLOY_KEY", "CLERK_JWT_ISSUER_DOMAIN"]
         },
         "lint": {
             "dependsOn": ["^lint"]
