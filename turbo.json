@@ -11,7 +11,7 @@
         "CONVEX_DEPLOY_KEY"
     ],
     "tasks": {
-        "build:web": {
+        "build": {
             "inputs": ["$TURBO_DEFAULT$", ".env*"],
             "outputs": [".next/**", "!.next/cache/**", "!.next/dev/**"],
             "env": [
