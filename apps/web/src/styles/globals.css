@@ -1,4 +1,5 @@
 @import "@nemu/ui/globals.css";
+@import "@clerk/ui/themes/shadcn.css";
 @source "../../../packages/ui/src/components/**/*.{ts,tsx}";
 
 @layer utilities {

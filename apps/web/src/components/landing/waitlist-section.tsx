@@ -32,7 +32,7 @@ export function WaitlistSection() {
                         description="Join the waitlist and be first in line when Nemu opens the door."
                         title="Get early access"
                     />
-                    <div className="flex justify-center lg:justify-start [&_.cl-cardBox]:shadow-none [&_.cl-card]:border [&_.cl-card]:border-border [&_.cl-card]:bg-card [&_.cl-card]:shadow-none [&_.cl-rootBox]:mx-auto lg:[&_.cl-rootBox]:mx-0">
+                    <div className="flex justify-center lg:justify-start">
                         <Waitlist />
                     </div>
                 </Reveal>

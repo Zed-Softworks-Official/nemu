@@ -1,6 +1,8 @@
 import '~/styles/globals.css'
 
 import { ClerkProvider } from '@clerk/nextjs'
+import { ui } from '@clerk/ui'
+import { shadcn } from '@clerk/ui/themes'
 import { cn } from '@nemu/ui/lib/utils'
 import type { Metadata } from 'next'
 import { Nunito } from 'next/font/google'
@@ -24,7 +26,11 @@ export default function RootLayout({
     children,
 }: Readonly<{ children: React.ReactNode }>) {
     return (
-        <ClerkProvider publishableKey={env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}>
+        <ClerkProvider
+            appearance={{ theme: shadcn }}
+            publishableKey={env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+            ui={ui}
+        >
             <html
                 className={cn(
                     nunito.variable,
