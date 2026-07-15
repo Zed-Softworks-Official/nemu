@@ -1,11 +1,11 @@
 import '~/styles/globals.css'
 
 import { ClerkProvider } from '@clerk/nextjs'
+import { cn } from '@nemu/ui/lib/utils'
 import type { Metadata } from 'next'
 import { Nunito } from 'next/font/google'
 import { ThemeProvider } from '~/components/theme-provider'
 import { env } from '~/env'
-import { cn } from '~/lib/utils'
 
 export const metadata: Metadata = {
     title: 'Nemu | Control Everything. Share Nothing.',

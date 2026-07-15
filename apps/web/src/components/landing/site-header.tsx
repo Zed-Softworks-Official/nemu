@@ -5,15 +5,15 @@ import { Menu } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useState } from 'react'
-import { Button } from '~/components/ui/button'
+import { Button } from '@nemu/ui/components/button'
 import {
     NavigationMenu,
     NavigationMenuItem,
     NavigationMenuLink,
     NavigationMenuList,
     navigationMenuTriggerStyle,
-} from '~/components/ui/navigation-menu'
-import { Separator } from '~/components/ui/separator'
+} from '@nemu/ui/components/navigation-menu'
+import { Separator } from '@nemu/ui/components/separator'
 import {
     Sheet,
     SheetContent,
@@ -22,8 +22,8 @@ import {
     SheetHeader,
     SheetTitle,
     SheetTrigger,
-} from '~/components/ui/sheet'
-import { cn } from '~/lib/utils'
+} from '@nemu/ui/components/sheet'
+import { cn } from '@nemu/ui/lib/utils'
 import { Logo } from '../logo'
 import { useSectionScroll } from './motion'
 

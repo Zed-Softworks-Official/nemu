@@ -1,0 +1,10 @@
+{
+  "extends": "@nemu/typescript-config/react-library.json",
+  "compilerOptions": {
+    "paths": {
+      "@nemu/ui/*": ["./src/*"]
+    }
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "exclude": ["node_modules"]
+}

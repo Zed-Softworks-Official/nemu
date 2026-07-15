@@ -1,7 +1,7 @@
 import { cva } from 'class-variance-authority'
 import { ChevronDownIcon } from 'lucide-react'
 import { NavigationMenu as NavigationMenuPrimitive } from 'radix-ui'
-import { cn } from '~/lib/utils'
+import { cn } from '@nemu/ui/lib/utils'
 
 function NavigationMenu({
     className,

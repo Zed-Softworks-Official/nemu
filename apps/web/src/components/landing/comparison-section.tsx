@@ -2,7 +2,7 @@
 
 import { Check, X } from 'lucide-react'
 import Image from 'next/image'
-import { cn } from '~/lib/utils'
+import { cn } from '@nemu/ui/lib/utils'
 import { LandingSection } from './landing-section'
 import { Reveal } from './motion'
 import { SectionHeader } from './section-header'

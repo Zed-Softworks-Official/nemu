@@ -3,7 +3,7 @@
 import type { HTMLMotionProps, Transition } from 'motion/react'
 import { animate, motion, useReducedMotion } from 'motion/react'
 import type { MouseEvent } from 'react'
-import { cn } from '~/lib/utils'
+import { cn } from '@nemu/ui/lib/utils'
 
 const easeOut = [0.22, 1, 0.36, 1] as const
 

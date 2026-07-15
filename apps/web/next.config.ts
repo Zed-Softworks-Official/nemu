@@ -7,6 +7,7 @@ import type { NextConfig } from 'next'
 
 const config: NextConfig = {
     allowedDevOrigins: ['nemu.local', '*.nemu.local'],
+    transpilePackages: ['@nemu/ui'],
 }
 
 export default config

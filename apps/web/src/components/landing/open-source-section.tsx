@@ -1,6 +1,6 @@
 'use client'
 
-import { Button } from '~/components/ui/button'
+import { Button } from '@nemu/ui/components/button'
 import { Logo } from '../logo'
 import { GitHubIcon } from './github-icon'
 import { LandingSection } from './landing-section'

@@ -5,7 +5,7 @@
   "tsx": true,
   "tailwind": {
     "config": "",
-    "css": "../../packages/ui/src/styles/globals.css",
+    "css": "src/styles/globals.css",
     "baseColor": "neutral",
     "cssVariables": true,
     "prefix": ""
@@ -13,10 +13,10 @@
   "iconLibrary": "lucide",
   "rtl": false,
   "aliases": {
-    "components": "~/components",
+    "components": "@nemu/ui/components",
     "utils": "@nemu/ui/lib/utils",
     "ui": "@nemu/ui/components",
-    "lib": "~/lib",
+    "lib": "@nemu/ui/lib",
     "hooks": "@nemu/ui/hooks"
   },
   "menuColor": "default",

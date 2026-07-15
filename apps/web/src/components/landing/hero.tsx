@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { Button } from '~/components/ui/button'
+import { Button } from '@nemu/ui/components/button'
 import { GitHubIcon } from './github-icon'
 import { DriftOrb, RevealOnMount, TwinkleStar } from './motion'
 

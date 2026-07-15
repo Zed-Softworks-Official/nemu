@@ -7,7 +7,7 @@ import {
     CardDescription,
     CardHeader,
     CardTitle,
-} from '~/components/ui/card'
+} from '@nemu/ui/components/card'
 import { LandingSection } from './landing-section'
 import { Reveal } from './motion'
 import { SectionHeader } from './section-header'

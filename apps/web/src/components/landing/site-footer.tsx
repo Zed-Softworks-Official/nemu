@@ -1,6 +1,6 @@
 import Link from 'next/link'
-import { Button } from '~/components/ui/button'
-import { Separator } from '~/components/ui/separator'
+import { Button } from '@nemu/ui/components/button'
+import { Separator } from '@nemu/ui/components/separator'
 import { Logo } from '../logo'
 import { GitHubIcon } from './github-icon'
 
