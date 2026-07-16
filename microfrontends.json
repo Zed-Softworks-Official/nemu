@@ -7,7 +7,8 @@
         "nemu-web": {
             "packageName": "@nemu/web",
             "development": {
-                "local": 3000
+                "local": 3000,
+                "fallback": "nemu.sh"
             }
         },
         "nemu-dashboard": {
