@@ -3,6 +3,7 @@
  * for Docker builds.
  */
 import './src/env'
+import { withMicrofrontends } from '@vercel/microfrontends/next/config'
 import type { NextConfig } from 'next'
 
 const config: NextConfig = {
@@ -10,4 +11,4 @@ const config: NextConfig = {
     transpilePackages: ['@nemu/ui'],
 }
 
-export default config
+export default withMicrofrontends(config)

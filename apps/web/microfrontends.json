@@ -4,18 +4,16 @@
         "localProxyPort": 3024
     },
     "applications": {
-        "@nemu/web": {
+        "nemu-web": {
+            "packageName": "@nemu/web",
             "development": {
-                "local": {
-                    "port": 3000
-                }
+                "local": 3000
             }
         },
-        "@nemu/dashboard": {
+        "nemu-dashboard": {
+            "packageName": "@nemu/dashboard",
             "development": {
-                "local": {
-                    "port": 3001
-                }
+                "local": 3001
             },
             "routing": [
                 {
