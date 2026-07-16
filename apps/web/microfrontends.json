@@ -1,5 +1,5 @@
 {
-    "$schema": "https://turborepo.dev/microfrontends/schema.json",
+    "$schema": "https://openapi.vercel.sh/microfrontends.json ",
     "options": {
         "localProxyPort": 3024
     },
