@@ -21,6 +21,9 @@ catalogs:
     '@types/react-dom':
       specifier: ^19.0.10
       version: 19.2.3
+    '@vercel/microfrontends':
+      specifier: ^2.4.0
+      version: 2.4.0
     next:
       specifier: ^16.2.10
       version: 16.2.10
@@ -69,7 +72,7 @@ importers:
         version: 7.5.17(next@16.2.10(@babel/core@7.29.7)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@clerk/ui':
         specifier: 'catalog:'
-        version: 1.25.2(@solana/web3.js@1.98.4(bufferutil@4.1.0)(typescript@5.9.2))(@types/react@19.2.17)(bs58@6.0.0)(bufferutil@4.1.0)(react-dom@19.2.7(react@19.2.7))(react-native@0.86.0(@babel/core@7.29.7)(@types/react@19.2.17)(bufferutil@4.1.0)(react@19.2.7))(react@19.2.7)(typescript@5.9.2)
+        version: 1.25.2(@solana/web3.js@1.98.4(bufferutil@4.1.0)(typescript@5.9.2)(utf-8-validate@6.0.6))(@types/react@19.2.17)(bs58@6.0.0)(bufferutil@4.1.0)(react-dom@19.2.7(react@19.2.7))(react-native@0.86.0(@babel/core@7.29.7)(@types/react@19.2.17)(bufferutil@4.1.0)(react@19.2.7)(utf-8-validate@6.0.6))(react@19.2.7)(typescript@5.9.2)(utf-8-validate@6.0.6)
       '@nemu/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -77,7 +80,7 @@ importers:
         specifier: ^0.12.0
         version: 0.12.0(typescript@5.9.2)(zod@3.25.76)
       '@vercel/microfrontends':
-        specifier: ^2.4.0
+        specifier: 'catalog:'
         version: 2.4.0(next@16.2.10(@babel/core@7.29.7)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       lucide-react:
         specifier: ^1.23.0
@@ -136,7 +139,7 @@ importers:
         version: 7.5.17(next@16.2.10(@babel/core@7.29.7)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@clerk/ui':
         specifier: 'catalog:'
-        version: 1.25.2(@solana/web3.js@1.98.4(bufferutil@4.1.0)(typescript@5.9.2)(utf-8-validate@6.0.6))(@types/react@19.2.17)(bs58@6.0.0)(bufferutil@4.1.0)(react-dom@19.2.7(react@19.2.7))(react-native@0.86.0(@babel/core@7.29.7)(@types/react@19.2.17)(bufferutil@4.1.0)(react@19.2.7)(utf-8-validate@6.0.6))(react@19.2.7)(typescript@5.9.2)(utf-8-validate@6.0.6)
+        version: 1.25.2(@solana/web3.js@1.98.4(bufferutil@4.1.0)(typescript@5.9.2))(@types/react@19.2.17)(bs58@6.0.0)(bufferutil@4.1.0)(react-dom@19.2.7(react@19.2.7))(react-native@0.86.0(@babel/core@7.29.7)(@types/react@19.2.17)(bufferutil@4.1.0)(react@19.2.7))(react@19.2.7)(typescript@5.9.2)
       '@nemu/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -144,7 +147,7 @@ importers:
         specifier: ^0.12.0
         version: 0.12.0(typescript@5.9.2)(zod@3.25.76)
       '@vercel/microfrontends':
-        specifier: ^2.4.0
+        specifier: 'catalog:'
         version: 2.4.0(next@16.2.10(@babel/core@7.29.7)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       lucide-react:
         specifier: ^1.23.0
