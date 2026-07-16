@@ -37,7 +37,6 @@ out/
 .turbo/
 next-env.d.ts
 .vercel
-apps/web/microfrontends.json
 *.tsbuildinfo
 
 # ═══════════════════════════════════════════════════════════════════════════════

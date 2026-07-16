@@ -2,5 +2,5 @@
     "$schema": "https://openapi.vercel.sh/vercel.json",
     "framework": "nextjs",
     "installCommand": "cd ../.. && pnpm install",
-    "buildCommand": "cd ../.. && cp microfrontends.json apps/web/microfrontends.json && pnpm --filter @nemu/cloud exec convex deploy --cmd-url-env-var-name NEXT_PUBLIC_CONVEX_URL --cmd 'cd ../.. && turbo run build --filter=@nemu/web'"
+    "buildCommand": "cd ../.. && bash scripts/vercel-build-web.sh"
 }

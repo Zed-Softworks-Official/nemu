@@ -2,5 +2,5 @@
     "$schema": "https://openapi.vercel.sh/vercel.json",
     "framework": "nextjs",
     "installCommand": "pnpm install",
-    "buildCommand": "cp microfrontends.json apps/web/microfrontends.json && pnpm run build:web"
+    "buildCommand": "bash scripts/vercel-build-web.sh"
 }
