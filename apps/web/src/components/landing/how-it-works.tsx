@@ -1,6 +1,5 @@
 'use client'
 
-import { Globe, Home, Router, Smartphone } from 'lucide-react'
 import {
     Card,
     CardContent,
@@ -8,6 +7,7 @@ import {
     CardHeader,
     CardTitle,
 } from '@nemu/ui/components/card'
+import { Globe, Home, Router, Smartphone } from 'lucide-react'
 import { LandingSection } from './landing-section'
 import { Reveal } from './motion'
 import { SectionHeader } from './section-header'

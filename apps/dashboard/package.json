@@ -1,5 +1,5 @@
 {
-    "name": "@nemu/web",
+    "name": "@nemu/dashboard",
     "version": "0.1.0",
     "private": true,
     "type": "module",
@@ -22,7 +22,6 @@
         "lucide-react": "^1.23.0",
         "motion": "^12.42.2",
         "next": "catalog:",
-        "next-themes": "^0.4.6",
         "react": "catalog:",
         "react-dom": "catalog:",
         "zod": "catalog:"

@@ -1,7 +1,7 @@
-import Link from 'next/link'
 import { Button } from '@nemu/ui/components/button'
+import { Logo } from '@nemu/ui/components/logo'
 import { Separator } from '@nemu/ui/components/separator'
-import { Logo } from '../logo'
+import Link from 'next/link'
 import { GitHubIcon } from './github-icon'
 
 export function SiteFooter() {

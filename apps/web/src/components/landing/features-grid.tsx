@@ -1,6 +1,5 @@
 'use client'
 
-import { Blocks, Lock, Radio, Server, ShieldCheck, Zap } from 'lucide-react'
 import {
     Card,
     CardDescription,
@@ -8,6 +7,7 @@ import {
     CardTitle,
 } from '@nemu/ui/components/card'
 import { cn } from '@nemu/ui/lib/utils'
+import { Blocks, Lock, Radio, Server, ShieldCheck, Zap } from 'lucide-react'
 import { LandingSection } from './landing-section'
 import { Reveal } from './motion'
 import { SectionHeader } from './section-header'

@@ -1,0 +1,27 @@
+{
+    "$schema": "https://turborepo.dev/microfrontends/schema.json",
+    "options": {
+        "localProxyPort": 3024
+    },
+    "applications": {
+        "@nemu/web": {
+            "development": {
+                "local": {
+                    "port": 3000
+                }
+            }
+        },
+        "@nemu/dashboard": {
+            "development": {
+                "local": {
+                    "port": 3001
+                }
+            },
+            "routing": [
+                {
+                    "paths": ["/dashboard", "/dashboard/:path*"]
+                }
+            ]
+        }
+    }
+}

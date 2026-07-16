@@ -36,13 +36,15 @@
         },
         "dev": {
             "cache": false,
-            "persistent": true,
-            "dependsOn": ["//#infra"]
+            "persistent": true
+        },
+        "dev:web": {
+            "cache": false,
+            "persistent": true
         },
         "convex:dev": {
             "cache": false,
-            "persistent": true,
-            "dependsOn": ["//#infra"]
+            "persistent": true
         },
         "//#infra": {
             "cache": false

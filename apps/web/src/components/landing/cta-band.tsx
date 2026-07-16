@@ -1,7 +1,7 @@
 'use client'
 
-import Image from 'next/image'
 import { Button } from '@nemu/ui/components/button'
+import Image from 'next/image'
 import { Reveal } from './motion'
 
 export function CtaBand() {

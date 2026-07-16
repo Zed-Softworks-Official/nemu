@@ -1,0 +1,25 @@
+@import "@nemu/ui/globals.css";
+@import "@clerk/ui/themes/shadcn.css";
+@source "../../../packages/ui/src/components/**/*.{ts,tsx}";
+
+@layer utilities {
+    .landing-glow-text {
+        text-shadow: 0 0 40px oklch(0.78 0.14 220 / 35%);
+    }
+
+    .landing-grid-bg {
+        background-image: radial-gradient(
+            oklch(1 0 0 / 6%) 1px,
+            transparent 1px
+        );
+        background-size: 24px 24px;
+    }
+
+    .landing-hero-glow {
+        background: radial-gradient(
+            ellipse 70% 60% at 65% 45%,
+            oklch(0.78 0.14 220 / 18%),
+            transparent 70%
+        );
+    }
+}

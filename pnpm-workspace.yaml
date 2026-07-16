@@ -18,6 +18,9 @@ catalog:
   "@types/react-dom": ^19.0.10
   "@types/node": ^22.13.10
   typescript: ^5.9.2
+  next: ^16.2.10
+  "@clerk/nextjs": ^7.5.17
+  "@clerk/ui": ^1.25.2
 
 minimumReleaseAgeExclude:
   - convex@1.42.2

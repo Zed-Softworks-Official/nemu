@@ -1,11 +1,8 @@
 'use client'
 
 import { Show, SignInButton, UserButton } from '@clerk/nextjs'
-import { Menu } from 'lucide-react'
-import Image from 'next/image'
-import Link from 'next/link'
-import { useState } from 'react'
 import { Button } from '@nemu/ui/components/button'
+import { Logo } from '@nemu/ui/components/logo'
 import {
     NavigationMenu,
     NavigationMenuItem,
@@ -24,7 +21,10 @@ import {
     SheetTrigger,
 } from '@nemu/ui/components/sheet'
 import { cn } from '@nemu/ui/lib/utils'
-import { Logo } from '../logo'
+import { Menu } from 'lucide-react'
+import Image from 'next/image'
+import Link from 'next/link'
+import { useState } from 'react'
 import { useSectionScroll } from './motion'
 
 const navLinks = [
@@ -85,13 +85,16 @@ export function SiteHeader() {
                                 Sign in
                             </Button>
                         </SignInButton>
+                        <Button onClick={() => scrollTo('#waitlist')} size="sm">
+                            Join waitlist
+                        </Button>
                     </Show>
                     <Show when="signed-in">
                         <UserButton />
+                        <Button asChild>
+                            <a href={'/dashboard'}>Dashboard</a>
+                        </Button>
                     </Show>
-                    <Button onClick={() => scrollTo('#waitlist')} size="sm">
-                        Join waitlist
-                    </Button>
                 </div>
 
                 <Sheet onOpenChange={setOpen} open={open}>

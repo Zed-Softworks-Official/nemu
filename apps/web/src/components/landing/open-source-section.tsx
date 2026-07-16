@@ -1,7 +1,7 @@
 'use client'
 
 import { Button } from '@nemu/ui/components/button'
-import { Logo } from '../logo'
+import { Logo } from '@nemu/ui/components/logo'
 import { GitHubIcon } from './github-icon'
 import { LandingSection } from './landing-section'
 import { Float, Reveal } from './motion'
