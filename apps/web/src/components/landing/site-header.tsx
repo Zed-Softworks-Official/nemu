@@ -22,7 +22,6 @@ import {
 } from '@nemu/ui/components/sheet'
 import { cn } from '@nemu/ui/lib/utils'
 import { Menu } from 'lucide-react'
-import Image from 'next/image'
 import Link from 'next/link'
 import { useState } from 'react'
 import { useSectionScroll } from './motion'
@@ -111,17 +110,10 @@ export function SiteHeader() {
                     <SheetContent className="gap-0" side="right">
                         <SheetHeader>
                             <SheetTitle className="flex items-center gap-2 font-extrabold font-heading text-xl">
-                                <Image
-                                    alt=""
-                                    className="size-8"
-                                    height={64}
-                                    src="/icon.png"
-                                    width={64}
-                                />
-                                Nemu
+                                <Logo />
                             </SheetTitle>
                             <SheetDescription>
-                                Privacy-focused smart home control.
+                                Control Everything. Share Nothing.
                             </SheetDescription>
                         </SheetHeader>
                         <Separator />
