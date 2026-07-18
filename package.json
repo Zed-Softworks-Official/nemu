@@ -19,7 +19,8 @@
         "db:revert": "pnpm --filter @nemu/core db:revert",
         "db:new": "pnpm --filter @nemu/core db:new",
         "db:reset": "pnpm --filter @nemu/core db:reset",
-        "db:setup": "pnpm --filter @nemu/core db:setup"
+        "db:setup": "pnpm --filter @nemu/core db:setup",
+        "ui-add": "turbo run ui-add --filter=@nemu/ui --"
     },
     "devDependencies": {
         "@biomejs/biome": "2.3.8",

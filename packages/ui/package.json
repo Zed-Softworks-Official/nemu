@@ -10,7 +10,8 @@
     "./hooks/*": "./src/hooks/*.ts"
   },
   "scripts": {
-    "check-types": "tsc --noEmit"
+    "check-types": "tsc --noEmit",
+    "ui-add": "shadcn add"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",
