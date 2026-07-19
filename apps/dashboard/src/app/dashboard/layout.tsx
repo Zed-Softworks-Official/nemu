@@ -1,4 +1,5 @@
 import { SidebarInset, SidebarProvider } from '@nemu/ui/components/sidebar'
+import { Header } from '~/components/header'
 import { AppSidebar } from '~/components/sidebar/app-sidebar'
 
 export default function DashboardLayout(props: { children: React.ReactNode }) {
@@ -13,6 +14,7 @@ export default function DashboardLayout(props: { children: React.ReactNode }) {
         >
             <AppSidebar variant="inset" />
             <SidebarInset className="md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-3 md:peer-data-[variant=inset]:m-3 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-2xl md:peer-data-[variant=inset]:border md:peer-data-[variant=inset]:border-border md:peer-data-[variant=inset]:shadow-lg">
+                <Header />
                 <div className="flex flex-1 flex-col p-5">{props.children}</div>
             </SidebarInset>
         </SidebarProvider>
