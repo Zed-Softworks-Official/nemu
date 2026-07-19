@@ -1,5 +1,3 @@
-import type { ConvexReactClient } from 'convex/react'
-import type { FunctionReference } from 'convex/server'
 import {
     type CommandResult,
     type Device,
@@ -9,6 +7,8 @@ import {
     relayToClientEnvelopeSchema,
     relayToControllerEnvelopeSchema,
 } from '@nemu/protocol'
+import type { ConvexReactClient } from 'convex/react'
+import type { FunctionReference } from 'convex/server'
 import type { GetToken } from '../http'
 import type { ControllerTransport } from './types'
 
@@ -217,9 +217,7 @@ export class RelayTransport implements ControllerTransport {
         }
     }
 
-    private waitForResponse(
-        requestId: string
-    ): Promise<RelayResponseDoc> {
+    private waitForResponse(requestId: string): Promise<RelayResponseDoc> {
         const started = Date.now()
         return new Promise((resolve, reject) => {
             const tick = async () => {
@@ -233,9 +231,12 @@ export class RelayTransport implements ControllerTransport {
                     return
                 }
                 try {
-                    const messages = await this.convex.query(this.api.responses, {
-                        requestIds: [requestId],
-                    })
+                    const messages = await this.convex.query(
+                        this.api.responses,
+                        {
+                            requestIds: [requestId],
+                        }
+                    )
                     const match = messages.find(
                         (m) =>
                             m.requestId === requestId &&

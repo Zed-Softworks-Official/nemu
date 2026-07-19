@@ -1,13 +1,13 @@
-import type { AxiosInstance } from 'axios'
 import {
     type CommandResult,
+    clientWsMessageSchema,
     type Device,
     type DeviceCommand,
     type DeviceEvent,
-    clientWsMessageSchema,
     deviceEventSchema,
     devicesResponseSchema,
 } from '@nemu/protocol'
+import type { AxiosInstance } from 'axios'
 import { createControllerHttp, type GetToken } from '../http'
 import type { ControllerTransport } from './types'
 
@@ -121,7 +121,11 @@ export class LanTransport implements ControllerTransport {
             }, this.commandTimeoutMs)
 
             this.pending.set(requestId, { resolve, reject, timer })
-            this.ws!.send(JSON.stringify(message))
+            if (this.ws) {
+                this.ws.send(JSON.stringify(message))
+            } else {
+                reject(new Error('WebSocket not connected'))
+            }
         })
     }
 

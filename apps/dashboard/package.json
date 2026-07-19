@@ -17,6 +17,9 @@
     "dependencies": {
         "@clerk/nextjs": "catalog:",
         "@clerk/ui": "catalog:",
+        "@nemu/cloud": "workspace:*",
+        "@nemu/controller": "workspace:*",
+        "@nemu/protocol": "workspace:*",
         "@nemu/ui": "workspace:*",
         "@t3-oss/env-nextjs": "^0.12.0",
         "lucide-react": "^1.23.0",
@@ -40,6 +43,5 @@
     },
     "ct3aMetadata": {
         "initVersion": "7.40.0"
-    },
-    "packageManager": "pnpm@9.0.0"
+    }
 }

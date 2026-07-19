@@ -1,6 +1,11 @@
 import { z } from 'zod'
 
-export const connectionModeSchema = z.enum(['lan', 'relay', 'offline', 'probing'])
+export const connectionModeSchema = z.enum([
+    'lan',
+    'relay',
+    'offline',
+    'probing',
+])
 export type ConnectionMode = z.infer<typeof connectionModeSchema>
 
 export const connectionStatusSchema = z.object({

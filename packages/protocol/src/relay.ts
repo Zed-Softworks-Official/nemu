@@ -26,9 +26,14 @@ const relaySnapshotMessageSchema = z.object({
 export const relayToControllerEnvelopeSchema = z.object({
     requestId: z.string(),
     clientToken: z.string(),
-    message: z.union([relayCommandMessageSchema, z.object({ type: z.literal('getDevices') })]),
+    message: z.union([
+        relayCommandMessageSchema,
+        z.object({ type: z.literal('getDevices') }),
+    ]),
 })
-export type RelayToControllerEnvelope = z.infer<typeof relayToControllerEnvelopeSchema>
+export type RelayToControllerEnvelope = z.infer<
+    typeof relayToControllerEnvelopeSchema
+>
 
 export const relayToClientEnvelopeSchema = z.object({
     requestId: z.string(),

@@ -1,5 +1,5 @@
-import axios, { type AxiosInstance, isAxiosError } from 'axios'
 import { ApiError, apiErrorBodySchema } from '@nemu/protocol'
+import axios, { type AxiosInstance, isAxiosError } from 'axios'
 
 export type GetToken = () => string | null
 

@@ -1,49 +1,53 @@
 'use client'
 
+import { useController } from '@nemu/controller'
+import type { ConnectionStatus } from '@nemu/protocol'
 import { Badge } from '@nemu/ui/components/badge'
-import { House, WifiIcon, WifiOff } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { House, Loader2, WifiIcon, WifiOff } from 'lucide-react'
+import { useMemo } from 'react'
 
 type ConnectionData = {
-    type: 'lan' | 'relay' | 'none'
-    label: string
+    status: ConnectionStatus
     icon: React.ReactNode
-    variant: 'soft' | 'warning-soft' | 'destructive'
+    variant: 'soft' | 'warning-soft' | 'destructive' | 'ghost'
 }
 
 export function ConnectionBadge() {
-    const [connection] = useState<'lan' | 'relay' | 'none'>('lan')
+    const { status } = useController()
 
     const connectionData = useMemo<ConnectionData>(() => {
-        switch (connection) {
+        switch (status.mode) {
             case 'lan':
                 return {
-                    type: 'lan',
-                    label: 'LAN',
+                    status,
                     icon: <House className="size-4" />,
                     variant: 'soft',
                 }
             case 'relay':
                 return {
-                    type: 'relay',
-                    label: 'Relay',
+                    status,
                     icon: <WifiIcon className="size-4" />,
                     variant: 'warning-soft',
                 }
-            case 'none':
+            case 'probing':
                 return {
-                    type: 'none',
-                    label: 'No connection',
+                    status,
+                    icon: <Loader2 className="size-4 animate-spine" />,
+                    variant: 'ghost',
+                }
+            case 'offline':
+                return {
+                    status,
                     icon: <WifiOff className="size-4" />,
                     variant: 'destructive',
                 }
         }
-    }, [connection])
+    }, [status])
 
     return (
         <Badge variant={connectionData.variant}>
             {connectionData.icon}
-            {connectionData.label}
+            {connectionData.status.label}
         </Badge>
     )
 }

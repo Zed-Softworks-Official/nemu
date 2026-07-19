@@ -9,6 +9,7 @@ import { cn } from '@nemu/ui/lib/utils'
 import type { Metadata } from 'next'
 import { Nunito } from 'next/font/google'
 import { Header } from '~/components/header/header'
+import { NemuProvider } from '~/components/nemu-providers'
 import { AppSidebar } from '~/components/sidebar/app-sidebar'
 import { env } from '~/env'
 
@@ -34,26 +35,28 @@ export default function RootLayout({
             publishableKey={env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
             ui={ui}
         >
-            <html
-                className={cn(
-                    nunito.variable,
-                    nunito.className,
-                    'dark antialiased'
-                )}
-                lang="en"
-                suppressHydrationWarning
-            >
-                <body>
-                    <ThemeProvider
-                        attribute="class"
-                        defaultTheme="dark"
-                        disableTransitionOnChange
-                        enableSystem
-                    >
-                        <DashboardLayout>{children}</DashboardLayout>
-                    </ThemeProvider>
-                </body>
-            </html>
+            <NemuProvider>
+                <html
+                    className={cn(
+                        nunito.variable,
+                        nunito.className,
+                        'dark antialiased'
+                    )}
+                    lang="en"
+                    suppressHydrationWarning
+                >
+                    <body>
+                        <ThemeProvider
+                            attribute="class"
+                            defaultTheme="dark"
+                            disableTransitionOnChange
+                            enableSystem
+                        >
+                            <DashboardLayout>{children}</DashboardLayout>
+                        </ThemeProvider>
+                    </body>
+                </html>
+            </NemuProvider>
         </ClerkProvider>
     )
 }

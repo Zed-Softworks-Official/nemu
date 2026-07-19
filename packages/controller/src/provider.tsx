@@ -1,23 +1,23 @@
 'use client'
 
 import {
+    type CommandResult,
+    type ConnectionStatus,
+    type Device,
+    type DeviceCommand,
+    type DeviceEvent,
+    statusFromMode,
+} from '@nemu/protocol'
+import type { ConvexReactClient } from 'convex/react'
+import {
     createContext,
+    type ReactNode,
     useCallback,
     useContext,
     useEffect,
     useMemo,
     useState,
-    type ReactNode,
 } from 'react'
-import type { ConvexReactClient } from 'convex/react'
-import {
-    type ConnectionStatus,
-    type Device,
-    type DeviceCommand,
-    type DeviceEvent,
-    type CommandResult,
-    statusFromMode,
-} from '@nemu/protocol'
 import { ControllerConnection } from './connection'
 import type { RelayApi } from './transports/relay'
 
@@ -103,7 +103,9 @@ export function ControllerProvider({
 export function useController(): ControllerContextValue {
     const ctx = useContext(ControllerContext)
     if (!ctx) {
-        throw new Error('useController must be used within a ControllerProvider')
+        throw new Error(
+            'useController must be used within a ControllerProvider'
+        )
     }
     return ctx
 }

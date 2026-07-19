@@ -33,7 +33,7 @@
   },
   "dependencies": {
     "@t3-oss/env-core": "^0.13.11",
-    "convex": "^1.42.2",
+    "convex": "catalog:",
     "convex-helpers": "^0.1.104",
     "zod": "catalog:"
   }
