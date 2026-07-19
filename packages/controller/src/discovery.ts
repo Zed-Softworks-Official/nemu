@@ -1,39 +1,39 @@
 import {
-  type HealthResponse,
-  healthResponseSchema,
-  type IdentifyResponse,
-  identifyResponseSchema,
-} from "@nemu/protocol";
-import { createControllerHttp } from "./http";
-import { getRememberedBaseUrl } from "./storage";
+    type HealthResponse,
+    healthResponseSchema,
+    type IdentifyResponse,
+    identifyResponseSchema,
+} from '@nemu/protocol'
+import { createControllerHttp } from './http'
+import { getRememberedBaseUrl } from './storage'
 
 export const DEFAULT_LAN_CANDIDATES = [
-  "http://nemu.local:6368",
-  "http://localhost:6368",
-] as const;
+    'http://nemu.local:6368',
+    'http://localhost:6368',
+] as const
 
 export type ProbeResult = {
-  baseUrl: string;
-  health: HealthResponse;
-};
+    baseUrl: string
+    health: HealthResponse
+}
 
 export async function probeController(
-  baseUrl: string,
-  timeoutMs = 2_000,
+    baseUrl: string,
+    timeoutMs = 2_000
 ): Promise<ProbeResult> {
-  const http = createControllerHttp(baseUrl, () => null, timeoutMs);
-  const { data } = await http.get("/api/health");
-  const health = healthResponseSchema.parse(data);
-  return { baseUrl: baseUrl.replace(/\/$/, ""), health };
+    const http = createControllerHttp(baseUrl, () => null, timeoutMs)
+    const { data } = await http.get('/api/health')
+    const health = healthResponseSchema.parse(data)
+    return { baseUrl: baseUrl.replace(/\/$/, ''), health }
 }
 
 export async function identifyController(
-  baseUrl: string,
-  timeoutMs = 3_000,
+    baseUrl: string,
+    timeoutMs = 3_000
 ): Promise<IdentifyResponse> {
-  const http = createControllerHttp(baseUrl, () => null, timeoutMs);
-  const { data } = await http.get("/api/identify");
-  return identifyResponseSchema.parse(data);
+    const http = createControllerHttp(baseUrl, () => null, timeoutMs)
+    const { data } = await http.get('/api/identify')
+    return identifyResponseSchema.parse(data)
 }
 
 /**
@@ -41,21 +41,21 @@ export async function identifyController(
  * Returns the first reachable base URL, or null if none respond.
  */
 export async function discoverController(
-  candidates: string[] = [...DEFAULT_LAN_CANDIDATES],
+    candidates: string[] = [...DEFAULT_LAN_CANDIDATES]
 ): Promise<ProbeResult | null> {
-  const ordered: string[] = [];
-  const remembered = getRememberedBaseUrl();
-  if (remembered) ordered.push(remembered);
-  for (const candidate of candidates) {
-    if (!ordered.includes(candidate)) ordered.push(candidate);
-  }
-
-  for (const baseUrl of ordered) {
-    try {
-      return await probeController(baseUrl);
-    } catch {
-      // try next candidate
+    const ordered: string[] = []
+    const remembered = getRememberedBaseUrl()
+    if (remembered) ordered.push(remembered)
+    for (const candidate of candidates) {
+        if (!ordered.includes(candidate)) ordered.push(candidate)
     }
-  }
-  return null;
+
+    for (const baseUrl of ordered) {
+        try {
+            return await probeController(baseUrl)
+        } catch {
+            // try next candidate
+        }
+    }
+    return null
 }

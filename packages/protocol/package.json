@@ -1,21 +1,21 @@
 {
-  "name": "@nemu/protocol",
-  "version": "0.0.0",
-  "private": true,
-  "type": "module",
-  "exports": {
-    ".": "./src/index.ts"
-  },
-  "scripts": {
-    "check-types": "tsc --noEmit"
-  },
-  "dependencies": {
-    "zod": "catalog:"
-  },
-  "devDependencies": {
-    "@nemu/biome-config": "workspace:*",
-    "@nemu/typescript-config": "workspace:*",
-    "@types/node": "catalog:",
-    "typescript": "catalog:"
-  }
+    "name": "@nemu/protocol",
+    "version": "0.0.0",
+    "private": true,
+    "type": "module",
+    "exports": {
+        ".": "./src/index.ts"
+    },
+    "scripts": {
+        "check-types": "tsc --noEmit"
+    },
+    "dependencies": {
+        "zod": "catalog:"
+    },
+    "devDependencies": {
+        "@nemu/biome-config": "workspace:*",
+        "@nemu/typescript-config": "workspace:*",
+        "@types/node": "catalog:",
+        "typescript": "catalog:"
+    }
 }

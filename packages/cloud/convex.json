@@ -1,4 +1,4 @@
 {
-  "$schema": "./node_modules/convex/schemas/convex.schema.json",
-  "functions": "src/functions"
+    "$schema": "./node_modules/convex/schemas/convex.schema.json",
+    "functions": "src/functions"
 }

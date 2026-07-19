@@ -1,28 +1,28 @@
 {
-  "name": "@nemu/controller",
-  "version": "0.0.0",
-  "private": true,
-  "type": "module",
-  "exports": {
-    ".": "./src/index.ts"
-  },
-  "scripts": {
-    "check-types": "tsc --noEmit"
-  },
-  "dependencies": {
-    "@nemu/protocol": "workspace:*",
-    "axios": "catalog:",
-    "convex": "catalog:"
-  },
-  "peerDependencies": {
-    "react": "catalog:"
-  },
-  "devDependencies": {
-    "@nemu/biome-config": "workspace:*",
-    "@nemu/typescript-config": "workspace:*",
-    "@types/node": "catalog:",
-    "@types/react": "catalog:",
-    "react": "catalog:",
-    "typescript": "catalog:"
-  }
+    "name": "@nemu/controller",
+    "version": "0.0.0",
+    "private": true,
+    "type": "module",
+    "exports": {
+        ".": "./src/index.ts"
+    },
+    "scripts": {
+        "check-types": "tsc --noEmit"
+    },
+    "dependencies": {
+        "@nemu/protocol": "workspace:*",
+        "axios": "catalog:",
+        "convex": "catalog:"
+    },
+    "peerDependencies": {
+        "react": "catalog:"
+    },
+    "devDependencies": {
+        "@nemu/biome-config": "workspace:*",
+        "@nemu/typescript-config": "workspace:*",
+        "@types/node": "catalog:",
+        "@types/react": "catalog:",
+        "react": "catalog:",
+        "typescript": "catalog:"
+    }
 }

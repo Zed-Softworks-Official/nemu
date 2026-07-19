@@ -12,7 +12,7 @@
         "build:dashboard": "turbo run build --filter=@nemu/dashboard",
         "build:rust": "turbo run build:rust",
         "lint": "turbo run lint",
-        "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+        "format": "biome format --write .",
         "check-types": "turbo run check-types",
         "infra": "docker compose -f docker-compose.dev.yml up -d",
         "infra:down": "docker compose -f docker-compose.dev.yml down",

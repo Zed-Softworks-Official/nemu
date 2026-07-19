@@ -1,40 +1,40 @@
 {
-  "name": "@nemu/cloud",
-  "version": "0.0.0",
-  "private": true,
-  "type": "module",
-  "exports": {
-    ".": "./src/index.ts",
-    "./api": {
-      "types": "./src/functions/_generated/api.d.ts",
-      "default": "./src/functions/_generated/api.js"
+    "name": "@nemu/cloud",
+    "version": "0.0.0",
+    "private": true,
+    "type": "module",
+    "exports": {
+        ".": "./src/index.ts",
+        "./api": {
+            "types": "./src/functions/_generated/api.d.ts",
+            "default": "./src/functions/_generated/api.js"
+        },
+        "./server": {
+            "types": "./src/functions/_generated/server.d.ts",
+            "default": "./src/functions/_generated/server.js"
+        },
+        "./dataModels": {
+            "types": "./src/functions/_generated/dataModels.d.ts",
+            "default": "./src/functions/_generated/dataModels.js"
+        }
     },
-    "./server": {
-      "types": "./src/functions/_generated/server.d.ts",
-      "default": "./src/functions/_generated/server.js"
+    "scripts": {
+        "dev": "convex dev",
+        "dev:web": "convex dev",
+        "convex:dev": "convex dev",
+        "convex:deploy": "convex deploy",
+        "check-types": "tsc --noEmit"
     },
-    "./dataModels": {
-      "types": "./src/functions/_generated/dataModels.d.ts",
-      "default": "./src/functions/_generated/dataModels.js"
+    "devDependencies": {
+        "@nemu/biome-config": "workspace:*",
+        "@nemu/typescript-config": "workspace:*",
+        "@types/node": "catalog:",
+        "typescript": "catalog:"
+    },
+    "dependencies": {
+        "@t3-oss/env-core": "^0.13.11",
+        "convex": "catalog:",
+        "convex-helpers": "^0.1.104",
+        "zod": "catalog:"
     }
-  },
-  "scripts": {
-    "dev": "convex dev",
-    "dev:web": "convex dev",
-    "convex:dev": "convex dev",
-    "convex:deploy": "convex deploy",
-    "check-types": "tsc --noEmit"
-  },
-  "devDependencies": {
-    "@nemu/biome-config": "workspace:*",
-    "@nemu/typescript-config": "workspace:*",
-    "@types/node": "catalog:",
-    "typescript": "catalog:"
-  },
-  "dependencies": {
-    "@t3-oss/env-core": "^0.13.11",
-    "convex": "catalog:",
-    "convex-helpers": "^0.1.104",
-    "zod": "catalog:"
-  }
 }
