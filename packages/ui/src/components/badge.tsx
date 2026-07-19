@@ -1,7 +1,7 @@
+import { cn } from '@nemu/ui/lib/utils'
 import { cva, type VariantProps } from 'class-variance-authority'
 import { Slot } from 'radix-ui'
 import type * as React from 'react'
-import { cn } from '@nemu/ui/lib/utils'
 
 const badgeVariants = cva(
     'group/badge inline-flex h-6 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden whitespace-nowrap rounded-md border border-transparent px-2.5 py-0.5 font-medium text-xs tracking-wide transition-all focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&>svg]:pointer-events-none [&>svg]:size-3!',
@@ -19,6 +19,8 @@ const badgeVariants = cva(
                 ghost: 'hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50',
                 link: 'text-primary underline-offset-4 hover:underline',
                 soft: 'border-primary/15 bg-primary/10 text-primary [a]:hover:bg-primary/15',
+                'warning-soft':
+                    'border-warning/15 bg-warning/10 text-warning [a]:hover:bg-warning/15',
             },
         },
         defaultVariants: {

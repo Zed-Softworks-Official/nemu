@@ -1,6 +1,7 @@
 import { Separator } from '@nemu/ui/components/separator'
 import { SidebarTrigger } from '@nemu/ui/components/sidebar'
 import { DashboardBreadcrumbs } from './breadcrumbs'
+import { ConnectionBadge } from './connection'
 
 export function Header() {
     return (
@@ -12,6 +13,9 @@ export function Header() {
                     orientation="vertical"
                 />
                 <DashboardBreadcrumbs />
+                <div className="ml-auto">
+                    <ConnectionBadge />
+                </div>
             </div>
         </header>
     )
