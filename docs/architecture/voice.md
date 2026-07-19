@@ -6,7 +6,7 @@ path that sends audio or transcripts off the device.
 
 Hardware reality drives the design: development targets a **Raspberry Pi 4**,
 production targets a **Pi 5 with 16 GB RAM**. The pipeline is therefore
-*tiered* — every stage is a swappable backend chosen by config, and the Pi 4
+_tiered_ — every stage is a swappable backend chosen by config, and the Pi 4
 tier must always work as the fallback on any hardware.
 
 ## 1. Pipeline
@@ -39,10 +39,10 @@ wake word fires, so idle CPU cost is a few percent.
 
 Quantized GGUF models, executed via the `whisper-rs` bindings:
 
-| Hardware | Model | Approx. footprint | Expected latency for a 3 s utterance |
-|---|---|---|---|
-| Pi 4 | `tiny.en` q5 (fallback `base.en` q5) | 75–150 MB | ~1–2.5 s |
-| Pi 5 | `base.en`–`small.en` q5 | 150–500 MB | ~0.7–1.5 s |
+| Hardware | Model                                | Approx. footprint | Expected latency for a 3 s utterance |
+| -------- | ------------------------------------ | ----------------- | ------------------------------------ |
+| Pi 4     | `tiny.en` q5 (fallback `base.en` q5) | 75–150 MB         | ~1–2.5 s                             |
+| Pi 5     | `base.en`–`small.en` q5              | 150–500 MB        | ~0.7–1.5 s                           |
 
 English-only models to start; command vocabulary is narrow enough that `tiny`
 is acceptable on the Pi 4.
@@ -83,7 +83,7 @@ convenience) as a sibling process/container, called over its local HTTP API:
   quantized (~2–3 GB RAM), leaving plenty of headroom in 16 GB.
 - Prompted with the device/room/scene inventory and constrained to emit a
   JSON `Intent` (GBNF grammar / JSON-schema constrained decoding — the model
-  *cannot* produce anything but a valid intent or a structured "clarify"
+  _cannot_ produce anything but a valid intent or a structured "clarify"
   response).
 - Handles free-form phrasing tier 1 can't: "it's too dark in here",
   "kill everything downstairs except the hallway", "movie time".
@@ -107,14 +107,14 @@ on a Pi 4. Responses are intentionally terse ("Kitchen lights off",
 
 Wake word → audible confirmation, target end-to-end:
 
-| Stage | Pi 4 (tier 1) | Pi 5 (tier 2, LLM path) |
-|---|---|---|
-| End-of-speech detection | ~0.3 s | ~0.3 s |
-| STT | 1.0–2.5 s | 0.7–1.5 s |
-| Intent | <0.1 s | 1.0–3.0 s |
-| Execute (MQTT round trip) | <0.2 s | <0.2 s |
-| TTS first audio | ~0.3 s | ~0.3 s |
-| **Total** | **~2–3.5 s** | **~2.5–5 s** |
+| Stage                     | Pi 4 (tier 1) | Pi 5 (tier 2, LLM path) |
+| ------------------------- | ------------- | ----------------------- |
+| End-of-speech detection   | ~0.3 s        | ~0.3 s                  |
+| STT                       | 1.0–2.5 s     | 0.7–1.5 s               |
+| Intent                    | <0.1 s        | 1.0–3.0 s               |
+| Execute (MQTT round trip) | <0.2 s        | <0.2 s                  |
+| TTS first audio           | ~0.3 s        | ~0.3 s                  |
+| **Total**                 | **~2–3.5 s**  | **~2.5–5 s**            |
 
 If tier 2 blows the budget in practice, the mitigation is already built in:
 tier 1 handles the common commands instantly and the LLM only sees the

@@ -95,14 +95,14 @@ import { v } from "convex/values";
 
 export default defineSchema({
   controllers: defineTable({
-    controllerId: v.string(),   // opaque, generated on first boot
-    publicKey: v.string(),      // verifies relay response signatures
-    name: v.string(),           // user-chosen, e.g. "Home"
+    controllerId: v.string(), // opaque, generated on first boot
+    publicKey: v.string(), // verifies relay response signatures
+    name: v.string(), // user-chosen, e.g. "Home"
     registeredAt: v.number(),
   }).index("by_controller_id", ["controllerId"]),
 
   pairings: defineTable({
-    userId: v.string(),         // Clerk subject
+    userId: v.string(), // Clerk subject
     controllerId: v.string(),
     createdAt: v.number(),
   })
@@ -112,12 +112,16 @@ export default defineSchema({
   relayMessages: defineTable({
     controllerId: v.string(),
     direction: v.union(v.literal("toController"), v.literal("toClient")),
-    requestId: v.string(),      // correlates command and response
-    payload: v.string(),        // JSON envelope, includes client token
+    requestId: v.string(), // correlates command and response
+    payload: v.string(), // JSON envelope, includes client token
     consumed: v.boolean(),
-    expiresAt: v.number(),      // now + a few minutes
+    expiresAt: v.number(), // now + a few minutes
   })
-    .index("by_controller_and_direction", ["controllerId", "direction", "consumed"])
+    .index("by_controller_and_direction", [
+      "controllerId",
+      "direction",
+      "consumed",
+    ])
     .index("by_expiry", ["expiresAt"]),
 });
 ```
@@ -135,18 +139,18 @@ export default defineSchema({
 
 Base topic `zigbee2mqtt` (stock z2m config, pinned image).
 
-| Topic | Dir (from core) | Payload | Used for |
-|---|---|---|---|
-| `zigbee2mqtt/bridge/state` | sub | `{"state":"online"}` | health |
-| `zigbee2mqtt/bridge/devices` | sub | array of device descriptors (`ieee_address`, `friendly_name`, `definition.model`, …) | registry sync |
-| `zigbee2mqtt/bridge/event` | sub | `{"type":"device_joined"\|"device_interview"\|"device_leave", "data":{...}}` | pairing UX, registry updates |
-| `zigbee2mqtt/<friendly_name>` | sub | device state JSON (`{"state":"ON","brightness":254,...}`) | state cache + events |
-| `zigbee2mqtt/<friendly_name>/availability` | sub | `{"state":"online"}` | `last_seen` / offline badges |
-| `zigbee2mqtt/<friendly_name>/set` | pub | command JSON (`{"state":"OFF"}`) | device commands |
-| `zigbee2mqtt/<friendly_name>/get` | pub | `{"state":""}` | state refresh |
-| `zigbee2mqtt/bridge/request/permit_join` | pub | `{"time":120}` | open pairing window |
-| `zigbee2mqtt/bridge/request/device/rename` | pub | `{"from":"0x00...","to":"Kitchen Light"}` | rename propagation |
-| `zigbee2mqtt/bridge/response/#` | sub | request acks | error surfacing |
+| Topic                                      | Dir (from core) | Payload                                                                              | Used for                     |
+| ------------------------------------------ | --------------- | ------------------------------------------------------------------------------------ | ---------------------------- |
+| `zigbee2mqtt/bridge/state`                 | sub             | `{"state":"online"}`                                                                 | health                       |
+| `zigbee2mqtt/bridge/devices`               | sub             | array of device descriptors (`ieee_address`, `friendly_name`, `definition.model`, …) | registry sync                |
+| `zigbee2mqtt/bridge/event`                 | sub             | `{"type":"device_joined"\|"device_interview"\|"device_leave", "data":{...}}`         | pairing UX, registry updates |
+| `zigbee2mqtt/<friendly_name>`              | sub             | device state JSON (`{"state":"ON","brightness":254,...}`)                            | state cache + events         |
+| `zigbee2mqtt/<friendly_name>/availability` | sub             | `{"state":"online"}`                                                                 | `last_seen` / offline badges |
+| `zigbee2mqtt/<friendly_name>/set`          | pub             | command JSON (`{"state":"OFF"}`)                                                     | device commands              |
+| `zigbee2mqtt/<friendly_name>/get`          | pub             | `{"state":""}`                                                                       | state refresh                |
+| `zigbee2mqtt/bridge/request/permit_join`   | pub             | `{"time":120}`                                                                       | open pairing window          |
+| `zigbee2mqtt/bridge/request/device/rename` | pub             | `{"from":"0x00...","to":"Kitchen Light"}`                                            | rename propagation           |
+| `zigbee2mqtt/bridge/response/#`            | sub             | request acks                                                                         | error surfacing              |
 
 Rules:
 
@@ -207,13 +211,18 @@ Server → client (tagged enum, mirrors the Rust `DeviceEvent` broadcast bus):
 Client → server:
 
 ```jsonc
-{ "type": "command", "requestId": "r1", "deviceId": "6d1e…", "payload": { "state": "OFF" } }
+{
+  "type": "command",
+  "requestId": "r1",
+  "deviceId": "6d1e…",
+  "payload": { "state": "OFF" },
+}
 // → { "type": "commandResult", "requestId": "r1", "ok": true }
 ```
 
 ### Relay envelopes (webview ↔ Convex ↔ core)
 
-The relay carries the *same* command/result shapes, wrapped:
+The relay carries the _same_ command/result shapes, wrapped:
 
 ```jsonc
 // relayMessages.payload (toController)

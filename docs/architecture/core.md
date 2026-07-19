@@ -82,9 +82,9 @@ pub struct AppState {
 }
 ```
 
-  A blocking `PgConnection` behind a mutex serializes every request and blocks
-  the async runtime; the pool is the first refactor (M0 remainder).
-  `NemuClient`/`NemuRouter` fold into `main.rs` + `state.rs` + `api/router.rs`.
+A blocking `PgConnection` behind a mutex serializes every request and blocks
+the async runtime; the pool is the first refactor (M0 remainder).
+`NemuClient`/`NemuRouter` fold into `main.rs` + `state.rs` + `api/router.rs`.
 
 - **Event bus.** A `tokio::sync::broadcast` channel of `DeviceEvent` decouples
   the MQTT loop from consumers (`/ws` sessions, relay snapshots, voice
@@ -98,37 +98,37 @@ and requests a registry resync.
 
 Topic map (see [data-model.md](data-model.md) for payload details):
 
-| Direction | Topic | Purpose |
-|---|---|---|
-| in | `zigbee2mqtt/bridge/devices` | full device list → registry sync (upsert/remove in Postgres) |
-| in | `zigbee2mqtt/bridge/event` | join/leave/interview events → `/ws` + pairing UX |
-| in | `zigbee2mqtt/bridge/state` | z2m health → `/api/health` |
-| in | `zigbee2mqtt/<friendly_name>` | device state → state cache + `DeviceEvent` |
-| out | `zigbee2mqtt/<friendly_name>/set` | commands |
-| out | `zigbee2mqtt/bridge/request/permit_join` | open pairing window |
-| out | `zigbee2mqtt/bridge/request/device/rename` | rename propagation |
+| Direction | Topic                                      | Purpose                                                      |
+| --------- | ------------------------------------------ | ------------------------------------------------------------ |
+| in        | `zigbee2mqtt/bridge/devices`               | full device list → registry sync (upsert/remove in Postgres) |
+| in        | `zigbee2mqtt/bridge/event`                 | join/leave/interview events → `/ws` + pairing UX             |
+| in        | `zigbee2mqtt/bridge/state`                 | z2m health → `/api/health`                                   |
+| in        | `zigbee2mqtt/<friendly_name>`              | device state → state cache + `DeviceEvent`                   |
+| out       | `zigbee2mqtt/<friendly_name>/set`          | commands                                                     |
+| out       | `zigbee2mqtt/bridge/request/permit_join`   | open pairing window                                          |
+| out       | `zigbee2mqtt/bridge/request/device/rename` | rename propagation                                           |
 
 Registry sync is idempotent: `bridge/devices` is the source of truth for
 existence and `ieee_address`; Postgres adds nemu-owned fields (room, display
-metadata). Renames initiated in nemu go *to* z2m so the two never diverge.
+metadata). Renames initiated in nemu go _to_ z2m so the two never diverge.
 
 ## 4. API surface
 
 All routes require the client-token middleware except `/api/health` and the
 pairing endpoints.
 
-| Method + path | Purpose |
-|---|---|
-| `GET /api/health` | liveness: DB, MQTT, z2m bridge state |
-| `POST /api/pair` | exchange pairing code for a client token |
-| `GET /api/devices` | registry + latest cached state (optional `?room=`) |
-| `GET /api/devices/{id}` | one device + state |
-| `PATCH /api/devices/{id}` | rename / assign room (propagates to z2m) |
-| `POST /api/devices/{id}/set` | send a command payload (`{"state":"OFF"}`, `{"brightness":128}`) |
-| `GET /api/rooms` / `POST /api/rooms` / `PATCH /api/rooms/{id}` / `DELETE ...` | room CRUD |
-| `POST /api/zigbee/permit-join` | `{seconds: 120}` open join window |
-| `GET /api/tokens` / `DELETE /api/tokens/{id}` | list / revoke paired clients |
-| `GET /ws` | WebSocket: server pushes `DeviceEvent`s; client may send commands (same executor) |
+| Method + path                                                                 | Purpose                                                                           |
+| ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `GET /api/health`                                                             | liveness: DB, MQTT, z2m bridge state                                              |
+| `POST /api/pair`                                                              | exchange pairing code for a client token                                          |
+| `GET /api/devices`                                                            | registry + latest cached state (optional `?room=`)                                |
+| `GET /api/devices/{id}`                                                       | one device + state                                                                |
+| `PATCH /api/devices/{id}`                                                     | rename / assign room (propagates to z2m)                                          |
+| `POST /api/devices/{id}/set`                                                  | send a command payload (`{"state":"OFF"}`, `{"brightness":128}`)                  |
+| `GET /api/rooms` / `POST /api/rooms` / `PATCH /api/rooms/{id}` / `DELETE ...` | room CRUD                                                                         |
+| `POST /api/zigbee/permit-join`                                                | `{seconds: 120}` open join window                                                 |
+| `GET /api/tokens` / `DELETE /api/tokens/{id}`                                 | list / revoke paired clients                                                      |
+| `GET /ws`                                                                     | WebSocket: server pushes `DeviceEvent`s; client may send commands (same executor) |
 
 Error convention: JSON `{ "error": { "code": "...", "message": "..." } }`;
 404 unknown device, 401 missing/invalid token, 503 dependency down.
@@ -165,15 +165,15 @@ down, only this task idles.
 Schema evolution beyond the existing `devices` table (ERD in
 [data-model.md](data-model.md)):
 
-| Table | Milestone | Notes |
-|---|---|---|
-| `devices` | exists | gains `room_id`, `enabled`, `last_seen` |
-| `rooms` | M1 | id, name, sort order |
-| `device_events` | M1 | append-only state/command log for history UI; pruned by retention job |
-| `pairing_codes` | M2 | code hash, expiry, consumed flag |
-| `client_tokens` | M2 | token hash, label, created/last-seen |
-| `scenes` / `scene_actions` | M4+ | named groups of command payloads |
-| `settings` | M2 | controller name, keypair, Convex registration state |
+| Table                      | Milestone | Notes                                                                 |
+| -------------------------- | --------- | --------------------------------------------------------------------- |
+| `devices`                  | exists    | gains `room_id`, `enabled`, `last_seen`                               |
+| `rooms`                    | M1        | id, name, sort order                                                  |
+| `device_events`            | M1        | append-only state/command log for history UI; pruned by retention job |
+| `pairing_codes`            | M2        | code hash, expiry, consumed flag                                      |
+| `client_tokens`            | M2        | token hash, label, created/last-seen                                  |
+| `scenes` / `scene_actions` | M4+       | named groups of command payloads                                      |
+| `settings`                 | M2        | controller name, keypair, Convex registration state                   |
 
 Diesel migrations remain the change mechanism (`just db-new`, run
 automatically at boot in the container so updates are one `compose pull`).

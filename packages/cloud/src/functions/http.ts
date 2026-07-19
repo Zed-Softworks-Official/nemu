@@ -1,12 +1,12 @@
-import { httpRouter } from 'convex/server'
-import { registerHttp } from './controllers'
+import { httpRouter } from "convex/server";
+import { registerHttp } from "./controllers";
 
-const http = httpRouter()
+const http = httpRouter();
 
 http.route({
-    path: '/controllers/register',
-    method: 'POST',
-    handler: registerHttp,
-})
+  path: "/controllers/register",
+  method: "POST",
+  handler: registerHttp,
+});
 
-export default http
+export default http;

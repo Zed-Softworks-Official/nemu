@@ -114,9 +114,9 @@ flowchart LR
 - The controller never accepts inbound connections from the internet. Its only
   WAN activity is outbound TLS to Convex (registration + relay subscription).
   No port forwarding, no UPnP.
-- The cloud is trusted for *identity* (Clerk says who the user is) and
-  *routing* (Convex delivers mail) — never for *authorization* (the controller
-  checks the client token on every command) or *storage of home data* (the
+- The cloud is trusted for _identity_ (Clerk says who the user is) and
+  _routing_ (Convex delivers mail) — never for _authorization_ (the controller
+  checks the client token on every command) or _storage of home data_ (the
   schema has no place for it).
 - The LAN is trusted in v1 at the transport level, with token auth on every
   API call; TLS with pinned certs lands in M5.
@@ -126,16 +126,16 @@ flowchart LR
 What data exists where — this table is the contract that milestone reviews
 check against:
 
-| Data | Controller (Postgres) | Convex | Clerk | In transit through cloud |
-|---|---|---|---|---|
-| Account identity (email, etc.) | never | user reference only | yes | — |
-| Controller registration (opaque ID, public key, name) | yes | yes | — | — |
-| Account↔controller pairing record | token hash | yes (IDs only) | — | — |
-| Device inventory, friendly names, rooms | **yes** | **never** | never | never |
-| Device state / telemetry / history | **yes** | **never** | never | relay mode only, ephemeral, TTL-deleted |
-| Commands ("turn off kitchen") | logged locally | **never stored** | never | relay mode only, ephemeral, TTL-deleted |
-| Voice audio / transcripts | processed in memory, transcript optionally logged locally | **never** | never | **never** |
-| Automation rules / scenes | yes | never | never | never |
+| Data                                                  | Controller (Postgres)                                     | Convex              | Clerk | In transit through cloud                |
+| ----------------------------------------------------- | --------------------------------------------------------- | ------------------- | ----- | --------------------------------------- |
+| Account identity (email, etc.)                        | never                                                     | user reference only | yes   | —                                       |
+| Controller registration (opaque ID, public key, name) | yes                                                       | yes                 | —     | —                                       |
+| Account↔controller pairing record                     | token hash                                                | yes (IDs only)      | —     | —                                       |
+| Device inventory, friendly names, rooms               | **yes**                                                   | **never**           | never | never                                   |
+| Device state / telemetry / history                    | **yes**                                                   | **never**           | never | relay mode only, ephemeral, TTL-deleted |
+| Commands ("turn off kitchen")                         | logged locally                                            | **never stored**    | never | relay mode only, ephemeral, TTL-deleted |
+| Voice audio / transcripts                             | processed in memory, transcript optionally logged locally | **never**           | never | **never**                               |
+| Automation rules / scenes                             | yes                                                       | never               | never | never                                   |
 
 Relay retention: messages are written, delivered, marked consumed, and deleted
 by a scheduled Convex cleanup; the TTL is a few minutes at most. There is no
@@ -155,10 +155,10 @@ relay history API.
 
 ## 6. Failure modes
 
-| Failure | Behavior |
-|---|---|
-| Internet down | Everything works on the LAN, including voice. Relay unavailable. |
+| Failure                          | Behavior                                                                                                                |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Internet down                    | Everything works on the LAN, including voice. Relay unavailable.                                                        |
 | Cloud (Convex/Clerk/Vercel) down | LAN control unaffected if the webview is cached / served locally later; remote access unavailable. Home data untouched. |
-| Controller down | Nothing works — by design there is no cloud shadow of the home. |
-| zigbee2mqtt restart | Core reconnects, resyncs registry from `bridge/devices`, `/ws` clients see a resync event. |
-| Postgres down | API returns 503; MQTT command path degrades to registry-cache-only until recovery. |
+| Controller down                  | Nothing works — by design there is no cloud shadow of the home.                                                         |
+| zigbee2mqtt restart              | Core reconnects, resyncs registry from `bridge/devices`, `/ws` clients see a resync event.                              |
+| Postgres down                    | API returns 503; MQTT command path degrades to registry-cache-only until recovery.                                      |

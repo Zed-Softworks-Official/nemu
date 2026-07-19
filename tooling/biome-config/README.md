@@ -16,16 +16,16 @@ transitive `extends` through package configs), so list `base` first:
 ```jsonc
 // apps/<app>/biome.jsonc
 {
-	"root": false,
-	"extends": ["@nemu/biome-config/base", "@nemu/biome-config/next-js"]
+  "root": false,
+  "extends": ["@nemu/biome-config/base", "@nemu/biome-config/next-js"],
 }
 ```
 
 ```jsonc
 // packages/<lib>/biome.jsonc
 {
-	"root": false,
-	"extends": ["@nemu/biome-config/base", "@nemu/biome-config/react-internal"]
+  "root": false,
+  "extends": ["@nemu/biome-config/base", "@nemu/biome-config/react-internal"],
 }
 ```
 

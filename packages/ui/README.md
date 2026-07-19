@@ -3,9 +3,9 @@
 Shared shadcn/ui primitives for Nemu apps.
 
 ```ts
-import { Button } from '@nemu/ui/components/button'
-import { cn } from '@nemu/ui/lib/utils'
-import '@nemu/ui/globals.css'
+import { Button } from "@nemu/ui/components/button";
+import { cn } from "@nemu/ui/lib/utils";
+import "@nemu/ui/globals.css";
 ```
 
 Add components with the CLI from an app workspace:

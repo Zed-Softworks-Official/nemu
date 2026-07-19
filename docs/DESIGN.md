@@ -74,11 +74,11 @@ These are hard constraints, enforced by design reviews on every milestone:
 
 Nemu is two deployable parts:
 
-| Part | Runs on | Stack | Responsibility |
-|---|---|---|---|
-| **nemu-core** | Raspberry Pi (Docker Compose) | Rust (Axum, Diesel, rumqttc), Mosquitto, zigbee2mqtt, Postgres | Everything: device control, state, API, voice, pairing |
-| **nemu-web** | Vercel (`nemu.sh`) + Convex + Clerk | Next.js (App Router), Convex, Clerk | Marketing, accounts |
-| **nemu-dashboard** | Vercel (`dashboard.nemu.sh`) + Convex + Clerk | Next.js (App Router), Convex, Clerk | Controller discovery/pairing UI, control UI, relay fallback |
+| Part               | Runs on                                       | Stack                                                          | Responsibility                                              |
+| ------------------ | --------------------------------------------- | -------------------------------------------------------------- | ----------------------------------------------------------- |
+| **nemu-core**      | Raspberry Pi (Docker Compose)                 | Rust (Axum, Diesel, rumqttc), Mosquitto, zigbee2mqtt, Postgres | Everything: device control, state, API, voice, pairing      |
+| **nemu-web**       | Vercel (`nemu.sh`) + Convex + Clerk           | Next.js (App Router), Convex, Clerk                            | Marketing, accounts                                         |
+| **nemu-dashboard** | Vercel (`dashboard.nemu.sh`) + Convex + Clerk | Next.js (App Router), Convex, Clerk                            | Controller discovery/pairing UI, control UI, relay fallback |
 
 The webview is a thin client. It renders whatever the controller's API serves
 and holds no authoritative state of its own. See the
@@ -158,78 +158,78 @@ zigbee2mqtt, postgres), `apps/core` (Axum skeleton, Diesel `devices` table,
 
 ### M0 — Foundation (mostly done)
 
-| Deliverable | Acceptance criteria |
-|---|---|
-| Docker Compose dev stack | `just infra` brings up mosquitto, zigbee2mqtt, postgres; z2m sees the Zigbee dongle |
-| Axum app skeleton | `just dev-core` serves `/api/health` returning 200 |
-| Diesel setup + first migration | `just db-migrate` creates `devices`; models compile with `check_for_backend` |
+| Deliverable                       | Acceptance criteria                                                                                                              |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Docker Compose dev stack          | `just infra` brings up mosquitto, zigbee2mqtt, postgres; z2m sees the Zigbee dongle                                              |
+| Axum app skeleton                 | `just dev-core` serves `/api/health` returning 200                                                                               |
+| Diesel setup + first migration    | `just db-migrate` creates `devices`; models compile with `check_for_backend`                                                     |
 | **Remaining:** connection pooling | Replace `Arc<Mutex<PgConnection>>` with an async pool (deadpool + diesel-async); handlers get connections from shared `AppState` |
-| **Remaining:** core container | `apps/core` has a Dockerfile (cross-compiled for arm64) and joins the compose stack |
+| **Remaining:** core container     | `apps/core` has a Dockerfile (cross-compiled for arm64) and joins the compose stack                                              |
 
 ### M1 — Device control
 
-| Deliverable | Acceptance criteria |
-|---|---|
-| MQTT bridge service | Core maintains a resilient rumqttc connection; subscribes `zigbee2mqtt/#`; reconnects with backoff |
-| Device registry sync | `zigbee2mqtt/bridge/devices` payloads upsert the `devices` table; removals are detected |
-| Live state cache | Per-device state retained in memory; queryable via API without touching MQTT |
-| Command API | `POST /api/devices/{id}/set` publishes to `zigbee2mqtt/<addr>/set`; invalid devices → 404 |
-| Device CRUD API | List/get/rename devices; rename propagates to zigbee2mqtt `friendly_name` |
-| WebSocket state stream | `GET /ws` pushes device state changes in real time; survives z2m restarts |
-| Rooms | `rooms` table + assignment; devices filterable by room |
-| Pairing mode API | `POST /api/zigbee/permit-join` opens joining for a bounded window; interview progress streamed over `/ws` |
+| Deliverable            | Acceptance criteria                                                                                       |
+| ---------------------- | --------------------------------------------------------------------------------------------------------- |
+| MQTT bridge service    | Core maintains a resilient rumqttc connection; subscribes `zigbee2mqtt/#`; reconnects with backoff        |
+| Device registry sync   | `zigbee2mqtt/bridge/devices` payloads upsert the `devices` table; removals are detected                   |
+| Live state cache       | Per-device state retained in memory; queryable via API without touching MQTT                              |
+| Command API            | `POST /api/devices/{id}/set` publishes to `zigbee2mqtt/<addr>/set`; invalid devices → 404                 |
+| Device CRUD API        | List/get/rename devices; rename propagates to zigbee2mqtt `friendly_name`                                 |
+| WebSocket state stream | `GET /ws` pushes device state changes in real time; survives z2m restarts                                 |
+| Rooms                  | `rooms` table + assignment; devices filterable by room                                                    |
+| Pairing mode API       | `POST /api/zigbee/permit-join` opens joining for a bounded window; interview progress streamed over `/ws` |
 
 ### M2 — Webview and controller pairing
 
-| Deliverable | Acceptance criteria |
-|---|---|
-| Next.js app scaffold | App Router, TypeScript strict, Tailwind; deployed to Vercel |
-| Clerk auth | Sign-up/sign-in; middleware-protected routes; `ConvexProviderWithClerk` wired |
-| Convex schema (cloud-side) | `controllers`, `pairings` tables with validators + indexes; **no fields capable of holding device data** |
-| Controller registration | On first boot, core registers with Convex (controller ID + public key) via an HTTP action |
-| mDNS discovery | Core advertises `_nemu._tcp`; webview discovers it (direct probe of `nemu.local` + candidate scan fallback) |
-| Pairing handshake | 6-digit code flow from §6.1; controller mints a client token; Convex records the binding |
-| Controller auth on core API | All non-pairing routes require a valid client token; tokens revocable from the webview |
-| LAN-direct control UI | Dashboard: rooms, devices, toggles/sliders, live state via `/ws`; device add + rename flows |
+| Deliverable                 | Acceptance criteria                                                                                         |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Next.js app scaffold        | App Router, TypeScript strict, Tailwind; deployed to Vercel                                                 |
+| Clerk auth                  | Sign-up/sign-in; middleware-protected routes; `ConvexProviderWithClerk` wired                               |
+| Convex schema (cloud-side)  | `controllers`, `pairings` tables with validators + indexes; **no fields capable of holding device data**    |
+| Controller registration     | On first boot, core registers with Convex (controller ID + public key) via an HTTP action                   |
+| mDNS discovery              | Core advertises `_nemu._tcp`; webview discovers it (direct probe of `nemu.local` + candidate scan fallback) |
+| Pairing handshake           | 6-digit code flow from §6.1; controller mints a client token; Convex records the binding                    |
+| Controller auth on core API | All non-pairing routes require a valid client token; tokens revocable from the webview                      |
+| LAN-direct control UI       | Dashboard: rooms, devices, toggles/sliders, live state via `/ws`; device add + rename flows                 |
 
 ### M3 — Hybrid relay
 
-| Deliverable | Acceptance criteria |
-|---|---|
-| Relay channel (Convex) | Ephemeral `relayMessages` table; TTL + scheduled cleanup; messages addressed by controller ID |
-| Controller relay client | Core holds an outbound connection to Convex, receives commands, executes locally, pushes responses |
-| Client connection manager | Webview probes LAN first, falls back to relay; visible Home/Remote indicator; automatic switchover both directions |
-| Relay auth | Relay commands carry the controller-issued client token; the controller verifies it — Convex is never trusted to authorize |
-| Privacy audit | Confirm relay payloads are deleted post-delivery and unreadable to other users; document retention in overview.md |
+| Deliverable               | Acceptance criteria                                                                                                        |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Relay channel (Convex)    | Ephemeral `relayMessages` table; TTL + scheduled cleanup; messages addressed by controller ID                              |
+| Controller relay client   | Core holds an outbound connection to Convex, receives commands, executes locally, pushes responses                         |
+| Client connection manager | Webview probes LAN first, falls back to relay; visible Home/Remote indicator; automatic switchover both directions         |
+| Relay auth                | Relay commands carry the controller-issued client token; the controller verifies it — Convex is never trusted to authorize |
+| Privacy audit             | Confirm relay payloads are deleted post-delivery and unreadable to other users; document retention in overview.md          |
 
 ### M4 — Voice
 
-| Deliverable | Acceptance criteria |
-|---|---|
-| Audio capture + wake word | openWakeWord (or Porcupine) detects "Hey Nemu" reliably on a Pi 4 with a USB mic |
-| STT | whisper.cpp (quantized tiny/base) transcribes command utterances; end-of-speech detection |
-| Intent tier 1 (Pi 4) | Deterministic grammar matcher covers on/off/dim/scene/room commands with <100 ms parse time |
-| Intent tier 2 (Pi 5) | Local LLM (llama.cpp / Ollama, ~3–4B quantized) handles free-form phrasing via structured JSON tool-calls into the same executor |
-| Voice executor | Intents map to the same command layer as the HTTP API (single code path) |
-| TTS feedback | Piper speaks confirmations/errors locally |
-| Config-tiered pipeline | STT/intent backends selected by config; swapping tiers requires no code change |
+| Deliverable               | Acceptance criteria                                                                                                              |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Audio capture + wake word | openWakeWord (or Porcupine) detects "Hey Nemu" reliably on a Pi 4 with a USB mic                                                 |
+| STT                       | whisper.cpp (quantized tiny/base) transcribes command utterances; end-of-speech detection                                        |
+| Intent tier 1 (Pi 4)      | Deterministic grammar matcher covers on/off/dim/scene/room commands with <100 ms parse time                                      |
+| Intent tier 2 (Pi 5)      | Local LLM (llama.cpp / Ollama, ~3–4B quantized) handles free-form phrasing via structured JSON tool-calls into the same executor |
+| Voice executor            | Intents map to the same command layer as the HTTP API (single code path)                                                         |
+| TTS feedback              | Piper speaks confirmations/errors locally                                                                                        |
+| Config-tiered pipeline    | STT/intent backends selected by config; swapping tiers requires no code change                                                   |
 
 ### M5 — Hardening
 
-| Deliverable | Acceptance criteria |
-|---|---|
-| TLS on the core API | Self-signed cert with trust-on-first-use pinning (or local CA); webview handles it gracefully |
-| Secrets & token hygiene | Client tokens hashed at rest; pairing codes single-use with expiry; MQTT auth enabled |
-| Backups | One-command encrypted backup/restore of Postgres + z2m config to local disk/USB |
-| Updates | Documented compose-based update path with migration safety (Diesel migrations run on boot) |
-| Observability | Structured logs (tracing), `/api/health` covering MQTT + DB + z2m, basic on-device event log UI |
+| Deliverable             | Acceptance criteria                                                                             |
+| ----------------------- | ----------------------------------------------------------------------------------------------- |
+| TLS on the core API     | Self-signed cert with trust-on-first-use pinning (or local CA); webview handles it gracefully   |
+| Secrets & token hygiene | Client tokens hashed at rest; pairing codes single-use with expiry; MQTT auth enabled           |
+| Backups                 | One-command encrypted backup/restore of Postgres + z2m config to local disk/USB                 |
+| Updates                 | Documented compose-based update path with migration safety (Diesel migrations run on boot)      |
+| Observability           | Structured logs (tracing), `/api/health` covering MQTT + DB + z2m, basic on-device event log UI |
 
 ## 8. Key risks
 
-| Risk | Mitigation |
-|---|---|
-| Browser mDNS limitations (browsers can't do true mDNS) | Probe `nemu.local` over HTTP(S) + remembered address + manual IP entry as fallback; discovery is a convenience, not a dependency |
-| Mixed-content / self-signed TLS from an HTTPS-served webview to a LAN controller | Address early in M2 with a spike; options: TOFU cert install page served by the controller, or relay-only until cert trusted |
-| Pi 4 too weak for LLM intent parsing | Tiered design: grammar matcher is the Pi 4 default and always available as fallback on Pi 5 |
-| Convex relay latency for remote control | Acceptable for remote use; LAN path is the primary experience |
-| zigbee2mqtt breaking changes | Pin the image version; bridge code isolated in one module with integration tests against recorded payloads |
+| Risk                                                                             | Mitigation                                                                                                                       |
+| -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Browser mDNS limitations (browsers can't do true mDNS)                           | Probe `nemu.local` over HTTP(S) + remembered address + manual IP entry as fallback; discovery is a convenience, not a dependency |
+| Mixed-content / self-signed TLS from an HTTPS-served webview to a LAN controller | Address early in M2 with a spike; options: TOFU cert install page served by the controller, or relay-only until cert trusted     |
+| Pi 4 too weak for LLM intent parsing                                             | Tiered design: grammar matcher is the Pi 4 default and always available as fallback on Pi 5                                      |
+| Convex relay latency for remote control                                          | Acceptable for remote use; LAN path is the primary experience                                                                    |
+| zigbee2mqtt breaking changes                                                     | Pin the image version; bridge code isolated in one module with integration tests against recorded payloads                       |

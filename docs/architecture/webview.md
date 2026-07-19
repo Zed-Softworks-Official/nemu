@@ -2,8 +2,8 @@
 
 nemu-web is the account layer and the UI. It is deliberately thin: the
 controller's API is the product; the webview renders it. Convex and Clerk
-exist to answer two questions the controller can't answer alone — *who is this
-user?* and *how do I reach my controller when I'm not home?*
+exist to answer two questions the controller can't answer alone — _who is this
+user?_ and _how do I reach my controller when I'm not home?_
 
 Planned location: `apps/web` (sibling of `apps/core`).
 
@@ -11,11 +11,11 @@ Planned location: `apps/web` (sibling of `apps/core`).
 
 Convex schema (full definitions in [data-model.md](data-model.md)):
 
-| Table | Contents | Why it's safe |
-|---|---|---|
-| `controllers` | opaque controller ID, public key, self-reported name, registration timestamp | no home data; the name is user-chosen ("Home") |
-| `pairings` | userId ↔ controllerId binding, created timestamp | IDs only |
-| `relayMessages` | ephemeral command/response envelopes, TTL, consumed flag | opaque to other users, deleted by scheduled cleanup within minutes |
+| Table           | Contents                                                                     | Why it's safe                                                      |
+| --------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `controllers`   | opaque controller ID, public key, self-reported name, registration timestamp | no home data; the name is user-chosen ("Home")                     |
+| `pairings`      | userId ↔ controllerId binding, created timestamp                             | IDs only                                                           |
+| `relayMessages` | ephemeral command/response envelopes, TTL, consumed flag                     | opaque to other users, deleted by scheduled cleanup within minutes |
 
 **Never in Convex:** device inventories, friendly names, rooms, scenes, state,
 telemetry, history, voice anything. The schema has no fields for them; adding
@@ -161,9 +161,9 @@ sequence:
 
 ## 8. UI scope by milestone
 
-| Milestone | UI deliverables |
-|---|---|
-| M2 | setup wizard (discover → code → paired), dashboard (rooms, device cards, toggle/dim), device rename + room assignment, permit-join flow with live interview progress |
-| M3 | connection badge (Home/Remote), seamless transport switching, controller/token management in settings |
-| M4 | none required (voice is on-device); optional transcript viewer reading from the controller's local log |
-| M5 | cert-trust onboarding page, backup/restore triggers, event history view |
+| Milestone | UI deliverables                                                                                                                                                      |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| M2        | setup wizard (discover → code → paired), dashboard (rooms, device cards, toggle/dim), device rename + room assignment, permit-join flow with live interview progress |
+| M3        | connection badge (Home/Remote), seamless transport switching, controller/token management in settings                                                                |
+| M4        | none required (voice is on-device); optional transcript viewer reading from the controller's local log                                                               |
+| M5        | cert-trust onboarding page, backup/restore triggers, event history view                                                                                              |
