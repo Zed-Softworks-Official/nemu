@@ -13,7 +13,7 @@ import { AppSidebar } from '~/components/sidebar/app-sidebar'
 import { env } from '~/env'
 
 export const metadata: Metadata = {
-    title: 'Nemu | Control Everything. Share Nothing.',
+    title: 'Nemu | Dashboard',
     description:
         'Nemu is an open-source, privacy-focused smart home controller from Zed Softworks. Local-first control for your devices—without sharing your life with the cloud.',
     icons: [{ rel: 'icon', url: '/favicon.ico' }],

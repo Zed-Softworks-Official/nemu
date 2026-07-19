@@ -22,5 +22,8 @@ catalog:
   "@clerk/nextjs": ^7.5.18
   "@clerk/ui": ^1.25.2
 
+overrides:
+  zod@4: 4.3.6
+
 minimumReleaseAgeExclude:
   - convex@1.42.2

@@ -4,7 +4,7 @@
     "license": "Apache-2.0",
     "scripts": {
         "dev": "bash scripts/dev.sh",
-        "dev:web": "bash scripts/kill-dev-ports.sh && turbo run dev --filter=@nemu/web --filter=@nemu/dashboard",
+        "dev:web": "bash scripts/kill-dev-ports.sh && turbo run dev --filter=@nemu/web --filter=@nemu/dashboard --filter=@nemu/docs",
         "dev:dashboard": "bash scripts/kill-dev-ports.sh && turbo run dev --filter=@nemu/dashboard",
         "convex:dev": "turbo run convex:dev",
         "build": "turbo run build --filter=@nemu/web --filter=@nemu/dashboard",

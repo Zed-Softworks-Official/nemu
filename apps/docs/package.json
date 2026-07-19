@@ -1,0 +1,46 @@
+{
+    "name": "@nemu/docs",
+    "version": "0.1.0",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "build": "next build",
+        "check": "biome check .",
+        "check:unsafe": "biome check --write --unsafe .",
+        "check:write": "biome check --write .",
+        "dev": "pnpm with-env next dev --turbo --port 3002",
+        "preview": "next build && next start",
+        "postbuild": "pagefind --site .next/server/app --output-path public/_pagefind",
+        "start": "next start",
+        "typecheck": "tsc --noEmit",
+        "with-env": "dotenv -e ../../.env --"
+    },
+    "dependencies": {
+        "@t3-oss/env-nextjs": "^0.12.0",
+        "lucide-react": "^1.23.0",
+        "motion": "^12.42.2",
+        "next": "catalog:",
+        "nextra": "^4.6.1",
+        "nextra-theme-docs": "^4.6.1",
+        "react": "catalog:",
+        "react-dom": "catalog:",
+        "zod": "catalog:"
+    },
+    "devDependencies": {
+        "@biomejs/biome": "2.3.8",
+        "@nemu/biome-config": "workspace:*",
+        "@nemu/typescript-config": "workspace:*",
+        "@tailwindcss/postcss": "^4.0.15",
+        "@types/node": "catalog:",
+        "@types/react": "catalog:",
+        "@types/react-dom": "catalog:",
+        "pagefind": "^1.5.2",
+        "postcss": "^8.5.3",
+        "tailwindcss": "^4.0.15",
+        "typescript": "catalog:"
+    },
+    "ct3aMetadata": {
+        "initVersion": "7.40.0"
+    },
+    "packageManager": "pnpm@9.0.0"
+}

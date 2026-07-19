@@ -5,6 +5,7 @@ Apache License 2.0:
 
 - apps/web/public/**
 - apps/dashboard/public/**
+- apps/docs/public/**
 
 Copyright (c) 2026 Zed Softworks LLC
 Created by [Blinky Blonk](https://blinkeyblonk.carrd.co/)
