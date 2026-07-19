@@ -98,15 +98,17 @@ and requests a registry resync.
 
 Topic map (see [data-model.md](data-model.md) for payload details):
 
-| Direction | Topic                                      | Purpose                                                      |
-| --------- | ------------------------------------------ | ------------------------------------------------------------ |
-| in        | `zigbee2mqtt/bridge/devices`               | full device list → registry sync (upsert/remove in Postgres) |
-| in        | `zigbee2mqtt/bridge/event`                 | join/leave/interview events → `/ws` + pairing UX             |
-| in        | `zigbee2mqtt/bridge/state`                 | z2m health → `/api/health`                                   |
-| in        | `zigbee2mqtt/<friendly_name>`              | device state → state cache + `DeviceEvent`                   |
-| out       | `zigbee2mqtt/<friendly_name>/set`          | commands                                                     |
-| out       | `zigbee2mqtt/bridge/request/permit_join`   | open pairing window                                          |
-| out       | `zigbee2mqtt/bridge/request/device/rename` | rename propagation                                           |
+| Direction | Topic                                       | Purpose                                                      |
+| --------- | ------------------------------------------- | ------------------------------------------------------------ |
+| in        | `zigbee2mqtt/bridge/devices`                | full device list → registry sync (upsert/remove in Postgres) |
+| in        | `zigbee2mqtt/bridge/event`                  | join/leave/interview events → `/ws` + pairing UX             |
+| in        | `zigbee2mqtt/bridge/state`                  | z2m health → `/api/health`                                   |
+| in        | `zigbee2mqtt/<friendly_name>`               | device state → state cache + `DeviceEvent`                   |
+| out       | `zigbee2mqtt/<friendly_name>/set`           | commands                                                     |
+| out       | `zigbee2mqtt/bridge/request/permit_join`    | open pairing window                                          |
+| out       | `zigbee2mqtt/bridge/request/device/rename`  | rename propagation                                           |
+| out       | `zigbee2mqtt/bridge/request/device/remove`  | safely forget a device from the Zigbee network               |
+| in        | `zigbee2mqtt/bridge/response/device/remove` | transaction-correlated removal result                        |
 
 Registry sync is idempotent: `bridge/devices` is the source of truth for
 existence and `ieee_address`; Postgres adds nemu-owned fields (room, display
@@ -124,6 +126,7 @@ pairing endpoints.
 | `GET /api/devices`                                                            | registry + latest cached state (optional `?room=`)                                |
 | `GET /api/devices/{id}`                                                       | one device + state                                                                |
 | `PATCH /api/devices/{id}`                                                     | rename / assign room (propagates to z2m)                                          |
+| `DELETE /api/devices/{id}`                                                    | remove from Zigbee network, then delete registry metadata                         |
 | `POST /api/devices/{id}/set`                                                  | send a command payload (`{"state":"OFF"}`, `{"brightness":128}`)                  |
 | `GET /api/rooms` / `POST /api/rooms` / `PATCH /api/rooms/{id}` / `DELETE ...` | room CRUD                                                                         |
 | `POST /api/zigbee/permit-join`                                                | `{seconds: 120}` open join window                                                 |

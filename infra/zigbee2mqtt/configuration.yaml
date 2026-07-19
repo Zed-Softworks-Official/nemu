@@ -4,7 +4,8 @@ mqtt:
   base_topic: zigbee2mqtt
   server: mqtt://mosquitto:1883
 serial:
-  port: /dev/ttyUSB0
+  port: /dev/ttyACM0
+  adapter: deconz
 frontend:
   enabled: true
   port: 8080
@@ -28,3 +29,6 @@ advanced:
     - 101
     - 140
 version: 5
+devices:
+  '0xc890a81ee94a0000':
+    friendly_name: Light

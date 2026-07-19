@@ -12,7 +12,9 @@ pub enum DeviceEvent {
         state: JsonValue,
     },
     #[serde(rename = "deviceJoined")]
-    DeviceJoined { device: DeviceResource },
+    DeviceJoined {
+        device: DeviceResource,
+    },
     #[serde(rename = "deviceLeft")]
     DeviceLeft {
         #[serde(rename = "deviceId")]

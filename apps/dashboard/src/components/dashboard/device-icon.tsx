@@ -4,13 +4,13 @@ import {
     ThermometerIcon,
     UnplugIcon,
 } from 'lucide-react'
-import type { DashboardDevice } from '~/lib/dashboard-data'
+import type { DeviceCategory } from '~/lib/device-presentation'
 
 export function DeviceIcon({
     category,
     className = 'size-5',
 }: {
-    category: DashboardDevice['category']
+    category: DeviceCategory
     className?: string
 }) {
     if (category === 'light') {

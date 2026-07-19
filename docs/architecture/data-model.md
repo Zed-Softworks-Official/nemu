@@ -150,9 +150,15 @@ Base topic `zigbee2mqtt` (stock z2m config, pinned image).
 | `zigbee2mqtt/<friendly_name>/get`          | pub             | `{"state":""}`                                                                       | state refresh                |
 | `zigbee2mqtt/bridge/request/permit_join`   | pub             | `{"time":120}`                                                                       | open pairing window          |
 | `zigbee2mqtt/bridge/request/device/rename` | pub             | `{"from":"0x00...","to":"Kitchen Light"}`                                            | rename propagation           |
+| `zigbee2mqtt/bridge/request/device/remove` | pub             | `{"id":"0x00...","force":false,"block":false,"transaction":"..."}`                   | safe network removal         |
+| `zigbee2mqtt/bridge/response/device/remove`| sub             | `{"status":"ok","data":{"id":"0x00..."},"transaction":"..."}`                        | confirm removal before delete|
 | `zigbee2mqtt/bridge/response/#`            | sub             | request acks                                                                         | error surfacing              |
 
 Rules:
+
+- Nemu only deletes device metadata after Zigbee2MQTT acknowledges a normal
+  network removal. It does not expose force removal, which can leave a device
+  holding the network key.
 
 - Core addresses devices by `ieee_address` where z2m allows it, falling back
   to `friendly_name`; the registry maps nemu UUIDs → addresses so API clients

@@ -45,10 +45,15 @@ pub fn router(state: AppState) -> Router {
         .route("/api/devices", get(devices::list_devices))
         .route(
             "/api/devices/{id}",
-            get(devices::get_device).patch(devices::patch_device),
+            get(devices::get_device)
+                .patch(devices::patch_device)
+                .delete(devices::delete_device),
         )
         .route("/api/devices/{id}/set", post(devices::set_device))
-        .route("/api/rooms", get(rooms::list_rooms).post(rooms::create_room))
+        .route(
+            "/api/rooms",
+            get(rooms::list_rooms).post(rooms::create_room),
+        )
         .route(
             "/api/rooms/{id}",
             patch(rooms::patch_room).delete(rooms::delete_room),

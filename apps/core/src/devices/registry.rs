@@ -30,7 +30,11 @@ impl DeviceRegistry {
     pub async fn load_from_db(&self, pool: &DbPool) -> Result<(), String> {
         let conn = pool.get().await.map_err(|e| e.to_string())?;
         let rows = conn
-            .interact(|conn| devices::table.select(Device::as_select()).load::<Device>(conn))
+            .interact(|conn| {
+                devices::table
+                    .select(Device::as_select())
+                    .load::<Device>(conn)
+            })
             .await
             .map_err(|e| e.to_string())?
             .map_err(|e| e.to_string())?;

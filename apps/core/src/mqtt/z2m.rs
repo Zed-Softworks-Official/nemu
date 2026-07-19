@@ -38,12 +38,23 @@ pub struct Z2mBridgeEvent {
     pub data: JsonValue,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+pub struct Z2mBridgeResponse {
+    pub status: String,
+    #[serde(default)]
+    pub data: JsonValue,
+    #[serde(default)]
+    pub error: Option<String>,
+    #[serde(default)]
+    pub transaction: Option<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IncomingTopic {
     BridgeState,
     BridgeDevices,
     BridgeEvent,
-    BridgeResponse,
+    BridgeResponse { endpoint: String },
     DeviceState { friendly_name: String },
     DeviceAvailability { friendly_name: String },
     Ignored,
@@ -63,17 +74,16 @@ pub fn parse_topic(base_topic: &str, topic: &str) -> IncomingTopic {
         "bridge/state" => IncomingTopic::BridgeState,
         "bridge/devices" => IncomingTopic::BridgeDevices,
         "bridge/event" => IncomingTopic::BridgeEvent,
-        _ if rest.starts_with("bridge/response") => IncomingTopic::BridgeResponse,
+        _ if rest.starts_with("bridge/response/") => IncomingTopic::BridgeResponse {
+            endpoint: rest.trim_start_matches("bridge/response/").to_string(),
+        },
         _ if rest.starts_with("bridge/") => IncomingTopic::Ignored,
         _ => {
             if let Some(name) = rest.strip_suffix("/availability") {
                 IncomingTopic::DeviceAvailability {
                     friendly_name: name.to_string(),
                 }
-            } else if rest.ends_with("/set")
-                || rest.ends_with("/get")
-                || rest.contains('/')
-            {
+            } else if rest.ends_with("/set") || rest.ends_with("/get") || rest.contains('/') {
                 IncomingTopic::Ignored
             } else {
                 IncomingTopic::DeviceState {
@@ -93,8 +103,8 @@ pub fn parse_bridge_state(payload: &str) -> Result<bool, Z2mError> {
     if trimmed == "offline" {
         return Ok(false);
     }
-    let value: JsonValue = serde_json::from_str(trimmed)
-        .map_err(|e| Z2mError::InvalidPayload(e.to_string()))?;
+    let value: JsonValue =
+        serde_json::from_str(trimmed).map_err(|e| Z2mError::InvalidPayload(e.to_string()))?;
     match value.get("state").and_then(|v| v.as_str()) {
         Some("online") => Ok(true),
         Some("offline") => Ok(false),
@@ -112,6 +122,10 @@ pub fn parse_bridge_event(payload: &str) -> Result<Z2mBridgeEvent, Z2mError> {
     serde_json::from_str(payload).map_err(|e| Z2mError::InvalidPayload(e.to_string()))
 }
 
+pub fn parse_bridge_response(payload: &str) -> Result<Z2mBridgeResponse, Z2mError> {
+    serde_json::from_str(payload).map_err(|e| Z2mError::InvalidPayload(e.to_string()))
+}
+
 pub fn parse_availability(payload: &str) -> Result<bool, Z2mError> {
     let trimmed = payload.trim();
     if trimmed == "online" {
@@ -120,8 +134,8 @@ pub fn parse_availability(payload: &str) -> Result<bool, Z2mError> {
     if trimmed == "offline" {
         return Ok(false);
     }
-    let value: JsonValue = serde_json::from_str(trimmed)
-        .map_err(|e| Z2mError::InvalidPayload(e.to_string()))?;
+    let value: JsonValue =
+        serde_json::from_str(trimmed).map_err(|e| Z2mError::InvalidPayload(e.to_string()))?;
     match value.get("state").and_then(|v| v.as_str()) {
         Some("online") => Ok(true),
         Some("offline") => Ok(false),
@@ -143,12 +157,17 @@ pub fn rename_topic(base_topic: &str) -> String {
     format!("{base_topic}/bridge/request/device/rename")
 }
 
+pub fn remove_topic(base_topic: &str) -> String {
+    format!("{base_topic}/bridge/request/device/remove")
+}
+
 pub fn devices_request_topic(base_topic: &str) -> String {
     format!("{base_topic}/bridge/request/device/list")
 }
 
 pub fn permit_join_payload(seconds: u32) -> String {
-    json!({ "time": seconds, "value": true }).to_string()
+    // Zigbee2MQTT 2.x dropped the legacy `value` field; `time` alone opens the network.
+    json!({ "time": seconds }).to_string()
 }
 
 pub fn rename_payload(from: &str, to: &str) -> String {
@@ -156,7 +175,20 @@ pub fn rename_payload(from: &str, to: &str) -> String {
     json!({ "from": from, "to": to }).to_string()
 }
 
-pub fn interview_status(event_type: &str, data: &JsonValue) -> Option<(String, crate::events::InterviewStatus)> {
+pub fn remove_payload(id: &str, transaction: &str) -> String {
+    json!({
+        "id": id,
+        "force": false,
+        "block": false,
+        "transaction": transaction
+    })
+    .to_string()
+}
+
+pub fn interview_status(
+    event_type: &str,
+    data: &JsonValue,
+) -> Option<(String, crate::events::InterviewStatus)> {
     use crate::events::InterviewStatus;
 
     let ieee = data
@@ -167,14 +199,12 @@ pub fn interview_status(event_type: &str, data: &JsonValue) -> Option<(String, c
 
     let status = match event_type {
         "device_joined" => InterviewStatus::Started,
-        "device_interview" => {
-            match data.get("status").and_then(|v| v.as_str()) {
-                Some("successful") => InterviewStatus::Successful,
-                Some("failed") => InterviewStatus::Failed,
-                Some("started") => InterviewStatus::Started,
-                _ => InterviewStatus::Started,
-            }
-        }
+        "device_interview" => match data.get("status").and_then(|v| v.as_str()) {
+            Some("successful") => InterviewStatus::Successful,
+            Some("failed") => InterviewStatus::Failed,
+            Some("started") => InterviewStatus::Started,
+            _ => InterviewStatus::Started,
+        },
         _ => return None,
     };
 
@@ -214,7 +244,9 @@ mod tests {
         );
         assert_eq!(
             parse_topic(base, "zigbee2mqtt/bridge/response/device/rename"),
-            IncomingTopic::BridgeResponse
+            IncomingTopic::BridgeResponse {
+                endpoint: "device/rename".into()
+            }
         );
     }
 
@@ -257,5 +289,40 @@ mod tests {
         let (ieee, status) = interview_status("device_interview", &data).unwrap();
         assert_eq!(ieee, "0xabc");
         assert!(matches!(status, crate::events::InterviewStatus::Successful));
+    }
+
+    #[test]
+    fn creates_safe_remove_request() {
+        assert_eq!(
+            remove_topic("zigbee2mqtt"),
+            "zigbee2mqtt/bridge/request/device/remove"
+        );
+        let value: JsonValue = serde_json::from_str(&remove_payload("0xabc", "txn-1")).unwrap();
+        assert_eq!(
+            value,
+            json!({
+                "id": "0xabc",
+                "force": false,
+                "block": false,
+                "transaction": "txn-1"
+            })
+        );
+    }
+
+    #[test]
+    fn parses_remove_responses() {
+        let response =
+            parse_bridge_response(r#"{"status":"ok","data":{"id":"0xabc"},"transaction":"txn-1"}"#)
+                .unwrap();
+        assert_eq!(response.status, "ok");
+        assert_eq!(response.transaction.as_deref(), Some("txn-1"));
+        assert_eq!(response.data["id"], "0xabc");
+
+        let response = parse_bridge_response(
+            r#"{"status":"error","data":{"id":"0xabc"},"error":"device asleep","transaction":"txn-2"}"#,
+        )
+        .unwrap();
+        assert_eq!(response.status, "error");
+        assert_eq!(response.error.as_deref(), Some("device asleep"));
     }
 }

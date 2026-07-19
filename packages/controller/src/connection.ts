@@ -1,12 +1,15 @@
-import type { ConvexReactClient } from 'convex/react'
 import {
     type CommandResult,
     type ConnectionStatus,
     type Device,
     type DeviceCommand,
     type DeviceEvent,
+    type PatchDeviceRequest,
+    type PermitJoinResponse,
+    type Room,
     statusFromMode,
 } from '@nemu/protocol'
+import type { ConvexReactClient } from 'convex/react'
 import {
     discoverController,
     identifyController,
@@ -19,7 +22,7 @@ import {
     setRememberedControllerId,
 } from './storage'
 import { LanTransport } from './transports/lan'
-import { RelayTransport, type RelayApi } from './transports/relay'
+import { type RelayApi, RelayTransport } from './transports/relay'
 import type { ControllerTransport } from './transports/types'
 
 export type ControllerConnectionOptions = {
@@ -130,6 +133,54 @@ export class ControllerConnection {
             }
             throw err
         }
+    }
+
+    async permitJoin(seconds: number): Promise<PermitJoinResponse> {
+        const transport = this.requireLanTransport('Device pairing')
+        if (!transport.permitJoin) {
+            throw new Error(
+                'Device pairing is not supported by this controller'
+            )
+        }
+        return await transport.permitJoin(seconds)
+    }
+
+    async getRooms(): Promise<Room[]> {
+        const transport = this.requireLanTransport('Room loading')
+        if (!transport.getRooms) {
+            throw new Error('Rooms are not supported by this controller')
+        }
+        return await transport.getRooms()
+    }
+
+    async patchDevice(
+        deviceId: string,
+        patch: PatchDeviceRequest
+    ): Promise<Device> {
+        const transport = this.requireLanTransport('Device configuration')
+        if (!transport.patchDevice) {
+            throw new Error(
+                'Device configuration is not supported by this controller'
+            )
+        }
+        return await transport.patchDevice(deviceId, patch)
+    }
+
+    async forgetDevice(deviceId: string): Promise<void> {
+        const transport = this.requireLanTransport('Forgetting devices')
+        if (!transport.forgetDevice) {
+            throw new Error(
+                'Forgetting devices is not supported by this controller'
+            )
+        }
+        await transport.forgetDevice(deviceId)
+    }
+
+    private requireLanTransport(operation: string): ControllerTransport {
+        if (this.status.mode !== 'lan' || !this.transport) {
+            throw new Error(`${operation} requires a Home connection`)
+        }
+        return this.transport
     }
 
     private async tryLan(probe: ProbeResult): Promise<boolean> {

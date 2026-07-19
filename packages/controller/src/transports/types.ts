@@ -3,6 +3,9 @@ import type {
     Device,
     DeviceCommand,
     DeviceEvent,
+    PatchDeviceRequest,
+    PermitJoinResponse,
+    Room,
 } from '@nemu/protocol'
 
 export interface ControllerTransport {
@@ -12,4 +15,8 @@ export interface ControllerTransport {
     getDevices(): Promise<Device[]>
     sendCommand(cmd: DeviceCommand): Promise<CommandResult>
     subscribeEvents(cb: (event: DeviceEvent) => void): () => void
+    permitJoin?(seconds: number): Promise<PermitJoinResponse>
+    getRooms?(): Promise<Room[]>
+    patchDevice?(deviceId: string, patch: PatchDeviceRequest): Promise<Device>
+    forgetDevice?(deviceId: string): Promise<void>
 }

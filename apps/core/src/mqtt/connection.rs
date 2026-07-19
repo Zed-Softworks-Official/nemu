@@ -1,23 +1,31 @@
+use std::collections::HashMap;
+use std::sync::Arc;
 use std::time::Duration;
 
 use rumqttc::{AsyncClient, Event, Incoming, MqttOptions, QoS, Transport};
 use serde_json::{Value as JsonValue, json};
+use tokio::sync::{Mutex, oneshot};
 use tracing::{debug, error, info, warn};
+use uuid::Uuid;
 
 use crate::config::Config;
 use crate::devices::registry::log_event;
 use crate::events::{DeviceEvent, InterviewStatus};
 use crate::mqtt::z2m::{
     self, IncomingTopic, devices_request_topic, parse_availability, parse_bridge_event,
-    parse_bridge_state, parse_devices_payload, parse_topic, permit_join_payload, permit_join_topic,
-    rename_payload, rename_topic, set_topic,
+    parse_bridge_response, parse_bridge_state, parse_devices_payload, parse_topic,
+    permit_join_payload, permit_join_topic, remove_payload, remove_topic, rename_payload,
+    rename_topic, set_topic,
 };
 use crate::state::AppState;
+
+type PendingResponse = oneshot::Sender<Result<JsonValue, String>>;
 
 #[derive(Clone)]
 pub struct MqttHandle {
     client: AsyncClient,
     base_topic: String,
+    pending_responses: Arc<Mutex<HashMap<String, PendingResponse>>>,
 }
 
 impl MqttHandle {
@@ -56,6 +64,56 @@ impl MqttHandle {
             .map_err(|e| e.to_string())
     }
 
+    pub async fn remove_device(&self, ieee: &str) -> Result<(), String> {
+        let transaction = Uuid::new_v4().to_string();
+        let topic = remove_topic(&self.base_topic);
+        let body = remove_payload(ieee, &transaction);
+        let (sender, receiver) = oneshot::channel();
+
+        self.pending_responses
+            .lock()
+            .await
+            .insert(transaction.clone(), sender);
+
+        if let Err(error) = self
+            .client
+            .publish(topic, QoS::AtLeastOnce, false, body)
+            .await
+        {
+            self.pending_responses.lock().await.remove(&transaction);
+            return Err(error.to_string());
+        }
+
+        match tokio::time::timeout(Duration::from_secs(15), receiver).await {
+            Ok(Ok(result)) => result.map(|_| ()),
+            Ok(Err(_)) => Err("device removal response channel closed".into()),
+            Err(_) => {
+                self.pending_responses.lock().await.remove(&transaction);
+                Err("device removal timed out; wake the device and try again".into())
+            }
+        }
+    }
+
+    async fn resolve_bridge_response(&self, payload: &str) -> Result<(), String> {
+        let response = parse_bridge_response(payload).map_err(|error| error.to_string())?;
+        let Some(transaction) = response.transaction else {
+            return Ok(());
+        };
+        let Some(sender) = self.pending_responses.lock().await.remove(&transaction) else {
+            return Ok(());
+        };
+
+        let result = if response.status == "ok" {
+            Ok(response.data)
+        } else {
+            Err(response
+                .error
+                .unwrap_or_else(|| "zigbee2mqtt rejected the request".into()))
+        };
+        let _ = sender.send(result);
+        Ok(())
+    }
+
     pub async fn request_device_list(&self) -> Result<(), String> {
         // Some z2m versions publish bridge/devices retained; also request explicitly.
         let topic = devices_request_topic(&self.base_topic);
@@ -82,6 +140,9 @@ pub fn create_client(config: &Config) -> (MqttHandle, rumqttc::EventLoop) {
     );
     opts.set_keep_alive(Duration::from_secs(30));
     opts.set_clean_session(true);
+    // z2m publishes large retained payloads (bridge/info, bridge/devices can be
+    // hundreds of KB); rumqttc's 10 KB default drops the connection on receipt.
+    opts.set_max_packet_size(10 * 1024 * 1024, 1024 * 1024);
     // Ensure TCP transport (default).
     opts.set_transport(Transport::tcp());
 
@@ -89,6 +150,7 @@ pub fn create_client(config: &Config) -> (MqttHandle, rumqttc::EventLoop) {
     let handle = MqttHandle {
         client,
         base_topic: config.mqtt_base_topic.clone(),
+        pending_responses: Arc::new(Mutex::new(HashMap::new())),
     };
     (handle, eventloop)
 }
@@ -120,8 +182,8 @@ pub fn spawn_mqtt_loop(state: AppState, mut eventloop: rumqttc::EventLoop) {
                 Ok(Event::Incoming(Incoming::Publish(publish))) => {
                     let topic = publish.topic.clone();
                     let payload = String::from_utf8_lossy(&publish.payload).to_string();
-                    if let Err(e) = handle_publish(&state, &topic, &payload, &mut was_zigbee_online)
-                        .await
+                    if let Err(e) =
+                        handle_publish(&state, &topic, &payload, &mut was_zigbee_online).await
                     {
                         debug!(topic = %topic, error = %e, "mqtt message handling error");
                     }
@@ -182,17 +244,15 @@ async fn handle_publish(
         }
         IncomingTopic::BridgeDevices => {
             let descriptors = parse_devices_payload(payload).map_err(|e| e.to_string())?;
-            info!(count = descriptors.len(), "syncing device registry from bridge/devices");
-            state
-                .registry
-                .sync_from_bridge(state, &descriptors)
-                .await?;
+            info!(
+                count = descriptors.len(),
+                "syncing device registry from bridge/devices"
+            );
+            state.registry.sync_from_bridge(state, &descriptors).await?;
             state.emit(DeviceEvent::Resync);
             Ok(())
         }
-        IncomingTopic::BridgeEvent => {
-            handle_bridge_event(state, payload).await
-        }
+        IncomingTopic::BridgeEvent => handle_bridge_event(state, payload).await,
         IncomingTopic::DeviceState { friendly_name } => {
             handle_device_state(state, &friendly_name, payload).await
         }
@@ -206,7 +266,14 @@ async fn handle_publish(
             }
             Ok(())
         }
-        IncomingTopic::BridgeResponse | IncomingTopic::Ignored => Ok(()),
+        IncomingTopic::BridgeResponse { endpoint } => {
+            if endpoint == "device/remove" {
+                state.mqtt.resolve_bridge_response(payload).await
+            } else {
+                Ok(())
+            }
+        }
+        IncomingTopic::Ignored => Ok(()),
     }
 }
 
@@ -219,7 +286,10 @@ async fn handle_bridge_event(state: &AppState, payload: &str) -> Result<(), Stri
             status: status.clone(),
         });
 
-        if matches!(status, InterviewStatus::Successful | InterviewStatus::Started) {
+        if matches!(
+            status,
+            InterviewStatus::Successful | InterviewStatus::Started
+        ) {
             let friendly = event
                 .data
                 .get("friendly_name")
@@ -272,7 +342,10 @@ async fn handle_device_state(
         serde_json::from_str(payload).map_err(|e| format!("invalid device state json: {e}"))?;
 
     let Some(device) = state.registry.get_by_name(friendly_name).await else {
-        debug!(friendly_name, "state for unknown device; waiting for registry sync");
+        debug!(
+            friendly_name,
+            "state for unknown device; waiting for registry sync"
+        );
         return Ok(());
     };
 

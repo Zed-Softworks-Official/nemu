@@ -32,9 +32,8 @@ pub async fn list_devices(
     Query(query): Query<ListDevicesQuery>,
 ) -> ApiResult<Json<DevicesResponse>> {
     let devices = if let Some(room) = &query.room {
-        let room_id = Uuid::parse_str(room).map_err(|_| {
-            ApiError::bad_request("invalid_room", "room query must be a UUID")
-        })?;
+        let room_id = Uuid::parse_str(room)
+            .map_err(|_| ApiError::bad_request("invalid_room", "room query must be a UUID"))?;
         state.registry.list_by_room(room_id).await
     } else {
         state.registry.list().await
@@ -46,9 +45,7 @@ pub async fn list_devices(
     }
     resources.sort_by(|a, b| a.name.cmp(&b.name));
 
-    Ok(Json(DevicesResponse {
-        devices: resources,
-    }))
+    Ok(Json(DevicesResponse { devices: resources }))
 }
 
 pub async fn get_device(
@@ -97,9 +94,10 @@ pub async fn patch_device(
         let room_id = match room_opt {
             None => None,
             Some(s) if s.is_empty() => None,
-            Some(s) => Some(Uuid::parse_str(&s).map_err(|_| {
-                ApiError::bad_request("invalid_room", "roomId must be a UUID")
-            })?),
+            Some(s) => Some(
+                Uuid::parse_str(&s)
+                    .map_err(|_| ApiError::bad_request("invalid_room", "roomId must be a UUID"))?,
+            ),
         };
         update.room_id = Some(room_id);
     }
@@ -126,6 +124,31 @@ pub async fn patch_device(
     Ok(Json(state.registry.to_resource(&state, &device).await))
 }
 
+pub async fn delete_device(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> ApiResult<axum::http::StatusCode> {
+    let device_id = parse_device_id(&id)?;
+    let existing = state
+        .registry
+        .get(device_id)
+        .await
+        .ok_or_else(|| ApiError::not_found("device_not_found", "device not found"))?;
+
+    state
+        .mqtt
+        .remove_device(&existing.ieee_address)
+        .await
+        .map_err(|error| ApiError::service_unavailable("device_remove_failed", error))?;
+
+    let _ = state
+        .registry
+        .mark_left(&state, &existing.ieee_address)
+        .await;
+
+    Ok(axum::http::StatusCode::NO_CONTENT)
+}
+
 pub async fn set_device(
     State(state): State<AppState>,
     Path(id): Path<String>,
@@ -144,15 +167,12 @@ pub struct StatusOk {
 }
 
 fn parse_device_id(id: &str) -> ApiResult<Uuid> {
-    Uuid::parse_str(id)
-        .map_err(|_| ApiError::bad_request("invalid_id", "device id must be a UUID"))
+    Uuid::parse_str(id).map_err(|_| ApiError::bad_request("invalid_id", "device id must be a UUID"))
 }
 
 fn command_to_api(err: CommandError) -> ApiError {
     match err {
-        CommandError::DeviceNotFound => {
-            ApiError::not_found(err.code(), err.to_string())
-        }
+        CommandError::DeviceNotFound => ApiError::not_found(err.code(), err.to_string()),
         CommandError::Mqtt(msg) => ApiError::service_unavailable("mqtt_error", msg),
     }
 }

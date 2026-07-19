@@ -8,8 +8,17 @@ export {
     probeController,
 } from './discovery'
 export { createControllerHttp, toApiError } from './http'
-export type { ControllerProviderProps } from './provider'
-export { ControllerProvider, useController, useDevices } from './provider'
+export type {
+    ControllerProviderProps,
+    DevicePairingPhase,
+    PairingInterview,
+} from './provider'
+export {
+    ControllerProvider,
+    useController,
+    useDevicePairing,
+    useDevices,
+} from './provider'
 export {
     clearClientToken,
     getClientToken,

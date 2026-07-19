@@ -5,7 +5,15 @@ import {
     type DeviceCommand,
     type DeviceEvent,
     deviceEventSchema,
+    deviceSchema,
     devicesResponseSchema,
+    type PatchDeviceRequest,
+    type PermitJoinResponse,
+    patchDeviceRequestSchema,
+    permitJoinRequestSchema,
+    permitJoinResponseSchema,
+    type Room,
+    roomsResponseSchema,
 } from '@nemu/protocol'
 import type { AxiosInstance } from 'axios'
 import { createControllerHttp, type GetToken } from '../http'
@@ -82,6 +90,33 @@ export class LanTransport implements ControllerTransport {
     async getDevices(): Promise<Device[]> {
         const { data } = await this.http.get('/api/devices')
         return devicesResponseSchema.parse(data).devices
+    }
+
+    async permitJoin(seconds: number): Promise<PermitJoinResponse> {
+        const body = permitJoinRequestSchema.parse({ seconds })
+        const { data } = await this.http.post('/api/zigbee/permit-join', body)
+        return permitJoinResponseSchema.parse(data)
+    }
+
+    async getRooms(): Promise<Room[]> {
+        const { data } = await this.http.get('/api/rooms')
+        return roomsResponseSchema.parse(data).rooms
+    }
+
+    async patchDevice(
+        deviceId: string,
+        patch: PatchDeviceRequest
+    ): Promise<Device> {
+        const body = patchDeviceRequestSchema.parse(patch)
+        const { data } = await this.http.patch(
+            `/api/devices/${encodeURIComponent(deviceId)}`,
+            body
+        )
+        return deviceSchema.parse(data)
+    }
+
+    async forgetDevice(deviceId: string): Promise<void> {
+        await this.http.delete(`/api/devices/${encodeURIComponent(deviceId)}`)
     }
 
     async sendCommand(cmd: DeviceCommand): Promise<CommandResult> {
