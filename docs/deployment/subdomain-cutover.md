@@ -36,12 +36,19 @@ Add a `CNAME` (or Vercel alias) for `dashboard.nemu.sh` to the dashboard project
 
 ## 3. Clerk
 
-Keep a **single** Clerk application for both hosts:
+Keep a **single** Clerk application for both hosts. `nemu.sh` and
+`dashboard.nemu.sh` are same-site subdomains — sessions share via the existing
+`clerk.nemu.sh` Frontend API CNAME. You do **not** need satellite domains.
 
 1. Add `https://dashboard.nemu.sh` to allowed origins / authorized parties.
 2. Add redirect / callback URLs for the dashboard host (sign-in, sign-up, OAuth).
-3. Prefer cookie domain / satellite or multi-domain setup so a session started on `nemu.sh` works on `dashboard.nemu.sh`.
-4. Leave `CLERK_JWT_ISSUER_DOMAIN` (Convex) unchanged if the Clerk app is the same.
+3. Leave `CLERK_JWT_ISSUER_DOMAIN` (Convex) unchanged if the Clerk app is the same.
+4. Prefer **no** `NEXT_PUBLIC_CLERK_PROXY_URL` on either Vercel project so both
+   apps load Clerk JS from `https://clerk.nemu.sh/...` (what `nemu.sh` uses
+   today). If a proxy URL is set, both apps enable `frontendApiProxy` in
+   `proxy.ts` and the Clerk Dashboard domain must have a matching proxy URL
+   (`https://dashboard.nemu.sh/__clerk`). A proxy without that middleware
+   causes `failed_to_load_clerk_js` on `/__clerk/npm/...`.
 
 ## 4. Convex
 
