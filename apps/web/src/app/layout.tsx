@@ -28,6 +28,9 @@ export default function RootLayout({
     return (
         <ClerkProvider
             appearance={{ theme: shadcn }}
+            {...(env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY.startsWith('pk_live_')
+                ? { proxyUrl: '/__clerk' }
+                : {})}
             publishableKey={env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
             ui={ui}
         >

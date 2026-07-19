@@ -1,8 +1,12 @@
 import { clerkMiddleware } from '@clerk/nextjs/server'
 
+const isLiveClerk =
+    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.startsWith('pk_live_') ??
+    false
+
 export default clerkMiddleware({
     frontendApiProxy: {
-        enabled: true,
+        enabled: isLiveClerk,
     },
 })
 
