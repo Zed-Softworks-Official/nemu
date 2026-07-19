@@ -43,12 +43,14 @@ Keep a **single** Clerk application for both hosts. `nemu.sh` and
 1. Add `https://dashboard.nemu.sh` to allowed origins / authorized parties.
 2. Add redirect / callback URLs for the dashboard host (sign-in, sign-up, OAuth).
 3. Leave `CLERK_JWT_ISSUER_DOMAIN` (Convex) unchanged if the Clerk app is the same.
-4. Prefer **no** `NEXT_PUBLIC_CLERK_PROXY_URL` on either Vercel project so both
-   apps load Clerk JS from `https://clerk.nemu.sh/...` (what `nemu.sh` uses
-   today). If a proxy URL is set, both apps enable `frontendApiProxy` in
-   `proxy.ts` and the Clerk Dashboard domain must have a matching proxy URL
-   (`https://dashboard.nemu.sh/__clerk`). A proxy without that middleware
-   causes `failed_to_load_clerk_js` on `/__clerk/npm/...`.
+4. Do **not** set `NEXT_PUBLIC_CLERK_PROXY_URL` on either Vercel project. Both
+   apps should load Clerk from the existing `https://clerk.nemu.sh` CNAME
+   (same as marketing). A `/__clerk` proxy without a matching Clerk Dashboard
+   proxy config returns `host_invalid` / `failed_to_load_clerk_js`.
+5. In Clerk Dashboard → Domains, confirm production root is `nemu.sh` (sessions
+   then work on `dashboard.nemu.sh`). Add dashboard URLs under allowed
+   origins / redirect URLs. Do not add a satellite or Frontend API proxy for
+   the dashboard unless you intentionally cannot use the `clerk.nemu.sh` CNAME.
 
 ## 4. Convex
 
