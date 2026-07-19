@@ -75,13 +75,14 @@
     --chart-4: oklch(0.82 0.1 230);
     --chart-5: oklch(0.42 0.1 230);
     --radius: 0.875rem;
-    --sidebar: oklch(0.98 0 0);
-    --sidebar-foreground: oklch(0.12 0 0);
+    /* Inset chrome: muted rail behind the floating content card */
+    --sidebar: oklch(0.94 0.016 230);
+    --sidebar-foreground: oklch(0.22 0.02 230);
     --sidebar-primary: oklch(0.62 0.16 230);
     --sidebar-primary-foreground: oklch(0.99 0 0);
-    --sidebar-accent: oklch(0.96 0 0);
-    --sidebar-accent-foreground: oklch(0.2 0 0);
-    --sidebar-border: oklch(0.9 0 0);
+    --sidebar-accent: oklch(0.9 0.03 230);
+    --sidebar-accent-foreground: oklch(0.2 0.03 230);
+    --sidebar-border: oklch(0.86 0.025 230);
     --sidebar-ring: oklch(0.62 0.16 230);
 }
 
@@ -110,13 +111,14 @@
     --chart-3: oklch(0.68 0.14 220);
     --chart-4: oklch(0.58 0.12 220);
     --chart-5: oklch(0.48 0.1 220);
-    --sidebar: oklch(0.1 0 0);
-    --sidebar-foreground: oklch(0.97 0 0);
+    /* Inset chrome: elevated rail; content card sits on --background */
+    --sidebar: oklch(0.12 0.014 220);
+    --sidebar-foreground: oklch(0.97 0.01 220);
     --sidebar-primary: oklch(0.78 0.14 220);
     --sidebar-primary-foreground: oklch(0.1 0 0);
-    --sidebar-accent: oklch(0.14 0 0);
-    --sidebar-accent-foreground: oklch(0.97 0 0);
-    --sidebar-border: oklch(1 0 0 / 8%);
+    --sidebar-accent: oklch(0.2 0.025 220);
+    --sidebar-accent-foreground: oklch(0.98 0.01 220);
+    --sidebar-border: oklch(1 0 0 / 10%);
     --sidebar-ring: oklch(0.78 0.14 220);
 }
 

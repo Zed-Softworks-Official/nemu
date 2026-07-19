@@ -12,7 +12,9 @@ export function NavMain() {
             <SidebarGroupContent className="flex flex-col gap-2">
                 <SidebarMenu>
                     <SidebarMenuItem>
-                        <SidebarMenuButton>Home</SidebarMenuButton>
+                        <SidebarMenuButton isActive>
+                            Home
+                        </SidebarMenuButton>
                     </SidebarMenuItem>
                 </SidebarMenu>
             </SidebarGroupContent>

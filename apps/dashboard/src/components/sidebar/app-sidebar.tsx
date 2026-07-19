@@ -4,34 +4,28 @@ import {
     SidebarContent,
     SidebarFooter,
     SidebarHeader,
-    SidebarMenu,
-    SidebarMenuButton,
-    SidebarMenuItem,
 } from '@nemu/ui/components/sidebar'
 import Link from 'next/link'
 import { NavMain } from './nav-main'
+import { NavUser } from './nav-user'
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     return (
         <Sidebar collapsible="offcanvas" {...props}>
-            <SidebarHeader>
-                <SidebarMenu>
-                    <SidebarMenuItem>
-                        <SidebarMenuButton
-                            asChild
-                            className="data-[slot=sidebar-menu-button]:p-1.5!"
-                        >
-                            <Link href={'/dashboard'}>
-                                <Logo />
-                            </Link>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                </SidebarMenu>
+            <SidebarHeader className="px-4 py-4">
+                <Link
+                    className="flex items-center outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+                    href="/dashboard"
+                >
+                    <Logo className="h-8 w-auto" height={32} />
+                </Link>
             </SidebarHeader>
             <SidebarContent>
                 <NavMain />
             </SidebarContent>
-            <SidebarFooter></SidebarFooter>
+            <SidebarFooter>
+                <NavUser />
+            </SidebarFooter>
         </Sidebar>
     )
 }
