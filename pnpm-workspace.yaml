@@ -19,7 +19,7 @@ catalog:
   "@types/node": ^22.13.10
   typescript: ^5.9.2
   next: ^16.2.10
-  "@clerk/nextjs": ^7.5.17
+  "@clerk/nextjs": ^7.5.18
   "@clerk/ui": ^1.25.2
   "@vercel/microfrontends": ^2.4.0
 
