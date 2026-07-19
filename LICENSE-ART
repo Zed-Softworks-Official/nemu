@@ -4,6 +4,7 @@ The following files in this repository are NOT covered by the
 Apache License 2.0:
 
 - apps/web/public/**
+- apps/dashboard/public/**
 
 Copyright (c) 2026 Zed Softworks LLC
 Created by [Blinky Blonk](https://blinkeyblonk.carrd.co/)

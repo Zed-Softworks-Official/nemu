@@ -24,6 +24,7 @@ import { cn } from '@nemu/ui/lib/utils'
 import { Menu } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
+import { env } from '~/env'
 import { useSectionScroll } from './motion'
 
 const navLinks = [
@@ -91,7 +92,9 @@ export function SiteHeader() {
                     <Show when="signed-in">
                         <UserButton />
                         <Button asChild>
-                            <a href={'/dashboard'}>Dashboard</a>
+                            <a href={env.NEXT_PUBLIC_DASHBOARD_URL}>
+                                Dashboard
+                            </a>
                         </Button>
                     </Show>
                 </div>

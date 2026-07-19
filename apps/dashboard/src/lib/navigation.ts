@@ -15,16 +15,16 @@ export const navigation: NavigationItem[] = [
     {
         label: 'Home',
         icon: HomeIcon,
-        href: '/dashboard',
+        href: '/',
     },
     {
         label: 'Devices',
         icon: ComputerIcon,
-        href: '/dashboard/devices',
+        href: '/devices',
     },
     {
         label: 'Settings',
         icon: SettingsIcon,
-        href: '/dashboard/settings',
+        href: '/settings',
     },
 ]

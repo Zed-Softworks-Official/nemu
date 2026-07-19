@@ -19,6 +19,8 @@ export const env = createEnv({
     client: {
         NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: z.string(),
         NEXT_PUBLIC_CONVEX_URL: z.string().url(),
+        NEXT_PUBLIC_SITE_URL: z.string().url(),
+        NEXT_PUBLIC_DASHBOARD_URL: z.string().url(),
     },
 
     /**
@@ -31,6 +33,8 @@ export const env = createEnv({
         NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:
             process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
         NEXT_PUBLIC_CONVEX_URL: process.env.NEXT_PUBLIC_CONVEX_URL,
+        NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
+        NEXT_PUBLIC_DASHBOARD_URL: process.env.NEXT_PUBLIC_DASHBOARD_URL,
     },
     /**
      * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

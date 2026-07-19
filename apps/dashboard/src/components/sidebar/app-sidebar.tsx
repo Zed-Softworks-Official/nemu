@@ -15,7 +15,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <SidebarHeader className="px-4 py-4">
                 <Link
                     className="flex items-center outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
-                    href="/dashboard"
+                    href="/"
                 >
                     <Logo className="h-8 w-auto" height={32} />
                 </Link>

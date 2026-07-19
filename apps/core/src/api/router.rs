@@ -20,6 +20,8 @@ fn cors_layer() -> CorsLayer {
                     || origin.starts_with("https://localhost:")
                     || origin.starts_with("https://127.0.0.1:")
                     || origin.starts_with("https://nemu.local:")
+                    || origin == "https://dashboard.nemu.sh"
+                    || origin == "https://nemu.sh"
             },
         ))
         .allow_methods([

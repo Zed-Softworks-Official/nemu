@@ -16,6 +16,7 @@ Related documents:
 - [Webview](architecture/webview.md) — Next.js / Convex / Clerk, pairing, relay
 - [Voice pipeline](architecture/voice.md) — wake word → STT → intent → TTS, Pi 4 / Pi 5 tiers
 - [Data model](architecture/data-model.md) — Postgres ERD, Convex schema, MQTT topics, WS messages
+- [Subdomain cutover](deployment/subdomain-cutover.md) — `nemu.sh` + `dashboard.nemu.sh` deploy checklist
 
 ---
 
@@ -76,7 +77,8 @@ Nemu is two deployable parts:
 | Part | Runs on | Stack | Responsibility |
 |---|---|---|---|
 | **nemu-core** | Raspberry Pi (Docker Compose) | Rust (Axum, Diesel, rumqttc), Mosquitto, zigbee2mqtt, Postgres | Everything: device control, state, API, voice, pairing |
-| **nemu-web** | Vercel + Convex + Clerk | Next.js (App Router), Convex, Clerk | Accounts, controller discovery/pairing UI, control UI, relay fallback |
+| **nemu-web** | Vercel (`nemu.sh`) + Convex + Clerk | Next.js (App Router), Convex, Clerk | Marketing, accounts |
+| **nemu-dashboard** | Vercel (`dashboard.nemu.sh`) + Convex + Clerk | Next.js (App Router), Convex, Clerk | Controller discovery/pairing UI, control UI, relay fallback |
 
 The webview is a thin client. It renders whatever the controller's API serves
 and holds no authoritative state of its own. See the

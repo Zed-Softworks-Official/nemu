@@ -1,6 +1,6 @@
 # `@nemu/ui`
 
-Shared shadcn/ui primitives for Nemu apps and microfrontends.
+Shared shadcn/ui primitives for Nemu apps.
 
 ```ts
 import { Button } from '@nemu/ui/components/button'
