@@ -6,6 +6,7 @@ use tokio::sync::broadcast;
 
 use crate::devices::{DeviceRegistry, StateCache};
 use crate::events::DeviceEvent;
+use crate::identity::ControllerIdentity;
 use crate::mqtt::MqttHandle;
 
 pub type DbPool = Pool;
@@ -18,6 +19,9 @@ pub struct AppState {
     pub mqtt: MqttHandle,
     pub events: broadcast::Sender<DeviceEvent>,
     pub health: Arc<HealthFlags>,
+    pub identity: Arc<ControllerIdentity>,
+    pub convex_site_url: Option<String>,
+    pub registration_secret: Option<String>,
 }
 
 #[derive(Debug, Default)]

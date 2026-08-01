@@ -72,3 +72,55 @@ pub struct NewDeviceEvent {
     pub kind: String,
     pub payload: JsonValue,
 }
+
+#[derive(Debug, Clone, Queryable, Selectable, Identifiable)]
+#[diesel(table_name = crate::db::schema::pairing_codes)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct PairingCode {
+    pub id: Uuid,
+    pub code_hash: String,
+    pub expires_at: DateTime<Utc>,
+    pub consumed: bool,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Insertable)]
+#[diesel(table_name = crate::db::schema::pairing_codes)]
+pub struct NewPairingCode<'a> {
+    pub code_hash: &'a str,
+    pub expires_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Queryable, Selectable, Identifiable)]
+#[diesel(table_name = crate::db::schema::client_tokens)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct ClientToken {
+    pub id: Uuid,
+    pub token_hash: String,
+    pub label: String,
+    pub created_at: DateTime<Utc>,
+    pub last_seen_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Insertable)]
+#[diesel(table_name = crate::db::schema::client_tokens)]
+pub struct NewClientToken<'a> {
+    pub token_hash: &'a str,
+    pub label: &'a str,
+}
+
+#[derive(Debug, Clone, Queryable, Selectable, Identifiable)]
+#[diesel(table_name = crate::db::schema::settings)]
+#[diesel(primary_key(key))]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct Setting {
+    pub key: String,
+    pub value: JsonValue,
+}
+
+#[derive(Debug, Insertable)]
+#[diesel(table_name = crate::db::schema::settings)]
+pub struct NewSetting<'a> {
+    pub key: &'a str,
+    pub value: JsonValue,
+}

@@ -1,6 +1,18 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
+    client_tokens (id) {
+        id -> Uuid,
+        #[max_length = 128]
+        token_hash -> Varchar,
+        #[max_length = 255]
+        label -> Varchar,
+        created_at -> Timestamptz,
+        last_seen_at -> Nullable<Timestamptz>,
+    }
+}
+
+diesel::table! {
     device_events (id) {
         id -> Int8,
         device_id -> Nullable<Uuid>,
@@ -31,6 +43,17 @@ diesel::table! {
 }
 
 diesel::table! {
+    pairing_codes (id) {
+        id -> Uuid,
+        #[max_length = 128]
+        code_hash -> Varchar,
+        expires_at -> Timestamptz,
+        consumed -> Bool,
+        created_at -> Timestamptz,
+    }
+}
+
+diesel::table! {
     rooms (id) {
         id -> Uuid,
         #[max_length = 255]
@@ -40,7 +63,22 @@ diesel::table! {
     }
 }
 
+diesel::table! {
+    settings (key) {
+        #[max_length = 255]
+        key -> Varchar,
+        value -> Jsonb,
+    }
+}
+
 diesel::joinable!(device_events -> devices (device_id));
 diesel::joinable!(devices -> rooms (room_id));
 
-diesel::allow_tables_to_appear_in_same_query!(device_events, devices, rooms,);
+diesel::allow_tables_to_appear_in_same_query!(
+    client_tokens,
+    device_events,
+    devices,
+    pairing_codes,
+    rooms,
+    settings,
+);

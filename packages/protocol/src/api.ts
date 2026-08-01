@@ -71,5 +71,25 @@ export type PairRequest = z.infer<typeof pairRequestSchema>
 
 export const pairResponseSchema = z.object({
     clientToken: z.string(),
+    controllerId: z.string(),
 })
 export type PairResponse = z.infer<typeof pairResponseSchema>
+
+export const pairingCodeResponseSchema = z.object({
+    code: z.string(),
+    expiresAt: z.string(),
+})
+export type PairingCodeResponse = z.infer<typeof pairingCodeResponseSchema>
+
+export const clientTokenSchema = z.object({
+    id: z.string(),
+    label: z.string(),
+    createdAt: z.string(),
+    lastSeenAt: z.string().nullable(),
+})
+export type ClientToken = z.infer<typeof clientTokenSchema>
+
+export const tokensResponseSchema = z.object({
+    tokens: z.array(clientTokenSchema),
+})
+export type TokensResponse = z.infer<typeof tokensResponseSchema>

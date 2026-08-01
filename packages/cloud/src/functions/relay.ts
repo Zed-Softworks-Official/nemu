@@ -35,6 +35,44 @@ async function requirePairing(
     return pairing
 }
 
+async function writeResponse(
+    ctx: MutationCtx,
+    args: { controllerId: string; requestId: string; payload: string }
+) {
+    const controller = await ctx.db
+        .query('controllers')
+        .withIndex('by_controller_id', (q) =>
+            q.eq('controllerId', args.controllerId)
+        )
+        .unique()
+    if (!controller) {
+        throw new Error('Controller not found')
+    }
+
+    const pending = await ctx.db
+        .query('relayMessages')
+        .withIndex('by_request_id', (q) => q.eq('requestId', args.requestId))
+        .collect()
+    for (const message of pending) {
+        if (
+            message.direction === 'toController' &&
+            message.controllerId === args.controllerId
+        ) {
+            // Privacy: delete inbound messages as soon as they're answered.
+            await ctx.db.delete(message._id)
+        }
+    }
+
+    return await ctx.db.insert('relayMessages', {
+        controllerId: args.controllerId,
+        direction: 'toClient',
+        requestId: args.requestId,
+        payload: args.payload,
+        consumed: false,
+        expiresAt: Date.now() + RELAY_TTL_MS,
+    })
+}
+
 export const send = authedMutation({
     args: {
         controllerId: v.string(),
@@ -87,6 +125,22 @@ export const responses = authedQuery({
     },
 })
 
+export const controllerExists = internalQuery({
+    args: {
+        controllerId: v.string(),
+    },
+    returns: v.boolean(),
+    handler: async (ctx, args) => {
+        const controller = await ctx.db
+            .query('controllers')
+            .withIndex('by_controller_id', (q) =>
+                q.eq('controllerId', args.controllerId)
+            )
+            .unique()
+        return controller !== null
+    },
+})
+
 export const pendingForController = internalQuery({
     args: {
         controllerId: v.string(),
@@ -111,8 +165,20 @@ export const markConsumed = internalMutation({
     },
     returns: v.null(),
     handler: async (ctx, args) => {
-        await ctx.db.patch(args.messageId, { consumed: true })
+        await ctx.db.delete(args.messageId)
         return null
+    },
+})
+
+export const respondInternal = internalMutation({
+    args: {
+        controllerId: v.string(),
+        requestId: v.string(),
+        payload: v.string(),
+    },
+    returns: v.id('relayMessages'),
+    handler: async (ctx, args) => {
+        return await writeResponse(ctx, args)
     },
 })
 
@@ -130,39 +196,10 @@ export const respond = mutation({
             throw new Error('Unauthorized')
         }
 
-        const controller = await ctx.db
-            .query('controllers')
-            .withIndex('by_controller_id', (q) =>
-                q.eq('controllerId', args.controllerId)
-            )
-            .unique()
-        if (!controller) {
-            throw new Error('Controller not found')
-        }
-
-        const pending = await ctx.db
-            .query('relayMessages')
-            .withIndex('by_request_id', (q) =>
-                q.eq('requestId', args.requestId)
-            )
-            .collect()
-        for (const message of pending) {
-            if (
-                message.direction === 'toController' &&
-                message.controllerId === args.controllerId &&
-                !message.consumed
-            ) {
-                await ctx.db.patch(message._id, { consumed: true })
-            }
-        }
-
-        return await ctx.db.insert('relayMessages', {
+        return await writeResponse(ctx, {
             controllerId: args.controllerId,
-            direction: 'toClient',
             requestId: args.requestId,
             payload: args.payload,
-            consumed: false,
-            expiresAt: Date.now() + RELAY_TTL_MS,
         })
     },
 })
@@ -182,6 +219,15 @@ export const cleanup = internalMutation({
         for (const message of expired) {
             await ctx.db.delete(message._id)
             deleted++
+        }
+
+        // Also remove consumed rows that haven't expired yet (privacy contract).
+        const recent = await ctx.db.query('relayMessages').take(100)
+        for (const message of recent) {
+            if (message.consumed) {
+                await ctx.db.delete(message._id)
+                deleted++
+            }
         }
 
         return deleted

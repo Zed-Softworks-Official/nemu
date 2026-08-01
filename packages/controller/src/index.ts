@@ -8,6 +8,8 @@ export {
     probeController,
 } from './discovery'
 export { createControllerHttp, toApiError } from './http'
+export type { PairWithControllerResult } from './pairing'
+export { pairWithController } from './pairing'
 export type {
     ControllerProviderProps,
     DevicePairingPhase,
@@ -21,6 +23,8 @@ export {
 } from './provider'
 export {
     clearClientToken,
+    clearRememberedBaseUrl,
+    clearRememberedControllerId,
     getClientToken,
     getRememberedBaseUrl,
     getRememberedControllerId,

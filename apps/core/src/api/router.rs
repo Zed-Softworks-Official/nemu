@@ -1,9 +1,11 @@
 use axum::Router;
 use axum::http::{HeaderValue, Method};
-use axum::routing::{get, patch, post};
+use axum::middleware;
+use axum::routing::{delete, get, patch, post};
 use tower_http::cors::{AllowOrigin, CorsLayer};
 
-use crate::api::{devices, health, rooms, ws, zigbee};
+use crate::api::{devices, health, identify, pairing, rooms, ws, zigbee};
+use crate::api::middleware::require_client_token;
 use crate::state::AppState;
 
 /// Allow browser webviews (Next.js dev/prod) to call the LAN controller API.
@@ -40,8 +42,13 @@ fn cors_layer() -> CorsLayer {
 }
 
 pub fn router(state: AppState) -> Router {
-    Router::new()
+    let public = Router::new()
         .route("/api/health", get(health::health_check))
+        .route("/api/identify", get(identify::identify))
+        .route("/api/pair", post(pairing::pair))
+        .route("/api/pairing-code", post(pairing::create_pairing_code));
+
+    let protected = Router::new()
         .route("/api/devices", get(devices::list_devices))
         .route(
             "/api/devices/{id}",
@@ -59,7 +66,16 @@ pub fn router(state: AppState) -> Router {
             patch(rooms::patch_room).delete(rooms::delete_room),
         )
         .route("/api/zigbee/permit-join", post(zigbee::permit_join))
+        .route("/api/tokens", get(pairing::list_tokens))
+        .route("/api/tokens/{id}", delete(pairing::delete_token))
         .route("/ws", get(ws::ws_handler))
+        .route_layer(middleware::from_fn_with_state(
+            state.clone(),
+            require_client_token,
+        ));
+
+    public
+        .merge(protected)
         .layer(cors_layer())
         .with_state(state)
 }
