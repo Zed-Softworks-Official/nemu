@@ -1,6 +1,6 @@
 'use client'
 
-import { api, useQuery } from '@nemu/cloud'
+import { api, useConvexAuth, useQuery } from '@nemu/cloud'
 import { getClientToken } from '@nemu/controller'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
@@ -11,7 +11,8 @@ import { useEffect, useState } from 'react'
  */
 export function PairingGate(props: { children: React.ReactNode }) {
     const router = useRouter()
-    const pairings = useQuery(api.pairings.list)
+    const { isAuthenticated, isLoading: authLoading } = useConvexAuth()
+    const pairings = useQuery(api.pairings.list, isAuthenticated ? {} : 'skip')
     const [hasToken, setHasToken] = useState<boolean | null>(null)
 
     useEffect(() => {
@@ -19,13 +20,18 @@ export function PairingGate(props: { children: React.ReactNode }) {
     }, [])
 
     useEffect(() => {
+        if (authLoading || !isAuthenticated) return
         if (hasToken === null || pairings === undefined) return
         if (!hasToken || pairings.length === 0) {
             router.replace('/setup')
         }
-    }, [hasToken, pairings, router])
+    }, [authLoading, hasToken, isAuthenticated, pairings, router])
 
-    if (hasToken === null || pairings === undefined) {
+    if (
+        authLoading ||
+        hasToken === null ||
+        (isAuthenticated && pairings === undefined)
+    ) {
         return (
             <div className="flex min-h-svh items-center justify-center text-muted-foreground text-sm">
                 Checking controller pairing…
@@ -33,7 +39,15 @@ export function PairingGate(props: { children: React.ReactNode }) {
         )
     }
 
-    if (!hasToken || pairings.length === 0) {
+    if (!isAuthenticated) {
+        return (
+            <div className="flex min-h-svh items-center justify-center text-muted-foreground text-sm">
+                Signing in…
+            </div>
+        )
+    }
+
+    if (!hasToken || pairings === undefined || pairings.length === 0) {
         return (
             <div className="flex min-h-svh items-center justify-center text-muted-foreground text-sm">
                 Redirecting to setup…

@@ -1,6 +1,6 @@
 'use client'
 
-import { api, useMutation, useQuery } from '@nemu/cloud'
+import { api, useConvexAuth, useMutation, useQuery } from '@nemu/cloud'
 import {
     clearClientToken,
     clearRememberedBaseUrl,
@@ -45,7 +45,11 @@ import { env } from '~/env'
 export default function SettingsPage() {
     const router = useRouter()
     const { status, reprobe } = useController()
-    const controllers = useQuery(api.controllers.listMine)
+    const { isAuthenticated } = useConvexAuth()
+    const controllers = useQuery(
+        api.controllers.listMine,
+        isAuthenticated ? {} : 'skip'
+    )
     const removePairing = useMutation(api.pairings.remove)
 
     const controller = controllers?.[0]
