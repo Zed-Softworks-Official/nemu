@@ -1,5 +1,6 @@
 'use client'
 
+import portrait from '@nemu/assets/emotes/portrait.png'
 import { Button } from '@nemu/ui/components/button'
 import Image from 'next/image'
 import { GitHubIcon } from './github-icon'
@@ -97,7 +98,7 @@ export function Hero() {
                         className="relative z-1 mx-auto h-auto w-[min(100%,28rem)] drop-shadow-[0_24px_48px_oklch(0_0_0_/50%)] lg:w-full lg:max-w-xl"
                         height={720}
                         priority
-                        src="/portrait.png"
+                        src={portrait}
                         width={720}
                     />
                 </RevealOnMount>

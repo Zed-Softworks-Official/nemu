@@ -17,6 +17,7 @@
     "dependencies": {
         "@clerk/nextjs": "catalog:",
         "@clerk/ui": "catalog:",
+        "@nemu/assets": "workspace:*",
         "@nemu/cloud": "workspace:*",
         "@nemu/controller": "workspace:*",
         "@nemu/protocol": "workspace:*",

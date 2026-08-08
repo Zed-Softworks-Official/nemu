@@ -1,5 +1,6 @@
 'use client'
 
+import icon from '@nemu/assets/icons/icon.png'
 import { Button } from '@nemu/ui/components/button'
 import Image from 'next/image'
 import { Reveal } from './motion'
@@ -18,7 +19,7 @@ export function CtaBand() {
                         alt=""
                         className="size-16 drop-shadow-[0_0_24px_oklch(0.78_0.14_220_/25%)] lg:hidden"
                         height={128}
-                        src="/icon.png"
+                        src={icon}
                         width={128}
                     />
                     <h2 className="font-extrabold font-heading text-3xl text-foreground tracking-tight sm:text-4xl">

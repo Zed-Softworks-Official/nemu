@@ -1,6 +1,7 @@
 'use client'
 
 import { Waitlist } from '@clerk/nextjs'
+import sparkle from '@nemu/assets/emotes/sparkle.png'
 import Image from 'next/image'
 import { LandingSection } from './landing-section'
 import { Float, Reveal } from './motion'
@@ -16,7 +17,7 @@ export function WaitlistSection() {
                             alt="Nemu sparkling with excitement"
                             className="mx-auto h-auto w-48 drop-shadow-[0_0_32px_oklch(0.78_0.14_220_/20%)] sm:w-56 lg:w-64"
                             height={320}
-                            src="/sparkle.png"
+                            src={sparkle}
                             width={320}
                         />
                     </Float>

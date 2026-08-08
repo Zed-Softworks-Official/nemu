@@ -1,5 +1,6 @@
 'use client'
 
+import thisIsFine from '@nemu/assets/emotes/this-is-fine.png'
 import { Button } from '@nemu/ui/components/button'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
@@ -15,7 +16,7 @@ export default function NoHomesPage() {
                     className="mb-8 h-auto w-56"
                     height={280}
                     priority
-                    src="/this-is-fine.png"
+                    src={thisIsFine}
                     width={280}
                 />
                 <h1 className="font-bold text-2xl tracking-tight">

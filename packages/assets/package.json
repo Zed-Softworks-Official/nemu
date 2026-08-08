@@ -1,0 +1,14 @@
+{
+  "name": "@nemu/assets",
+  "version": "0.0.0",
+  "private": true,
+  "types": "./types.d.ts",
+  "exports": {
+    "./logos/*": "./src/logos/*",
+    "./icons/*": "./src/icons/*",
+    "./emotes/*": "./src/emotes/*"
+  },
+  "peerDependencies": {
+    "next": ">=15"
+  }
+}

@@ -1,5 +1,6 @@
 import '~/styles/globals.css'
 
+import favicon from '@nemu/assets/icons/favicon.ico'
 import type { Metadata } from 'next'
 import { Nunito } from 'next/font/google'
 import { Head } from 'nextra/components'
@@ -11,7 +12,7 @@ export const metadata: Metadata = {
     title: 'Nemu | Docs',
     description:
         'Nemu is an open-source, privacy-focused smart home controller from Zed Softworks. Local-first control for your devices—without sharing your life with the cloud.',
-    icons: [{ rel: 'icon', url: '/favicon.ico' }],
+    icons: [{ rel: 'icon', url: favicon.src }],
 }
 
 const nunito = Nunito({

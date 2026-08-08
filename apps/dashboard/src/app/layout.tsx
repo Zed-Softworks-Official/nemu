@@ -3,6 +3,7 @@ import '~/styles/globals.css'
 import { ClerkProvider } from '@clerk/nextjs'
 import { ui } from '@clerk/ui'
 import { shadcn } from '@clerk/ui/themes'
+import favicon from '@nemu/assets/icons/favicon.ico'
 import { ThemeProvider } from '@nemu/ui/components/theme-provider'
 import { cn } from '@nemu/ui/lib/utils'
 import type { Metadata } from 'next'
@@ -14,7 +15,7 @@ export const metadata: Metadata = {
     title: 'Nemu | Dashboard',
     description:
         'Nemu is an open-source, privacy-focused smart home controller from Zed Softworks. Local-first control for your devices—without sharing your life with the cloud.',
-    icons: [{ rel: 'icon', url: '/favicon.ico' }],
+    icons: [{ rel: 'icon', url: favicon.src }],
 }
 
 const nunito = Nunito({

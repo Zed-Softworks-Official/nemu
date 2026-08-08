@@ -1,5 +1,7 @@
 'use client'
 
+import notLikeThis from '@nemu/assets/emotes/not-like-this.png'
+import sparkle from '@nemu/assets/emotes/sparkle.png'
 import { cn } from '@nemu/ui/lib/utils'
 import { Check, X } from 'lucide-react'
 import Image from 'next/image'
@@ -89,7 +91,7 @@ export function ComparisonSection() {
                                 alt="Nemu reacting to cloud dependency"
                                 className="size-20 shrink-0 drop-shadow-md sm:size-24"
                                 height={120}
-                                src="/not-like-this.png"
+                                src={notLikeThis}
                                 width={120}
                             />
                         </div>
@@ -116,7 +118,7 @@ export function ComparisonSection() {
                                 alt="Nemu excited about local control"
                                 className="size-20 shrink-0 drop-shadow-[0_0_20px_oklch(0.78_0.14_220_/20%)] sm:size-24"
                                 height={120}
-                                src="/sparkle.png"
+                                src={sparkle}
                                 width={120}
                             />
                         </div>

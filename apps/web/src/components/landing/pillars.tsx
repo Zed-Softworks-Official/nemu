@@ -1,5 +1,8 @@
 'use client'
 
+import dizzy from '@nemu/assets/emotes/dizzy.png'
+import noteTake from '@nemu/assets/emotes/note-take.png'
+import thisIsFine from '@nemu/assets/emotes/this-is-fine.png'
 import Image from 'next/image'
 import { LandingSection } from './landing-section'
 import { Reveal } from './motion'
@@ -10,21 +13,21 @@ const pillars = [
         id: 'privacy',
         title: 'Privacy by architecture',
         body: "Nemu is built so your home stays yours. Control runs locally, without shipping your life to someone else's cloud.",
-        sticker: '/this-is-fine.png',
+        sticker: thisIsFine,
         stickerAlt: 'Nemu looking calm while everything stays local',
     },
     {
         id: 'local',
         title: 'Local-first, cloud when needed',
         body: 'Prefer your LAN for speed and sovereignty. Reach your controller remotely only when you choose never as the default.',
-        sticker: '/dizzy.png',
+        sticker: dizzy,
         stickerAlt: 'Nemu spinning happily on your own network',
     },
     {
         id: 'open',
         title: 'Open source, inspectable',
         body: 'Read the code. Fork it. Host it. Nemu is Apache-2.0 so you can trust what runs inside your walls.',
-        sticker: '/note-take.png',
+        sticker: noteTake,
         stickerAlt: 'Nemu taking notes on the open-source code',
     },
 ] as const

@@ -8,6 +8,8 @@ import nextra from 'nextra'
 
 const withNextra = nextra({})
 
-const config: NextConfig = {}
+const config: NextConfig = {
+    transpilePackages: ['@nemu/assets'],
+}
 
 export default withNextra(config)

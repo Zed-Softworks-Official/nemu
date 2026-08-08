@@ -1,3 +1,5 @@
+import logoDark from '@nemu/assets/logos/logo-dark.png'
+import logoLight from '@nemu/assets/logos/logo-light.png'
 import { cn } from '@nemu/ui/lib/utils'
 import Image, { type ImageProps } from 'next/image'
 import { Fragment } from 'react'
@@ -25,7 +27,7 @@ export function Logo({
                 alt="Nemu Logo"
                 className={cn('hidden h-auto w-auto dark:block', className)}
                 height={resolvedHeight}
-                src="/logo-dark.png"
+                src={logoDark}
                 width={resolvedWidth}
                 {...props}
             />
@@ -34,7 +36,7 @@ export function Logo({
                 aria-hidden
                 className={cn('h-auto w-auto dark:hidden', className)}
                 height={resolvedHeight}
-                src="/logo-light.png"
+                src={logoLight}
                 width={resolvedWidth}
                 {...props}
             />
