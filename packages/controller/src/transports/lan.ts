@@ -1,6 +1,8 @@
 import {
     type CommandResult,
+    type CreateRoomRequest,
     clientWsMessageSchema,
+    createRoomRequestSchema,
     type Device,
     type DeviceCommand,
     type DeviceEvent,
@@ -8,11 +10,14 @@ import {
     deviceSchema,
     devicesResponseSchema,
     type PatchDeviceRequest,
+    type PatchRoomRequest,
     type PermitJoinResponse,
     patchDeviceRequestSchema,
+    patchRoomRequestSchema,
     permitJoinRequestSchema,
     permitJoinResponseSchema,
     type Room,
+    roomSchema,
     roomsResponseSchema,
 } from '@nemu/protocol'
 import type { AxiosInstance } from 'axios'
@@ -101,6 +106,25 @@ export class LanTransport implements ControllerTransport {
     async getRooms(): Promise<Room[]> {
         const { data } = await this.http.get('/api/rooms')
         return roomsResponseSchema.parse(data).rooms
+    }
+
+    async createRoom(request: CreateRoomRequest): Promise<Room> {
+        const body = createRoomRequestSchema.parse(request)
+        const { data } = await this.http.post('/api/rooms', body)
+        return roomSchema.parse(data)
+    }
+
+    async patchRoom(roomId: string, patch: PatchRoomRequest): Promise<Room> {
+        const body = patchRoomRequestSchema.parse(patch)
+        const { data } = await this.http.patch(
+            `/api/rooms/${encodeURIComponent(roomId)}`,
+            body
+        )
+        return roomSchema.parse(data)
+    }
+
+    async deleteRoom(roomId: string): Promise<void> {
+        await this.http.delete(`/api/rooms/${encodeURIComponent(roomId)}`)
     }
 
     async patchDevice(

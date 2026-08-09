@@ -21,7 +21,7 @@ catalog:
   next: ^16.2.10
   "@clerk/nextjs": ^7.5.18
   "@clerk/ui": ^1.25.2
-  convex: ^1.42.3
+  convex: ^1.43.0
   axios: ^1.18.1
 
 overrides:
@@ -29,4 +29,4 @@ overrides:
   convex: "catalog:"
 
 minimumReleaseAgeExclude:
-  - convex@1.42.3
+  - convex@1.43.0

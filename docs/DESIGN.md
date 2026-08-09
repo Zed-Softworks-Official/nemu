@@ -190,7 +190,7 @@ zigbee2mqtt, postgres), `apps/core` (Axum skeleton, Diesel `devices` table,
 | mDNS discovery              | Core advertises `_nemu._tcp`; webview discovers it (direct probe of `nemu.local` + candidate scan fallback) |
 | Pairing handshake           | 6-digit code flow from §6.1; controller mints a client token; Convex records the binding                    |
 | Controller auth on core API | All non-pairing routes require a valid client token; tokens revocable from the webview                      |
-| LAN-direct control UI       | Dashboard: rooms, devices, toggles/sliders, live state via `/ws`; device add + rename flows                 |
+| LAN-direct control UI       | Dashboard: rooms CRUD, devices, power/brightness/color/color-temp controls, live state via `/ws`; device add + rename + room assignment |
 
 ### M3 — Hybrid relay
 

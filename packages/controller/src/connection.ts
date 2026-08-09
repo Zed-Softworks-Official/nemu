@@ -1,10 +1,12 @@
 import {
     type CommandResult,
     type ConnectionStatus,
+    type CreateRoomRequest,
     type Device,
     type DeviceCommand,
     type DeviceEvent,
     type PatchDeviceRequest,
+    type PatchRoomRequest,
     type PermitJoinResponse,
     type Room,
     statusFromMode,
@@ -151,6 +153,30 @@ export class ControllerConnection {
             throw new Error('Rooms are not supported by this controller')
         }
         return await transport.getRooms()
+    }
+
+    async createRoom(request: CreateRoomRequest): Promise<Room> {
+        const transport = this.requireLanTransport('Creating rooms')
+        if (!transport.createRoom) {
+            throw new Error('Creating rooms is not supported by this controller')
+        }
+        return await transport.createRoom(request)
+    }
+
+    async patchRoom(roomId: string, patch: PatchRoomRequest): Promise<Room> {
+        const transport = this.requireLanTransport('Updating rooms')
+        if (!transport.patchRoom) {
+            throw new Error('Updating rooms is not supported by this controller')
+        }
+        return await transport.patchRoom(roomId, patch)
+    }
+
+    async deleteRoom(roomId: string): Promise<void> {
+        const transport = this.requireLanTransport('Deleting rooms')
+        if (!transport.deleteRoom) {
+            throw new Error('Deleting rooms is not supported by this controller')
+        }
+        await transport.deleteRoom(roomId)
     }
 
     async patchDevice(

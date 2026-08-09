@@ -1,6 +1,7 @@
 'use client'
 
 import { useController, useDevices } from '@nemu/controller'
+import type { DeviceState, Room } from '@nemu/protocol'
 import {
     AlertDialog,
     AlertDialogCancel,
@@ -23,6 +24,15 @@ import {
     CardTitle,
 } from '@nemu/ui/components/card'
 import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuLabel,
+    DropdownMenuRadioGroup,
+    DropdownMenuRadioItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@nemu/ui/components/dropdown-menu'
+import {
     Empty,
     EmptyContent,
     EmptyDescription,
@@ -36,6 +46,7 @@ import { Switch } from '@nemu/ui/components/switch'
 import {
     ArrowLeftIcon,
     BatteryMediumIcon,
+    ChevronDownIcon,
     CircleOffIcon,
     LoaderCircleIcon,
     RadioTowerIcon,
@@ -46,19 +57,94 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
-import { presentDevice } from '~/lib/device-presentation'
+import { useEffect, useState } from 'react'
+import {
+    brightnessPercentToPayload,
+    colorHexPayload,
+    colorTempPayload,
+    normalizeHex,
+    powerPayload,
+} from '~/lib/device-commands'
+import {
+    COLOR_TEMP_MAX_MIREDS,
+    COLOR_TEMP_MIN_MIREDS,
+    colorTempLabel,
+    presentDevice,
+} from '~/lib/device-presentation'
+import { DeviceControlSlider } from './device-control-slider'
 import { DeviceIcon } from './device-icon'
 import { PageHeader } from './page-header'
 
 export function DeviceDetail({ deviceId }: { deviceId: string }) {
     const { devices, error, refresh, status } = useDevices()
-    const { reprobe, forgetDevice } = useController()
+    const { reprobe, forgetDevice, sendCommand, getRooms, patchDevice } =
+        useController()
     const router = useRouter()
     const [forgetOpen, setForgetOpen] = useState(false)
     const [forgetting, setForgetting] = useState(false)
     const [forgetError, setForgetError] = useState<Error | null>(null)
+    const [commandError, setCommandError] = useState<Error | null>(null)
+    const [pendingPower, setPendingPower] = useState<boolean | null>(null)
+    const [rooms, setRooms] = useState<Room[]>([])
+    const [roomsLoading, setRoomsLoading] = useState(false)
+    const [roomsError, setRoomsError] = useState<Error | null>(null)
+    const [roomPatching, setRoomPatching] = useState(false)
+    const [roomError, setRoomError] = useState<Error | null>(null)
+    const [colorDraft, setColorDraft] = useState('#FFFFFF')
     const device = devices?.find((candidate) => candidate.id === deviceId)
+    const commitOnRelease = status.mode === 'relay'
+    const controlsDisabled =
+        !device?.online ||
+        status.mode === 'offline' ||
+        status.mode === 'probing'
+
+    useEffect(() => {
+        if (status.mode !== 'lan') {
+            setRooms([])
+            setRoomsError(null)
+            setRoomsLoading(false)
+            return
+        }
+
+        let cancelled = false
+        setRoomsLoading(true)
+        void getRooms()
+            .then((next) => {
+                if (!cancelled) {
+                    setRooms(next)
+                    setRoomsError(null)
+                }
+            })
+            .catch((nextError) => {
+                if (!cancelled) {
+                    setRoomsError(
+                        nextError instanceof Error
+                            ? nextError
+                            : new Error(String(nextError))
+                    )
+                }
+            })
+            .finally(() => {
+                if (!cancelled) setRoomsLoading(false)
+            })
+
+        return () => {
+            cancelled = true
+        }
+    }, [getRooms, status.mode])
+
+    useEffect(() => {
+        setPendingPower(null)
+        setCommandError(null)
+    }, [device?.state, device?.online])
+
+    useEffect(() => {
+        if (!device) return
+        const presented = presentDevice(device)
+        if (presented.colorHex) {
+            setColorDraft(presented.colorHex)
+        }
+    }, [device])
 
     if (!devices && error) {
         return (
@@ -102,6 +188,49 @@ export function DeviceDetail({ deviceId }: { deviceId: string }) {
 
     const presented = presentDevice(device)
     const stateEntries = Object.entries(device.state ?? {}).slice(0, 6)
+    const powerChecked = pendingPower ?? presented.enabled
+    const selectedRoom = rooms.find((room) => room.id === presented.roomId)
+
+    async function runCommand(payload: DeviceState) {
+        setCommandError(null)
+        try {
+            const result = await sendCommand({ deviceId, payload })
+            if (!result.ok) {
+                throw new Error(
+                    result.error?.message ?? 'Command failed on the controller'
+                )
+            }
+        } catch (nextError) {
+            setPendingPower(null)
+            setCommandError(
+                nextError instanceof Error
+                    ? nextError
+                    : new Error(String(nextError))
+            )
+        }
+    }
+
+    async function handlePowerChange(next: boolean) {
+        setPendingPower(next)
+        await runCommand(powerPayload(next))
+    }
+
+    async function handleRoomChange(nextRoomId: string | null) {
+        setRoomPatching(true)
+        setRoomError(null)
+        try {
+            await patchDevice(deviceId, { roomId: nextRoomId })
+            await refresh()
+        } catch (nextError) {
+            setRoomError(
+                nextError instanceof Error
+                    ? nextError
+                    : new Error(String(nextError))
+            )
+        } finally {
+            setRoomPatching(false)
+        }
+    }
 
     async function forgetCurrentDevice() {
         setForgetting(true)
@@ -166,34 +295,101 @@ export function DeviceDetail({ deviceId }: { deviceId: string }) {
                             <CardDescription>
                                 {presented.summary}
                             </CardDescription>
-                            <CardAction className="flex items-center gap-3">
-                                <Badge variant="outline">Read only</Badge>
-                                <Switch
-                                    aria-label={`${presented.name} state`}
-                                    checked={presented.enabled}
-                                    disabled
-                                />
-                            </CardAction>
+                            {presented.supportsPower ? (
+                                <CardAction className="flex items-center gap-3">
+                                    <Switch
+                                        aria-label={`${presented.name} power`}
+                                        checked={powerChecked}
+                                        disabled={controlsDisabled}
+                                        onCheckedChange={(next) =>
+                                            void handlePowerChange(next)
+                                        }
+                                    />
+                                </CardAction>
+                            ) : null}
                         </CardHeader>
                         <CardContent className="space-y-5">
-                            {presented.level !== undefined ? (
+                            {presented.supportsBrightness &&
+                            presented.level !== undefined ? (
+                                <DeviceControlSlider
+                                    ariaLabel={`Brightness ${presented.level}%`}
+                                    commitOnRelease={commitOnRelease}
+                                    disabled={controlsDisabled}
+                                    formatValue={(value) => `${value}%`}
+                                    label="Brightness"
+                                    max={100}
+                                    min={0}
+                                    onCommit={(value) =>
+                                        void runCommand(
+                                            brightnessPercentToPayload(value)
+                                        )
+                                    }
+                                    value={presented.level}
+                                />
+                            ) : null}
+
+                            {presented.supportsColorTemp &&
+                            presented.colorTemp !== undefined ? (
+                                <DeviceControlSlider
+                                    ariaLabel={`Color temperature ${colorTempLabel(presented.colorTemp)}`}
+                                    commitOnRelease={commitOnRelease}
+                                    disabled={controlsDisabled}
+                                    formatValue={colorTempLabel}
+                                    label="Color temperature"
+                                    max={COLOR_TEMP_MAX_MIREDS}
+                                    min={COLOR_TEMP_MIN_MIREDS}
+                                    onCommit={(value) =>
+                                        void runCommand(colorTempPayload(value))
+                                    }
+                                    value={presented.colorTemp}
+                                />
+                            ) : null}
+
+                            {presented.supportsColor ? (
                                 <div className="space-y-3">
                                     <div className="flex items-center justify-between text-sm">
                                         <span className="font-medium">
-                                            Brightness
+                                            Color
                                         </span>
                                         <span className="text-muted-foreground">
-                                            {presented.level}%
+                                            {colorDraft}
                                         </span>
                                     </div>
-                                    <progress
-                                        aria-label={`Brightness ${presented.level}%`}
-                                        className="h-1.5 w-full overflow-hidden rounded-full bg-muted [&::-moz-progress-bar]:bg-primary [&::-webkit-progress-bar]:bg-muted [&::-webkit-progress-value]:bg-primary"
-                                        max={100}
-                                        value={presented.level}
+                                    <input
+                                        aria-label={`${presented.name} color`}
+                                        className="h-10 w-full cursor-pointer rounded-lg border bg-transparent p-1 disabled:cursor-not-allowed disabled:opacity-50"
+                                        disabled={controlsDisabled}
+                                        onBlur={() => {
+                                            if (!commitOnRelease) return
+                                            const normalized =
+                                                normalizeHex(colorDraft)
+                                            if (normalized) {
+                                                void runCommand(
+                                                    colorHexPayload(normalized)
+                                                )
+                                            }
+                                        }}
+                                        onChange={(event) => {
+                                            const next = event.target.value
+                                            setColorDraft(next)
+                                            if (!commitOnRelease) {
+                                                void runCommand(
+                                                    colorHexPayload(next)
+                                                )
+                                            }
+                                        }}
+                                        type="color"
+                                        value={
+                                            normalizeHex(colorDraft) ??
+                                            '#FFFFFF'
+                                        }
                                     />
                                 </div>
-                            ) : (
+                            ) : null}
+
+                            {!presented.supportsBrightness &&
+                            !presented.supportsColorTemp &&
+                            !presented.supportsColor ? (
                                 <div className="rounded-lg bg-muted/50 p-4">
                                     <p className="font-medium text-sm">
                                         Current reading
@@ -202,12 +398,16 @@ export function DeviceDetail({ deviceId }: { deviceId: string }) {
                                         {presented.summary}
                                     </p>
                                 </div>
-                            )}
-                            <Separator />
-                            <p className="text-muted-foreground text-xs">
-                                Device commands will be enabled in a later
-                                implementation pass.
-                            </p>
+                            ) : null}
+
+                            {commandError ? (
+                                <div
+                                    className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-destructive text-sm"
+                                    role="alert"
+                                >
+                                    {commandError.message}
+                                </div>
+                            ) : null}
                         </CardContent>
                     </Card>
 
@@ -264,10 +464,86 @@ export function DeviceDetail({ deviceId }: { deviceId: string }) {
                                 label="Manufacturer"
                                 value={presented.manufacturer}
                             />
-                            <MetadataRow
-                                label="Room ID"
-                                value={presented.roomId ?? 'Unassigned'}
-                            />
+                            <div className="space-y-2">
+                                <span className="text-muted-foreground text-sm">
+                                    Room
+                                </span>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button
+                                            className="w-full justify-between"
+                                            disabled={
+                                                status.mode !== 'lan' ||
+                                                roomsLoading ||
+                                                roomPatching
+                                            }
+                                            size="sm"
+                                            variant="outline"
+                                        >
+                                            {status.mode !== 'lan'
+                                                ? (selectedRoom?.name ??
+                                                  presented.roomId ??
+                                                  'Unassigned')
+                                                : roomsLoading
+                                                  ? 'Loading rooms…'
+                                                  : roomPatching
+                                                    ? 'Saving…'
+                                                    : (selectedRoom?.name ??
+                                                      'Unassigned')}
+                                            <ChevronDownIcon />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent
+                                        align="start"
+                                        className="w-(--radix-dropdown-menu-trigger-width)"
+                                    >
+                                        <DropdownMenuLabel>
+                                            Assign room
+                                        </DropdownMenuLabel>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuRadioGroup
+                                            onValueChange={(value) =>
+                                                void handleRoomChange(
+                                                    value === 'unassigned'
+                                                        ? null
+                                                        : value
+                                                )
+                                            }
+                                            value={
+                                                presented.roomId ?? 'unassigned'
+                                            }
+                                        >
+                                            <DropdownMenuRadioItem value="unassigned">
+                                                Unassigned
+                                            </DropdownMenuRadioItem>
+                                            {rooms.map((room) => (
+                                                <DropdownMenuRadioItem
+                                                    key={room.id}
+                                                    value={room.id}
+                                                >
+                                                    {room.name}
+                                                </DropdownMenuRadioItem>
+                                            ))}
+                                        </DropdownMenuRadioGroup>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                                {status.mode !== 'lan' ? (
+                                    <p className="text-muted-foreground text-xs">
+                                        Changing rooms requires a Home
+                                        connection.
+                                    </p>
+                                ) : null}
+                                {roomsError ? (
+                                    <p className="text-destructive text-xs">
+                                        {roomsError.message}
+                                    </p>
+                                ) : null}
+                                {roomError ? (
+                                    <p className="text-destructive text-xs">
+                                        {roomError.message}
+                                    </p>
+                                ) : null}
+                            </div>
                             <MetadataRow
                                 label="Device ID"
                                 value={presented.id}

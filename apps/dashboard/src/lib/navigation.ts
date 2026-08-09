@@ -1,5 +1,6 @@
 import {
     ComputerIcon,
+    DoorOpenIcon,
     HomeIcon,
     type LucideIcon,
     SettingsIcon,
@@ -21,6 +22,11 @@ export const navigation: NavigationItem[] = [
         label: 'Devices',
         icon: ComputerIcon,
         href: '/devices',
+    },
+    {
+        label: 'Rooms',
+        icon: DoorOpenIcon,
+        href: '/rooms',
     },
     {
         label: 'Settings',

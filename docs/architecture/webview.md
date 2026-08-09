@@ -109,7 +109,8 @@ Key properties:
 ## 5. Connection manager
 
 `ControllerConnection` exposes one interface to the UI
-(`getDevices`, `sendCommand`, `onEvent`, `status`) over two transports:
+(`getDevices`, `sendCommand`, `onEvent`, `status`, plus LAN-only room/device
+configuration) over two transports:
 
 ```mermaid
 stateDiagram-v2
@@ -132,6 +133,31 @@ stateDiagram-v2
 - Envelope payloads carry the client token; the controller verifies it before
   executing (see [core.md](core.md) §6). Responses are signed with the
   controller key so the client can detect a spoofed relay.
+
+### 5.1 Device control UI contract
+
+Dashboard controls call `sendCommand({ deviceId, payload })`. Payloads are
+Zigbee2MQTT `/set` JSON (passthrough):
+
+| Control | UI | Payload |
+| ------- | -- | ------- |
+| Power | Switch | `{ "state": "ON" \| "OFF" }` |
+| Brightness | 0–100% slider | `{ "brightness": 0–254 }` |
+| Color temperature | warm↔cool slider (mireds, default 153–500) | `{ "color_temp": <mireds> }` |
+| Color | hex color input | `{ "color": { "hex": "#RRGGBB" } }` |
+
+Rules:
+
+- Controls appear when the corresponding keys exist in the device's live
+  state (no capabilities API yet).
+- Power toggles are available on device cards and the home quick-control
+  surface; brightness/color/color-temp are on the device detail page.
+- **LAN:** dimmers/color update live while dragging (debounced ~120 ms).
+- **Remote (relay):** commit-on-release — draft value updates while dragging;
+  the command is sent on pointer/keyboard release.
+- Room assignment and rooms CRUD (`getRooms` / `createRoom` / `patchRoom` /
+  `deleteRoom` / `patchDevice`) require a **Home (LAN)** connection. Relay
+  currently only carries `getDevices` and `command`.
 
 ## 6. Relay implementation sketch (Convex)
 
@@ -163,7 +189,7 @@ sequence:
 
 | Milestone | UI deliverables                                                                                                                                                      |
 | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| M2        | setup wizard (discover → code → paired), dashboard (rooms, device cards, toggle/dim), device rename + room assignment, permit-join flow with live interview progress |
+| M2        | setup wizard (discover → code → paired), dashboard (rooms CRUD, device cards, power/brightness/color/color-temp), device rename + room assignment, permit-join flow with live interview progress |
 | M3        | connection badge (Home/Remote), seamless transport switching, controller/token management in settings                                                                |
 | M4        | none required (voice is on-device); optional transcript viewer reading from the controller's local log                                                               |
 | M5        | cert-trust onboarding page, backup/restore triggers, event history view                                                                                              |

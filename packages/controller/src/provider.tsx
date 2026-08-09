@@ -3,10 +3,12 @@
 import {
     type CommandResult,
     type ConnectionStatus,
+    type CreateRoomRequest,
     type Device,
     type DeviceCommand,
     type DeviceEvent,
     type PatchDeviceRequest,
+    type PatchRoomRequest,
     type PermitJoinResponse,
     type Room,
     statusFromMode,
@@ -32,6 +34,9 @@ type ControllerContextValue = {
     sendCommand: (cmd: DeviceCommand) => Promise<CommandResult>
     permitJoin: (seconds: number) => Promise<PermitJoinResponse>
     getRooms: () => Promise<Room[]>
+    createRoom: (request: CreateRoomRequest) => Promise<Room>
+    patchRoom: (roomId: string, patch: PatchRoomRequest) => Promise<Room>
+    deleteRoom: (roomId: string) => Promise<void>
     patchDevice: (
         deviceId: string,
         patch: PatchDeviceRequest
@@ -96,6 +101,19 @@ export function ControllerProvider({
         [connection]
     )
     const getRooms = useCallback(() => connection.getRooms(), [connection])
+    const createRoom = useCallback(
+        (request: CreateRoomRequest) => connection.createRoom(request),
+        [connection]
+    )
+    const patchRoom = useCallback(
+        (roomId: string, patch: PatchRoomRequest) =>
+            connection.patchRoom(roomId, patch),
+        [connection]
+    )
+    const deleteRoom = useCallback(
+        (roomId: string) => connection.deleteRoom(roomId),
+        [connection]
+    )
     const patchDevice = useCallback(
         (deviceId: string, patch: PatchDeviceRequest) =>
             connection.patchDevice(deviceId, patch),
@@ -115,6 +133,9 @@ export function ControllerProvider({
             sendCommand,
             permitJoin,
             getRooms,
+            createRoom,
+            patchRoom,
+            deleteRoom,
             patchDevice,
             forgetDevice,
         }),
@@ -126,6 +147,9 @@ export function ControllerProvider({
             sendCommand,
             permitJoin,
             getRooms,
+            createRoom,
+            patchRoom,
+            deleteRoom,
             patchDevice,
             forgetDevice,
         ]

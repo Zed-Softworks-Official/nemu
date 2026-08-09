@@ -42,6 +42,23 @@ export const roomsResponseSchema = z.object({
 })
 export type RoomsResponse = z.infer<typeof roomsResponseSchema>
 
+export const createRoomRequestSchema = z.object({
+    name: z.string().trim().min(1),
+    sortOrder: z.number().int().optional(),
+})
+export type CreateRoomRequest = z.infer<typeof createRoomRequestSchema>
+
+export const patchRoomRequestSchema = z
+    .object({
+        name: z.string().trim().min(1).optional(),
+        sortOrder: z.number().int().optional(),
+    })
+    .refine(
+        (value) => value.name !== undefined || value.sortOrder !== undefined,
+        { message: 'name or sortOrder is required' }
+    )
+export type PatchRoomRequest = z.infer<typeof patchRoomRequestSchema>
+
 export const permitJoinRequestSchema = z.object({
     seconds: z.number().int().min(1).max(254),
 })

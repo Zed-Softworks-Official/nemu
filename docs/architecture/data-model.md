@@ -189,8 +189,14 @@ the Rust serde types (`shared/` is the future home for a generated contract).
   ]
 }
 
-// POST /api/devices/{id}/set
-{ "state": "OFF" }                      // passthrough command object
+// POST /api/devices/{id}/set — passthrough Zigbee2MQTT command objects
+{ "state": "OFF" }
+{ "brightness": 128 }                   // raw 0–254 (UI shows 0–100%)
+{ "color_temp": 250 }                   // mireds
+{ "color": { "hex": "#FFAA00" } }
+
+// Cached state may also include color fields the UI maps for display:
+// { "state": "ON", "brightness": 254, "color_temp": 370, "color": { "x": 0.4, "y": 0.4 } }
 
 // POST /api/pair
 { "code": "482913", "clientLabel": "Jack's laptop" }

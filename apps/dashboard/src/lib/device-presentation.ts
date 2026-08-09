@@ -1,4 +1,10 @@
 import type { Device, DeviceState } from '@nemu/protocol'
+import {
+    brightnessToPercent,
+    COLOR_TEMP_MAX_MIREDS,
+    COLOR_TEMP_MIN_MIREDS,
+    normalizeHex,
+} from '~/lib/device-commands'
 
 export type DeviceCategory = 'light' | 'climate' | 'sensor' | 'outlet'
 
@@ -9,6 +15,12 @@ export type PresentedDevice = Device & {
     summary: string
     enabled: boolean
     level?: number
+    colorTemp?: number
+    colorHex?: string
+    supportsPower: boolean
+    supportsBrightness: boolean
+    supportsColorTemp: boolean
+    supportsColor: boolean
     battery?: number
     temperature?: number
     humidity?: number
@@ -27,10 +39,24 @@ export function presentDevice(device: Device): PresentedDevice {
     const enabled =
         readBoolean(state, ['on', 'enabled', 'power']) ??
         readString(state, ['state'])?.toLowerCase() === 'on'
-    const level = readNumber(state, ['brightness', 'level'])
+    const rawBrightness = readNumber(state, ['brightness', 'level'])
+    const level =
+        rawBrightness === undefined
+            ? undefined
+            : brightnessToPercent(rawBrightness)
+    const colorTemp = readNumber(state, ['color_temp', 'colorTemp'])
+    const colorHex = readColorHex(state)
     const battery = readNumber(state, ['battery', 'batteryLevel'])
     const temperature = readNumber(state, ['temperature'])
     const humidity = readNumber(state, ['humidity'])
+    const supportsPower =
+        category === 'light' ||
+        category === 'outlet' ||
+        readBoolean(state, ['on', 'enabled', 'power']) !== undefined ||
+        readString(state, ['state']) !== undefined
+    const supportsBrightness = rawBrightness !== undefined
+    const supportsColorTemp = colorTemp !== undefined
+    const supportsColor = colorHex !== undefined || hasColorObject(state)
 
     return {
         ...device,
@@ -42,11 +68,19 @@ export function presentDevice(device: Device): PresentedDevice {
             device,
             enabled,
             level,
+            colorTemp,
+            colorHex,
             temperature,
             humidity,
         }),
         enabled,
         level,
+        colorTemp,
+        colorHex,
+        supportsPower,
+        supportsBrightness,
+        supportsColorTemp,
+        supportsColor,
         battery,
         temperature,
         humidity,
@@ -56,6 +90,13 @@ export function presentDevice(device: Device): PresentedDevice {
 export function getCategoryLabel(category: DeviceCategory): string {
     return categoryLabels[category]
 }
+
+export function colorTempLabel(mireds: number): string {
+    const kelvin = Math.round(1_000_000 / clamp(mireds, 1, 1000))
+    return `${kelvin}K`
+}
+
+export { COLOR_TEMP_MAX_MIREDS, COLOR_TEMP_MIN_MIREDS }
 
 function getDeviceCategory(device: Device): DeviceCategory {
     const descriptor = `${device.name} ${device.type} ${device.model ?? ''}`
@@ -93,12 +134,16 @@ function getDeviceSummary({
     device,
     enabled,
     level,
+    colorTemp,
+    colorHex,
     temperature,
     humidity,
 }: {
     device: Device
     enabled: boolean
     level?: number
+    colorTemp?: number
+    colorHex?: string
     temperature?: number
     humidity?: number
 }): string {
@@ -112,11 +157,119 @@ function getDeviceSummary({
             : `${formatNumber(temperature)}° · ${formatNumber(humidity)}% humidity`
     }
 
+    const parts: string[] = [enabled ? 'On' : 'Off']
     if (level !== undefined) {
-        return `${enabled ? 'On' : 'Off'} · ${formatNumber(level)}%`
+        parts.push(`${formatNumber(level)}%`)
+    }
+    if (colorTemp !== undefined) {
+        parts.push(colorTempLabel(colorTemp))
+    } else if (colorHex) {
+        parts.push(colorHex)
     }
 
-    return enabled ? 'On' : 'Ready'
+    if (parts.length > 1 || enabled) {
+        return parts.join(' · ')
+    }
+
+    return 'Ready'
+}
+
+function hasColorObject(state: DeviceState): boolean {
+    const color = state.color
+    return typeof color === 'object' && color !== null
+}
+
+function readColorHex(state: DeviceState): string | undefined {
+    const direct = readString(state, ['color', 'hex'])
+    if (direct) {
+        return normalizeHex(direct) ?? undefined
+    }
+
+    const color = state.color
+    if (typeof color === 'string') {
+        return normalizeHex(color) ?? undefined
+    }
+
+    if (typeof color === 'object' && color !== null) {
+        const record = color as Record<string, unknown>
+        if (typeof record.hex === 'string') {
+            return normalizeHex(record.hex) ?? undefined
+        }
+        if (typeof record.r === 'number' && typeof record.g === 'number' && typeof record.b === 'number') {
+            return rgbToHex(record.r, record.g, record.b)
+        }
+        if (typeof record.hue === 'number' && typeof record.saturation === 'number') {
+            return hsvToHex(record.hue, record.saturation / 100, 1)
+        }
+        if (typeof record.h === 'number' && typeof record.s === 'number') {
+            const s = record.s > 1 ? record.s / 100 : record.s
+            return hsvToHex(record.h, s, 1)
+        }
+        if (typeof record.x === 'number' && typeof record.y === 'number') {
+            return xyToHex(record.x, record.y)
+        }
+    }
+
+    const hue = readNumber(state, ['hue'])
+    const saturation = readNumber(state, ['saturation'])
+    if (hue !== undefined && saturation !== undefined) {
+        return hsvToHex(hue, saturation / 100, 1)
+    }
+
+    return undefined
+}
+
+function rgbToHex(r: number, g: number, b: number): string {
+    const toByte = (value: number) =>
+        clamp(Math.round(value <= 1 ? value * 255 : value), 0, 255)
+            .toString(16)
+            .padStart(2, '0')
+            .toUpperCase()
+    return `#${toByte(r)}${toByte(g)}${toByte(b)}`
+}
+
+function hsvToHex(h: number, s: number, v: number): string {
+    const hue = ((h % 360) + 360) % 360
+    const c = v * s
+    const x = c * (1 - Math.abs(((hue / 60) % 2) - 1))
+    const m = v - c
+    let r = 0
+    let g = 0
+    let b = 0
+
+    if (hue < 60) [r, g, b] = [c, x, 0]
+    else if (hue < 120) [r, g, b] = [x, c, 0]
+    else if (hue < 180) [r, g, b] = [0, c, x]
+    else if (hue < 240) [r, g, b] = [0, x, c]
+    else if (hue < 300) [r, g, b] = [x, 0, c]
+    else [r, g, b] = [c, 0, x]
+
+    return rgbToHex((r + m) * 255, (g + m) * 255, (b + m) * 255)
+}
+
+/** Approximate CIE 1931 xy → sRGB hex for UI display. */
+function xyToHex(x: number, y: number): string {
+    if (y <= 0) return '#FFFFFF'
+    const z = 1 - x - y
+    const Y = 1
+    const X = (Y / y) * x
+    const Z = (Y / y) * z
+
+    let r = X * 1.656_492 - Y * 0.354_851 - Z * 0.255_038
+    let g = -X * 0.707_196 + Y * 1.655_397 + Z * 0.036_152
+    let b = X * 0.051_713 - Y * 0.121_364 + Z * 1.011_53
+
+    const gamma = (value: number) =>
+        value <= 0.003_130_8
+            ? 12.92 * value
+            : 1.055 * value ** (1 / 2.4) - 0.055
+
+    r = gamma(Math.max(0, r))
+    g = gamma(Math.max(0, g))
+    b = gamma(Math.max(0, b))
+
+    const max = Math.max(r, g, b, 1e-6)
+    return rgbToHex((r / max) * 255, (g / max) * 255, (b / max) * 255)
 }
 
 function readBoolean(
@@ -165,4 +318,8 @@ function formatNumber(value: number): string {
     return new Intl.NumberFormat('en', {
         maximumFractionDigits: 1,
     }).format(value)
+}
+
+function clamp(value: number, min: number, max: number): number {
+    return Math.min(max, Math.max(min, value))
 }
