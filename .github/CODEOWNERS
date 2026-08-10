@@ -1,0 +1,8 @@
+# Release / install surfaces — only @kzolt as required reviewer when CODEOWNERS is enforced.
+.github/ @kzolt
+.github/workflows/publish-core.yml @kzolt
+scripts/install.sh @kzolt
+infra/prod/ @kzolt
+apps/core/Dockerfile @kzolt
+apps/web/public/install.sh @kzolt
+apps/web/src/proxy.ts @kzolt

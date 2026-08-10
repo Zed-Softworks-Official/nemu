@@ -67,9 +67,12 @@ git tag core-v0.1.0
 git push origin core-v0.1.0
 ```
 
-See [`.github/workflows/publish-core.yml`](../../.github/workflows/publish-core.yml).
+See [`.github/workflows/publish-core.yml`](../../.github/workflows/publish-core.yml). After pushing the tag, approve the pending **core-release** environment deployment in GitHub Actions (required reviewer: `@kzolt`).
+
+Security controls: [github-release-protections.md](github-release-protections.md).
 
 ## Related
 
 - [Subdomain cutover](subdomain-cutover.md)
+- [GitHub release protections](github-release-protections.md)
 - [Architecture overview](../architecture/overview.md)

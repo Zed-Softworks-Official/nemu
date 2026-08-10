@@ -13,7 +13,10 @@ env:
   IMAGE: ghcr.io/zed-softworks-official/nemu-core
 
 jobs:
+  # Gate: only proceeds after Environment "core-release" approval (restricted to @kzolt).
+  # Tag creation for core-v* is also limited to repo admins via Rulesets.
   build:
+    environment: core-release
     strategy:
       fail-fast: false
       matrix:
