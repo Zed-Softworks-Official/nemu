@@ -13,7 +13,7 @@ Production hostnames for Nemu cloud surfaces and the controller installer.
 1. Point `nemu.sh` and `www` (optional) at the marketing Vercel project.
 2. Point `app.nemu.sh` at the dashboard Vercel project.
 3. CNAME `get.nemu.sh` at the **same** Vercel project as `nemu.sh`.
-4. In the Vercel project for marketing, add domain `get.nemu.sh`. Host-based rewrite serves `/install.sh` at `/` (see [`apps/web/vercel.json`](../../apps/web/vercel.json)).
+4. In the Vercel project for marketing, add domain `get.nemu.sh`. Host-based routing serves `/install.sh` at `/` via [`apps/web/src/proxy.ts`](../../apps/web/src/proxy.ts) (+ `beforeFiles` rewrite in `next.config.ts`). `vercel.json` alone is not enough: App Router `/` wins over afterFiles rewrites.
 
 ## Environment
 
