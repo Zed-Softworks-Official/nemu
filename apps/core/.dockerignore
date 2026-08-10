@@ -1,0 +1,7 @@
+target
+scripts
+turbo.json
+package.json
+**/*.md
+.env
+.env.*

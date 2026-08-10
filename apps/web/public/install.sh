@@ -1,0 +1,254 @@
+#!/usr/bin/env sh
+# Nemu controller installer for Ubuntu Server (amd64 / arm64).
+# Usage:
+#   curl -fsSL https://get.nemu.sh | sh
+# Inspect without running:
+#   curl -fsSL https://get.nemu.sh
+#
+# Optional env:
+#   NEMU_CONVEX_SITE_URL=https://….convex.site
+#   NEMU_CONTROLLER_NAME=Home
+#   CONTROLLER_REGISTRATION_SECRET=…
+#   NEMU_ZIGBEE_DEVICE=/dev/ttyACM0
+#   NEMU_FORCE=1          # overwrite existing /opt/nemu compose files
+#   NEMU_INSTALL_DIR=/opt/nemu
+#   GET_NEMU_BASE_URL=https://get.nemu.sh
+
+set -eu
+
+BASE_URL="${GET_NEMU_BASE_URL:-https://get.nemu.sh}"
+INSTALL_DIR="${NEMU_INSTALL_DIR:-/opt/nemu}"
+COMPOSE_FILE="${INSTALL_DIR}/docker-compose.yml"
+ENV_FILE="${INSTALL_DIR}/.env"
+
+log() {
+  printf '==> %s\n' "$*"
+}
+
+warn() {
+  printf 'warning: %s\n' "$*" >&2
+}
+
+die() {
+  printf 'error: %s\n' "$*" >&2
+  exit 1
+}
+
+need_cmd() {
+  command -v "$1" >/dev/null 2>&1 || die "missing required command: $1"
+}
+
+detect_ubuntu() {
+  if [ ! -f /etc/os-release ]; then
+    die "unsupported OS: /etc/os-release not found (Ubuntu Server required)"
+  fi
+  # shellcheck disable=SC1091
+  . /etc/os-release
+  if [ "${ID:-}" != "ubuntu" ]; then
+    die "unsupported OS: ${PRETTY_NAME:-unknown} (Ubuntu Server required)"
+  fi
+
+  arch="$(uname -m)"
+  case "$arch" in
+    x86_64 | amd64 | aarch64 | arm64) ;;
+    *)
+      die "unsupported architecture: ${arch} (need amd64 or arm64)"
+      ;;
+  esac
+
+  log "Detected ${PRETTY_NAME} (${arch})"
+}
+
+require_root() {
+  if [ "$(id -u)" -ne 0 ]; then
+    die "run as root (sudo). Example: curl -fsSL ${BASE_URL} | sudo sh"
+  fi
+}
+
+install_docker() {
+  if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+    log "Docker Engine and Compose plugin already installed"
+    return
+  fi
+
+  log "Installing Docker Engine from Docker's Ubuntu apt repository"
+  need_cmd apt-get
+  need_cmd curl
+  export DEBIAN_FRONTEND=noninteractive
+
+  apt-get update -qq
+  apt-get install -y -qq ca-certificates curl gnupg
+
+  install -m 0755 -d /etc/apt/keyrings
+  if [ ! -f /etc/apt/keyrings/docker.asc ]; then
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+    chmod a+r /etc/apt/keyrings/docker.asc
+  fi
+
+  # shellcheck disable=SC1091
+  . /etc/os-release
+  echo \
+    "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu ${VERSION_CODENAME} stable" \
+    >/etc/apt/sources.list.d/docker.list
+
+  apt-get update -qq
+  apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+  systemctl enable --now docker >/dev/null 2>&1 || true
+  docker compose version >/dev/null 2>&1 || die "docker compose plugin failed to install"
+  log "Docker installed"
+}
+
+random_hex() {
+  if command -v openssl >/dev/null 2>&1; then
+    openssl rand -hex 24
+  else
+    head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n'
+  fi
+}
+
+detect_zigbee_device() {
+  if [ -n "${NEMU_ZIGBEE_DEVICE:-}" ]; then
+    printf '%s\n' "${NEMU_ZIGBEE_DEVICE}"
+    return
+  fi
+  for candidate in /dev/ttyACM0 /dev/ttyUSB0 /dev/ttyAMA0; do
+    if [ -e "$candidate" ]; then
+      printf '%s\n' "$candidate"
+      return
+    fi
+  done
+  printf '\n'
+}
+
+download_file() {
+  src="$1"
+  dest="$2"
+  curl -fsSL "${BASE_URL}/${src}" -o "${dest}"
+}
+
+write_files() {
+  if [ -d "${INSTALL_DIR}" ] && [ -f "${COMPOSE_FILE}" ] && [ "${NEMU_FORCE:-}" != "1" ]; then
+    die "${INSTALL_DIR} already exists. Re-run with NEMU_FORCE=1 to overwrite compose/config files (keeps .env if present)."
+  fi
+
+  log "Installing Nemu under ${INSTALL_DIR}"
+  mkdir -p "${INSTALL_DIR}/mosquitto" "${INSTALL_DIR}/zigbee2mqtt"
+
+  download_file "docker-compose.yml" "${INSTALL_DIR}/docker-compose.yml"
+  download_file "mosquitto/mosquitto.conf" "${INSTALL_DIR}/mosquitto/mosquitto.conf"
+  download_file "zigbee2mqtt/configuration.yaml" "${INSTALL_DIR}/zigbee2mqtt/configuration.yaml"
+
+  zigbee_dev="$(detect_zigbee_device)"
+  if [ -n "${zigbee_dev}" ]; then
+    log "Using Zigbee adapter ${zigbee_dev}"
+    # Keep container path stable; map host device into /dev/ttyACM0.
+    cat >"${INSTALL_DIR}/docker-compose.override.yml" <<EOF
+services:
+  zigbee2mqtt:
+    devices:
+      - "${zigbee_dev}:/dev/ttyACM0"
+EOF
+    # Ensure YAML serial port matches the in-container path.
+    if command -v sed >/dev/null 2>&1; then
+      sed -i 's#^\(  port:\).*#\1 /dev/ttyACM0#' "${INSTALL_DIR}/zigbee2mqtt/configuration.yaml" || true
+    fi
+  else
+    warn "No Zigbee serial device found. Stack will start; zigbee2mqtt may restart until a dongle is attached."
+    warn "Set NEMU_ZIGBEE_DEVICE=/dev/ttyACM0 (or similar) and re-run with NEMU_FORCE=1 after plugging in."
+    rm -f "${INSTALL_DIR}/docker-compose.override.yml"
+  fi
+
+  if [ ! -f "${ENV_FILE}" ]; then
+    password="$(random_hex)"
+    cat >"${ENV_FILE}" <<EOF
+POSTGRES_USER=nemu
+POSTGRES_PASSWORD=${password}
+POSTGRES_DB=nemu
+NEMU_CONVEX_SITE_URL=${NEMU_CONVEX_SITE_URL:-}
+NEMU_CONTROLLER_NAME=${NEMU_CONTROLLER_NAME:-Home}
+CONTROLLER_REGISTRATION_SECRET=${CONTROLLER_REGISTRATION_SECRET:-}
+NEMU_ZIGBEE_DEVICE=${zigbee_dev:-/dev/ttyACM0}
+WATCHTOWER_POLL_INTERVAL=${WATCHTOWER_POLL_INTERVAL:-3600}
+TZ=${TZ:-UTC}
+EOF
+    chmod 600 "${ENV_FILE}"
+    log "Wrote ${ENV_FILE}"
+  else
+    log "Keeping existing ${ENV_FILE}"
+    # Refresh Convex-related overrides from the environment when provided.
+    if [ -n "${NEMU_CONVEX_SITE_URL:-}" ]; then
+      if grep -q '^NEMU_CONVEX_SITE_URL=' "${ENV_FILE}"; then
+        sed -i "s|^NEMU_CONVEX_SITE_URL=.*|NEMU_CONVEX_SITE_URL=${NEMU_CONVEX_SITE_URL}|" "${ENV_FILE}"
+      else
+        printf 'NEMU_CONVEX_SITE_URL=%s\n' "${NEMU_CONVEX_SITE_URL}" >>"${ENV_FILE}"
+      fi
+    fi
+  fi
+}
+
+start_stack() {
+  log "Pulling images and starting stack"
+  cd "${INSTALL_DIR}"
+  docker compose pull
+  docker compose up -d
+}
+
+wait_for_health() {
+  log "Waiting for nemu-core health endpoint"
+  i=0
+  while [ "$i" -lt 60 ]; do
+    if curl -fsS "http://127.0.0.1:6368/api/health" >/dev/null 2>&1; then
+      log "nemu-core is healthy"
+      return 0
+    fi
+    i=$((i + 1))
+    sleep 2
+  done
+  warn "Timed out waiting for http://127.0.0.1:6368/api/health — check: docker compose -f ${COMPOSE_FILE} logs nemu-core"
+  return 1
+}
+
+primary_ip() {
+  if command -v hostname >/dev/null 2>&1; then
+    hostname -I 2>/dev/null | awk '{print $1}'
+  else
+    ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i=1;i<=NF;i++) if ($i=="src") {print $(i+1); exit}}'
+  fi
+}
+
+print_next_steps() {
+  host_ip="$(primary_ip)"
+  cat <<EOF
+
+Nemu is installed.
+
+  Install dir:  ${INSTALL_DIR}
+  LAN API:      http://${host_ip:-<host-ip>}:6368
+  mDNS (if set): http://nemu.local:6368
+  Dashboard:    https://app.nemu.sh
+
+Pair this controller from https://app.nemu.sh (check docker logs for a pairing code on first boot):
+  docker compose -f ${COMPOSE_FILE} logs nemu-core
+
+nemu-core auto-updates from ghcr.io/.../nemu-core:latest via Watchtower (hourly by default).
+Compose/config changes are not auto-applied — re-run this installer with NEMU_FORCE=1 or edit ${INSTALL_DIR}.
+
+EOF
+  if [ -z "${NEMU_CONVEX_SITE_URL:-}" ] && ! grep -q '^NEMU_CONVEX_SITE_URL=.\+' "${ENV_FILE}" 2>/dev/null; then
+    warn "NEMU_CONVEX_SITE_URL is unset — cloud registration/relay is disabled until you set it in ${ENV_FILE} and run: docker compose -f ${COMPOSE_FILE} up -d"
+  fi
+}
+
+main() {
+  detect_ubuntu
+  require_root
+  need_cmd curl
+  install_docker
+  write_files
+  start_stack
+  wait_for_health || true
+  print_next_steps
+}
+
+main "$@"

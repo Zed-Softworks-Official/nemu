@@ -1,3 +1,23 @@
-# Hello World
+# Nemu docs
 
-Start Page
+Privacy-first smart home controller. Home state stays on hardware you own; the cloud is identity and reachability only.
+
+## Install the controller
+
+On **Ubuntu Server** (amd64 or arm64):
+
+```bash
+curl -fsSL https://get.nemu.sh | sudo sh
+```
+
+Then open [https://app.nemu.sh](https://app.nemu.sh) to pair. Full notes: install guide in the repo (`docs/deployment/install.md`).
+
+## What runs where
+
+| Surface | URL |
+| ------- | --- |
+| Marketing | [https://nemu.sh](https://nemu.sh) |
+| Dashboard | [https://app.nemu.sh](https://app.nemu.sh) |
+| Installer | [https://get.nemu.sh](https://get.nemu.sh) |
+
+The on-prem stack is Docker Compose: mosquitto, zigbee2mqtt, Postgres, nemu-core, and Watchtower (auto-updates `nemu-core:latest`).

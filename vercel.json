@@ -2,5 +2,58 @@
     "$schema": "https://openapi.vercel.sh/vercel.json",
     "framework": "nextjs",
     "installCommand": "pnpm install",
-    "buildCommand": "bash scripts/vercel-build-web.sh"
+    "buildCommand": "bash scripts/vercel-build-web.sh",
+    "rewrites": [
+        {
+            "source": "/",
+            "has": [{ "type": "host", "value": "get.nemu.sh" }],
+            "destination": "/install.sh"
+        }
+    ],
+    "headers": [
+        {
+            "source": "/install.sh",
+            "headers": [
+                {
+                    "key": "Content-Type",
+                    "value": "text/plain; charset=utf-8"
+                },
+                {
+                    "key": "Cache-Control",
+                    "value": "public, max-age=300"
+                }
+            ]
+        },
+        {
+            "source": "/docker-compose.yml",
+            "headers": [
+                {
+                    "key": "Content-Type",
+                    "value": "text/yaml; charset=utf-8"
+                },
+                {
+                    "key": "Cache-Control",
+                    "value": "public, max-age=300"
+                }
+            ]
+        },
+        {
+            "source": "/mosquitto/(.*)",
+            "headers": [
+                {
+                    "key": "Content-Type",
+                    "value": "text/plain; charset=utf-8"
+                }
+            ]
+        },
+        {
+            "source": "/zigbee2mqtt/(.*)",
+            "headers": [
+                {
+                    "key": "Content-Type",
+                    "value": "text/yaml; charset=utf-8"
+                }
+            ]
+        }
+    ]
 }

@@ -10,6 +10,7 @@ chrono = { version = "0.4.45", features = ["serde"] }
 dashmap = "6.1.0"
 deadpool-diesel = { version = "0.6.1", features = ["postgres"] }
 diesel = { version = "2.3.10", features = ["postgres", "uuid", "chrono", "serde_json"] }
+diesel_migrations = "2.3.0"
 dotenvy = "0.15.7"
 ed25519-dalek = { version = "3.0.0", features = ["rand_core"] }
 futures-util = "0.3.31"

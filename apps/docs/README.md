@@ -17,6 +17,6 @@ pnpm --filter @nemu/web dev
 See [`.env.example`](../../.env.example). Required public origins:
 
 - `NEXT_PUBLIC_SITE_URL` — this app (`http://localhost:3000` locally, `https://nemu.sh` in production)
-- `NEXT_PUBLIC_DASHBOARD_URL` — dashboard app (`http://localhost:3001` locally, `https://dashboard.nemu.sh` in production)
+- `NEXT_PUBLIC_DASHBOARD_URL` — dashboard app (`http://localhost:3001` locally, `https://app.nemu.sh` in production)
 
 Legacy path `/dashboard` permanently redirects to `NEXT_PUBLIC_DASHBOARD_URL`.

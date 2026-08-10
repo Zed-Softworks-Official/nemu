@@ -1,0 +1,102 @@
+name: Publish nemu-core
+
+on:
+  push:
+    tags:
+      - "core-v*"
+
+permissions:
+  contents: write
+  packages: write
+
+env:
+  IMAGE: ghcr.io/zed-softworks-official/nemu-core
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: blacksmith-8vcpu-ubuntu-2204
+            platform: linux/amd64
+            arch: amd64
+            cache_key: apps/core/Dockerfile-amd64
+          - runner: blacksmith-8vcpu-ubuntu-2204-arm
+            platform: linux/arm64
+            arch: arm64
+            cache_key: apps/core/Dockerfile-arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Docker Builder
+        uses: useblacksmith/setup-docker-builder@v2
+        with:
+          cache-key: ${{ matrix.cache_key }}
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: useblacksmith/build-push-action@v2
+        with:
+          context: apps/core
+          file: apps/core/Dockerfile
+          push: true
+          platforms: ${{ matrix.platform }}
+          tags: ${{ env.IMAGE }}:${{ github.ref_name }}-${{ matrix.arch }}
+
+  merge-manifests:
+    needs: build
+    runs-on: blacksmith
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create multi-arch manifests
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          docker buildx imagetools create \
+            -t "${IMAGE}:${TAG}" \
+            -t "${IMAGE}:latest" \
+            "${IMAGE}:${TAG}-amd64" \
+            "${IMAGE}:${TAG}-arm64"
+          docker buildx imagetools inspect "${IMAGE}:latest"
+
+  release-assets:
+    needs: merge-manifests
+    runs-on: blacksmith
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Package install assets
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          cp infra/prod/docker-compose.yml dist/docker-compose.yml
+          cp infra/prod/.env.example dist/.env.example
+          cp -r infra/prod/mosquitto dist/mosquitto
+          cp -r infra/prod/zigbee2mqtt dist/zigbee2mqtt
+          tar -C dist -czf "nemu-compose-${GITHUB_REF_NAME}.tar.gz" \
+            docker-compose.yml .env.example mosquitto zigbee2mqtt
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            nemu-compose-${{ github.ref_name }}.tar.gz
+            infra/prod/docker-compose.yml
+            infra/prod/.env.example
+          generate_release_notes: true

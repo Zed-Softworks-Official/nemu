@@ -148,9 +148,10 @@ relay history API.
   inside the core container (Pi 5) or as a sibling container with audio device
   access. Dev mirrors this via `docker-compose.dev.yml` + `just dev`.
 - **Cloud:** Two Next.js apps on Vercel (`nemu.sh` marketing +
-  `dashboard.nemu.sh` control UI), one Convex deployment, one Clerk
+  `app.nemu.sh` control UI), one Convex deployment, one Clerk
   application. Stateless with respect to homes; can be rebuilt from scratch
-  without any home losing data (re-pairing restores relay access). See
+  without any home losing data (re-pairing restores relay access). Controller
+  install: [get.nemu.sh](../deployment/install.md). See
   [subdomain cutover](../deployment/subdomain-cutover.md).
 
 ## 6. Failure modes

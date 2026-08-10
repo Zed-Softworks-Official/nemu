@@ -1,0 +1,84 @@
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    restart: unless-stopped
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto-data:/mosquitto/data
+    networks:
+      - nemu
+
+  zigbee2mqtt:
+    image: koenkk/zigbee2mqtt
+    restart: unless-stopped
+    volumes:
+      - ./zigbee2mqtt:/app/data
+    # USB serial is attached via docker-compose.override.yml written by the installer
+    # when NEMU_ZIGBEE_DEVICE (or an auto-detected adapter) is present.
+    environment:
+      TZ: ${TZ:-UTC}
+    depends_on:
+      - mosquitto
+    networks:
+      - nemu
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-nemu}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-nemu}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - nemu
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nemu} -d ${POSTGRES_DB:-nemu}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  nemu-core:
+    image: ghcr.io/zed-softworks-official/nemu-core:latest
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mosquitto:
+        condition: service_started
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-nemu}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-nemu}
+      MQTT_HOST: mosquitto
+      MQTT_PORT: "1883"
+      MQTT_BASE_TOPIC: zigbee2mqtt
+      NEMU_LISTEN_ADDR: 0.0.0.0:6368
+      NEMU_CONVEX_SITE_URL: ${NEMU_CONVEX_SITE_URL:-}
+      NEMU_CONTROLLER_NAME: ${NEMU_CONTROLLER_NAME:-Home}
+      CONTROLLER_REGISTRATION_SECRET: ${CONTROLLER_REGISTRATION_SECRET:-}
+    ports:
+      - "6368:6368"
+    labels:
+      com.centurylinklabs.watchtower.enable: "true"
+    networks:
+      - nemu
+
+  watchtower:
+    image: nickfedor/watchtower:latest
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      WATCHTOWER_LABEL_ENABLE: "true"
+      WATCHTOWER_CLEANUP: "true"
+      WATCHTOWER_POLL_INTERVAL: ${WATCHTOWER_POLL_INTERVAL:-3600}
+    networks:
+      - nemu
+
+networks:
+  nemu:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  mosquitto-data:

@@ -1,6 +1,6 @@
 # `@nemu/dashboard`
 
-Authenticated Nemu control UI. Deployed at [dashboard.nemu.sh](https://dashboard.nemu.sh).
+Authenticated Nemu control UI. Deployed at [app.nemu.sh](https://app.nemu.sh).
 
 ## Development
 

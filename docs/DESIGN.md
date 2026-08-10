@@ -16,7 +16,8 @@ Related documents:
 - [Webview](architecture/webview.md) — Next.js / Convex / Clerk, pairing, relay
 - [Voice pipeline](architecture/voice.md) — wake word → STT → intent → TTS, Pi 4 / Pi 5 tiers
 - [Data model](architecture/data-model.md) — Postgres ERD, Convex schema, MQTT topics, WS messages
-- [Subdomain cutover](deployment/subdomain-cutover.md) — `nemu.sh` + `dashboard.nemu.sh` deploy checklist
+- [Subdomain cutover](deployment/subdomain-cutover.md) — `nemu.sh` + `app.nemu.sh` + `get.nemu.sh` deploy checklist
+- [Install](deployment/install.md) — Ubuntu Server one-liner (`get.nemu.sh`)
 
 ---
 
@@ -78,7 +79,7 @@ Nemu is two deployable parts:
 | ------------------ | --------------------------------------------- | -------------------------------------------------------------- | ----------------------------------------------------------- |
 | **nemu-core**      | Raspberry Pi (Docker Compose)                 | Rust (Axum, Diesel, rumqttc), Mosquitto, zigbee2mqtt, Postgres | Everything: device control, state, API, voice, pairing      |
 | **nemu-web**       | Vercel (`nemu.sh`) + Convex + Clerk           | Next.js (App Router), Convex, Clerk                            | Marketing, accounts                                         |
-| **nemu-dashboard** | Vercel (`dashboard.nemu.sh`) + Convex + Clerk | Next.js (App Router), Convex, Clerk                            | Controller discovery/pairing UI, control UI, relay fallback |
+| **nemu-dashboard** | Vercel (`app.nemu.sh`) + Convex + Clerk | Next.js (App Router), Convex, Clerk                            | Controller discovery/pairing UI, control UI, relay fallback |
 
 The webview is a thin client. It renders whatever the controller's API serves
 and holds no authoritative state of its own. See the
@@ -163,8 +164,8 @@ zigbee2mqtt, postgres), `apps/core` (Axum skeleton, Diesel `devices` table,
 | Docker Compose dev stack          | `just infra` brings up mosquitto, zigbee2mqtt, postgres; z2m sees the Zigbee dongle                                              |
 | Axum app skeleton                 | `just dev-core` serves `/api/health` returning 200                                                                               |
 | Diesel setup + first migration    | `just db-migrate` creates `devices`; models compile with `check_for_backend`                                                     |
-| **Remaining:** connection pooling | Replace `Arc<Mutex<PgConnection>>` with an async pool (deadpool + diesel-async); handlers get connections from shared `AppState` |
-| **Remaining:** core container     | `apps/core` has a Dockerfile (cross-compiled for arm64) and joins the compose stack                                              |
+| Connection pooling                | `deadpool-diesel` pool in shared `AppState`                                                                                      |
+| Core container + installer        | `apps/core` Dockerfile, `infra/prod` compose, Blacksmith→GHCR publish, `get.nemu.sh` Ubuntu installer                            |
 
 ### M1 — Device control
 

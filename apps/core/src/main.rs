@@ -1,10 +1,13 @@
 use std::sync::Arc;
 
 use deadpool_diesel::postgres::{Manager, Pool, Runtime};
+use diesel_migrations::{EmbeddedMigrations, MigrationHarness, embed_migrations};
 use dotenvy::dotenv;
 use tokio::sync::broadcast;
 use tracing::{info, level_filters::LevelFilter, warn};
 use tracing_subscriber::EnvFilter;
+
+const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
 
 mod api;
 mod commands;
@@ -44,17 +47,22 @@ async fn main() {
         .build()
         .expect("failed to create database pool");
 
-    // Verify DB connectivity at boot.
+    // Run pending Diesel migrations, then verify connectivity.
     {
         let conn = pool.get().await.expect("failed to get db connection");
         conn.interact(|conn| {
+            conn.run_pending_migrations(MIGRATIONS)
+                .map_err(|e| e.to_string())?;
             use diesel::prelude::*;
-            diesel::sql_query("SELECT 1").execute(conn)
+            diesel::sql_query("SELECT 1")
+                .execute(conn)
+                .map_err(|e| e.to_string())?;
+            Ok::<(), String>(())
         })
         .await
         .expect("db interact failed")
-        .expect("db ping failed");
-        info!("database pool ready");
+        .expect("db migrate/ping failed");
+        info!("database migrations applied; pool ready");
     }
 
     let identity = load_or_create_identity(&pool, &config.controller_name)
