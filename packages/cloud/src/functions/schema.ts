@@ -7,7 +7,17 @@ export default defineSchema({
         publicKey: v.string(),
         name: v.string(),
         registeredAt: v.number(),
+        lanIp: v.optional(v.string()),
+        lanHostname: v.optional(v.string()),
+        tlsCertPem: v.optional(v.string()),
+        tlsKeyPem: v.optional(v.string()),
+        tlsExpiresAt: v.optional(v.number()),
     }).index('by_controller_id', ['controllerId']),
+
+    acmeAccounts: defineTable({
+        directoryUrl: v.string(),
+        accountKeyPem: v.string(),
+    }).index('by_directory', ['directoryUrl']),
 
     pairings: defineTable({
         userId: v.string(),

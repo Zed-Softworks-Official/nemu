@@ -1,11 +1,14 @@
 'use client'
 
-import { api, useMutation } from '@nemu/cloud'
+import { useAuth } from '@clerk/nextjs'
+import { api, useMutation, useQuery } from '@nemu/cloud'
 import {
     buildTlsTrustUrl,
     discoverController,
     identifyController,
+    isLanControllerOrigin,
     lanDiscoveryCandidates,
+    lanUrlsFromHostnames,
     pairWithController,
     TLS_TRUSTED_MESSAGE,
     useController,
@@ -13,14 +16,21 @@ import {
 import { Button } from '@nemu/ui/components/button'
 import { Input } from '@nemu/ui/components/input'
 import { useRouter } from 'next/navigation'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 type Phase = 'discover' | 'pair' | 'saving' | 'done'
 
 export default function SetupPage() {
     const router = useRouter()
     const { reprobe } = useController()
+    const { isSignedIn } = useAuth()
     const createPairing = useMutation(api.pairings.create)
+    const mine = useQuery(api.controllers.listMine, isSignedIn ? {} : 'skip')
+    const issuedUrls = useMemo(
+        () => lanUrlsFromHostnames((mine ?? []).map((row) => row.lanHostname)),
+        [mine]
+    )
+    const hasIssuedHostname = issuedUrls.length > 0
 
     const [phase, setPhase] = useState<Phase>('discover')
     const [baseUrl, setBaseUrl] = useState('http://localhost:6368')
@@ -42,9 +52,10 @@ export default function SetupPage() {
         setBusy(true)
         setError(null)
         try {
-            const candidates = lanDiscoveryCandidates(
-                manualUrl.trim() ? [manualUrl.trim()] : []
-            )
+            const candidates = lanDiscoveryCandidates([
+                ...issuedUrls,
+                ...(manualUrl.trim() ? [manualUrl.trim()] : []),
+            ])
             const probe = await discoverController(candidates)
             if (!probe) {
                 throw new Error(
@@ -61,7 +72,7 @@ export default function SetupPage() {
         } finally {
             setBusy(false)
         }
-    }, [manualUrl])
+    }, [issuedUrls, manualUrl])
 
     function handleTrustController() {
         const returnTo = `${window.location.origin}/setup`
@@ -86,7 +97,7 @@ export default function SetupPage() {
                 typeof event.data !== 'object' ||
                 event.data === null ||
                 event.data.type !== TLS_TRUSTED_MESSAGE ||
-                !isControllerMessageOrigin(event.origin)
+                !isLanControllerOrigin(event.origin)
             ) {
                 return
             }
@@ -163,22 +174,24 @@ export default function SetupPage() {
                         >
                             {busy ? 'Searching…' : 'Find controller'}
                         </Button>
-                        <Button
-                            className="w-full"
-                            disabled={busy}
-                            onClick={handleTrustController}
-                            type="button"
-                            variant="outline"
-                        >
-                            {trustOpened
-                                ? 'Waiting for browser trust…'
-                                : 'Trust controller'}
-                        </Button>
+                        {hasIssuedHostname ? null : (
+                            <Button
+                                className="w-full"
+                                disabled={busy}
+                                onClick={handleTrustController}
+                                type="button"
+                                variant="outline"
+                            >
+                                {trustOpened
+                                    ? 'Waiting for browser trust…'
+                                    : 'Trust controller'}
+                            </Button>
+                        )}
                     </div>
                     <p className="text-muted-foreground text-xs leading-relaxed">
-                        The browser warning has to appear on the controller
-                        itself. Continue past it and this page will resume
-                        automatically.
+                        {hasIssuedHostname
+                            ? 'Your controller has a trusted Nemu hostname. Find controller will try that address first.'
+                            : 'The browser warning has to appear on the controller itself. Continue past it and this page will resume automatically.'}
                     </p>
                 </div>
             ) : null}
@@ -264,19 +277,4 @@ export default function SetupPage() {
             ) : null}
         </div>
     )
-}
-
-function isControllerMessageOrigin(origin: string): boolean {
-    try {
-        const url = new URL(origin)
-        const host = url.hostname
-        return (
-            host === 'nemu.local' ||
-            host === 'localhost' ||
-            host === '127.0.0.1' ||
-            /^\d{1,3}(\.\d{1,3}){3}$/.test(host)
-        )
-    } catch {
-        return false
-    }
 }

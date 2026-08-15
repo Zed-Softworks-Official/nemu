@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as acmeActions from "../acmeActions.js";
 import type * as controllers from "../controllers.js";
 import type * as crons from "../crons.js";
 import type * as http from "../http.js";
@@ -21,6 +22,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  acmeActions: typeof acmeActions;
   controllers: typeof controllers;
   crons: typeof crons;
   http: typeof http;

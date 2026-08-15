@@ -11,6 +11,9 @@ use crate::state::DbPool;
 const KEY_TLS_CERT: &str = "tls_cert_pem";
 const KEY_TLS_KEY: &str = "tls_key_pem";
 const KEY_TLS_SAN: &str = "tls_san";
+const KEY_TLS_LE_CERT: &str = "tls_le_cert_pem";
+const KEY_TLS_LE_KEY: &str = "tls_le_key_pem";
+const KEY_LAN_HOSTNAME: &str = "tls_lan_hostname";
 
 pub struct TlsMaterial {
     pub config: Arc<ServerConfig>,
@@ -36,7 +39,13 @@ pub async fn load_server_config(
                 "NEMU_TLS_CERT_PATH and NEMU_TLS_KEY_PATH must be set together".into(),
             );
         }
-        (None, None) => load_or_create_self_signed(pool, extra_sans).await?,
+        (None, None) => match load_issued_pems(pool).await? {
+            Some((cert, key)) => {
+                info!("loaded Let's Encrypt TLS certificate");
+                (cert, key)
+            }
+            None => load_or_create_self_signed(pool, extra_sans).await?,
+        },
     };
 
     let config = server_config_from_pem(&cert_pem, &key_pem)?;
@@ -139,7 +148,7 @@ fn guess_outbound_ip() -> Option<IpAddr> {
     Some(socket.local_addr().ok()?.ip())
 }
 
-fn server_config_from_pem(cert_pem: &str, key_pem: &str) -> Result<ServerConfig, String> {
+pub fn server_config_from_pem(cert_pem: &str, key_pem: &str) -> Result<ServerConfig, String> {
     let mut cert_reader = cert_pem.as_bytes();
     let certs: Vec<CertificateDer<'static>> = rustls_pemfile::certs(&mut cert_reader)
         .collect::<Result<Vec<_>, _>>()
@@ -164,4 +173,95 @@ fn server_config_from_pem(cert_pem: &str, key_pem: &str) -> Result<ServerConfig,
 
 pub fn warn_if_disabled() {
     warn!("NEMU_TLS=0; serving HTTP only (HTTPS dashboard cannot open LAN WebSockets)");
+}
+
+pub fn is_rfc1918_ipv4(ip: Ipv4Addr) -> bool {
+    let [a, b, ..] = ip.octets();
+    a == 10 || (a == 192 && b == 168) || (a == 172 && (16..=31).contains(&b))
+}
+
+fn is_docker_bridge_ipv4(ip: Ipv4Addr) -> bool {
+    let [a, b, ..] = ip.octets();
+    a == 172 && b == 17
+}
+
+fn lan_ip_preference(ip: Ipv4Addr) -> u8 {
+    let [a, b, ..] = ip.octets();
+    if a == 192 && b == 168 {
+        0
+    } else if a == 10 {
+        1
+    } else if is_docker_bridge_ipv4(ip) {
+        3
+    } else if a == 172 && (16..=31).contains(&b) {
+        2
+    } else {
+        4
+    }
+}
+
+/// Prefer a real home LAN address over Docker's 172.17 bridge.
+pub fn detect_lan_ipv4(extra_sans: &[String]) -> Option<String> {
+    let mut candidates: Vec<Ipv4Addr> = extra_sans
+        .iter()
+        .filter_map(|value| value.parse::<Ipv4Addr>().ok())
+        .filter(|ip| is_rfc1918_ipv4(*ip))
+        .collect();
+
+    if let Some(IpAddr::V4(ip)) = guess_outbound_ip() {
+        if is_rfc1918_ipv4(ip) {
+            candidates.push(ip);
+        }
+    }
+
+    candidates.sort_by_key(|ip| lan_ip_preference(*ip));
+    candidates.first().map(ToString::to_string)
+}
+
+pub async fn load_issued_pems(pool: &DbPool) -> Result<Option<(String, String)>, String> {
+    let conn = pool
+        .get()
+        .await
+        .map_err(|e| format!("db pool error: {e}"))?;
+    conn.interact(|conn| {
+        let cert = get_string(conn, KEY_TLS_LE_CERT)?;
+        let key = get_string(conn, KEY_TLS_LE_KEY)?;
+        Ok(match (cert, key) {
+            (Some(cert), Some(key)) => Some((cert, key)),
+            _ => None,
+        })
+    })
+    .await
+    .map_err(|e| format!("db interact error: {e}"))?
+}
+
+pub async fn persist_issued_tls(
+    pool: &DbPool,
+    cert_pem: &str,
+    key_pem: &str,
+    hostname: &str,
+) -> Result<(), String> {
+    let conn = pool
+        .get()
+        .await
+        .map_err(|e| format!("db pool error: {e}"))?;
+    let cert_pem = cert_pem.to_string();
+    let key_pem = key_pem.to_string();
+    let hostname = hostname.to_string();
+    conn.interact(move |conn| {
+        set_string(conn, KEY_TLS_LE_CERT, &cert_pem)?;
+        set_string(conn, KEY_TLS_LE_KEY, &key_pem)?;
+        set_string(conn, KEY_LAN_HOSTNAME, &hostname)?;
+        Ok(())
+    })
+    .await
+    .map_err(|e| format!("db interact error: {e}"))?
+}
+
+pub async fn current_lan_hostname(pool: &DbPool) -> Option<String> {
+    let conn = pool.get().await.ok()?;
+    conn.interact(|conn| get_string(conn, KEY_LAN_HOSTNAME))
+        .await
+        .ok()?
+        .ok()?
 }

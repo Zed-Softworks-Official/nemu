@@ -10,4 +10,11 @@ crons.interval(
     {}
 )
 
+crons.interval(
+    'renew LAN TLS certificates',
+    { hours: 24 },
+    internal.acmeActions.renewExpiring,
+    {}
+)
+
 export default crons

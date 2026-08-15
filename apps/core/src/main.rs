@@ -24,6 +24,7 @@ mod registration;
 mod relay;
 mod state;
 mod tls;
+mod tls_sync;
 
 use config::Config;
 use devices::{DeviceRegistry, StateCache};
@@ -76,11 +77,17 @@ async fn main() {
         "controller identity ready"
     );
 
+    let lan_ip = tls::detect_lan_ipv4(&config.tls_extra_sans);
+    if let Some(ip) = &lan_ip {
+        info!(lan_ip = %ip, "detected LAN IPv4 for trusted hostname");
+    }
+
     if let Some(site_url) = &config.convex_site_url {
         register_with_retry(
             site_url,
             &identity,
             config.registration_secret.as_deref(),
+            lan_ip.as_deref(),
         )
         .await;
     } else {
@@ -120,12 +127,13 @@ async fn main() {
         identity: Arc::new(identity),
         convex_site_url: config.convex_site_url.clone(),
         registration_secret: config.registration_secret.clone(),
+        lan_ip: lan_ip.clone(),
     };
 
     spawn_mqtt_loop(state.clone(), eventloop);
     spawn_relay_loop(state.clone());
 
-    let tls = if config.tls_enabled {
+    let initial_tls = if config.tls_enabled {
         match tls::load_server_config(
             &state.db,
             config.tls_cert_path.as_deref(),
@@ -144,13 +152,18 @@ async fn main() {
         tls::warn_if_disabled();
         None
     };
+    let shared_tls: listen::SharedTls = std::sync::Arc::new(std::sync::RwLock::new(initial_tls));
+    let operator_files = config.tls_cert_path.is_some();
+    if config.tls_enabled {
+        tls_sync::spawn_tls_sync(state.clone(), shared_tls.clone(), operator_files);
+    }
 
     let app = api::router::router(state);
     let listener = tokio::net::TcpListener::bind(&config.listen_addr)
         .await
         .unwrap_or_else(|e| panic!("failed to bind {}: {e}", config.listen_addr));
 
-    listen::serve(listener, app, tls)
+    listen::serve(listener, app, shared_tls)
         .await
         .expect("server error");
 }

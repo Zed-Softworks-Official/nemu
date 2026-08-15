@@ -29,6 +29,7 @@ export type HealthResponse = z.infer<typeof healthResponseSchema>
 export const identifyResponseSchema = z.object({
     controllerId: z.string(),
     name: z.string(),
+    lanHostname: z.string().optional(),
 })
 export type IdentifyResponse = z.infer<typeof identifyResponseSchema>
 

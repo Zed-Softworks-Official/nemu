@@ -55,7 +55,7 @@ Under `/opt/nemu`:
 
 Docker Engine + Compose plugin are installed from Docker’s official Ubuntu apt repository if missing.
 
-Controller API: `http://<host-ip>:6368` and `https://<host-ip>:6368` on the same port (opportunistic TLS). Pair from [https://app.nemu.sh](https://app.nemu.sh). The first HTTPS visit uses a self-signed certificate — continue past the browser warning once so the dashboard can use `wss://`.
+Controller API: `http://<host-ip>:6368` and `https://<host-ip>:6368` on the same port (opportunistic TLS). Pair from [https://app.nemu.sh](https://app.nemu.sh). After the controller registers, the dashboard prefers `https://{controllerId}.lan.nemu.sh:6368` with a Let's Encrypt certificate (your home LAN address is published under that hostname so the browser can trust it). Until that cert is issued, the first HTTPS visit uses a self-signed certificate — continue past the browser warning once so the dashboard can use `wss://`.
 
 ## Updates
 

@@ -1,8 +1,18 @@
 'use client'
 
 import { useAuth } from '@clerk/nextjs'
-import { api, ConvexProviderWithClerk, ConvexReactClient } from '@nemu/cloud'
-import { ControllerProvider } from '@nemu/controller'
+import {
+    api,
+    ConvexProviderWithClerk,
+    ConvexReactClient,
+    useQuery,
+} from '@nemu/cloud'
+import {
+    ControllerProvider,
+    lanDiscoveryCandidates,
+    lanUrlsFromHostnames,
+} from '@nemu/controller'
+import { useMemo } from 'react'
 
 import { env } from '~/env'
 
@@ -16,9 +26,31 @@ const relayApi = {
 export function NemuProvider(props: { children: React.ReactNode }) {
     return (
         <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
-            <ControllerProvider convex={convex} relayApi={relayApi}>
+            <PairedControllerProvider>
                 {props.children}
-            </ControllerProvider>
+            </PairedControllerProvider>
         </ConvexProviderWithClerk>
+    )
+}
+
+function PairedControllerProvider(props: { children: React.ReactNode }) {
+    const { isSignedIn } = useAuth()
+    const mine = useQuery(api.controllers.listMine, isSignedIn ? {} : 'skip')
+    const lanCandidates = useMemo(
+        () =>
+            lanDiscoveryCandidates(
+                lanUrlsFromHostnames((mine ?? []).map((row) => row.lanHostname))
+            ),
+        [mine]
+    )
+
+    return (
+        <ControllerProvider
+            convex={convex}
+            lanCandidates={lanCandidates}
+            relayApi={relayApi}
+        >
+            {props.children}
+        </ControllerProvider>
     )
 }

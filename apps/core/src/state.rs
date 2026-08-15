@@ -22,6 +22,7 @@ pub struct AppState {
     pub identity: Arc<ControllerIdentity>,
     pub convex_site_url: Option<String>,
     pub registration_secret: Option<String>,
+    pub lan_ip: Option<String>,
 }
 
 #[derive(Debug, Default)]

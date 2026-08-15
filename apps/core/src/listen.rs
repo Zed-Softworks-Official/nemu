@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use axum::Router;
 use axum::extract::Request;
@@ -11,15 +11,18 @@ use tokio_rustls::TlsAcceptor;
 use tower::Service;
 use tracing::{debug, info, warn};
 
+pub type SharedTls = Arc<RwLock<Option<Arc<ServerConfig>>>>;
+
 /// Serve HTTP and HTTPS on the same port. A TLS ClientHello (0x16) is accepted
 /// as HTTPS; anything else is treated as cleartext HTTP.
 pub async fn serve(
     listener: TcpListener,
     app: Router,
-    tls: Option<Arc<ServerConfig>>,
+    tls: SharedTls,
 ) -> Result<(), std::io::Error> {
     let addr = listener.local_addr()?;
-    if tls.is_some() {
+    let has_tls = tls.read().map(|guard| guard.is_some()).unwrap_or(false);
+    if has_tls {
         info!(%addr, "http+https listening (TLS when the client requests it)");
     } else {
         info!(%addr, "http listening");
@@ -28,12 +31,19 @@ pub async fn serve(
     loop {
         let (stream, peer) = listener.accept().await?;
         let app = app.clone();
-        let tls = tls.clone();
+        let tls = current_tls(&tls);
         tokio::spawn(async move {
             if let Err(error) = handle_connection(stream, app, tls).await {
                 debug!(%peer, %error, "connection closed with error");
             }
         });
+    }
+}
+
+fn current_tls(tls: &SharedTls) -> Option<Arc<ServerConfig>> {
+    match tls.read() {
+        Ok(guard) => guard.clone(),
+        Err(poisoned) => poisoned.into_inner().clone(),
     }
 }
 

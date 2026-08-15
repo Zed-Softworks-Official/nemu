@@ -11,12 +11,15 @@ struct RegisterBody<'a> {
     name: &'a str,
     #[serde(skip_serializing_if = "Option::is_none")]
     registration_secret: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    lan_ip: Option<&'a str>,
 }
 
 pub async fn register_with_convex(
     site_url: &str,
     identity: &ControllerIdentity,
     registration_secret: Option<&str>,
+    lan_ip: Option<&str>,
 ) -> Result<(), String> {
     let url = format!(
         "{}/controllers/register",
@@ -28,6 +31,7 @@ pub async fn register_with_convex(
         public_key: &identity.keypair.public_key_b64,
         name: &identity.name,
         registration_secret,
+        lan_ip,
     };
 
     let client = reqwest::Client::new();
@@ -55,8 +59,9 @@ pub async fn register_with_retry(
     site_url: &str,
     identity: &ControllerIdentity,
     registration_secret: Option<&str>,
+    lan_ip: Option<&str>,
 ) {
-    match register_with_convex(site_url, identity, registration_secret).await {
+    match register_with_convex(site_url, identity, registration_secret, lan_ip).await {
         Ok(()) => {}
         Err(e) => {
             warn!(error = %e, "initial Convex registration failed; will retry from relay loop");

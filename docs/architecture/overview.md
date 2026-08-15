@@ -68,7 +68,7 @@ transports, chosen automatically:
 
 ```mermaid
 flowchart TD
-    start[Webview loads, Clerk session valid] --> lanProbe{Probe remembered LAN address<br/>then nemu.local}
+    start[Webview loads, Clerk session valid] --> lanProbe{Probe issued lan.nemu.sh hostname<br/>then remembered address / nemu.local}
     lanProbe -->|reachable + token accepted| lan[LAN-direct mode<br/>REST + WebSocket to controller]
     lanProbe -->|unreachable| relay[Relay mode<br/>commands via Convex mailbox]
     lan -->|WS drops, reprobe fails| relay
@@ -77,10 +77,13 @@ flowchart TD
 
 Preference order and behavior:
 
-1. **LAN-direct.** `GET /api/health` against the remembered address (stored
-   client-side after pairing), then `nemu.local`, with a short timeout. On
-   success the client opens `/ws` for live state. All traffic stays on the
-   home network.
+1. **LAN-direct.** `GET /api/health` against `https://{controllerId}.lan.nemu.sh:6368`
+   (trusted Let's Encrypt cert, after registration), then the remembered
+   address, then `nemu.local`, with a short timeout. On success the client
+   opens `/ws` for live state. All traffic stays on the home network. The
+   public A record is the home **RFC1918** address only — never the WAN IP —
+   so the browser can use a publicly trusted name. Off-LAN that IP is
+   unroutable and the dashboard falls back to Convex relay.
 2. **Relay.** The webview writes a command message into the controller's Convex
    mailbox; nemu-core (which keeps an outbound subscription open) executes it
    and writes the response back. Live state in relay mode is coarser
@@ -118,8 +121,10 @@ flowchart LR
   _routing_ (Convex delivers mail) — never for _authorization_ (the controller
   checks the client token on every command) or _storage of home data_ (the
   schema has no place for it).
-- The LAN is trusted in v1 at the transport level, with token auth on every
-  API call; TLS with pinned certs lands in M5.
+- The LAN is trusted at the transport level, with token auth on every API
+  call. HTTPS uses a Let's Encrypt cert for `{id}.lan.nemu.sh` when cloud DNS
+  is configured; otherwise a self-signed cert (browser exception) is the
+  fallback.
 
 ## 4. Privacy data-flow
 
@@ -130,6 +135,7 @@ check against:
 | ----------------------------------------------------- | --------------------------------------------------------- | ------------------- | ----- | --------------------------------------- |
 | Account identity (email, etc.)                        | never                                                     | user reference only | yes   | —                                       |
 | Controller registration (opaque ID, public key, name) | yes                                                       | yes                 | —     | —                                       |
+| Home LAN IPv4 (RFC1918) for `{id}.lan.nemu.sh`        | yes (detected)                                            | yes (A record + row; not on public queries) | — | public DNS A only (LAN range, not WAN) |
 | Account↔controller pairing record                     | token hash                                                | yes (IDs only)      | —     | —                                       |
 | Device inventory, friendly names, rooms               | **yes**                                                   | **never**           | never | never                                   |
 | Device state / telemetry / history                    | **yes**                                                   | **never**           | never | relay mode only, ephemeral, TTL-deleted |

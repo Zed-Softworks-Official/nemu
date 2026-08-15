@@ -64,6 +64,35 @@ export function upgradeToHttps(url: string): string | null {
  * HTTPS-first on secure pages (app.nemu.sh) so LAN WebSockets can use wss://.
  * Loopback HTTP stays available because browsers exempt it from mixed content.
  */
+export function isLanControllerOrigin(origin: string): boolean {
+    try {
+        const url = new URL(origin)
+        const host = url.hostname
+        return (
+            host === 'nemu.local' ||
+            host === 'localhost' ||
+            host === '127.0.0.1' ||
+            host.endsWith('.lan.nemu.sh') ||
+            /^\d{1,3}(\.\d{1,3}){3}$/.test(host)
+        )
+    } catch {
+        return false
+    }
+}
+
+export function lanUrlsFromHostnames(
+    hostnames: Array<string | null | undefined>
+): string[] {
+    const urls: string[] = []
+    for (const hostname of hostnames) {
+        if (!hostname) continue
+        const host = hostname.replace(/^https?:\/\//, '').replace(/\/$/, '')
+        if (!host) continue
+        urls.push(`https://${host}:6368`)
+    }
+    return urls
+}
+
 export function lanDiscoveryCandidates(extra: string[] = []): string[] {
     const httpsFirst = isSecureDocument()
     const builtIn = httpsFirst

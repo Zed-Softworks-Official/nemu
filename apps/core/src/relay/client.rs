@@ -87,6 +87,7 @@ async fn run_relay_loop(state: AppState) {
                         &site_url,
                         &state.identity,
                         state.registration_secret.as_deref(),
+                        state.lan_ip.as_deref(),
                     )
                     .await;
                 }
