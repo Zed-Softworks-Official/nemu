@@ -5,6 +5,7 @@ import {
     identifyResponseSchema,
 } from '@nemu/protocol'
 import { createControllerHttp } from './http'
+import { isMixedContentUrl, isSecureDocument } from './mixedContent'
 import { getRememberedBaseUrl } from './storage'
 
 export const DEFAULT_LAN_CANDIDATES = [
@@ -12,9 +13,82 @@ export const DEFAULT_LAN_CANDIDATES = [
     'http://localhost:6368',
 ] as const
 
+export const DEFAULT_HTTPS_LAN_CANDIDATES = [
+    'https://nemu.local:6368',
+    'https://localhost:6368',
+] as const
+
+export const TLS_TRUST_URL = 'https://nemu.local:6368/'
+export const TLS_TRUSTED_MESSAGE = 'nemu-tls-trusted'
+
+export function buildTlsTrustUrl(
+    controllerBase?: string,
+    returnTo?: string
+): string {
+    let url: URL
+    try {
+        url = new URL(controllerBase?.trim() || TLS_TRUST_URL)
+        if (url.protocol === 'http:') url.protocol = 'https:'
+        url.pathname = '/'
+        url.search = ''
+        url.hash = ''
+    } catch {
+        url = new URL(TLS_TRUST_URL)
+    }
+    if (returnTo) {
+        url.searchParams.set('next', returnTo)
+    }
+    return url.toString()
+}
+
 export type ProbeResult = {
     baseUrl: string
     health: HealthResponse
+}
+
+export function upgradeToHttps(url: string): string | null {
+    try {
+        const parsed = new URL(url)
+        if (parsed.protocol === 'https:') {
+            return parsed.toString().replace(/\/$/, '')
+        }
+        if (parsed.protocol !== 'http:') return null
+        parsed.protocol = 'https:'
+        return parsed.toString().replace(/\/$/, '')
+    } catch {
+        return null
+    }
+}
+
+/**
+ * HTTPS-first on secure pages (app.nemu.sh) so LAN WebSockets can use wss://.
+ * Loopback HTTP stays available because browsers exempt it from mixed content.
+ */
+export function lanDiscoveryCandidates(extra: string[] = []): string[] {
+    const httpsFirst = isSecureDocument()
+    const builtIn = httpsFirst
+        ? [...DEFAULT_HTTPS_LAN_CANDIDATES, 'http://localhost:6368']
+        : [...DEFAULT_LAN_CANDIDATES, ...DEFAULT_HTTPS_LAN_CANDIDATES]
+
+    const ordered: string[] = []
+    const push = (url: string) => {
+        const normalized = url.replace(/\/$/, '')
+        if (!ordered.includes(normalized)) ordered.push(normalized)
+    }
+
+    for (const url of extra) {
+        if (httpsFirst) {
+            const https = upgradeToHttps(url)
+            if (https) push(https)
+        }
+        if (!httpsFirst || !isMixedContentUrl(url)) {
+            push(url)
+        }
+    }
+    for (const url of builtIn) {
+        push(url)
+    }
+    return ordered
 }
 
 export async function probeController(
@@ -41,12 +115,20 @@ export async function identifyController(
  * Returns the first reachable base URL, or null if none respond.
  */
 export async function discoverController(
-    candidates: string[] = [...DEFAULT_LAN_CANDIDATES]
+    candidates?: string[]
 ): Promise<ProbeResult | null> {
     const ordered: string[] = []
     const remembered = getRememberedBaseUrl()
-    if (remembered) ordered.push(remembered)
-    for (const candidate of candidates) {
+    if (remembered) {
+        if (isSecureDocument()) {
+            const https = upgradeToHttps(remembered)
+            if (https) ordered.push(https)
+        }
+        if (!isMixedContentUrl(remembered) && !ordered.includes(remembered)) {
+            ordered.push(remembered)
+        }
+    }
+    for (const candidate of candidates ?? lanDiscoveryCandidates()) {
         if (!ordered.includes(candidate)) ordered.push(candidate)
     }
 

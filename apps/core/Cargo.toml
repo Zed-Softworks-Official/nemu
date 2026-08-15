@@ -15,14 +15,21 @@ dotenvy = "0.15.7"
 ed25519-dalek = { version = "3.0.0", features = ["rand_core"] }
 futures-util = "0.3.31"
 hex = "0.4.3"
+hyper = { version = "1", features = ["http1", "server"] }
+hyper-util = { version = "0.1", features = ["http1", "server-auto", "tokio"] }
 rand = "0.10.2"
+rcgen = "0.14"
 reqwest = { version = "0.13.4", default-features = false, features = ["json", "rustls"] }
 rumqttc = "0.25.1"
+rustls = "0.23"
+rustls-pemfile = "2"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.150"
 sha2 = "0.11.0"
 thiserror = "2.0.12"
 tokio = { version = "1.52.3", features = ["full"] }
+tokio-rustls = "0.26"
+tower = { version = "0.5", features = ["util"] }
 tower-http = { version = "0.7.0", features = ["cors"] }
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }

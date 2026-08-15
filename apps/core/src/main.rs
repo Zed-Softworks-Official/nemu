@@ -17,11 +17,13 @@ mod db;
 mod devices;
 mod events;
 mod identity;
+mod listen;
 mod mqtt;
 mod pairing;
 mod registration;
 mod relay;
 mod state;
+mod tls;
 
 use config::Config;
 use devices::{DeviceRegistry, StateCache};
@@ -123,13 +125,34 @@ async fn main() {
     spawn_mqtt_loop(state.clone(), eventloop);
     spawn_relay_loop(state.clone());
 
+    let tls = if config.tls_enabled {
+        match tls::load_server_config(
+            &state.db,
+            config.tls_cert_path.as_deref(),
+            config.tls_key_path.as_deref(),
+            &config.tls_extra_sans,
+        )
+        .await
+        {
+            Ok(material) => Some(material.config),
+            Err(error) => {
+                warn!(%error, "failed to enable TLS; serving HTTP only");
+                None
+            }
+        }
+    } else {
+        tls::warn_if_disabled();
+        None
+    };
+
     let app = api::router::router(state);
     let listener = tokio::net::TcpListener::bind(&config.listen_addr)
         .await
         .unwrap_or_else(|e| panic!("failed to bind {}: {e}", config.listen_addr));
 
-    info!(addr = %config.listen_addr, "http listening");
-    axum::serve(listener, app).await.expect("server error");
+    listen::serve(listener, app, tls)
+        .await
+        .expect("server error");
 }
 
 fn init_tracing() {

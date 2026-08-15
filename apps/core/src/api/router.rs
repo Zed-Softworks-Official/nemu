@@ -4,7 +4,7 @@ use axum::middleware;
 use axum::routing::{delete, get, patch, post};
 use tower_http::cors::{AllowOrigin, CorsLayer};
 
-use crate::api::{devices, health, identify, pairing, rooms, ws, zigbee};
+use crate::api::{devices, health, identify, landing, pairing, rooms, ws, zigbee};
 use crate::api::middleware::require_client_token;
 use crate::state::AppState;
 
@@ -44,6 +44,7 @@ fn cors_layer() -> CorsLayer {
 
 pub fn router(state: AppState) -> Router {
     let public = Router::new()
+        .route("/", get(landing::landing))
         .route("/api/health", get(health::health_check))
         .route("/api/identify", get(identify::identify))
         .route("/api/pair", post(pairing::pair))

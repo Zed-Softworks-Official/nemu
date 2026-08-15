@@ -1,18 +1,25 @@
 #!/usr/bin/env sh
 # Nemu controller installer for Ubuntu Server (amd64 / arm64).
+#
+# Environment variables must be passed to `sh`, not `curl`. `sudo` resets the
+# environment, so prefix vars on the `sudo … sh` side (or pass flags after `--`).
+#
 # Usage:
-#   curl -fsSL https://get.nemu.sh | sh
+#   curl -fsSL https://get.nemu.sh | sudo sh
+#   curl -fsSL https://get.nemu.sh | sudo NEMU_FORCE=1 NEMU_CONVEX_SITE_URL=https://….convex.site sh
+#   curl -fsSL https://get.nemu.sh | sudo sh -s -- --force --convex-url=https://….convex.cloud
 # Inspect without running:
 #   curl -fsSL https://get.nemu.sh
 #
-# Optional env:
-#   NEMU_CONVEX_SITE_URL=https://….convex.site
-#   NEMU_CONTROLLER_NAME=Home
-#   CONTROLLER_REGISTRATION_SECRET=…
-#   NEMU_ZIGBEE_DEVICE=/dev/ttyACM0
-#   NEMU_FORCE=1          # overwrite existing /opt/nemu compose files
-#   NEMU_INSTALL_DIR=/opt/nemu
-#   GET_NEMU_BASE_URL=https://get.nemu.sh
+# Optional env (or matching --flags):
+#   NEMU_CONVEX_SITE_URL  Convex HTTP site URL (https://….convex.site)
+#   CONVEX_URL            Alias; .convex.cloud is rewritten to .convex.site
+#   NEMU_CONTROLLER_NAME  Display name (default Home)
+#   CONTROLLER_REGISTRATION_SECRET
+#   NEMU_ZIGBEE_DEVICE    Host serial path
+#   NEMU_FORCE=1          Overwrite existing /opt/nemu compose files
+#   NEMU_INSTALL_DIR      Default /opt/nemu
+#   GET_NEMU_BASE_URL     Default https://get.nemu.sh
 
 set -eu
 
@@ -20,6 +27,12 @@ BASE_URL="${GET_NEMU_BASE_URL:-https://get.nemu.sh}"
 INSTALL_DIR="${NEMU_INSTALL_DIR:-/opt/nemu}"
 COMPOSE_FILE="${INSTALL_DIR}/docker-compose.yml"
 ENV_FILE="${INSTALL_DIR}/.env"
+
+FORCE=0
+ARG_CONVEX_URL=""
+ARG_CONTROLLER_NAME=""
+ARG_ZIGBEE_DEVICE=""
+ARG_REGISTRATION_SECRET=""
 
 log() {
   printf '==> %s\n' "$*"
@@ -36,6 +49,100 @@ die() {
 
 need_cmd() {
   command -v "$1" >/dev/null 2>&1 || die "missing required command: $1"
+}
+
+is_truthy() {
+  case "${1:-}" in
+    1 | true | TRUE | yes | YES | on | ON) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+is_force() {
+  is_truthy "${NEMU_FORCE:-}" || [ "${FORCE}" = "1" ]
+}
+
+# Convex HTTP actions live on *.convex.site; client URLs are *.convex.cloud.
+normalize_convex_site_url() {
+  url="${1:-}"
+  [ -n "${url}" ] || return 0
+  url="${url%/}"
+  printf '%s\n' "${url}" | sed 's/\.convex\.cloud/.convex.site/'
+}
+
+resolve_convex_site_url() {
+  raw="${ARG_CONVEX_URL:-${NEMU_CONVEX_SITE_URL:-${CONVEX_URL:-${NEXT_PUBLIC_CONVEX_URL:-}}}}"
+  normalize_convex_site_url "${raw}"
+}
+
+resolve_controller_name() {
+  printf '%s\n' "${ARG_CONTROLLER_NAME:-${NEMU_CONTROLLER_NAME:-Home}}"
+}
+
+resolve_registration_secret() {
+  printf '%s\n' "${ARG_REGISTRATION_SECRET:-${CONTROLLER_REGISTRATION_SECRET:-}}"
+}
+
+parse_args() {
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --force | -f)
+        FORCE=1
+        ;;
+      --convex-url=*)
+        ARG_CONVEX_URL="${1#--convex-url=}"
+        ;;
+      --convex-url)
+        shift
+        ARG_CONVEX_URL="${1:-}"
+        ;;
+      --controller-name=*)
+        ARG_CONTROLLER_NAME="${1#--controller-name=}"
+        ;;
+      --controller-name)
+        shift
+        ARG_CONTROLLER_NAME="${1:-}"
+        ;;
+      --zigbee-device=*)
+        ARG_ZIGBEE_DEVICE="${1#--zigbee-device=}"
+        ;;
+      --zigbee-device)
+        shift
+        ARG_ZIGBEE_DEVICE="${1:-}"
+        ;;
+      --registration-secret=*)
+        ARG_REGISTRATION_SECRET="${1#--registration-secret=}"
+        ;;
+      --registration-secret)
+        shift
+        ARG_REGISTRATION_SECRET="${1:-}"
+        ;;
+      --)
+        shift
+        break
+        ;;
+      -*)
+        die "unknown argument: $1"
+        ;;
+      *)
+        die "unknown argument: $1"
+        ;;
+    esac
+    shift
+  done
+}
+
+# Upsert KEY=VALUE in a dotenv file. Escapes sed replacement metacharacters.
+upsert_env() {
+  key="$1"
+  value="$2"
+  file="$3"
+  escaped=$(printf '%s' "${value}" | sed -e 's/[\\|&]/\\&/g')
+  if grep -q "^${key}=" "${file}"; then
+    sed -i "s|^${key}=.*|${key}=${escaped}|" "${file}"
+  else
+    printf '%s=%s\n' "${key}" "${value}" >>"${file}"
+  fi
 }
 
 detect_ubuntu() {
@@ -61,7 +168,7 @@ detect_ubuntu() {
 
 require_root() {
   if [ "$(id -u)" -ne 0 ]; then
-    die "run as root (sudo). Example: curl -fsSL ${BASE_URL} | sudo sh"
+    die "run as root. Example: curl -fsSL ${BASE_URL} | sudo sh"
   fi
 }
 
@@ -108,6 +215,10 @@ random_hex() {
 }
 
 detect_zigbee_device() {
+  if [ -n "${ARG_ZIGBEE_DEVICE:-}" ]; then
+    printf '%s\n' "${ARG_ZIGBEE_DEVICE}"
+    return
+  fi
   if [ -n "${NEMU_ZIGBEE_DEVICE:-}" ]; then
     printf '%s\n' "${NEMU_ZIGBEE_DEVICE}"
     return
@@ -127,9 +238,49 @@ download_file() {
   curl -fsSL "${BASE_URL}/${src}" -o "${dest}"
 }
 
+resolve_tls_san() {
+  if [ -n "${NEMU_TLS_SAN:-}" ]; then
+    printf '%s\n' "${NEMU_TLS_SAN}"
+    return
+  fi
+  primary_ip
+}
+
+write_env_overrides() {
+  convex_site_url="$1"
+  controller_name="$2"
+  registration_secret="$3"
+  zigbee_dev="$4"
+  tls_san="$5"
+
+  if [ -n "${convex_site_url}" ]; then
+    upsert_env "NEMU_CONVEX_SITE_URL" "${convex_site_url}" "${ENV_FILE}"
+  fi
+  if [ -n "${ARG_CONTROLLER_NAME:-${NEMU_CONTROLLER_NAME:-}}" ]; then
+    upsert_env "NEMU_CONTROLLER_NAME" "${controller_name}" "${ENV_FILE}"
+  fi
+  if [ -n "${registration_secret}" ]; then
+    upsert_env "CONTROLLER_REGISTRATION_SECRET" "${registration_secret}" "${ENV_FILE}"
+  fi
+  if [ -n "${zigbee_dev}" ]; then
+    upsert_env "NEMU_ZIGBEE_DEVICE" "${zigbee_dev}" "${ENV_FILE}"
+  fi
+  if [ -n "${tls_san}" ]; then
+    upsert_env "NEMU_TLS_SAN" "${tls_san}" "${ENV_FILE}"
+  fi
+  if [ -n "${WATCHTOWER_POLL_INTERVAL:-}" ]; then
+    upsert_env "WATCHTOWER_POLL_INTERVAL" "${WATCHTOWER_POLL_INTERVAL}" "${ENV_FILE}"
+  fi
+  if [ -n "${TZ:-}" ]; then
+    upsert_env "TZ" "${TZ}" "${ENV_FILE}"
+  fi
+}
+
 write_files() {
-  if [ -d "${INSTALL_DIR}" ] && [ -f "${COMPOSE_FILE}" ] && [ "${NEMU_FORCE:-}" != "1" ]; then
-    die "${INSTALL_DIR} already exists. Re-run with NEMU_FORCE=1 to overwrite compose/config files (keeps .env if present)."
+  if [ -d "${INSTALL_DIR}" ] && [ -f "${COMPOSE_FILE}" ] && ! is_force; then
+    die "${INSTALL_DIR} already exists. Re-run with force (vars must be on the sh side, not curl):
+  curl -fsSL ${BASE_URL} | sudo NEMU_FORCE=1 sh
+  curl -fsSL ${BASE_URL} | sudo sh -s -- --force"
   fi
 
   log "Installing Nemu under ${INSTALL_DIR}"
@@ -159,16 +310,22 @@ EOF
     rm -f "${INSTALL_DIR}/docker-compose.override.yml"
   fi
 
+  convex_site_url="$(resolve_convex_site_url)"
+  controller_name="$(resolve_controller_name)"
+  registration_secret="$(resolve_registration_secret)"
+  tls_san="$(resolve_tls_san)"
+
   if [ ! -f "${ENV_FILE}" ]; then
     password="$(random_hex)"
     cat >"${ENV_FILE}" <<EOF
 POSTGRES_USER=nemu
 POSTGRES_PASSWORD=${password}
 POSTGRES_DB=nemu
-NEMU_CONVEX_SITE_URL=${NEMU_CONVEX_SITE_URL:-}
-NEMU_CONTROLLER_NAME=${NEMU_CONTROLLER_NAME:-Home}
-CONTROLLER_REGISTRATION_SECRET=${CONTROLLER_REGISTRATION_SECRET:-}
+NEMU_CONVEX_SITE_URL=${convex_site_url}
+NEMU_CONTROLLER_NAME=${controller_name}
+CONTROLLER_REGISTRATION_SECRET=${registration_secret}
 NEMU_ZIGBEE_DEVICE=${zigbee_dev:-/dev/ttyACM0}
+NEMU_TLS_SAN=${tls_san}
 WATCHTOWER_POLL_INTERVAL=${WATCHTOWER_POLL_INTERVAL:-3600}
 TZ=${TZ:-UTC}
 EOF
@@ -176,14 +333,11 @@ EOF
     log "Wrote ${ENV_FILE}"
   else
     log "Keeping existing ${ENV_FILE}"
-    # Refresh Convex-related overrides from the environment when provided.
-    if [ -n "${NEMU_CONVEX_SITE_URL:-}" ]; then
-      if grep -q '^NEMU_CONVEX_SITE_URL=' "${ENV_FILE}"; then
-        sed -i "s|^NEMU_CONVEX_SITE_URL=.*|NEMU_CONVEX_SITE_URL=${NEMU_CONVEX_SITE_URL}|" "${ENV_FILE}"
-      else
-        printf 'NEMU_CONVEX_SITE_URL=%s\n' "${NEMU_CONVEX_SITE_URL}" >>"${ENV_FILE}"
-      fi
-    fi
+    write_env_overrides "${convex_site_url}" "${controller_name}" "${registration_secret}" "${zigbee_dev}" "${tls_san}"
+  fi
+
+  if [ -n "${convex_site_url}" ]; then
+    log "Convex site URL: ${convex_site_url}"
   fi
 }
 
@@ -225,7 +379,8 @@ Nemu is installed.
 
   Install dir:  ${INSTALL_DIR}
   LAN API:      http://${host_ip:-<host-ip>}:6368
-  mDNS (if set): http://nemu.local:6368
+  LAN HTTPS:    https://${host_ip:-<host-ip>}:6368
+  mDNS (if set): https://nemu.local:6368
   Dashboard:    https://app.nemu.sh
 
 Pair this controller from https://app.nemu.sh (check docker logs for a pairing code on first boot):
@@ -235,12 +390,14 @@ nemu-core auto-updates from ghcr.io/.../nemu-core:latest via Watchtower (hourly 
 Compose/config changes are not auto-applied — re-run this installer with NEMU_FORCE=1 or edit ${INSTALL_DIR}.
 
 EOF
-  if [ -z "${NEMU_CONVEX_SITE_URL:-}" ] && ! grep -q '^NEMU_CONVEX_SITE_URL=.\+' "${ENV_FILE}" 2>/dev/null; then
-    warn "NEMU_CONVEX_SITE_URL is unset — cloud registration/relay is disabled until you set it in ${ENV_FILE} and run: docker compose -f ${COMPOSE_FILE} up -d"
+  if [ -z "$(resolve_convex_site_url)" ] && ! grep -q '^NEMU_CONVEX_SITE_URL=.\+' "${ENV_FILE}" 2>/dev/null; then
+    warn "NEMU_CONVEX_SITE_URL is unset — cloud registration/relay is disabled until you set it:
+  curl -fsSL ${BASE_URL} | sudo NEMU_CONVEX_SITE_URL=https://YOUR_DEPLOYMENT.convex.site NEMU_FORCE=1 sh"
   fi
 }
 
 main() {
+  parse_args "$@"
   detect_ubuntu
   require_root
   need_cmd curl

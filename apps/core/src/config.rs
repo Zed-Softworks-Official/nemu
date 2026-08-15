@@ -1,5 +1,15 @@
 use std::env;
 
+fn env_truthy(name: &str, default: bool) -> bool {
+    match env::var(name) {
+        Ok(value) => matches!(
+            value.trim(),
+            "1" | "true" | "TRUE" | "yes" | "YES" | "on" | "ON"
+        ),
+        Err(_) => default,
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Config {
     pub database_url: String,
@@ -11,10 +21,31 @@ pub struct Config {
     pub convex_site_url: Option<String>,
     pub controller_name: String,
     pub registration_secret: Option<String>,
+    pub tls_enabled: bool,
+    pub tls_cert_path: Option<String>,
+    pub tls_key_path: Option<String>,
+    pub tls_extra_sans: Vec<String>,
 }
 
 impl Config {
     pub fn from_env() -> Self {
+        let tls_cert_path = env::var("NEMU_TLS_CERT_PATH")
+            .ok()
+            .filter(|s| !s.is_empty());
+        let tls_key_path = env::var("NEMU_TLS_KEY_PATH")
+            .ok()
+            .filter(|s| !s.is_empty());
+        let tls_extra_sans = env::var("NEMU_TLS_SAN")
+            .ok()
+            .map(|value| {
+                value
+                    .split(',')
+                    .map(|part| part.trim().to_string())
+                    .filter(|part| !part.is_empty())
+                    .collect()
+            })
+            .unwrap_or_default();
+
         Self {
             database_url: env::var("DATABASE_URL")
                 .unwrap_or_else(|_| "postgres://nemu:nemu@localhost:5432/nemu".to_string()),
@@ -35,6 +66,10 @@ impl Config {
             registration_secret: env::var("CONTROLLER_REGISTRATION_SECRET")
                 .ok()
                 .filter(|s| !s.is_empty()),
+            tls_enabled: env_truthy("NEMU_TLS", true),
+            tls_cert_path,
+            tls_key_path,
+            tls_extra_sans,
         }
     }
 }

@@ -92,7 +92,7 @@ pub async fn update_controller_name(pool: &DbPool, name: &str) -> Result<(), Str
         .map_err(|e| format!("db interact error: {e}"))?
 }
 
-fn get_string(conn: &mut PgConnection, key: &str) -> Result<Option<String>, String> {
+pub(crate) fn get_string(conn: &mut PgConnection, key: &str) -> Result<Option<String>, String> {
     let row: Option<Setting> = settings::table
         .find(key)
         .first(conn)
@@ -114,7 +114,7 @@ fn get_string(conn: &mut PgConnection, key: &str) -> Result<Option<String>, Stri
     }
 }
 
-fn set_string(conn: &mut PgConnection, key: &str, value: &str) -> Result<(), String> {
+pub(crate) fn set_string(conn: &mut PgConnection, key: &str, value: &str) -> Result<(), String> {
     let payload = json!({ "value": value });
     diesel::insert_into(settings::table)
         .values(NewSetting {

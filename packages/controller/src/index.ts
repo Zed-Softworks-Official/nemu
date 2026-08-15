@@ -2,10 +2,16 @@ export type { ControllerConnectionOptions } from './connection'
 export { ControllerConnection } from './connection'
 export type { ProbeResult } from './discovery'
 export {
+    buildTlsTrustUrl,
+    DEFAULT_HTTPS_LAN_CANDIDATES,
     DEFAULT_LAN_CANDIDATES,
     discoverController,
     identifyController,
+    lanDiscoveryCandidates,
     probeController,
+    TLS_TRUST_URL,
+    TLS_TRUSTED_MESSAGE,
+    upgradeToHttps,
 } from './discovery'
 export { createControllerHttp, toApiError } from './http'
 export type { PairWithControllerResult } from './pairing'

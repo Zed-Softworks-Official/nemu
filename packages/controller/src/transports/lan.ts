@@ -22,6 +22,7 @@ import {
 } from '@nemu/protocol'
 import type { AxiosInstance } from 'axios'
 import { createControllerHttp, type GetToken } from '../http'
+import { isMixedContentUrl } from '../mixedContent'
 import type { ControllerTransport } from './types'
 
 function toWsUrl(baseUrl: string): string {
@@ -74,6 +75,14 @@ export class LanTransport implements ControllerTransport {
 
     async connect(): Promise<void> {
         this.intentionalClose = false
+        // HTTPS dashboards (app.nemu.sh) cannot open ws:// LAN endpoints.
+        // Stay on REST-only LAN rather than triggering a mixed-content block.
+        if (
+            isMixedContentUrl(this.baseUrl) ||
+            isMixedContentUrl(toWsUrl(this.baseUrl))
+        ) {
+            return
+        }
         await this.openSocket()
     }
 
@@ -189,9 +198,13 @@ export class LanTransport implements ControllerTransport {
     }
 
     private openSocket(): Promise<void> {
+        const wsUrl = toWsUrl(this.baseUrl)
+        if (isMixedContentUrl(this.baseUrl) || isMixedContentUrl(wsUrl)) {
+            return Promise.resolve()
+        }
+
         return new Promise((resolve, reject) => {
             const token = this.getToken()
-            const wsUrl = toWsUrl(this.baseUrl)
             // Token via query is a pragmatic v1; header auth isn't available in browsers.
             const url = token
                 ? `${wsUrl}?token=${encodeURIComponent(token)}`

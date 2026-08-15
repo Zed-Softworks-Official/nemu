@@ -16,19 +16,32 @@ curl -fsSL https://get.nemu.sh
 
 ### Optional environment
 
+`sudo` resets the environment, so installer variables must be passed to `sh`, not `curl`:
+
 ```bash
-sudo NEMU_CONVEX_SITE_URL=https://YOUR_DEPLOYMENT.convex.site \
+curl -fsSL https://get.nemu.sh | sudo \
+  NEMU_CONVEX_SITE_URL=https://YOUR_DEPLOYMENT.convex.site \
   NEMU_CONTROLLER_NAME=Home \
-  curl -fsSL https://get.nemu.sh | sudo sh
+  sh
 ```
 
-| Variable | Purpose |
+`CONVEX_URL` (the Convex client URL) is accepted as an alias; `*.convex.cloud` is rewritten to `*.convex.site`. Flags also work, and survive `sudo` even when env vars do not:
+
+```bash
+curl -fsSL https://get.nemu.sh | sudo sh -s -- \
+  --force \
+  --convex-url=https://YOUR_DEPLOYMENT.convex.cloud \
+  --controller-name=Home
+```
+
+| Variable / flag | Purpose |
 | -------- | ------- |
-| `NEMU_CONVEX_SITE_URL` | Convex HTTP site URL for registration + relay |
-| `NEMU_CONTROLLER_NAME` | Display name (default `Home`) |
-| `CONTROLLER_REGISTRATION_SECRET` | Optional shared secret with cloud |
-| `NEMU_ZIGBEE_DEVICE` | Host serial path (default auto: `/dev/ttyACM0`, `/dev/ttyUSB0`, …) |
-| `NEMU_FORCE=1` | Overwrite compose/config under `/opt/nemu` (keeps `.env`) |
+| `NEMU_CONVEX_SITE_URL` / `--convex-url` | Convex HTTP site URL for registration + relay |
+| `CONVEX_URL` | Alias for the Convex deployment URL (`.cloud` → `.site`) |
+| `NEMU_CONTROLLER_NAME` / `--controller-name` | Display name (default `Home`) |
+| `CONTROLLER_REGISTRATION_SECRET` / `--registration-secret` | Optional shared secret with cloud |
+| `NEMU_ZIGBEE_DEVICE` / `--zigbee-device` | Host serial path (default auto: `/dev/ttyACM0`, `/dev/ttyUSB0`, …) |
+| `NEMU_FORCE=1` / `--force` | Overwrite compose/config under `/opt/nemu` (keeps `.env`) |
 | `WATCHTOWER_POLL_INTERVAL` | Seconds between image polls (default `3600`) |
 
 ## What gets installed
@@ -42,13 +55,17 @@ Under `/opt/nemu`:
 
 Docker Engine + Compose plugin are installed from Docker’s official Ubuntu apt repository if missing.
 
-Controller API: `http://<host-ip>:6368` (`GET /api/health`). Pair from [https://app.nemu.sh](https://app.nemu.sh).
+Controller API: `http://<host-ip>:6368` and `https://<host-ip>:6368` on the same port (opportunistic TLS). Pair from [https://app.nemu.sh](https://app.nemu.sh). The first HTTPS visit uses a self-signed certificate — continue past the browser warning once so the dashboard can use `wss://`.
 
 ## Updates
 
 **nemu-core** uses image tag `:latest`. Watchtower (label-scoped) polls hourly and recreates the container when GHCR moves `:latest`. Diesel migrations run on boot.
 
-Mosquitto, zigbee2mqtt, and Postgres are **not** auto-updated. Compose/file changes are **not** auto-applied — re-run the installer with `NEMU_FORCE=1` or edit `/opt/nemu` manually.
+Mosquitto, zigbee2mqtt, and Postgres are **not** auto-updated. Compose/file changes are **not** auto-applied — re-run the installer with force or edit `/opt/nemu` manually:
+
+```bash
+curl -fsSL https://get.nemu.sh | sudo NEMU_FORCE=1 sh
+```
 
 Manual pull:
 

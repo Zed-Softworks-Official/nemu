@@ -2,16 +2,18 @@
 
 import { api, useMutation } from '@nemu/cloud'
 import {
-    DEFAULT_LAN_CANDIDATES,
+    buildTlsTrustUrl,
     discoverController,
     identifyController,
+    lanDiscoveryCandidates,
     pairWithController,
+    TLS_TRUSTED_MESSAGE,
     useController,
 } from '@nemu/controller'
 import { Button } from '@nemu/ui/components/button'
 import { Input } from '@nemu/ui/components/input'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 type Phase = 'discover' | 'pair' | 'saving' | 'done'
 
@@ -34,18 +36,19 @@ export default function SetupPage() {
     })
     const [error, setError] = useState<string | null>(null)
     const [busy, setBusy] = useState(false)
+    const [trustOpened, setTrustOpened] = useState(false)
 
-    async function handleDiscover() {
+    const handleDiscover = useCallback(async () => {
         setBusy(true)
         setError(null)
         try {
-            const candidates = manualUrl.trim()
-                ? [manualUrl.trim(), ...DEFAULT_LAN_CANDIDATES]
-                : [...DEFAULT_LAN_CANDIDATES]
+            const candidates = lanDiscoveryCandidates(
+                manualUrl.trim() ? [manualUrl.trim()] : []
+            )
             const probe = await discoverController(candidates)
             if (!probe) {
                 throw new Error(
-                    'No controller found on the LAN. Check that nemu-core is running and try a manual address.'
+                    'No controller found on the LAN. Use Trust controller, continue past the browser warning, and you will come back here.'
                 )
             }
             const identity = await identifyController(probe.baseUrl)
@@ -58,7 +61,41 @@ export default function SetupPage() {
         } finally {
             setBusy(false)
         }
+    }, [manualUrl])
+
+    function handleTrustController() {
+        const returnTo = `${window.location.origin}/setup`
+        const url = buildTlsTrustUrl(manualUrl, returnTo)
+        setTrustOpened(true)
+        setError(null)
+        const popup = window.open(url, 'nemu-tls-trust', 'width=520,height=640')
+        if (!popup) {
+            window.location.assign(url)
+        }
     }
+
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search)
+        if (params.get('trusted') === '1') {
+            router.replace('/setup')
+            void handleDiscover()
+        }
+
+        function onMessage(event: MessageEvent) {
+            if (
+                typeof event.data !== 'object' ||
+                event.data === null ||
+                event.data.type !== TLS_TRUSTED_MESSAGE ||
+                !isControllerMessageOrigin(event.origin)
+            ) {
+                return
+            }
+            void handleDiscover()
+        }
+
+        window.addEventListener('message', onMessage)
+        return () => window.removeEventListener('message', onMessage)
+    }, [handleDiscover, router])
 
     async function handlePair() {
         setBusy(true)
@@ -114,17 +151,35 @@ export default function SetupPage() {
                         <Input
                             id="manual-url"
                             onChange={(e) => setManualUrl(e.target.value)}
-                            placeholder="http://192.168.1.50:6368"
+                            placeholder="https://192.168.1.50:6368"
                             value={manualUrl}
                         />
                     </div>
-                    <Button
-                        className="w-full"
-                        disabled={busy}
-                        onClick={() => void handleDiscover()}
-                    >
-                        {busy ? 'Searching…' : 'Find controller'}
-                    </Button>
+                    <div className="flex flex-col gap-2">
+                        <Button
+                            className="w-full"
+                            disabled={busy}
+                            onClick={() => void handleDiscover()}
+                        >
+                            {busy ? 'Searching…' : 'Find controller'}
+                        </Button>
+                        <Button
+                            className="w-full"
+                            disabled={busy}
+                            onClick={handleTrustController}
+                            type="button"
+                            variant="outline"
+                        >
+                            {trustOpened
+                                ? 'Waiting for browser trust…'
+                                : 'Trust controller'}
+                        </Button>
+                    </div>
+                    <p className="text-muted-foreground text-xs leading-relaxed">
+                        The browser warning has to appear on the controller
+                        itself. Continue past it and this page will resume
+                        automatically.
+                    </p>
                 </div>
             ) : null}
 
@@ -209,4 +264,19 @@ export default function SetupPage() {
             ) : null}
         </div>
     )
+}
+
+function isControllerMessageOrigin(origin: string): boolean {
+    try {
+        const url = new URL(origin)
+        const host = url.hostname
+        return (
+            host === 'nemu.local' ||
+            host === 'localhost' ||
+            host === '127.0.0.1' ||
+            /^\d{1,3}(\.\d{1,3}){3}$/.test(host)
+        )
+    } catch {
+        return false
+    }
 }

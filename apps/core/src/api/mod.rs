@@ -3,6 +3,7 @@ pub mod devices;
 pub mod error;
 pub mod health;
 pub mod identify;
+pub mod landing;
 pub mod middleware;
 pub mod pairing;
 pub mod rooms;
