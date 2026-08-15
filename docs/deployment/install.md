@@ -34,15 +34,15 @@ curl -fsSL https://get.nemu.sh | sudo sh -s -- \
   --controller-name=Home
 ```
 
-| Variable / flag | Purpose |
-| -------- | ------- |
-| `NEMU_CONVEX_SITE_URL` / `--convex-url` | Convex HTTP site URL for registration + relay |
-| `CONVEX_URL` | Alias for the Convex deployment URL (`.cloud` → `.site`) |
-| `NEMU_CONTROLLER_NAME` / `--controller-name` | Display name (default `Home`) |
-| `CONTROLLER_REGISTRATION_SECRET` / `--registration-secret` | Optional shared secret with cloud |
-| `NEMU_ZIGBEE_DEVICE` / `--zigbee-device` | Host serial path (default auto: `/dev/ttyACM0`, `/dev/ttyUSB0`, …) |
-| `NEMU_FORCE=1` / `--force` | Overwrite compose/config under `/opt/nemu` (keeps `.env`) |
-| `WATCHTOWER_POLL_INTERVAL` | Seconds between image polls (default `3600`) |
+| Variable / flag                                            | Purpose                                                            |
+| ---------------------------------------------------------- | ------------------------------------------------------------------ |
+| `NEMU_CONVEX_SITE_URL` / `--convex-url`                    | Convex HTTP site URL for registration + relay                      |
+| `CONVEX_URL`                                               | Alias for the Convex deployment URL (`.cloud` → `.site`)           |
+| `NEMU_CONTROLLER_NAME` / `--controller-name`               | Display name (default `Home`)                                      |
+| `CONTROLLER_REGISTRATION_SECRET` / `--registration-secret` | Optional shared secret with cloud                                  |
+| `NEMU_ZIGBEE_DEVICE` / `--zigbee-device`                   | Host serial path (default auto: `/dev/ttyACM0`, `/dev/ttyUSB0`, …) |
+| `NEMU_FORCE=1` / `--force`                                 | Overwrite compose/config under `/opt/nemu` (keeps `.env`)          |
+| `WATCHTOWER_POLL_INTERVAL`                                 | Seconds between image polls (default `3600`)                       |
 
 ## What gets installed
 
