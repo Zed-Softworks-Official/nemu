@@ -93,10 +93,23 @@ export function lanUrlsFromHostnames(
     return urls
 }
 
+function isIssuedLanUrl(url: string): boolean {
+    try {
+        return new URL(url).hostname.endsWith('.lan.nemu.sh')
+    } catch {
+        return false
+    }
+}
+
 export function lanDiscoveryCandidates(extra: string[] = []): string[] {
     const httpsFirst = isSecureDocument()
+    // Self-signed nemu.local probes flip the app.nemu.sh padlock to Not Secure.
+    // Once Convex has issued a LAN hostname, skip that fallback on HTTPS pages.
+    const hasIssuedLan = extra.some(isIssuedLanUrl)
     const builtIn = httpsFirst
-        ? [...DEFAULT_HTTPS_LAN_CANDIDATES, 'http://localhost:6368']
+        ? hasIssuedLan
+            ? ['http://localhost:6368']
+            : [...DEFAULT_HTTPS_LAN_CANDIDATES, 'http://localhost:6368']
         : [...DEFAULT_LAN_CANDIDATES, ...DEFAULT_HTTPS_LAN_CANDIDATES]
 
     const ordered: string[] = []

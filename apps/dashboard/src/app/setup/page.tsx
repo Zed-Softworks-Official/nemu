@@ -5,6 +5,9 @@ import { api, useMutation, useQuery } from '@nemu/cloud'
 import {
     buildTlsTrustUrl,
     discoverController,
+    getClientToken,
+    getRememberedBaseUrl,
+    getRememberedControllerId,
     identifyController,
     isLanControllerOrigin,
     lanDiscoveryCandidates,
@@ -13,12 +16,45 @@ import {
     TLS_TRUSTED_MESSAGE,
     useController,
 } from '@nemu/controller'
+import { ApiError } from '@nemu/protocol'
 import { Button } from '@nemu/ui/components/button'
 import { Input } from '@nemu/ui/components/input'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 type Phase = 'discover' | 'pair' | 'saving' | 'done'
+
+const CONVEX_PAIR_TIMEOUT_MS = 15_000
+
+function withTimeout<T>(
+    promise: Promise<T>,
+    ms: number,
+    message: string
+): Promise<T> {
+    return new Promise((resolve, reject) => {
+        const timer = window.setTimeout(() => {
+            reject(new Error(message))
+        }, ms)
+        promise.then(
+            (value) => {
+                window.clearTimeout(timer)
+                resolve(value)
+            },
+            (err: unknown) => {
+                window.clearTimeout(timer)
+                reject(err)
+            }
+        )
+    })
+}
+
+function formatPairingError(err: unknown): string {
+    if (err instanceof ApiError && err.code === 'invalid_code') {
+        return 'This pairing code was already used or expired. Get a new 6-digit code from the controller — restart it if no clients are paired yet, or mint one from Settings.'
+    }
+    if (err instanceof Error) return err.message
+    return 'Pairing failed'
+}
 
 export default function SetupPage() {
     const router = useRouter()
@@ -47,6 +83,7 @@ export default function SetupPage() {
     const [error, setError] = useState<string | null>(null)
     const [busy, setBusy] = useState(false)
     const [trustOpened, setTrustOpened] = useState(false)
+    const [canFinish, setCanFinish] = useState(false)
 
     const handleDiscover = useCallback(async () => {
         setBusy(true)
@@ -86,6 +123,18 @@ export default function SetupPage() {
     }
 
     useEffect(() => {
+        const token = getClientToken()
+        const rememberedId = getRememberedControllerId()
+        const rememberedUrl = getRememberedBaseUrl()
+        if (token && rememberedId) {
+            setCanFinish(true)
+            setControllerId(rememberedId)
+            if (rememberedUrl) setBaseUrl(rememberedUrl)
+            setPhase('pair')
+        }
+    }, [])
+
+    useEffect(() => {
         const params = new URLSearchParams(window.location.search)
         if (params.get('trusted') === '1') {
             router.replace('/setup')
@@ -113,22 +162,34 @@ export default function SetupPage() {
         setError(null)
         setPhase('saving')
         try {
-            const result = await pairWithController(
-                baseUrl,
-                code.trim(),
-                label.trim()
+            const rememberedId = getRememberedControllerId()
+            let id = rememberedId ?? controllerId
+
+            if (!canFinish) {
+                const result = await pairWithController(
+                    baseUrl,
+                    code.trim(),
+                    label.trim()
+                )
+                id = result.pair.controllerId || result.identity.controllerId
+            }
+
+            if (!id) {
+                throw new Error('Missing controller id')
+            }
+
+            await withTimeout(
+                createPairing({ controllerId: id }),
+                CONVEX_PAIR_TIMEOUT_MS,
+                'Could not reach Nemu cloud. Check your connection and try Finish pairing again.'
             )
-            await createPairing({
-                controllerId:
-                    result.pair.controllerId || result.identity.controllerId,
-            })
             await reprobe()
             setPhase('done')
             router.replace('/')
             router.refresh()
         } catch (err) {
             setPhase('pair')
-            setError(err instanceof Error ? err.message : 'Pairing failed')
+            setError(formatPairingError(err))
         } finally {
             setBusy(false)
         }
@@ -209,46 +270,56 @@ export default function SetupPage() {
                             {baseUrl}
                         </p>
                     </div>
-                    <div className="space-y-2">
-                        <label
-                            className="font-medium text-sm"
-                            htmlFor="pair-code"
-                        >
-                            Pairing code
-                        </label>
-                        <Input
-                            autoComplete="one-time-code"
-                            id="pair-code"
-                            inputMode="numeric"
-                            maxLength={6}
-                            onChange={(e) =>
-                                setCode(
-                                    e.target.value
-                                        .replace(/\D/g, '')
-                                        .slice(0, 6)
-                                )
-                            }
-                            placeholder="123456"
-                            value={code}
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <label
-                            className="font-medium text-sm"
-                            htmlFor="client-label"
-                        >
-                            This device label
-                        </label>
-                        <Input
-                            id="client-label"
-                            onChange={(e) => setLabel(e.target.value)}
-                            value={label}
-                        />
-                    </div>
+                    {canFinish ? (
+                        <p className="text-muted-foreground text-sm">
+                            This browser already has a controller token. Finish
+                            pairing to create the cloud link and open home.
+                        </p>
+                    ) : (
+                        <>
+                            <div className="space-y-2">
+                                <label
+                                    className="font-medium text-sm"
+                                    htmlFor="pair-code"
+                                >
+                                    Pairing code
+                                </label>
+                                <Input
+                                    autoComplete="one-time-code"
+                                    id="pair-code"
+                                    inputMode="numeric"
+                                    maxLength={6}
+                                    onChange={(e) =>
+                                        setCode(
+                                            e.target.value
+                                                .replace(/\D/g, '')
+                                                .slice(0, 6)
+                                        )
+                                    }
+                                    placeholder="123456"
+                                    value={code}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label
+                                    className="font-medium text-sm"
+                                    htmlFor="client-label"
+                                >
+                                    This device label
+                                </label>
+                                <Input
+                                    id="client-label"
+                                    onChange={(e) => setLabel(e.target.value)}
+                                    value={label}
+                                />
+                            </div>
+                        </>
+                    )}
                     <div className="flex gap-2">
                         <Button
                             disabled={busy}
                             onClick={() => {
+                                setCanFinish(false)
                                 setPhase('discover')
                                 setError(null)
                             }}
@@ -260,11 +331,17 @@ export default function SetupPage() {
                         <Button
                             className="flex-1"
                             disabled={
-                                busy || code.length !== 6 || !label.trim()
+                                busy ||
+                                (!canFinish &&
+                                    (code.length !== 6 || !label.trim()))
                             }
                             onClick={() => void handlePair()}
                         >
-                            {busy ? 'Pairing…' : 'Pair controller'}
+                            {busy
+                                ? 'Pairing…'
+                                : canFinish
+                                  ? 'Finish pairing'
+                                  : 'Pair controller'}
                         </Button>
                     </div>
                 </div>

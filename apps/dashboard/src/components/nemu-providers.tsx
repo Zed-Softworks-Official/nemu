@@ -16,7 +16,9 @@ import { useMemo } from 'react'
 
 import { env } from '~/env'
 
-const convex = new ConvexReactClient(env.NEXT_PUBLIC_CONVEX_URL)
+const convex = new ConvexReactClient(
+    env.NEXT_PUBLIC_CONVEX_URL.replace(/\/$/, '')
+)
 
 const relayApi = {
     send: api.relay.send,
