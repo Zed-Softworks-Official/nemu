@@ -8,6 +8,7 @@ export {
     discoverController,
     identifyController,
     isLanControllerOrigin,
+    isSelfSignedLanUrl,
     lanDiscoveryCandidates,
     lanUrlsFromHostnames,
     probeController,

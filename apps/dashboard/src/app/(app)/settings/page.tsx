@@ -46,6 +46,7 @@ import {
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { PageHeader } from '~/components/dashboard/page-header'
+import { FixInsecureLanButton } from '~/components/header/fix-insecure-lan'
 import { env } from '~/env'
 
 type CoreUpdateState =
@@ -440,9 +441,12 @@ export default function SettingsPage() {
                                     <p className="text-muted-foreground text-xs">
                                         Local address
                                     </p>
-                                    <p className="mt-1 font-medium text-sm">
-                                        {baseUrl ?? '—'}
-                                    </p>
+                                    <div className="mt-1 flex items-center gap-1">
+                                        <p className="font-medium text-sm">
+                                            {baseUrl ?? '—'}
+                                        </p>
+                                        <FixInsecureLanButton align="start" />
+                                    </div>
                                 </div>
                                 <div>
                                     <p className="text-muted-foreground text-xs">

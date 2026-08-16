@@ -101,6 +101,15 @@ function isIssuedLanUrl(url: string): boolean {
     }
 }
 
+/** Self-signed `nemu.local` probes flip the app.nemu.sh padlock to Not Secure. */
+export function isSelfSignedLanUrl(url: string): boolean {
+    try {
+        return new URL(url).hostname === 'nemu.local'
+    } catch {
+        return false
+    }
+}
+
 export function lanDiscoveryCandidates(extra: string[] = []): string[] {
     const httpsFirst = isSecureDocument()
     // Self-signed nemu.local probes flip the app.nemu.sh padlock to Not Secure.
@@ -160,8 +169,14 @@ export async function discoverController(
     candidates?: string[]
 ): Promise<ProbeResult | null> {
     const ordered: string[] = []
+    const extras = candidates ?? lanDiscoveryCandidates()
     const remembered = getRememberedBaseUrl()
-    if (remembered) {
+    const skipRemembered =
+        Boolean(remembered) &&
+        isSecureDocument() &&
+        extras.some(isIssuedLanUrl) &&
+        isSelfSignedLanUrl(remembered ?? '')
+    if (remembered && !skipRemembered) {
         if (isSecureDocument()) {
             const https = upgradeToHttps(remembered)
             if (https) ordered.push(https)
@@ -170,7 +185,7 @@ export async function discoverController(
             ordered.push(remembered)
         }
     }
-    for (const candidate of candidates ?? lanDiscoveryCandidates()) {
+    for (const candidate of extras) {
         if (!ordered.includes(candidate)) ordered.push(candidate)
     }
 

@@ -2,6 +2,7 @@ import { Separator } from '@nemu/ui/components/separator'
 import { SidebarTrigger } from '@nemu/ui/components/sidebar'
 import { DashboardBreadcrumbs } from './breadcrumbs'
 import { ConnectionBadge } from './connection'
+import { FixInsecureLanButton } from './fix-insecure-lan'
 
 export function Header() {
     return (
@@ -13,7 +14,8 @@ export function Header() {
                     orientation="vertical"
                 />
                 <DashboardBreadcrumbs />
-                <div className="ml-auto">
+                <div className="ml-auto flex items-center gap-1">
+                    <FixInsecureLanButton />
                     <ConnectionBadge />
                 </div>
             </div>
