@@ -214,6 +214,19 @@ random_hex() {
   fi
 }
 
+watchtower_token_from_env() {
+  [ -f "${ENV_FILE}" ] || return 0
+  grep "^WATCHTOWER_HTTP_API_TOKEN=" "${ENV_FILE}" | head -n1 | cut -d= -f2-
+}
+
+ensure_watchtower_token() {
+  current="$(watchtower_token_from_env || true)"
+  if [ -z "${current}" ]; then
+    upsert_env "WATCHTOWER_HTTP_API_TOKEN" "$(random_hex)" "${ENV_FILE}"
+    log "Generated WATCHTOWER_HTTP_API_TOKEN"
+  fi
+}
+
 detect_zigbee_device() {
   if [ -n "${ARG_ZIGBEE_DEVICE:-}" ]; then
     printf '%s\n' "${ARG_ZIGBEE_DEVICE}"
@@ -285,6 +298,7 @@ write_env_overrides() {
   if [ -n "${TZ:-}" ]; then
     upsert_env "TZ" "${TZ}" "${ENV_FILE}"
   fi
+  ensure_watchtower_token
 }
 
 write_files() {
@@ -329,6 +343,7 @@ EOF
 
   if [ ! -f "${ENV_FILE}" ]; then
     password="$(random_hex)"
+    watchtower_token="$(random_hex)"
     cat >"${ENV_FILE}" <<EOF
 POSTGRES_USER=nemu
 POSTGRES_PASSWORD=${password}
@@ -339,6 +354,7 @@ CONTROLLER_REGISTRATION_SECRET=${registration_secret}
 NEMU_ZIGBEE_DEVICE=${zigbee_dev:-/dev/ttyACM0}
 NEMU_TLS_SAN=${tls_san}
 WATCHTOWER_POLL_INTERVAL=${WATCHTOWER_POLL_INTERVAL:-3600}
+WATCHTOWER_HTTP_API_TOKEN=${watchtower_token}
 TZ=${TZ:-UTC}
 EOF
     chmod 600 "${ENV_FILE}"

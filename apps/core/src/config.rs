@@ -25,6 +25,9 @@ pub struct Config {
     pub tls_cert_path: Option<String>,
     pub tls_key_path: Option<String>,
     pub tls_extra_sans: Vec<String>,
+    pub watchtower_url: Option<String>,
+    pub watchtower_token: Option<String>,
+    pub watchtower_image: String,
 }
 
 impl Config {
@@ -70,6 +73,12 @@ impl Config {
             tls_cert_path,
             tls_key_path,
             tls_extra_sans,
+            watchtower_url: env::var("WATCHTOWER_URL").ok().filter(|s| !s.is_empty()),
+            watchtower_token: env::var("WATCHTOWER_HTTP_API_TOKEN")
+                .ok()
+                .filter(|s| !s.is_empty()),
+            watchtower_image: env::var("WATCHTOWER_IMAGE")
+                .unwrap_or_else(|_| "ghcr.io/zed-softworks-official/nemu-core".to_string()),
         }
     }
 }

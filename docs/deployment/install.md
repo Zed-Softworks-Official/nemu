@@ -61,11 +61,15 @@ Controller API: `http://<host-ip>:6368` and `https://<host-ip>:6368` on the same
 
 **nemu-core** uses image tag `:latest`. Watchtower (label-scoped) polls hourly and recreates the container when GHCR moves `:latest`. Diesel migrations run on boot.
 
+On the home network, an owner can also check for updates in dashboard Settings and apply immediately. That tells Watchtower to recreate `nemu-core` now; the hourly poll still runs because compose sets `WATCHTOWER_HTTP_API_PERIODIC_POLLS=true`. Watchtower’s HTTP API stays on the Docker network and is not published to the host.
+
 Mosquitto, zigbee2mqtt, and Postgres are **not** auto-updated. Compose/file changes are **not** auto-applied — re-run the installer with force or edit `/opt/nemu` manually:
 
 ```bash
 curl -fsSL https://get.nemu.sh | sudo NEMU_FORCE=1 sh
 ```
+
+That keeps `.env`, writes the latest compose (including the Watchtower HTTP API), and generates `WATCHTOWER_HTTP_API_TOKEN` if it is missing. Until compose is refreshed, Settings reports that Watchtower is not configured.
 
 Watchtower only recreates `nemu-core`. Zigbee devices stay on the radio; core rebuilds live state from MQTT. Existing zigbee2mqtt installs should enable availability so mains-powered devices are pinged after a core restart. Add this to `/opt/nemu/zigbee2mqtt/configuration.yaml` if it is missing, then recreate that service:
 

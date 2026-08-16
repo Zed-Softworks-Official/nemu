@@ -9,5 +9,6 @@ pub mod middleware;
 pub mod pairing;
 pub mod rooms;
 pub mod router;
+pub mod updates;
 pub mod ws;
 pub mod zigbee;

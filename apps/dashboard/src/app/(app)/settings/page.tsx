@@ -14,10 +14,13 @@ import {
     useController,
 } from '@nemu/controller'
 import {
+    ApiError,
+    applyUpdateResponseSchema,
     type ClientToken,
     type HouseholdMember,
     type PairingCodeResponse,
     pairingCodeResponseSchema,
+    updateStatusResponseSchema,
 } from '@nemu/protocol'
 import { Badge } from '@nemu/ui/components/badge'
 import { Button } from '@nemu/ui/components/button'
@@ -34,15 +37,26 @@ import { Input } from '@nemu/ui/components/input'
 import { Separator } from '@nemu/ui/components/separator'
 import {
     CopyIcon,
+    DownloadIcon,
     LaptopIcon,
     RadioTowerIcon,
     RotateCwIcon,
     UsersIcon,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { PageHeader } from '~/components/dashboard/page-header'
 import { env } from '~/env'
+
+type CoreUpdateState =
+    | { kind: 'idle' }
+    | { kind: 'checking' }
+    | { kind: 'upToDate' }
+    | { kind: 'available' }
+    | { kind: 'applying' }
+    | { kind: 'restarting' }
+    | { kind: 'unavailable'; message: string }
+    | { kind: 'error'; message: string }
 
 export default function SettingsPage() {
     const router = useRouter()
@@ -89,6 +103,11 @@ export default function SettingsPage() {
     )
     const [busyCode, setBusyCode] = useState(false)
     const [codeError, setCodeError] = useState<string | null>(null)
+    const [updateState, setUpdateState] = useState<CoreUpdateState>({
+        kind: 'idle',
+    })
+    const updateStateRef = useRef(updateState)
+    updateStateRef.current = updateState
 
     const myEmail = user?.primaryEmailAddress?.emailAddress?.toLowerCase()
     const me = members.find(
@@ -96,6 +115,13 @@ export default function SettingsPage() {
             member.userId === user?.id || member.email.toLowerCase() === myEmail
     )
     const isOwner = me?.role === 'owner'
+    const canManageUpdates = Boolean(
+        isOwner && status.mode === 'lan' && baseUrl
+    )
+    const showUpdates =
+        canManageUpdates ||
+        updateState.kind === 'applying' ||
+        updateState.kind === 'restarting'
 
     const loadIdentity = useCallback(async () => {
         if (!baseUrl || status.mode !== 'lan') {
@@ -160,6 +186,77 @@ export default function SettingsPage() {
     useEffect(() => {
         void loadIdentity()
     }, [loadIdentity])
+
+    const checkUpdates = useCallback(async () => {
+        if (!baseUrl || status.mode !== 'lan') return
+        if (
+            updateStateRef.current.kind === 'applying' ||
+            updateStateRef.current.kind === 'restarting'
+        ) {
+            return
+        }
+        setUpdateState({ kind: 'checking' })
+        try {
+            const http = createControllerHttp(baseUrl, getClientToken, 30_000)
+            const { data } = await http.get('/api/updates')
+            const parsed = updateStatusResponseSchema.parse(data)
+            setCoreVersion(parsed.currentVersion)
+            setUpdateState(
+                parsed.updateAvailable
+                    ? { kind: 'available' }
+                    : { kind: 'upToDate' }
+            )
+        } catch (err) {
+            if (
+                err instanceof ApiError &&
+                err.code === 'watchtower_unavailable'
+            ) {
+                setUpdateState({
+                    kind: 'unavailable',
+                    message: err.message,
+                })
+                return
+            }
+            setUpdateState({
+                kind: 'error',
+                message:
+                    err instanceof Error
+                        ? err.message
+                        : 'Failed to check for updates',
+            })
+        }
+    }, [baseUrl, status.mode])
+
+    useEffect(() => {
+        if (!canManageUpdates) return
+        void checkUpdates()
+    }, [canManageUpdates, checkUpdates])
+
+    async function handleApplyUpdate() {
+        if (!baseUrl) return
+        if (
+            !window.confirm('The controller will restart for about a minute.')
+        ) {
+            return
+        }
+        setUpdateState({ kind: 'applying' })
+        try {
+            const http = createControllerHttp(baseUrl, getClientToken, 15_000)
+            const { data } = await http.post('/api/updates/apply')
+            const parsed = applyUpdateResponseSchema.parse(data)
+            if (parsed.started) {
+                setUpdateState({ kind: 'restarting' })
+            }
+        } catch (err) {
+            setUpdateState({
+                kind: 'error',
+                message:
+                    err instanceof Error
+                        ? err.message
+                        : 'Failed to start update',
+            })
+        }
+    }
 
     const inviteSteps = useMemo(() => {
         if (!inviteEmail.trim()) return ''
@@ -364,6 +461,22 @@ export default function SettingsPage() {
                                     </p>
                                 </div>
                             </div>
+                            {showUpdates ? (
+                                <>
+                                    <Separator />
+                                    <CoreUpdatesBlock
+                                        canRefresh={
+                                            canManageUpdates &&
+                                            updateState.kind !== 'checking' &&
+                                            updateState.kind !== 'applying' &&
+                                            updateState.kind !== 'restarting'
+                                        }
+                                        onApply={() => void handleApplyUpdate()}
+                                        onRefresh={() => void checkUpdates()}
+                                        state={updateState}
+                                    />
+                                </>
+                            ) : null}
                         </CardContent>
                     </Card>
 
@@ -636,6 +749,74 @@ export default function SettingsPage() {
                     </Card>
                 </div>
             </div>
+        </div>
+    )
+}
+
+function updateStatusCopy(state: CoreUpdateState): string {
+    switch (state.kind) {
+        case 'idle':
+        case 'checking':
+            return 'Checking for a newer core image…'
+        case 'upToDate':
+            return 'Core is up to date.'
+        case 'available':
+            return 'A new image is available.'
+        case 'applying':
+            return 'Starting update…'
+        case 'restarting':
+            return 'Updating… the controller will reconnect shortly.'
+        case 'unavailable':
+        case 'error':
+            return state.message
+    }
+}
+
+function CoreUpdatesBlock({
+    state,
+    canRefresh,
+    onRefresh,
+    onApply,
+}: {
+    state: CoreUpdateState
+    canRefresh: boolean
+    onRefresh: () => void
+    onApply: () => void
+}) {
+    const destructive = state.kind === 'unavailable' || state.kind === 'error'
+    return (
+        <div className="space-y-3">
+            <div className="flex items-start justify-between gap-3">
+                <div>
+                    <p className="font-medium text-sm">Updates</p>
+                    <p
+                        className={
+                            destructive
+                                ? 'text-destructive text-xs'
+                                : 'text-muted-foreground text-xs'
+                        }
+                    >
+                        {updateStatusCopy(state)}
+                    </p>
+                </div>
+                {canRefresh ? (
+                    <Button onClick={onRefresh} size="sm" variant="outline">
+                        <RotateCwIcon data-icon="inline-start" />
+                        Check
+                    </Button>
+                ) : null}
+            </div>
+            {state.kind === 'available' ? (
+                <Button onClick={onApply} size="sm">
+                    <DownloadIcon data-icon="inline-start" />
+                    Update now
+                </Button>
+            ) : null}
+            {state.kind === 'applying' ? (
+                <Button disabled size="sm">
+                    Starting update…
+                </Button>
+            ) : null}
         </div>
     )
 }

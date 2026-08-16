@@ -150,3 +150,15 @@ export const sessionMintResultSchema = z.object({
     controllerId: z.string(),
 })
 export type SessionMintResult = z.infer<typeof sessionMintResultSchema>
+
+export const updateStatusResponseSchema = z.object({
+    currentVersion: z.string(),
+    updateAvailable: z.boolean(),
+    image: z.string().optional(),
+})
+export type UpdateStatusResponse = z.infer<typeof updateStatusResponseSchema>
+
+export const applyUpdateResponseSchema = z.object({
+    started: z.boolean(),
+})
+export type ApplyUpdateResponse = z.infer<typeof applyUpdateResponseSchema>
