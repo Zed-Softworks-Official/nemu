@@ -23,10 +23,20 @@ export default defineSchema({
         userId: v.string(),
         controllerId: v.string(),
         createdAt: v.number(),
+        role: v.optional(v.union(v.literal('owner'), v.literal('member'))),
     })
         .index('by_user', ['userId'])
         .index('by_user_and_controller', ['userId', 'controllerId'])
         .index('by_controller', ['controllerId']),
+
+    invites: defineTable({
+        controllerId: v.string(),
+        email: v.string(),
+        invitedByUserId: v.string(),
+        createdAt: v.number(),
+    })
+        .index('by_email', ['email'])
+        .index('by_controller_and_email', ['controllerId', 'email']),
 
     relayMessages: defineTable({
         controllerId: v.string(),

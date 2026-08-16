@@ -3,6 +3,12 @@ use serde_json::{Value as JsonValue, json};
 use tracing::{debug, info, warn};
 use uuid::Uuid;
 
+use crate::api::auth::AuthenticatedClient;
+use crate::api::members::{
+    SessionMintInput, bootstrap_owner, invite_member, list_household_members, mint_session,
+    remove_member,
+};
+use crate::api::pairing::{list_household_tokens, revoke_current_token, revoke_household_token};
 use crate::commands::execute_set;
 use crate::pairing::tokens::verify_client_token;
 use crate::registration::register_with_convex;
@@ -28,7 +34,8 @@ struct PendingResponse {
 #[serde(rename_all = "camelCase")]
 struct ToControllerEnvelope {
     request_id: String,
-    client_token: String,
+    #[serde(default)]
+    client_token: Option<String>,
     message: ToControllerMessage,
 }
 
@@ -43,6 +50,42 @@ enum ToControllerMessage {
     },
     #[serde(rename = "getDevices")]
     GetDevices,
+    #[serde(rename = "sessionMint")]
+    SessionMint {
+        #[serde(rename = "userId")]
+        user_id: String,
+        email: String,
+        #[serde(rename = "clientLabel")]
+        client_label: String,
+        #[serde(rename = "displayName")]
+        display_name: Option<String>,
+    },
+    #[serde(rename = "listMembers")]
+    ListMembers,
+    #[serde(rename = "inviteMember")]
+    InviteMember { email: String },
+    #[serde(rename = "removeMember")]
+    RemoveMember {
+        #[serde(rename = "memberId")]
+        member_id: String,
+    },
+    #[serde(rename = "listTokens")]
+    ListTokens,
+    #[serde(rename = "revokeToken")]
+    RevokeToken {
+        #[serde(rename = "tokenId")]
+        token_id: String,
+    },
+    #[serde(rename = "revokeCurrent")]
+    RevokeCurrent,
+    #[serde(rename = "bootstrapOwner")]
+    BootstrapOwner {
+        #[serde(rename = "userId")]
+        user_id: String,
+        email: String,
+        #[serde(rename = "displayName")]
+        display_name: Option<String>,
+    },
 }
 
 #[derive(Serialize)]
@@ -137,8 +180,8 @@ async fn handle_message(
     site_url: &str,
     message: &PendingMessage,
 ) -> Result<(), String> {
-    let envelope: ToControllerEnvelope = serde_json::from_str(&message.payload)
-        .map_err(|e| format!("invalid envelope: {e}"))?;
+    let envelope: ToControllerEnvelope =
+        serde_json::from_str(&message.payload).map_err(|e| format!("invalid envelope: {e}"))?;
 
     if envelope.request_id != message.request_id {
         debug!(
@@ -148,10 +191,17 @@ async fn handle_message(
         );
     }
 
-    let token_ok = verify_client_token(&state.db, &envelope.client_token)
-        .await?
-        .is_some();
-    if !token_ok {
+    if matches!(envelope.message, ToControllerMessage::SessionMint { .. }) {
+        let response_payload =
+            handle_session_mint(state, &message.request_id, envelope.message).await;
+        return respond(state, site_url, &message.request_id, response_payload).await;
+    }
+
+    let Some(token) = envelope
+        .client_token
+        .as_deref()
+        .filter(|token| !token.is_empty())
+    else {
         let payload = build_error_response(
             state,
             &message.request_id,
@@ -159,9 +209,21 @@ async fn handle_message(
             "Invalid client token",
         );
         return respond(state, site_url, &message.request_id, payload).await;
-    }
+    };
+
+    let Some(row) = verify_client_token(&state.db, token).await? else {
+        let payload = build_error_response(
+            state,
+            &message.request_id,
+            "unauthorized",
+            "Invalid client token",
+        );
+        return respond(state, site_url, &message.request_id, payload).await;
+    };
+    let auth = AuthenticatedClient::from_row(row);
 
     let response_payload = match envelope.message {
+        ToControllerMessage::SessionMint { .. } => unreachable!(),
         ToControllerMessage::GetDevices => {
             let devices = state.registry.list().await;
             let mut resources = Vec::with_capacity(devices.len());
@@ -188,9 +250,111 @@ async fn handle_message(
                 ),
             }
         }
+        ToControllerMessage::ListMembers => match list_household_members(state).await {
+            Ok(members) => build_typed_response(
+                state,
+                &message.request_id,
+                json!({ "type": "members", "members": members }),
+            ),
+            Err(err) => build_error_response(state, &message.request_id, &err.code, &err.message),
+        },
+        ToControllerMessage::InviteMember { email } => match invite_member(state, &auth, &email)
+            .await
+        {
+            Ok(member) => build_typed_response(
+                state,
+                &message.request_id,
+                json!({ "type": "member", "member": member }),
+            ),
+            Err(err) => build_error_response(state, &message.request_id, &err.code, &err.message),
+        },
+        ToControllerMessage::RemoveMember { member_id } => {
+            match remove_member(state, &auth, &member_id).await {
+                Ok(()) => build_command_result(state, &message.request_id, true, None),
+                Err(err) => {
+                    build_error_response(state, &message.request_id, &err.code, &err.message)
+                }
+            }
+        }
+        ToControllerMessage::ListTokens => match list_household_tokens(state).await {
+            Ok(tokens) => build_typed_response(
+                state,
+                &message.request_id,
+                json!({ "type": "tokens", "tokens": tokens }),
+            ),
+            Err(err) => build_error_response(state, &message.request_id, &err.code, &err.message),
+        },
+        ToControllerMessage::RevokeToken { token_id } => {
+            match revoke_household_token(state, &auth, &token_id).await {
+                Ok(()) => build_command_result(state, &message.request_id, true, None),
+                Err(err) => {
+                    build_error_response(state, &message.request_id, &err.code, &err.message)
+                }
+            }
+        }
+        ToControllerMessage::RevokeCurrent => match revoke_current_token(state, &auth).await {
+            Ok(()) => build_command_result(state, &message.request_id, true, None),
+            Err(err) => build_error_response(state, &message.request_id, &err.code, &err.message),
+        },
+        ToControllerMessage::BootstrapOwner {
+            user_id,
+            email,
+            display_name,
+        } => match bootstrap_owner(state, &auth, &user_id, &email, display_name.as_deref()).await {
+            Ok(member) => build_typed_response(
+                state,
+                &message.request_id,
+                json!({ "type": "member", "member": member }),
+            ),
+            Err(err) => build_error_response(state, &message.request_id, &err.code, &err.message),
+        },
     };
 
     respond(state, site_url, &message.request_id, response_payload).await
+}
+
+async fn handle_session_mint(
+    state: &AppState,
+    request_id: &str,
+    message: ToControllerMessage,
+) -> String {
+    let ToControllerMessage::SessionMint {
+        user_id,
+        email,
+        client_label,
+        display_name,
+    } = message
+    else {
+        return build_error_response(
+            state,
+            request_id,
+            "internal_error",
+            "Unexpected mint payload",
+        );
+    };
+
+    match mint_session(
+        state,
+        SessionMintInput {
+            user_id,
+            email,
+            client_label,
+            display_name,
+        },
+    )
+    .await
+    {
+        Ok(result) => build_typed_response(
+            state,
+            request_id,
+            json!({
+                "type": "sessionMintResult",
+                "clientToken": result.client_token,
+                "controllerId": result.controller_id,
+            }),
+        ),
+        Err(err) => build_error_response(state, request_id, &err.code, &err.message),
+    }
 }
 
 async fn respond(
@@ -223,11 +387,7 @@ async fn respond(
     Ok(())
 }
 
-fn build_devices_response<T: Serialize>(
-    state: &AppState,
-    request_id: &str,
-    devices: T,
-) -> String {
+fn build_devices_response<T: Serialize>(state: &AppState, request_id: &str, devices: T) -> String {
     let message = json!({
         "requestId": request_id,
         "signature": "",
@@ -237,6 +397,15 @@ fn build_devices_response<T: Serialize>(
         }
     });
     sign_envelope(state, message)
+}
+
+fn build_typed_response(state: &AppState, request_id: &str, message: JsonValue) -> String {
+    let envelope = json!({
+        "requestId": request_id,
+        "signature": "",
+        "message": message,
+    });
+    sign_envelope(state, envelope)
 }
 
 fn build_command_result(
@@ -260,21 +429,13 @@ fn build_command_result(
     sign_envelope(state, envelope)
 }
 
-fn build_error_response(
-    state: &AppState,
-    request_id: &str,
-    code: &str,
-    message: &str,
-) -> String {
+fn build_error_response(state: &AppState, request_id: &str, code: &str, message: &str) -> String {
     build_command_result(state, request_id, false, Some((code, message.to_string())))
 }
 
 fn sign_envelope(state: &AppState, mut envelope: JsonValue) -> String {
     // Sign the message body (without signature) so clients can verify authenticity.
-    let to_sign = envelope
-        .get("message")
-        .cloned()
-        .unwrap_or(JsonValue::Null);
+    let to_sign = envelope.get("message").cloned().unwrap_or(JsonValue::Null);
     let bytes = serde_json::to_vec(&to_sign).unwrap_or_default();
     let signature = state.identity.keypair.sign_b64(&bytes);
     envelope["signature"] = json!(signature);

@@ -9,6 +9,25 @@ diesel::table! {
         label -> Varchar,
         created_at -> Timestamptz,
         last_seen_at -> Nullable<Timestamptz>,
+        #[max_length = 255]
+        user_id -> Nullable<Varchar>,
+    }
+}
+
+diesel::table! {
+    members (id) {
+        id -> Uuid,
+        #[max_length = 255]
+        user_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        email -> Varchar,
+        #[max_length = 255]
+        display_name -> Nullable<Varchar>,
+        #[max_length = 32]
+        role -> Varchar,
+        #[max_length = 32]
+        status -> Varchar,
+        created_at -> Timestamptz,
     }
 }
 
@@ -78,6 +97,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     client_tokens,
     device_events,
     devices,
+    members,
     pairing_codes,
     rooms,
     settings,

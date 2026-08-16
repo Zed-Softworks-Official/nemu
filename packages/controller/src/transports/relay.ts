@@ -1,9 +1,14 @@
 import {
+    type BootstrapOwnerRequest,
+    type ClientToken,
     type CommandResult,
+    clientTokenSchema,
     type Device,
     type DeviceCommand,
     type DeviceEvent,
     deviceSchema,
+    type HouseholdMember,
+    householdMemberSchema,
     relayToClientEnvelopeSchema,
     relayToControllerEnvelopeSchema,
 } from '@nemu/protocol'
@@ -122,6 +127,110 @@ export class RelayTransport implements ControllerTransport {
     }
 
     async sendCommand(cmd: DeviceCommand): Promise<CommandResult> {
+        const parsed = await this.request({
+            type: 'command',
+            deviceId: cmd.deviceId,
+            payload: cmd.payload,
+        })
+        if (parsed.message.type === 'commandResult') {
+            return {
+                requestId: parsed.requestId,
+                ok: parsed.message.ok,
+                error: parsed.message.error,
+            }
+        }
+        throw new Error('Unexpected relay response for command')
+    }
+
+    async getMembers(): Promise<HouseholdMember[]> {
+        const parsed = await this.request({ type: 'listMembers' })
+        if (parsed.message.type === 'members') {
+            return parsed.message.members
+        }
+        this.throwIfCommandError(parsed, 'list members')
+        throw new Error('Unexpected relay response for listMembers')
+    }
+
+    async inviteMember(email: string): Promise<HouseholdMember> {
+        const parsed = await this.request({ type: 'inviteMember', email })
+        if (parsed.message.type === 'member') {
+            return householdMemberSchema.parse(parsed.message.member)
+        }
+        this.throwIfCommandError(parsed, 'invite member')
+        throw new Error('Unexpected relay response for inviteMember')
+    }
+
+    async removeMember(memberId: string): Promise<void> {
+        const parsed = await this.request({ type: 'removeMember', memberId })
+        if (parsed.message.type === 'commandResult' && parsed.message.ok) {
+            return
+        }
+        this.throwIfCommandError(parsed, 'remove member')
+        throw new Error('Unexpected relay response for removeMember')
+    }
+
+    async getTokens(): Promise<ClientToken[]> {
+        const parsed = await this.request({ type: 'listTokens' })
+        if (parsed.message.type === 'tokens') {
+            return parsed.message.tokens.map((token) =>
+                clientTokenSchema.parse(token)
+            )
+        }
+        this.throwIfCommandError(parsed, 'list devices')
+        throw new Error('Unexpected relay response for listTokens')
+    }
+
+    async revokeToken(tokenId: string): Promise<void> {
+        const parsed = await this.request({ type: 'revokeToken', tokenId })
+        if (parsed.message.type === 'commandResult' && parsed.message.ok) {
+            return
+        }
+        this.throwIfCommandError(parsed, 'revoke device')
+        throw new Error('Unexpected relay response for revokeToken')
+    }
+
+    async revokeCurrentToken(): Promise<void> {
+        const parsed = await this.request({ type: 'revokeCurrent' })
+        if (parsed.message.type === 'commandResult' && parsed.message.ok) {
+            return
+        }
+        this.throwIfCommandError(parsed, 'unpair this dashboard')
+        throw new Error('Unexpected relay response for revokeCurrent')
+    }
+
+    async bootstrapOwner(
+        request: BootstrapOwnerRequest
+    ): Promise<HouseholdMember> {
+        const parsed = await this.request({
+            type: 'bootstrapOwner',
+            userId: request.userId,
+            email: request.email,
+            displayName: request.displayName,
+        })
+        if (parsed.message.type === 'member') {
+            return householdMemberSchema.parse(parsed.message.member)
+        }
+        this.throwIfCommandError(parsed, 'bootstrap owner')
+        throw new Error('Unexpected relay response for bootstrapOwner')
+    }
+
+    private throwIfCommandError(
+        parsed: ReturnType<typeof relayToClientEnvelopeSchema.parse>,
+        action: string
+    ): void {
+        if (parsed.message.type === 'commandResult' && !parsed.message.ok) {
+            throw new Error(
+                parsed.message.error?.message ?? `Failed to ${action}`
+            )
+        }
+    }
+
+    private async request(
+        message: Extract<
+            import('@nemu/protocol').RelayToControllerEnvelope,
+            { clientToken: string }
+        >['message']
+    ): Promise<ReturnType<typeof relayToClientEnvelopeSchema.parse>> {
         const requestId = crypto.randomUUID()
         const token = this.getToken()
         if (!token) throw new Error('Missing client token')
@@ -129,11 +238,7 @@ export class RelayTransport implements ControllerTransport {
         const envelope = relayToControllerEnvelopeSchema.parse({
             requestId,
             clientToken: token,
-            message: {
-                type: 'command',
-                deviceId: cmd.deviceId,
-                payload: cmd.payload,
-            },
+            message,
         })
 
         await this.convex.mutation(this.api.send, {
@@ -144,19 +249,7 @@ export class RelayTransport implements ControllerTransport {
         this.pendingIds.add(requestId)
 
         const response = await this.waitForResponse(requestId)
-        const parsed = relayToClientEnvelopeSchema.parse(
-            JSON.parse(response.payload)
-        )
-
-        if (parsed.message.type === 'commandResult') {
-            return {
-                requestId,
-                ok: parsed.message.ok,
-                error: parsed.message.error,
-            }
-        }
-
-        throw new Error('Unexpected relay response for command')
+        return relayToClientEnvelopeSchema.parse(JSON.parse(response.payload))
     }
 
     subscribeEvents(cb: (event: DeviceEvent) => void): () => void {

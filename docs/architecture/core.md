@@ -122,7 +122,9 @@ pairing endpoints.
 | Method + path                                                                 | Purpose                                                                           |
 | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
 | `GET /api/health`                                                             | liveness: DB, MQTT, z2m bridge state                                              |
-| `POST /api/pair`                                                              | exchange pairing code for a client token                                          |
+| `POST /api/pair`                                                              | exchange pairing code for a client token; first code creates the owner member     |
+| `GET /api/members` / `POST /api/members` / `DELETE /api/members/{id}`         | list / invite / remove household accounts                                         |
+| `POST /api/members/bootstrap`                                                 | claim owner on existing installs that already have tokens                         |
 | `GET /api/devices`                                                            | registry + latest cached state (optional `?room=`)                                |
 | `GET /api/devices/{id}`                                                       | one device + state                                                                |
 | `PATCH /api/devices/{id}`                                                     | rename / assign room (propagates to z2m)                                          |
@@ -130,7 +132,7 @@ pairing endpoints.
 | `POST /api/devices/{id}/set`                                                  | send a command payload (`{"state":"OFF"}`, `{"brightness":128}`)                  |
 | `GET /api/rooms` / `POST /api/rooms` / `PATCH /api/rooms/{id}` / `DELETE ...` | room CRUD                                                                         |
 | `POST /api/zigbee/permit-join`                                                | `{seconds: 120}` open join window                                                 |
-| `GET /api/tokens` / `DELETE /api/tokens/{id}`                                 | list / revoke paired clients                                                      |
+| `GET /api/tokens` / `DELETE /api/tokens/{id}` / `DELETE /api/tokens/current`  | list / revoke paired devices; revoke this dashboard                               |
 | `GET /ws`                                                                     | WebSocket: server pushes `DeviceEvent`s; client may send commands (same executor) |
 
 Error convention: JSON `{ "error": { "code": "...", "message": "..." } }`;
@@ -139,12 +141,20 @@ Error convention: JSON `{ "error": { "code": "...", "message": "..." } }`;
 ## 5. Pairing and auth
 
 - **Pairing codes** (`pairing/codes.rs`): 6 digits, single-use, ~5 minute
-  expiry, generated on demand (button in a future local admin page, or CLI/log
-  in v1). Stored hashed with expiry in `pairing_codes`.
+  expiry. First-run bootstrap (empty household) is open; afterwards owner-only.
+  After bootstrap they only add a device to an existing member.
+- **Members** (`pairing/members.rs`): Clerk accounts for this home (`owner` or
+  `member`, `pending` until first sign-in). Invites are keyed by Google email.
 - **Client tokens** (`pairing/tokens.rs`): random 256-bit values returned once
-  on successful `POST /api/pair`; stored as hashes in `client_tokens` with a
-  label ("Jack's laptop") and last-seen timestamp. Verified by middleware on
-  every request and on every relay message. Revocation deletes the row.
+  on `POST /api/pair` or a `sessionMint` relay; stored as hashes in
+  `client_tokens` with a label, optional `user_id`, and last-seen timestamp.
+  Verified by middleware on every request and on every relay command.
+  Revocation deletes the row.
+- Session mint: a signed-in member (or matching pending invite) can receive a
+  new device token over the relay without a pairing code. Convex authenticates
+  the Google account; **core still checks `members`**. A stolen Clerk session
+  of a member can mint a device token — that is the accepted tradeoff vs
+  pairing every browser.
 - The controller also holds a keypair generated on first boot; the public key
   goes to Convex at registration and later signs relay responses so clients
   can verify they're talking to the real controller through the relay.
@@ -154,8 +164,9 @@ Error convention: JSON `{ "error": { "code": "...", "message": "..." } }`;
 `relay/client.rs` maintains an outbound connection to Convex (HTTP long-poll or
 WebSocket against a Convex subscription) filtered to this controller's ID:
 
-1. Receive envelope `{id, clientToken, payload}`.
-2. Verify `clientToken` locally (same check as HTTP middleware).
+1. Receive envelope `{id, clientToken?, payload}`.
+2. `sessionMint` skips the bearer check and authorizes against `members`.
+   Every other message verifies `clientToken` locally (same check as HTTP).
 3. Execute via `commands.rs` / query the registry.
 4. Write the response envelope back; Convex marks the pair consumed and its
    cleanup job deletes them.
@@ -174,7 +185,8 @@ Schema evolution beyond the existing `devices` table (ERD in
 | `rooms`                    | M1        | id, name, sort order                                                  |
 | `device_events`            | M1        | append-only state/command log for history UI; pruned by retention job |
 | `pairing_codes`            | M2        | code hash, expiry, consumed flag                                      |
-| `client_tokens`            | M2        | token hash, label, created/last-seen                                  |
+| `client_tokens`            | M2        | token hash, label, created/last-seen, optional user_id                |
+| `members`                  | M2        | household accounts: email, Clerk user_id, role, status                |
 | `scenes` / `scene_actions` | M4+       | named groups of command payloads                                      |
 | `settings`                 | M2        | controller name, keypair, Convex registration state                   |
 

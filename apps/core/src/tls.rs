@@ -35,9 +35,7 @@ pub async fn load_server_config(
                 .map_err(|e| format!("failed to read NEMU_TLS_KEY_PATH: {e}"))?,
         ),
         (Some(_), None) | (None, Some(_)) => {
-            return Err(
-                "NEMU_TLS_CERT_PATH and NEMU_TLS_KEY_PATH must be set together".into(),
-            );
+            return Err("NEMU_TLS_CERT_PATH and NEMU_TLS_KEY_PATH must be set together".into());
         }
         (None, None) => match load_issued_pems(pool).await? {
             Some((cert, key)) => {

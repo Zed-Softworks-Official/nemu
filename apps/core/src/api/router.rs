@@ -4,8 +4,8 @@ use axum::middleware;
 use axum::routing::{delete, get, patch, post};
 use tower_http::cors::{AllowOrigin, CorsLayer};
 
-use crate::api::{devices, health, identify, landing, pairing, rooms, ws, zigbee};
 use crate::api::middleware::require_client_token;
+use crate::api::{devices, health, identify, landing, members, pairing, rooms, ws, zigbee};
 use crate::state::AppState;
 
 /// Allow browser webviews (Next.js dev/prod) to call the LAN controller API.
@@ -69,7 +69,17 @@ pub fn router(state: AppState) -> Router {
         )
         .route("/api/zigbee/permit-join", post(zigbee::permit_join))
         .route("/api/tokens", get(pairing::list_tokens))
+        .route("/api/tokens/current", delete(pairing::delete_current_token))
         .route("/api/tokens/{id}", delete(pairing::delete_token))
+        .route(
+            "/api/members",
+            get(members::list_members_handler).post(members::invite_member_handler),
+        )
+        .route(
+            "/api/members/bootstrap",
+            post(members::bootstrap_owner_handler),
+        )
+        .route("/api/members/{id}", delete(members::delete_member_handler))
         .route("/ws", get(ws::ws_handler))
         .route_layer(middleware::from_fn_with_state(
             state.clone(),

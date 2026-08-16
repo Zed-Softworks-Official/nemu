@@ -1,5 +1,6 @@
 export {
     ConvexReactClient,
+    useConvex,
     useConvexAuth,
     useMutation,
     useQuery,

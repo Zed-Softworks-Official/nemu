@@ -85,6 +85,9 @@ export type PatchDeviceRequest = z.infer<typeof patchDeviceRequestSchema>
 export const pairRequestSchema = z.object({
     code: z.string(),
     clientLabel: z.string(),
+    userId: z.string(),
+    email: z.string(),
+    displayName: z.string().optional(),
 })
 export type PairRequest = z.infer<typeof pairRequestSchema>
 
@@ -105,6 +108,7 @@ export const clientTokenSchema = z.object({
     label: z.string(),
     createdAt: z.string(),
     lastSeenAt: z.string().nullable(),
+    userId: z.string().nullable().optional(),
 })
 export type ClientToken = z.infer<typeof clientTokenSchema>
 
@@ -112,3 +116,37 @@ export const tokensResponseSchema = z.object({
     tokens: z.array(clientTokenSchema),
 })
 export type TokensResponse = z.infer<typeof tokensResponseSchema>
+
+export const householdMemberSchema = z.object({
+    id: z.string(),
+    userId: z.string().nullable(),
+    email: z.string(),
+    displayName: z.string().nullable(),
+    role: z.enum(['owner', 'member']),
+    status: z.enum(['pending', 'active']),
+    createdAt: z.string(),
+})
+export type HouseholdMember = z.infer<typeof householdMemberSchema>
+
+export const membersResponseSchema = z.object({
+    members: z.array(householdMemberSchema),
+})
+export type MembersResponse = z.infer<typeof membersResponseSchema>
+
+export const inviteMemberRequestSchema = z.object({
+    email: z.string().trim().min(1),
+})
+export type InviteMemberRequest = z.infer<typeof inviteMemberRequestSchema>
+
+export const bootstrapOwnerRequestSchema = z.object({
+    userId: z.string().trim().min(1),
+    email: z.string().trim().min(1),
+    displayName: z.string().optional(),
+})
+export type BootstrapOwnerRequest = z.infer<typeof bootstrapOwnerRequestSchema>
+
+export const sessionMintResultSchema = z.object({
+    clientToken: z.string(),
+    controllerId: z.string(),
+})
+export type SessionMintResult = z.infer<typeof sessionMintResultSchema>

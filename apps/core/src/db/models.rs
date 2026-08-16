@@ -100,6 +100,7 @@ pub struct ClientToken {
     pub label: String,
     pub created_at: DateTime<Utc>,
     pub last_seen_at: Option<DateTime<Utc>>,
+    pub user_id: Option<String>,
 }
 
 #[derive(Debug, Insertable)]
@@ -107,6 +108,30 @@ pub struct ClientToken {
 pub struct NewClientToken<'a> {
     pub token_hash: &'a str,
     pub label: &'a str,
+    pub user_id: Option<&'a str>,
+}
+
+#[derive(Debug, Clone, Queryable, Selectable, Identifiable)]
+#[diesel(table_name = crate::db::schema::members)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct Member {
+    pub id: Uuid,
+    pub user_id: Option<String>,
+    pub email: String,
+    pub display_name: Option<String>,
+    pub role: String,
+    pub status: String,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Insertable)]
+#[diesel(table_name = crate::db::schema::members)]
+pub struct NewMember<'a> {
+    pub user_id: Option<&'a str>,
+    pub email: &'a str,
+    pub display_name: Option<&'a str>,
+    pub role: &'a str,
+    pub status: &'a str,
 }
 
 #[derive(Debug, Clone, Queryable, Selectable, Identifiable)]

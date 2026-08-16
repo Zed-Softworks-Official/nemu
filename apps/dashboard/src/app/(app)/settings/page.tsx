@@ -1,5 +1,6 @@
 'use client'
 
+import { useUser } from '@clerk/nextjs'
 import { api, useConvexAuth, useMutation, useQuery } from '@nemu/cloud'
 import {
     clearClientToken,
@@ -14,9 +15,9 @@ import {
 } from '@nemu/controller'
 import {
     type ClientToken,
+    type HouseholdMember,
     type PairingCodeResponse,
     pairingCodeResponseSchema,
-    tokensResponseSchema,
 } from '@nemu/protocol'
 import { Badge } from '@nemu/ui/components/badge'
 import { Button } from '@nemu/ui/components/button'
@@ -39,35 +40,62 @@ import {
     UsersIcon,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { PageHeader } from '~/components/dashboard/page-header'
 import { env } from '~/env'
 
 export default function SettingsPage() {
     const router = useRouter()
-    const { status, reprobe } = useController()
+    const { user } = useUser()
+    const {
+        status,
+        reprobe,
+        getMembers,
+        inviteMember,
+        removeMember,
+        getTokens,
+        revokeToken,
+        revokeCurrentToken,
+        bootstrapOwner,
+    } = useController()
     const { isAuthenticated } = useConvexAuth()
     const controllers = useQuery(
         api.controllers.listMine,
         isAuthenticated ? {} : 'skip'
     )
     const removePairing = useMutation(api.pairings.remove)
+    const removeUserPairing = useMutation(api.pairings.removeUser)
+    const invitePairing = useMutation(api.pairings.invite)
+    const removeInvite = useMutation(api.invites.remove)
 
     const controller = controllers?.[0]
     const controllerId =
         controller?.controllerId ?? getRememberedControllerId() ?? '—'
     const baseUrl = status.baseUrl ?? getRememberedBaseUrl()
+    const connected = status.mode === 'lan' || status.mode === 'relay'
 
+    const [members, setMembers] = useState<HouseholdMember[]>([])
     const [tokens, setTokens] = useState<ClientToken[]>([])
-    const [tokensError, setTokensError] = useState<string | null>(null)
-    const [inviteCode, setInviteCode] = useState<PairingCodeResponse | null>(
-        null
-    )
+    const [householdError, setHouseholdError] = useState<string | null>(null)
+    const [inviteEmail, setInviteEmail] = useState('')
+    const [inviteHint, setInviteHint] = useState<string | null>(null)
     const [inviteError, setInviteError] = useState<string | null>(null)
     const [busyInvite, setBusyInvite] = useState(false)
     const [busyUnpair, setBusyUnpair] = useState(false)
     const [copied, setCopied] = useState(false)
     const [coreVersion, setCoreVersion] = useState<string | null>(null)
+    const [inviteCode, setInviteCode] = useState<PairingCodeResponse | null>(
+        null
+    )
+    const [busyCode, setBusyCode] = useState(false)
+    const [codeError, setCodeError] = useState<string | null>(null)
+
+    const myEmail = user?.primaryEmailAddress?.emailAddress?.toLowerCase()
+    const me = members.find(
+        (member) =>
+            member.userId === user?.id || member.email.toLowerCase() === myEmail
+    )
+    const isOwner = me?.role === 'owner'
 
     const loadIdentity = useCallback(async () => {
         if (!baseUrl || status.mode !== 'lan') {
@@ -82,71 +110,161 @@ export default function SettingsPage() {
         }
     }, [baseUrl, status.mode])
 
-    const loadTokens = useCallback(async () => {
-        if (!baseUrl || !getClientToken()) {
+    const loadHousehold = useCallback(async () => {
+        if (!connected) {
+            setMembers([])
             setTokens([])
             return
         }
         try {
-            const http = createControllerHttp(baseUrl, getClientToken)
-            const { data } = await http.get('/api/tokens')
-            setTokens(tokensResponseSchema.parse(data).tokens)
-            setTokensError(null)
+            const [nextMembers, nextTokens] = await Promise.all([
+                getMembers(),
+                getTokens(),
+            ])
+            setMembers(nextMembers)
+            setTokens(nextTokens)
+            setHouseholdError(null)
+
+            if (
+                nextMembers.length === 0 &&
+                user?.id &&
+                user.primaryEmailAddress?.emailAddress
+            ) {
+                await bootstrapOwner({
+                    userId: user.id,
+                    email: user.primaryEmailAddress.emailAddress,
+                    displayName: user.fullName ?? undefined,
+                })
+                const bootstrapped = await getMembers()
+                setMembers(bootstrapped)
+            }
         } catch (err) {
-            setTokensError(
-                err instanceof Error ? err.message : 'Failed to load clients'
+            setHouseholdError(
+                err instanceof Error ? err.message : 'Failed to load household'
             )
         }
-    }, [baseUrl])
+    }, [
+        bootstrapOwner,
+        connected,
+        getMembers,
+        getTokens,
+        user?.fullName,
+        user?.id,
+        user?.primaryEmailAddress?.emailAddress,
+    ])
 
     useEffect(() => {
-        void loadTokens()
-    }, [loadTokens])
+        void loadHousehold()
+    }, [loadHousehold])
 
     useEffect(() => {
         void loadIdentity()
     }, [loadIdentity])
 
+    const inviteSteps = useMemo(() => {
+        if (!inviteEmail.trim()) return ''
+        const email = inviteEmail.trim().toLowerCase()
+        return [
+            `Sign in with Google at ${env.NEXT_PUBLIC_DASHBOARD_URL}/sign-in`,
+            `Use this Google account: ${email}`,
+        ].join('\n')
+    }, [inviteEmail])
+
     async function handleInvite() {
-        if (!baseUrl) {
-            setInviteError(
-                'Connect to the controller on your home network first.'
-            )
+        const email = inviteEmail.trim().toLowerCase()
+        if (!email.includes('@')) {
+            setInviteError('Enter the Google account email to invite.')
+            return
+        }
+        if (controllerId === '—') {
+            setInviteError('Controller is not linked yet.')
             return
         }
         setBusyInvite(true)
         setInviteError(null)
         try {
-            const http = createControllerHttp(baseUrl, getClientToken)
-            const { data } = await http.post('/api/pairing-code')
-            setInviteCode(pairingCodeResponseSchema.parse(data))
+            await inviteMember(email)
+            await invitePairing({ controllerId, email })
+            setInviteHint(email)
+            await loadHousehold()
         } catch (err) {
             setInviteError(
-                err instanceof Error
-                    ? err.message
-                    : 'Could not mint pairing code'
+                err instanceof Error ? err.message : 'Could not send invite'
             )
         } finally {
             setBusyInvite(false)
         }
     }
 
+    async function copyInvite() {
+        if (!inviteSteps) return
+        await navigator.clipboard.writeText(inviteSteps)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+    }
+
+    async function handleRemoveMember(member: HouseholdMember) {
+        if (controllerId === '—') return
+        try {
+            await removeMember(member.id)
+            if (member.userId) {
+                await removeUserPairing({
+                    controllerId,
+                    userId: member.userId,
+                })
+            }
+            await removeInvite({ controllerId, email: member.email })
+            await loadHousehold()
+        } catch (err) {
+            setHouseholdError(
+                err instanceof Error ? err.message : 'Failed to remove person'
+            )
+        }
+    }
+
     async function handleRevoke(tokenId: string) {
-        if (!baseUrl) return
+        try {
+            await revokeToken(tokenId)
+            await loadHousehold()
+        } catch (err) {
+            setHouseholdError(
+                err instanceof Error ? err.message : 'Failed to revoke device'
+            )
+        }
+    }
+
+    async function handleMintPairingCode() {
+        if (!baseUrl) {
+            setCodeError('Connect on your home network to mint a pairing code.')
+            return
+        }
+        setBusyCode(true)
+        setCodeError(null)
         try {
             const http = createControllerHttp(baseUrl, getClientToken)
-            await http.delete(`/api/tokens/${encodeURIComponent(tokenId)}`)
-            await loadTokens()
+            const { data } = await http.post('/api/pairing-code')
+            setInviteCode(pairingCodeResponseSchema.parse(data))
         } catch (err) {
-            setTokensError(
-                err instanceof Error ? err.message : 'Failed to revoke client'
+            setCodeError(
+                err instanceof Error
+                    ? err.message
+                    : 'Could not mint pairing code'
             )
+        } finally {
+            setBusyCode(false)
         }
     }
 
     async function handleUnpair() {
         setBusyUnpair(true)
         try {
+            if (connected) {
+                try {
+                    await revokeCurrentToken()
+                } catch {
+                    // Local credentials still need to be cleared.
+                }
+            }
             if (controllerId && controllerId !== '—') {
                 await removePairing({ controllerId })
             }
@@ -155,7 +273,7 @@ export default function SettingsPage() {
             clearRememberedControllerId()
             router.replace('/setup')
         } catch (err) {
-            setTokensError(
+            setHouseholdError(
                 err instanceof Error ? err.message : 'Failed to unpair'
             )
         } finally {
@@ -163,20 +281,24 @@ export default function SettingsPage() {
         }
     }
 
-    const inviteSteps = inviteCode
-        ? [
-              `1. Create a Nemu account at ${env.NEXT_PUBLIC_DASHBOARD_URL}/sign-in`,
-              '2. Join this home Wi‑Fi network',
-              `3. Open ${env.NEXT_PUBLIC_DASHBOARD_URL}/setup`,
-              `4. Enter pairing code: ${inviteCode.code}`,
-          ].join('\n')
-        : ''
-
-    async function copyInvite() {
-        if (!inviteSteps) return
-        await navigator.clipboard.writeText(inviteSteps)
-        setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
+    async function handleLeave() {
+        if (!me) {
+            await handleUnpair()
+            return
+        }
+        setBusyUnpair(true)
+        try {
+            await handleRemoveMember(me)
+            if (controllerId && controllerId !== '—') {
+                await removePairing({ controllerId })
+            }
+            clearClientToken()
+            clearRememberedBaseUrl()
+            clearRememberedControllerId()
+            router.replace('/setup')
+        } finally {
+            setBusyUnpair(false)
+        }
     }
 
     return (
@@ -212,7 +334,7 @@ export default function SettingsPage() {
                                     value={controller?.name ?? 'Home'}
                                 />
                                 <p className="text-muted-foreground text-xs">
-                                    Shown when pairing a new client.
+                                    Shown when pairing a new dashboard.
                                 </p>
                             </div>
                             <Separator />
@@ -245,70 +367,86 @@ export default function SettingsPage() {
                         </CardContent>
                     </Card>
 
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Invite someone to this home</CardTitle>
-                            <CardDescription>
-                                Family members create their own Nemu account,
-                                join your Wi‑Fi, and enter a short-lived pairing
-                                code.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="flex items-start gap-3">
-                                <div className="mt-0.5 flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                                    <UsersIcon className="size-4" />
+                    {isOwner ? (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>
+                                    Invite someone to this home
+                                </CardTitle>
+                                <CardDescription>
+                                    They sign in with Google using this email.
+                                    No pairing code, and they can use any of
+                                    their devices.
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="flex items-start gap-3">
+                                    <div className="mt-0.5 flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                                        <UsersIcon className="size-4" />
+                                    </div>
+                                    <p className="text-muted-foreground text-sm">
+                                        Works from home or away. Invite the
+                                        Google account they will actually use.
+                                    </p>
                                 </div>
-                                <p className="text-muted-foreground text-sm">
-                                    Requires a Home (LAN) connection to mint a
-                                    code. Codes expire in about 5 minutes and
-                                    can only be used once.
-                                </p>
-                            </div>
-                            {inviteCode ? (
-                                <div className="space-y-3 rounded-xl border border-border/80 bg-muted/30 p-4">
-                                    <p className="font-mono text-3xl tracking-[0.3em]">
-                                        {inviteCode.code}
-                                    </p>
-                                    <p className="text-muted-foreground text-xs">
-                                        Expires{' '}
-                                        {new Date(
-                                            inviteCode.expiresAt
-                                        ).toLocaleString()}
-                                    </p>
-                                    <pre className="whitespace-pre-wrap text-muted-foreground text-xs">
-                                        {inviteSteps}
-                                    </pre>
-                                    <Button
-                                        onClick={() => void copyInvite()}
-                                        size="sm"
-                                        variant="outline"
+                                <div className="grid gap-2">
+                                    <label
+                                        className="font-medium text-sm"
+                                        htmlFor="invite-email"
                                     >
-                                        <CopyIcon data-icon="inline-start" />
-                                        {copied
-                                            ? 'Copied'
-                                            : 'Copy instructions'}
-                                    </Button>
+                                        Google account email
+                                    </label>
+                                    <Input
+                                        id="invite-email"
+                                        onChange={(e) =>
+                                            setInviteEmail(e.target.value)
+                                        }
+                                        placeholder="family@gmail.com"
+                                        type="email"
+                                        value={inviteEmail}
+                                    />
                                 </div>
-                            ) : null}
-                            {inviteError ? (
-                                <p className="text-destructive text-sm">
-                                    {inviteError}
-                                </p>
-                            ) : null}
-                        </CardContent>
-                        <CardFooter className="border-t">
-                            <Button
-                                disabled={busyInvite || status.mode !== 'lan'}
-                                onClick={() => void handleInvite()}
-                                size="sm"
-                            >
-                                {busyInvite
-                                    ? 'Generating…'
-                                    : 'Generate pairing code'}
-                            </Button>
-                        </CardFooter>
-                    </Card>
+                                {inviteHint ? (
+                                    <div className="space-y-3 rounded-xl border border-border/80 bg-muted/30 p-4">
+                                        <p className="font-medium text-sm">
+                                            Invited {inviteHint}
+                                        </p>
+                                        <pre className="whitespace-pre-wrap text-muted-foreground text-xs">
+                                            {inviteSteps}
+                                        </pre>
+                                        <Button
+                                            onClick={() => void copyInvite()}
+                                            size="sm"
+                                            variant="outline"
+                                        >
+                                            <CopyIcon data-icon="inline-start" />
+                                            {copied
+                                                ? 'Copied'
+                                                : 'Copy instructions'}
+                                        </Button>
+                                    </div>
+                                ) : null}
+                                {inviteError ? (
+                                    <p className="text-destructive text-sm">
+                                        {inviteError}
+                                    </p>
+                                ) : null}
+                            </CardContent>
+                            <CardFooter className="border-t">
+                                <Button
+                                    disabled={
+                                        busyInvite ||
+                                        !connected ||
+                                        !inviteEmail.trim()
+                                    }
+                                    onClick={() => void handleInvite()}
+                                    size="sm"
+                                >
+                                    {busyInvite ? 'Inviting…' : 'Send invite'}
+                                </Button>
+                            </CardFooter>
+                        </Card>
+                    ) : null}
 
                     <Card>
                         <CardHeader>
@@ -352,17 +490,52 @@ export default function SettingsPage() {
                 <div className="space-y-5">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Paired clients</CardTitle>
+                            <CardTitle>People</CardTitle>
                             <CardDescription>
-                                Devices currently trusted by your controller.
+                                Accounts that can sign in to this home.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            {members.length === 0 ? (
+                                <p className="text-muted-foreground text-sm">
+                                    {connected
+                                        ? 'No household members yet.'
+                                        : 'Connect to the controller to manage people.'}
+                                </p>
+                            ) : (
+                                members.map((member, index) => (
+                                    <div key={member.id}>
+                                        {index > 0 ? (
+                                            <Separator className="mb-4" />
+                                        ) : null}
+                                        <PersonRow
+                                            canRemove={
+                                                isOwner || member.id === me?.id
+                                            }
+                                            member={member}
+                                            onRemove={() =>
+                                                void handleRemoveMember(member)
+                                            }
+                                        />
+                                    </div>
+                                ))
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Devices</CardTitle>
+                            <CardDescription>
+                                Browser sessions trusted by your controller.
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             {tokens.length === 0 ? (
                                 <p className="text-muted-foreground text-sm">
-                                    {status.mode === 'lan'
-                                        ? 'No paired clients found.'
-                                        : 'Connect on the LAN to manage clients.'}
+                                    {connected
+                                        ? 'No paired devices found.'
+                                        : 'Connect to the controller to manage devices.'}
                                 </p>
                             ) : (
                                 tokens.map((token, index) => (
@@ -371,11 +544,10 @@ export default function SettingsPage() {
                                             <Separator className="mb-4" />
                                         ) : null}
                                         <ClientRow
-                                            detail={
-                                                token.lastSeenAt
-                                                    ? `Last active ${new Date(token.lastSeenAt).toLocaleString()}`
-                                                    : `Paired ${new Date(token.createdAt).toLocaleString()}`
-                                            }
+                                            detail={deviceDetail(
+                                                token,
+                                                members
+                                            )}
                                             name={token.label}
                                             onRevoke={() =>
                                                 void handleRevoke(token.id)
@@ -384,37 +556,129 @@ export default function SettingsPage() {
                                     </div>
                                 ))
                             )}
-                            {tokensError ? (
+                            {householdError ? (
                                 <p className="text-destructive text-sm">
-                                    {tokensError}
+                                    {householdError}
                                 </p>
                             ) : null}
                         </CardContent>
                     </Card>
 
+                    {isOwner ? (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Add a device with a code</CardTitle>
+                                <CardDescription>
+                                    Offline LAN fallback for a device that
+                                    already belongs to someone in this home.
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                                {inviteCode ? (
+                                    <p className="font-mono text-3xl tracking-[0.3em]">
+                                        {inviteCode.code}
+                                    </p>
+                                ) : (
+                                    <p className="text-muted-foreground text-sm">
+                                        Requires a Home connection. Codes expire
+                                        in about 5 minutes.
+                                    </p>
+                                )}
+                                {codeError ? (
+                                    <p className="text-destructive text-sm">
+                                        {codeError}
+                                    </p>
+                                ) : null}
+                            </CardContent>
+                            <CardFooter className="border-t">
+                                <Button
+                                    disabled={busyCode || status.mode !== 'lan'}
+                                    onClick={() => void handleMintPairingCode()}
+                                    size="sm"
+                                    variant="outline"
+                                >
+                                    {busyCode
+                                        ? 'Generating…'
+                                        : 'Generate pairing code'}
+                                </Button>
+                            </CardFooter>
+                        </Card>
+                    ) : null}
+
                     <Card>
                         <CardHeader>
-                            <CardTitle>Unpair controller</CardTitle>
+                            <CardTitle>This dashboard</CardTitle>
                             <CardDescription>
-                                Remove local credentials and your cloud pairing
-                                for this account.
+                                Unpair only this browser, or leave the
+                                household.
                             </CardDescription>
                         </CardHeader>
-                        <CardContent>
+                        <CardContent className="flex flex-col gap-2">
                             <Button
                                 disabled={busyUnpair}
                                 onClick={() => void handleUnpair()}
                                 size="sm"
-                                variant="destructive"
+                                variant="outline"
                             >
                                 {busyUnpair
-                                    ? 'Unpairing…'
+                                    ? 'Working…'
                                     : 'Unpair this dashboard'}
+                            </Button>
+                            <Button
+                                disabled={busyUnpair}
+                                onClick={() => void handleLeave()}
+                                size="sm"
+                                variant="destructive"
+                            >
+                                Leave this home
                             </Button>
                         </CardContent>
                     </Card>
                 </div>
             </div>
+        </div>
+    )
+}
+
+function deviceDetail(token: ClientToken, members: HouseholdMember[]): string {
+    const owner = token.userId
+        ? members.find((member) => member.userId === token.userId)
+        : undefined
+    const who = owner?.displayName || owner?.email || 'Unknown device'
+    const seen = token.lastSeenAt
+        ? `Last active ${new Date(token.lastSeenAt).toLocaleString()}`
+        : `Paired ${new Date(token.createdAt).toLocaleString()}`
+    return `${who} · ${seen}`
+}
+
+function PersonRow({
+    member,
+    canRemove,
+    onRemove,
+}: {
+    member: HouseholdMember
+    canRemove: boolean
+    onRemove: () => void
+}) {
+    return (
+        <div className="flex items-center gap-3">
+            <div className="flex size-8 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                <UsersIcon className="size-4" />
+            </div>
+            <div className="min-w-0 flex-1">
+                <p className="truncate font-medium text-sm">
+                    {member.displayName || member.email}
+                </p>
+                <p className="truncate text-muted-foreground text-xs">
+                    {member.email} · {member.role}
+                    {member.status === 'pending' ? ' · pending' : ''}
+                </p>
+            </div>
+            {canRemove ? (
+                <Button onClick={onRemove} size="sm" variant="ghost">
+                    Remove
+                </Button>
+            ) : null}
         </div>
     )
 }

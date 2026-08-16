@@ -98,7 +98,10 @@ pub async fn patch_room(
         .map_err(|_| ApiError::bad_request("invalid_id", "room id must be a UUID"))?;
 
     let update = UpdateRoom {
-        name: body.name.map(|n| n.trim().to_string()).filter(|n| !n.is_empty()),
+        name: body
+            .name
+            .map(|n| n.trim().to_string())
+            .filter(|n| !n.is_empty()),
         sort_order: body.sort_order,
     };
 

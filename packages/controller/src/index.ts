@@ -16,8 +16,11 @@ export {
     upgradeToHttps,
 } from './discovery'
 export { createControllerHttp, toApiError } from './http'
-export type { PairWithControllerResult } from './pairing'
-export { pairWithController } from './pairing'
+export type {
+    PairWithControllerInput,
+    PairWithControllerResult,
+} from './pairing'
+export { mintSessionViaRelay, pairWithController } from './pairing'
 export type {
     ControllerProviderProps,
     DevicePairingPhase,

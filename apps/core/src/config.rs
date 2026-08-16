@@ -32,9 +32,7 @@ impl Config {
         let tls_cert_path = env::var("NEMU_TLS_CERT_PATH")
             .ok()
             .filter(|s| !s.is_empty());
-        let tls_key_path = env::var("NEMU_TLS_KEY_PATH")
-            .ok()
-            .filter(|s| !s.is_empty());
+        let tls_key_path = env::var("NEMU_TLS_KEY_PATH").ok().filter(|s| !s.is_empty());
         let tls_extra_sans = env::var("NEMU_TLS_SAN")
             .ok()
             .map(|value| {
@@ -60,7 +58,9 @@ impl Config {
                 .unwrap_or_else(|_| format!("nemu-core-{}", uuid::Uuid::new_v4())),
             mqtt_base_topic: env::var("MQTT_BASE_TOPIC")
                 .unwrap_or_else(|_| "zigbee2mqtt".to_string()),
-            convex_site_url: env::var("NEMU_CONVEX_SITE_URL").ok().filter(|s| !s.is_empty()),
+            convex_site_url: env::var("NEMU_CONVEX_SITE_URL")
+                .ok()
+                .filter(|s| !s.is_empty()),
             controller_name: env::var("NEMU_CONTROLLER_NAME")
                 .unwrap_or_else(|_| "Home".to_string()),
             registration_secret: env::var("CONTROLLER_REGISTRATION_SECRET")

@@ -21,10 +21,7 @@ pub async fn register_with_convex(
     registration_secret: Option<&str>,
     lan_ip: Option<&str>,
 ) -> Result<(), String> {
-    let url = format!(
-        "{}/controllers/register",
-        site_url.trim_end_matches('/')
-    );
+    let url = format!("{}/controllers/register", site_url.trim_end_matches('/'));
 
     let body = RegisterBody {
         controller_id: &identity.controller_id,

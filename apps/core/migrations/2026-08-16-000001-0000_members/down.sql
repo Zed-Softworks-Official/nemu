@@ -1,0 +1,3 @@
+ALTER TABLE client_tokens DROP COLUMN IF EXISTS user_id;
+
+DROP TABLE IF EXISTS members;

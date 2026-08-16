@@ -13,6 +13,7 @@ use crate::state::AppState;
 pub struct AuthenticatedClient {
     pub token_id: Uuid,
     pub label: String,
+    pub user_id: Option<String>,
 }
 
 impl FromRequestParts<AppState> for AuthenticatedClient {
@@ -48,16 +49,20 @@ impl FromRequestParts<AppState> for AuthenticatedClient {
 }
 
 impl AuthenticatedClient {
-    fn from_row(row: ClientToken) -> Self {
+    pub fn from_row(row: ClientToken) -> Self {
         Self {
             token_id: row.id,
             label: row.label,
+            user_id: row.user_id,
         }
     }
 }
 
 pub fn extract_bearer(headers: &HeaderMap) -> Option<String> {
-    let value = headers.get(axum::http::header::AUTHORIZATION)?.to_str().ok()?;
+    let value = headers
+        .get(axum::http::header::AUTHORIZATION)?
+        .to_str()
+        .ok()?;
     let token = value.strip_prefix("Bearer ")?;
     if token.is_empty() {
         None
@@ -73,9 +78,7 @@ pub fn extract_query_token(uri: &axum::http::Uri) -> Option<String> {
         let key = parts.next()?;
         let value = parts.next().unwrap_or("");
         if key == "token" && !value.is_empty() {
-            return Some(
-                urlencoding_decode(value).unwrap_or_else(|| value.to_string()),
-            );
+            return Some(urlencoding_decode(value).unwrap_or_else(|| value.to_string()));
         }
     }
     None

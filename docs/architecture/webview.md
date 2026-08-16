@@ -88,10 +88,10 @@ sequenceDiagram
     U->>C: trigger pairing code (button/CLI)
     C->>C: mint 6-digit code (5 min, single-use)
     U->>W: enter code
-    W->>C: POST /api/pair {code, clientLabel}
-    C-->>W: {clientToken}  — stored client-side only
+    W->>C: POST /api/pair {code, clientLabel, userId, email}
+    C-->>W: {clientToken}  — stored client-side only; owner member created
     W->>CV: pairings.create({controllerId})
-    CV-->>W: pairing recorded (enables relay + other devices)
+    CV-->>W: pairing recorded (enables relay + later devices)
     W->>C: authenticated LAN session (token header / WS)
 ```
 
@@ -99,12 +99,16 @@ Key properties:
 
 - The **client token never touches Convex** during pairing — it goes straight
   from controller to browser and is stored client-side.
-- The Convex pairing record contains only `{userId, controllerId}`. Its job is
-  relay addressing ("which mailbox is mine?") and listing your controllers on
-  a new device. A new device still needs to pair (enter a code) to get its own
-  token — the cloud record alone grants nothing.
-- Unpairing = revoke the token on the controller (`DELETE /api/tokens/{id}`)
-  and delete the Convex record.
+- Household **membership** lives on the controller (`members`). Convex
+  `pairings` and `invites` are the routing/invite mirror. A pairing row
+  cannot command the house; it can only ask the controller to mint a session,
+  and the controller checks `members`.
+- A new device of an existing member signs in with Google and mints a session
+  over the relay — no pairing code. Pairing codes remain for first-owner
+  bootstrap and offline LAN fallback.
+- Unpairing this browser revokes its token (`DELETE /api/tokens/current`)
+  and can leave the Convex pairing intact. Removing a person deletes their
+  member row, all of their tokens, and their cloud pairing.
 
 ## 5. Connection manager
 
@@ -156,8 +160,9 @@ Rules:
 - **Remote (relay):** commit-on-release — draft value updates while dragging;
   the command is sent on pointer/keyboard release.
 - Room assignment and rooms CRUD (`getRooms` / `createRoom` / `patchRoom` /
-  `deleteRoom` / `patchDevice`) require a **Home (LAN)** connection. Relay
-  currently only carries `getDevices` and `command`.
+  `deleteRoom` / `patchDevice`) require a **Home (LAN)** connection. Household
+  members and device sessions (`getMembers` / `inviteMember` / `getTokens`)
+  work on LAN and relay. Device pairing (`permitJoin`) stays LAN-only.
 
 ## 6. Relay implementation sketch (Convex)
 

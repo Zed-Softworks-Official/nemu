@@ -1,6 +1,6 @@
 'use client'
 
-import { useAuth } from '@clerk/nextjs'
+import { useAuth, useUser } from '@clerk/nextjs'
 import { api, useMutation, useQuery } from '@nemu/cloud'
 import {
     buildTlsTrustUrl,
@@ -60,6 +60,7 @@ export default function SetupPage() {
     const router = useRouter()
     const { reprobe } = useController()
     const { isSignedIn } = useAuth()
+    const { user } = useUser()
     const createPairing = useMutation(api.pairings.create)
     const mine = useQuery(api.controllers.listMine, isSignedIn ? {} : 'skip')
     const issuedUrls = useMemo(
@@ -166,11 +167,20 @@ export default function SetupPage() {
             let id = rememberedId ?? controllerId
 
             if (!canFinish) {
-                const result = await pairWithController(
-                    baseUrl,
-                    code.trim(),
-                    label.trim()
-                )
+                const email = user?.primaryEmailAddress?.emailAddress
+                const userId = user?.id
+                if (!email || !userId) {
+                    throw new Error(
+                        'This Google account did not share an email address.'
+                    )
+                }
+                const result = await pairWithController(baseUrl, {
+                    code: code.trim(),
+                    clientLabel: label.trim(),
+                    userId,
+                    email,
+                    displayName: user.fullName ?? undefined,
+                })
                 id = result.pair.controllerId || result.identity.controllerId
             }
 

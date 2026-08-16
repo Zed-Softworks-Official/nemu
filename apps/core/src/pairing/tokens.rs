@@ -19,13 +19,15 @@ pub struct IssuedClientToken {
 pub async fn mint_client_token(
     pool: &DbPool,
     label: &str,
+    user_id: Option<&str>,
 ) -> Result<IssuedClientToken, String> {
     let conn = pool
         .get()
         .await
         .map_err(|e| format!("db pool error: {e}"))?;
     let label = label.to_string();
-    conn.interact(move |conn| mint_client_token_sync(conn, &label))
+    let user_id = user_id.map(str::to_string);
+    conn.interact(move |conn| mint_client_token_sync(conn, &label, user_id.as_deref()))
         .await
         .map_err(|e| format!("db interact error: {e}"))?
 }
@@ -33,6 +35,7 @@ pub async fn mint_client_token(
 fn mint_client_token_sync(
     conn: &mut PgConnection,
     label: &str,
+    user_id: Option<&str>,
 ) -> Result<IssuedClientToken, String> {
     let token = random_token();
     let token_hash = sha256_hex(&token);
@@ -41,6 +44,7 @@ fn mint_client_token_sync(
         .values(NewClientToken {
             token_hash: &token_hash,
             label,
+            user_id,
         })
         .returning(client_tokens::id)
         .get_result(conn)
@@ -53,7 +57,10 @@ fn mint_client_token_sync(
     })
 }
 
-pub async fn verify_client_token(pool: &DbPool, token: &str) -> Result<Option<ClientToken>, String> {
+pub async fn verify_client_token(
+    pool: &DbPool,
+    token: &str,
+) -> Result<Option<ClientToken>, String> {
     let conn = pool
         .get()
         .await
@@ -109,6 +116,21 @@ pub async fn revoke_client_token(pool: &DbPool, id: Uuid) -> Result<bool, String
             .execute(conn)
             .map_err(|e| format!("token delete failed: {e}"))?;
         Ok(deleted > 0)
+    })
+    .await
+    .map_err(|e| format!("db interact error: {e}"))?
+}
+
+pub async fn revoke_tokens_for_user(pool: &DbPool, user_id: &str) -> Result<usize, String> {
+    let conn = pool
+        .get()
+        .await
+        .map_err(|e| format!("db pool error: {e}"))?;
+    let user_id = user_id.to_string();
+    conn.interact(move |conn| {
+        diesel::delete(client_tokens::table.filter(client_tokens::user_id.eq(user_id)))
+            .execute(conn)
+            .map_err(|e| format!("token delete failed: {e}"))
     })
     .await
     .map_err(|e| format!("db interact error: {e}"))?

@@ -117,16 +117,18 @@ sequenceDiagram
     U->>W: "Pair this controller"
     C->>C: Generate 6-digit pairing code (displayed / logged)
     U->>W: Enter pairing code
-    W->>C: POST /api/pair {code}
-    C-->>W: Long-lived client token
-    W->>CV: Record pairing (user ↔ controller ID)
+    W->>C: POST /api/pair {code, clientLabel, userId, email}
+    C-->>W: Long-lived client token (owner member created)
+    W->>CV: Record pairing (user ↔ controller ID, role owner)
     W->>C: Authenticated session begins (LAN-direct)
 ```
 
-- The pairing code proves physical/LAN proximity; the Convex record enables
-  later relay fallback and multi-device sign-in.
-- The client token is minted and validated by the controller — the cloud can't
-  forge access to a home.
+- The pairing code proves physical/LAN proximity and creates the household
+  owner. Later devices of that account (and invited Google accounts) mint a
+  session over the relay without another code.
+- The client token is minted and validated by the controller — the cloud
+  cannot command a home, but a stolen Clerk session of a **member** can ask
+  the controller to mint a new device token.
 
 ### 6.2 Daily control
 
@@ -186,10 +188,10 @@ zigbee2mqtt, postgres), `apps/core` (Axum skeleton, Diesel `devices` table,
 | --------------------------- | ----------------------------------------------------------------------------------------------------------- |
 | Next.js app scaffold        | App Router, TypeScript strict, Tailwind; deployed to Vercel                                                 |
 | Clerk auth                  | Sign-up/sign-in; middleware-protected routes; `ConvexProviderWithClerk` wired                               |
-| Convex schema (cloud-side)  | `controllers`, `pairings` tables with validators + indexes; **no fields capable of holding device data**    |
+| Convex schema (cloud-side)  | `controllers`, `pairings`, `invites` tables with validators + indexes; **no fields capable of holding device data** |
 | Controller registration     | On first boot, core registers with Convex (controller ID + public key) via an HTTP action                   |
 | mDNS discovery              | Core advertises `_nemu._tcp`; webview discovers it (direct probe of `nemu.local` + candidate scan fallback) |
-| Pairing handshake           | 6-digit code flow from §6.1; controller mints a client token; Convex records the binding                    |
+| Pairing handshake           | 6-digit code creates the owner; later devices of members mint a session over the relay                      |
 | Controller auth on core API | All non-pairing routes require a valid client token; tokens revocable from the webview                      |
 | LAN-direct control UI       | Dashboard: rooms CRUD, devices, power/brightness/color/color-temp controls, live state via `/ws`; device add + rename + room assignment |
 
@@ -200,7 +202,7 @@ zigbee2mqtt, postgres), `apps/core` (Axum skeleton, Diesel `devices` table,
 | Relay channel (Convex)    | Ephemeral `relayMessages` table; TTL + scheduled cleanup; messages addressed by controller ID                              |
 | Controller relay client   | Core holds an outbound connection to Convex, receives commands, executes locally, pushes responses                         |
 | Client connection manager | Webview probes LAN first, falls back to relay; visible Home/Remote indicator; automatic switchover both directions         |
-| Relay auth                | Relay commands carry the controller-issued client token; the controller verifies it — Convex is never trusted to authorize |
+| Relay auth                | Commands carry a controller-issued client token. Session mint is pairing/invite-gated in Convex and member-checked on core. |
 | Privacy audit             | Confirm relay payloads are deleted post-delivery and unreadable to other users; document retention in overview.md          |
 
 ### M4 — Voice

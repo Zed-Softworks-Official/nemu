@@ -1,12 +1,15 @@
 'use client'
 
 import {
+    type BootstrapOwnerRequest,
+    type ClientToken,
     type CommandResult,
     type ConnectionStatus,
     type CreateRoomRequest,
     type Device,
     type DeviceCommand,
     type DeviceEvent,
+    type HouseholdMember,
     type PatchDeviceRequest,
     type PatchRoomRequest,
     type PermitJoinResponse,
@@ -42,6 +45,13 @@ type ControllerContextValue = {
         patch: PatchDeviceRequest
     ) => Promise<Device>
     forgetDevice: (deviceId: string) => Promise<void>
+    getMembers: () => Promise<HouseholdMember[]>
+    inviteMember: (email: string) => Promise<HouseholdMember>
+    removeMember: (memberId: string) => Promise<void>
+    getTokens: () => Promise<ClientToken[]>
+    revokeToken: (tokenId: string) => Promise<void>
+    revokeCurrentToken: () => Promise<void>
+    bootstrapOwner: (request: BootstrapOwnerRequest) => Promise<HouseholdMember>
 }
 
 const ControllerContext = createContext<ControllerContextValue | null>(null)
@@ -123,6 +133,28 @@ export function ControllerProvider({
         (deviceId: string) => connection.forgetDevice(deviceId),
         [connection]
     )
+    const getMembers = useCallback(() => connection.getMembers(), [connection])
+    const inviteMember = useCallback(
+        (email: string) => connection.inviteMember(email),
+        [connection]
+    )
+    const removeMember = useCallback(
+        (memberId: string) => connection.removeMember(memberId),
+        [connection]
+    )
+    const getTokens = useCallback(() => connection.getTokens(), [connection])
+    const revokeToken = useCallback(
+        (tokenId: string) => connection.revokeToken(tokenId),
+        [connection]
+    )
+    const revokeCurrentToken = useCallback(
+        () => connection.revokeCurrentToken(),
+        [connection]
+    )
+    const bootstrapOwner = useCallback(
+        (request: BootstrapOwnerRequest) => connection.bootstrapOwner(request),
+        [connection]
+    )
 
     const value = useMemo(
         () => ({
@@ -138,6 +170,13 @@ export function ControllerProvider({
             deleteRoom,
             patchDevice,
             forgetDevice,
+            getMembers,
+            inviteMember,
+            removeMember,
+            getTokens,
+            revokeToken,
+            revokeCurrentToken,
+            bootstrapOwner,
         }),
         [
             connection,
@@ -152,6 +191,13 @@ export function ControllerProvider({
             deleteRoom,
             patchDevice,
             forgetDevice,
+            getMembers,
+            inviteMember,
+            removeMember,
+            getTokens,
+            revokeToken,
+            revokeCurrentToken,
+            bootstrapOwner,
         ]
     )
 

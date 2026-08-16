@@ -133,10 +133,10 @@ check against:
 
 | Data                                                  | Controller (Postgres)                                     | Convex              | Clerk | In transit through cloud                |
 | ----------------------------------------------------- | --------------------------------------------------------- | ------------------- | ----- | --------------------------------------- |
-| Account identity (email, etc.)                        | never                                                     | user reference only | yes   | —                                       |
+| Account identity (email, etc.)                        | household member email + optional user id             | user reference + pending invite email | yes   | session mint only, ephemeral |
+| Account↔controller pairing record                     | token hash + members                                  | yes (IDs + role; invites by email) | —     | session mint token, ephemeral |
 | Controller registration (opaque ID, public key, name) | yes                                                       | yes                 | —     | —                                       |
 | Home LAN IPv4 (RFC1918) for `{id}.lan.nemu.sh`        | yes (detected)                                            | yes (A record + row; not on public queries) | — | public DNS A only (LAN range, not WAN) |
-| Account↔controller pairing record                     | token hash                                                | yes (IDs only)      | —     | —                                       |
 | Device inventory, friendly names, rooms               | **yes**                                                   | **never**           | never | never                                   |
 | Device state / telemetry / history                    | **yes**                                                   | **never**           | never | relay mode only, ephemeral, TTL-deleted |
 | Commands ("turn off kitchen")                         | logged locally                                            | **never stored**    | never | relay mode only, ephemeral, TTL-deleted |

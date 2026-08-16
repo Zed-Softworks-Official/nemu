@@ -1294,7 +1294,7 @@ dependencies = [
 
 [[package]]
 name = "nemu"
-version = "0.1.0"
+version = "0.1.4"
 dependencies = [
  "axum",
  "base64 0.23.0",

@@ -1,10 +1,13 @@
 import {
+    type BootstrapOwnerRequest,
+    type ClientToken,
     type CommandResult,
     type ConnectionStatus,
     type CreateRoomRequest,
     type Device,
     type DeviceCommand,
     type DeviceEvent,
+    type HouseholdMember,
     type PatchDeviceRequest,
     type PatchRoomRequest,
     type PermitJoinResponse,
@@ -158,7 +161,9 @@ export class ControllerConnection {
     async createRoom(request: CreateRoomRequest): Promise<Room> {
         const transport = this.requireLanTransport('Creating rooms')
         if (!transport.createRoom) {
-            throw new Error('Creating rooms is not supported by this controller')
+            throw new Error(
+                'Creating rooms is not supported by this controller'
+            )
         }
         return await transport.createRoom(request)
     }
@@ -166,7 +171,9 @@ export class ControllerConnection {
     async patchRoom(roomId: string, patch: PatchRoomRequest): Promise<Room> {
         const transport = this.requireLanTransport('Updating rooms')
         if (!transport.patchRoom) {
-            throw new Error('Updating rooms is not supported by this controller')
+            throw new Error(
+                'Updating rooms is not supported by this controller'
+            )
         }
         return await transport.patchRoom(roomId, patch)
     }
@@ -174,7 +181,9 @@ export class ControllerConnection {
     async deleteRoom(roomId: string): Promise<void> {
         const transport = this.requireLanTransport('Deleting rooms')
         if (!transport.deleteRoom) {
-            throw new Error('Deleting rooms is not supported by this controller')
+            throw new Error(
+                'Deleting rooms is not supported by this controller'
+            )
         }
         await transport.deleteRoom(roomId)
     }
@@ -202,9 +211,93 @@ export class ControllerConnection {
         await transport.forgetDevice(deviceId)
     }
 
+    async getMembers(): Promise<HouseholdMember[]> {
+        const transport = this.requireConnectedTransport('Household members')
+        if (!transport.getMembers) {
+            throw new Error(
+                'Household members are not supported by this controller'
+            )
+        }
+        return await transport.getMembers()
+    }
+
+    async inviteMember(email: string): Promise<HouseholdMember> {
+        const transport = this.requireConnectedTransport('Inviting people')
+        if (!transport.inviteMember) {
+            throw new Error(
+                'Inviting people is not supported by this controller'
+            )
+        }
+        return await transport.inviteMember(email)
+    }
+
+    async removeMember(memberId: string): Promise<void> {
+        const transport = this.requireConnectedTransport('Removing people')
+        if (!transport.removeMember) {
+            throw new Error(
+                'Removing people is not supported by this controller'
+            )
+        }
+        await transport.removeMember(memberId)
+    }
+
+    async getTokens(): Promise<ClientToken[]> {
+        const transport = this.requireConnectedTransport('Paired devices')
+        if (!transport.getTokens) {
+            throw new Error(
+                'Paired devices are not supported by this controller'
+            )
+        }
+        return await transport.getTokens()
+    }
+
+    async revokeToken(tokenId: string): Promise<void> {
+        const transport = this.requireConnectedTransport('Revoking devices')
+        if (!transport.revokeToken) {
+            throw new Error(
+                'Revoking devices is not supported by this controller'
+            )
+        }
+        await transport.revokeToken(tokenId)
+    }
+
+    async revokeCurrentToken(): Promise<void> {
+        const transport = this.requireConnectedTransport(
+            'Unpairing this dashboard'
+        )
+        if (!transport.revokeCurrentToken) {
+            throw new Error(
+                'Unpairing this dashboard is not supported by this controller'
+            )
+        }
+        await transport.revokeCurrentToken()
+    }
+
+    async bootstrapOwner(
+        request: BootstrapOwnerRequest
+    ): Promise<HouseholdMember> {
+        const transport = this.requireConnectedTransport('Household setup')
+        if (!transport.bootstrapOwner) {
+            throw new Error(
+                'Household setup is not supported by this controller'
+            )
+        }
+        return await transport.bootstrapOwner(request)
+    }
+
     private requireLanTransport(operation: string): ControllerTransport {
         if (this.status.mode !== 'lan' || !this.transport) {
             throw new Error(`${operation} requires a Home connection`)
+        }
+        return this.transport
+    }
+
+    private requireConnectedTransport(operation: string): ControllerTransport {
+        if (
+            (this.status.mode !== 'lan' && this.status.mode !== 'relay') ||
+            !this.transport
+        ) {
+            throw new Error(`${operation} requires a controller connection`)
         }
         return this.transport
     }

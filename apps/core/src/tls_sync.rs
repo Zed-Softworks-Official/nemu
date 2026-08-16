@@ -72,9 +72,10 @@ async fn poll_once(state: &AppState, site_url: &str, tls: &SharedTls) -> Result<
         .map_err(|e| format!("tls decode failed: {e}"))?;
 
     let existing = tls::load_issued_pems(&state.db).await?;
-    if existing.as_ref().is_some_and(|(cert, key)| {
-        cert == &bundle.cert_pem && key == &bundle.key_pem
-    }) {
+    if existing
+        .as_ref()
+        .is_some_and(|(cert, key)| cert == &bundle.cert_pem && key == &bundle.key_pem)
+    {
         return Ok(());
     }
 

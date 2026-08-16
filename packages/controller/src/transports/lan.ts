@@ -1,4 +1,7 @@
 import {
+    type BootstrapOwnerRequest,
+    bootstrapOwnerRequestSchema,
+    type ClientToken,
     type CommandResult,
     type CreateRoomRequest,
     clientWsMessageSchema,
@@ -9,6 +12,10 @@ import {
     deviceEventSchema,
     deviceSchema,
     devicesResponseSchema,
+    type HouseholdMember,
+    householdMemberSchema,
+    inviteMemberRequestSchema,
+    membersResponseSchema,
     type PatchDeviceRequest,
     type PatchRoomRequest,
     type PermitJoinResponse,
@@ -19,6 +26,7 @@ import {
     type Room,
     roomSchema,
     roomsResponseSchema,
+    tokensResponseSchema,
 } from '@nemu/protocol'
 import type { AxiosInstance } from 'axios'
 import { createControllerHttp, type GetToken } from '../http'
@@ -150,6 +158,42 @@ export class LanTransport implements ControllerTransport {
 
     async forgetDevice(deviceId: string): Promise<void> {
         await this.http.delete(`/api/devices/${encodeURIComponent(deviceId)}`)
+    }
+
+    async getMembers(): Promise<HouseholdMember[]> {
+        const { data } = await this.http.get('/api/members')
+        return membersResponseSchema.parse(data).members
+    }
+
+    async inviteMember(email: string): Promise<HouseholdMember> {
+        const body = inviteMemberRequestSchema.parse({ email })
+        const { data } = await this.http.post('/api/members', body)
+        return householdMemberSchema.parse(data)
+    }
+
+    async removeMember(memberId: string): Promise<void> {
+        await this.http.delete(`/api/members/${encodeURIComponent(memberId)}`)
+    }
+
+    async getTokens(): Promise<ClientToken[]> {
+        const { data } = await this.http.get('/api/tokens')
+        return tokensResponseSchema.parse(data).tokens
+    }
+
+    async revokeToken(tokenId: string): Promise<void> {
+        await this.http.delete(`/api/tokens/${encodeURIComponent(tokenId)}`)
+    }
+
+    async revokeCurrentToken(): Promise<void> {
+        await this.http.delete('/api/tokens/current')
+    }
+
+    async bootstrapOwner(
+        request: BootstrapOwnerRequest
+    ): Promise<HouseholdMember> {
+        const body = bootstrapOwnerRequestSchema.parse(request)
+        const { data } = await this.http.post('/api/members/bootstrap', body)
+        return householdMemberSchema.parse(data)
     }
 
     async sendCommand(cmd: DeviceCommand): Promise<CommandResult> {

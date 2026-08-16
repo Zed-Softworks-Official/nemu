@@ -61,9 +61,19 @@ erDiagram
     client_tokens {
         uuid id PK
         varchar token_hash
-        varchar label "e.g. Jacks laptop"
+        varchar label
+        varchar user_id "Clerk subject, nullable for legacy"
         timestamptz created_at
         timestamptz last_seen_at
+    }
+    members {
+        uuid id PK
+        varchar user_id "Clerk subject, null while invite pending"
+        varchar email UK
+        varchar display_name
+        varchar role "owner or member"
+        varchar status "pending or active"
+        timestamptz created_at
     }
     settings {
         varchar key PK
@@ -84,7 +94,9 @@ Notes:
   `bridge/devices` on boot. Postgres stores identity and history, not hot
   state.
 - Secrets (`pairing_codes.code_hash`, `client_tokens.token_hash`) are hashed;
-  plaintext exists only in the initial HTTP response to the client.
+  plaintext exists only in the initial HTTP or session-mint response to the client.
+- `members` is the household ACL. Convex `pairings` / `invites` mirror it for
+  routing and Google-email invites; they cannot authorize commands.
 
 ## 2. Convex schema (cloud)
 
@@ -105,9 +117,20 @@ export default defineSchema({
     userId: v.string(), // Clerk subject
     controllerId: v.string(),
     createdAt: v.number(),
+    role: v.optional(v.union(v.literal("owner"), v.literal("member"))),
   })
     .index("by_user", ["userId"])
-    .index("by_user_and_controller", ["userId", "controllerId"]),
+    .index("by_user_and_controller", ["userId", "controllerId"])
+    .index("by_controller", ["controllerId"]),
+
+  invites: defineTable({
+    controllerId: v.string(),
+    email: v.string(), // normalized Google account email
+    invitedByUserId: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_email", ["email"])
+    .index("by_controller_and_email", ["controllerId", "email"]),
 
   relayMessages: defineTable({
     controllerId: v.string(),
@@ -199,13 +222,18 @@ the Rust serde types (`shared/` is the future home for a generated contract).
 // { "state": "ON", "brightness": 254, "color_temp": 370, "color": { "x": 0.4, "y": 0.4 } }
 
 // POST /api/pair
-{ "code": "482913", "clientLabel": "Jack's laptop" }
-// → 200 { "clientToken": "…" }  (only time the token is transmitted)
+{ "code": "482913", "clientLabel": "Jack's laptop", "userId": "user_…", "email": "you@gmail.com" }
+// → 200 { "clientToken": "…", "controllerId": "…" }  (only time the token is transmitted)
+
+// POST /api/members  { "email": "family@gmail.com" }
+// GET  /api/members  → { "members": [ { "id", "userId", "email", "role", "status", … } ] }
+
 ```
 
 Errors: `{ "error": { "code": "device_not_found", "message": "…" } }`.
 Auth: `Authorization: Bearer <clientToken>` on everything except
-`/api/health`, `/api/identify`, `/api/pair`.
+`/api/health`, `/api/identify`, `/api/pair`. First-run `/api/pairing-code`
+is open until a household exists.
 
 ### WebSocket `/ws` messages
 
@@ -237,11 +265,17 @@ Client → server:
 The relay carries the _same_ command/result shapes, wrapped:
 
 ```jsonc
-// relayMessages.payload (toController)
+// relayMessages.payload (toController) — commands still carry the client token
 {
   "requestId": "r1",
   "clientToken": "…",                  // verified by the controller, not Convex
   "message": { "type": "command", "deviceId": "6d1e…", "payload": { "state": "OFF" } }
+}
+
+// session mint has no client token; core checks members / pending email
+{
+  "requestId": "r2",
+  "message": { "type": "sessionMint", "userId": "user_…", "email": "you@gmail.com", "clientLabel": "Phone" }
 }
 
 // relayMessages.payload (toClient)
