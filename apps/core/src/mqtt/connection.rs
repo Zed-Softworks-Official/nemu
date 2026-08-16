@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use rumqttc::{AsyncClient, Event, Incoming, MqttOptions, QoS, Transport};
@@ -12,12 +13,14 @@ use crate::config::Config;
 use crate::devices::registry::log_event;
 use crate::events::{DeviceEvent, InterviewStatus};
 use crate::mqtt::z2m::{
-    self, IncomingTopic, devices_request_topic, parse_availability, parse_bridge_event,
-    parse_bridge_response, parse_bridge_state, parse_devices_payload, parse_topic,
-    permit_join_payload, permit_join_topic, remove_payload, remove_topic, rename_payload,
-    rename_topic, set_topic,
+    self, IncomingTopic, get_state_payload, get_topic, health_check_topic, parse_availability,
+    parse_bridge_event, parse_bridge_response, parse_bridge_state, parse_devices_payload,
+    parse_topic, permit_join_payload, permit_join_topic, remove_payload, remove_topic,
+    rename_payload, rename_topic, set_topic,
 };
 use crate::state::AppState;
+
+const STATE_REFRESH_GAP: Duration = Duration::from_millis(75);
 
 type PendingResponse = oneshot::Sender<Result<JsonValue, String>>;
 
@@ -26,6 +29,7 @@ pub struct MqttHandle {
     client: AsyncClient,
     base_topic: String,
     pending_responses: Arc<Mutex<HashMap<String, PendingResponse>>>,
+    refreshing_state: Arc<AtomicBool>,
 }
 
 impl MqttHandle {
@@ -114,13 +118,41 @@ impl MqttHandle {
         Ok(())
     }
 
-    pub async fn request_device_list(&self) -> Result<(), String> {
-        // Some z2m versions publish bridge/devices retained; also request explicitly.
-        let topic = devices_request_topic(&self.base_topic);
+    pub async fn request_bridge_health(&self) -> Result<(), String> {
+        let topic = health_check_topic(&self.base_topic);
         self.client
             .publish(topic, QoS::AtLeastOnce, false, "{}")
             .await
             .map_err(|e| e.to_string())
+    }
+
+    pub async fn publish_get(&self, friendly_name: &str) -> Result<(), String> {
+        let topic = get_topic(&self.base_topic, friendly_name);
+        self.client
+            .publish(topic, QoS::AtLeastOnce, false, get_state_payload())
+            .await
+            .map_err(|e| e.to_string())
+    }
+
+    /// Ask z2m to republish live state for devices that have no cached payload yet.
+    pub fn spawn_state_refresh(&self, friendly_names: Vec<String>) {
+        if friendly_names.is_empty() {
+            return;
+        }
+        if self.refreshing_state.swap(true, Ordering::SeqCst) {
+            return;
+        }
+
+        let handle = self.clone();
+        tokio::spawn(async move {
+            for name in friendly_names {
+                if let Err(error) = handle.publish_get(&name).await {
+                    debug!(friendly_name = %name, %error, "failed to refresh device state");
+                }
+                tokio::time::sleep(STATE_REFRESH_GAP).await;
+            }
+            handle.refreshing_state.store(false, Ordering::SeqCst);
+        });
     }
 
     async fn subscribe_all(&self) -> Result<(), String> {
@@ -151,6 +183,7 @@ pub fn create_client(config: &Config) -> (MqttHandle, rumqttc::EventLoop) {
         client,
         base_topic: config.mqtt_base_topic.clone(),
         pending_responses: Arc::new(Mutex::new(HashMap::new())),
+        refreshing_state: Arc::new(AtomicBool::new(false)),
     };
     (handle, eventloop)
 }
@@ -169,8 +202,8 @@ pub fn spawn_mqtt_loop(state: AppState, mut eventloop: rumqttc::EventLoop) {
 
                     if let Err(e) = state.mqtt.subscribe_all().await {
                         error!(error = %e, "failed to subscribe to zigbee2mqtt/#");
-                    } else if let Err(e) = state.mqtt.request_device_list().await {
-                        warn!(error = %e, "failed to request device list");
+                    } else if let Err(e) = state.mqtt.request_bridge_health().await {
+                        warn!(error = %e, "failed to ping zigbee2mqtt health");
                     }
 
                     state.emit(DeviceEvent::Health {
@@ -236,8 +269,8 @@ async fn handle_publish(
             });
 
             if online && !previously {
-                info!("zigbee2mqtt came online; requesting registry resync");
-                let _ = state.mqtt.request_device_list().await;
+                info!("zigbee2mqtt came online; waiting for retained bridge/devices");
+                let _ = state.mqtt.request_bridge_health().await;
                 state.emit(DeviceEvent::Resync);
             }
             Ok(())
@@ -249,6 +282,15 @@ async fn handle_publish(
                 "syncing device registry from bridge/devices"
             );
             state.registry.sync_from_bridge(state, &descriptors).await?;
+            let stale: Vec<String> = state
+                .registry
+                .list()
+                .await
+                .into_iter()
+                .filter(|device| state.state_cache.get_state(device.id).is_none())
+                .map(|device| device.friendly_name)
+                .collect();
+            state.mqtt.spawn_state_refresh(stale);
             state.emit(DeviceEvent::Resync);
             Ok(())
         }

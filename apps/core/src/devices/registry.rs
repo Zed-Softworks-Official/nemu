@@ -5,7 +5,7 @@ use serde_json::json;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::info;
+use tracing::{info, warn};
 use uuid::Uuid;
 
 use crate::db::models::{Device, NewDevice, NewDeviceEvent, UpdateDevice};
@@ -168,11 +168,22 @@ impl DeviceRegistry {
         }
 
         for device in upserted {
-            self.put(device).await;
+            self.put(device.clone()).await;
+            // Present on the mesh until availability (or missing state refresh) says otherwise.
+            state.state_cache.set_online_if_unknown(device.id, true);
+        }
+
+        let existing: Vec<Device> = self.list().await;
+        if !should_apply_bridge_removals(existing.len(), seen_ieee.len()) {
+            warn!(
+                existing = existing.len(),
+                seen = seen_ieee.len(),
+                "skipping registry removals; bridge/devices looks incomplete"
+            );
+            return Ok(());
         }
 
         // Remove devices no longer present in z2m.
-        let existing: Vec<Device> = self.list().await;
         for device in existing {
             if !seen_ieee.contains(&device.ieee_address) {
                 let id = device.id;
@@ -309,10 +320,26 @@ impl DeviceRegistry {
     }
 
     pub async fn to_resource(&self, state: &AppState, device: &Device) -> DeviceResource {
-        let online = state.state_cache.is_online(device.id);
+        let online = match state.state_cache.online_status(device.id) {
+            Some(online) => online,
+            None => device.last_seen.is_some_and(|ts| {
+                Utc::now().signed_duration_since(ts) < chrono::Duration::hours(24)
+            }),
+        };
         let cached = state.state_cache.get_state(device.id);
         DeviceResource::from_device(device, online, cached)
     }
+}
+
+/// Skip deletes when z2m published an empty or truncated inventory.
+fn should_apply_bridge_removals(existing_count: usize, seen_count: usize) -> bool {
+    if seen_count == 0 && existing_count > 0 {
+        return false;
+    }
+    if existing_count >= 2 && seen_count.saturating_mul(2) < existing_count {
+        return false;
+    }
+    true
 }
 
 fn infer_device_type(desc: &Z2mDeviceDescriptor) -> String {
@@ -440,5 +467,15 @@ mod tests {
             }),
         };
         assert_eq!(infer_device_type(&desc), "light");
+    }
+
+    #[test]
+    fn skips_removals_when_bridge_list_looks_incomplete() {
+        assert!(!should_apply_bridge_removals(5, 0));
+        assert!(!should_apply_bridge_removals(10, 4));
+        assert!(should_apply_bridge_removals(5, 3));
+        assert!(should_apply_bridge_removals(1, 1));
+        assert!(should_apply_bridge_removals(0, 0));
+        assert!(should_apply_bridge_removals(2, 1));
     }
 }

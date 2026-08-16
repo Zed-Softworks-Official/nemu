@@ -149,6 +149,14 @@ pub fn set_topic(base_topic: &str, friendly_name: &str) -> String {
     format!("{base_topic}/{friendly_name}/set")
 }
 
+pub fn get_topic(base_topic: &str, friendly_name: &str) -> String {
+    format!("{base_topic}/{friendly_name}/get")
+}
+
+pub fn get_state_payload() -> String {
+    json!({ "state": "" }).to_string()
+}
+
 pub fn permit_join_topic(base_topic: &str) -> String {
     format!("{base_topic}/bridge/request/permit_join")
 }
@@ -161,8 +169,8 @@ pub fn remove_topic(base_topic: &str) -> String {
     format!("{base_topic}/bridge/request/device/remove")
 }
 
-pub fn devices_request_topic(base_topic: &str) -> String {
-    format!("{base_topic}/bridge/request/device/list")
+pub fn health_check_topic(base_topic: &str) -> String {
+    format!("{base_topic}/bridge/request/health/check")
 }
 
 pub fn permit_join_payload(seconds: u32) -> String {
@@ -289,6 +297,20 @@ mod tests {
         let (ieee, status) = interview_status("device_interview", &data).unwrap();
         assert_eq!(ieee, "0xabc");
         assert!(matches!(status, crate::events::InterviewStatus::Successful));
+    }
+
+    #[test]
+    fn builds_get_and_health_topics() {
+        assert_eq!(
+            get_topic("zigbee2mqtt", "Kitchen Light"),
+            "zigbee2mqtt/Kitchen Light/get"
+        );
+        assert_eq!(
+            health_check_topic("zigbee2mqtt"),
+            "zigbee2mqtt/bridge/request/health/check"
+        );
+        let value: JsonValue = serde_json::from_str(&get_state_payload()).unwrap();
+        assert_eq!(value, json!({ "state": "" }));
     }
 
     #[test]

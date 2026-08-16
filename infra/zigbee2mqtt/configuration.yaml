@@ -9,6 +9,8 @@ serial:
 frontend:
   enabled: true
   port: 8080
+availability:
+  enabled: true
 advanced:
   log_level: info
   network_key:

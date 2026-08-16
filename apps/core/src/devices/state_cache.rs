@@ -25,12 +25,40 @@ impl StateCache {
         self.online.insert(device_id, online);
     }
 
+    pub fn set_online_if_unknown(&self, device_id: Uuid, online: bool) {
+        self.online.entry(device_id).or_insert(online);
+    }
+
+    pub fn online_status(&self, device_id: Uuid) -> Option<bool> {
+        self.online.get(&device_id).map(|v| *v)
+    }
+
     pub fn is_online(&self, device_id: Uuid) -> bool {
-        self.online.get(&device_id).map(|v| *v).unwrap_or(false)
+        self.online_status(device_id).unwrap_or(false)
     }
 
     pub fn remove(&self, device_id: Uuid) {
         self.states.remove(&device_id);
         self.online.remove(&device_id);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn set_online_if_unknown_does_not_override() {
+        let cache = StateCache::new();
+        let id = Uuid::nil();
+        cache.set_online(id, false);
+        cache.set_online_if_unknown(id, true);
+        assert_eq!(cache.online_status(id), Some(false));
+        assert!(!cache.is_online(id));
+
+        let other = Uuid::new_v4();
+        cache.set_online_if_unknown(other, true);
+        assert_eq!(cache.online_status(other), Some(true));
+        assert!(cache.is_online(other));
     }
 }

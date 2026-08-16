@@ -94,9 +94,7 @@ export function DeviceDetail({ deviceId }: { deviceId: string }) {
     const device = devices?.find((candidate) => candidate.id === deviceId)
     const commitOnRelease = status.mode === 'relay'
     const controlsDisabled =
-        !device?.online ||
-        status.mode === 'offline' ||
-        status.mode === 'probing'
+        status.mode === 'offline' || status.mode === 'probing'
 
     useEffect(() => {
         if (status.mode !== 'lan') {

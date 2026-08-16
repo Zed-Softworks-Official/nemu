@@ -8,6 +8,7 @@ import {
     BreadcrumbPage,
     BreadcrumbSeparator,
 } from '@nemu/ui/components/breadcrumb'
+import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Fragment, useMemo } from 'react'
 
@@ -38,7 +39,9 @@ export function DashboardBreadcrumbs() {
         <Breadcrumb>
             <BreadcrumbList>
                 <BreadcrumbItem>
-                    <BreadcrumbLink href="/">Home</BreadcrumbLink>
+                    <BreadcrumbLink asChild>
+                        <Link href="/">Home</Link>
+                    </BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 {segments.map((segment, index) => (
@@ -49,10 +52,12 @@ export function DashboardBreadcrumbs() {
                                     {titleCase(segment)}
                                 </BreadcrumbPage>
                             ) : (
-                                <BreadcrumbLink
-                                    href={`/${segments.slice(0, index + 1).join('/')}`}
-                                >
-                                    {titleCase(segment)}
+                                <BreadcrumbLink asChild>
+                                    <Link
+                                        href={`/${segments.slice(0, index + 1).join('/')}`}
+                                    >
+                                        {titleCase(segment)}
+                                    </Link>
                                 </BreadcrumbLink>
                             )}
                         </BreadcrumbItem>

@@ -67,6 +67,17 @@ Mosquitto, zigbee2mqtt, and Postgres are **not** auto-updated. Compose/file chan
 curl -fsSL https://get.nemu.sh | sudo NEMU_FORCE=1 sh
 ```
 
+Watchtower only recreates `nemu-core`. Zigbee devices stay on the radio; core rebuilds live state from MQTT. Existing zigbee2mqtt installs should enable availability so mains-powered devices are pinged after a core restart. Add this to `/opt/nemu/zigbee2mqtt/configuration.yaml` if it is missing, then recreate that service:
+
+```yaml
+availability:
+  enabled: true
+```
+
+```bash
+cd /opt/nemu && sudo docker compose up -d zigbee2mqtt
+```
+
 Manual pull:
 
 ```bash

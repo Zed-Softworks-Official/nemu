@@ -238,6 +238,17 @@ download_file() {
   curl -fsSL "${BASE_URL}/${src}" -o "${dest}"
 }
 
+ensure_z2m_availability() {
+  file="$1"
+  if [ ! -f "${file}" ]; then
+    return
+  fi
+  if grep -q '^availability:' "${file}" 2>/dev/null; then
+    return
+  fi
+  printf '\navailability:\n  enabled: true\n' >> "${file}"
+}
+
 resolve_tls_san() {
   if [ -n "${NEMU_TLS_SAN:-}" ]; then
     printf '%s\n' "${NEMU_TLS_SAN}"
@@ -289,6 +300,7 @@ write_files() {
   download_file "docker-compose.yml" "${INSTALL_DIR}/docker-compose.yml"
   download_file "mosquitto/mosquitto.conf" "${INSTALL_DIR}/mosquitto/mosquitto.conf"
   download_file "zigbee2mqtt/configuration.yaml" "${INSTALL_DIR}/zigbee2mqtt/configuration.yaml"
+  ensure_z2m_availability "${INSTALL_DIR}/zigbee2mqtt/configuration.yaml"
 
   zigbee_dev="$(detect_zigbee_device)"
   if [ -n "${zigbee_dev}" ]; then

@@ -8,5 +8,7 @@ serial:
   adapter: auto
 frontend:
   enabled: false
+availability:
+  enabled: true
 advanced:
   log_level: info
