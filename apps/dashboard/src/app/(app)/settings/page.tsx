@@ -9,6 +9,7 @@ import {
     getClientToken,
     getRememberedBaseUrl,
     getRememberedControllerId,
+    identifyController,
     useController,
 } from '@nemu/controller'
 import {
@@ -66,6 +67,20 @@ export default function SettingsPage() {
     const [busyInvite, setBusyInvite] = useState(false)
     const [busyUnpair, setBusyUnpair] = useState(false)
     const [copied, setCopied] = useState(false)
+    const [coreVersion, setCoreVersion] = useState<string | null>(null)
+
+    const loadIdentity = useCallback(async () => {
+        if (!baseUrl || status.mode !== 'lan') {
+            setCoreVersion(null)
+            return
+        }
+        try {
+            const identity = await identifyController(baseUrl)
+            setCoreVersion(identity.version ?? null)
+        } catch {
+            setCoreVersion(null)
+        }
+    }, [baseUrl, status.mode])
 
     const loadTokens = useCallback(async () => {
         if (!baseUrl || !getClientToken()) {
@@ -87,6 +102,10 @@ export default function SettingsPage() {
     useEffect(() => {
         void loadTokens()
     }, [loadTokens])
+
+    useEffect(() => {
+        void loadIdentity()
+    }, [loadIdentity])
 
     async function handleInvite() {
         if (!baseUrl) {
@@ -212,6 +231,14 @@ export default function SettingsPage() {
                                     </p>
                                     <p className="mt-1 break-all font-mono text-sm">
                                         {controllerId}
+                                    </p>
+                                </div>
+                                <div>
+                                    <p className="text-muted-foreground text-xs">
+                                        Core version
+                                    </p>
+                                    <p className="mt-1 font-mono text-sm">
+                                        {coreVersion ?? '—'}
                                     </p>
                                 </div>
                             </div>
