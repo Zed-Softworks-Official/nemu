@@ -13,12 +13,21 @@ import { lanHostnameFor, vercelRecordName } from '../lib/lanHostname'
 import { internal } from './_generated/api'
 import { type ActionCtx, internalAction } from './_generated/server'
 
-const STAGING_DIRECTORY =
-    'https://acme-staging-v02.api.letsencrypt.org/directory'
+const PRODUCTION_DIRECTORY = 'https://acme-v02.api.letsencrypt.org/directory'
 const RENEW_WITHIN_MS = 30 * 24 * 60 * 60 * 1000
 
 function directoryUrl(): string {
-    return process.env.ACME_DIRECTORY_URL ?? STAGING_DIRECTORY
+    return process.env.ACME_DIRECTORY_URL ?? PRODUCTION_DIRECTORY
+}
+
+function isUntrustedLanCert(certPem: string): boolean {
+    try {
+        const parsed = new X509Certificate(certPem)
+        const haystack = `${parsed.issuer} ${parsed.subject}`
+        return /staging/i.test(haystack)
+    } catch {
+        return true
+    }
 }
 
 function zone(): string {
@@ -88,11 +97,12 @@ export const issueForController = internalAction({
         await upsertRecord(recordName, 'A', controller.lanIp)
 
         const now = Date.now()
-        if (
-            controller.tlsCertPem &&
+        const hasTrustedCert =
+            Boolean(controller.tlsCertPem) &&
+            !isUntrustedLanCert(controller.tlsCertPem ?? '') &&
             controller.tlsExpiresAt !== undefined &&
             controller.tlsExpiresAt > now + RENEW_WITHIN_MS
-        ) {
+        if (hasTrustedCert) {
             return null
         }
 

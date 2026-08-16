@@ -166,15 +166,13 @@ export const getTlsBundle = internalQuery({
 export const listNeedingRenewal = internalQuery({
     args: { now: v.number(), withinMs: v.number() },
     returns: v.array(v.string()),
-    handler: async (ctx, args) => {
+    handler: async (ctx, _args) => {
         const controllers = await ctx.db.query('controllers').take(200)
         const ids: string[] = []
         for (const controller of controllers) {
             if (!controller.lanIp) continue
-            const expires = controller.tlsExpiresAt
-            if (expires === undefined || expires <= args.now + args.withinMs) {
-                ids.push(controller.controllerId)
-            }
+            // issueForController no-ops trusted certs that are not due.
+            ids.push(controller.controllerId)
         }
         return ids
     },
