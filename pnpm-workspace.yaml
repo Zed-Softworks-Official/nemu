@@ -11,22 +11,22 @@ allowBuilds:
   utf-8-validate: true
 
 catalog:
-  zod: ^3.25.76
+  zod: ^4.3.6
   react: ^19.0.0
   react-dom: ^19.0.0
   "@types/react": ^19.0.10
   "@types/react-dom": ^19.0.10
   "@types/node": ^22.13.10
   typescript: ^5.9.2
-  next: ^16.2.10
+  next: ^16.3.1
   "@clerk/nextjs": ^7.5.18
   "@clerk/ui": ^1.25.2
   convex: ^1.44.0
   axios: ^1.18.1
 
 overrides:
-  zod@4: 4.3.6
   convex: "catalog:"
+  utf-8-validate: 5.0.10
 
 minimumReleaseAgeExclude:
   - convex@1.43.0

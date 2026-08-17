@@ -13,7 +13,15 @@ export function SiteFooter() {
                         <Logo />
                     </div>
                     <p className="mt-3 text-muted-foreground text-sm">
-                        Made by Zed Softworks
+                        Made by
+                        <Button asChild variant="link">
+                            <Link
+                                href="https://zedsoftworks.dev"
+                                target="_blank"
+                            >
+                                Zed Softworks
+                            </Link>
+                        </Button>
                     </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-1">
@@ -42,8 +50,13 @@ export function SiteFooter() {
             </div>
             <Separator />
             <p className="mx-auto max-w-6xl px-5 py-5 text-muted-foreground text-xs sm:px-8">
-                &copy; {new Date().getFullYear()} Zed Softworks. Open source
-                under Apache-2.0.
+                &copy; {new Date().getFullYear()}
+                <Button asChild variant="link">
+                    <Link href="https://zedsoftworks.dev" target="_blank">
+                        Zed Softworks.
+                    </Link>
+                </Button>
+                Open source under Apache-2.0.
             </p>
         </footer>
     )
