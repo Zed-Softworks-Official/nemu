@@ -6,7 +6,7 @@ use tower_http::cors::{AllowOrigin, CorsLayer};
 
 use crate::api::middleware::require_client_token;
 use crate::api::{
-    devices, health, identify, landing, members, pairing, rooms, updates, ws, zigbee,
+    devices, health, identify, landing, matter, members, pairing, rooms, updates, ws, zigbee,
 };
 use crate::state::AppState;
 
@@ -70,6 +70,7 @@ pub fn router(state: AppState) -> Router {
             patch(rooms::patch_room).delete(rooms::delete_room),
         )
         .route("/api/zigbee/permit-join", post(zigbee::permit_join))
+        .route("/api/matter/commission", post(matter::commission))
         .route("/api/tokens", get(pairing::list_tokens))
         .route("/api/tokens/current", delete(pairing::delete_current_token))
         .route("/api/tokens/{id}", delete(pairing::delete_token))

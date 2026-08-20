@@ -72,6 +72,19 @@ export const permitJoinResponseSchema = z.object({
 })
 export type PermitJoinResponse = z.infer<typeof permitJoinResponseSchema>
 
+export const commissionRequestSchema = z.object({
+    /** Matter pairing code: `MT:…` QR payload or 11/21-digit manual code. */
+    code: z.string().trim().min(1),
+    wifiSsid: z.string().optional(),
+    wifiPassword: z.string().optional(),
+})
+export type CommissionRequest = z.infer<typeof commissionRequestSchema>
+
+export const commissionResponseSchema = z.object({
+    ok: z.boolean(),
+})
+export type CommissionResponse = z.infer<typeof commissionResponseSchema>
+
 export const patchDeviceRequestSchema = z
     .object({
         name: z.string().trim().min(1).optional(),

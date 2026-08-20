@@ -29,6 +29,7 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
     let health = DeviceEvent::Health {
         mqtt: state.health.mqtt(),
         zigbee: state.health.zigbee(),
+        matter: state.health.matter(),
         db: true,
     };
     if let Ok(payload) = serde_json::to_string(&health) {

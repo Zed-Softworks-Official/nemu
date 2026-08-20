@@ -9,6 +9,7 @@ pub struct HealthResponse {
     pub status: String,
     pub mqtt: bool,
     pub zigbee: bool,
+    pub matter: bool,
     pub db: bool,
 }
 
@@ -16,6 +17,7 @@ pub async fn health_check(State(state): State<AppState>) -> Json<HealthResponse>
     let db_ok = check_db(&state).await;
     let mqtt = state.health.mqtt();
     let zigbee = state.health.zigbee();
+    let matter = state.health.matter();
     let status = if db_ok && mqtt {
         "ok"
     } else if db_ok {
@@ -28,6 +30,7 @@ pub async fn health_check(State(state): State<AppState>) -> Json<HealthResponse>
         status: status.to_string(),
         mqtt,
         zigbee,
+        matter,
         db: db_ok,
     })
 }

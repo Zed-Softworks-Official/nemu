@@ -43,8 +43,15 @@ explicitly ask it to (and even then, only in transit, never at rest).
 
 ## 3. Non-goals (for now)
 
-- Protocols beyond Zigbee (Z-Wave, Matter/Thread, BLE) — the MQTT-centric
-  design leaves the door open, but v1 is zigbee2mqtt only.
+- Protocols beyond Zigbee and Matter-over-Wi-Fi (Z-Wave, Matter over Thread,
+  BLE devices) — Matter Wi-Fi devices are supported via the upstream
+  `matterjs-server` controller plus the `matter-bridge` MQTT sidecar; Thread
+  needs an OTBR + 802.15.4 radio and stays out of scope for now.
+- Energy management UI (history, cost, graphs). Matter/Zigbee power and energy
+  readings pass through into live device state today; the dedicated section is
+  a later milestone (see [architecture/energy.md](architecture/energy.md)).
+- Exposing Nemu's devices to Apple/Google/Alexa (Matter bridge role) — Nemu is
+  a Matter *controller*, not a bridge into other ecosystems.
 - Multi-controller homes / controller clustering.
 - Native mobile apps. The webview is the client; a wrapped webview app can come
   later without architectural change.

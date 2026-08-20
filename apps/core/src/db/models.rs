@@ -32,7 +32,8 @@ pub struct UpdateRoom {
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct Device {
     pub id: Uuid,
-    pub ieee_address: String,
+    pub external_id: String,
+    pub protocol: String,
     pub friendly_name: String,
     pub device_type: String,
     pub model: Option<String>,
@@ -46,7 +47,8 @@ pub struct Device {
 #[derive(Debug, Insertable)]
 #[diesel(table_name = crate::db::schema::devices)]
 pub struct NewDevice<'a> {
-    pub ieee_address: &'a str,
+    pub external_id: &'a str,
+    pub protocol: &'a str,
     pub friendly_name: &'a str,
     pub device_type: &'a str,
     pub model: Option<&'a str>,

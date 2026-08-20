@@ -17,6 +17,22 @@ services:
     depends_on:
       - mosquitto
 
+  # Matter controller. Host network is required for mDNS/IPv6; the WS API
+  # stays on 127.0.0.1:5580. The image runs as uid 1000 — `pnpm infra` chowns
+  # ./infra/matter before up. Run the MQTT adapter locally with
+  # `pnpm --filter @nemu/matter-bridge dev` (it defaults to localhost URLs).
+  matterjs-server:
+    image: ghcr.io/matter-js/matterjs-server:1.4
+    network_mode: host
+    environment:
+      LISTEN_ADDRESS: 127.0.0.1
+      DISABLE_OTA: "true"
+      NOBLE_BINDINGS: dbus
+      BLUETOOTH_ADAPTER: "0"
+    volumes:
+      - ./infra/matter:/data
+      - /run/dbus:/run/dbus:ro
+
   postgres:
     image: postgres:16-alpine
     environment:

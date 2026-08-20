@@ -17,7 +17,7 @@ export const deviceEventSchema = z.discriminatedUnion('type', [
     }),
     z.object({
         type: z.literal('interview'),
-        ieeeAddress: z.string(),
+        externalId: z.string(),
         status: z.enum(['started', 'successful', 'failed']),
     }),
     z.object({
@@ -27,6 +27,8 @@ export const deviceEventSchema = z.discriminatedUnion('type', [
         type: z.literal('health'),
         mqtt: z.boolean(),
         zigbee: z.boolean(),
+        // Optional so old cores without a Matter bridge still parse.
+        matter: z.boolean().optional(),
         db: z.boolean(),
     }),
     z.object({

@@ -188,6 +188,8 @@ export function DeviceDetail({ deviceId }: { deviceId: string }) {
     const stateEntries = Object.entries(device.state ?? {}).slice(0, 6)
     const powerChecked = pendingPower ?? presented.enabled
     const selectedRoom = rooms.find((room) => room.id === presented.roomId)
+    const isMatter = device.protocol === 'matter'
+    const protocolLabel = isMatter ? 'Matter' : 'Zigbee'
 
     async function runCommand(payload: DeviceState) {
         setCommandError(null)
@@ -442,7 +444,8 @@ export function DeviceDetail({ deviceId }: { deviceId: string }) {
                     <Card>
                         <CardHeader>
                             <CardTitle>Status</CardTitle>
-                            <CardAction>
+                            <CardAction className="flex items-center gap-2">
+                                <Badge variant="outline">{protocolLabel}</Badge>
                                 <Badge
                                     variant={
                                         presented.online ? 'soft' : 'secondary'
@@ -454,6 +457,10 @@ export function DeviceDetail({ deviceId }: { deviceId: string }) {
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <MetadataRow label="Type" value={presented.type} />
+                            <MetadataRow
+                                label="Protocol"
+                                value={protocolLabel}
+                            />
                             <MetadataRow
                                 label="Model"
                                 value={presented.model ?? 'Unknown'}
@@ -577,8 +584,9 @@ export function DeviceDetail({ deviceId }: { deviceId: string }) {
                         <CardHeader>
                             <CardTitle>Forget device</CardTitle>
                             <CardDescription>
-                                Remove this device from your Zigbee network and
-                                Nemu controller.
+                                {isMatter
+                                    ? 'Unpair this device from your Matter fabric and Nemu controller.'
+                                    : 'Remove this device from your Zigbee network and Nemu controller.'}
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -610,10 +618,9 @@ export function DeviceDetail({ deviceId }: { deviceId: string }) {
                                             Forget {presented.name}?
                                         </AlertDialogTitle>
                                         <AlertDialogDescription>
-                                            Nemu will ask the device to leave
-                                            this Zigbee network. Battery-powered
-                                            devices may need to be awake for the
-                                            request to succeed.
+                                            {isMatter
+                                                ? 'Nemu will unpair the device from your Matter fabric. For multi-outlet devices like power strips, this removes the entire device — every outlet, not just this one.'
+                                                : 'Nemu will ask the device to leave this Zigbee network. Battery-powered devices may need to be awake for the request to succeed.'}
                                         </AlertDialogDescription>
                                     </AlertDialogHeader>
                                     {forgetError ? (

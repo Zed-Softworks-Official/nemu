@@ -107,10 +107,14 @@ pub async fn patch_device(
     }
 
     if let Some(ref new_name) = rename_to {
-        // Prefer ieee as the stable z2m identity for rename.
+        // Prefer the external id (ieee / matter node id) as the stable bridge identity.
         state
             .mqtt
-            .rename_device(&existing.ieee_address, new_name)
+            .rename_device(
+                crate::mqtt::device_protocol(&existing),
+                &existing.external_id,
+                new_name,
+            )
             .await
             .map_err(|e| ApiError::service_unavailable("mqtt_error", e))?;
     }
@@ -135,15 +139,16 @@ pub async fn delete_device(
         .await
         .ok_or_else(|| ApiError::not_found("device_not_found", "device not found"))?;
 
+    let protocol = crate::mqtt::device_protocol(&existing);
     state
         .mqtt
-        .remove_device(&existing.ieee_address)
+        .remove_device(protocol, &existing.external_id)
         .await
         .map_err(|error| ApiError::service_unavailable("device_remove_failed", error))?;
 
     let _ = state
         .registry
-        .mark_left(&state, &existing.ieee_address)
+        .mark_left(&state, protocol, &existing.external_id)
         .await;
 
     Ok(axum::http::StatusCode::NO_CONTENT)

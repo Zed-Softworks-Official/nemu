@@ -10,6 +10,43 @@ fn env_truthy(name: &str, default: bool) -> bool {
     }
 }
 
+/// Device bus protocol behind an MQTT bridge.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Protocol {
+    Zigbee,
+    Matter,
+}
+
+impl Protocol {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Protocol::Zigbee => "zigbee",
+            Protocol::Matter => "matter",
+        }
+    }
+
+    pub fn parse(value: &str) -> Option<Self> {
+        match value {
+            "zigbee" => Some(Protocol::Zigbee),
+            "matter" => Some(Protocol::Matter),
+            _ => None,
+        }
+    }
+}
+
+impl std::fmt::Display for Protocol {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+/// One MQTT bridge (zigbee2mqtt, matter-bridge, …) core listens to.
+#[derive(Debug, Clone)]
+pub struct BridgeConfig {
+    pub protocol: Protocol,
+    pub base_topic: String,
+}
+
 #[derive(Debug, Clone)]
 pub struct Config {
     pub database_url: String,
@@ -17,7 +54,7 @@ pub struct Config {
     pub mqtt_host: String,
     pub mqtt_port: u16,
     pub mqtt_client_id: String,
-    pub mqtt_base_topic: String,
+    pub bridges: Vec<BridgeConfig>,
     pub convex_site_url: Option<String>,
     pub controller_name: String,
     pub registration_secret: Option<String>,
@@ -59,8 +96,7 @@ impl Config {
                 .unwrap_or(1883),
             mqtt_client_id: env::var("MQTT_CLIENT_ID")
                 .unwrap_or_else(|_| format!("nemu-core-{}", uuid::Uuid::new_v4())),
-            mqtt_base_topic: env::var("MQTT_BASE_TOPIC")
-                .unwrap_or_else(|_| "zigbee2mqtt".to_string()),
+            bridges: bridges_from_env(),
             convex_site_url: env::var("NEMU_CONVEX_SITE_URL")
                 .ok()
                 .filter(|s| !s.is_empty()),
@@ -81,4 +117,26 @@ impl Config {
                 .unwrap_or_else(|_| "ghcr.io/zed-softworks-official/nemu-core".to_string()),
         }
     }
+}
+
+/// Zigbee is always on. Matter defaults to base topic `matter`; set
+/// `MQTT_MATTER_BASE_TOPIC` to empty to disable.
+fn bridges_from_env() -> Vec<BridgeConfig> {
+    let mut bridges = vec![BridgeConfig {
+        protocol: Protocol::Zigbee,
+        base_topic: env::var("MQTT_BASE_TOPIC").unwrap_or_else(|_| "zigbee2mqtt".to_string()),
+    }];
+
+    let matter_base = env::var("MQTT_MATTER_BASE_TOPIC")
+        .unwrap_or_else(|_| "matter".to_string())
+        .trim()
+        .to_string();
+    if !matter_base.is_empty() {
+        bridges.push(BridgeConfig {
+            protocol: Protocol::Matter,
+            base_topic: matter_base,
+        });
+    }
+
+    bridges
 }

@@ -251,6 +251,23 @@ download_file() {
   curl -fsSL "${BASE_URL}/${src}" -o "${dest}"
 }
 
+# Matter runs on by default (matterjs-server + matter-bridge, host network).
+# Wi-Fi Matter needs working IPv6 (link-local at minimum) and BLE commissioning
+# needs bluetoothd on the host D-Bus. Neither failure should block the install;
+# Zigbee and Wi-Fi-onboarded Matter devices keep working.
+check_matter_prereqs() {
+  if [ "$(cat /proc/sys/net/ipv6/conf/all/disable_ipv6 2>/dev/null || echo 0)" = "1" ]; then
+    warn "IPv6 is disabled on this host. Matter requires IPv6 (link-local is enough)."
+    warn "Enable it with: sysctl -w net.ipv6.conf.all.disable_ipv6=0 (and persist in /etc/sysctl.d)"
+  fi
+  if command -v systemctl >/dev/null 2>&1; then
+    if ! systemctl is-active --quiet bluetooth 2>/dev/null; then
+      warn "bluetoothd is not running. BLE commissioning of new Matter devices will fail."
+      warn "Install/enable it with: apt-get install -y bluez && systemctl enable --now bluetooth"
+    fi
+  fi
+}
+
 ensure_z2m_availability() {
   file="$1"
   if [ ! -f "${file}" ]; then
@@ -369,10 +386,20 @@ EOF
   fi
 }
 
+# matterjs-server runs as uid 1000. Compose named volumes are often created as
+# root, which makes mkdir /data/config fail and the WS port never bind.
+ensure_matter_data_writable() {
+  project="${COMPOSE_PROJECT_NAME:-$(basename "${INSTALL_DIR}")}"
+  vol="${project}_matter-data"
+  docker volume create "${vol}" >/dev/null
+  docker run --rm -v "${vol}:/data" alpine:3.20 chown -R 1000:1000 /data
+}
+
 start_stack() {
   log "Pulling images and starting stack"
   cd "${INSTALL_DIR}"
   docker compose pull
+  ensure_matter_data_writable
   docker compose up -d
 }
 
@@ -430,6 +457,7 @@ main() {
   require_root
   need_cmd curl
   install_docker
+  check_matter_prereqs
   write_files
   start_stack
   wait_for_health || true
