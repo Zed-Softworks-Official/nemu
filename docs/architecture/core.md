@@ -90,29 +90,59 @@ the async runtime; the pool is the first refactor (M0 remainder).
   the MQTT loop from consumers (`/ws` sessions, relay snapshots, voice
   confirmations).
 
-## 3. MQTT bridge (zigbee2mqtt)
+## 3. MQTT bridges (zigbee2mqtt + matter-bridge)
 
 `mqtt/connection.rs` owns one rumqttc `AsyncClient` + event loop with
-exponential backoff reconnect. On (re)connect it subscribes to `zigbee2mqtt/#`
-and requests a registry resync.
+exponential backoff reconnect. Core is multi-bridge: config holds a list of
+`BridgeConfig { protocol, base_topic }` entries (`MQTT_BASE_TOPIC` for Zigbee,
+`MQTT_MATTER_BASE_TOPIC` for Matter — unset disables Matter). On (re)connect it
+subscribes to `{base}/#` for every bridge and requests a registry resync;
+incoming publishes are routed to the owning bridge by topic prefix.
 
-Topic map (see [data-model.md](data-model.md) for payload details):
+Topic map, identical shape per bridge (`zigbee2mqtt/…` and `matter/…`; see
+[data-model.md](data-model.md) for payload details):
 
 | Direction | Topic                                       | Purpose                                                      |
 | --------- | ------------------------------------------- | ------------------------------------------------------------ |
-| in        | `zigbee2mqtt/bridge/devices`                | full device list → registry sync (upsert/remove in Postgres) |
-| in        | `zigbee2mqtt/bridge/event`                  | join/leave/interview events → `/ws` + pairing UX             |
-| in        | `zigbee2mqtt/bridge/state`                  | z2m health → `/api/health`                                   |
-| in        | `zigbee2mqtt/<friendly_name>`               | device state → state cache + `DeviceEvent`                   |
-| out       | `zigbee2mqtt/<friendly_name>/set`           | commands                                                     |
-| out       | `zigbee2mqtt/bridge/request/permit_join`    | open pairing window                                          |
-| out       | `zigbee2mqtt/bridge/request/device/rename`  | rename propagation                                           |
-| out       | `zigbee2mqtt/bridge/request/device/remove`  | safely forget a device from the Zigbee network               |
-| in        | `zigbee2mqtt/bridge/response/device/remove` | transaction-correlated removal result                        |
+| in        | `{base}/bridge/devices`                     | full device list → registry sync (upsert/remove in Postgres) |
+| in        | `{base}/bridge/event`                       | join/leave/interview events → `/ws` + pairing UX             |
+| in        | `{base}/bridge/state`                       | bridge health → `/api/health`                                |
+| in        | `{base}/<id>`                               | device state → state cache + `DeviceEvent`                   |
+| out       | `{base}/<id>/set`                           | commands                                                     |
+| out       | `zigbee2mqtt/bridge/request/permit_join`    | open Zigbee pairing window (Zigbee only)                     |
+| out       | `matter/bridge/request/commission`          | commission a Matter device (Matter only)                     |
+| out       | `{base}/bridge/request/device/rename`       | rename propagation                                           |
+| out       | `{base}/bridge/request/device/remove`       | forget a device (Zigbee: leave network; Matter: unpair node) |
+| in        | `{base}/bridge/response/#`                  | transaction-correlated request results                       |
 
-Registry sync is idempotent: `bridge/devices` is the source of truth for
-existence and `ieee_address`; Postgres adds nemu-owned fields (room, display
-metadata). Renames initiated in nemu go _to_ z2m so the two never diverge.
+`<id>` is the z2m `friendly_name` for Zigbee and the external id (`nodeId` or
+`nodeId:endpoint`) for Matter. Registry sync is idempotent and scoped per
+protocol: each bridge's `bridge/devices` is the source of truth for existence
+and `external_id` within that protocol; Postgres adds nemu-owned fields (room,
+display metadata). Renames initiated in nemu go _to_ the bridge so the two
+never diverge.
+
+### matter-bridge sidecar
+
+`apps/matter-bridge` (Node/TypeScript) translates the upstream
+[matterjs-server](https://github.com/matter-js/matterjs-server) WebSocket API
+into the MQTT dialect above under base topic `matter`. Key behaviors:
+
+- **One Nemu device per functional Matter endpoint.** A power strip (one
+  fabric node, one On/Off Plug-in Unit endpoint per outlet) becomes sibling
+  devices with ids `{nodeId}:{endpointId}`; single-endpoint nodes keep a bare
+  `{nodeId}`. Availability is shared node-wide; removing any sibling unpairs
+  the whole node.
+- **Synthesized z2m-style `exposes`** (OnOff → `switch`, LevelControl →
+  `light`/`brightness`, ColorControl → `color`/`color_temp`) so core's type
+  inference and the dashboard command mapping work unchanged.
+- **Energy cluster passthrough.** Electrical Power Measurement (`0x0090`) and
+  Electrical Energy Measurement (`0x0091`) attributes fold into the retained
+  state JSON as read-only keys in SI units: `power` (W), `voltage` (V),
+  `current` (A), `energy` (kWh). Live cache only — no history tables yet (see
+  [energy.md](energy.md)).
+- **Renames are nemu-owned**, persisted in the sidecar's data volume; Matter
+  has no friendly-name sync.
 
 ## 4. API surface
 
@@ -131,7 +161,8 @@ pairing endpoints.
 | `DELETE /api/devices/{id}`                                                    | remove from Zigbee network, then delete registry metadata                         |
 | `POST /api/devices/{id}/set`                                                  | send a command payload (`{"state":"OFF"}`, `{"brightness":128}`)                  |
 | `GET /api/rooms` / `POST /api/rooms` / `PATCH /api/rooms/{id}` / `DELETE ...` | room CRUD                                                                         |
-| `POST /api/zigbee/permit-join`                                                | `{seconds: 120}` open join window                                                 |
+| `POST /api/zigbee/permit-join`                                                | `{seconds: 120}` open Zigbee join window                                          |
+| `POST /api/matter/commission`                                                 | `{code, wifiSsid?, wifiPassword?}` commission a Matter device (LAN only)          |
 | `GET /api/tokens` / `DELETE /api/tokens/{id}` / `DELETE /api/tokens/current`  | list / revoke paired devices; revoke this dashboard                               |
 | `GET /ws`                                                                     | WebSocket: server pushes `DeviceEvent`s; client may send commands (same executor) |
 

@@ -4,6 +4,7 @@ use uuid::Uuid;
 
 use crate::devices::registry::log_event;
 use crate::events::ErrorBody;
+use crate::mqtt::{device_protocol, device_topic_id};
 use crate::state::AppState;
 
 #[derive(Debug, Error)]
@@ -44,7 +45,7 @@ pub async fn execute_set(
 
     state
         .mqtt
-        .publish_set(&device.friendly_name, &payload)
+        .publish_set(device_protocol(&device), device_topic_id(&device), &payload)
         .await
         .map_err(CommandError::Mqtt)?;
 

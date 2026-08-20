@@ -1,7 +1,7 @@
 'use client'
 
 import { useDevicePairing } from '@nemu/controller'
-import type { Device, Room } from '@nemu/protocol'
+import type { Device, DeviceProtocol, Room } from '@nemu/protocol'
 import { Badge } from '@nemu/ui/components/badge'
 import { Button } from '@nemu/ui/components/button'
 import {
@@ -29,13 +29,15 @@ import {
     CircleAlertIcon,
     LightbulbIcon,
     LoaderCircleIcon,
+    QrCodeIcon,
     RadioTowerIcon,
     RotateCwIcon,
     RouterIcon,
+    ScanLineIcon,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { presentDevice } from '~/lib/device-presentation'
 import { DeviceIcon } from './device-icon'
 import { PageHeader } from './page-header'
@@ -47,6 +49,11 @@ export function DevicePairingWizard() {
     const router = useRouter()
     const [name, setName] = useState('')
     const [roomId, setRoomId] = useState<string | null>(null)
+    const [protocolChoice, setProtocolChoice] =
+        useState<DeviceProtocol>('zigbee')
+    const [matterCode, setMatterCode] = useState('')
+    const [wifiSsid, setWifiSsid] = useState('')
+    const [wifiPassword, setWifiPassword] = useState('')
 
     useEffect(() => {
         if (pairing.selectedDevice) {
@@ -73,6 +80,18 @@ export function DevicePairingWizard() {
         router.push(`/devices/${updated.id}`)
     }
 
+    function startPairing() {
+        if (protocolChoice === 'matter') {
+            void pairing.startMatterCommission({
+                code: matterCode.trim(),
+                wifiSsid: wifiSsid.trim() || undefined,
+                wifiPassword: wifiSsid.trim() ? wifiPassword : undefined,
+            })
+        } else {
+            void pairing.startDiscovery()
+        }
+    }
+
     return (
         <div className="mx-auto flex w-full max-w-4xl flex-col gap-8">
             <PageHeader
@@ -84,7 +103,7 @@ export function DevicePairingWizard() {
                         </Link>
                     </Button>
                 }
-                description="Pair Zigbee devices directly with your Nemu controller."
+                description="Pair Zigbee and Matter devices directly with your Nemu controller."
                 eyebrow="Add device"
                 title={getPageTitle(pairing.phase)}
             />
@@ -95,7 +114,15 @@ export function DevicePairingWizard() {
                 <PrepareStep
                     connectionLabel={pairing.status.label}
                     isHome={pairing.status.mode === 'lan'}
-                    onStart={() => void pairing.startDiscovery()}
+                    matterCode={matterCode}
+                    onMatterCodeChange={setMatterCode}
+                    onProtocolChange={setProtocolChoice}
+                    onStart={startPairing}
+                    onWifiPasswordChange={setWifiPassword}
+                    onWifiSsidChange={setWifiSsid}
+                    protocol={protocolChoice}
+                    wifiPassword={wifiPassword}
+                    wifiSsid={wifiSsid}
                 />
             ) : null}
 
@@ -105,6 +132,7 @@ export function DevicePairingWizard() {
                     interviews={pairing.interviews}
                     isHome={pairing.status.mode === 'lan'}
                     onSelect={(device) => void pairing.selectDevice(device)}
+                    protocol={pairing.protocol}
                     secondsRemaining={pairing.secondsRemaining}
                 />
             ) : null}
@@ -134,7 +162,7 @@ export function DevicePairingWizard() {
                         'Nemu could not start device pairing.'
                     }
                     onReset={pairing.reset}
-                    onRetry={() => void pairing.startDiscovery()}
+                    onRetry={startPairing}
                 />
             ) : null}
         </div>
@@ -182,26 +210,70 @@ function StepIndicator({ currentStep }: { currentStep: number }) {
 function PrepareStep({
     isHome,
     connectionLabel,
+    protocol,
+    matterCode,
+    wifiSsid,
+    wifiPassword,
+    onProtocolChange,
+    onMatterCodeChange,
+    onWifiSsidChange,
+    onWifiPasswordChange,
     onStart,
 }: {
     isHome: boolean
     connectionLabel: string
+    protocol: DeviceProtocol
+    matterCode: string
+    wifiSsid: string
+    wifiPassword: string
+    onProtocolChange: (protocol: DeviceProtocol) => void
+    onMatterCodeChange: (code: string) => void
+    onWifiSsidChange: (ssid: string) => void
+    onWifiPasswordChange: (password: string) => void
     onStart: () => void
 }) {
+    const isMatter = protocol === 'matter'
+    const canStart = isHome && (!isMatter || matterCode.trim().length > 0)
+
     return (
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(15rem,0.8fr)]">
             <Card className="min-h-80 justify-between">
                 <CardHeader className="text-center">
                     <div className="mx-auto mb-5 flex size-16 items-center justify-center rounded-full border bg-muted/40 text-primary">
-                        <RadioTowerIcon className="size-6" />
+                        {isMatter ? (
+                            <QrCodeIcon className="size-6" />
+                        ) : (
+                            <RadioTowerIcon className="size-6" />
+                        )}
                     </div>
-                    <CardTitle className="text-lg">Ready your device</CardTitle>
+                    <CardTitle className="text-lg">
+                        {isMatter
+                            ? 'Enter the pairing code'
+                            : 'Ready your device'}
+                    </CardTitle>
                     <CardDescription className="mx-auto max-w-sm leading-relaxed">
-                        Reset the device until its status light blinks, then
-                        keep it close to your Nemu controller.
+                        {isMatter
+                            ? 'Scan the Matter QR code on the device or enter its 11-digit pairing code.'
+                            : 'Reset the device until its status light blinks, then keep it close to your Nemu controller.'}
                     </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-4">
+                    <ProtocolToggle
+                        onChange={onProtocolChange}
+                        protocol={protocol}
+                    />
+
+                    {isMatter ? (
+                        <MatterPrepareFields
+                            code={matterCode}
+                            onCodeChange={onMatterCodeChange}
+                            onWifiPasswordChange={onWifiPasswordChange}
+                            onWifiSsidChange={onWifiSsidChange}
+                            wifiPassword={wifiPassword}
+                            wifiSsid={wifiSsid}
+                        />
+                    ) : null}
+
                     <div
                         className={`rounded-lg border p-4 ${
                             isHome
@@ -231,15 +303,272 @@ function PrepareStep({
                     </div>
                 </CardContent>
                 <CardFooter className="justify-center border-t">
-                    <Button disabled={!isHome} onClick={onStart}>
+                    <Button disabled={!canStart} onClick={onStart}>
                         <RadioTowerIcon data-icon="inline-start" />
-                        Start discovery
+                        {isMatter ? 'Pair device' : 'Start discovery'}
                     </Button>
                 </CardFooter>
             </Card>
 
-            <PairingTips />
+            <PairingTips protocol={protocol} />
         </div>
+    )
+}
+
+function ProtocolToggle({
+    protocol,
+    onChange,
+}: {
+    protocol: DeviceProtocol
+    onChange: (protocol: DeviceProtocol) => void
+}) {
+    return (
+        <div className="grid grid-cols-2 gap-1 rounded-lg border bg-muted/30 p-1">
+            {(['zigbee', 'matter'] as const).map((option) => (
+                <button
+                    className={`rounded-md px-3 py-1.5 font-medium text-sm transition-colors ${
+                        protocol === option
+                            ? 'bg-background text-foreground shadow-sm'
+                            : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                    key={option}
+                    onClick={() => onChange(option)}
+                    type="button"
+                >
+                    {option === 'zigbee' ? 'Zigbee' : 'Matter'}
+                </button>
+            ))}
+        </div>
+    )
+}
+
+function MatterPrepareFields({
+    code,
+    wifiSsid,
+    wifiPassword,
+    onCodeChange,
+    onWifiSsidChange,
+    onWifiPasswordChange,
+}: {
+    code: string
+    wifiSsid: string
+    wifiPassword: string
+    onCodeChange: (code: string) => void
+    onWifiSsidChange: (ssid: string) => void
+    onWifiPasswordChange: (password: string) => void
+}) {
+    return (
+        <div className="space-y-4">
+            <div className="grid gap-2">
+                <label className="font-medium text-sm" htmlFor="matter-code">
+                    Pairing code
+                </label>
+                <div className="flex gap-2">
+                    <Input
+                        autoComplete="off"
+                        id="matter-code"
+                        onChange={(event) => onCodeChange(event.target.value)}
+                        placeholder="MT:… or 749-701-1233"
+                        value={code}
+                    />
+                    <MatterQrScanButton onCode={onCodeChange} />
+                </div>
+            </div>
+
+            <div className="grid gap-2">
+                <label className="font-medium text-sm" htmlFor="matter-ssid">
+                    Wi-Fi network{' '}
+                    <span className="font-normal text-muted-foreground">
+                        (optional)
+                    </span>
+                </label>
+                <Input
+                    autoComplete="off"
+                    id="matter-ssid"
+                    onChange={(event) => onWifiSsidChange(event.target.value)}
+                    placeholder="Network name (SSID)"
+                    value={wifiSsid}
+                />
+                <Input
+                    autoComplete="off"
+                    id="matter-wifi-password"
+                    onChange={(event) =>
+                        onWifiPasswordChange(event.target.value)
+                    }
+                    placeholder="Wi-Fi password"
+                    type="password"
+                    value={wifiPassword}
+                />
+                <p className="text-muted-foreground text-xs leading-relaxed">
+                    Fill this in if the device needs to join Wi-Fi during
+                    pairing (most bulbs, plugs, and strips). Skip it if the
+                    device is already on this LAN or uses Ethernet. Use 2.4 GHz.
+                    Credentials go only to the controller. After a failed
+                    attempt, put the device back in pairing mode before retrying.
+                </p>
+            </div>
+        </div>
+    )
+}
+
+type BarcodeDetectorLike = {
+    detect: (
+        source: CanvasImageSource | ImageBitmap
+    ) => Promise<Array<{ rawValue: string }>>
+}
+
+type BarcodeDetectorConstructor = new (options?: {
+    formats?: string[]
+}) => BarcodeDetectorLike
+
+function getBarcodeDetector(): BarcodeDetectorConstructor | null {
+    if (typeof window === 'undefined') return null
+    const ctor = (window as { BarcodeDetector?: BarcodeDetectorConstructor })
+        .BarcodeDetector
+    return ctor ?? null
+}
+
+/**
+ * Camera QR scan via BarcodeDetector where available, with a photo-upload
+ * fallback (`<input capture>`); hidden entirely when neither path can work.
+ */
+function MatterQrScanButton({ onCode }: { onCode: (code: string) => void }) {
+    const [scanning, setScanning] = useState(false)
+    const [supported, setSupported] = useState(false)
+    const [cameraSupported, setCameraSupported] = useState(false)
+    const videoRef = useRef<HTMLVideoElement | null>(null)
+    const streamRef = useRef<MediaStream | null>(null)
+    const fileInputRef = useRef<HTMLInputElement | null>(null)
+
+    useEffect(() => {
+        setSupported(getBarcodeDetector() !== null)
+        setCameraSupported(
+            getBarcodeDetector() !== null &&
+                typeof navigator !== 'undefined' &&
+                !!navigator.mediaDevices?.getUserMedia
+        )
+    }, [])
+
+    const stopScan = useCallback(() => {
+        for (const track of streamRef.current?.getTracks() ?? []) {
+            track.stop()
+        }
+        streamRef.current = null
+        setScanning(false)
+    }, [])
+
+    useEffect(() => stopScan, [stopScan])
+
+    async function startCameraScan() {
+        const Detector = getBarcodeDetector()
+        if (!Detector) return
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'environment' },
+            })
+            streamRef.current = stream
+            setScanning(true)
+
+            // Wait a tick for the video element to mount.
+            await new Promise((resolve) => setTimeout(resolve, 50))
+            const video = videoRef.current
+            if (!video) {
+                stopScan()
+                return
+            }
+            video.srcObject = stream
+            await video.play()
+
+            const detector = new Detector({ formats: ['qr_code'] })
+            const poll = setInterval(async () => {
+                if (!streamRef.current) {
+                    clearInterval(poll)
+                    return
+                }
+                try {
+                    const codes = await detector.detect(video)
+                    const match = codes.find((c) =>
+                        c.rawValue.startsWith('MT:')
+                    )
+                    if (match) {
+                        clearInterval(poll)
+                        onCode(match.rawValue)
+                        stopScan()
+                    }
+                } catch {
+                    // Frame not ready yet; keep polling.
+                }
+            }, 300)
+        } catch {
+            // Camera denied/unavailable — fall back to photo upload.
+            stopScan()
+            fileInputRef.current?.click()
+        }
+    }
+
+    async function scanFile(file: File) {
+        const Detector = getBarcodeDetector()
+        if (!Detector) return
+        try {
+            const bitmap = await createImageBitmap(file)
+            const detector = new Detector({ formats: ['qr_code'] })
+            const codes = await detector.detect(bitmap)
+            const match = codes.find((c) => c.rawValue.startsWith('MT:'))
+            if (match) onCode(match.rawValue)
+        } catch {
+            // Unreadable image; user can retry or type the code.
+        }
+    }
+
+    if (!supported) return null
+
+    return (
+        <>
+            <Button
+                onClick={() => {
+                    if (scanning) {
+                        stopScan()
+                    } else if (cameraSupported) {
+                        void startCameraScan()
+                    } else {
+                        fileInputRef.current?.click()
+                    }
+                }}
+                type="button"
+                variant="outline"
+            >
+                <ScanLineIcon data-icon="inline-start" />
+                {scanning ? 'Stop' : 'Scan'}
+            </Button>
+            <input
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={(event) => {
+                    const file = event.target.files?.[0]
+                    if (file) void scanFile(file)
+                    event.target.value = ''
+                }}
+                ref={fileInputRef}
+                type="file"
+            />
+            {scanning ? (
+                <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-black/80 p-6">
+                    <video
+                        className="max-h-[70vh] w-full max-w-md rounded-lg"
+                        muted
+                        playsInline
+                        ref={videoRef}
+                    />
+                    <p className="text-sm text-white">
+                        Point the camera at the Matter QR code
+                    </p>
+                    <Button onClick={stopScan} variant="secondary">
+                        Cancel
+                    </Button>
+                </div>
+            ) : null}
+        </>
     )
 }
 
@@ -248,17 +577,21 @@ function DiscoverStep({
     interviews,
     secondsRemaining,
     isHome,
+    protocol,
     onSelect,
 }: {
     devices: Device[]
     interviews: Array<{
-        ieeeAddress: string
+        externalId: string
         status: 'started' | 'successful' | 'failed'
     }>
     secondsRemaining: number
     isHome: boolean
+    protocol: DeviceProtocol
     onSelect: (device: Device) => void
 }) {
+    const isMatter = protocol === 'matter'
+
     return (
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(15rem,0.8fr)]">
             <Card className="min-h-96">
@@ -267,12 +600,20 @@ function DiscoverStep({
                         <span className="absolute inset-2 animate-pulse rounded-full border border-primary/30" />
                         <RadioTowerIcon className="size-7" />
                     </div>
-                    <CardTitle className="text-lg">Searching nearby</CardTitle>
+                    <CardTitle className="text-lg">
+                        {isMatter ? 'Commissioning device' : 'Searching nearby'}
+                    </CardTitle>
                     <CardDescription>
-                        Pairing closes in{' '}
-                        <span className="font-mono text-foreground">
-                            {formatCountdown(secondsRemaining)}
-                        </span>
+                        {isMatter ? (
+                            'Waiting for the device to join. This can take up to a minute.'
+                        ) : (
+                            <>
+                                Pairing closes in{' '}
+                                <span className="font-mono text-foreground">
+                                    {formatCountdown(secondsRemaining)}
+                                </span>
+                            </>
+                        )}
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -287,14 +628,16 @@ function DiscoverStep({
                                 Waiting for a device
                             </p>
                             <p className="mt-1 text-muted-foreground text-xs">
-                                Keep it powered and in pairing mode.
+                                {isMatter
+                                    ? 'Keep the device powered and near the controller while it joins.'
+                                    : 'Keep it powered and in pairing mode.'}
                             </p>
                         </div>
                     ) : null}
                     {interviews.map((interview) => (
                         <InterviewRow
                             interview={interview}
-                            key={interview.ieeeAddress}
+                            key={interview.externalId}
                         />
                     ))}
                     {devices.map((device) => (
@@ -307,7 +650,7 @@ function DiscoverStep({
                 </CardContent>
             </Card>
 
-            <PairingTips />
+            <PairingTips protocol={protocol} />
         </div>
     )
 }
@@ -524,7 +867,7 @@ function InterviewRow({
     interview,
 }: {
     interview: {
-        ieeeAddress: string
+        externalId: string
         status: 'started' | 'successful' | 'failed'
     }
 }) {
@@ -546,14 +889,16 @@ function InterviewRow({
                           : 'Interviewing device'}
                 </p>
                 <p className="truncate font-mono text-muted-foreground text-xs">
-                    {interview.ieeeAddress}
+                    {interview.externalId}
                 </p>
             </div>
         </div>
     )
 }
 
-function PairingTips() {
+function PairingTips({ protocol }: { protocol: DeviceProtocol }) {
+    const isMatter = protocol === 'matter'
+
     return (
         <div className="space-y-5">
             <Card>
@@ -565,19 +910,35 @@ function PairingTips() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <Tip
-                        detail="Follow its reset instructions until the status light starts blinking."
+                        detail={
+                            isMatter
+                                ? 'Find the QR code or 11-digit pairing code on the device or its packaging.'
+                                : 'Follow its reset instructions until the status light starts blinking.'
+                        }
                         number="1"
-                        title="Reset the device"
+                        title={
+                            isMatter
+                                ? 'Locate the pairing code'
+                                : 'Reset the device'
+                        }
                     />
                     <Separator />
                     <Tip
-                        detail="Place it within a few feet of your Nemu controller for pairing."
+                        detail={
+                            isMatter
+                                ? 'New Wi-Fi devices pair over Bluetooth — keep them close to the controller. Devices already on the LAN or Ethernet do not need to be nearby.'
+                                : 'Place it within a few feet of your Nemu controller for pairing.'
+                        }
                         number="2"
                         title="Bring it nearby"
                     />
                     <Separator />
                     <Tip
-                        detail="Leave the device powered while Nemu finishes configuration."
+                        detail={
+                            isMatter
+                                ? 'Leave it powered. If it must join Wi-Fi, enter the 2.4 GHz network above; skip that if it is already on this network.'
+                                : 'Leave the device powered while Nemu finishes configuration.'
+                        }
                         number="3"
                         title="Keep it awake"
                     />
@@ -595,10 +956,11 @@ function PairingTips() {
                                 Supported devices
                             </p>
                             <Badge variant="outline">Zigbee</Badge>
+                            <Badge variant="outline">Matter</Badge>
                         </div>
                         <p className="mt-1 text-muted-foreground text-xs leading-relaxed">
-                            Lights, plugs, switches, and sensors from common
-                            Zigbee manufacturers.
+                            Lights, plugs, power strips, switches, and sensors
+                            over Zigbee or Matter Wi-Fi.
                         </p>
                     </div>
                 </CardContent>

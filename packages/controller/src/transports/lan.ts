@@ -3,8 +3,12 @@ import {
     bootstrapOwnerRequestSchema,
     type ClientToken,
     type CommandResult,
+    type CommissionRequest,
+    type CommissionResponse,
     type CreateRoomRequest,
     clientWsMessageSchema,
+    commissionRequestSchema,
+    commissionResponseSchema,
     createRoomRequestSchema,
     type Device,
     type DeviceCommand,
@@ -118,6 +122,18 @@ export class LanTransport implements ControllerTransport {
         const body = permitJoinRequestSchema.parse({ seconds })
         const { data } = await this.http.post('/api/zigbee/permit-join', body)
         return permitJoinResponseSchema.parse(data)
+    }
+
+    async commissionMatter(
+        request: CommissionRequest
+    ): Promise<CommissionResponse> {
+        const body = commissionRequestSchema.parse(request)
+        const { data } = await this.http.post(
+            '/api/matter/commission',
+            body,
+            { timeout: 20_000 }
+        )
+        return commissionResponseSchema.parse(data)
     }
 
     async getRooms(): Promise<Room[]> {

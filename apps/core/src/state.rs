@@ -31,6 +31,7 @@ pub struct AppState {
 pub struct HealthFlags {
     pub mqtt_connected: AtomicBool,
     pub zigbee_online: AtomicBool,
+    pub matter_online: AtomicBool,
 }
 
 impl HealthFlags {
@@ -38,8 +39,15 @@ impl HealthFlags {
         self.mqtt_connected.store(connected, Ordering::Relaxed);
     }
 
-    pub fn set_zigbee(&self, online: bool) {
-        self.zigbee_online.store(online, Ordering::Relaxed);
+    pub fn set_bridge(&self, protocol: crate::config::Protocol, online: bool) {
+        match protocol {
+            crate::config::Protocol::Zigbee => {
+                self.zigbee_online.store(online, Ordering::Relaxed)
+            }
+            crate::config::Protocol::Matter => {
+                self.matter_online.store(online, Ordering::Relaxed)
+            }
+        }
     }
 
     pub fn mqtt(&self) -> bool {
@@ -48,6 +56,10 @@ impl HealthFlags {
 
     pub fn zigbee(&self) -> bool {
         self.zigbee_online.load(Ordering::Relaxed)
+    }
+
+    pub fn matter(&self) -> bool {
+        self.matter_online.load(Ordering::Relaxed)
     }
 }
 

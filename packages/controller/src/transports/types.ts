@@ -2,6 +2,8 @@ import type {
     BootstrapOwnerRequest,
     ClientToken,
     CommandResult,
+    CommissionRequest,
+    CommissionResponse,
     CreateRoomRequest,
     Device,
     DeviceCommand,
@@ -21,6 +23,8 @@ export interface ControllerTransport {
     sendCommand(cmd: DeviceCommand): Promise<CommandResult>
     subscribeEvents(cb: (event: DeviceEvent) => void): () => void
     permitJoin?(seconds: number): Promise<PermitJoinResponse>
+    /** Matter commissioning. LAN transport only, same policy as permitJoin. */
+    commissionMatter?(request: CommissionRequest): Promise<CommissionResponse>
     getRooms?(): Promise<Room[]>
     createRoom?(request: CreateRoomRequest): Promise<Room>
     patchRoom?(roomId: string, patch: PatchRoomRequest): Promise<Room>

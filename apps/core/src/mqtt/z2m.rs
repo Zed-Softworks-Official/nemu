@@ -173,6 +173,11 @@ pub fn health_check_topic(base_topic: &str) -> String {
     format!("{base_topic}/bridge/request/health/check")
 }
 
+/// matter-bridge only: ask the sidecar to commission a device by pairing code.
+pub fn commission_topic(base_topic: &str) -> String {
+    format!("{base_topic}/bridge/request/commission")
+}
+
 pub fn permit_join_payload(seconds: u32) -> String {
     // Zigbee2MQTT 2.x dropped the legacy `value` field; `time` alone opens the network.
     json!({ "time": seconds }).to_string()

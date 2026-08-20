@@ -44,7 +44,13 @@ async fn main() {
     init_tracing();
 
     let config = Config::from_env();
-    info!(listen = %config.listen_addr, mqtt = %format!("{}:{}", config.mqtt_host, config.mqtt_port), "starting nemu-core");
+    let bridges = config
+        .bridges
+        .iter()
+        .map(|bridge| format!("{}:{}", bridge.protocol, bridge.base_topic))
+        .collect::<Vec<_>>()
+        .join(", ");
+    info!(listen = %config.listen_addr, mqtt = %format!("{}:{}", config.mqtt_host, config.mqtt_port), %bridges, "starting nemu-core");
 
     let manager = Manager::new(config.database_url.clone(), Runtime::Tokio1);
     let pool = Pool::builder(manager)

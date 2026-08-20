@@ -45,8 +45,8 @@ diesel::table! {
 diesel::table! {
     devices (id) {
         id -> Uuid,
-        #[max_length = 24]
-        ieee_address -> Varchar,
+        #[max_length = 64]
+        external_id -> Varchar,
         #[max_length = 255]
         friendly_name -> Varchar,
         #[max_length = 50]
@@ -58,6 +58,8 @@ diesel::table! {
         room_id -> Nullable<Uuid>,
         enabled -> Bool,
         last_seen -> Nullable<Timestamptz>,
+        #[max_length = 16]
+        protocol -> Varchar,
     }
 }
 

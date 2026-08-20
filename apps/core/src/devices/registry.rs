@@ -8,17 +8,27 @@ use tokio::sync::RwLock;
 use tracing::{info, warn};
 use uuid::Uuid;
 
+use crate::config::Protocol;
 use crate::db::models::{Device, NewDevice, NewDeviceEvent, UpdateDevice};
 use crate::db::schema::{device_events, devices};
 use crate::events::{DeviceEvent, DeviceResource};
 use crate::mqtt::z2m::Z2mDeviceDescriptor;
 use crate::state::{AppState, DbPool};
 
-/// In-memory index over Postgres devices, keyed by ieee address and friendly name.
+type BridgeKey = (String, String); // (protocol, external_id or friendly_name)
+
+fn key(protocol: &str, id: &str) -> BridgeKey {
+    (protocol.to_string(), id.to_string())
+}
+
+/// In-memory index over Postgres devices, keyed by (protocol, external id) and
+/// (protocol, friendly name). External id is the bridge-scoped identity: z2m
+/// ieee address for Zigbee, matter node id (`nodeId` or `nodeId:endpoint`) for
+/// Matter.
 #[derive(Debug, Default)]
 pub struct DeviceRegistry {
-    by_ieee: RwLock<HashMap<String, Uuid>>,
-    by_name: RwLock<HashMap<String, Uuid>>,
+    by_external: RwLock<HashMap<BridgeKey, Uuid>>,
+    by_name: RwLock<HashMap<BridgeKey, Uuid>>,
     by_id: RwLock<HashMap<Uuid, Device>>,
 }
 
@@ -39,16 +49,16 @@ impl DeviceRegistry {
             .map_err(|e| e.to_string())?
             .map_err(|e| e.to_string())?;
 
-        let mut by_ieee = HashMap::new();
+        let mut by_external = HashMap::new();
         let mut by_name = HashMap::new();
         let mut by_id = HashMap::new();
         for device in rows {
-            by_ieee.insert(device.ieee_address.clone(), device.id);
-            by_name.insert(device.friendly_name.clone(), device.id);
+            by_external.insert(key(&device.protocol, &device.external_id), device.id);
+            by_name.insert(key(&device.protocol, &device.friendly_name), device.id);
             by_id.insert(device.id, device);
         }
 
-        *self.by_ieee.write().await = by_ieee;
+        *self.by_external.write().await = by_external;
         *self.by_name.write().await = by_name;
         *self.by_id.write().await = by_id;
         Ok(())
@@ -58,13 +68,23 @@ impl DeviceRegistry {
         self.by_id.read().await.get(&id).cloned()
     }
 
-    pub async fn get_by_ieee(&self, ieee: &str) -> Option<Device> {
-        let id = self.by_ieee.read().await.get(ieee).copied()?;
+    pub async fn get_by_external(&self, protocol: Protocol, external_id: &str) -> Option<Device> {
+        let id = self
+            .by_external
+            .read()
+            .await
+            .get(&key(protocol.as_str(), external_id))
+            .copied()?;
         self.get(id).await
     }
 
-    pub async fn get_by_name(&self, name: &str) -> Option<Device> {
-        let id = self.by_name.read().await.get(name).copied()?;
+    pub async fn get_by_name(&self, protocol: Protocol, name: &str) -> Option<Device> {
+        let id = self
+            .by_name
+            .read()
+            .await
+            .get(&key(protocol.as_str(), name))
+            .copied()?;
         self.get(id).await
     }
 
@@ -83,40 +103,43 @@ impl DeviceRegistry {
     }
 
     async fn put(&self, device: Device) {
-        let mut by_ieee = self.by_ieee.write().await;
+        let mut by_external = self.by_external.write().await;
         let mut by_name = self.by_name.write().await;
         let mut by_id = self.by_id.write().await;
 
         if let Some(old) = by_id.get(&device.id) {
-            by_ieee.remove(&old.ieee_address);
-            by_name.remove(&old.friendly_name);
+            by_external.remove(&key(&old.protocol, &old.external_id));
+            by_name.remove(&key(&old.protocol, &old.friendly_name));
         }
 
-        by_ieee.insert(device.ieee_address.clone(), device.id);
-        by_name.insert(device.friendly_name.clone(), device.id);
+        by_external.insert(key(&device.protocol, &device.external_id), device.id);
+        by_name.insert(key(&device.protocol, &device.friendly_name), device.id);
         by_id.insert(device.id, device);
     }
 
     async fn remove_id(&self, id: Uuid) -> Option<Device> {
-        let mut by_ieee = self.by_ieee.write().await;
+        let mut by_external = self.by_external.write().await;
         let mut by_name = self.by_name.write().await;
         let mut by_id = self.by_id.write().await;
         let device = by_id.remove(&id)?;
-        by_ieee.remove(&device.ieee_address);
-        by_name.remove(&device.friendly_name);
+        by_external.remove(&key(&device.protocol, &device.external_id));
+        by_name.remove(&key(&device.protocol, &device.friendly_name));
         Some(device)
     }
 
-    /// Sync registry from a full `bridge/devices` payload.
+    /// Sync registry from a full `bridge/devices` payload of one bridge.
+    /// Removals are scoped to `protocol` so a Matter inventory sync can never
+    /// delete Zigbee rows (and vice versa).
     pub async fn sync_from_bridge(
         self: &Arc<Self>,
         state: &AppState,
+        protocol: Protocol,
         descriptors: &[Z2mDeviceDescriptor],
     ) -> Result<(), String> {
         let pool = &state.db;
         let now = Utc::now();
 
-        let mut seen_ieee = HashSet::new();
+        let mut seen_external = HashSet::new();
         let mut upserted = Vec::new();
 
         for desc in descriptors {
@@ -125,7 +148,7 @@ impl DeviceRegistry {
                 continue;
             }
 
-            seen_ieee.insert(desc.ieee_address.clone());
+            seen_external.insert(desc.ieee_address.clone());
             let model = desc
                 .definition
                 .as_ref()
@@ -134,7 +157,7 @@ impl DeviceRegistry {
             let device_type = infer_device_type(desc);
 
             let conn = pool.get().await.map_err(|e| e.to_string())?;
-            let ieee = desc.ieee_address.clone();
+            let external = desc.ieee_address.clone();
             let friendly = desc.friendly_name.clone();
             let dtype = device_type.clone();
             let model_owned = model.clone();
@@ -143,13 +166,14 @@ impl DeviceRegistry {
                 .interact(move |conn| {
                     diesel::insert_into(devices::table)
                         .values(NewDevice {
-                            ieee_address: &ieee,
+                            external_id: &external,
+                            protocol: protocol.as_str(),
                             friendly_name: &friendly,
                             device_type: &dtype,
                             model: model_owned.as_deref(),
                             enabled: true,
                         })
-                        .on_conflict(devices::ieee_address)
+                        .on_conflict((devices::protocol, devices::external_id))
                         .do_update()
                         .set((
                             devices::friendly_name.eq(excluded(devices::friendly_name)),
@@ -173,19 +197,25 @@ impl DeviceRegistry {
             state.state_cache.set_online_if_unknown(device.id, true);
         }
 
-        let existing: Vec<Device> = self.list().await;
-        if !should_apply_bridge_removals(existing.len(), seen_ieee.len()) {
+        let existing: Vec<Device> = self
+            .list()
+            .await
+            .into_iter()
+            .filter(|device| device.protocol == protocol.as_str())
+            .collect();
+        if !should_apply_bridge_removals(existing.len(), seen_external.len()) {
             warn!(
+                protocol = %protocol,
                 existing = existing.len(),
-                seen = seen_ieee.len(),
+                seen = seen_external.len(),
                 "skipping registry removals; bridge/devices looks incomplete"
             );
             return Ok(());
         }
 
-        // Remove devices no longer present in z2m.
+        // Remove devices of this bridge no longer present in its inventory.
         for device in existing {
-            if !seen_ieee.contains(&device.ieee_address) {
+            if !seen_external.contains(&device.external_id) {
                 let id = device.id;
                 let conn = pool.get().await.map_err(|e| e.to_string())?;
                 conn.interact(move |conn| {
@@ -200,7 +230,7 @@ impl DeviceRegistry {
                 state.emit(DeviceEvent::DeviceLeft {
                     device_id: id.to_string(),
                 });
-                info!(ieee = %device.ieee_address, "removed device missing from bridge/devices");
+                info!(protocol = %protocol, external_id = %device.external_id, "removed device missing from bridge/devices");
             }
         }
 
@@ -210,14 +240,15 @@ impl DeviceRegistry {
     pub async fn upsert_from_join(
         self: &Arc<Self>,
         state: &AppState,
-        ieee: &str,
+        protocol: Protocol,
+        external_id: &str,
         friendly_name: &str,
         device_type: &str,
         model: Option<&str>,
     ) -> Result<Device, String> {
         let pool = &state.db;
         let now = Utc::now();
-        let ieee_owned = ieee.to_string();
+        let external_owned = external_id.to_string();
         let name_owned = friendly_name.to_string();
         let type_owned = device_type.to_string();
         let model_owned = model.map(str::to_string);
@@ -227,13 +258,14 @@ impl DeviceRegistry {
             .interact(move |conn| {
                 diesel::insert_into(devices::table)
                     .values(NewDevice {
-                        ieee_address: &ieee_owned,
+                        external_id: &external_owned,
+                        protocol: protocol.as_str(),
                         friendly_name: &name_owned,
                         device_type: &type_owned,
                         model: model_owned.as_deref(),
                         enabled: true,
                     })
-                    .on_conflict(devices::ieee_address)
+                    .on_conflict((devices::protocol, devices::external_id))
                     .do_update()
                     .set((
                         devices::friendly_name.eq(excluded(devices::friendly_name)),
@@ -250,13 +282,24 @@ impl DeviceRegistry {
 
         self.put(device.clone()).await;
 
-        let _ = log_event(pool, Some(device.id), "joined", json!({ "ieee": ieee })).await;
+        let _ = log_event(
+            pool,
+            Some(device.id),
+            "joined",
+            json!({ "protocol": protocol.as_str(), "external_id": external_id }),
+        )
+        .await;
 
         Ok(device)
     }
 
-    pub async fn mark_left(self: &Arc<Self>, state: &AppState, ieee: &str) -> Option<Device> {
-        let device = self.get_by_ieee(ieee).await?;
+    pub async fn mark_left(
+        self: &Arc<Self>,
+        state: &AppState,
+        protocol: Protocol,
+        external_id: &str,
+    ) -> Option<Device> {
+        let device = self.get_by_external(protocol, external_id).await?;
         let id = device.id;
         let pool = &state.db;
 
@@ -273,7 +316,13 @@ impl DeviceRegistry {
         state.emit(DeviceEvent::DeviceLeft {
             device_id: id.to_string(),
         });
-        let _ = log_event(pool, Some(id), "left", json!({ "ieee": ieee })).await;
+        let _ = log_event(
+            pool,
+            Some(id),
+            "left",
+            json!({ "protocol": protocol.as_str(), "external_id": external_id }),
+        )
+        .await;
         removed
     }
 

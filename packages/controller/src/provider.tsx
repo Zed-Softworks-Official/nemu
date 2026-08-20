@@ -4,11 +4,14 @@ import {
     type BootstrapOwnerRequest,
     type ClientToken,
     type CommandResult,
+    type CommissionRequest,
+    type CommissionResponse,
     type ConnectionStatus,
     type CreateRoomRequest,
     type Device,
     type DeviceCommand,
     type DeviceEvent,
+    type DeviceProtocol,
     type HouseholdMember,
     type PatchDeviceRequest,
     type PatchRoomRequest,
@@ -36,6 +39,9 @@ type ControllerContextValue = {
     getDevices: () => Promise<Device[]>
     sendCommand: (cmd: DeviceCommand) => Promise<CommandResult>
     permitJoin: (seconds: number) => Promise<PermitJoinResponse>
+    commissionMatter: (
+        request: CommissionRequest
+    ) => Promise<CommissionResponse>
     getRooms: () => Promise<Room[]>
     createRoom: (request: CreateRoomRequest) => Promise<Room>
     patchRoom: (roomId: string, patch: PatchRoomRequest) => Promise<Room>
@@ -110,6 +116,10 @@ export function ControllerProvider({
         (seconds: number) => connection.permitJoin(seconds),
         [connection]
     )
+    const commissionMatter = useCallback(
+        (request: CommissionRequest) => connection.commissionMatter(request),
+        [connection]
+    )
     const getRooms = useCallback(() => connection.getRooms(), [connection])
     const createRoom = useCallback(
         (request: CreateRoomRequest) => connection.createRoom(request),
@@ -164,6 +174,7 @@ export function ControllerProvider({
             getDevices,
             sendCommand,
             permitJoin,
+            commissionMatter,
             getRooms,
             createRoom,
             patchRoom,
@@ -185,6 +196,7 @@ export function ControllerProvider({
             getDevices,
             sendCommand,
             permitJoin,
+            commissionMatter,
             getRooms,
             createRoom,
             patchRoom,
@@ -269,13 +281,14 @@ export type DevicePairingPhase =
     | 'error'
 
 export type PairingInterview = {
-    ieeeAddress: string
+    externalId: string
     status: 'started' | 'successful' | 'failed'
 }
 
 export function useDevicePairing(): {
     phase: DevicePairingPhase
     status: ConnectionStatus
+    protocol: DeviceProtocol
     interviews: PairingInterview[]
     discoveredDevices: Device[]
     selectedDevice: Device | null
@@ -285,12 +298,20 @@ export function useDevicePairing(): {
     error: Error | null
     secondsRemaining: number
     startDiscovery: () => Promise<void>
+    startMatterCommission: (request: CommissionRequest) => Promise<void>
     selectDevice: (device: Device) => Promise<void>
     configureDevice: (input: PatchDeviceRequest) => Promise<Device>
     reset: () => void
 } {
-    const { connection, status, permitJoin, getRooms, patchDevice } =
-        useController()
+    const {
+        connection,
+        status,
+        permitJoin,
+        commissionMatter,
+        getRooms,
+        patchDevice,
+    } = useController()
+    const [protocol, setProtocol] = useState<DeviceProtocol>('zigbee')
     const [phase, setPhase] = useState<DevicePairingPhase>('idle')
     const [interviews, setInterviews] = useState<PairingInterview[]>([])
     const [discoveredDevices, setDiscoveredDevices] = useState<Device[]>([])
@@ -309,12 +330,12 @@ export function useDevicePairing(): {
             if (event.type === 'interview') {
                 setInterviews((current) => {
                     const next = current.filter(
-                        (item) => item.ieeeAddress !== event.ieeeAddress
+                        (item) => item.externalId !== event.externalId
                     )
                     return [
                         ...next,
                         {
-                            ieeeAddress: event.ieeeAddress,
+                            externalId: event.externalId,
                             status: event.status,
                         },
                     ]
@@ -353,6 +374,7 @@ export function useDevicePairing(): {
     }, [phase, expiresAt, discoveredDevices.length])
 
     const reset = useCallback(() => {
+        setProtocol('zigbee')
         setPhase('idle')
         setInterviews([])
         setDiscoveredDevices([])
@@ -366,6 +388,7 @@ export function useDevicePairing(): {
     }, [])
 
     const startDiscovery = useCallback(async () => {
+        setProtocol('zigbee')
         setError(null)
         setInterviews([])
         setDiscoveredDevices([])
@@ -381,6 +404,29 @@ export function useDevicePairing(): {
             setPhase('error')
         }
     }, [permitJoin])
+
+    const startMatterCommission = useCallback(
+        async (request: CommissionRequest) => {
+            setProtocol('matter')
+            setError(null)
+            setInterviews([])
+            setDiscoveredDevices([])
+            setSelectedDevice(null)
+            setPhase('discovering')
+            // Commissioning has no join window; the device joins (or the
+            // bridge reports a failed interview) via the same WS events.
+            setExpiresAt(null)
+            setSecondsRemaining(0)
+
+            try {
+                await commissionMatter(request)
+            } catch (err) {
+                setError(toError(err))
+                setPhase('error')
+            }
+        },
+        [commissionMatter]
+    )
 
     const selectDevice = useCallback(
         async (device: Device) => {
@@ -426,6 +472,7 @@ export function useDevicePairing(): {
     return {
         phase,
         status,
+        protocol,
         interviews,
         discoveredDevices,
         selectedDevice,
@@ -435,6 +482,7 @@ export function useDevicePairing(): {
         error,
         secondsRemaining,
         startDiscovery,
+        startMatterCommission,
         selectDevice,
         configureDevice,
         reset,

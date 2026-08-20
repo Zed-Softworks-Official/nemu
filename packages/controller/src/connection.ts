@@ -2,6 +2,8 @@ import {
     type BootstrapOwnerRequest,
     type ClientToken,
     type CommandResult,
+    type CommissionRequest,
+    type CommissionResponse,
     type ConnectionStatus,
     type CreateRoomRequest,
     type Device,
@@ -148,6 +150,19 @@ export class ControllerConnection {
             )
         }
         return await transport.permitJoin(seconds)
+    }
+
+    async commissionMatter(
+        request: CommissionRequest
+    ): Promise<CommissionResponse> {
+        // LAN-only like permitJoin: Wi-Fi credentials never traverse the relay.
+        const transport = this.requireLanTransport('Matter pairing')
+        if (!transport.commissionMatter) {
+            throw new Error(
+                'Matter pairing is not supported by this controller'
+            )
+        }
+        return await transport.commissionMatter(request)
     }
 
     async getRooms(): Promise<Room[]> {

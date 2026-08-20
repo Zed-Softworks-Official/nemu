@@ -14,7 +14,7 @@
         "lint": "turbo run lint",
         "format": "biome format --write .",
         "check-types": "turbo run check-types",
-        "infra": "docker compose -f docker-compose.dev.yml up -d",
+        "infra": "bash scripts/infra.sh",
         "infra:down": "docker compose -f docker-compose.dev.yml down",
         "db:migrate": "pnpm --filter @nemu/core db:migrate",
         "db:revert": "pnpm --filter @nemu/core db:revert",

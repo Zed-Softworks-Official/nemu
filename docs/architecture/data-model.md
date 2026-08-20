@@ -24,8 +24,9 @@ erDiagram
     }
     devices {
         uuid id PK
-        varchar ieee_address UK "z2m identity, 24 chars"
-        varchar friendly_name "synced with z2m"
+        varchar protocol "zigbee or matter"
+        varchar external_id "bridge identity; UK with protocol"
+        varchar friendly_name "synced with the bridge"
         varchar device_type
         varchar model
         uuid room_id FK "nullable"
@@ -84,15 +85,21 @@ erDiagram
 Notes:
 
 - `devices` extends the existing migration
-  (`2026-06-29-050926-0000_devices`) with `room_id`, `enabled`, `last_seen`.
-- `ieee_address` stays the join key with zigbee2mqtt; `friendly_name` is
-  bidirectionally synced (renames flow nemu → z2m).
+  (`2026-06-29-050926-0000_devices`) with `room_id`, `enabled`, `last_seen`;
+  migration `2026-08-16-…_devices_protocol` generalizes identity to
+  `(protocol, external_id)`.
+- `external_id` is the join key with the owning bridge: the z2m
+  `ieee_address` for Zigbee, the matterjs-server node id (`nodeId` or
+  `nodeId:endpoint` for multi-endpoint nodes like power strips) for Matter.
+  `friendly_name` is bidirectionally synced (renames flow nemu → bridge).
 - `device_events` is append-only with a retention job (default 30 days);
   it backs the history UI and optional voice transcript log.
 - Live device state (brightness, temperature, contact…) is **not** a table —
   it's the in-memory state cache, rebuilt from retained MQTT messages and
   `bridge/devices` on boot. Postgres stores identity and history, not hot
-  state.
+  state. This includes live `power`/`voltage`/`current`/`energy` readings
+  from Matter energy clusters — they stay cache-only until the energy
+  management section exists (see [energy.md](energy.md)).
 - Secrets (`pairing_codes.code_hash`, `client_tokens.token_hash`) are hashed;
   plaintext exists only in the initial HTTP or session-mint response to the client.
 - `members` is the household ACL. Convex `pairings` / `invites` mirror it for
@@ -158,9 +165,16 @@ export default defineSchema({
   wrappers; `relay.send` additionally checks a `pairings` row exists for
   `(userId, controllerId)`.
 
-## 3. MQTT topic conventions (core ↔ zigbee2mqtt)
+## 3. MQTT topic conventions (core ↔ bridges)
 
-Base topic `zigbee2mqtt` (stock z2m config, pinned image).
+Base topic `zigbee2mqtt` (stock z2m config, pinned image). The `matter-bridge`
+sidecar mirrors the same dialect under base topic `matter`, with two
+differences: device topics use the Matter external id (`nodeId` or
+`nodeId:endpoint`) instead of `friendly_name`, and `bridge/request/commission`
+(`{"code":"MT:…","wifiSsid"?,"wifiPassword"?,"transaction"}`) replaces
+`permit_join`. Matter state payloads may carry read-only energy keys (`power`
+W, `voltage` V, `current` A, `energy` kWh) folded from the Electrical
+Power/Energy Measurement clusters.
 
 | Topic                                      | Dir (from core) | Payload                                                                              | Used for                     |
 | ------------------------------------------ | --------------- | ------------------------------------------------------------------------------------ | ---------------------------- |
@@ -183,9 +197,11 @@ Rules:
   network removal. It does not expose force removal, which can leave a device
   holding the network key.
 
-- Core addresses devices by `ieee_address` where z2m allows it, falling back
-  to `friendly_name`; the registry maps nemu UUIDs → addresses so API clients
-  never see MQTT details.
+- Core addresses Zigbee devices by `friendly_name` and Matter devices by
+  `external_id`; the registry maps nemu UUIDs → `(protocol, external_id)` so
+  API clients never see MQTT details.
+- Removing a Matter device unpairs the **whole node** — every endpoint sibling
+  of a power strip disappears together.
 - Mosquitto listens only on the compose-internal network in production; MQTT
   auth is enabled in M5.
 
@@ -243,9 +259,9 @@ Server → client (tagged enum, mirrors the Rust `DeviceEvent` broadcast bus):
 { "type": "deviceState",  "deviceId": "6d1e…", "state": { "state": "ON" } }
 { "type": "deviceJoined", "device": { /* device resource */ } }
 { "type": "deviceLeft",   "deviceId": "6d1e…" }
-{ "type": "interview",    "ieeeAddress": "0x00…", "status": "started|successful|failed" }
+{ "type": "interview",    "externalId": "0x00…", "status": "started|successful|failed" }
 { "type": "resync" }      // client should refetch /api/devices
-{ "type": "health",       "mqtt": true, "zigbee": true, "db": true }
+{ "type": "health",       "mqtt": true, "zigbee": true, "matter": true, "db": true }
 ```
 
 Client → server:

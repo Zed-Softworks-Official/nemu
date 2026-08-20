@@ -21,14 +21,15 @@ pub enum DeviceEvent {
         device_id: String,
     },
     Interview {
-        #[serde(rename = "ieeeAddress")]
-        ieee_address: String,
+        #[serde(rename = "externalId")]
+        external_id: String,
         status: InterviewStatus,
     },
     Resync,
     Health {
         mqtt: bool,
         zigbee: bool,
+        matter: bool,
         db: bool,
     },
     #[serde(rename = "commandResult")]
@@ -63,6 +64,7 @@ pub struct DeviceResource {
     pub name: String,
     #[serde(rename = "type")]
     pub device_type: String,
+    pub protocol: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -82,6 +84,7 @@ impl DeviceResource {
             id: device.id.to_string(),
             name: device.friendly_name.clone(),
             device_type: device.device_type.clone(),
+            protocol: device.protocol.clone(),
             model: device.model.clone(),
             room_id: device.room_id.map(|id| id.to_string()),
             online,

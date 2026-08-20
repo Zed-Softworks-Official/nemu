@@ -48,12 +48,29 @@ curl -fsSL https://get.nemu.sh | sudo sh -s -- \
 
 Under `/opt/nemu`:
 
-- `docker-compose.yml` — mosquitto, zigbee2mqtt, postgres, `nemu-core`, Watchtower
+- `docker-compose.yml` — mosquitto, zigbee2mqtt, `matterjs-server`, `matter-bridge`, postgres, `nemu-core`, Watchtower
 - `.env` — Postgres password and Convex settings
 - Mosquitto + zigbee2mqtt config templates
 - `docker-compose.override.yml` — USB serial mapping when an adapter is detected
 
 Docker Engine + Compose plugin are installed from Docker’s official Ubuntu apt repository if missing.
+
+## Matter
+
+Matter-over-Wi-Fi support is on by default and needs no extra hardware: the
+`matterjs-server` and `matter-bridge` services run host-networked (Matter
+requires mDNS and IPv6), and new devices are commissioned over the host's
+Bluetooth adapter via BlueZ. The installer warns if IPv6 is disabled or
+`bluetoothd` is not running. `matterjs-server` runs as uid 1000; the installer
+chowns the Matter data volume so the process can write `/data/config`.
+
+Pair from the dashboard: **Add device → Matter**, then scan the device's QR
+code or enter its 11-digit pairing code. For devices that join Wi-Fi during
+setup, the wizard's optional network fields are sent only to the controller.
+A multi-outlet power strip appears as one device per outlet; removing any of
+them unpairs the whole strip. The only internet traffic Matter adds is DCL
+certificate attestation during commissioning — device OTA updates from vendor
+CDNs are disabled.
 
 Controller API: `http://<host-ip>:6368` and `https://<host-ip>:6368` on the same port (opportunistic TLS). Pair from [https://app.nemu.sh](https://app.nemu.sh). After the controller registers, the dashboard prefers `https://{controllerId}.lan.nemu.sh:6368` with a Let's Encrypt certificate (your home LAN address is published under that hostname so the browser can trust it). Until that cert is issued, the first HTTPS visit uses a self-signed certificate — continue past the browser warning once so the dashboard can use `wss://`.
 
