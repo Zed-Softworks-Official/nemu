@@ -63,6 +63,8 @@ requires mDNS and IPv6), and new devices are commissioned over the host's
 Bluetooth adapter via BlueZ. The installer warns if IPv6 is disabled or
 `bluetoothd` is not running. `matterjs-server` runs as uid 1000; the installer
 chowns the Matter data volume so the process can write `/data/config`.
+The installer also writes `PRIMARY_INTERFACE` (the host's default-route NIC)
+so mDNS does not bind to a Docker bridge.
 
 Pair from the dashboard: **Add device → Matter**, then scan the device's QR
 code or enter its 11-digit pairing code. For devices that join Wi-Fi during

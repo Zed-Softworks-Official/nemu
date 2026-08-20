@@ -46,6 +46,7 @@ export class MatterMqttBridge {
     /** external id → device info, rebuilt on every inventory change. */
     private index = new Map<string, IndexedDevice>()
     private stateTimers = new Map<string, ReturnType<typeof setTimeout>>()
+    private commissioning = false
 
     constructor(
         private readonly config: typeof Env,
@@ -268,32 +269,50 @@ export class MatterMqttBridge {
         this.publishDevices()
         for (const [id, entry] of this.index) {
             if (entry.device.nodeId !== nodeId) continue
-            this.publishBridgeEvent('device_joined', {
-                friendly_name: entry.friendlyName,
-                ieee_address: id,
-            })
-            this.publishBridgeEvent('device_interview', {
-                friendly_name: entry.friendlyName,
-                ieee_address: id,
-                status: 'successful',
-                supported: true,
-                definition: {
-                    model: entry.device.model,
-                    description: entry.device.description,
-                },
-            })
-            this.publishDeviceState(id)
-            this.publishAvailability(id)
+            this.publishJoin(id, entry)
         }
     }
 
     private onNodeUpdated(nodeId: string): void {
+        const previousIds = new Set(
+            [...this.index.entries()]
+                .filter(([, entry]) => entry.device.nodeId === nodeId)
+                .map(([id]) => id)
+        )
         this.rebuildIndex()
-        for (const [id, entry] of this.index) {
-            if (entry.device.nodeId !== nodeId) continue
+        const current = [...this.index.entries()].filter(
+            ([, entry]) => entry.device.nodeId === nodeId
+        )
+        const added = current.filter(([id]) => !previousIds.has(id))
+        if (added.length > 0) {
+            this.publishDevices()
+            for (const [id, entry] of added) {
+                this.publishJoin(id, entry)
+            }
+        }
+        for (const [id] of current) {
             this.publishAvailability(id)
             this.publishDeviceState(id)
         }
+    }
+
+    private publishJoin(id: string, entry: IndexedDevice): void {
+        this.publishBridgeEvent('device_joined', {
+            friendly_name: entry.friendlyName,
+            ieee_address: id,
+        })
+        this.publishBridgeEvent('device_interview', {
+            friendly_name: entry.friendlyName,
+            ieee_address: id,
+            status: 'successful',
+            supported: true,
+            definition: {
+                model: entry.device.model,
+                description: entry.device.description,
+            },
+        })
+        this.publishDeviceState(id)
+        this.publishAvailability(id)
     }
 
     private onNodeRemoved(nodeId: string): void {
@@ -419,6 +438,13 @@ export class MatterMqttBridge {
             })
             return
         }
+        if (this.commissioning) {
+            this.respond('commission', transaction, {
+                status: 'error',
+                error: 'commissioning already in progress',
+            })
+            return
+        }
 
         try {
             const bluetooth = matter.serverInfo.bluetooth_enabled
@@ -428,8 +454,9 @@ export class MatterMqttBridge {
 
             const hasWifi =
                 wifiSsid.length > 0 || matter.serverInfo.wifi_credentials_set
-            // Wi-Fi join needs BLE so credentials can be delivered. Everything
-            // else prefers on-network discovery first (already on LAN / Ethernet).
+            // Wi-Fi join has to go over BLE. On-network first looks like a
+            // win when the strip is already on LAN, but PASE is refused after
+            // a half-finished commission and we never reach Bluetooth.
             const preferBle = bluetooth && hasWifi
             console.log(
                 `commissioning preferBle=${preferBle} bluetooth=${bluetooth} wifi=${hasWifi}`
@@ -439,19 +466,25 @@ export class MatterMqttBridge {
                 status: 'ok',
                 data: { pending: true },
             })
+            this.commissioning = true
             this.runCommission(matter, code, {
                 bluetooth,
                 preferBle,
-            }).catch((error) => {
-                const message = commissionErrorMessage(error)
-                console.error('commissioning failed', message)
-                this.publishBridgeEvent('device_interview', {
-                    ieee_address: 'commissioning',
-                    status: 'failed',
-                    error: message,
-                })
             })
+                .catch((error) => {
+                    const message = commissionErrorMessage(error)
+                    console.error('commissioning failed', message)
+                    this.publishBridgeEvent('device_interview', {
+                        ieee_address: 'commissioning',
+                        status: 'failed',
+                        error: message,
+                    })
+                })
+                .finally(() => {
+                    this.commissioning = false
+                })
         } catch (error) {
+            this.commissioning = false
             this.respond('commission', transaction, {
                 status: 'error',
                 error: commissionErrorMessage(error),
@@ -466,13 +499,15 @@ export class MatterMqttBridge {
     ): Promise<void> {
         if (options.preferBle) {
             const node = await matter.commissionWithCode(code, false)
-            console.log(`commissioned node ${String(node.node_id)}`)
+            console.log(
+                `commissioned node ${String(node.node_id)} over bluetooth`
+            )
             return
         }
 
         try {
             const node = await matter.commissionWithCode(code, true)
-            console.log(`commissioned node ${String(node.node_id)}`)
+            console.log(`commissioned node ${String(node.node_id)} on-network`)
         } catch (networkError) {
             if (!options.bluetooth) throw networkError
             console.warn(
@@ -480,7 +515,9 @@ export class MatterMqttBridge {
                 commissionErrorMessage(networkError)
             )
             const node = await matter.commissionWithCode(code, false)
-            console.log(`commissioned node ${String(node.node_id)}`)
+            console.log(
+                `commissioned node ${String(node.node_id)} over bluetooth`
+            )
         }
     }
 
@@ -595,8 +632,15 @@ function commissionErrorMessage(error: unknown): string {
     if (/credentials-not-configured|credentials are configured/i.test(raw)) {
         return 'This device needs a 2.4 GHz Wi-Fi network to join. Enter the network in the pairing step, put the device back in pairing mode, and try again.'
     }
-    if (/connecting to peripheral|No device could be commissioned/i.test(raw)) {
+    if (/connecting to peripheral/i.test(raw)) {
         return 'Found the device over Bluetooth but could not finish pairing. Put it back in pairing mode, keep it close to the controller, and try again.'
+    }
+    if (
+        /Could not connect to device|No device could be commissioned|unreachable/i.test(
+            raw
+        )
+    ) {
+        return 'The device is on Wi-Fi but not in pairing mode. Factory-reset it (hold any outlet switch 10 seconds), then pair once with 2.4 GHz Wi-Fi filled in.'
     }
     return raw
 }

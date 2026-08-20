@@ -605,7 +605,12 @@ function DiscoverStep({
                     </CardTitle>
                     <CardDescription>
                         {isMatter ? (
-                            'Waiting for the device to join. This can take up to a minute.'
+                            <>
+                                Waiting for the device to join.{' '}
+                                <span className="font-mono text-foreground">
+                                    {formatCountdown(secondsRemaining)}
+                                </span>
+                            </>
                         ) : (
                             <>
                                 Pairing closes in{' '}
