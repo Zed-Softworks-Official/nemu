@@ -36,6 +36,7 @@ services:
       DISABLE_OTA: "true" # no vendor CDN calls
       NOBLE_BINDINGS: dbus # BLE commissioning via host BlueZ
       BLUETOOTH_ADAPTER: "0"
+      PRIMARY_INTERFACE: ${PRIMARY_INTERFACE:-} # LAN NIC; docker bridges break mDNS
     volumes:
       - matter-data:/data
       - /run/dbus:/run/dbus:ro

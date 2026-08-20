@@ -268,6 +268,16 @@ check_matter_prereqs() {
   fi
 }
 
+# Default-route NIC so matterjs-server does not bind mDNS to a docker bridge.
+detect_primary_interface() {
+  if [ -n "${PRIMARY_INTERFACE:-}" ]; then
+    printf '%s\n' "${PRIMARY_INTERFACE}"
+    return
+  fi
+  ip -4 route show default 2>/dev/null \
+    | awk '{ for (i = 1; i <= NF; i++) if ($i == "dev") { print $(i + 1); exit } }'
+}
+
 ensure_z2m_availability() {
   file="$1"
   if [ ! -f "${file}" ]; then
@@ -314,6 +324,10 @@ write_env_overrides() {
   fi
   if [ -n "${TZ:-}" ]; then
     upsert_env "TZ" "${TZ}" "${ENV_FILE}"
+  fi
+  primary_iface="$(detect_primary_interface)"
+  if [ -n "${primary_iface}" ]; then
+    upsert_env "PRIMARY_INTERFACE" "${primary_iface}" "${ENV_FILE}"
   fi
   ensure_watchtower_token
 }
@@ -373,6 +387,7 @@ NEMU_TLS_SAN=${tls_san}
 WATCHTOWER_POLL_INTERVAL=${WATCHTOWER_POLL_INTERVAL:-3600}
 WATCHTOWER_HTTP_API_TOKEN=${watchtower_token}
 TZ=${TZ:-UTC}
+PRIMARY_INTERFACE=$(detect_primary_interface)
 EOF
     chmod 600 "${ENV_FILE}"
     log "Wrote ${ENV_FILE}"

@@ -29,6 +29,9 @@ services:
       DISABLE_OTA: "true"
       NOBLE_BINDINGS: dbus
       BLUETOOTH_ADAPTER: "0"
+      # Pin mDNS to the LAN NIC. Docker bridges steal multicast and
+      # commissioning dies at "Reconnect / no address known".
+      PRIMARY_INTERFACE: ${PRIMARY_INTERFACE:-}
     volumes:
       - ./infra/matter:/data
       - /run/dbus:/run/dbus:ro

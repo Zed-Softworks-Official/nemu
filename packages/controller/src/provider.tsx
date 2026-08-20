@@ -27,6 +27,7 @@ import {
     useContext,
     useEffect,
     useMemo,
+    useRef,
     useState,
 } from 'react'
 import { ControllerConnection } from './connection'
@@ -308,6 +309,7 @@ export function useDevicePairing(): {
         status,
         permitJoin,
         commissionMatter,
+        getDevices,
         getRooms,
         patchDevice,
     } = useController()
@@ -322,6 +324,24 @@ export function useDevicePairing(): {
     const [error, setError] = useState<Error | null>(null)
     const [expiresAt, setExpiresAt] = useState<number | null>(null)
     const [secondsRemaining, setSecondsRemaining] = useState(0)
+    const knownDeviceIds = useRef(new Set<string>())
+
+    const absorbMatterJoins = useCallback(async () => {
+        const devices = await getDevices()
+        const known = knownDeviceIds.current
+        const joined = devices.filter(
+            (device) => device.protocol === 'matter' && !known.has(device.id)
+        )
+        if (joined.length === 0) return
+        setDiscoveredDevices((current) => {
+            const seen = new Set(current.map((device) => device.id))
+            const next = [...current]
+            for (const device of joined) {
+                if (!seen.has(device.id)) next.push(device)
+            }
+            return next
+        })
+    }, [getDevices])
 
     useEffect(() => {
         if (phase !== 'discovering') return
@@ -350,8 +370,12 @@ export function useDevicePairing(): {
                     return [...next, event.device]
                 })
             }
+
+            if (event.type === 'resync' && protocol === 'matter') {
+                void absorbMatterJoins()
+            }
         })
-    }, [connection, phase])
+    }, [absorbMatterJoins, connection, phase, protocol])
 
     useEffect(() => {
         if (phase !== 'discovering' || expiresAt === null) return
@@ -363,7 +387,13 @@ export function useDevicePairing(): {
             )
             setSecondsRemaining(remaining)
             if (remaining === 0 && discoveredDevices.length === 0) {
-                setError(new Error('The pairing window expired'))
+                setError(
+                    new Error(
+                        protocol === 'matter'
+                            ? 'The device did not finish joining. If its light is solid, factory-reset it and pair again on the same 2.4 GHz Wi-Fi as this machine.'
+                            : 'The pairing window expired'
+                    )
+                )
                 setPhase('error')
             }
         }
@@ -371,7 +401,7 @@ export function useDevicePairing(): {
         updateCountdown()
         const timer = setInterval(updateCountdown, 1000)
         return () => clearInterval(timer)
-    }, [phase, expiresAt, discoveredDevices.length])
+    }, [phase, expiresAt, discoveredDevices.length, protocol])
 
     const reset = useCallback(() => {
         setProtocol('zigbee')
@@ -385,6 +415,7 @@ export function useDevicePairing(): {
         setError(null)
         setExpiresAt(null)
         setSecondsRemaining(0)
+        knownDeviceIds.current = new Set()
     }, [])
 
     const startDiscovery = useCallback(async () => {
@@ -407,25 +438,35 @@ export function useDevicePairing(): {
 
     const startMatterCommission = useCallback(
         async (request: CommissionRequest) => {
+            try {
+                const existing = await getDevices()
+                knownDeviceIds.current = new Set(
+                    existing.map((device) => device.id)
+                )
+            } catch {
+                knownDeviceIds.current = new Set()
+            }
+
             setProtocol('matter')
             setError(null)
             setInterviews([])
             setDiscoveredDevices([])
             setSelectedDevice(null)
             setPhase('discovering')
-            // Commissioning has no join window; the device joins (or the
-            // bridge reports a failed interview) via the same WS events.
-            setExpiresAt(null)
-            setSecondsRemaining(0)
+            // BLE + Wi-Fi join can take a minute; LAN rediscovery hangs
+            // forever if mDNS never sees the node.
+            setExpiresAt(Date.now() + 120_000)
+            setSecondsRemaining(120)
 
             try {
                 await commissionMatter(request)
+                await absorbMatterJoins()
             } catch (err) {
                 setError(toError(err))
                 setPhase('error')
             }
         },
-        [commissionMatter]
+        [absorbMatterJoins, commissionMatter, getDevices]
     )
 
     const selectDevice = useCallback(
