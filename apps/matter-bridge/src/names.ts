@@ -2,9 +2,10 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
 /**
- * Nemu-owned friendly names keyed by external id (`nodeId` or
- * `nodeId:endpoint`). Matter has no bridge-side friendly-name sync, so renames
- * live here, persisted in the sidecar's data volume.
+ * Nemu-owned friendly names keyed by external id (`nodeId` for single
+ * endpoints and strips, `nodeId:endpoint` for split multi-endpoint nodes).
+ * Matter has no bridge-side friendly-name sync, so renames live here,
+ * persisted in the sidecar's data volume.
  */
 export class NameStore {
     private names = new Map<string, string>()

@@ -20,6 +20,8 @@ import type { ConvexReactClient } from 'convex/react'
 import {
     discoverController,
     identifyController,
+    isLocalDevDashboard,
+    isLoopbackControllerUrl,
     type ProbeResult,
 } from './discovery'
 import {
@@ -106,6 +108,15 @@ export class ControllerConnection {
         if (probe) {
             const ok = await this.tryLan(probe)
             if (ok) return
+            // A reachable local core beats relay to a paired prod controller.
+            if (
+                isLocalDevDashboard() &&
+                isLoopbackControllerUrl(probe.baseUrl)
+            ) {
+                this.teardownTransport()
+                this.setStatus(statusFromMode('offline'))
+                return
+            }
         }
 
         const relayOk = await this.tryRelay()
@@ -353,7 +364,9 @@ export class ControllerConnection {
             })
 
             // If we have a token, soft-check devices; failure drops to relay.
-            if (token) {
+            // On localhost that token is often the prod house — keep LAN so
+            // setup can re-pair instead of jumping to nemu.local over relay.
+            if (token && !isLoopbackControllerUrl(probe.baseUrl)) {
                 try {
                     await lan.getDevices()
                 } catch {

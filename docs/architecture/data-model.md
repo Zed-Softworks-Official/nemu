@@ -89,8 +89,9 @@ Notes:
   migration `2026-08-16-…_devices_protocol` generalizes identity to
   `(protocol, external_id)`.
 - `external_id` is the join key with the owning bridge: the z2m
-  `ieee_address` for Zigbee, the matterjs-server node id (`nodeId` or
-  `nodeId:endpoint` for multi-endpoint nodes like power strips) for Matter.
+  `ieee_address` for Zigbee, the matterjs-server node id (`nodeId`) for Matter
+  strips and single-endpoint nodes, or `nodeId:endpoint` when a multi-endpoint
+  node is still split (for example two lights on one node).
   `friendly_name` is bidirectionally synced (renames flow nemu → bridge).
 - `device_events` is append-only with a retention job (default 30 days);
   it backs the history UI and optional voice transcript log.
@@ -169,12 +170,14 @@ export default defineSchema({
 
 Base topic `zigbee2mqtt` (stock z2m config, pinned image). The `matter-bridge`
 sidecar mirrors the same dialect under base topic `matter`, with two
-differences: device topics use the Matter external id (`nodeId` or
-`nodeId:endpoint`) instead of `friendly_name`, and `bridge/request/commission`
+differences: device topics use the Matter external id (`nodeId` for strips
+and single-endpoint nodes, or `nodeId:endpoint` when a node is still split)
+instead of `friendly_name`, and `bridge/request/commission`
 (`{"code":"MT:…","wifiSsid"?,"wifiPassword"?,"transaction"}`) replaces
-`permit_join`. Matter state payloads may carry read-only energy keys (`power`
-W, `voltage` V, `current` A, `energy` kWh) folded from the Electrical
-Power/Energy Measurement clusters.
+`permit_join`. Matter strip state uses an `outlets` array (no top-level
+`state`) plus optional read-only energy keys (`power` W, `voltage` V,
+`current` A, `energy` kWh) folded from the Electrical Power/Energy
+Measurement clusters.
 
 | Topic                                      | Dir (from core) | Payload                                                                              | Used for                     |
 | ------------------------------------------ | --------------- | ------------------------------------------------------------------------------------ | ---------------------------- |
@@ -200,8 +203,8 @@ Rules:
 - Core addresses Zigbee devices by `friendly_name` and Matter devices by
   `external_id`; the registry maps nemu UUIDs → `(protocol, external_id)` so
   API clients never see MQTT details.
-- Removing a Matter device unpairs the **whole node** — every endpoint sibling
-  of a power strip disappears together.
+- Removing a Matter device unpairs the **whole node**. A power strip is one
+  device; forgetting it removes every outlet with that node.
 - Mosquitto listens only on the compose-internal network in production; MQTT
   auth is enabled in M5.
 

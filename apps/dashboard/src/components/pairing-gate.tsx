@@ -4,6 +4,7 @@ import { useUser } from '@clerk/nextjs'
 import { api, useConvex, useConvexAuth, useQuery } from '@nemu/cloud'
 import {
     getClientToken,
+    isLocalDevDashboard,
     mintSessionViaRelay,
     useController,
 } from '@nemu/controller'
@@ -55,6 +56,18 @@ export function PairingGate(props: { children: React.ReactNode }) {
     useEffect(() => {
         setHasToken(Boolean(getClientToken()))
     }, [])
+
+    useEffect(() => {
+        if (authLoading || !isAuthenticated) return
+        if (pairings === undefined || status.mode !== 'lan') return
+        if (!status.controllerId || !isLocalDevDashboard()) return
+        const pairedHere = pairings.some(
+            (row) => row.controllerId === status.controllerId
+        )
+        if (!pairedHere) {
+            router.replace('/setup')
+        }
+    }, [authLoading, isAuthenticated, pairings, router, status])
 
     useEffect(() => {
         if (authLoading || !isAuthenticated) return

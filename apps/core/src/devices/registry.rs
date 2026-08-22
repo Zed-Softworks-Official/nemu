@@ -23,8 +23,8 @@ fn key(protocol: &str, id: &str) -> BridgeKey {
 
 /// In-memory index over Postgres devices, keyed by (protocol, external id) and
 /// (protocol, friendly name). External id is the bridge-scoped identity: z2m
-/// ieee address for Zigbee, matter node id (`nodeId` or `nodeId:endpoint`) for
-/// Matter.
+/// ieee address for Zigbee, matter node id (`nodeId` for strips and single
+/// endpoints, `nodeId:endpoint` when a node is still split) for Matter.
 #[derive(Debug, Default)]
 pub struct DeviceRegistry {
     by_external: RwLock<HashMap<BridgeKey, Uuid>>,
@@ -401,6 +401,9 @@ fn infer_device_type(desc: &Z2mDeviceDescriptor) -> String {
                     }
                     if e_type == "switch" {
                         return "switch".to_string();
+                    }
+                    if e_type == "strip" {
+                        return "strip".to_string();
                     }
                     if e_type == "lock" {
                         return "lock".to_string();

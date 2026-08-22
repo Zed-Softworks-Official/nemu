@@ -51,13 +51,22 @@ export type NodeSnapshot = {
     attributes: AttributesData
 }
 
-export type EndpointKind = 'light' | 'switch' | 'energy'
+export type EndpointKind = 'light' | 'switch' | 'strip'
+
+export type StripOutlet = {
+    endpointId: number
+    name: string
+}
 
 export type EndpointDevice = {
-    /** Nemu external id: `nodeId` for single-endpoint nodes, else `nodeId:endpoint`. */
+    /** Nemu external id: `nodeId` for single-endpoint nodes and strips, else `nodeId:endpoint`. */
     id: string
     nodeId: string
     endpointId: number
+    /** Child OnOff endpoints when `kind` is `strip`. */
+    outlets?: StripOutlet[]
+    /** First energy-only endpoint folded into this device's state, if any. */
+    energyEndpointId?: number
     defaultName: string
     kind: EndpointKind
     model: string
@@ -142,7 +151,7 @@ function hasEnergyMeasurement(
 function endpointKind(
     attributes: AttributesData,
     endpoint: number
-): EndpointKind | null {
+): 'light' | 'switch' | null {
     const types = deviceTypesOf(attributes, endpoint)
     if (
         types.some(
@@ -194,23 +203,78 @@ function nodeVendor(attributes: AttributesData): string {
 }
 
 /**
- * Split a node into one Nemu device per functional endpoint. A Matter power
- * strip is one fabric node with one On/Off Plug-in Unit endpoint per outlet;
- * each becomes its own device (Nemu's UI is one power switch per tile).
+ * Map a Matter node to Nemu devices.
  *
- * Endpoints that only carry Electrical Power/Energy Measurement (and no
- * OnOff anywhere else on the node exposes them) surface as a read-only
- * "All outlets" sibling so the later energy section has a device to attach to.
+ * A power strip (2+ OnOff switch endpoints, no lights) is one device with
+ * nested outlets. Single plugs and lights stay one device per functional
+ * endpoint. Energy-only endpoints are never devices — their readings fold
+ * into the strip or the lone plug/light on the node.
  */
 export function mapNode(snapshot: NodeSnapshot): EndpointDevice[] {
     const { attributes, nodeId } = snapshot
     const base = nodeBaseName(attributes, nodeId)
     const model = nodeModel(attributes)
     const vendor = nodeVendor(attributes)
+    const { functional, energyOnly } = classifyEndpoints(attributes)
+    const firstEnergy = energyOnly[0]
+    const lights = functional.filter((item) => item.kind === 'light')
+    const switches = functional.filter((item) => item.kind === 'switch')
 
-    const functional: Array<{ endpointId: number; kind: EndpointKind }> = []
+    if (switches.length >= 2 && lights.length === 0) {
+        const outlets: StripOutlet[] = switches.map((item, index) => ({
+            endpointId: item.endpointId,
+            name: `Outlet ${index + 1}`,
+        }))
+        const firstOutlet = outlets[0]
+        if (firstOutlet === undefined) return []
+        return [
+            {
+                id: nodeId,
+                nodeId,
+                endpointId: firstOutlet.endpointId,
+                outlets,
+                energyEndpointId: firstEnergy,
+                defaultName: base,
+                kind: 'strip',
+                model,
+                description: describeKind('strip', vendor),
+            },
+        ]
+    }
+
+    const single = functional.length === 1
+    const devices: EndpointDevice[] = []
+    let index = 0
+    for (const { endpointId, kind } of functional) {
+        index += 1
+        const suffix = kind === 'switch' ? `Outlet ${index}` : `${index}`
+        devices.push({
+            id: single ? nodeId : `${nodeId}:${endpointId}`,
+            nodeId,
+            endpointId,
+            energyEndpointId: single ? firstEnergy : undefined,
+            defaultName: functional.length === 1 ? base : `${base} · ${suffix}`,
+            kind,
+            model,
+            description: describeKind(kind, vendor),
+        })
+    }
+
+    return devices
+}
+
+function classifyEndpoints(attributes: AttributesData): {
+    functional: Array<{
+        endpointId: number
+        kind: Exclude<EndpointKind, 'strip'>
+    }>
+    energyOnly: number[]
+} {
+    const functional: Array<{
+        endpointId: number
+        kind: Exclude<EndpointKind, 'strip'>
+    }> = []
     const energyOnly: number[] = []
-
     for (const endpoint of listEndpoints(attributes)) {
         const kind = endpointKind(attributes, endpoint)
         if (kind !== null) {
@@ -219,57 +283,54 @@ export function mapNode(snapshot: NodeSnapshot): EndpointDevice[] {
             energyOnly.push(endpoint)
         }
     }
+    return { functional, energyOnly }
+}
 
-    // Only surface a dedicated energy endpoint when no controllable endpoint
-    // carries the measurement clusters itself.
-    const controlsHaveEnergy = functional.some((f) =>
-        hasEnergyMeasurement(attributes, f.endpointId)
+/**
+ * `{nodeId}:{endpoint}` ids the previous per-outlet mapping published.
+ * Empty when that mapping already used a bare nodeId (single endpoint).
+ */
+export function collapsedLegacyIds(snapshot: NodeSnapshot): string[] {
+    const mapped = mapNode(snapshot)
+    if (mapped.length !== 1 || mapped[0]?.id !== snapshot.nodeId) {
+        return []
+    }
+
+    const { attributes, nodeId } = snapshot
+    const { functional, energyOnly } = classifyEndpoints(attributes)
+    const controlsHaveEnergy = functional.some((item) =>
+        hasEnergyMeasurement(attributes, item.endpointId)
     )
     const energyEndpoint =
         !controlsHaveEnergy && energyOnly.length > 0 ? energyOnly[0] : undefined
+    const oldTotal = functional.length + (energyEndpoint !== undefined ? 1 : 0)
+    if (oldTotal <= 1) return []
 
-    const total = functional.length + (energyEndpoint !== undefined ? 1 : 0)
-    const single = total === 1
-
-    const devices: EndpointDevice[] = []
-    let outletIndex = 0
-    for (const { endpointId, kind } of functional) {
-        outletIndex += 1
-        const suffix =
-            kind === 'switch' ? `Outlet ${outletIndex}` : `${outletIndex}`
-        devices.push({
-            id: single ? nodeId : `${nodeId}:${endpointId}`,
-            nodeId,
-            endpointId,
-            defaultName: functional.length === 1 ? base : `${base} · ${suffix}`,
-            kind,
-            model,
-            description: describeKind(kind, vendor),
-        })
-    }
-
+    const ids = functional.map((item) => `${nodeId}:${item.endpointId}`)
     if (energyEndpoint !== undefined) {
-        devices.push({
-            id: single ? nodeId : `${nodeId}:${energyEndpoint}`,
-            nodeId,
-            endpointId: energyEndpoint,
-            defaultName: single ? base : `${base} · All outlets`,
-            kind: 'energy',
-            model,
-            description: describeKind('energy', vendor),
-        })
+        ids.push(`${nodeId}:${energyEndpoint}`)
     }
+    return ids
+}
 
-    return devices
+export function deviceCoversEndpoint(
+    device: EndpointDevice,
+    endpoint: number
+): boolean {
+    if (device.outlets?.some((outlet) => outlet.endpointId === endpoint)) {
+        return true
+    }
+    if (device.energyEndpointId === endpoint) return true
+    return device.endpointId === endpoint
 }
 
 function describeKind(kind: EndpointKind, vendor: string): string {
     const what =
         kind === 'light'
             ? 'Matter light'
-            : kind === 'switch'
-              ? 'Matter on/off plug-in unit'
-              : 'Matter energy meter'
+            : kind === 'strip'
+              ? 'Matter smart strip'
+              : 'Matter on/off plug-in unit'
     return vendor.length > 0 ? `${what} (${vendor})` : what
 }
 
@@ -295,10 +356,10 @@ export function deviceDescriptor(
     }
 }
 
-function descriptorType(kind: EndpointKind): string {
+export function descriptorType(kind: EndpointKind): string {
     if (kind === 'light') return 'light'
-    if (kind === 'switch') return 'switch'
-    return 'sensor'
+    if (kind === 'strip') return 'strip'
+    return 'switch'
 }
 
 function synthesizeExposes(kind: EndpointKind): unknown[] {
@@ -327,10 +388,10 @@ function synthesizeExposes(kind: EndpointKind): unknown[] {
             },
         ]
     }
-    if (kind === 'switch') {
+    if (kind === 'strip') {
         return [
             {
-                type: 'switch',
+                type: 'strip',
                 features: [
                     {
                         type: 'binary',
@@ -344,7 +405,57 @@ function synthesizeExposes(kind: EndpointKind): unknown[] {
             },
         ]
     }
-    return []
+    return [
+        {
+            type: 'switch',
+            features: [
+                {
+                    type: 'binary',
+                    name: 'state',
+                    property: 'state',
+                    access: 7,
+                    value_on: 'ON',
+                    value_off: 'OFF',
+                },
+            ],
+        },
+    ]
+}
+
+/**
+ * Retained MQTT state for a mapped device. Strips nest per-outlet OnOff (and
+ * any per-outlet energy) under `outlets` and fold aggregator energy at the top
+ * level — never a top-level `state`, so the home tile is not a single switch.
+ */
+export function stateForDevice(
+    device: EndpointDevice,
+    attributes: AttributesData
+): Record<string, unknown> {
+    if (device.kind === 'strip' && device.outlets !== undefined) {
+        const state: Record<string, unknown> = {
+            outlets: device.outlets.map((outlet) => ({
+                id: String(outlet.endpointId),
+                name: outlet.name,
+                ...stateForEndpoint(attributes, outlet.endpointId),
+            })),
+        }
+        if (device.energyEndpointId !== undefined) {
+            Object.assign(
+                state,
+                stateForEndpoint(attributes, device.energyEndpointId)
+            )
+        }
+        return state
+    }
+
+    const state = stateForEndpoint(attributes, device.endpointId)
+    if (device.energyEndpointId !== undefined) {
+        Object.assign(
+            state,
+            stateForEndpoint(attributes, device.energyEndpointId)
+        )
+    }
+    return state
 }
 
 /**
@@ -439,6 +550,18 @@ export function endpointOfPath(path: string): number | undefined {
 }
 
 const NO_TRANSITION = { transitionTime: 0, optionsMask: 0, optionsOverride: 0 }
+
+export function outletIdFromSet(
+    payload: Record<string, unknown>
+): number | undefined {
+    const raw = payload.outlet
+    if (typeof raw === 'number' && Number.isInteger(raw)) return raw
+    if (typeof raw === 'string' && raw.trim().length > 0) {
+        const parsed = Number.parseInt(raw.trim(), 10)
+        if (Number.isInteger(parsed)) return parsed
+    }
+    return undefined
+}
 
 /**
  * Translate a z2m-style `set` payload into Matter cluster commands for one
@@ -538,6 +661,7 @@ export function commandsForSet(payload: Record<string, unknown>): {
                 'color_temp',
                 'color',
                 'transition',
+                'outlet',
             ].includes(key)
         ) {
             ignoredKeys.push(key)
