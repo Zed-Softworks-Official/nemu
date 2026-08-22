@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import {
     CLUSTER,
+    collapsedLegacyIds,
     commandsForSet,
     DEVICE_TYPE,
     deviceDescriptor,
@@ -9,6 +10,8 @@ import {
     isStateAttributePath,
     listEndpoints,
     mapNode,
+    outletIdFromSet,
+    stateForDevice,
     stateForEndpoint,
 } from './mapping'
 
@@ -60,18 +63,24 @@ describe('listEndpoints', () => {
 })
 
 describe('mapNode', () => {
-    it('splits a power strip into one device per outlet plus an energy sibling', () => {
+    it('collapses a power strip into one smart-strip device', () => {
         const devices = mapNode(strip)
+        assert.equal(devices.length, 1)
+        const [device] = devices
+        assert.ok(device)
+        assert.equal(device.id, '17')
+        assert.equal(device.kind, 'strip')
+        assert.equal(device.defaultName, 'Kitchen strip')
+        assert.equal(device.model, 'Power Strip S3')
         assert.deepEqual(
-            devices.map((d) => [d.id, d.kind, d.defaultName]),
+            device.outlets?.map((outlet) => [outlet.endpointId, outlet.name]),
             [
-                ['17:2', 'switch', 'Kitchen strip · Outlet 1'],
-                ['17:3', 'switch', 'Kitchen strip · Outlet 2'],
-                ['17:4', 'switch', 'Kitchen strip · Outlet 3'],
-                ['17:1', 'energy', 'Kitchen strip · All outlets'],
+                [2, 'Outlet 1'],
+                [3, 'Outlet 2'],
+                [4, 'Outlet 3'],
             ]
         )
-        assert.ok(devices.every((d) => d.model === 'Power Strip S3'))
+        assert.equal(device.energyEndpointId, 1)
     })
 
     it('keeps a bare nodeId for single-endpoint nodes', () => {
@@ -82,7 +91,7 @@ describe('mapNode', () => {
         assert.equal(devices[0]?.defaultName, 'Bulb A19')
     })
 
-    it('skips the energy sibling when an outlet carries the measurement clusters', () => {
+    it('still collapses when an outlet carries the measurement clusters', () => {
         const attributes = {
             ...strip.attributes,
             [`2/${CLUSTER.electricalPower}/8`]: 5_000,
@@ -100,10 +109,73 @@ describe('mapNode', () => {
             `1/${CLUSTER.electricalEnergy}/1`
         ]
         const devices = mapNode({ ...strip, attributes })
-        assert.deepEqual(
-            devices.map((d) => d.id),
-            ['17:2', '17:3', '17:4']
-        )
+        assert.equal(devices.length, 1)
+        assert.equal(devices[0]?.id, '17')
+        assert.equal(devices[0]?.kind, 'strip')
+        assert.equal(devices[0]?.energyEndpointId, undefined)
+    })
+
+    it('folds energy-only readings onto a single plug without a sibling', () => {
+        const plug = {
+            nodeId: '4',
+            available: true,
+            attributes: {
+                [`0/${CLUSTER.descriptor}/0`]: deviceTypes(
+                    DEVICE_TYPE.rootNode
+                ),
+                [`0/${CLUSTER.basicInformation}/3`]: 'Smart Plug',
+                [`1/${CLUSTER.descriptor}/0`]: deviceTypes(
+                    DEVICE_TYPE.aggregator
+                ),
+                [`1/${CLUSTER.electricalPower}/8`]: 8_000,
+                [`2/${CLUSTER.descriptor}/0`]: deviceTypes(
+                    DEVICE_TYPE.onOffPlugInUnit
+                ),
+                [`2/${CLUSTER.onOff}/0`]: true,
+            },
+        }
+        const devices = mapNode(plug)
+        assert.equal(devices.length, 1)
+        assert.equal(devices[0]?.id, '4')
+        assert.equal(devices[0]?.kind, 'switch')
+        assert.equal(devices[0]?.energyEndpointId, 1)
+        assert.deepEqual(stateForDevice(devices[0], plug.attributes), {
+            state: 'ON',
+            power: 8,
+        })
+    })
+})
+
+describe('collapsedLegacyIds', () => {
+    it('lists the old per-outlet and energy sibling ids for a strip', () => {
+        assert.deepEqual(collapsedLegacyIds(strip).sort(), [
+            '17:1',
+            '17:2',
+            '17:3',
+            '17:4',
+        ])
+    })
+
+    it('is empty for a node that already used a bare nodeId', () => {
+        assert.deepEqual(collapsedLegacyIds(bulb), [])
+    })
+})
+
+describe('stateForDevice', () => {
+    it('nests outlets and folds aggregator energy on a strip', () => {
+        const [device] = mapNode(strip)
+        assert.ok(device)
+        assert.deepEqual(stateForDevice(device, strip.attributes), {
+            outlets: [
+                { id: '2', name: 'Outlet 1', state: 'ON' },
+                { id: '3', name: 'Outlet 2', state: 'OFF' },
+                { id: '4', name: 'Outlet 3', state: 'OFF' },
+            ],
+            power: 12.5,
+            voltage: 230.1,
+            current: 0.054,
+            energy: 1.234,
+        })
     })
 })
 
@@ -134,17 +206,17 @@ describe('stateForEndpoint', () => {
 
 describe('deviceDescriptor', () => {
     it('produces a z2m-compatible descriptor with synthesized exposes', () => {
-        const [outlet] = mapNode(strip)
-        assert.ok(outlet)
-        const descriptor = deviceDescriptor(outlet, 'Coffee maker')
-        assert.equal(descriptor.external_id, '17:2')
-        assert.equal(descriptor.ieee_address, '17:2')
-        assert.equal(descriptor.friendly_name, 'Coffee maker')
-        assert.equal(descriptor.type, 'switch')
+        const [stripDevice] = mapNode(strip)
+        assert.ok(stripDevice)
+        const descriptor = deviceDescriptor(stripDevice, 'Kitchen strip')
+        assert.equal(descriptor.external_id, '17')
+        assert.equal(descriptor.ieee_address, '17')
+        assert.equal(descriptor.friendly_name, 'Kitchen strip')
+        assert.equal(descriptor.type, 'strip')
         const definition = descriptor.definition as {
             exposes: Array<{ type: string }>
         }
-        assert.equal(definition.exposes[0]?.type, 'switch')
+        assert.equal(definition.exposes[0]?.type, 'strip')
     })
 })
 
@@ -187,6 +259,17 @@ describe('commandsForSet', () => {
             colorY: number
         }
         assert.ok(payload.colorX > 40_000) // red sits at x ≈ 0.64
+    })
+
+    it('does not treat outlet as an ignored set key', () => {
+        const { actions, ignoredKeys } = commandsForSet({
+            outlet: '2',
+            state: 'OFF',
+        })
+        assert.equal(actions[0]?.commandName, 'off')
+        assert.deepEqual(ignoredKeys, [])
+        assert.equal(outletIdFromSet({ outlet: '2' }), 2)
+        assert.equal(outletIdFromSet({ outlet: 3 }), 3)
     })
 
     it('drops read-only and unknown keys', () => {

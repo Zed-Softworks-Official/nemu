@@ -20,8 +20,9 @@ same retained state JSON as any other device state, in SI units:
 These live in core's in-memory state cache like brightness — visible on the
 device detail "Current state" card, never written to Postgres, never sent to
 Convex. If a power strip carries the measurement clusters on an aggregator
-endpoint rather than per outlet, the sidecar exposes that endpoint as a
-read-only "All outlets" sibling device so the readings have a home.
+endpoint rather than per outlet, those readings fold into the **strip
+device's** live state (`power` / `voltage` / `current` / `energy`). They are
+not a separate device.
 
 ## Constraints for the future section
 

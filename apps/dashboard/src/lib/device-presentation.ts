@@ -8,6 +8,12 @@ import {
 
 export type DeviceCategory = 'light' | 'climate' | 'sensor' | 'outlet'
 
+export type PresentedOutlet = {
+    id: string
+    name: string
+    enabled: boolean
+}
+
 export type PresentedDevice = Device & {
     category: DeviceCategory
     manufacturer: string
@@ -24,6 +30,7 @@ export type PresentedDevice = Device & {
     battery?: number
     temperature?: number
     humidity?: number
+    outlets?: PresentedOutlet[]
 }
 
 const categoryLabels: Record<DeviceCategory, string> = {
@@ -36,6 +43,9 @@ const categoryLabels: Record<DeviceCategory, string> = {
 export function presentDevice(device: Device): PresentedDevice {
     const state = device.state ?? {}
     const category = getDeviceCategory(device)
+    const outlets = readOutlets(state)
+    const isStrip =
+        device.type === 'strip' || (outlets !== undefined && outlets.length > 0)
     const enabled =
         readBoolean(state, ['on', 'enabled', 'power']) ??
         readString(state, ['state'])?.toLowerCase() === 'on'
@@ -50,10 +60,11 @@ export function presentDevice(device: Device): PresentedDevice {
     const temperature = readNumber(state, ['temperature'])
     const humidity = readNumber(state, ['humidity'])
     const supportsPower =
-        category === 'light' ||
-        category === 'outlet' ||
-        readBoolean(state, ['on', 'enabled', 'power']) !== undefined ||
-        readString(state, ['state']) !== undefined
+        !isStrip &&
+        (category === 'light' ||
+            category === 'outlet' ||
+            readBoolean(state, ['on', 'enabled', 'power']) !== undefined ||
+            readString(state, ['state']) !== undefined)
     const supportsBrightness = rawBrightness !== undefined
     const supportsColorTemp = colorTemp !== undefined
     const supportsColor = colorHex !== undefined || hasColorObject(state)
@@ -72,6 +83,7 @@ export function presentDevice(device: Device): PresentedDevice {
             colorHex,
             temperature,
             humidity,
+            outlets,
         }),
         enabled,
         level,
@@ -84,6 +96,7 @@ export function presentDevice(device: Device): PresentedDevice {
         battery,
         temperature,
         humidity,
+        outlets,
     }
 }
 
@@ -122,7 +135,8 @@ function getDeviceCategory(device: Device): DeviceCategory {
     if (
         descriptor.includes('outlet') ||
         descriptor.includes('plug') ||
-        descriptor.includes('socket')
+        descriptor.includes('socket') ||
+        descriptor.includes('strip')
     ) {
         return 'outlet'
     }
@@ -138,6 +152,7 @@ function getDeviceSummary({
     colorHex,
     temperature,
     humidity,
+    outlets,
 }: {
     device: Device
     enabled: boolean
@@ -146,9 +161,15 @@ function getDeviceSummary({
     colorHex?: string
     temperature?: number
     humidity?: number
+    outlets?: PresentedOutlet[]
 }): string {
     if (!device.online) {
         return 'Offline'
+    }
+
+    if (outlets !== undefined && outlets.length > 0) {
+        const onCount = outlets.filter((outlet) => outlet.enabled).length
+        return `${onCount} of ${outlets.length} on`
     }
 
     if (temperature !== undefined) {
@@ -174,6 +195,35 @@ function getDeviceSummary({
     return 'Ready'
 }
 
+function readOutlets(state: DeviceState): PresentedOutlet[] | undefined {
+    const raw = state.outlets
+    if (!Array.isArray(raw) || raw.length === 0) return undefined
+
+    const outlets: PresentedOutlet[] = []
+    for (const item of raw) {
+        if (typeof item !== 'object' || item === null) continue
+        const record = item as Record<string, unknown>
+        const id =
+            typeof record.id === 'string'
+                ? record.id
+                : typeof record.id === 'number'
+                  ? String(record.id)
+                  : undefined
+        if (id === undefined) continue
+        const name =
+            typeof record.name === 'string' && record.name.trim().length > 0
+                ? record.name.trim()
+                : `Outlet ${id}`
+        const enabled =
+            record.state === 'ON' ||
+            record.state === true ||
+            record.state === 'on'
+        outlets.push({ id, name, enabled })
+    }
+
+    return outlets.length > 0 ? outlets : undefined
+}
+
 function hasColorObject(state: DeviceState): boolean {
     const color = state.color
     return typeof color === 'object' && color !== null
@@ -195,10 +245,17 @@ function readColorHex(state: DeviceState): string | undefined {
         if (typeof record.hex === 'string') {
             return normalizeHex(record.hex) ?? undefined
         }
-        if (typeof record.r === 'number' && typeof record.g === 'number' && typeof record.b === 'number') {
+        if (
+            typeof record.r === 'number' &&
+            typeof record.g === 'number' &&
+            typeof record.b === 'number'
+        ) {
             return rgbToHex(record.r, record.g, record.b)
         }
-        if (typeof record.hue === 'number' && typeof record.saturation === 'number') {
+        if (
+            typeof record.hue === 'number' &&
+            typeof record.saturation === 'number'
+        ) {
             return hsvToHex(record.hue, record.saturation / 100, 1)
         }
         if (typeof record.h === 'number' && typeof record.s === 'number') {

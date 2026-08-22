@@ -63,6 +63,7 @@ import {
     colorHexPayload,
     colorTempPayload,
     normalizeHex,
+    outletPayload,
     powerPayload,
 } from '~/lib/device-commands'
 import {
@@ -85,6 +86,9 @@ export function DeviceDetail({ deviceId }: { deviceId: string }) {
     const [forgetError, setForgetError] = useState<Error | null>(null)
     const [commandError, setCommandError] = useState<Error | null>(null)
     const [pendingPower, setPendingPower] = useState<boolean | null>(null)
+    const [pendingOutlets, setPendingOutlets] = useState<
+        Record<string, boolean>
+    >({})
     const [rooms, setRooms] = useState<Room[]>([])
     const [roomsLoading, setRoomsLoading] = useState(false)
     const [roomsError, setRoomsError] = useState<Error | null>(null)
@@ -133,6 +137,7 @@ export function DeviceDetail({ deviceId }: { deviceId: string }) {
 
     useEffect(() => {
         setPendingPower(null)
+        setPendingOutlets({})
         setCommandError(null)
     }, [device?.state, device?.online])
 
@@ -185,11 +190,14 @@ export function DeviceDetail({ deviceId }: { deviceId: string }) {
     }
 
     const presented = presentDevice(device)
-    const stateEntries = Object.entries(device.state ?? {}).slice(0, 6)
+    const stateEntries = Object.entries(device.state ?? {})
+        .filter(([key]) => key !== 'outlets')
+        .slice(0, 6)
     const powerChecked = pendingPower ?? presented.enabled
     const selectedRoom = rooms.find((room) => room.id === presented.roomId)
     const isMatter = device.protocol === 'matter'
     const protocolLabel = isMatter ? 'Matter' : 'Zigbee'
+    const stripOutlets = presented.outlets
 
     async function runCommand(payload: DeviceState) {
         setCommandError(null)
@@ -202,6 +210,7 @@ export function DeviceDetail({ deviceId }: { deviceId: string }) {
             }
         } catch (nextError) {
             setPendingPower(null)
+            setPendingOutlets({})
             setCommandError(
                 nextError instanceof Error
                     ? nextError
@@ -213,6 +222,11 @@ export function DeviceDetail({ deviceId }: { deviceId: string }) {
     async function handlePowerChange(next: boolean) {
         setPendingPower(next)
         await runCommand(powerPayload(next))
+    }
+
+    async function handleOutletChange(outletId: string, next: boolean) {
+        setPendingOutlets((current) => ({ ...current, [outletId]: next }))
+        await runCommand(outletPayload(outletId, next))
     }
 
     async function handleRoomChange(nextRoomId: string | null) {
@@ -309,6 +323,37 @@ export function DeviceDetail({ deviceId }: { deviceId: string }) {
                             ) : null}
                         </CardHeader>
                         <CardContent className="space-y-5">
+                            {stripOutlets && stripOutlets.length > 0 ? (
+                                <div className="space-y-1">
+                                    {stripOutlets.map((outlet) => {
+                                        const checked =
+                                            pendingOutlets[outlet.id] ??
+                                            outlet.enabled
+                                        return (
+                                            <div
+                                                className="flex items-center justify-between gap-3 py-2"
+                                                key={outlet.id}
+                                            >
+                                                <span className="font-medium text-sm">
+                                                    {outlet.name}
+                                                </span>
+                                                <Switch
+                                                    aria-label={`${outlet.name} power`}
+                                                    checked={checked}
+                                                    disabled={controlsDisabled}
+                                                    onCheckedChange={(next) =>
+                                                        void handleOutletChange(
+                                                            outlet.id,
+                                                            next
+                                                        )
+                                                    }
+                                                />
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            ) : null}
+
                             {presented.supportsBrightness &&
                             presented.level !== undefined ? (
                                 <DeviceControlSlider
@@ -389,7 +434,8 @@ export function DeviceDetail({ deviceId }: { deviceId: string }) {
 
                             {!presented.supportsBrightness &&
                             !presented.supportsColorTemp &&
-                            !presented.supportsColor ? (
+                            !presented.supportsColor &&
+                            !(stripOutlets && stripOutlets.length > 0) ? (
                                 <div className="rounded-lg bg-muted/50 p-4">
                                     <p className="font-medium text-sm">
                                         Current reading

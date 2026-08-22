@@ -8,6 +8,8 @@ export {
     discoverController,
     identifyController,
     isLanControllerOrigin,
+    isLocalDevDashboard,
+    isLoopbackControllerUrl,
     isSelfSignedLanUrl,
     lanDiscoveryCandidates,
     lanUrlsFromHostnames,

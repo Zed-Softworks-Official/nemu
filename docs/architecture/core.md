@@ -115,8 +115,9 @@ Topic map, identical shape per bridge (`zigbee2mqtt/…` and `matter/…`; see
 | out       | `{base}/bridge/request/device/remove`       | forget a device (Zigbee: leave network; Matter: unpair node) |
 | in        | `{base}/bridge/response/#`                  | transaction-correlated request results                       |
 
-`<id>` is the z2m `friendly_name` for Zigbee and the external id (`nodeId` or
-`nodeId:endpoint`) for Matter. Registry sync is idempotent and scoped per
+`<id>` is the z2m `friendly_name` for Zigbee and the external id (`nodeId` for
+strips and single-endpoint nodes, or `nodeId:endpoint` when a node is still
+split) for Matter. Registry sync is idempotent and scoped per
 protocol: each bridge's `bridge/devices` is the source of truth for existence
 and `external_id` within that protocol; Postgres adds nemu-owned fields (room,
 display metadata). Renames initiated in nemu go _to_ the bridge so the two
@@ -128,10 +129,12 @@ never diverge.
 [matterjs-server](https://github.com/matter-js/matterjs-server) WebSocket API
 into the MQTT dialect above under base topic `matter`. Key behaviors:
 
-- **One Nemu device per functional Matter endpoint.** A power strip (one
-  fabric node, one On/Off Plug-in Unit endpoint per outlet) becomes sibling
-  devices with ids `{nodeId}:{endpointId}`; single-endpoint nodes keep a bare
-  `{nodeId}`. Availability is shared node-wide; removing any sibling unpairs
+- **One Nemu device per Matter node for power strips.** A multi-outlet strip
+  (2+ OnOff switch endpoints, no lights) is one registry device with id
+  `{nodeId}` and nested `outlets` in live state. Single plugs and lights stay
+  one device per functional endpoint (`{nodeId}` or `{nodeId}:{endpointId}`).
+  Energy-only endpoints are never devices — their readings fold into the
+  strip or lone plug. Availability is node-wide; forgetting the strip unpairs
   the whole node.
 - **Synthesized z2m-style `exposes`** (OnOff → `switch`, LevelControl →
   `light`/`brightness`, ColorControl → `color`/`color_temp`) so core's type
@@ -143,6 +146,11 @@ into the MQTT dialect above under base topic `matter`. Key behaviors:
   [energy.md](energy.md)).
 - **Renames are nemu-owned**, persisted in the sidecar's data volume; Matter
   has no friendly-name sync.
+- **Wi-Fi commission is BLE-first, then LAN.** After BLE delivers credentials,
+  matterjs may reconnect to a stale IPv4 from the device's previous network.
+  The sidecar watches the host subnet for the new address and finishes with
+  `commission_on_network` + `ip_addr` so pairing does not hang on an
+  unreachable lease.
 
 ## 4. API surface
 

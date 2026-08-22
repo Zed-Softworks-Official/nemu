@@ -5,7 +5,11 @@ import {
     identifyResponseSchema,
 } from '@nemu/protocol'
 import { createControllerHttp } from './http'
-import { isMixedContentUrl, isSecureDocument } from './mixedContent'
+import {
+    isLoopbackHostname,
+    isMixedContentUrl,
+    isSecureDocument,
+} from './mixedContent'
 import { getRememberedBaseUrl } from './storage'
 
 export const DEFAULT_LAN_CANDIDATES = [
@@ -110,8 +114,30 @@ export function isSelfSignedLanUrl(url: string): boolean {
     }
 }
 
+/** True when this tab is the local dashboard (`localhost:3001`), not app.nemu.sh. */
+export function isLocalDevDashboard(): boolean {
+    if (typeof globalThis.window === 'undefined') return false
+    return isLoopbackHostname(window.location.hostname)
+}
+
+export function isLoopbackControllerUrl(url: string): boolean {
+    try {
+        return isLoopbackHostname(new URL(url).hostname)
+    } catch {
+        return false
+    }
+}
+
+const LOCAL_DEV_CANDIDATES = [
+    'http://localhost:6368',
+    'http://127.0.0.1:6368',
+    'https://localhost:6368',
+    'https://127.0.0.1:6368',
+] as const
+
 export function lanDiscoveryCandidates(extra: string[] = []): string[] {
     const httpsFirst = isSecureDocument()
+    const localDev = isLocalDevDashboard()
     // Self-signed nemu.local probes flip the app.nemu.sh padlock to Not Secure.
     // Once Convex has issued a LAN hostname, skip that fallback on HTTPS pages.
     const hasIssuedLan = extra.some(isIssuedLanUrl)
@@ -125,6 +151,11 @@ export function lanDiscoveryCandidates(extra: string[] = []): string[] {
     const push = (url: string) => {
         const normalized = url.replace(/\/$/, '')
         if (!ordered.includes(normalized)) ordered.push(normalized)
+    }
+
+    // Local `pnpm dev` must not lose to a Pi advertising nemu.local / lan.nemu.sh.
+    if (localDev) {
+        for (const url of LOCAL_DEV_CANDIDATES) push(url)
     }
 
     for (const url of extra) {
@@ -172,10 +203,13 @@ export async function discoverController(
     const extras = candidates ?? lanDiscoveryCandidates()
     const remembered = getRememberedBaseUrl()
     const skipRemembered =
-        Boolean(remembered) &&
-        isSecureDocument() &&
-        extras.some(isIssuedLanUrl) &&
-        isSelfSignedLanUrl(remembered ?? '')
+        (Boolean(remembered) &&
+            isSecureDocument() &&
+            extras.some(isIssuedLanUrl) &&
+            isSelfSignedLanUrl(remembered ?? '')) ||
+        (isLocalDevDashboard() &&
+            Boolean(remembered) &&
+            !isLoopbackControllerUrl(remembered ?? ''))
     if (remembered && !skipRemembered) {
         if (isSecureDocument()) {
             const https = upgradeToHttps(remembered)

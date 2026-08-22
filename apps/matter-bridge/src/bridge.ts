@@ -1,26 +1,43 @@
 import {
     type EventMessage,
     MatterClient,
-    type MatterNode,
+    MatterNode,
     type WebSocketLike,
 } from '@matter-server/ws-client'
 import mqtt, { type MqttClient } from 'mqtt'
 import WebSocket from 'ws'
 import type { env as Env } from './env'
 import {
+    hostLanInfo,
+    ipsForMacs,
+    ipv4Addresses,
+    listLanNeighborRecords,
+    macsFromText,
+    pingReachable,
+} from './lan-discover'
+import {
+    collapsedLegacyIds,
     commandsForSet,
+    descriptorType,
+    deviceCoversEndpoint,
     deviceDescriptor,
     type EndpointDevice,
     endpointOfPath,
     isStateAttributePath,
     mapNode,
-    stateForEndpoint,
+    outletIdFromSet,
+    stateForDevice,
 } from './mapping'
 import type { NameStore } from './names'
+import { type ParsedPairingCode, parsePairingCode } from './pairing-code'
 
 const STATE_DEBOUNCE_MS = 50
 const RECONNECT_MIN_MS = 1_000
 const RECONNECT_MAX_MS = 30_000
+const LAN_COMMISSION_TIMEOUT_MS = 45_000
+const LAN_COMMISSION_ATTEMPTS = 4
+const LAN_COMMISSION_RETRY_MS = 5_000
+const LAN_MDNS_DISCOVER_MS = 15_000
 
 /** MatterClient with a hook into raw server events. */
 class RawEventClient extends MatterClient {
@@ -156,6 +173,7 @@ export class MatterMqttBridge {
         this.publish('bridge/state', JSON.stringify({ state: 'online' }), true)
         this.rebuildIndex()
         this.publishDevices()
+        this.emitCollapsedLeaves()
         for (const id of this.index.keys()) {
             this.publishDeviceState(id)
             this.publishAvailability(id)
@@ -201,7 +219,7 @@ export class MatterMqttBridge {
         const entry = this.index.get(id)
         const node = this.nodeOf(id)
         if (!entry || !node) return
-        const state = stateForEndpoint(node.attributes, entry.device.endpointId)
+        const state = stateForDevice(entry.device, node.attributes)
         this.publish(id, JSON.stringify(state), true)
     }
 
@@ -249,7 +267,7 @@ export class MatterMqttBridge {
         for (const [id, entry] of this.index) {
             if (
                 entry.device.nodeId !== nodeId ||
-                entry.device.endpointId !== endpoint
+                !deviceCoversEndpoint(entry.device, endpoint)
             )
                 continue
             const existing = this.stateTimers.get(id)
@@ -284,12 +302,19 @@ export class MatterMqttBridge {
             ([, entry]) => entry.device.nodeId === nodeId
         )
         const added = current.filter(([id]) => !previousIds.has(id))
-        if (added.length > 0) {
+        const gone = [...previousIds].filter(
+            (id) => !current.some(([currentId]) => currentId === id)
+        )
+        if (added.length > 0 || gone.length > 0) {
             this.publishDevices()
             for (const [id, entry] of added) {
                 this.publishJoin(id, entry)
             }
+            for (const id of gone) {
+                this.publishLeave(id)
+            }
         }
+        this.emitCollapsedLeavesForNode(nodeId)
         for (const [id] of current) {
             this.publishAvailability(id)
             this.publishDeviceState(id)
@@ -310,6 +335,7 @@ export class MatterMqttBridge {
                 model: entry.device.model,
                 description: entry.device.description,
             },
+            type: descriptorType(entry.device.kind),
         })
         this.publishDeviceState(id)
         this.publishAvailability(id)
@@ -322,14 +348,37 @@ export class MatterMqttBridge {
         this.rebuildIndex()
         this.publishDevices()
         for (const [id] of removed) {
-            this.publishBridgeEvent('device_leave', { ieee_address: id })
-            // Clear retained state/availability so stale payloads don't revive the device.
-            this.mqttClient.publish(this.topic(id), '', { retain: true })
-            this.mqttClient.publish(this.topic(`${id}/availability`), '', {
-                retain: true,
-            })
+            this.publishLeave(id)
         }
         this.names.retainOnly(new Set(this.index.keys()))
+    }
+
+    private emitCollapsedLeaves(): void {
+        for (const node of Object.values(this.matter?.nodes ?? {})) {
+            this.emitCollapsedLeavesForNode(String(node.node_id))
+        }
+    }
+
+    private emitCollapsedLeavesForNode(nodeId: string): void {
+        const node = this.matter?.nodes[nodeId]
+        if (!node) return
+        for (const id of collapsedLegacyIds({
+            nodeId,
+            available: node.available,
+            attributes: node.attributes,
+        })) {
+            if (this.index.has(id)) continue
+            this.publishLeave(id)
+        }
+    }
+
+    private publishLeave(id: string): void {
+        this.publishBridgeEvent('device_leave', { ieee_address: id })
+        // Clear retained state/availability so stale payloads don't revive the device.
+        this.mqttClient.publish(this.topic(id), '', { retain: true })
+        this.mqttClient.publish(this.topic(`${id}/availability`), '', {
+            retain: true,
+        })
     }
 
     private publishBridgeEvent(
@@ -385,9 +434,24 @@ export class MatterMqttBridge {
             console.warn('set for unknown device', id)
             return
         }
-        if (entry.device.kind === 'energy') {
-            console.warn('ignoring set on read-only energy device', id)
-            return
+
+        let endpointId: number
+        if (entry.device.kind === 'strip') {
+            const outlet = outletIdFromSet(payload)
+            const known = entry.device.outlets?.some(
+                (item) => item.endpointId === outlet
+            )
+            if (outlet === undefined || !known) {
+                console.warn(
+                    'set for strip requires a known outlet',
+                    id,
+                    payload.outlet
+                )
+                return
+            }
+            endpointId = outlet
+        } else {
+            endpointId = entry.device.endpointId
         }
 
         const { actions, ignoredKeys } = commandsForSet(payload)
@@ -400,7 +464,7 @@ export class MatterMqttBridge {
         for (const action of actions) {
             await matter.deviceCommand(
                 entry.rawNodeId,
-                entry.device.endpointId,
+                endpointId,
                 action.clusterId,
                 action.commandName,
                 action.payload
@@ -498,10 +562,7 @@ export class MatterMqttBridge {
         options: { bluetooth: boolean; preferBle: boolean }
     ): Promise<void> {
         if (options.preferBle) {
-            const node = await matter.commissionWithCode(code, false)
-            console.log(
-                `commissioned node ${String(node.node_id)} over bluetooth`
-            )
+            await this.commissionOverBleThenLan(matter, code)
             return
         }
 
@@ -514,11 +575,91 @@ export class MatterMqttBridge {
                 'on-network commission failed; retrying over Bluetooth',
                 commissionErrorMessage(networkError)
             )
+            await this.commissionOverBleThenLan(matter, code)
+        }
+    }
+
+    /**
+     * BLE must carry Wi-Fi credentials. After join, matterjs often reconnects
+     * to a stale IPv4 (previous DHCP lease on another subnet). Finish on the
+     * real LAN address with `commission_on_network` + `ip_addr`.
+     */
+    private async commissionOverBleThenLan(
+        matter: RawEventClient,
+        code: string
+    ): Promise<void> {
+        const host = await hostLanInfo()
+
+        try {
             const node = await matter.commissionWithCode(code, false)
             console.log(
                 `commissioned node ${String(node.node_id)} over bluetooth`
             )
+            return
+        } catch (error) {
+            const parsed = parsePairingCode(code)
+            if (parsed === undefined || isBlePairingFailure(error)) {
+                throw error
+            }
+
+            const fromMdns = await commissionableIpv4s(matter)
+            const records =
+                host === null ? [] : await listLanNeighborRecords(host)
+            const fromMac = ipsForMacs(
+                records,
+                macsFromText(errorMessage(error))
+            )
+            const ips = await filterReachableIps([...fromMdns, ...fromMac])
+
+            if (ips.length === 0 || !isStuckReconnect(error)) {
+                throw error
+            }
+
+            console.warn(
+                `BLE commission stuck at reconnect (${errorMessage(error)}); finishing on LAN at ${ips.join(', ')}`
+            )
+            const node = await this.commissionOnLan(matter, parsed, ips)
+            console.log(
+                `commissioned node ${String(node.node_id)} on-network after BLE Wi-Fi join`
+            )
         }
+    }
+
+    private async commissionOnLan(
+        matter: RawEventClient,
+        parsed: ParsedPairingCode,
+        ips: string[]
+    ): Promise<MatterNode> {
+        let lastError: unknown
+        for (let attempt = 0; attempt < LAN_COMMISSION_ATTEMPTS; attempt++) {
+            for (const ip of ips) {
+                try {
+                    const data = await matter.sendCommand(
+                        'commission_on_network',
+                        0,
+                        {
+                            setup_pin_code: parsed.passcode,
+                            ip_addr: ip,
+                            ...discoveryFilter(parsed),
+                        },
+                        LAN_COMMISSION_TIMEOUT_MS
+                    )
+                    return new MatterNode(data)
+                } catch (error) {
+                    lastError = error
+                    console.warn(
+                        `on-network commission at ${ip} failed`,
+                        errorMessage(error)
+                    )
+                }
+            }
+            if (attempt + 1 < LAN_COMMISSION_ATTEMPTS) {
+                await delay(LAN_COMMISSION_RETRY_MS)
+            }
+        }
+        throw lastError instanceof Error
+            ? lastError
+            : new Error('on-network commission failed')
     }
 
     private async handleRemove(
@@ -627,13 +768,76 @@ function normalizePairingCode(code: string): string {
     return trimmed.replace(/[\s-]/g, '')
 }
 
+function discoveryFilter(parsed: ParsedPairingCode): {
+    filter_type?: number
+    filter?: number
+} {
+    if (parsed.longDiscriminator !== undefined) {
+        return { filter_type: 2, filter: parsed.longDiscriminator }
+    }
+    if (parsed.shortDiscriminator !== undefined) {
+        return { filter_type: 1, filter: parsed.shortDiscriminator }
+    }
+    return {}
+}
+
+function isBlePairingFailure(error: unknown): boolean {
+    return /Can not connect to peripheral|does not advertise Matter Service|unexpected state|connecting to peripheral|discovery of node|No device could be commissioned/i.test(
+        errorMessage(error)
+    )
+}
+
+function isStuckReconnect(error: unknown): boolean {
+    const raw = errorMessage(error)
+    if (isBlePairingFailure(error)) return false
+    if (/timed out|pairing window|credentials-not-configured/i.test(raw)) {
+        return false
+    }
+    return /peer-unreachable|no address known|Address udp:\/\/\S+ unreachable/i.test(
+        raw
+    )
+}
+
+async function commissionableIpv4s(matter: RawEventClient): Promise<string[]> {
+    try {
+        const nodes =
+            await matter.discoverCommissionableNodes(LAN_MDNS_DISCOVER_MS)
+        return ipv4Addresses(nodes.flatMap((node) => node.addresses ?? []))
+    } catch (error) {
+        console.warn(
+            'commissionable mDNS discovery failed',
+            errorMessage(error)
+        )
+        return []
+    }
+}
+
+async function filterReachableIps(ips: string[]): Promise<string[]> {
+    const reachable: string[] = []
+    for (const ip of ips) {
+        if (await pingReachable(ip)) {
+            reachable.push(ip)
+        } else {
+            console.warn(`skip unreachable LAN candidate ${ip}`)
+        }
+    }
+    return reachable
+}
+
 function commissionErrorMessage(error: unknown): string {
     const raw = errorMessage(error)
     if (/credentials-not-configured|credentials are configured/i.test(raw)) {
         return 'This device needs a 2.4 GHz Wi-Fi network to join. Enter the network in the pairing step, put the device back in pairing mode, and try again.'
     }
-    if (/connecting to peripheral/i.test(raw)) {
-        return 'Found the device over Bluetooth but could not finish pairing. Put it back in pairing mode, keep it close to the controller, and try again.'
+    if (
+        /connecting to peripheral|Can not connect to peripheral|does not advertise Matter Service|unexpected state|discovery of node|No device could be commissioned/i.test(
+            raw
+        )
+    ) {
+        return 'Found the device over Bluetooth but it is not accepting a pairing session. Factory-reset it (hold any outlet switch 10 seconds), keep it close to the controller, and try again with 2.4 GHz Wi-Fi filled in.'
+    }
+    if (/timed out/i.test(raw)) {
+        return 'Bluetooth pairing timed out. Factory-reset the device (hold any outlet switch 10 seconds), keep it close to the controller, and try again with 2.4 GHz Wi-Fi filled in.'
     }
     if (
         /Could not connect to device|No device could be commissioned|unreachable/i.test(

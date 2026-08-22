@@ -15,6 +15,10 @@ export function powerPayload(on: boolean): DeviceState {
     return { state: on ? 'ON' : 'OFF' }
 }
 
+export function outletPayload(outletId: string, on: boolean): DeviceState {
+    return { outlet: outletId, state: on ? 'ON' : 'OFF' }
+}
+
 export function colorTempPayload(mireds: number): DeviceState {
     return {
         color_temp: Math.round(

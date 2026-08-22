@@ -27,8 +27,9 @@ const BRIDGE_RESPONSE_TIMEOUT: Duration = Duration::from_secs(15);
 type PendingResponse = oneshot::Sender<Result<JsonValue, String>>;
 
 /// The MQTT topic segment core addresses a device by: z2m routes by friendly
-/// name, the matter bridge routes by external id (`nodeId` or
-/// `nodeId:endpoint`) because Matter has no bridge-side friendly names.
+/// name, the matter bridge routes by external id (`nodeId` for strips and
+/// single endpoints, `nodeId:endpoint` when a node is still split) because
+/// Matter has no bridge-side friendly names.
 pub fn device_topic_id(device: &Device) -> &str {
     match device_protocol(device) {
         Protocol::Zigbee => &device.friendly_name,
