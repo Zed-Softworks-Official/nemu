@@ -13,7 +13,9 @@ import {
     type DeviceEvent,
     type DeviceProtocol,
     type HouseholdMember,
+    type MatterWifiResponse,
     type PatchDeviceRequest,
+    type SaveMatterWifiRequest,
     type PatchRoomRequest,
     type PermitJoinResponse,
     type Room,
@@ -44,6 +46,8 @@ type ControllerContextValue = {
         request: CommissionRequest
     ) => Promise<CommissionResponse>
     cancelMatterCommission: () => Promise<CommissionResponse>
+    getMatterWifi: () => Promise<MatterWifiResponse>
+    saveMatterWifi: (request: SaveMatterWifiRequest) => Promise<MatterWifiResponse>
     getRooms: () => Promise<Room[]>
     createRoom: (request: CreateRoomRequest) => Promise<Room>
     patchRoom: (roomId: string, patch: PatchRoomRequest) => Promise<Room>
@@ -126,6 +130,14 @@ export function ControllerProvider({
         () => connection.cancelMatterCommission(),
         [connection]
     )
+    const getMatterWifi = useCallback(
+        () => connection.getMatterWifi(),
+        [connection]
+    )
+    const saveMatterWifi = useCallback(
+        (request: SaveMatterWifiRequest) => connection.saveMatterWifi(request),
+        [connection]
+    )
     const getRooms = useCallback(() => connection.getRooms(), [connection])
     const createRoom = useCallback(
         (request: CreateRoomRequest) => connection.createRoom(request),
@@ -182,6 +194,8 @@ export function ControllerProvider({
             permitJoin,
             commissionMatter,
             cancelMatterCommission,
+            getMatterWifi,
+            saveMatterWifi,
             getRooms,
             createRoom,
             patchRoom,
@@ -205,6 +219,8 @@ export function ControllerProvider({
             permitJoin,
             commissionMatter,
             cancelMatterCommission,
+            getMatterWifi,
+            saveMatterWifi,
             getRooms,
             createRoom,
             patchRoom,
@@ -288,6 +304,10 @@ export type DevicePairingPhase =
     | 'success'
     | 'error'
 
+export type PairingKind = 'unset' | 'zigbee' | 'matter'
+
+export type MatterPairingStep = 'ready' | 'scan' | 'wifi' | 'connecting'
+
 export type PairingInterview = {
     externalId: string
     status: 'started' | 'successful' | 'failed'
@@ -295,13 +315,19 @@ export type PairingInterview = {
     message?: string
 }
 
-const MATTER_DISCOVER_MS = 300_000
-const MATTER_FINISH_MS = 180_000
+export type CommissionProgress = {
+    stage: string
+    message?: string
+}
+
+const MATTER_CONNECT_MS = 180_000
 
 export function useDevicePairing(): {
     phase: DevicePairingPhase
     status: ConnectionStatus
     protocol: DeviceProtocol
+    pairingKind: PairingKind
+    matterStep: MatterPairingStep | null
     interviews: PairingInterview[]
     discoveredDevices: Device[]
     selectedDevice: Device | null
@@ -310,6 +336,11 @@ export function useDevicePairing(): {
     roomsError: Error | null
     error: Error | null
     secondsRemaining: number
+    commissionProgress: CommissionProgress | null
+    savedWifi: MatterWifiResponse | null
+    chooseMatter: () => void
+    chooseZigbee: () => void
+    setMatterStep: (step: MatterPairingStep) => void
     startDiscovery: () => Promise<void>
     startMatterCommission: (request: CommissionRequest) => Promise<void>
     selectDevice: (device: Device) => Promise<void>
@@ -322,11 +353,14 @@ export function useDevicePairing(): {
         permitJoin,
         commissionMatter,
         cancelMatterCommission,
+        getMatterWifi,
         getDevices,
         getRooms,
         patchDevice,
     } = useController()
     const [protocol, setProtocol] = useState<DeviceProtocol>('zigbee')
+    const [pairingKind, setPairingKind] = useState<PairingKind>('unset')
+    const [matterStep, setMatterStep] = useState<MatterPairingStep | null>(null)
     const [phase, setPhase] = useState<DevicePairingPhase>('idle')
     const [interviews, setInterviews] = useState<PairingInterview[]>([])
     const [discoveredDevices, setDiscoveredDevices] = useState<Device[]>([])
@@ -337,13 +371,15 @@ export function useDevicePairing(): {
     const [error, setError] = useState<Error | null>(null)
     const [expiresAt, setExpiresAt] = useState<number | null>(null)
     const [secondsRemaining, setSecondsRemaining] = useState(0)
-    const [matterPaused, setMatterPaused] = useState(false)
+    const [commissionProgress, setCommissionProgress] =
+        useState<CommissionProgress | null>(null)
+    const [savedWifi, setSavedWifi] = useState<MatterWifiResponse | null>(null)
+    const lastMatterRequest = useRef<CommissionRequest | null>(null)
     const knownDeviceIds = useRef(new Set<string>())
     const phaseRef = useRef(phase)
     phaseRef.current = phase
     const discoveredDevicesRef = useRef(discoveredDevices)
     discoveredDevicesRef.current = discoveredDevices
-    const finishWindowGranted = useRef(false)
 
     const stopPairingRadios = useCallback(async () => {
         try {
@@ -398,6 +434,13 @@ export function useDevicePairing(): {
         if (phase !== 'discovering') return
 
         return connection.subscribeEvents((event: DeviceEvent) => {
+            if (event.type === 'commissionProgress') {
+                setCommissionProgress({
+                    stage: event.stage,
+                    message: event.message,
+                })
+            }
+
             if (event.type === 'interview') {
                 setInterviews((current) => {
                     const next = current.filter(
@@ -416,17 +459,12 @@ export function useDevicePairing(): {
                 if (event.status === 'failed') {
                     setError(
                         new Error(
-                            event.error ?? 'The device could not be paired.'
+                            event.error ??
+                                'Put the device back in pairing mode and try again.'
                         )
                     )
                     setPhase('error')
                     setExpiresAt(null)
-                } else if (
-                    event.message
-                        ?.toLowerCase()
-                        .includes('waiting for the controller')
-                ) {
-                    setMatterPaused(true)
                 }
             }
 
@@ -437,10 +475,6 @@ export function useDevicePairing(): {
                     )
                     return [...next, event.device]
                 })
-            }
-
-            if (event.type === 'health' && event.matter !== undefined) {
-                setMatterPaused(!event.matter)
             }
 
             if (event.type === 'resync' && protocol === 'matter') {
@@ -460,7 +494,6 @@ export function useDevicePairing(): {
         if (phase !== 'discovering' || expiresAt === null) return
 
         const updateCountdown = () => {
-            if (protocol === 'matter' && matterPaused) return
             const remaining = Math.max(
                 0,
                 Math.ceil((expiresAt - Date.now()) / 1000)
@@ -476,7 +509,7 @@ export function useDevicePairing(): {
                         if (discoveredDevicesRef.current.length > 0) return
                         setError(
                             new Error(
-                                'The device did not finish joining. If its light is solid, factory-reset it and pair again on the same 2.4 GHz Wi-Fi as this machine.'
+                                'Pairing timed out. Put the device back in pairing mode and keep it near the controller.'
                             )
                         )
                         setPhase('error')
@@ -497,38 +530,15 @@ export function useDevicePairing(): {
         expiresAt,
         discoveredDevices.length,
         protocol,
-        matterPaused,
         absorbMatterJoins,
         stopPairingRadios,
     ])
 
-    useEffect(() => {
-        if (!matterPaused) return
-        const started = Date.now()
-        return () => {
-            const pausedFor = Date.now() - started
-            setExpiresAt((current) =>
-                current === null ? null : current + pausedFor
-            )
-        }
-    }, [matterPaused])
-
-    useEffect(() => {
-        if (phase !== 'discovering' || protocol !== 'matter') return
-        const adding = interviews.some((item) =>
-            (item.message ?? '')
-                .toLowerCase()
-                .includes('adding it to your home')
-        )
-        if (!adding || finishWindowGranted.current) return
-        finishWindowGranted.current = true
-        setExpiresAt(Date.now() + MATTER_FINISH_MS)
-        setSecondsRemaining(MATTER_FINISH_MS / 1000)
-    }, [interviews, phase, protocol])
-
     const reset = useCallback(() => {
         void stopPairingRadios()
         setProtocol('zigbee')
+        setPairingKind('unset')
+        setMatterStep(null)
         setPhase('idle')
         setInterviews([])
         setDiscoveredDevices([])
@@ -539,13 +549,31 @@ export function useDevicePairing(): {
         setError(null)
         setExpiresAt(null)
         setSecondsRemaining(0)
-        setMatterPaused(false)
+        setCommissionProgress(null)
+        lastMatterRequest.current = null
         knownDeviceIds.current = new Set()
-        finishWindowGranted.current = false
     }, [stopPairingRadios])
+
+    const chooseMatter = useCallback(() => {
+        setPairingKind('matter')
+        setProtocol('matter')
+        setMatterStep('ready')
+        setError(null)
+        void getMatterWifi()
+            .then(setSavedWifi)
+            .catch(() => setSavedWifi({ configured: false }))
+    }, [getMatterWifi])
+
+    const chooseZigbee = useCallback(() => {
+        setPairingKind('zigbee')
+        setProtocol('zigbee')
+        setMatterStep(null)
+        setError(null)
+    }, [])
 
     const startDiscovery = useCallback(async () => {
         setProtocol('zigbee')
+        setPairingKind('zigbee')
         setError(null)
         setInterviews([])
         setDiscoveredDevices([])
@@ -573,17 +601,21 @@ export function useDevicePairing(): {
                 knownDeviceIds.current = new Set()
             }
 
+            lastMatterRequest.current = request
             setProtocol('matter')
+            setPairingKind('matter')
+            setMatterStep('connecting')
             setError(null)
             setInterviews([])
             setDiscoveredDevices([])
             setSelectedDevice(null)
             setPhase('discovering')
-            setMatterPaused(false)
-            finishWindowGranted.current = false
-            // BLE + Wi-Fi join can take the matterjs default (5 minutes).
-            setExpiresAt(Date.now() + MATTER_DISCOVER_MS)
-            setSecondsRemaining(MATTER_DISCOVER_MS / 1000)
+            setCommissionProgress({
+                stage: 'looking',
+                message: 'Looking for your device',
+            })
+            setExpiresAt(Date.now() + MATTER_CONNECT_MS)
+            setSecondsRemaining(MATTER_CONNECT_MS / 1000)
 
             try {
                 await commissionMatter(request)
@@ -650,6 +682,8 @@ export function useDevicePairing(): {
         phase,
         status,
         protocol,
+        pairingKind,
+        matterStep,
         interviews,
         discoveredDevices,
         selectedDevice,
@@ -658,6 +692,11 @@ export function useDevicePairing(): {
         roomsError,
         error,
         secondsRemaining,
+        commissionProgress,
+        savedWifi,
+        chooseMatter,
+        chooseZigbee,
+        setMatterStep,
         startDiscovery,
         startMatterCommission,
         selectDevice,

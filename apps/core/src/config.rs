@@ -40,7 +40,7 @@ impl std::fmt::Display for Protocol {
     }
 }
 
-/// One MQTT bridge (zigbee2mqtt, matter-bridge, …) core listens to.
+/// One MQTT bridge (zigbee2mqtt, nemu-matter, …) core listens to.
 #[derive(Debug, Clone)]
 pub struct BridgeConfig {
     pub protocol: Protocol,

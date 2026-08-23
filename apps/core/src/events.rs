@@ -29,6 +29,12 @@ pub enum DeviceEvent {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         message: Option<String>,
     },
+    #[serde(rename = "commissionProgress")]
+    CommissionProgress {
+        stage: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        message: Option<String>,
+    },
     Resync,
     Health {
         mqtt: bool,

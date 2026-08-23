@@ -70,6 +70,8 @@ import {
     COLOR_TEMP_MAX_MIREDS,
     COLOR_TEMP_MIN_MIREDS,
     colorTempLabel,
+    formatEnergy,
+    formatPower,
     presentDevice,
 } from '~/lib/device-presentation'
 import { DeviceControlSlider } from './device-control-slider'
@@ -323,6 +325,32 @@ export function DeviceDetail({ deviceId }: { deviceId: string }) {
                             ) : null}
                         </CardHeader>
                         <CardContent className="space-y-5">
+                            {presented.power !== undefined ||
+                            presented.energy !== undefined ? (
+                                <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+                                    {presented.power !== undefined ? (
+                                        <div>
+                                            <p className="text-muted-foreground text-xs">
+                                                Power
+                                            </p>
+                                            <p className="font-medium">
+                                                {formatPower(presented.power)}
+                                            </p>
+                                        </div>
+                                    ) : null}
+                                    {presented.energy !== undefined ? (
+                                        <div>
+                                            <p className="text-muted-foreground text-xs">
+                                                Energy
+                                            </p>
+                                            <p className="font-medium">
+                                                {formatEnergy(presented.energy)}
+                                            </p>
+                                        </div>
+                                    ) : null}
+                                </div>
+                            ) : null}
+
                             {stripOutlets && stripOutlets.length > 0 ? (
                                 <div className="space-y-1">
                                     {stripOutlets.map((outlet) => {

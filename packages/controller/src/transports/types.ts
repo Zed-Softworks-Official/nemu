@@ -9,7 +9,9 @@ import type {
     DeviceCommand,
     DeviceEvent,
     HouseholdMember,
+    MatterWifiResponse,
     PatchDeviceRequest,
+    SaveMatterWifiRequest,
     PatchRoomRequest,
     PermitJoinResponse,
     Room,
@@ -27,6 +29,8 @@ export interface ControllerTransport {
     commissionMatter?(request: CommissionRequest): Promise<CommissionResponse>
     /** Abort in-flight Matter commissioning. LAN transport only. */
     cancelMatterCommission?(): Promise<CommissionResponse>
+    getMatterWifi?(): Promise<MatterWifiResponse>
+    saveMatterWifi?(request: SaveMatterWifiRequest): Promise<MatterWifiResponse>
     getRooms?(): Promise<Room[]>
     createRoom?(request: CreateRoomRequest): Promise<Room>
     patchRoom?(roomId: string, patch: PatchRoomRequest): Promise<Room>

@@ -117,14 +117,14 @@ impl MqttHandle {
                     "device removal timed out; wake the device and try again".into()
                 }
                 Protocol::Matter if error == TIMEOUT_MARKER => {
-                    "unpairing timed out; check that the Matter bridge is running".into()
+                    "unpairing timed out; check that the Matter service is running".into()
                 }
                 _ => error,
             })
     }
 
-    /// Ask the matter bridge to commission a device with a pairing code.
-    /// Resolves on the bridge's ack; the join itself arrives as bridge events.
+    /// Ask nemu-matter to commission a device with a pairing code.
+    /// Resolves on the service ack; the join itself arrives as bridge events.
     pub async fn commission(&self, payload: JsonValue) -> Result<JsonValue, String> {
         let topic = commission_topic(self.base_topic(Protocol::Matter)?);
         let transaction = Uuid::new_v4().to_string();
@@ -134,7 +134,7 @@ impl MqttHandle {
             .await
             .map_err(|error| {
                 if error == TIMEOUT_MARKER {
-                    "the Matter bridge did not respond; check that it is running".into()
+                    "the Matter service did not respond; check that it is running".into()
                 } else {
                     error
                 }
@@ -153,7 +153,7 @@ impl MqttHandle {
             .await
             .map_err(|error| {
                 if error == TIMEOUT_MARKER {
-                    "the Matter bridge did not respond; check that it is running".into()
+                    "the Matter service did not respond; check that it is running".into()
                 } else {
                     error
                 }
@@ -368,7 +368,7 @@ pub fn spawn_mqtt_loop(state: AppState, mut eventloop: rumqttc::EventLoop) {
 }
 
 /// Look up the device an incoming per-device topic refers to. z2m topics use
-/// the friendly name; matter-bridge topics use the external id.
+/// the friendly name; Matter topics use the external id.
 async fn resolve_topic_device(
     state: &AppState,
     protocol: Protocol,
@@ -523,6 +523,21 @@ async fn handle_bridge_event(
                 state.emit(DeviceEvent::DeviceJoined { device: resource });
             }
         }
+    }
+
+    if event.event_type == "commission_progress" {
+        let stage = event
+            .data
+            .get("stage")
+            .and_then(|value| value.as_str())
+            .unwrap_or("")
+            .to_string();
+        let message = event
+            .data
+            .get("message")
+            .and_then(|value| value.as_str())
+            .map(str::to_string);
+        state.emit(DeviceEvent::CommissionProgress { stage, message });
     }
 
     if event.event_type == "device_leave" {

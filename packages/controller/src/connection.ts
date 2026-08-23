@@ -10,7 +10,9 @@ import {
     type DeviceCommand,
     type DeviceEvent,
     type HouseholdMember,
+    type MatterWifiResponse,
     type PatchDeviceRequest,
+    type SaveMatterWifiRequest,
     type PatchRoomRequest,
     type PermitJoinResponse,
     type Room,
@@ -184,6 +186,28 @@ export class ControllerConnection {
             )
         }
         return await transport.cancelMatterCommission()
+    }
+
+    async getMatterWifi(): Promise<MatterWifiResponse> {
+        const transport = this.requireLanTransport('Matter pairing')
+        if (!transport.getMatterWifi) {
+            throw new Error(
+                'Matter pairing is not supported by this controller'
+            )
+        }
+        return await transport.getMatterWifi()
+    }
+
+    async saveMatterWifi(
+        request: SaveMatterWifiRequest
+    ): Promise<MatterWifiResponse> {
+        const transport = this.requireLanTransport('Matter pairing')
+        if (!transport.saveMatterWifi) {
+            throw new Error(
+                'Matter pairing is not supported by this controller'
+            )
+        }
+        return await transport.saveMatterWifi(request)
     }
 
     async getRooms(): Promise<Room[]> {

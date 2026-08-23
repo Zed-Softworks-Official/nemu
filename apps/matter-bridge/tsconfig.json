@@ -1,8 +1,0 @@
-{
-    "extends": "@nemu/typescript-config/base.json",
-    "compilerOptions": {
-        "lib": ["ES2022"],
-        "types": ["node"]
-    },
-    "include": ["src"]
-}

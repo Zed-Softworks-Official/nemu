@@ -85,6 +85,18 @@ export const commissionResponseSchema = z.object({
 })
 export type CommissionResponse = z.infer<typeof commissionResponseSchema>
 
+export const matterWifiResponseSchema = z.object({
+    configured: z.boolean(),
+    networkName: z.string().optional(),
+})
+export type MatterWifiResponse = z.infer<typeof matterWifiResponseSchema>
+
+export const saveMatterWifiRequestSchema = z.object({
+    wifiSsid: z.string().trim().min(1).max(32),
+    wifiPassword: z.string().max(64),
+})
+export type SaveMatterWifiRequest = z.infer<typeof saveMatterWifiRequestSchema>
+
 export const patchDeviceRequestSchema = z
     .object({
         name: z.string().trim().min(1).optional(),
