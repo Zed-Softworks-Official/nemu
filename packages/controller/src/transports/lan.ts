@@ -5,10 +5,14 @@ import {
     type CommandResult,
     type CommissionRequest,
     type CommissionResponse,
+    type MatterWifiResponse,
+    type SaveMatterWifiRequest,
     type CreateRoomRequest,
     clientWsMessageSchema,
     commissionRequestSchema,
     commissionResponseSchema,
+    matterWifiResponseSchema,
+    saveMatterWifiRequestSchema,
     createRoomRequestSchema,
     type Device,
     type DeviceCommand,
@@ -143,6 +147,19 @@ export class LanTransport implements ControllerTransport {
             { timeout: 20_000 }
         )
         return commissionResponseSchema.parse(data)
+    }
+
+    async getMatterWifi(): Promise<MatterWifiResponse> {
+        const { data } = await this.http.get('/api/matter/wifi')
+        return matterWifiResponseSchema.parse(data)
+    }
+
+    async saveMatterWifi(
+        request: SaveMatterWifiRequest
+    ): Promise<MatterWifiResponse> {
+        const body = saveMatterWifiRequestSchema.parse(request)
+        const { data } = await this.http.put('/api/matter/wifi', body)
+        return matterWifiResponseSchema.parse(data)
     }
 
     async getRooms(): Promise<Room[]> {

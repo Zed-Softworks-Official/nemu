@@ -173,12 +173,12 @@ pub fn health_check_topic(base_topic: &str) -> String {
     format!("{base_topic}/bridge/request/health/check")
 }
 
-/// matter-bridge only: ask the sidecar to commission a device by pairing code.
+/// nemu-matter: start commissioning by pairing code.
 pub fn commission_topic(base_topic: &str) -> String {
     format!("{base_topic}/bridge/request/commission")
 }
 
-/// matter-bridge only: abort an in-flight commission (leave pairing wizard).
+/// nemu-matter: abort an in-flight commission (leave pairing wizard).
 pub fn commission_cancel_topic(base_topic: &str) -> String {
     format!("{base_topic}/bridge/request/commission/cancel")
 }

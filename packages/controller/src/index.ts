@@ -26,8 +26,11 @@ export type {
 export { mintSessionViaRelay, pairWithController } from './pairing'
 export type {
     ControllerProviderProps,
+    CommissionProgress,
     DevicePairingPhase,
+    MatterPairingStep,
     PairingInterview,
+    PairingKind,
 } from './provider'
 export {
     ControllerProvider,

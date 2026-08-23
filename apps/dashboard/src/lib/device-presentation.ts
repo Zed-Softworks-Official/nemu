@@ -31,6 +31,10 @@ export type PresentedDevice = Device & {
     temperature?: number
     humidity?: number
     outlets?: PresentedOutlet[]
+    power?: number
+    energy?: number
+    voltage?: number
+    current?: number
 }
 
 const categoryLabels: Record<DeviceCategory, string> = {
@@ -59,6 +63,10 @@ export function presentDevice(device: Device): PresentedDevice {
     const battery = readNumber(state, ['battery', 'batteryLevel'])
     const temperature = readNumber(state, ['temperature'])
     const humidity = readNumber(state, ['humidity'])
+    const power = readNumber(state, ['power'])
+    const energy = readNumber(state, ['energy'])
+    const voltage = readNumber(state, ['voltage'])
+    const current = readNumber(state, ['current'])
     const supportsPower =
         !isStrip &&
         (category === 'light' ||
@@ -84,6 +92,7 @@ export function presentDevice(device: Device): PresentedDevice {
             temperature,
             humidity,
             outlets,
+            power,
         }),
         enabled,
         level,
@@ -97,6 +106,10 @@ export function presentDevice(device: Device): PresentedDevice {
         temperature,
         humidity,
         outlets,
+        power,
+        energy,
+        voltage,
+        current,
     }
 }
 
@@ -153,6 +166,7 @@ function getDeviceSummary({
     temperature,
     humidity,
     outlets,
+    power,
 }: {
     device: Device
     enabled: boolean
@@ -162,6 +176,7 @@ function getDeviceSummary({
     temperature?: number
     humidity?: number
     outlets?: PresentedOutlet[]
+    power?: number
 }): string {
     if (!device.online) {
         return 'Offline'
@@ -169,7 +184,8 @@ function getDeviceSummary({
 
     if (outlets !== undefined && outlets.length > 0) {
         const onCount = outlets.filter((outlet) => outlet.enabled).length
-        return `${onCount} of ${outlets.length} on`
+        const base = `${onCount} of ${outlets.length} on`
+        return power === undefined ? base : `${base} · ${formatPower(power)}`
     }
 
     if (temperature !== undefined) {
@@ -375,6 +391,18 @@ function formatNumber(value: number): string {
     return new Intl.NumberFormat('en', {
         maximumFractionDigits: 1,
     }).format(value)
+}
+
+export function formatPower(watts: number): string {
+    return `${new Intl.NumberFormat('en', {
+        maximumFractionDigits: watts >= 10 ? 0 : 1,
+    }).format(watts)} W`
+}
+
+export function formatEnergy(kwh: number): string {
+    return `${new Intl.NumberFormat('en', {
+        maximumFractionDigits: 3,
+    }).format(kwh)} kWh`
 }
 
 function clamp(value: number, min: number, max: number): number {

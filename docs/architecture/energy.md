@@ -1,12 +1,13 @@
 # Energy Management (future)
 
-Status: **not built**. This stub scopes the eventual energy section so the
-Matter work doesn't paint us into a corner. Today, energy readings are passed
-through into live device state only — no UI, no history, no tables.
+Status: **passthrough only**. This stub scopes the eventual energy section so
+the Matter work doesn't paint us into a corner. Today, energy readings are
+passed through into live device state and shown on device detail — no history
+table and no Energy dashboard.
 
 ## What exists now
 
-The `matter-bridge` sidecar folds Matter Electrical Power Measurement
+The native `nemu-matter` service folds Matter Electrical Power Measurement
 (`0x0090`) and Electrical Energy Measurement (`0x0091`) attributes into the
 same retained state JSON as any other device state, in SI units:
 
@@ -17,12 +18,12 @@ same retained state JSON as any other device state, in SI units:
 | `current` | `ActiveCurrent` / `RMSCurrent`       | A    |
 | `energy`  | `CumulativeEnergyImported.energy`    | kWh  |
 
-These live in core's in-memory state cache like brightness — visible on the
-device detail "Current state" card, never written to Postgres, never sent to
-Convex. If a power strip carries the measurement clusters on an aggregator
-endpoint rather than per outlet, those readings fold into the **strip
-device's** live state (`power` / `voltage` / `current` / `energy`). They are
-not a separate device.
+These live in core's in-memory state cache like brightness — shown as a
+power / energy readout on device detail, never written to Postgres, never
+sent to Convex. If a power strip carries the measurement clusters on an
+aggregator endpoint rather than per outlet, those readings fold into the
+**strip device's** live state (`power` / `voltage` / `current` / `energy`).
+They are not a separate device.
 
 ## Constraints for the future section
 

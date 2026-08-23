@@ -251,7 +251,7 @@ download_file() {
   curl -fsSL "${BASE_URL}/${src}" -o "${dest}"
 }
 
-# Matter runs on by default (matterjs-server + matter-bridge, host network).
+# Matter runs on by default (nemu-matter, host network).
 # Wi-Fi Matter needs working IPv6 (link-local at minimum) and BLE commissioning
 # needs bluetoothd on the host D-Bus. Neither failure should block the install;
 # Zigbee and Wi-Fi-onboarded Matter devices keep working.
@@ -268,7 +268,7 @@ check_matter_prereqs() {
   fi
 }
 
-# Default-route NIC so matterjs-server does not bind mDNS to a docker bridge.
+# Default-route NIC so Matter mDNS stays on the LAN, not a docker bridge.
 detect_primary_interface() {
   if [ -n "${PRIMARY_INTERFACE:-}" ]; then
     printf '%s\n' "${PRIMARY_INTERFACE}"
@@ -401,11 +401,11 @@ EOF
   fi
 }
 
-# matterjs-server runs as uid 1000. Compose named volumes are often created as
-# root, which makes mkdir /data/config fail and the WS port never bind.
+# nemu-matter runs as uid 1000. Compose named volumes are often created as
+# root, which makes the fabric store unwritable.
 ensure_matter_data_writable() {
   project="${COMPOSE_PROJECT_NAME:-$(basename "${INSTALL_DIR}")}"
-  vol="${project}_matter-data"
+  vol="${project}_matter-controller-data"
   docker volume create "${vol}" >/dev/null
   docker run --rm -v "${vol}:/data" alpine:3.20 chown -R 1000:1000 /data
 }
@@ -415,6 +415,17 @@ start_stack() {
   cd "${INSTALL_DIR}"
   docker compose pull
   ensure_matter_data_writable
+  fetch_script="$(dirname "$0")/fetch-matter-roots.sh"
+  if [ -f "${fetch_script}" ]; then
+    vol="${COMPOSE_PROJECT_NAME:-$(basename "${INSTALL_DIR}")}_matter-controller-data"
+    tmp="$(mktemp -d)"
+    MATTER_DATA_DIR="${tmp}" bash "${fetch_script}" || warn "Could not download Matter trust roots; certified devices may not pair."
+    if [ -d "${tmp}/paa-roots" ]; then
+      docker run --rm -v "${vol}:/data" -v "${tmp}:/src:ro" alpine:3.20 \
+        sh -c 'mkdir -p /data/paa-roots /data/cd-roots && cp -a /src/paa-roots/. /data/paa-roots/ && cp -a /src/cd-roots/. /data/cd-roots/ && chown -R 1000:1000 /data'
+    fi
+    rm -rf "${tmp}"
+  fi
   docker compose up -d
 }
 

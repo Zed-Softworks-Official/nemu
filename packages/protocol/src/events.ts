@@ -23,6 +23,11 @@ export const deviceEventSchema = z.discriminatedUnion('type', [
         message: z.string().optional(),
     }),
     z.object({
+        type: z.literal('commissionProgress'),
+        stage: z.string(),
+        message: z.string().optional(),
+    }),
+    z.object({
         type: z.literal('resync'),
     }),
     z.object({

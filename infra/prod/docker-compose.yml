@@ -5,8 +5,8 @@ services:
     volumes:
       - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       - mosquitto-data:/mosquitto/data
-    # Host-networked services (matterjs-server, matter-bridge) can't reach the
-    # compose bridge network, so expose the broker on the host loopback only.
+    # Host-networked services (nemu-matter) can't reach the compose bridge
+    # network, so expose the broker on the host loopback only.
     ports:
       - "127.0.0.1:1883:1883"
     networks:
@@ -26,40 +26,28 @@ services:
     networks:
       - nemu
 
-  matterjs-server:
-    image: ghcr.io/matter-js/matterjs-server:1.4 # pinned, same policy as z2m
+  nemu-matter:
+    image: ghcr.io/zed-softworks-official/nemu-matter:latest
     restart: unless-stopped
-    network_mode: host # mDNS + IPv6, non-negotiable
+    network_mode: host # mDNS + IPv6 + BlueZ, non-negotiable
+    depends_on:
+      - mosquitto
     environment:
-      LISTEN_ADDRESS: 127.0.0.1 # WS + dashboard off the LAN
-      DISABLE_DASHBOARD: "true"
-      DISABLE_OTA: "true" # no vendor CDN calls
-      NOBLE_BINDINGS: dbus # BLE commissioning via host BlueZ
-      BLUETOOTH_ADAPTER: "0"
+      MQTT_HOST: 127.0.0.1
+      MQTT_PORT: "1883"
+      MQTT_BASE_TOPIC: matter
+      MATTER_DATA_DIR: /data
+      MATTER_PAA_DIR: /data/paa-roots
+      MATTER_CD_DIR: /data/cd-roots
       DBUS_SYSTEM_BUS_ADDRESS: unix:path=/run/dbus/system_bus_socket
-      PRIMARY_INTERFACE: ${PRIMARY_INTERFACE:-} # LAN NIC; docker bridges break mDNS
     security_opt:
       - apparmor:unconfined
     cap_add:
       - NET_ADMIN
       - NET_RAW
     volumes:
-      - matter-data:/data
+      - matter-controller-data:/data
       - /run/dbus:/run/dbus:ro
-
-  matter-bridge:
-    image: ghcr.io/zed-softworks-official/nemu-matter-bridge:latest
-    restart: unless-stopped
-    network_mode: host # reach 127.0.0.1:5580 and 127.0.0.1:1883
-    depends_on:
-      - mosquitto
-      - matterjs-server
-    environment:
-      MATTER_WS_URL: ws://127.0.0.1:5580/ws
-      MQTT_URL: mqtt://127.0.0.1:1883
-      MQTT_BASE_TOPIC: matter
-    volumes:
-      - matter-bridge-data:/data
     labels:
       com.centurylinklabs.watchtower.enable: "true"
 
@@ -132,5 +120,4 @@ networks:
 volumes:
   postgres-data:
   mosquitto-data:
-  matter-data:
-  matter-bridge-data:
+  matter-controller-data:

@@ -17,31 +17,30 @@ services:
     depends_on:
       - mosquitto
 
-  # Matter controller. Host network is required for mDNS/IPv6; the WS API
-  # stays on 127.0.0.1:5580. The image runs as uid 1000 — `pnpm infra` chowns
-  # ./infra/matter before up. Run the MQTT adapter locally with
-  # `pnpm --filter @nemu/matter-bridge dev` (it defaults to localhost URLs).
-  matterjs-server:
-    image: ghcr.io/matter-js/matterjs-server:1.4
+  # Native Matter controller. Host network is required for mDNS/IPv6 and BlueZ.
+  # Mosquitto is published on 127.0.0.1:1883 for this host-net client.
+  nemu-matter:
+    build:
+      context: ./apps/matter
     network_mode: host
     environment:
-      LISTEN_ADDRESS: 127.0.0.1
-      DISABLE_OTA: "true"
-      NOBLE_BINDINGS: dbus
-      BLUETOOTH_ADAPTER: "0"
+      MQTT_HOST: 127.0.0.1
+      MQTT_PORT: "1883"
+      MQTT_BASE_TOPIC: matter
+      MATTER_DATA_DIR: /data
+      MATTER_PAA_DIR: /data/paa-roots
+      MATTER_CD_DIR: /data/cd-roots
       DBUS_SYSTEM_BUS_ADDRESS: unix:path=/run/dbus/system_bus_socket
-      # Pin mDNS to the LAN NIC. Docker bridges steal multicast and
-      # commissioning dies at "Reconnect / no address known".
-      PRIMARY_INTERFACE: ${PRIMARY_INTERFACE:-}
-    # BlueZ D-Bus Connect needs more than a read-only socket mount.
     security_opt:
       - apparmor:unconfined
     cap_add:
       - NET_ADMIN
       - NET_RAW
     volumes:
-      - ./infra/matter:/data
+      - ./infra/matter/controller:/data
       - /run/dbus:/run/dbus:ro
+    depends_on:
+      - mosquitto
 
   postgres:
     image: postgres:16-alpine

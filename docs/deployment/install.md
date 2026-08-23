@@ -48,7 +48,7 @@ curl -fsSL https://get.nemu.sh | sudo sh -s -- \
 
 Under `/opt/nemu`:
 
-- `docker-compose.yml` — mosquitto, zigbee2mqtt, `matterjs-server`, `matter-bridge`, postgres, `nemu-core`, Watchtower
+- `docker-compose.yml` — mosquitto, zigbee2mqtt, `nemu-matter`, postgres, `nemu-core`, Watchtower
 - `.env` — Postgres password and Convex settings
 - Mosquitto + zigbee2mqtt config templates
 - `docker-compose.override.yml` — USB serial mapping when an adapter is detected
@@ -58,27 +58,21 @@ Docker Engine + Compose plugin are installed from Docker’s official Ubuntu apt
 ## Matter
 
 Matter-over-Wi-Fi support is on by default and needs no extra hardware: the
-`matterjs-server` and `matter-bridge` services run host-networked (Matter
-requires mDNS and IPv6), and new devices are commissioned over the host's
-Bluetooth adapter via BlueZ. The installer warns if IPv6 is disabled or
-`bluetoothd` is not running. `matterjs-server` runs as uid 1000; the installer
-chowns the Matter data volume so the process can write `/data/config`.
-The installer also writes `PRIMARY_INTERFACE` (the host's default-route NIC)
-so mDNS does not bind to a Docker bridge.
+`nemu-matter` service runs host-networked (Matter requires mDNS and IPv6),
+and new devices are commissioned over the host's Bluetooth adapter via BlueZ.
+The installer warns if IPv6 is disabled or `bluetoothd` is not running.
+`nemu-matter` runs as uid 1000; the installer chowns the Matter data volume
+so the process can write its fabric store.
 
-Pair from the dashboard: **Add device → Matter**, then scan the device's QR
-code or enter its 11-digit pairing code. For devices that join Wi-Fi during
-setup, the wizard's optional network fields are sent only to the controller.
-If the device already had a lease on another subnet, the sidecar discovers
-its address on this LAN and finishes pairing there — you should not need to
-factory-reset after a stuck reconnect. If pairing still fails, factory-reset
-the device (hold any outlet switch 10 seconds on a Tapo P316M), disconnect
-other Bluetooth audio on the same adapter, restart `matterjs-server` so Noble
-drops a wedged peripheral, and try once with 2.4 GHz Wi-Fi filled in.
+Pair from the dashboard: **Add device → Works with Matter**, then scan the
+device's QR code or enter its 11-digit pairing code. For devices that join
+Wi-Fi during setup, the wizard asks for the 2.4 GHz home network; credentials
+stay on the controller. If pairing fails, put the device back in pairing
+mode, keep it near the controller, and try again on 2.4 GHz — not 5 GHz.
 A multi-outlet power strip appears as one smart-strip device; opening it
-lets you manage each outlet. Forgetting the strip unpairs the whole device. The only internet traffic Matter adds is DCL
-certificate attestation during commissioning — device OTA updates from vendor
-CDNs are disabled.
+lets you manage each outlet. Forgetting the strip unpairs the whole device.
+The only internet traffic Matter adds is DCL certificate attestation during
+commissioning.
 
 Controller API: `http://<host-ip>:6368` and `https://<host-ip>:6368` on the same port (opportunistic TLS). Pair from [https://app.nemu.sh](https://app.nemu.sh). After the controller registers, the dashboard prefers `https://{controllerId}.lan.nemu.sh:6368` with a Let's Encrypt certificate (your home LAN address is published under that hostname so the browser can trust it). Until that cert is issued, the first HTTPS visit uses a self-signed certificate — continue past the browser warning once so the dashboard can use `wss://`.
 
