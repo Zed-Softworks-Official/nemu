@@ -111,6 +111,7 @@ Topic map, identical shape per bridge (`zigbee2mqtt/…` and `matter/…`; see
 | out       | `{base}/<id>/set`                           | commands                                                     |
 | out       | `zigbee2mqtt/bridge/request/permit_join`    | open Zigbee pairing window (Zigbee only)                     |
 | out       | `matter/bridge/request/commission`          | commission a Matter device (Matter only)                     |
+| out       | `matter/bridge/request/commission/cancel`   | abort an in-flight Matter commission                         |
 | out       | `{base}/bridge/request/device/rename`       | rename propagation                                           |
 | out       | `{base}/bridge/request/device/remove`       | forget a device (Zigbee: leave network; Matter: unpair node) |
 | in        | `{base}/bridge/response/#`                  | transaction-correlated request results                       |
@@ -171,6 +172,7 @@ pairing endpoints.
 | `GET /api/rooms` / `POST /api/rooms` / `PATCH /api/rooms/{id}` / `DELETE ...` | room CRUD                                                                         |
 | `POST /api/zigbee/permit-join`                                                | `{seconds: 120}` open Zigbee join window                                          |
 | `POST /api/matter/commission`                                                 | `{code, wifiSsid?, wifiPassword?}` commission a Matter device (LAN only)          |
+| `POST /api/matter/cancel`                                                     | abort in-flight Matter commissioning (LAN only)                                   |
 | `GET /api/tokens` / `DELETE /api/tokens/{id}` / `DELETE /api/tokens/current`  | list / revoke paired devices; revoke this dashboard                               |
 | `GET /ws`                                                                     | WebSocket: server pushes `DeviceEvent`s; client may send commands (same executor) |
 

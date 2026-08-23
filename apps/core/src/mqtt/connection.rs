@@ -14,10 +14,10 @@ use crate::db::models::Device;
 use crate::devices::registry::log_event;
 use crate::events::{DeviceEvent, InterviewStatus};
 use crate::mqtt::z2m::{
-    self, IncomingTopic, commission_topic, get_state_payload, get_topic, health_check_topic,
-    parse_availability, parse_bridge_event, parse_bridge_response, parse_bridge_state,
-    parse_devices_payload, parse_topic, permit_join_payload, permit_join_topic, remove_payload,
-    remove_topic, rename_payload, rename_topic, set_topic,
+    self, IncomingTopic, commission_cancel_topic, commission_topic, get_state_payload, get_topic,
+    health_check_topic, parse_availability, parse_bridge_event, parse_bridge_response,
+    parse_bridge_state, parse_devices_payload, parse_topic, permit_join_payload, permit_join_topic,
+    remove_payload, remove_topic, rename_payload, rename_topic, set_topic,
 };
 use crate::state::AppState;
 
@@ -131,6 +131,25 @@ impl MqttHandle {
         let mut body = payload;
         body["transaction"] = JsonValue::String(transaction.clone());
         self.request_with_transaction(topic, body.to_string(), transaction)
+            .await
+            .map_err(|error| {
+                if error == TIMEOUT_MARKER {
+                    "the Matter bridge did not respond; check that it is running".into()
+                } else {
+                    error
+                }
+            })
+    }
+
+    /// Ask the matter bridge to abort an in-flight commission.
+    pub async fn cancel_commission(&self) -> Result<JsonValue, String> {
+        let topic = match self.base_topic(Protocol::Matter) {
+            Ok(base) => commission_cancel_topic(base),
+            Err(_) => return Ok(json!({ "status": "ok" })),
+        };
+        let transaction = Uuid::new_v4().to_string();
+        let body = json!({ "transaction": transaction }).to_string();
+        self.request_with_transaction(topic, body, transaction)
             .await
             .map_err(|error| {
                 if error == TIMEOUT_MARKER {
@@ -433,7 +452,10 @@ async fn handle_publish(
             Ok(())
         }
         IncomingTopic::BridgeResponse { endpoint } => {
-            if endpoint == "device/remove" || endpoint == "commission" {
+            if endpoint == "device/remove"
+                || endpoint == "commission"
+                || endpoint == "commission/cancel"
+            {
                 state.mqtt.resolve_bridge_response(payload).await
             } else {
                 Ok(())
@@ -451,15 +473,29 @@ async fn handle_bridge_event(
     let event = parse_bridge_event(payload).map_err(|e| e.to_string())?;
 
     if let Some((external_id, status)) = z2m::interview_status(&event.event_type, &event.data) {
+        let error = event
+            .data
+            .get("error")
+            .and_then(|value| value.as_str())
+            .map(str::to_string);
+        let message = event
+            .data
+            .get("message")
+            .and_then(|value| value.as_str())
+            .map(str::to_string);
         state.emit(DeviceEvent::Interview {
             external_id: external_id.clone(),
             status: status.clone(),
+            error,
+            message,
         });
 
-        if matches!(
-            status,
-            InterviewStatus::Successful | InterviewStatus::Started
-        ) {
+        if external_id != "commissioning"
+            && matches!(
+                status,
+                InterviewStatus::Successful | InterviewStatus::Started
+            )
+        {
             let friendly = event
                 .data
                 .get("friendly_name")

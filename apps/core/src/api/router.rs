@@ -71,6 +71,7 @@ pub fn router(state: AppState) -> Router {
         )
         .route("/api/zigbee/permit-join", post(zigbee::permit_join))
         .route("/api/matter/commission", post(matter::commission))
+        .route("/api/matter/cancel", post(matter::cancel))
         .route("/api/tokens", get(pairing::list_tokens))
         .route("/api/tokens/current", delete(pairing::delete_current_token))
         .route("/api/tokens/{id}", delete(pairing::delete_token))

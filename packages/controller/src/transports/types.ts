@@ -25,6 +25,8 @@ export interface ControllerTransport {
     permitJoin?(seconds: number): Promise<PermitJoinResponse>
     /** Matter commissioning. LAN transport only, same policy as permitJoin. */
     commissionMatter?(request: CommissionRequest): Promise<CommissionResponse>
+    /** Abort in-flight Matter commissioning. LAN transport only. */
+    cancelMatterCommission?(): Promise<CommissionResponse>
     getRooms?(): Promise<Room[]>
     createRoom?(request: CreateRoomRequest): Promise<Room>
     patchRoom?(roomId: string, patch: PatchRoomRequest): Promise<Room>

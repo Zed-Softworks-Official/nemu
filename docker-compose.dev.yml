@@ -29,9 +29,16 @@ services:
       DISABLE_OTA: "true"
       NOBLE_BINDINGS: dbus
       BLUETOOTH_ADAPTER: "0"
+      DBUS_SYSTEM_BUS_ADDRESS: unix:path=/run/dbus/system_bus_socket
       # Pin mDNS to the LAN NIC. Docker bridges steal multicast and
       # commissioning dies at "Reconnect / no address known".
       PRIMARY_INTERFACE: ${PRIMARY_INTERFACE:-}
+    # BlueZ D-Bus Connect needs more than a read-only socket mount.
+    security_opt:
+      - apparmor:unconfined
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
     volumes:
       - ./infra/matter:/data
       - /run/dbus:/run/dbus:ro

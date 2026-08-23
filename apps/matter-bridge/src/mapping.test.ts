@@ -10,6 +10,7 @@ import {
     isStateAttributePath,
     listEndpoints,
     mapNode,
+    mapNodeWithFallback,
     outletIdFromSet,
     stateForDevice,
     stateForEndpoint,
@@ -115,6 +116,47 @@ describe('mapNode', () => {
         assert.equal(devices[0]?.energyEndpointId, undefined)
     })
 
+    it('collapses energy-only multi-outlet nodes into a strip', () => {
+        const attributes = {
+            [`0/${CLUSTER.descriptor}/0`]: deviceTypes(DEVICE_TYPE.rootNode),
+            [`0/${CLUSTER.basicInformation}/3`]: 'P316M',
+            [`1/${CLUSTER.electricalPower}/8`]: 1_000,
+            [`2/${CLUSTER.electricalPower}/8`]: 2_000,
+            [`3/${CLUSTER.electricalEnergy}/1`]: { '0': 3_000 },
+            [`4/${CLUSTER.electricalPower}/8`]: 4_000,
+            [`5/${CLUSTER.electricalPower}/8`]: 5_000,
+            [`6/${CLUSTER.electricalEnergy}/1`]: { '0': 6_000 },
+        }
+        const devices = mapNode({
+            nodeId: '52',
+            available: false,
+            attributes,
+        })
+        assert.equal(devices.length, 1)
+        assert.equal(devices[0]?.id, '52')
+        assert.equal(devices[0]?.kind, 'strip')
+        assert.equal(devices[0]?.outlets?.length, 6)
+    })
+
+    it('collapses Tapo-style RMSVoltage-only outlets into a strip', () => {
+        const attributes: Record<string, unknown> = {
+            [`0/${CLUSTER.descriptor}/0`]: deviceTypes(DEVICE_TYPE.rootNode),
+            [`0/${CLUSTER.basicInformation}/3`]: 'P316M',
+        }
+        for (const endpoint of [1, 2, 3, 4, 5, 6]) {
+            attributes[`${endpoint}/${CLUSTER.electricalPower}/11`] = 120_000
+        }
+        const devices = mapNode({
+            nodeId: '56',
+            available: true,
+            attributes,
+        })
+        assert.equal(devices.length, 1)
+        assert.equal(devices[0]?.id, '56')
+        assert.equal(devices[0]?.kind, 'strip')
+        assert.equal(devices[0]?.outlets?.length, 6)
+    })
+
     it('folds energy-only readings onto a single plug without a sibling', () => {
         const plug = {
             nodeId: '4',
@@ -143,6 +185,26 @@ describe('mapNode', () => {
             state: 'ON',
             power: 8,
         })
+    })
+})
+
+describe('mapNodeWithFallback', () => {
+    it('maps unclassified multi-endpoint nodes as a strip', () => {
+        const devices = mapNodeWithFallback({
+            nodeId: '56',
+            available: false,
+            attributes: {
+                [`0/${CLUSTER.descriptor}/0`]: deviceTypes(
+                    DEVICE_TYPE.rootNode
+                ),
+                '1/29/0': deviceTypes(DEVICE_TYPE.aggregator),
+                '2/29/0': deviceTypes(DEVICE_TYPE.aggregator),
+            },
+        })
+        assert.equal(devices.length, 1)
+        assert.equal(devices[0]?.id, '56')
+        assert.equal(devices[0]?.kind, 'strip')
+        assert.equal(devices[0]?.outlets?.length, 2)
     })
 })
 

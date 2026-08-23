@@ -245,7 +245,7 @@ export function watchNewLanIps(
 
     const poll = async () => {
         if (stopped) return
-        for (const ip of await listLanNeighbors(host)) {
+        for (const ip of await listLanNeighbors(host, { liveOnly: false })) {
             if (!initial.has(ip)) discovered.add(ip)
         }
     }

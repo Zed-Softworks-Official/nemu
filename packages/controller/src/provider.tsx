@@ -43,6 +43,7 @@ type ControllerContextValue = {
     commissionMatter: (
         request: CommissionRequest
     ) => Promise<CommissionResponse>
+    cancelMatterCommission: () => Promise<CommissionResponse>
     getRooms: () => Promise<Room[]>
     createRoom: (request: CreateRoomRequest) => Promise<Room>
     patchRoom: (roomId: string, patch: PatchRoomRequest) => Promise<Room>
@@ -121,6 +122,10 @@ export function ControllerProvider({
         (request: CommissionRequest) => connection.commissionMatter(request),
         [connection]
     )
+    const cancelMatterCommission = useCallback(
+        () => connection.cancelMatterCommission(),
+        [connection]
+    )
     const getRooms = useCallback(() => connection.getRooms(), [connection])
     const createRoom = useCallback(
         (request: CreateRoomRequest) => connection.createRoom(request),
@@ -176,6 +181,7 @@ export function ControllerProvider({
             sendCommand,
             permitJoin,
             commissionMatter,
+            cancelMatterCommission,
             getRooms,
             createRoom,
             patchRoom,
@@ -198,6 +204,7 @@ export function ControllerProvider({
             sendCommand,
             permitJoin,
             commissionMatter,
+            cancelMatterCommission,
             getRooms,
             createRoom,
             patchRoom,
@@ -284,7 +291,12 @@ export type DevicePairingPhase =
 export type PairingInterview = {
     externalId: string
     status: 'started' | 'successful' | 'failed'
+    error?: string
+    message?: string
 }
+
+const MATTER_DISCOVER_MS = 300_000
+const MATTER_FINISH_MS = 180_000
 
 export function useDevicePairing(): {
     phase: DevicePairingPhase
@@ -309,6 +321,7 @@ export function useDevicePairing(): {
         status,
         permitJoin,
         commissionMatter,
+        cancelMatterCommission,
         getDevices,
         getRooms,
         patchDevice,
@@ -324,23 +337,61 @@ export function useDevicePairing(): {
     const [error, setError] = useState<Error | null>(null)
     const [expiresAt, setExpiresAt] = useState<number | null>(null)
     const [secondsRemaining, setSecondsRemaining] = useState(0)
+    const [matterPaused, setMatterPaused] = useState(false)
     const knownDeviceIds = useRef(new Set<string>())
+    const phaseRef = useRef(phase)
+    phaseRef.current = phase
+    const discoveredDevicesRef = useRef(discoveredDevices)
+    discoveredDevicesRef.current = discoveredDevices
+    const finishWindowGranted = useRef(false)
 
-    const absorbMatterJoins = useCallback(async () => {
-        const devices = await getDevices()
-        const known = knownDeviceIds.current
-        const joined = devices.filter(
-            (device) => device.protocol === 'matter' && !known.has(device.id)
-        )
-        if (joined.length === 0) return
-        setDiscoveredDevices((current) => {
-            const seen = new Set(current.map((device) => device.id))
-            const next = [...current]
-            for (const device of joined) {
-                if (!seen.has(device.id)) next.push(device)
-            }
-            return next
-        })
+    const stopPairingRadios = useCallback(async () => {
+        try {
+            await cancelMatterCommission()
+        } catch {
+            // Leaving the wizard must not fail if the bridge is already down.
+        }
+        try {
+            await permitJoin(0)
+        } catch {
+            // Zigbee close is best-effort (relay / no radio).
+        }
+    }, [cancelMatterCommission, permitJoin])
+
+    const stopPairingRadiosRef = useRef(stopPairingRadios)
+    stopPairingRadiosRef.current = stopPairingRadios
+
+    useEffect(() => {
+        return () => {
+            void stopPairingRadiosRef.current()
+        }
+    }, [])
+
+    const absorbMatterJoins = useCallback(async (): Promise<Device[]> => {
+        try {
+            const devices = await getDevices()
+            const known = knownDeviceIds.current
+            const unknown = devices.filter(
+                (device) =>
+                    device.protocol === 'matter' && !known.has(device.id)
+            )
+            const joined =
+                unknown.length > 0
+                    ? unknown
+                    : devices.filter((device) => device.protocol === 'matter')
+            if (joined.length === 0) return []
+            setDiscoveredDevices((current) => {
+                const seen = new Set(current.map((device) => device.id))
+                const next = [...current]
+                for (const device of joined) {
+                    if (!seen.has(device.id)) next.push(device)
+                }
+                return next
+            })
+            return joined
+        } catch {
+            return []
+        }
     }, [getDevices])
 
     useEffect(() => {
@@ -357,9 +408,26 @@ export function useDevicePairing(): {
                         {
                             externalId: event.externalId,
                             status: event.status,
+                            error: event.error,
+                            message: event.message,
                         },
                     ]
                 })
+                if (event.status === 'failed') {
+                    setError(
+                        new Error(
+                            event.error ?? 'The device could not be paired.'
+                        )
+                    )
+                    setPhase('error')
+                    setExpiresAt(null)
+                } else if (
+                    event.message
+                        ?.toLowerCase()
+                        .includes('waiting for the controller')
+                ) {
+                    setMatterPaused(true)
+                }
             }
 
             if (event.type === 'deviceJoined') {
@@ -371,6 +439,10 @@ export function useDevicePairing(): {
                 })
             }
 
+            if (event.type === 'health' && event.matter !== undefined) {
+                setMatterPaused(!event.matter)
+            }
+
             if (event.type === 'resync' && protocol === 'matter') {
                 void absorbMatterJoins()
             }
@@ -378,22 +450,41 @@ export function useDevicePairing(): {
     }, [absorbMatterJoins, connection, phase, protocol])
 
     useEffect(() => {
+        if (phase !== 'discovering' || protocol !== 'matter') return
+        void absorbMatterJoins()
+        const timer = setInterval(() => void absorbMatterJoins(), 2_000)
+        return () => clearInterval(timer)
+    }, [absorbMatterJoins, phase, protocol])
+
+    useEffect(() => {
         if (phase !== 'discovering' || expiresAt === null) return
 
         const updateCountdown = () => {
+            if (protocol === 'matter' && matterPaused) return
             const remaining = Math.max(
                 0,
                 Math.ceil((expiresAt - Date.now()) / 1000)
             )
             setSecondsRemaining(remaining)
             if (remaining === 0 && discoveredDevices.length === 0) {
-                setError(
-                    new Error(
-                        protocol === 'matter'
-                            ? 'The device did not finish joining. If its light is solid, factory-reset it and pair again on the same 2.4 GHz Wi-Fi as this machine.'
-                            : 'The pairing window expired'
-                    )
-                )
+                setExpiresAt(null)
+                if (protocol === 'matter') {
+                    void (async () => {
+                        const joined = await absorbMatterJoins()
+                        if (joined.length > 0) return
+                        if (phaseRef.current !== 'discovering') return
+                        if (discoveredDevicesRef.current.length > 0) return
+                        setError(
+                            new Error(
+                                'The device did not finish joining. If its light is solid, factory-reset it and pair again on the same 2.4 GHz Wi-Fi as this machine.'
+                            )
+                        )
+                        setPhase('error')
+                    })()
+                    return
+                }
+                void stopPairingRadios()
+                setError(new Error('The pairing window expired'))
                 setPhase('error')
             }
         }
@@ -401,9 +492,42 @@ export function useDevicePairing(): {
         updateCountdown()
         const timer = setInterval(updateCountdown, 1000)
         return () => clearInterval(timer)
-    }, [phase, expiresAt, discoveredDevices.length, protocol])
+    }, [
+        phase,
+        expiresAt,
+        discoveredDevices.length,
+        protocol,
+        matterPaused,
+        absorbMatterJoins,
+        stopPairingRadios,
+    ])
+
+    useEffect(() => {
+        if (!matterPaused) return
+        const started = Date.now()
+        return () => {
+            const pausedFor = Date.now() - started
+            setExpiresAt((current) =>
+                current === null ? null : current + pausedFor
+            )
+        }
+    }, [matterPaused])
+
+    useEffect(() => {
+        if (phase !== 'discovering' || protocol !== 'matter') return
+        const adding = interviews.some((item) =>
+            (item.message ?? '')
+                .toLowerCase()
+                .includes('adding it to your home')
+        )
+        if (!adding || finishWindowGranted.current) return
+        finishWindowGranted.current = true
+        setExpiresAt(Date.now() + MATTER_FINISH_MS)
+        setSecondsRemaining(MATTER_FINISH_MS / 1000)
+    }, [interviews, phase, protocol])
 
     const reset = useCallback(() => {
+        void stopPairingRadios()
         setProtocol('zigbee')
         setPhase('idle')
         setInterviews([])
@@ -415,8 +539,10 @@ export function useDevicePairing(): {
         setError(null)
         setExpiresAt(null)
         setSecondsRemaining(0)
+        setMatterPaused(false)
         knownDeviceIds.current = new Set()
-    }, [])
+        finishWindowGranted.current = false
+    }, [stopPairingRadios])
 
     const startDiscovery = useCallback(async () => {
         setProtocol('zigbee')
@@ -453,10 +579,11 @@ export function useDevicePairing(): {
             setDiscoveredDevices([])
             setSelectedDevice(null)
             setPhase('discovering')
-            // BLE + Wi-Fi join can take a minute; LAN rediscovery hangs
-            // forever if mDNS never sees the node.
-            setExpiresAt(Date.now() + 120_000)
-            setSecondsRemaining(120)
+            setMatterPaused(false)
+            finishWindowGranted.current = false
+            // BLE + Wi-Fi join can take the matterjs default (5 minutes).
+            setExpiresAt(Date.now() + MATTER_DISCOVER_MS)
+            setSecondsRemaining(MATTER_DISCOVER_MS / 1000)
 
             try {
                 await commissionMatter(request)
@@ -473,6 +600,7 @@ export function useDevicePairing(): {
         async (device: Device) => {
             setSelectedDevice(device)
             setPhase('configuring')
+            setExpiresAt(null)
             setRoomsLoading(true)
             setRoomsError(null)
 
@@ -486,6 +614,14 @@ export function useDevicePairing(): {
         },
         [getRooms]
     )
+
+    useEffect(() => {
+        if (phase !== 'discovering' || protocol !== 'matter') return
+        if (discoveredDevices.length !== 1) return
+        const device = discoveredDevices[0]
+        if (device === undefined) return
+        void selectDevice(device)
+    }, [discoveredDevices, phase, protocol, selectDevice])
 
     const configureDevice = useCallback(
         async (input: PatchDeviceRequest) => {

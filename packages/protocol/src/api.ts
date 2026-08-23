@@ -62,13 +62,13 @@ export const patchRoomRequestSchema = z
 export type PatchRoomRequest = z.infer<typeof patchRoomRequestSchema>
 
 export const permitJoinRequestSchema = z.object({
-    seconds: z.number().int().min(1).max(254),
+    seconds: z.number().int().min(0).max(254),
 })
 export type PermitJoinRequest = z.infer<typeof permitJoinRequestSchema>
 
 export const permitJoinResponseSchema = z.object({
     ok: z.boolean(),
-    seconds: z.number().int().min(1).max(254),
+    seconds: z.number().int().min(0).max(254),
 })
 export type PermitJoinResponse = z.infer<typeof permitJoinResponseSchema>
 

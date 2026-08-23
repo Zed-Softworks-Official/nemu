@@ -72,8 +72,9 @@ setup, the wizard's optional network fields are sent only to the controller.
 If the device already had a lease on another subnet, the sidecar discovers
 its address on this LAN and finishes pairing there — you should not need to
 factory-reset after a stuck reconnect. If pairing still fails, factory-reset
-the device (hold any outlet switch 10 seconds on a Tapo P316M) and try once
-with 2.4 GHz Wi-Fi filled in.
+the device (hold any outlet switch 10 seconds on a Tapo P316M), disconnect
+other Bluetooth audio on the same adapter, restart `matterjs-server` so Noble
+drops a wedged peripheral, and try once with 2.4 GHz Wi-Fi filled in.
 A multi-outlet power strip appears as one smart-strip device; opening it
 lets you manage each outlet. Forgetting the strip unpairs the whole device. The only internet traffic Matter adds is DCL
 certificate attestation during commissioning — device OTA updates from vendor

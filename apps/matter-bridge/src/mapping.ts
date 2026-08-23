@@ -142,10 +142,16 @@ function hasEnergyMeasurement(
     attributes: AttributesData,
     endpoint: number
 ): boolean {
-    return (
-        attr(attributes, endpoint, CLUSTER.electricalPower, 8) !== undefined ||
-        attr(attributes, endpoint, CLUSTER.electricalEnergy, 1) !== undefined
-    )
+    // Tapo P316M streams RMSVoltage (144/11) and periodic energy (145/3, 145/4)
+    // long before ActivePower (144/8) or CumulativeEnergyImported (145/1).
+    const powerPrefix = `${endpoint}/${CLUSTER.electricalPower}/`
+    const energyPrefix = `${endpoint}/${CLUSTER.electricalEnergy}/`
+    for (const key of Object.keys(attributes)) {
+        if (key.startsWith(powerPrefix) || key.startsWith(energyPrefix)) {
+            return true
+        }
+    }
+    return false
 }
 
 function endpointKind(
@@ -242,6 +248,30 @@ export function mapNode(snapshot: NodeSnapshot): EndpointDevice[] {
         ]
     }
 
+    // Tapo-style strips often publish Electrical Power/Energy on every
+    // outlet before OnOff/descriptor is in the snapshot. Treat 2+ energy
+    // endpoints as one strip so pairing can finish.
+    if (lights.length === 0 && energyOnly.length >= 2) {
+        const outlets: StripOutlet[] = energyOnly.map((endpointId, index) => ({
+            endpointId,
+            name: `Outlet ${index + 1}`,
+        }))
+        const firstOutlet = outlets[0]
+        if (firstOutlet === undefined) return []
+        return [
+            {
+                id: nodeId,
+                nodeId,
+                endpointId: firstOutlet.endpointId,
+                outlets,
+                defaultName: base,
+                kind: 'strip',
+                model,
+                description: describeKind('strip', vendor),
+            },
+        ]
+    }
+
     const single = functional.length === 1
     const devices: EndpointDevice[] = []
     let index = 0
@@ -261,6 +291,65 @@ export function mapNode(snapshot: NodeSnapshot): EndpointDevice[] {
     }
 
     return devices
+}
+
+/**
+ * Same as {@link mapNode}, then a last-chance strip/switch from any non-root
+ * endpoints so a commissioned fabric node still joins Nemu before OnOff
+ * appears. Used by the sidecar inventory — not by unit tests that assert
+ * the strict functional mapping.
+ */
+export function mapNodeWithFallback(snapshot: NodeSnapshot): EndpointDevice[] {
+    const mapped = mapNode(snapshot)
+    if (mapped.length > 0) return mapped
+    const endpoints = listEndpoints(snapshot.attributes)
+    if (endpoints.length === 0) return []
+    const base = nodeBaseName(snapshot.attributes, snapshot.nodeId)
+    const model = nodeModel(snapshot.attributes)
+    const vendor = nodeVendor(snapshot.attributes)
+    const first = endpoints[0]
+    if (first === undefined) return []
+    if (endpoints.length === 1) {
+        return [
+            {
+                id: snapshot.nodeId,
+                nodeId: snapshot.nodeId,
+                endpointId: first,
+                defaultName: base,
+                kind: 'switch',
+                model,
+                description: describeKind('switch', vendor),
+            },
+        ]
+    }
+    return [
+        {
+            id: snapshot.nodeId,
+            nodeId: snapshot.nodeId,
+            endpointId: first,
+            outlets: endpoints.map((endpointId, index) => ({
+                endpointId,
+                name: `Outlet ${index + 1}`,
+            })),
+            defaultName: base,
+            kind: 'strip',
+            model,
+            description: describeKind('strip', vendor),
+        },
+    ]
+}
+
+/** Fabric member with no clusters in the snapshot yet (commission just finished). */
+export function placeholderDevice(nodeId: string): EndpointDevice {
+    return {
+        id: nodeId,
+        nodeId,
+        endpointId: 1,
+        defaultName: `Matter ${nodeId}`,
+        kind: 'switch',
+        model: 'Matter device',
+        description: 'Matter device',
+    }
 }
 
 function classifyEndpoints(attributes: AttributesData): {

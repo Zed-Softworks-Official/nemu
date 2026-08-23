@@ -178,6 +178,11 @@ pub fn commission_topic(base_topic: &str) -> String {
     format!("{base_topic}/bridge/request/commission")
 }
 
+/// matter-bridge only: abort an in-flight commission (leave pairing wizard).
+pub fn commission_cancel_topic(base_topic: &str) -> String {
+    format!("{base_topic}/bridge/request/commission/cancel")
+}
+
 pub fn permit_join_payload(seconds: u32) -> String {
     // Zigbee2MQTT 2.x dropped the legacy `value` field; `time` alone opens the network.
     json!({ "time": seconds }).to_string()
@@ -313,6 +318,10 @@ mod tests {
         assert_eq!(
             health_check_topic("zigbee2mqtt"),
             "zigbee2mqtt/bridge/request/health/check"
+        );
+        assert_eq!(
+            commission_cancel_topic("matter"),
+            "matter/bridge/request/commission/cancel"
         );
         let value: JsonValue = serde_json::from_str(&get_state_payload()).unwrap();
         assert_eq!(value, json!({ "state": "" }));

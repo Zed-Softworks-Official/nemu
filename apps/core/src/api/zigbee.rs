@@ -20,7 +20,7 @@ pub async fn permit_join(
     State(state): State<AppState>,
     Json(body): Json<PermitJoinBody>,
 ) -> ApiResult<Json<PermitJoinResponse>> {
-    let seconds = body.seconds.unwrap_or(120).clamp(1, 254);
+    let seconds = body.seconds.unwrap_or(120).clamp(0, 254);
     state
         .mqtt
         .permit_join(seconds)

@@ -19,6 +19,8 @@ export const deviceEventSchema = z.discriminatedUnion('type', [
         type: z.literal('interview'),
         externalId: z.string(),
         status: z.enum(['started', 'successful', 'failed']),
+        error: z.string().optional(),
+        message: z.string().optional(),
     }),
     z.object({
         type: z.literal('resync'),
