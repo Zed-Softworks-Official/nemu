@@ -1,3 +1,5 @@
+import { exec } from 'node:child_process'
+import { promisify } from 'node:util'
 import {
     type EventMessage,
     MatterClient,
@@ -7,13 +9,17 @@ import {
 import mqtt, { type MqttClient } from 'mqtt'
 import WebSocket from 'ws'
 import type { env as Env } from './env'
+import { nodeIdFromEventData } from './event-id'
 import {
+    commissionCandidateIps,
     hostLanInfo,
     ipsForMacs,
     ipv4Addresses,
     listLanNeighborRecords,
+    listLanNeighbors,
     macsFromText,
     pingReachable,
+    watchNewLanIps,
 } from './lan-discover'
 import {
     collapsedLegacyIds,
@@ -24,20 +30,27 @@ import {
     type EndpointDevice,
     endpointOfPath,
     isStateAttributePath,
-    mapNode,
+    mapNodeWithFallback,
     outletIdFromSet,
+    placeholderDevice,
     stateForDevice,
 } from './mapping'
 import type { NameStore } from './names'
 import { type ParsedPairingCode, parsePairingCode } from './pairing-code'
 
 const STATE_DEBOUNCE_MS = 50
+const INDEX_REBUILD_MS = 100
 const RECONNECT_MIN_MS = 1_000
 const RECONNECT_MAX_MS = 30_000
-const LAN_COMMISSION_TIMEOUT_MS = 45_000
-const LAN_COMMISSION_ATTEMPTS = 4
-const LAN_COMMISSION_RETRY_MS = 5_000
+const LAN_COMMISSION_TIMEOUT_MS = 20_000
+const LAN_COMMISSION_ATTEMPTS = 2
+const LAN_COMMISSION_RETRY_MS = 2_000
 const LAN_MDNS_DISCOVER_MS = 15_000
+const BLE_RETRY_ATTEMPTS = 2
+const BLE_RETRY_DELAY_MS = 2_000
+const BLE_COMMISSION_TIMEOUT_MS = 45_000
+const MATTER_READY_TIMEOUT_MS = 90_000
+const execCommand = promisify(exec)
 
 /** MatterClient with a hook into raw server events. */
 class RawEventClient extends MatterClient {
@@ -58,12 +71,15 @@ export class MatterMqttBridge {
     private readonly mqttClient: MqttClient
     private matter: RawEventClient | null = null
     private matterConnected = false
+    private connectingMatter = false
     private stopped = false
     private reconnectDelay = RECONNECT_MIN_MS
     /** external id → device info, rebuilt on every inventory change. */
     private index = new Map<string, IndexedDevice>()
     private stateTimers = new Map<string, ReturnType<typeof setTimeout>>()
+    private indexTimers = new Map<string, ReturnType<typeof setTimeout>>()
     private commissioning = false
+    private commissionGeneration = 0
 
     constructor(
         private readonly config: typeof Env,
@@ -120,23 +136,34 @@ export class MatterMqttBridge {
     // ── matterjs-server connection ────────────────────────────────────────────
 
     private async connectMatterLoop(): Promise<void> {
-        while (!this.stopped) {
-            try {
-                await this.connectMatter()
-                return
-            } catch (error) {
-                console.error('matterjs-server connection failed', error)
-                if (isMatterWsRefused(error)) {
-                    console.error(
-                        `matterjs-server is not listening on ${this.config.MATTER_WS_URL}. Check docker compose logs matterjs-server (often /data permissions) and start it with: pnpm infra`
+        if (this.connectingMatter) return
+        this.connectingMatter = true
+        try {
+            while (!this.stopped) {
+                try {
+                    await this.connectMatter()
+                    return
+                } catch (error) {
+                    console.error('matterjs-server connection failed', error)
+                    if (isMatterWsRefused(error)) {
+                        console.error(
+                            `matterjs-server is not listening on ${this.config.MATTER_WS_URL}. Check docker compose logs matterjs-server (often /data permissions) and start it with: pnpm infra`
+                        )
+                    }
+                    if (this.commissioning) {
+                        this.publishInterviewProgress(
+                            'Waiting for the controller to come back'
+                        )
+                    }
+                    await delay(this.reconnectDelay)
+                    this.reconnectDelay = Math.min(
+                        this.reconnectDelay * 2,
+                        RECONNECT_MAX_MS
                     )
                 }
-                await delay(this.reconnectDelay)
-                this.reconnectDelay = Math.min(
-                    this.reconnectDelay * 2,
-                    RECONNECT_MAX_MS
-                )
             }
+        } finally {
+            this.connectingMatter = false
         }
     }
 
@@ -164,6 +191,11 @@ export class MatterMqttBridge {
         this.matter = null
         console.warn('matterjs-server connection lost')
         this.publish('bridge/state', JSON.stringify({ state: 'offline' }), true)
+        if (this.commissioning) {
+            this.publishInterviewProgress(
+                'Waiting for the controller to come back'
+            )
+        }
         if (!this.stopped) {
             void this.connectMatterLoop()
         }
@@ -171,26 +203,42 @@ export class MatterMqttBridge {
 
     private publishOnline(): void {
         this.publish('bridge/state', JSON.stringify({ state: 'online' }), true)
+        const previous = new Set(this.index.keys())
         this.rebuildIndex()
         this.publishDevices()
         this.emitCollapsedLeaves()
-        for (const id of this.index.keys()) {
-            this.publishDeviceState(id)
-            this.publishAvailability(id)
+        let imported = false
+        for (const [id, entry] of this.index) {
+            if (previous.has(id) && !this.commissioning) {
+                this.publishDeviceState(id)
+                this.publishAvailability(id)
+                continue
+            }
+            this.publishJoin(id, entry)
+            imported = true
+        }
+        if (this.commissioning) {
+            this.adoptFabricNodes(imported)
         }
     }
 
     // ── inventory ─────────────────────────────────────────────────────────────
 
+    private devicesForNode(node: MatterNode): EndpointDevice[] {
+        const nodeId = String(node.node_id)
+        const mapped = mapNodeWithFallback({
+            nodeId,
+            available: node.available,
+            attributes: node.attributes,
+        })
+        if (mapped.length > 0) return mapped
+        return [placeholderDevice(nodeId)]
+    }
+
     private rebuildIndex(): void {
         const next = new Map<string, IndexedDevice>()
         for (const node of Object.values(this.matter?.nodes ?? {})) {
-            const nodeId = String(node.node_id)
-            for (const device of mapNode({
-                nodeId,
-                available: node.available,
-                attributes: node.attributes,
-            })) {
+            for (const device of this.devicesForNode(node)) {
                 next.set(device.id, {
                     device,
                     friendlyName:
@@ -240,27 +288,58 @@ export class MatterMqttBridge {
         // hook runs, so defer all reads until the next macrotask.
         if (event.event === 'attribute_updated') {
             const [nodeId, path] = event.data
+            const id = String(nodeId)
+            this.scheduleIndexRebuildIfUnknown(id)
             if (!isStateAttributePath(path)) return
             const endpoint = endpointOfPath(path)
             if (endpoint === undefined) return
-            this.scheduleStateRefresh(String(nodeId), endpoint)
+            this.scheduleStateRefresh(id, endpoint)
             return
         }
 
         if (event.event === 'node_added') {
-            setImmediate(() => this.onNodeAdded(String(event.data.node_id)))
+            const nodeId = nodeIdFromEventData(event.data)
+            if (nodeId !== undefined) {
+                setImmediate(() => this.onNodeAdded(nodeId))
+            }
             return
         }
 
         if (event.event === 'node_updated') {
-            setImmediate(() => this.onNodeUpdated(String(event.data.node_id)))
+            const nodeId = nodeIdFromEventData(event.data)
+            if (nodeId !== undefined) {
+                setImmediate(() => this.onNodeUpdated(nodeId))
+            }
             return
         }
 
         if (event.event === 'node_removed') {
-            setImmediate(() => this.onNodeRemoved(String(event.data)))
+            const nodeId = nodeIdFromEventData(event.data)
+            if (nodeId !== undefined) {
+                setImmediate(() => this.onNodeRemoved(nodeId))
+            }
             return
         }
+    }
+
+    private nodeInIndex(nodeId: string): boolean {
+        for (const entry of this.index.values()) {
+            if (entry.device.nodeId === nodeId) return true
+        }
+        return false
+    }
+
+    private scheduleIndexRebuildIfUnknown(nodeId: string): void {
+        if (this.nodeInIndex(nodeId)) return
+        const existing = this.indexTimers.get(nodeId)
+        if (existing) clearTimeout(existing)
+        this.indexTimers.set(
+            nodeId,
+            setTimeout(() => {
+                this.indexTimers.delete(nodeId)
+                if (!this.nodeInIndex(nodeId)) this.onNodeUpdated(nodeId)
+            }, INDEX_REBUILD_MS)
+        )
     }
 
     private scheduleStateRefresh(nodeId: string, endpoint: number): void {
@@ -292,15 +371,32 @@ export class MatterMqttBridge {
     }
 
     private onNodeUpdated(nodeId: string): void {
-        const previousIds = new Set(
-            [...this.index.entries()]
-                .filter(([, entry]) => entry.device.nodeId === nodeId)
-                .map(([id]) => id)
-        )
-        this.rebuildIndex()
-        const current = [...this.index.entries()].filter(
+        const previousEntries = [...this.index.entries()].filter(
             ([, entry]) => entry.device.nodeId === nodeId
         )
+        const previousIds = new Set(previousEntries.map(([id]) => id))
+        this.rebuildIndex()
+        let current = [...this.index.entries()].filter(
+            ([, entry]) => entry.device.nodeId === nodeId
+        )
+        // Incomplete snapshot (energy trickle, start_listening): keep the last
+        // mapping while the node is still on the fabric so we do not MQTT-leave
+        // a strip that just joined.
+        if (
+            current.length === 0 &&
+            previousEntries.length > 0 &&
+            this.matter?.nodes[nodeId] !== undefined
+        ) {
+            for (const [id, entry] of previousEntries) {
+                this.index.set(id, entry)
+            }
+            current = previousEntries
+            for (const [id] of current) {
+                this.publishAvailability(id)
+                this.publishDeviceState(id)
+            }
+            return
+        }
         const added = current.filter(([id]) => !previousIds.has(id))
         const gone = [...previousIds].filter(
             (id) => !current.some(([currentId]) => currentId === id)
@@ -353,6 +449,71 @@ export class MatterMqttBridge {
         this.names.retainOnly(new Set(this.index.keys()))
     }
 
+    /** Import fabric nodes that are not yet in the MQTT index. */
+    private importUnmappedNodes(): boolean {
+        let imported = false
+        for (const node of Object.values(this.matter?.nodes ?? {})) {
+            const nodeId = String(node.node_id)
+            if (this.nodeInIndex(nodeId)) continue
+            this.onNodeAdded(nodeId)
+            if (this.nodeInIndex(nodeId)) imported = true
+        }
+        return imported
+    }
+
+    private hasUnmappedNodes(): boolean {
+        for (const node of Object.values(this.matter?.nodes ?? {})) {
+            if (!this.nodeInIndex(String(node.node_id))) return true
+        }
+        return false
+    }
+
+    /**
+     * If matterjs already has the node (LED solid, previous half-finished
+     * pair), publish a join and skip another commission attempt.
+     * Republishes join when the sidecar already indexed the node — core or
+     * the wizard may have missed the first MQTT event.
+     */
+    private async adoptExistingNodes(): Promise<boolean> {
+        if (this.importUnmappedNodes()) {
+            console.log(
+                'device already on the Matter fabric; skipping commission'
+            )
+            return true
+        }
+        if (this.index.size > 0) {
+            this.publishInterviewProgress('Adding it to your home')
+            this.republishJoins()
+            console.log(
+                'device already indexed; republishing join so pairing can finish'
+            )
+            return true
+        }
+        if (!this.hasUnmappedNodes()) return false
+        this.publishInterviewProgress('Adding it to your home')
+        this.republishJoins()
+        return this.importUnmappedNodes() || this.index.size > 0
+    }
+
+    private republishJoins(): void {
+        this.rebuildIndex()
+        this.publishDevices()
+        for (const [id, entry] of this.index) {
+            this.publishJoin(id, entry)
+        }
+    }
+
+    /**
+     * Node is already on this fabric (reconnect or a previous half-finished
+     * pair). Stop in-flight BLE/LAN so we do not commission it again.
+     */
+    private adoptFabricNodes(imported: boolean): void {
+        if (!imported) return
+        console.log('adopting nodes already on the Matter fabric')
+        this.commissionGeneration += 1
+        this.commissioning = false
+    }
+
     private emitCollapsedLeaves(): void {
         for (const node of Object.values(this.matter?.nodes ?? {})) {
             this.emitCollapsedLeavesForNode(String(node.node_id))
@@ -398,6 +559,10 @@ export class MatterMqttBridge {
         if (!topic.startsWith(base)) return
         const rest = topic.slice(base.length)
 
+        if (rest === 'bridge/request/commission/cancel') {
+            this.handleCancelCommission(parseJson(payload))
+            return
+        }
         if (rest === 'bridge/request/commission') {
             await this.handleCommission(parseJson(payload))
             return
@@ -531,11 +696,14 @@ export class MatterMqttBridge {
                 data: { pending: true },
             })
             this.commissioning = true
+            this.publishInterviewProgress('Looking for your device')
+            const generation = this.commissionGeneration
             this.runCommission(matter, code, {
                 bluetooth,
                 preferBle,
             })
                 .catch((error) => {
+                    if (generation !== this.commissionGeneration) return
                     const message = commissionErrorMessage(error)
                     console.error('commissioning failed', message)
                     this.publishBridgeEvent('device_interview', {
@@ -545,7 +713,9 @@ export class MatterMqttBridge {
                     })
                 })
                 .finally(() => {
-                    this.commissioning = false
+                    if (generation === this.commissionGeneration) {
+                        this.commissioning = false
+                    }
                 })
         } catch (error) {
             this.commissioning = false
@@ -556,73 +726,227 @@ export class MatterMqttBridge {
         }
     }
 
+    private handleCancelCommission(payload: Record<string, unknown>): void {
+        const transaction =
+            typeof payload.transaction === 'string'
+                ? payload.transaction
+                : undefined
+        this.abortCommission(true)
+        this.respond('commission/cancel', transaction, {
+            status: 'ok',
+            data: {},
+        })
+    }
+
+    private abortCommission(restartBle: boolean): void {
+        const wasCommissioning = this.commissioning
+        this.commissionGeneration += 1
+        this.commissioning = false
+        if (!wasCommissioning || !restartBle) return
+        console.log('cancelling in-flight commission')
+        void this.resetMatterBle().catch((error) => {
+            console.error('BLE reset after cancel failed', errorMessage(error))
+        })
+    }
+
+    private async resetMatterBle(): Promise<void> {
+        const cmd = this.config.MATTERJS_RESTART_CMD.trim()
+        if (cmd.length > 0) {
+            console.log(`resetting matterjs-server BLE: ${cmd}`)
+            try {
+                await execCommand(cmd, { timeout: MATTER_READY_TIMEOUT_MS })
+            } catch (error) {
+                console.warn(
+                    'matterjs-server restart failed',
+                    errorMessage(error)
+                )
+                this.matter?.disconnect()
+            }
+        } else {
+            this.matter?.disconnect()
+        }
+        await this.waitForMatter()
+    }
+
+    private async waitForMatter(): Promise<RawEventClient> {
+        const deadline = Date.now() + MATTER_READY_TIMEOUT_MS
+        if (!this.matterConnected && !this.stopped) {
+            void this.connectMatterLoop()
+        }
+        while (Date.now() < deadline) {
+            if (this.matter && this.matterConnected) return this.matter
+            await delay(250)
+        }
+        throw new Error('matter server did not reconnect')
+    }
+
     private async runCommission(
         matter: RawEventClient,
         code: string,
         options: { bluetooth: boolean; preferBle: boolean }
     ): Promise<void> {
+        if (await this.adoptExistingNodes()) return
+        this.publishInterviewProgress('Connecting to your device')
         if (options.preferBle) {
-            await this.commissionOverBleThenLan(matter, code)
+            await this.commissionOverBleThenLan(code)
             return
         }
 
         try {
             const node = await matter.commissionWithCode(code, true)
-            console.log(`commissioned node ${String(node.node_id)} on-network`)
+            this.finishCommission(node, 'on-network')
         } catch (networkError) {
             if (!options.bluetooth) throw networkError
             console.warn(
                 'on-network commission failed; retrying over Bluetooth',
                 commissionErrorMessage(networkError)
             )
-            await this.commissionOverBleThenLan(matter, code)
+            await this.commissionOverBleThenLan(code)
         }
     }
 
     /**
-     * BLE must carry Wi-Fi credentials. After join, matterjs often reconnects
-     * to a stale IPv4 (previous DHCP lease on another subnet). Finish on the
-     * real LAN address with `commission_on_network` + `ip_addr`.
+     * BLE must carry Wi-Fi credentials. After join, matterjs often hangs on
+     * operational reconnect (LED already solid) instead of returning. Race
+     * BLE against fabric adopt, then finish on LAN neighbor / mDNS IPs.
      */
-    private async commissionOverBleThenLan(
-        matter: RawEventClient,
-        code: string
-    ): Promise<void> {
+    private async commissionOverBleThenLan(code: string): Promise<void> {
         const host = await hostLanInfo()
+        const before =
+            host === null
+                ? new Set<string>()
+                : new Set(await listLanNeighbors(host, { liveOnly: false }))
+        const lanWatch = host === null ? null : watchNewLanIps(before, host)
+        let lastError: unknown
 
         try {
-            const node = await matter.commissionWithCode(code, false)
-            console.log(
-                `commissioned node ${String(node.node_id)} over bluetooth`
-            )
-            return
-        } catch (error) {
-            const parsed = parsePairingCode(code)
-            if (parsed === undefined || isBlePairingFailure(error)) {
-                throw error
+            for (let attempt = 0; attempt < BLE_RETRY_ATTEMPTS; attempt++) {
+                if (await this.adoptExistingNodes()) return
+                let matter = this.matter
+                if (!matter) {
+                    try {
+                        matter = await this.waitForMatter()
+                    } catch {
+                        throw lastError instanceof Error
+                            ? lastError
+                            : new Error('matter server not connected')
+                    }
+                }
+                try {
+                    this.publishInterviewProgress('Connecting to your device')
+                    const node = await this.commissionBleOrAdopt(matter, code)
+                    this.finishCommission(node, 'over bluetooth')
+                    return
+                } catch (error) {
+                    lastError = error
+                    if (await this.adoptExistingNodes()) return
+                    if (
+                        attempt + 1 < BLE_RETRY_ATTEMPTS &&
+                        isNobleBleFailure(error)
+                    ) {
+                        console.warn(
+                            `BLE connect failed; retrying without restarting matterjs (${errorMessage(error)})`
+                        )
+                        await delay(BLE_RETRY_DELAY_MS)
+                        continue
+                    }
+                    break
+                }
             }
 
+            const error = lastError
+            if (await this.adoptExistingNodes()) return
+            const parsed = parsePairingCode(code)
+            const matter = this.matter
+            if (parsed === undefined || matter === null) {
+                throw error instanceof Error
+                    ? error
+                    : new Error('commissioning failed')
+            }
+
+            this.publishInterviewProgress('Adding it to your home')
+            this.republishJoins()
+            if (this.index.size > 0) {
+                console.log(
+                    'finishing pairing from fabric inventory after BLE stall'
+                )
+                return
+            }
             const fromMdns = await commissionableIpv4s(matter)
             const records =
-                host === null ? [] : await listLanNeighborRecords(host)
+                host === null
+                    ? []
+                    : await listLanNeighborRecords(host, { liveOnly: false })
             const fromMac = ipsForMacs(
                 records,
                 macsFromText(errorMessage(error))
             )
-            const ips = await filterReachableIps([...fromMdns, ...fromMac])
+            const discovered = [
+                ...(lanWatch?.found() ?? []),
+                ...fromMdns,
+                ...fromMac,
+            ]
+            const candidates =
+                host === null
+                    ? discovered
+                    : commissionCandidateIps(discovered, [], host)
+            const lanIps = await filterReachableIps(candidates)
 
-            if (ips.length === 0 || !isStuckReconnect(error)) {
-                throw error
+            if (lanIps.length > 0) {
+                console.warn(
+                    `BLE commission stalled (${errorMessage(error)}); finishing on LAN at ${lanIps.join(', ')}`
+                )
+                const node = await this.commissionOnLan(matter, parsed, lanIps)
+                this.finishCommission(node, 'on-network after BLE')
+                return
             }
 
-            console.warn(
-                `BLE commission stuck at reconnect (${errorMessage(error)}); finishing on LAN at ${ips.join(', ')}`
-            )
-            const node = await this.commissionOnLan(matter, parsed, ips)
-            console.log(
-                `commissioned node ${String(node.node_id)} on-network after BLE Wi-Fi join`
-            )
+            throw error instanceof Error
+                ? error
+                : new Error('commissioning failed')
+        } finally {
+            lanWatch?.stop()
         }
+    }
+
+    /**
+     * BLE `commission_with_code` can sit past Wi-Fi join until the default
+     * 5-minute timeout. Adopt as soon as the node is on this fabric.
+     */
+    private async commissionBleOrAdopt(
+        matter: RawEventClient,
+        code: string
+    ): Promise<MatterNode> {
+        const ble = matter.commissionWithCode(code, false, {
+            timeout: BLE_COMMISSION_TIMEOUT_MS,
+        })
+        void ble.catch((error) => {
+            console.warn('background BLE commission ended', errorMessage(error))
+        })
+        return await new Promise<MatterNode>((resolve, reject) => {
+            let settled = false
+            const finish = (next: () => void) => {
+                if (settled) return
+                settled = true
+                clearInterval(timer)
+                next()
+            }
+            const timer = setInterval(() => {
+                if (!this.importUnmappedNodes()) return
+                const node = this.firstFabricNode()
+                if (node === undefined) return
+                finish(() => resolve(node))
+            }, 250)
+            void ble.then(
+                (node) => finish(() => resolve(node)),
+                (error) => finish(() => reject(error))
+            )
+        })
+    }
+
+    private firstFabricNode(): MatterNode | undefined {
+        const nodes = Object.values(this.matter?.nodes ?? {})
+        return nodes[0]
     }
 
     private async commissionOnLan(
@@ -728,6 +1052,20 @@ export class MatterMqttBridge {
         })
     }
 
+    private finishCommission(node: MatterNode, via: string): void {
+        const nodeId = String(node.node_id)
+        console.log(`commissioned node ${nodeId} ${via}`)
+        this.onNodeAdded(nodeId)
+    }
+
+    private publishInterviewProgress(message: string): void {
+        this.publishBridgeEvent('device_interview', {
+            ieee_address: 'commissioning',
+            status: 'started',
+            message,
+        })
+    }
+
     private respond(
         endpoint: string,
         transaction: string | undefined,
@@ -781,20 +1119,9 @@ function discoveryFilter(parsed: ParsedPairingCode): {
     return {}
 }
 
-function isBlePairingFailure(error: unknown): boolean {
-    return /Can not connect to peripheral|does not advertise Matter Service|unexpected state|connecting to peripheral|discovery of node|No device could be commissioned/i.test(
+function isNobleBleFailure(error: unknown): boolean {
+    return /interface not found|DBus\.Properties|unexpected state|Can not connect to peripheral|Error while connecting to peripheral|does not advertise Matter Service|No device could be commissioned|discovery of node/i.test(
         errorMessage(error)
-    )
-}
-
-function isStuckReconnect(error: unknown): boolean {
-    const raw = errorMessage(error)
-    if (isBlePairingFailure(error)) return false
-    if (/timed out|pairing window|credentials-not-configured/i.test(raw)) {
-        return false
-    }
-    return /peer-unreachable|no address known|Address udp:\/\/\S+ unreachable/i.test(
-        raw
     )
 }
 
@@ -834,7 +1161,7 @@ function commissionErrorMessage(error: unknown): string {
             raw
         )
     ) {
-        return 'Found the device over Bluetooth but it is not accepting a pairing session. Factory-reset it (hold any outlet switch 10 seconds), keep it close to the controller, and try again with 2.4 GHz Wi-Fi filled in.'
+        return 'Found the device over Bluetooth but the adapter could not open a pairing session. Disconnect other Bluetooth devices on this machine, factory-reset the strip (hold any outlet switch 10 seconds), keep it close, and try once more with 2.4 GHz Wi-Fi filled in.'
     }
     if (/timed out/i.test(raw)) {
         return 'Bluetooth pairing timed out. Factory-reset the device (hold any outlet switch 10 seconds), keep it close to the controller, and try again with 2.4 GHz Wi-Fi filled in.'

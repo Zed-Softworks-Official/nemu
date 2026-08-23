@@ -50,3 +50,13 @@ pub async fn commission(
 
     Ok(Json(CommissionResponse { ok: true }))
 }
+
+pub async fn cancel(State(state): State<AppState>) -> ApiResult<Json<CommissionResponse>> {
+    state
+        .mqtt
+        .cancel_commission()
+        .await
+        .map_err(|error| ApiError::service_unavailable("cancel_failed", error))?;
+
+    Ok(Json(CommissionResponse { ok: true }))
+}

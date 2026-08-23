@@ -136,6 +136,15 @@ export class LanTransport implements ControllerTransport {
         return commissionResponseSchema.parse(data)
     }
 
+    async cancelMatterCommission(): Promise<CommissionResponse> {
+        const { data } = await this.http.post(
+            '/api/matter/cancel',
+            {},
+            { timeout: 20_000 }
+        )
+        return commissionResponseSchema.parse(data)
+    }
+
     async getRooms(): Promise<Room[]> {
         const { data } = await this.http.get('/api/rooms')
         return roomsResponseSchema.parse(data).rooms

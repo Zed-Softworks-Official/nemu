@@ -176,6 +176,16 @@ export class ControllerConnection {
         return await transport.commissionMatter(request)
     }
 
+    async cancelMatterCommission(): Promise<CommissionResponse> {
+        const transport = this.requireLanTransport('Matter pairing')
+        if (!transport.cancelMatterCommission) {
+            throw new Error(
+                'Matter pairing is not supported by this controller'
+            )
+        }
+        return await transport.cancelMatterCommission()
+    }
+
     async getRooms(): Promise<Room[]> {
         const transport = this.requireLanTransport('Room loading')
         if (!transport.getRooms) {

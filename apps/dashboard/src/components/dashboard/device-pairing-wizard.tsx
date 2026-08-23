@@ -1,6 +1,6 @@
 'use client'
 
-import { useDevicePairing } from '@nemu/controller'
+import { type PairingInterview, useDevicePairing } from '@nemu/controller'
 import type { Device, DeviceProtocol, Room } from '@nemu/protocol'
 import { Badge } from '@nemu/ui/components/badge'
 import { Button } from '@nemu/ui/components/button'
@@ -35,7 +35,6 @@ import {
     RouterIcon,
     ScanLineIcon,
 } from 'lucide-react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { presentDevice } from '~/lib/device-presentation'
@@ -92,20 +91,28 @@ export function DevicePairingWizard() {
         }
     }
 
+    function leaveWizard() {
+        pairing.reset()
+        router.push('/devices')
+    }
+
     return (
         <div className="mx-auto flex w-full max-w-4xl flex-col gap-8">
             <PageHeader
                 actions={
-                    <Button asChild size="sm" variant="ghost">
-                        <Link href="/devices">
-                            <ArrowLeftIcon data-icon="inline-start" />
-                            Back to devices
-                        </Link>
+                    <Button onClick={leaveWizard} size="sm" variant="ghost">
+                        <ArrowLeftIcon data-icon="inline-start" />
+                        Back to devices
                     </Button>
                 }
                 description="Pair Zigbee and Matter devices directly with your Nemu controller."
                 eyebrow="Add device"
-                title={getPageTitle(pairing.phase)}
+                title={
+                    pairing.phase === 'discovering' &&
+                    pairing.protocol === 'matter'
+                        ? 'Setting up your device'
+                        : getPageTitle(pairing.phase)
+                }
             />
 
             <StepIndicator currentStep={currentStep} />
@@ -404,7 +411,8 @@ function MatterPrepareFields({
                     pairing (most bulbs, plugs, and strips). Skip it if the
                     device is already on this LAN or uses Ethernet. Use 2.4 GHz.
                     Credentials go only to the controller. After a failed
-                    attempt, put the device back in pairing mode before retrying.
+                    attempt, put the device back in pairing mode before
+                    retrying.
                 </p>
             </div>
         </div>
@@ -581,82 +589,166 @@ function DiscoverStep({
     onSelect,
 }: {
     devices: Device[]
-    interviews: Array<{
-        externalId: string
-        status: 'started' | 'successful' | 'failed'
-    }>
+    interviews: PairingInterview[]
     secondsRemaining: number
     isHome: boolean
     protocol: DeviceProtocol
     onSelect: (device: Device) => void
 }) {
     const isMatter = protocol === 'matter'
+    const steps = pairingChecklist(protocol, interviews, devices)
+    const visibleInterviews = interviews.filter(
+        (item) => item.externalId !== 'commissioning'
+    )
+    const showDevices = !isMatter || devices.length !== 1
 
     return (
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(15rem,0.8fr)]">
             <Card className="min-h-96">
-                <CardHeader className="text-center">
-                    <div className="relative mx-auto mb-5 flex size-20 items-center justify-center rounded-full border bg-muted/40 text-primary">
-                        <span className="absolute inset-2 animate-pulse rounded-full border border-primary/30" />
-                        <RadioTowerIcon className="size-7" />
-                    </div>
+                <CardHeader>
                     <CardTitle className="text-lg">
-                        {isMatter ? 'Commissioning device' : 'Searching nearby'}
+                        {isMatter
+                            ? 'Setting up your device'
+                            : 'Searching nearby'}
                     </CardTitle>
                     <CardDescription>
-                        {isMatter ? (
-                            <>
-                                Waiting for the device to join.{' '}
-                                <span className="font-mono text-foreground">
-                                    {formatCountdown(secondsRemaining)}
-                                </span>
-                            </>
-                        ) : (
-                            <>
-                                Pairing closes in{' '}
-                                <span className="font-mono text-foreground">
-                                    {formatCountdown(secondsRemaining)}
-                                </span>
-                            </>
-                        )}
+                        {isMatter
+                            ? 'This can take a few minutes. Keep the device close and powered.'
+                            : 'Keep the device powered and in pairing mode.'}
                     </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-3">
+                <CardContent className="space-y-5">
                     {!isHome ? (
                         <div className="rounded-lg border border-warning/20 bg-warning/5 p-3 text-sm">
                             Home connection lost. Reconnect before retrying.
                         </div>
                     ) : null}
-                    {devices.length === 0 && interviews.length === 0 ? (
-                        <div className="rounded-lg border border-dashed p-5 text-center">
-                            <p className="font-medium text-sm">
-                                Waiting for a device
-                            </p>
-                            <p className="mt-1 text-muted-foreground text-xs">
-                                {isMatter
-                                    ? 'Keep the device powered and near the controller while it joins.'
-                                    : 'Keep it powered and in pairing mode.'}
-                            </p>
-                        </div>
-                    ) : null}
-                    {interviews.map((interview) => (
+                    <PairingChecklist steps={steps} />
+                    <p className="text-muted-foreground text-xs">
+                        {isMatter
+                            ? 'This can keep going for a few minutes · '
+                            : 'Pairing closes in '}
+                        {formatCountdown(secondsRemaining)}
+                    </p>
+                    {visibleInterviews.map((interview) => (
                         <InterviewRow
                             interview={interview}
                             key={interview.externalId}
                         />
                     ))}
-                    {devices.map((device) => (
-                        <DiscoveredDevice
-                            device={device}
-                            key={device.id}
-                            onSelect={() => onSelect(device)}
-                        />
-                    ))}
+                    {showDevices
+                        ? devices.map((device) => (
+                              <DiscoveredDevice
+                                  device={device}
+                                  key={device.id}
+                                  onSelect={() => onSelect(device)}
+                              />
+                          ))
+                        : null}
                 </CardContent>
             </Card>
 
             <PairingTips protocol={protocol} />
         </div>
+    )
+}
+
+type ChecklistStep = {
+    label: string
+    state: 'done' | 'active' | 'pending'
+}
+
+function pairingChecklist(
+    protocol: DeviceProtocol,
+    interviews: PairingInterview[],
+    devices: Device[]
+): ChecklistStep[] {
+    const found = devices.length > 0
+    const connecting = interviews.some((item) => {
+        const message = (item.message ?? '').toLowerCase()
+        return (
+            message.includes('connecting') ||
+            message.includes('waiting for the controller')
+        )
+    })
+    const adding = interviews.some((item) =>
+        (item.message ?? '').toLowerCase().includes('adding it to your home')
+    )
+    const joined =
+        found ||
+        interviews.some(
+            (item) =>
+                item.externalId !== 'commissioning' &&
+                item.status === 'successful'
+        )
+
+    if (protocol === 'matter') {
+        const lookingDone = connecting || adding || joined
+        const connectingDone = adding || joined
+        return [
+            {
+                label: 'Looking for your device',
+                state: lookingDone ? 'done' : 'active',
+            },
+            {
+                label: 'Connecting to your device',
+                state: connectingDone
+                    ? 'done'
+                    : connecting
+                      ? 'active'
+                      : 'pending',
+            },
+            {
+                label: 'Adding it to your home',
+                state: found
+                    ? 'done'
+                    : adding || connectingDone
+                      ? 'active'
+                      : 'pending',
+            },
+        ]
+    }
+
+    return [
+        {
+            label: 'Listening for nearby devices',
+            state: found || interviews.length > 0 ? 'done' : 'active',
+        },
+        {
+            label: 'Found a device',
+            state: found
+                ? 'done'
+                : interviews.length > 0
+                  ? 'active'
+                  : 'pending',
+        },
+    ]
+}
+
+function PairingChecklist({ steps }: { steps: ChecklistStep[] }) {
+    return (
+        <ol className="space-y-3">
+            {steps.map((step) => (
+                <li className="flex items-center gap-3" key={step.label}>
+                    {step.state === 'done' ? (
+                        <CheckIcon className="size-4 text-primary" />
+                    ) : step.state === 'active' ? (
+                        <LoaderCircleIcon className="size-4 animate-spin text-primary" />
+                    ) : (
+                        <span className="size-4 rounded-full border border-muted-foreground/40" />
+                    )}
+                    <span
+                        className={`text-sm ${
+                            step.state === 'pending'
+                                ? 'text-muted-foreground'
+                                : 'font-medium'
+                        }`}
+                    >
+                        {step.label}
+                    </span>
+                </li>
+            ))}
+        </ol>
     )
 }
 
@@ -868,14 +960,14 @@ function DiscoveredDevice({
     )
 }
 
-function InterviewRow({
-    interview,
-}: {
-    interview: {
-        externalId: string
-        status: 'started' | 'successful' | 'failed'
-    }
-}) {
+function InterviewRow({ interview }: { interview: PairingInterview }) {
+    const title =
+        interview.status === 'failed'
+            ? 'Could not add this device'
+            : interview.status === 'successful'
+              ? 'Device added'
+              : (interview.message ?? 'Setting up your device')
+
     return (
         <div className="flex items-center gap-3 rounded-lg bg-muted/40 p-3">
             {interview.status === 'failed' ? (
@@ -885,18 +977,7 @@ function InterviewRow({
             ) : (
                 <LoaderCircleIcon className="size-4 animate-spin text-primary" />
             )}
-            <div className="min-w-0">
-                <p className="font-medium text-sm">
-                    {interview.status === 'failed'
-                        ? 'Interview failed'
-                        : interview.status === 'successful'
-                          ? 'Interview complete'
-                          : 'Interviewing device'}
-                </p>
-                <p className="truncate font-mono text-muted-foreground text-xs">
-                    {interview.externalId}
-                </p>
-            </div>
+            <p className="min-w-0 font-medium text-sm">{title}</p>
         </div>
     )
 }

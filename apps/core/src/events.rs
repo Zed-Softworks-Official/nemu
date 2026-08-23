@@ -24,6 +24,10 @@ pub enum DeviceEvent {
         #[serde(rename = "externalId")]
         external_id: String,
         status: InterviewStatus,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        error: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        message: Option<String>,
     },
     Resync,
     Health {

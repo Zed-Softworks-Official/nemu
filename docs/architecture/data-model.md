@@ -174,7 +174,9 @@ differences: device topics use the Matter external id (`nodeId` for strips
 and single-endpoint nodes, or `nodeId:endpoint` when a node is still split)
 instead of `friendly_name`, and `bridge/request/commission`
 (`{"code":"MT:…","wifiSsid"?,"wifiPassword"?,"transaction"}`) replaces
-`permit_join`. Matter strip state uses an `outlets` array (no top-level
+`permit_join`. Leaving the pairing wizard publishes
+`bridge/request/commission/cancel` so the sidecar aborts in-flight BLE.
+Matter strip state uses an `outlets` array (no top-level
 `state`) plus optional read-only energy keys (`power` W, `voltage` V,
 `current` A, `energy` kWh) folded from the Electrical Power/Energy
 Measurement clusters.
@@ -189,6 +191,7 @@ Measurement clusters.
 | `zigbee2mqtt/<friendly_name>/set`          | pub             | command JSON (`{"state":"OFF"}`)                                                     | device commands              |
 | `zigbee2mqtt/<friendly_name>/get`          | pub             | `{"state":""}`                                                                       | state refresh                |
 | `zigbee2mqtt/bridge/request/permit_join`   | pub             | `{"time":120}`                                                                       | open pairing window          |
+| `matter/bridge/request/commission/cancel`  | pub             | `{"transaction":"..."}`                                                              | abort in-flight Matter pair  |
 | `zigbee2mqtt/bridge/request/device/rename` | pub             | `{"from":"0x00...","to":"Kitchen Light"}`                                            | rename propagation           |
 | `zigbee2mqtt/bridge/request/device/remove` | pub             | `{"id":"0x00...","force":false,"block":false,"transaction":"..."}`                   | safe network removal         |
 | `zigbee2mqtt/bridge/response/device/remove`| sub             | `{"status":"ok","data":{"id":"0x00..."},"transaction":"..."}`                        | confirm removal before delete|
