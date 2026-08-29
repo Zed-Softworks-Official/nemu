@@ -114,11 +114,18 @@ Disable Watchtower by removing the `watchtower` service from compose, or clear t
 Tag a release to build multi-arch images on Blacksmith and push to GHCR:
 
 ```bash
+# Core
 git tag core-v0.1.0
 git push origin core-v0.1.0
+# Approve pending deployment → Environment "core-release"
+
+# Matter
+git tag matter-v0.1.0
+git push origin matter-v0.1.0
+# Approve pending deployment → Environment "matter-release"
 ```
 
-See [`.github/workflows/publish-core.yml`](../../.github/workflows/publish-core.yml). After pushing the tag, approve the pending **core-release** environment deployment in GitHub Actions (required reviewer: `@kzolt`).
+See [`.github/workflows/publish-core.yml`](../../.github/workflows/publish-core.yml) and [`.github/workflows/publish-matter.yml`](../../.github/workflows/publish-matter.yml). Required reviewer for both environments: `@kzolt`.
 
 Security controls: [github-release-protections.md](github-release-protections.md).
 

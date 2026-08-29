@@ -1,0 +1,24 @@
+{
+  "name": "Protect matter-v release tags",
+  "target": "tag",
+  "enforcement": "active",
+  "conditions": {
+    "ref_name": {
+      "include": ["refs/tags/matter-v*"],
+      "exclude": []
+    }
+  },
+  "rules": [
+    { "type": "creation" },
+    { "type": "update" },
+    { "type": "deletion" },
+    { "type": "non_fast_forward" }
+  ],
+  "bypass_actors": [
+    {
+      "actor_id": 8380617,
+      "actor_type": "User",
+      "bypass_mode": "always"
+    }
+  ]
+}

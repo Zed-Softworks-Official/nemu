@@ -13,9 +13,9 @@ env:
   IMAGE: ghcr.io/zed-softworks-official/nemu-matter
 
 jobs:
-  # Gate: same Environment approval as nemu-core releases.
+  # Gate: only proceeds after Environment "matter-release" approval (restricted to @kzolt).
   build:
-    environment: core-release
+    environment: matter-release
     strategy:
       fail-fast: false
       matrix:
