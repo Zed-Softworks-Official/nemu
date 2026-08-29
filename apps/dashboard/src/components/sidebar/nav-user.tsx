@@ -96,15 +96,15 @@ export function NavUser() {
                         <DropdownMenuSeparator />
                         <DropdownMenuGroup>
                             <DropdownMenuItem asChild>
-                                <Link href={'/settings'}>
-                                    <SettingsIcon className="mr-2 size-4" />
-                                    Settings
-                                </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem asChild>
                                 <Link href={'/account'}>
                                     <UserIcon className="mr-2 size-4" />
                                     Account
+                                </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                                <Link href={'/settings'}>
+                                    <SettingsIcon className="mr-2 size-4" />
+                                    Settings
                                 </Link>
                             </DropdownMenuItem>
                         </DropdownMenuGroup>
