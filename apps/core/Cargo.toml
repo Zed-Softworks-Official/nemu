@@ -1,12 +1,14 @@
 [package]
 name = "nemu"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
 
 [dependencies]
+anyhow = "1"
 axum = { version = "0.8.9", features = ["ws"] }
 base64 = "0.23.0"
 chrono = { version = "0.4.45", features = ["serde"] }
+convex = { version = "0.10.4", default-features = false, features = ["rustls-tls-webpki-roots"] }
 dashmap = "6.1.0"
 deadpool-diesel = { version = "0.6.1", features = ["postgres"] }
 diesel = { version = "2.3.10", features = ["postgres", "uuid", "chrono", "serde_json"] }

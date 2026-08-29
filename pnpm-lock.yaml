@@ -302,6 +302,9 @@ importers:
       convex-helpers:
         specifier: ^0.1.104
         version: 0.1.120(convex@1.45.0(@clerk/react@6.12.5(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(bufferutil@4.1.0)(react@19.2.7)(utf-8-validate@5.0.10))(hono@4.12.27)(react@19.2.7)(typescript@5.9.2)(zod@4.3.6)
+      jose:
+        specifier: ^6.2.3
+        version: 6.2.3
       zod:
         specifier: 'catalog:'
         version: 4.3.6

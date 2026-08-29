@@ -1,7 +1,7 @@
 import { httpRouter } from 'convex/server'
 import { internal } from './_generated/api'
 import { httpAction } from './_generated/server'
-import { getTlsHttp, registerHttp } from './controllers'
+import { getTlsHttp, registerHttp, sessionHttp } from './controllers'
 
 const http = httpRouter()
 
@@ -9,6 +9,12 @@ http.route({
     path: '/controllers/register',
     method: 'POST',
     handler: registerHttp,
+})
+
+http.route({
+    path: '/controllers/session',
+    method: 'POST',
+    handler: sessionHttp,
 })
 
 http.route({

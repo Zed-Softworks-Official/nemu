@@ -1,3 +1,8 @@
+use std::collections::{BTreeMap, HashSet};
+use std::time::Duration;
+
+use convex::{AuthenticationToken, ConvexClient, FunctionResult, Value};
+use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value as JsonValue, json};
 use tracing::{debug, info, warn};
@@ -11,11 +16,15 @@ use crate::api::members::{
 use crate::api::pairing::{list_household_tokens, revoke_current_token, revoke_household_token};
 use crate::commands::execute_set;
 use crate::pairing::tokens::verify_client_token;
-use crate::registration::register_with_convex;
+use crate::registration::{
+    convex_cloud_url, fetch_controller_session, register_with_convex,
+};
 use crate::state::AppState;
 
-const POLL_INTERVAL_MS: u64 = 2_000;
+/// HTTP fallback poll interval when the WebSocket client is unavailable.
+const FALLBACK_POLL_INTERVAL_MS: u64 = 15_000;
 const IDLE_BACKOFF_MS: u64 = 5_000;
+const FALLBACK_ROUNDS_BEFORE_RETRY: u32 = 4;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -98,6 +107,11 @@ struct RespondBody<'a> {
     registration_secret: Option<&'a str>,
 }
 
+enum RespondVia<'a> {
+    Convex(&'a mut ConvexClient),
+    Http { site_url: &'a str },
+}
+
 pub fn spawn_relay_loop(state: AppState) {
     tokio::spawn(async move {
         run_relay_loop(state).await;
@@ -109,38 +123,141 @@ async fn run_relay_loop(state: AppState) {
         info!("NEMU_CONVEX_SITE_URL unset; relay client disabled");
         return;
     };
+    let cloud_url = convex_cloud_url(&site_url);
 
-    info!("relay client started");
-    let mut consecutive_failures: u32 = 0;
+    info!(%cloud_url, "relay client started");
 
     loop {
-        match poll_and_process(&state, &site_url).await {
+        match run_subscription_relay(&state, &site_url, &cloud_url).await {
+            Ok(()) => {
+                warn!("relay subscription ended; reconnecting");
+            }
+            Err(e) => {
+                warn!(error = %e, "relay subscription failed; entering HTTP fallback");
+                let _ = register_with_convex(
+                    &site_url,
+                    &state.identity,
+                    state.registration_secret.as_deref(),
+                    state.lan_ip.as_deref(),
+                )
+                .await;
+                run_http_fallback(&state, &site_url).await;
+            }
+        }
+        tokio::time::sleep(Duration::from_millis(IDLE_BACKOFF_MS)).await;
+    }
+}
+
+async fn run_subscription_relay(
+    state: &AppState,
+    site_url: &str,
+    cloud_url: &str,
+) -> Result<(), String> {
+    let mut client = ConvexClient::new(cloud_url)
+        .await
+        .map_err(|e| format!("convex client connect failed: {e}"))?;
+
+    let site_url_owned = site_url.to_string();
+    let controller_id = state.identity.controller_id.clone();
+    let registration_secret = state.registration_secret.clone();
+
+    let fetcher = {
+        let site_url_owned = site_url_owned.clone();
+        let controller_id = controller_id.clone();
+        let registration_secret = registration_secret.clone();
+        Box::new(move |_force_refresh: bool| {
+            let site_url_owned = site_url_owned.clone();
+            let controller_id = controller_id.clone();
+            let registration_secret = registration_secret.clone();
+            Box::pin(async move {
+                let session = fetch_controller_session(
+                    &site_url_owned,
+                    &controller_id,
+                    registration_secret.as_deref(),
+                )
+                .await
+                .map_err(anyhow::Error::msg)?;
+                Ok(AuthenticationToken::User(session.token))
+            })
+                as std::pin::Pin<
+                    Box<dyn std::future::Future<Output = anyhow::Result<AuthenticationToken>> + Send>,
+                >
+        }) as convex::AuthTokenFetcher
+    };
+
+    client.set_auth_callback(Some(fetcher)).await;
+
+    let mut sub = client
+        .subscribe("relay:pendingForMe", BTreeMap::new())
+        .await
+        .map_err(|e| format!("subscribe pendingForMe failed: {e}"))?;
+
+    info!("relay subscription active");
+    let mut in_flight: HashSet<String> = HashSet::new();
+    let mut mut_client = client.clone();
+
+    while let Some(result) = sub.next().await {
+        let messages = match parse_pending_result(result) {
+            Ok(messages) => messages,
+            Err(e) => {
+                warn!(error = %e, "pendingForMe result error");
+                return Err(e);
+            }
+        };
+
+        for message in messages {
+            if !in_flight.insert(message.request_id.clone()) {
+                continue;
+            }
+            let outcome = handle_message(
+                state,
+                &mut RespondVia::Convex(&mut mut_client),
+                &message,
+            )
+            .await;
+            in_flight.remove(&message.request_id);
+            if let Err(e) = outcome {
+                warn!(
+                    request_id = %message.request_id,
+                    error = %e,
+                    "failed to handle relay message"
+                );
+            }
+        }
+    }
+
+    Ok(())
+}
+
+async fn run_http_fallback(state: &AppState, site_url: &str) {
+    let mut consecutive_failures: u32 = 0;
+    for _ in 0..FALLBACK_ROUNDS_BEFORE_RETRY {
+        match poll_and_process_http(state, site_url).await {
             Ok(processed) => {
                 consecutive_failures = 0;
                 if processed == 0 {
-                    tokio::time::sleep(std::time::Duration::from_millis(POLL_INTERVAL_MS)).await;
+                    tokio::time::sleep(Duration::from_millis(FALLBACK_POLL_INTERVAL_MS)).await;
                 }
             }
             Err(e) => {
                 consecutive_failures = consecutive_failures.saturating_add(1);
-                warn!(error = %e, failures = consecutive_failures, "relay poll failed");
+                warn!(error = %e, failures = consecutive_failures, "relay HTTP fallback poll failed");
                 if consecutive_failures >= 3 {
-                    // Attempt re-registration in case the controller row was lost.
                     let _ = register_with_convex(
-                        &site_url,
+                        site_url,
                         &state.identity,
                         state.registration_secret.as_deref(),
                         state.lan_ip.as_deref(),
                     )
                     .await;
                 }
-                tokio::time::sleep(std::time::Duration::from_millis(IDLE_BACKOFF_MS)).await;
+                tokio::time::sleep(Duration::from_millis(IDLE_BACKOFF_MS)).await;
             }
         }
     }
 }
 
-async fn poll_and_process(state: &AppState, site_url: &str) -> Result<usize, String> {
+async fn poll_and_process_http(state: &AppState, site_url: &str) -> Result<usize, String> {
     let url = format!("{}/relay/pending", site_url.trim_end_matches('/'));
     let body = json!({
         "controllerId": state.identity.controller_id,
@@ -167,7 +284,7 @@ async fn poll_and_process(state: &AppState, site_url: &str) -> Result<usize, Str
         .map_err(|e| format!("pending decode failed: {e}"))?;
 
     for message in &pending.messages {
-        if let Err(e) = handle_message(state, site_url, message).await {
+        if let Err(e) = handle_message(state, &mut RespondVia::Http { site_url }, message).await {
             warn!(request_id = %message.request_id, error = %e, "failed to handle relay message");
         }
     }
@@ -175,9 +292,19 @@ async fn poll_and_process(state: &AppState, site_url: &str) -> Result<usize, Str
     Ok(pending.messages.len())
 }
 
+fn parse_pending_result(result: FunctionResult) -> Result<Vec<PendingMessage>, String> {
+    let value = match result {
+        FunctionResult::Value(value) => value,
+        FunctionResult::ErrorMessage(message) => return Err(message),
+        FunctionResult::ConvexError(err) => return Err(err.message),
+    };
+    let json = value.export();
+    serde_json::from_value(json).map_err(|e| format!("pendingForMe decode failed: {e}"))
+}
+
 async fn handle_message(
     state: &AppState,
-    site_url: &str,
+    respond_via: &mut RespondVia<'_>,
     message: &PendingMessage,
 ) -> Result<(), String> {
     let envelope: ToControllerEnvelope =
@@ -194,7 +321,7 @@ async fn handle_message(
     if matches!(envelope.message, ToControllerMessage::SessionMint { .. }) {
         let response_payload =
             handle_session_mint(state, &message.request_id, envelope.message).await;
-        return respond(state, site_url, &message.request_id, response_payload).await;
+        return respond(state, respond_via, &message.request_id, response_payload).await;
     }
 
     let Some(token) = envelope
@@ -208,7 +335,7 @@ async fn handle_message(
             "unauthorized",
             "Invalid client token",
         );
-        return respond(state, site_url, &message.request_id, payload).await;
+        return respond(state, respond_via, &message.request_id, payload).await;
     };
 
     let Some(row) = verify_client_token(&state.db, token).await? else {
@@ -218,7 +345,7 @@ async fn handle_message(
             "unauthorized",
             "Invalid client token",
         );
-        return respond(state, site_url, &message.request_id, payload).await;
+        return respond(state, respond_via, &message.request_id, payload).await;
     };
     let auth = AuthenticatedClient::from_row(row);
 
@@ -310,7 +437,7 @@ async fn handle_message(
         },
     };
 
-    respond(state, site_url, &message.request_id, response_payload).await
+    respond(state, respond_via, &message.request_id, response_payload).await
 }
 
 async fn handle_session_mint(
@@ -359,32 +486,50 @@ async fn handle_session_mint(
 
 async fn respond(
     state: &AppState,
-    site_url: &str,
+    respond_via: &mut RespondVia<'_>,
     request_id: &str,
     payload: String,
 ) -> Result<(), String> {
-    let url = format!("{}/relay/respond", site_url.trim_end_matches('/'));
-    let body = RespondBody {
-        controller_id: &state.identity.controller_id,
-        request_id,
-        payload,
-        registration_secret: state.registration_secret.as_deref(),
-    };
+    match respond_via {
+        RespondVia::Convex(client) => {
+            let mut args = BTreeMap::new();
+            args.insert("requestId".into(), Value::from(request_id));
+            args.insert("payload".into(), Value::from(payload.as_str()));
+            match client
+                .mutation("relay:respondAsController", args)
+                .await
+                .map_err(|e| format!("respond mutation failed: {e}"))?
+            {
+                FunctionResult::Value(_) => Ok(()),
+                FunctionResult::ErrorMessage(message) => Err(message),
+                FunctionResult::ConvexError(err) => Err(err.message),
+            }
+        }
+        RespondVia::Http { site_url } => {
+            let url = format!("{}/relay/respond", site_url.trim_end_matches('/'));
+            let body = RespondBody {
+                controller_id: &state.identity.controller_id,
+                request_id,
+                payload,
+                registration_secret: state.registration_secret.as_deref(),
+            };
 
-    let client = reqwest::Client::new();
-    let response = client
-        .post(&url)
-        .json(&body)
-        .send()
-        .await
-        .map_err(|e| format!("respond request failed: {e}"))?;
+            let client = reqwest::Client::new();
+            let response = client
+                .post(&url)
+                .json(&body)
+                .send()
+                .await
+                .map_err(|e| format!("respond request failed: {e}"))?;
 
-    if !response.status().is_success() {
-        let status = response.status();
-        let text = response.text().await.unwrap_or_default();
-        return Err(format!("respond failed ({status}): {text}"));
+            if !response.status().is_success() {
+                let status = response.status();
+                let text = response.text().await.unwrap_or_default();
+                return Err(format!("respond failed ({status}): {text}"));
+            }
+            Ok(())
+        }
     }
-    Ok(())
 }
 
 fn build_devices_response<T: Serialize>(state: &AppState, request_id: &str, devices: T) -> String {

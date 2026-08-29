@@ -91,7 +91,7 @@ async fn main() {
     }
 
     if let Some(site_url) = &config.convex_site_url {
-        register_with_retry(
+        let _session = register_with_retry(
             site_url,
             &identity,
             config.registration_secret.as_deref(),

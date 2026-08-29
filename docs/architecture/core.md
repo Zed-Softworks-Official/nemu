@@ -201,18 +201,35 @@ Error convention: JSON `{ "error": { "code": "...", "message": "..." } }`;
 
 ## 6. Relay client
 
-`relay/client.rs` maintains an outbound connection to Convex (HTTP long-poll or
-WebSocket against a Convex subscription) filtered to this controller's ID:
+`relay/client.rs` maintains an outbound **Convex WebSocket subscription**
+(`relay:pendingForMe`) authenticated with a short-lived controller JWT. The
+query only re-runs when mailbox rows for this controller change — idle homes
+do not poll.
+
+Flow:
+
+1. Register / refresh session via `POST /controllers/session` (site URL).
+2. Connect the official Convex Rust client to the `.convex.cloud` deployment.
+3. Subscribe; on each non-empty snapshot, execute locally and call
+   `relay:respondAsController`.
+4. If the WebSocket fails repeatedly, fall back to `POST /relay/pending` at
+   a slow interval (~15s), then retry the subscription.
+
+Message handling is unchanged:
 
 1. Receive envelope `{id, clientToken?, payload}`.
 2. `sessionMint` skips the bearer check and authorizes against `members`.
    Every other message verifies `clientToken` locally (same check as HTTP).
 3. Execute via `commands.rs` / query the registry.
-4. Write the response envelope back; Convex marks the pair consumed and its
-   cleanup job deletes them.
+4. Write the response envelope back; Convex deletes the inbound row and its
+   cleanup job expires leftovers.
 
 The relay loop is fully independent of the HTTP server — if the internet is
 down, only this task idles.
+
+Controller JWTs are minted by Convex (`CONTROLLER_JWT_PRIVATE_KEY` env) and
+validated via the public JWKS in `packages/cloud/src/lib/controller.jwks.json`
+(see `scripts/generate-controller-jwt.mjs`).
 
 ## 7. Database
 

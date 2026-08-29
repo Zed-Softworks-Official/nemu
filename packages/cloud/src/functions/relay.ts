@@ -1,8 +1,19 @@
 import { v } from 'convex/values'
+import { requireControllerIdentity } from '../lib/auth'
 import { authedMutation, authedQuery } from '../lib/customFunctions'
 import type { Doc } from './_generated/dataModel'
 import type { MutationCtx, QueryCtx } from './_generated/server'
-import { internalMutation, internalQuery, mutation } from './_generated/server'
+import {
+    internalMutation,
+    internalQuery,
+    mutation,
+    query,
+} from './_generated/server'
+
+const pendingEnvelopeValidator = v.object({
+    requestId: v.string(),
+    payload: v.string(),
+})
 
 const RELAY_TTL_MS = 5 * 60 * 1000
 
@@ -156,6 +167,44 @@ export const pendingForController = internalQuery({
                     .eq('consumed', false)
             )
             .collect()
+    },
+})
+
+/** Subscription target for the controller Convex Rust client. */
+export const pendingForMe = query({
+    args: {},
+    returns: v.array(pendingEnvelopeValidator),
+    handler: async (ctx) => {
+        const { controllerId } = await requireControllerIdentity(ctx)
+        const messages = await ctx.db
+            .query('relayMessages')
+            .withIndex('by_controller_and_direction', (q) =>
+                q
+                    .eq('controllerId', controllerId)
+                    .eq('direction', 'toController')
+                    .eq('consumed', false)
+            )
+            .collect()
+        return messages.map((message) => ({
+            requestId: message.requestId,
+            payload: message.payload,
+        }))
+    },
+})
+
+export const respondAsController = mutation({
+    args: {
+        requestId: v.string(),
+        payload: v.string(),
+    },
+    returns: v.id('relayMessages'),
+    handler: async (ctx, args) => {
+        const { controllerId } = await requireControllerIdentity(ctx)
+        return await writeResponse(ctx, {
+            controllerId,
+            requestId: args.requestId,
+            payload: args.payload,
+        })
     },
 })
 
