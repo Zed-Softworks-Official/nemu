@@ -616,7 +616,7 @@ function MatterConnectingStep({
                 <ol className="space-y-4">
                     {stages.map((stage, index) => {
                         const state =
-                            index < currentIndex
+                            current === 'connected' || index < currentIndex
                                 ? 'done'
                                 : index === currentIndex
                                   ? 'active'
@@ -1063,7 +1063,9 @@ function ErrorStep({
                     <CircleAlertIcon className="size-5" />
                 </div>
                 <CardTitle>Could not add the device</CardTitle>
-                <CardDescription className="text-base">{message}</CardDescription>
+                <CardDescription className="text-base">
+                    {message}
+                </CardDescription>
             </CardHeader>
             <CardFooter className="justify-center gap-2 border-t">
                 <Button onClick={onReset} variant="ghost">
@@ -1172,10 +1174,7 @@ function isValidMatterCode(code: string): boolean {
     return digits.length === 11 || digits.length === 21
 }
 
-function matterTitle(
-    step: string | null,
-    phase: string
-): string {
+function matterTitle(step: string | null, phase: string): string {
     if (phase === 'error') return 'Pairing needs attention'
     if (phase === 'configuring' || phase === 'saving' || phase === 'success') {
         return 'Finish setting up your device'

@@ -6,9 +6,9 @@ import {
     type Device,
     type DeviceCommand,
     type DeviceEvent,
-    deviceSchema,
     type HouseholdMember,
     householdMemberSchema,
+    parseDeviceList,
     relayToClientEnvelopeSchema,
     relayToControllerEnvelopeSchema,
 } from '@nemu/protocol'
@@ -120,7 +120,7 @@ export class RelayTransport implements ControllerTransport {
             parsed.message.type === 'devices' ||
             parsed.message.type === 'snapshot'
         ) {
-            return parsed.message.devices.map((d) => deviceSchema.parse(d))
+            return parseDeviceList(parsed.message.devices)
         }
 
         throw new Error('Unexpected relay response for getDevices')
