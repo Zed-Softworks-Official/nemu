@@ -3,7 +3,6 @@ import {
     DoorOpenIcon,
     HomeIcon,
     type LucideIcon,
-    SettingsIcon,
 } from 'lucide-react'
 
 type NavigationItem = {
@@ -27,10 +26,5 @@ export const navigation: NavigationItem[] = [
         label: 'Rooms',
         icon: DoorOpenIcon,
         href: '/rooms',
-    },
-    {
-        label: 'Settings',
-        icon: SettingsIcon,
-        href: '/settings',
     },
 ]
