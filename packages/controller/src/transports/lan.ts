@@ -199,7 +199,9 @@ export class LanTransport implements ControllerTransport {
     }
 
     async forgetDevice(deviceId: string): Promise<void> {
-        await this.http.delete(`/api/devices/${encodeURIComponent(deviceId)}`)
+        await this.http.delete(`/api/devices/${encodeURIComponent(deviceId)}`, {
+            timeout: 20_000,
+        })
     }
 
     async getMembers(): Promise<HouseholdMember[]> {
@@ -329,7 +331,9 @@ export class LanTransport implements ControllerTransport {
         }
 
         const parsed = deviceEventSchema.safeParse(raw)
-        if (!parsed.success) return
+        if (!parsed.success) {
+            return
+        }
 
         const event = parsed.data
         if (event.type === 'commandResult') {

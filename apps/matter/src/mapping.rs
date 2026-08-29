@@ -647,6 +647,58 @@ pub fn outlet_id_from_set(payload: &Map<String, Value>) -> Option<u16> {
     }
 }
 
+/// Apply a set payload to cached attributes so MQTT state can update without a
+/// blocking wildcard read. Subscriptions confirm the device afterwards.
+pub fn apply_set_to_attributes(
+    attributes: &mut Attributes,
+    endpoints: &[u16],
+    actions: &[DeviceCommandAction],
+) {
+    for endpoint in endpoints {
+        for action in actions {
+            match &action.command {
+                CommandName::On => {
+                    attributes.insert(format!("{endpoint}/{CLUSTER_ON_OFF}/0"), json!(true));
+                }
+                CommandName::Off => {
+                    attributes.insert(format!("{endpoint}/{CLUSTER_ON_OFF}/0"), json!(false));
+                }
+                CommandName::Toggle => {
+                    let key = format!("{endpoint}/{CLUSTER_ON_OFF}/0");
+                    let on = attributes.get(&key).and_then(Value::as_bool).unwrap_or(false);
+                    attributes.insert(key, json!(!on));
+                }
+                CommandName::MoveToLevelWithOnOff { level } => {
+                    attributes.insert(
+                        format!("{endpoint}/{CLUSTER_LEVEL_CONTROL}/0"),
+                        json!(u64::from(*level)),
+                    );
+                    attributes.insert(
+                        format!("{endpoint}/{CLUSTER_ON_OFF}/0"),
+                        json!(*level > 0),
+                    );
+                }
+                CommandName::MoveToColorTemperature { mireds } => {
+                    attributes.insert(
+                        format!("{endpoint}/{CLUSTER_COLOR_CONTROL}/7"),
+                        json!(u64::from(*mireds)),
+                    );
+                }
+                CommandName::MoveToColor { color_x, color_y } => {
+                    attributes.insert(
+                        format!("{endpoint}/{CLUSTER_COLOR_CONTROL}/3"),
+                        json!(u64::from(*color_x)),
+                    );
+                    attributes.insert(
+                        format!("{endpoint}/{CLUSTER_COLOR_CONTROL}/4"),
+                        json!(u64::from(*color_y)),
+                    );
+                }
+            }
+        }
+    }
+}
+
 pub fn commands_for_set(payload: &Map<String, Value>) -> (Vec<DeviceCommandAction>, Vec<String>) {
     let mut actions = Vec::new();
     let mut ignored = Vec::new();
@@ -982,6 +1034,16 @@ mod tests {
         assert!(matches!(actions[0].command, CommandName::Off));
         assert!(ignored.is_empty());
         assert_eq!(outlet_id_from_set(&payload), Some(2));
+    }
+
+    #[test]
+    fn apply_set_updates_on_off() {
+        let mut attributes = Attributes::new();
+        attributes.insert("1/6/0".into(), json!(true));
+        let payload = json!({ "state": "OFF" }).as_object().unwrap().clone();
+        let (actions, _) = commands_for_set(&payload);
+        apply_set_to_attributes(&mut attributes, &[1], &actions);
+        assert_eq!(attributes.get("1/6/0"), Some(&json!(false)));
     }
 
     #[test]
