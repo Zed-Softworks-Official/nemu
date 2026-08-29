@@ -146,10 +146,7 @@ pub async fn delete_device(
         .await
     {
         if !remove_already_gone(&error) {
-            return Err(ApiError::service_unavailable(
-                "device_remove_failed",
-                error,
-            ));
+            return Err(ApiError::service_unavailable("device_remove_failed", error));
         }
     }
 
@@ -191,5 +188,22 @@ fn command_to_api(err: CommandError) -> ApiError {
 
 fn remove_already_gone(error: &str) -> bool {
     let lower = error.to_ascii_lowercase();
-    lower.contains("not found") || lower.contains("already")
+    lower.contains("not found")
+        || lower.contains("already removed")
+        || lower.contains("already gone")
+        || lower.contains("no such device")
+        || lower.contains("does not exist")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn already_gone_matches_completed_removal_only() {
+        assert!(remove_already_gone("Device not found"));
+        assert!(remove_already_gone("already removed"));
+        assert!(!remove_already_gone("removal already in progress"));
+        assert!(!remove_already_gone("the device is already joining"));
+    }
 }

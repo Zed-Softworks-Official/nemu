@@ -6,7 +6,7 @@ on:
       - "matter-v*"
 
 permissions:
-  contents: write
+  contents: read
   packages: write
 
 env:
@@ -32,6 +32,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       - name: Setup Docker Builder
         uses: useblacksmith/setup-docker-builder@v2

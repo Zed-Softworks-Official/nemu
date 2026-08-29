@@ -5,14 +5,10 @@ import {
     type CommandResult,
     type CommissionRequest,
     type CommissionResponse,
-    type MatterWifiResponse,
-    type SaveMatterWifiRequest,
     type CreateRoomRequest,
     clientWsMessageSchema,
     commissionRequestSchema,
     commissionResponseSchema,
-    matterWifiResponseSchema,
-    saveMatterWifiRequestSchema,
     createRoomRequestSchema,
     type Device,
     type DeviceCommand,
@@ -23,6 +19,8 @@ import {
     type HouseholdMember,
     householdMemberSchema,
     inviteMemberRequestSchema,
+    type MatterWifiResponse,
+    matterWifiResponseSchema,
     membersResponseSchema,
     type PatchDeviceRequest,
     type PatchRoomRequest,
@@ -34,11 +32,13 @@ import {
     type Room,
     roomSchema,
     roomsResponseSchema,
+    type SaveMatterWifiRequest,
+    saveMatterWifiRequestSchema,
     tokensResponseSchema,
 } from '@nemu/protocol'
 import type { AxiosInstance } from 'axios'
 import { createControllerHttp, type GetToken } from '../http'
-import { isMixedContentUrl } from '../mixedContent'
+import { isLoopbackHostname, isMixedContentUrl } from '../mixedContent'
 import type { ControllerTransport } from './types'
 
 function toWsUrl(baseUrl: string): string {
@@ -48,6 +48,21 @@ function toWsUrl(baseUrl: string): string {
     url.search = ''
     url.hash = ''
     return url.toString()
+}
+
+function assertSafeWifiTransport(baseUrl: string): void {
+    let parsed: URL
+    try {
+        parsed = new URL(baseUrl)
+    } catch {
+        throw new Error('Controller URL is invalid')
+    }
+    if (parsed.protocol === 'https:') return
+    if (parsed.protocol === 'http:' && isLoopbackHostname(parsed.hostname))
+        return
+    throw new Error(
+        'Wi-Fi credentials require HTTPS, or HTTP only on localhost'
+    )
 }
 
 type PendingCommand = {
@@ -131,12 +146,11 @@ export class LanTransport implements ControllerTransport {
     async commissionMatter(
         request: CommissionRequest
     ): Promise<CommissionResponse> {
+        assertSafeWifiTransport(this.baseUrl)
         const body = commissionRequestSchema.parse(request)
-        const { data } = await this.http.post(
-            '/api/matter/commission',
-            body,
-            { timeout: 20_000 }
-        )
+        const { data } = await this.http.post('/api/matter/commission', body, {
+            timeout: 20_000,
+        })
         return commissionResponseSchema.parse(data)
     }
 
@@ -157,6 +171,7 @@ export class LanTransport implements ControllerTransport {
     async saveMatterWifi(
         request: SaveMatterWifiRequest
     ): Promise<MatterWifiResponse> {
+        assertSafeWifiTransport(this.baseUrl)
         const body = saveMatterWifiRequestSchema.parse(request)
         const { data } = await this.http.put('/api/matter/wifi', body)
         return matterWifiResponseSchema.parse(data)

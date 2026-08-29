@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -13,18 +14,39 @@ struct NameFile {
 pub struct NameStore {
     path: PathBuf,
     names: HashMap<String, String>,
+    persist_enabled: bool,
 }
 
 impl NameStore {
     pub fn load(path: impl AsRef<Path>) -> Self {
         let path = path.as_ref().to_path_buf();
-        let names = match std::fs::read_to_string(&path) {
-            Ok(raw) => serde_json::from_str::<NameFile>(&raw)
-                .map(|file| file.names)
-                .unwrap_or_default(),
-            Err(_) => HashMap::new(),
+        let (names, persist_enabled) = match std::fs::read_to_string(&path) {
+            Ok(raw) => match serde_json::from_str::<NameFile>(&raw) {
+                Ok(file) => (file.names, true),
+                Err(error) => {
+                    warn!(
+                        error = %error,
+                        path = %path.display(),
+                        "malformed name store; preserving on disk"
+                    );
+                    (HashMap::new(), false)
+                }
+            },
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => (HashMap::new(), true),
+            Err(error) => {
+                warn!(
+                    error = %error,
+                    path = %path.display(),
+                    "failed to read name store; preserving on disk"
+                );
+                (HashMap::new(), false)
+            }
         };
-        Self { path, names }
+        Self {
+            path,
+            names,
+            persist_enabled,
+        }
     }
 
     pub fn get(&self, id: &str) -> Option<&str> {
@@ -42,6 +64,9 @@ impl NameStore {
     }
 
     fn persist(&self) {
+        if !self.persist_enabled {
+            return;
+        }
         if let Some(parent) = self.path.parent()
             && let Err(error) = std::fs::create_dir_all(parent)
         {
@@ -53,11 +78,29 @@ impl NameStore {
         };
         match serde_json::to_string_pretty(&body) {
             Ok(raw) => {
-                if let Err(error) = std::fs::write(&self.path, raw) {
+                if let Err(error) = persist_atomically(&self.path, &raw) {
                     warn!(error = %error, "failed to write name store");
                 }
             }
             Err(error) => warn!(error = %error, "failed to serialize name store"),
         }
     }
+}
+
+fn persist_atomically(path: &Path, raw: &str) -> std::io::Result<()> {
+    let file_name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("store.json");
+    let tmp = path.with_file_name(format!(".{file_name}.tmp"));
+    let result = (|| {
+        let mut file = std::fs::File::create(&tmp)?;
+        file.write_all(raw.as_bytes())?;
+        file.sync_all()?;
+        std::fs::rename(&tmp, path)
+    })();
+    if result.is_err() {
+        let _ = std::fs::remove_file(&tmp);
+    }
+    result
 }

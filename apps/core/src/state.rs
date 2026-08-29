@@ -41,12 +41,8 @@ impl HealthFlags {
 
     pub fn set_bridge(&self, protocol: crate::config::Protocol, online: bool) {
         match protocol {
-            crate::config::Protocol::Zigbee => {
-                self.zigbee_online.store(online, Ordering::Relaxed)
-            }
-            crate::config::Protocol::Matter => {
-                self.matter_online.store(online, Ordering::Relaxed)
-            }
+            crate::config::Protocol::Zigbee => self.zigbee_online.store(online, Ordering::Relaxed),
+            crate::config::Protocol::Matter => self.matter_online.store(online, Ordering::Relaxed),
         }
     }
 

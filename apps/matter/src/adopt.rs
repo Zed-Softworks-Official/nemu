@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -19,18 +20,39 @@ struct AdoptFile {
 pub struct AdoptStore {
     path: PathBuf,
     node_ids: HashSet<u64>,
+    persist_enabled: bool,
 }
 
 impl AdoptStore {
     pub fn load(path: impl AsRef<Path>) -> Self {
         let path = path.as_ref().to_path_buf();
-        let node_ids = match std::fs::read_to_string(&path) {
-            Ok(raw) => serde_json::from_str::<AdoptFile>(&raw)
-                .map(|file| file.node_ids.into_iter().collect())
-                .unwrap_or_default(),
-            Err(_) => HashSet::new(),
+        let (node_ids, persist_enabled) = match std::fs::read_to_string(&path) {
+            Ok(raw) => match serde_json::from_str::<AdoptFile>(&raw) {
+                Ok(file) => (file.node_ids.into_iter().collect(), true),
+                Err(error) => {
+                    warn!(
+                        error = %error,
+                        path = %path.display(),
+                        "malformed adopt store; preserving on disk"
+                    );
+                    (HashSet::new(), false)
+                }
+            },
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => (HashSet::new(), true),
+            Err(error) => {
+                warn!(
+                    error = %error,
+                    path = %path.display(),
+                    "failed to read adopt store; preserving on disk"
+                );
+                (HashSet::new(), false)
+            }
         };
-        Self { path, node_ids }
+        Self {
+            path,
+            node_ids,
+            persist_enabled,
+        }
     }
 
     pub fn ids(&self) -> impl Iterator<Item = u64> + '_ {
@@ -54,6 +76,9 @@ impl AdoptStore {
     }
 
     fn persist(&self) {
+        if !self.persist_enabled {
+            return;
+        }
         if let Some(parent) = self.path.parent()
             && let Err(error) = std::fs::create_dir_all(parent)
         {
@@ -65,13 +90,31 @@ impl AdoptStore {
         let body = AdoptFile { node_ids };
         match serde_json::to_string_pretty(&body) {
             Ok(raw) => {
-                if let Err(error) = std::fs::write(&self.path, raw) {
+                if let Err(error) = persist_atomically(&self.path, &raw) {
                     warn!(error = %error, "failed to write adopt store");
                 }
             }
             Err(error) => warn!(error = %error, "failed to serialize adopt store"),
         }
     }
+}
+
+fn persist_atomically(path: &Path, raw: &str) -> std::io::Result<()> {
+    let file_name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("store.json");
+    let tmp = path.with_file_name(format!(".{file_name}.tmp"));
+    let result = (|| {
+        let mut file = std::fs::File::create(&tmp)?;
+        file.write_all(raw.as_bytes())?;
+        file.sync_all()?;
+        std::fs::rename(&tmp, path)
+    })();
+    if result.is_err() {
+        let _ = std::fs::remove_file(&tmp);
+    }
+    result
 }
 
 pub fn next_device_node_id(known: &HashSet<u64>) -> u64 {
@@ -197,7 +240,8 @@ mod tests {
 
     #[test]
     fn empty_mdns_browse_has_no_hint() {
-        let raw = "saw 0 operational mDNS records — either no _matter._tcp response reached this host";
+        let raw =
+            "saw 0 operational mDNS records — either no _matter._tcp response reached this host";
         assert!(node_ids_from_mdns_error(raw).is_empty());
     }
 }

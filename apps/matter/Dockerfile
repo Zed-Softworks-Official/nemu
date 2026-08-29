@@ -28,7 +28,9 @@ RUN apt-get update \
         ca-certificates \
         libdbus-1-3 \
     && rm -rf /var/lib/apt/lists/* \
-    && useradd --system --create-home --uid 1000 nemu
+    && useradd --system --create-home --uid 1000 nemu \
+    && mkdir -p /data \
+    && chown nemu:nemu /data
 
 COPY --from=builder /usr/local/bin/nemu-matter /usr/local/bin/nemu-matter
 

@@ -494,6 +494,7 @@ export function useDevicePairing(): {
                                 'Put the device back in pairing mode and try again.'
                         )
                     )
+                    void stopPairingRadiosRef.current()
                     setPhase('error')
                     setExpiresAt(null)
                 }
@@ -554,6 +555,7 @@ export function useDevicePairing(): {
                         if (
                             commissionProgressRef.current?.stage === 'connected'
                         ) {
+                            void stopPairingRadios()
                             setError(
                                 new Error(
                                     'The device connected but did not appear on the controller.'
@@ -562,6 +564,7 @@ export function useDevicePairing(): {
                             setPhase('error')
                             return
                         }
+                        void stopPairingRadios()
                         setError(
                             new Error(
                                 'Pairing timed out. Put the device back in pairing mode and keep it near the controller.'
@@ -676,11 +679,12 @@ export function useDevicePairing(): {
                 await commissionMatter(request)
                 await absorbMatterJoins()
             } catch (err) {
+                void stopPairingRadios()
                 setError(toError(err))
                 setPhase('error')
             }
         },
-        [absorbMatterJoins, commissionMatter, getDevices]
+        [absorbMatterJoins, commissionMatter, getDevices, stopPairingRadios]
     )
 
     const selectDevice = useCallback(

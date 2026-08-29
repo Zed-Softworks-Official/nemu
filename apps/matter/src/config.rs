@@ -9,13 +9,13 @@ pub struct Config {
     pub data_dir: PathBuf,
     pub paa_dir: PathBuf,
     pub cd_dir: PathBuf,
+    pub allow_example_roots: bool,
 }
 
 impl Config {
     pub fn from_env() -> Self {
-        let data_dir = PathBuf::from(
-            std::env::var("MATTER_DATA_DIR").unwrap_or_else(|_| "/data".to_string()),
-        );
+        let data_dir =
+            PathBuf::from(std::env::var("MATTER_DATA_DIR").unwrap_or_else(|_| "/data".to_string()));
         Self {
             mqtt_host: std::env::var("MQTT_HOST").unwrap_or_else(|_| "127.0.0.1".to_string()),
             mqtt_port: std::env::var("MQTT_PORT")
@@ -32,6 +32,7 @@ impl Config {
             cd_dir: std::env::var("MATTER_CD_DIR")
                 .map(PathBuf::from)
                 .unwrap_or_else(|_| data_dir.join("cd-roots")),
+            allow_example_roots: env_flag("MATTER_ALLOW_EXAMPLE_ROOTS"),
             data_dir,
         }
     }
@@ -46,5 +47,15 @@ impl Config {
 
     pub fn adopted_path(&self) -> PathBuf {
         self.data_dir.join("adopted-nodes.json")
+    }
+}
+
+fn env_flag(name: &str) -> bool {
+    match std::env::var(name) {
+        Ok(value) => matches!(
+            value.to_ascii_lowercase().as_str(),
+            "1" | "true" | "yes" | "on"
+        ),
+        Err(_) => false,
     }
 }

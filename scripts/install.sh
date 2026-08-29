@@ -415,8 +415,25 @@ start_stack() {
   cd "${INSTALL_DIR}"
   docker compose pull
   ensure_matter_data_writable
-  fetch_script="$(dirname "$0")/fetch-matter-roots.sh"
-  if [ -f "${fetch_script}" ]; then
+  fetch_script="${INSTALL_DIR}/fetch-matter-roots.sh"
+  manifest="${INSTALL_DIR}/matter-roots.sha256"
+  source_dir="$(CDPATH= cd "$(dirname "$0")" && pwd)"
+  if [ ! -f "${fetch_script}" ] && [ -f "${source_dir}/fetch-matter-roots.sh" ]; then
+    cp "${source_dir}/fetch-matter-roots.sh" "${fetch_script}"
+  fi
+  if [ ! -f "${manifest}" ] && [ -f "${source_dir}/matter-roots.sha256" ]; then
+    cp "${source_dir}/matter-roots.sha256" "${manifest}"
+  fi
+  if [ ! -f "${fetch_script}" ]; then
+    curl -fsSL "${BASE_URL}/fetch-matter-roots.sh" -o "${fetch_script}" || true
+  fi
+  if [ ! -f "${manifest}" ]; then
+    curl -fsSL "${BASE_URL}/matter-roots.sha256" -o "${manifest}" || true
+  fi
+  if [ ! -f "${fetch_script}" ]; then
+    warn "Matter trust-root fetcher is missing at ${fetch_script}; certified devices may not pair."
+  else
+    chmod +x "${fetch_script}" || true
     vol="${COMPOSE_PROJECT_NAME:-$(basename "${INSTALL_DIR}")}_matter-controller-data"
     tmp="$(mktemp -d)"
     MATTER_DATA_DIR="${tmp}" bash "${fetch_script}" || warn "Could not download Matter trust roots; certified devices may not pair."
