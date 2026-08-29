@@ -11,6 +11,7 @@
         "dev": "pnpm with-env next dev --turbo --port 3000",
         "preview": "next build && next start",
         "start": "next start",
+        "check-types": "tsc --noEmit",
         "typecheck": "tsc --noEmit",
         "with-env": "dotenv -e ../../.env --"
     },

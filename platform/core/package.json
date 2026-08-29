@@ -3,6 +3,8 @@
     "private": true,
     "scripts": {
         "build:rust": "cargo build",
+        "fmt:rust": "cargo fmt",
+        "clippy": "cargo clippy --all-targets --locked -- -D clippy::correctness -D clippy::suspicious -W clippy::undocumented_unsafe_blocks",
         "dev": "bash scripts/dev.sh",
         "db:migrate": "diesel migration run",
         "db:revert": "diesel migration revert",

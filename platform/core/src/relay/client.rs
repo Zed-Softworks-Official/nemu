@@ -16,9 +16,7 @@ use crate::api::members::{
 use crate::api::pairing::{list_household_tokens, revoke_current_token, revoke_household_token};
 use crate::commands::execute_set;
 use crate::pairing::tokens::verify_client_token;
-use crate::registration::{
-    convex_cloud_url, fetch_controller_session, register_with_convex,
-};
+use crate::registration::{convex_cloud_url, fetch_controller_session, register_with_convex};
 use crate::state::AppState;
 
 /// HTTP fallback poll interval when the WebSocket client is unavailable.
@@ -180,7 +178,10 @@ async fn run_subscription_relay(
                 Ok(AuthenticationToken::User(session.token))
             })
                 as std::pin::Pin<
-                    Box<dyn std::future::Future<Output = anyhow::Result<AuthenticationToken>> + Send>,
+                    Box<
+                        dyn std::future::Future<Output = anyhow::Result<AuthenticationToken>>
+                            + Send,
+                    >,
                 >
         }) as convex::AuthTokenFetcher
     };
@@ -209,12 +210,8 @@ async fn run_subscription_relay(
             if !in_flight.insert(message.request_id.clone()) {
                 continue;
             }
-            let outcome = handle_message(
-                state,
-                &mut RespondVia::Convex(&mut mut_client),
-                &message,
-            )
-            .await;
+            let outcome =
+                handle_message(state, &mut RespondVia::Convex(&mut mut_client), &message).await;
             in_flight.remove(&message.request_id);
             if let Err(e) = outcome {
                 warn!(

@@ -100,7 +100,24 @@ def activate_dir(src: Path, dest: Path) -> None:
     if previous.exists():
         shutil.rmtree(previous)
 
+def local_roots_ok(paa: Path, cd: Path, expected: dict[str, str]) -> bool:
+    for name, digest in expected.items():
+        if name.startswith("paa/"):
+            path = paa / name.removeprefix("paa/")
+        elif name.startswith("cd/"):
+            path = cd / name.removeprefix("cd/")
+        else:
+            return False
+        if not path.is_file():
+            return False
+        if hashlib.sha256(path.read_bytes()).hexdigest() != digest:
+            return False
+    return True
+
 expected = load_manifest(manifest_path)
+if local_roots_ok(paa_dir, cd_dir, expected):
+    print(f"Matter attestation roots already present ({len(expected)} files), skipping download")
+    raise SystemExit(0)
 base = f"https://api.github.com/repos/project-chip/connectedhomeip/contents/credentials/production"
 with tempfile.TemporaryDirectory(prefix="matter-roots-") as tmp:
     work = Path(tmp)

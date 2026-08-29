@@ -19,9 +19,11 @@ services:
 
   # Native Matter controller. Host network is required for mDNS/IPv6 and BlueZ.
   # Mosquitto is published on 127.0.0.1:1883 for this host-net client.
+  # Opt-in: `pnpm infra:full` (or `docker compose --profile matter up`).
   nemu-matter:
+    profiles: [matter]
     build:
-      context: ./apps/matter
+      context: ./platform/matter
     network_mode: host
     environment:
       MQTT_HOST: 127.0.0.1

@@ -23,11 +23,11 @@ jobs:
           - runner: blacksmith-8vcpu-ubuntu-2204
             platform: linux/amd64
             arch: amd64
-            cache_key: apps/matter/Dockerfile-amd64
+            cache_key: platform/matter/Dockerfile-amd64
           - runner: blacksmith-8vcpu-ubuntu-2204-arm
             platform: linux/arm64
             arch: arm64
-            cache_key: apps/matter/Dockerfile-arm64
+            cache_key: platform/matter/Dockerfile-arm64
     runs-on: ${{ matrix.runner }}
     steps:
       - name: Checkout
@@ -50,8 +50,8 @@ jobs:
       - name: Build and push
         uses: useblacksmith/build-push-action@v2
         with:
-          context: ./apps/matter
-          file: apps/matter/Dockerfile
+          context: ./platform/matter
+          file: platform/matter/Dockerfile
           push: true
           platforms: ${{ matrix.platform }}
           tags: ${{ env.IMAGE }}:${{ github.ref_name }}-${{ matrix.arch }}

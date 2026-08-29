@@ -36,6 +36,14 @@
         "check-types": {
             "dependsOn": ["^check-types"]
         },
+        "fmt:rust": {
+            "inputs": ["$TURBO_DEFAULT$"],
+            "outputs": []
+        },
+        "clippy": {
+            "inputs": ["$TURBO_DEFAULT$"],
+            "outputs": []
+        },
         "dev": {
             "cache": false,
             "persistent": true

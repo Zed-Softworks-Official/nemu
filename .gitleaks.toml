@@ -1,0 +1,11 @@
+title = "nemu"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Public consumer installer registration secret (intentional shared default)"
+regexTarget = "match"
+regexes = [
+    '''43a1d23942fd0757c14aff37da23c95525aaf48ec51deb6935c4ce79b8c56ac6''',
+]

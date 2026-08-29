@@ -1,0 +1,6 @@
+# Debian slim images pick up security updates; pinning apt versions fights that.
+# HEALTHCHECK CMD uses shell form for `|| exit 1`.
+ignored:
+    - DL3008
+    - DL3025
+    - DL3066
