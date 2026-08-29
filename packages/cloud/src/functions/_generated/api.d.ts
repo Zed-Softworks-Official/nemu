@@ -9,6 +9,7 @@
  */
 
 import type * as acmeActions from "../acmeActions.js";
+import type * as controllerJwtActions from "../controllerJwtActions.js";
 import type * as controllers from "../controllers.js";
 import type * as crons from "../crons.js";
 import type * as http from "../http.js";
@@ -25,6 +26,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   acmeActions: typeof acmeActions;
+  controllerJwtActions: typeof controllerJwtActions;
   controllers: typeof controllers;
   crons: typeof crons;
   http: typeof http;

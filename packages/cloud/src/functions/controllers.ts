@@ -335,14 +335,92 @@ export const registerHttp = httpAction(async (ctx, req) => {
         )
     }
 
+    let session: { token: string; expiresAt: number } | undefined
+    try {
+        session = await ctx.runAction(
+            internal.controllerJwtActions.mintControllerSession,
+            { controllerId: body.controllerId }
+        )
+    } catch (error) {
+        console.error('Failed to mint controller session on register', error)
+    }
+
     return new Response(
-        JSON.stringify({ ok: true, lanHostname: result.lanHostname }),
+        JSON.stringify({
+            ok: true,
+            lanHostname: result.lanHostname,
+            ...(session
+                ? { token: session.token, expiresAt: session.expiresAt }
+                : {}),
+        }),
         {
             status: 200,
             headers: { 'Content-Type': 'application/json' },
         }
     )
 })
+
+export const sessionHttp = httpAction(async (ctx, req) => {
+    let body: {
+        controllerId?: string
+        registrationSecret?: string
+    }
+    try {
+        body = await req.json()
+    } catch {
+        return new Response(JSON.stringify({ error: 'Invalid JSON' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+        })
+    }
+
+    const expected = process.env.CONTROLLER_REGISTRATION_SECRET
+    if (expected && body.registrationSecret !== expected) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+            status: 401,
+            headers: { 'Content-Type': 'application/json' },
+        })
+    }
+
+    if (!body.controllerId) {
+        return new Response(
+            JSON.stringify({ error: 'controllerId is required' }),
+            {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' },
+            }
+        )
+    }
+
+    const exists = await ctx.runQuery(internal.relay.controllerExists, {
+        controllerId: body.controllerId,
+    })
+    if (!exists) {
+        return new Response(JSON.stringify({ error: 'Controller not found' }), {
+            status: 404,
+            headers: { 'Content-Type': 'application/json' },
+        })
+    }
+
+    try {
+        const session = await ctx.runAction(
+            internal.controllerJwtActions.mintControllerSession,
+            { controllerId: body.controllerId }
+        )
+        return new Response(JSON.stringify(session), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+        })
+    } catch (error) {
+        const message =
+            error instanceof Error ? error.message : 'Failed to mint session'
+        return new Response(JSON.stringify({ error: message }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' },
+        })
+    }
+})
+
 
 export const getTlsHttp = httpAction(async (ctx, req) => {
     let body: {

@@ -169,9 +169,10 @@ Rules:
 - `relay.send(controllerId, payload)` — authed mutation; checks the caller has
   a `pairings` row for `controllerId`; inserts a `relayMessages` row
   `{controllerId, direction: "toController", payload, expiresAt}`.
-- Controller subscription — the controller long-polls/subscribes via an authed
-  HTTP action for unconsumed `toController` messages, marks them consumed, and
-  inserts `toClient` responses.
+- Controller subscription — core uses the Convex Rust client + controller JWT
+  to subscribe to `relay.pendingForMe` (push on mailbox write). HTTP
+  `POST /relay/pending` remains as a slow fallback. Responses go through
+  `relay.respondAsController` (or HTTP `/relay/respond`).
 - `relay.responses(requestIds)` — reactive query the webview subscribes to.
 - **Cleanup cron** — a scheduled Convex function deletes consumed rows
   immediately and any row past `expiresAt` (minutes). This job is part of the

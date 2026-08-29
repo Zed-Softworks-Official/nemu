@@ -36,7 +36,7 @@ curl -fsSL https://get.nemu.sh | sudo sh -s -- \
 
 | Variable / flag                                            | Purpose                                                            |
 | ---------------------------------------------------------- | ------------------------------------------------------------------ |
-| `NEMU_CONVEX_SITE_URL` / `--convex-url`                    | Convex HTTP site URL for registration + relay                      |
+| `NEMU_CONVEX_SITE_URL` / `--convex-url`                    | Convex HTTP site URL for registration + TLS; relay derives `.convex.cloud` |
 | `CONVEX_URL`                                               | Alias for the Convex deployment URL (`.cloud` → `.site`)           |
 | `NEMU_CONTROLLER_NAME` / `--controller-name`               | Display name (default `Home`)                                      |
 | `CONTROLLER_REGISTRATION_SECRET` / `--registration-secret` | Optional shared secret with cloud                                  |

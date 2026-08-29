@@ -85,9 +85,10 @@ Preference order and behavior:
    so the browser can use a publicly trusted name. Off-LAN that IP is
    unroutable and the dashboard falls back to Convex relay.
 2. **Relay.** The webview writes a command message into the controller's Convex
-   mailbox; nemu-core (which keeps an outbound subscription open) executes it
-   and writes the response back. Live state in relay mode is coarser
-   (request/response + periodic snapshots) — acceptable for remote use.
+   mailbox; nemu-core keeps an outbound Convex **WebSocket subscription** open
+   (with HTTP poll only as fallback), executes locally, and writes the response
+   back. Live state in relay mode is coarser (request/response + periodic
+   snapshots) — acceptable for remote use.
 3. **Switchover.** The client reprobes the LAN in the background while in relay
    mode and upgrades as soon as the controller answers. The UI shows
    `Connected — Home` or `Connected — Remote`.

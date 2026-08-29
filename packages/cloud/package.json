@@ -36,6 +36,7 @@
         "acme-client": "^5.4.0",
         "convex": "catalog:",
         "convex-helpers": "^0.1.104",
+        "jose": "^6.2.3",
         "zod": "catalog:"
     }
 }

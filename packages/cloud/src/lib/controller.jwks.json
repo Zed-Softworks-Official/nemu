@@ -1,0 +1,13 @@
+{
+    "keys": [
+        {
+            "kty": "EC",
+            "x": "L0q0QxuIcvDs0Qy_Zc7UHwI947aL2YMkVfgnV3cCkh8",
+            "y": "h2ut5Qkv2kn2xwr_oYv-tJvzoz583A6zGzLyj8GEz5Q",
+            "crv": "P-256",
+            "kid": "nemu-controller-e4f53d21",
+            "use": "sig",
+            "alg": "ES256"
+        }
+    ]
+}
