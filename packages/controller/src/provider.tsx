@@ -385,6 +385,15 @@ export function useDevicePairing(): {
     discoveredDevicesRef.current = discoveredDevices
     const commissionProgressRef = useRef(commissionProgress)
     commissionProgressRef.current = commissionProgress
+    const pairingAttemptRef = useRef(0)
+
+    const beginPairingAttempt = () => {
+        pairingAttemptRef.current += 1
+        return pairingAttemptRef.current
+    }
+
+    const isCurrentPairingAttempt = (attempt: number) =>
+        pairingAttemptRef.current === attempt
 
     const stopPairingRadios = useCallback(async () => {
         try {
@@ -452,7 +461,9 @@ export function useDevicePairing(): {
     useEffect(() => {
         if (phase !== 'discovering') return
 
+        const attempt = pairingAttemptRef.current
         return connection.subscribeEvents((event: DeviceEvent) => {
+            if (!isCurrentPairingAttempt(attempt)) return
             if (event.type === 'commissionProgress') {
                 const progress = {
                     stage: event.stage,
@@ -547,8 +558,10 @@ export function useDevicePairing(): {
             if (remaining === 0 && discoveredDevices.length === 0) {
                 setExpiresAt(null)
                 if (protocol === 'matter') {
+                    const attempt = pairingAttemptRef.current
                     void (async () => {
                         const joined = await absorbMatterJoins()
+                        if (!isCurrentPairingAttempt(attempt)) return
                         if (joined.length > 0) return
                         if (phaseRef.current !== 'discovering') return
                         if (discoveredDevicesRef.current.length > 0) return
@@ -593,6 +606,7 @@ export function useDevicePairing(): {
     ])
 
     const reset = useCallback(() => {
+        beginPairingAttempt()
         void stopPairingRadios()
         setProtocol('zigbee')
         setPairingKind('unset')
@@ -650,12 +664,15 @@ export function useDevicePairing(): {
 
     const startMatterCommission = useCallback(
         async (request: CommissionRequest) => {
+            const attempt = beginPairingAttempt()
             try {
                 const existing = await getDevices()
+                if (!isCurrentPairingAttempt(attempt)) return
                 knownDeviceIds.current = new Set(
                     existing.map((device) => device.id)
                 )
             } catch {
+                if (!isCurrentPairingAttempt(attempt)) return
                 knownDeviceIds.current = new Set()
             }
 
@@ -677,8 +694,10 @@ export function useDevicePairing(): {
 
             try {
                 await commissionMatter(request)
+                if (!isCurrentPairingAttempt(attempt)) return
                 await absorbMatterJoins()
             } catch (err) {
+                if (!isCurrentPairingAttempt(attempt)) return
                 void stopPairingRadios()
                 setError(toError(err))
                 setPhase('error')

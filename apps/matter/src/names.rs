@@ -1,9 +1,10 @@
 use std::collections::{HashMap, HashSet};
-use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 use tracing::warn;
+
+use crate::store::{load_persisted, persist_atomically};
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 struct NameFile {
@@ -20,31 +21,10 @@ pub struct NameStore {
 impl NameStore {
     pub fn load(path: impl AsRef<Path>) -> Self {
         let path = path.as_ref().to_path_buf();
-        let (names, persist_enabled) = match std::fs::read_to_string(&path) {
-            Ok(raw) => match serde_json::from_str::<NameFile>(&raw) {
-                Ok(file) => (file.names, true),
-                Err(error) => {
-                    warn!(
-                        error = %error,
-                        path = %path.display(),
-                        "malformed name store; preserving on disk"
-                    );
-                    (HashMap::new(), false)
-                }
-            },
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => (HashMap::new(), true),
-            Err(error) => {
-                warn!(
-                    error = %error,
-                    path = %path.display(),
-                    "failed to read name store; preserving on disk"
-                );
-                (HashMap::new(), false)
-            }
-        };
+        let (file, persist_enabled) = load_persisted::<NameFile>(&path, "name store");
         Self {
             path,
-            names,
+            names: file.names,
             persist_enabled,
         }
     }
@@ -85,22 +65,4 @@ impl NameStore {
             Err(error) => warn!(error = %error, "failed to serialize name store"),
         }
     }
-}
-
-fn persist_atomically(path: &Path, raw: &str) -> std::io::Result<()> {
-    let file_name = path
-        .file_name()
-        .and_then(|name| name.to_str())
-        .unwrap_or("store.json");
-    let tmp = path.with_file_name(format!(".{file_name}.tmp"));
-    let result = (|| {
-        let mut file = std::fs::File::create(&tmp)?;
-        file.write_all(raw.as_bytes())?;
-        file.sync_all()?;
-        std::fs::rename(&tmp, path)
-    })();
-    if result.is_err() {
-        let _ = std::fs::remove_file(&tmp);
-    }
-    result
 }

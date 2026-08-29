@@ -6,3 +6,4 @@ pub mod mqtt;
 pub mod names;
 pub mod pairing;
 pub mod service;
+mod store;
