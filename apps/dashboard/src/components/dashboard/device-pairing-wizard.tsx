@@ -37,7 +37,7 @@ import {
     WifiIcon,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { presentDevice } from '~/lib/device-presentation'
 import { DeviceIcon } from './device-icon'
 import { PageHeader } from './page-header'
@@ -556,6 +556,12 @@ function MatterWifiStep({
                                 placeholder="Network name"
                                 value={wifiName}
                             />
+                            <label
+                                className="font-medium text-sm"
+                                htmlFor="matter-wifi-password"
+                            >
+                                Password
+                            </label>
                             <Input
                                 autoComplete="off"
                                 id="matter-wifi-password"
@@ -714,6 +720,7 @@ function MatterQrScanButton({ onCode }: { onCode: (code: string) => void }) {
     const [cameraSupported, setCameraSupported] = useState(false)
     const videoRef = useRef<HTMLVideoElement | null>(null)
     const streamRef = useRef<MediaStream | null>(null)
+    const startingScanRef = useRef(false)
     const fileInputRef = useRef<HTMLInputElement | null>(null)
 
     useEffect(() => {
@@ -736,8 +743,13 @@ function MatterQrScanButton({ onCode }: { onCode: (code: string) => void }) {
     useEffect(() => stopScan, [stopScan])
 
     async function startCameraScan() {
+        if (startingScanRef.current || scanning || streamRef.current) return
+        startingScanRef.current = true
         const Detector = getBarcodeDetector()
-        if (!Detector) return
+        if (!Detector) {
+            startingScanRef.current = false
+            return
+        }
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: { facingMode: 'environment' },
@@ -775,6 +787,8 @@ function MatterQrScanButton({ onCode }: { onCode: (code: string) => void }) {
         } catch {
             stopScan()
             fileInputRef.current?.click()
+        } finally {
+            startingScanRef.current = false
         }
     }
 
@@ -852,7 +866,9 @@ function MatterQrScanButton({ onCode }: { onCode: (code: string) => void }) {
 function useCallbackStable(fn: () => void) {
     const ref = useRef(fn)
     ref.current = fn
-    return () => ref.current()
+    return useCallback(() => {
+        ref.current()
+    }, [])
 }
 
 function ZigbeeDiscoverStep({

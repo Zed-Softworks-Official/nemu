@@ -90,7 +90,12 @@ pub fn attr_key(endpoint: u16, cluster: u16, attribute: u32) -> String {
     format!("{endpoint}/{cluster}/{attribute}")
 }
 
-pub fn attr<'a>(attributes: &'a Attributes, endpoint: u16, cluster: u16, attribute: u32) -> Option<&'a Value> {
+pub fn attr<'a>(
+    attributes: &'a Attributes,
+    endpoint: u16,
+    cluster: u16,
+    attribute: u32,
+) -> Option<&'a Value> {
     attributes.get(&attr_key(endpoint, cluster, attribute))
 }
 
@@ -632,6 +637,7 @@ pub fn is_state_attribute_path(path: &str) -> bool {
             | CLUSTER_COLOR_CONTROL
             | CLUSTER_ELECTRICAL_POWER
             | CLUSTER_ELECTRICAL_ENERGY
+            | CLUSTER_DESCRIPTOR
     )
 }
 
@@ -665,7 +671,10 @@ pub fn apply_set_to_attributes(
                 }
                 CommandName::Toggle => {
                     let key = format!("{endpoint}/{CLUSTER_ON_OFF}/0");
-                    let on = attributes.get(&key).and_then(Value::as_bool).unwrap_or(false);
+                    let on = attributes
+                        .get(&key)
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false);
                     attributes.insert(key, json!(!on));
                 }
                 CommandName::MoveToLevelWithOnOff { level } => {
@@ -673,10 +682,7 @@ pub fn apply_set_to_attributes(
                         format!("{endpoint}/{CLUSTER_LEVEL_CONTROL}/0"),
                         json!(u64::from(*level)),
                     );
-                    attributes.insert(
-                        format!("{endpoint}/{CLUSTER_ON_OFF}/0"),
-                        json!(*level > 0),
-                    );
+                    attributes.insert(format!("{endpoint}/{CLUSTER_ON_OFF}/0"), json!(*level > 0));
                 }
                 CommandName::MoveToColorTemperature { mireds } => {
                     attributes.insert(
@@ -703,23 +709,30 @@ pub fn commands_for_set(payload: &Map<String, Value>) -> (Vec<DeviceCommandActio
     let mut actions = Vec::new();
     let mut ignored = Vec::new();
     let mut state_handled = false;
+    let requested_off = payload.get("state").is_some_and(|raw| match raw {
+        Value::String(text) => text.trim().eq_ignore_ascii_case("off"),
+        Value::Bool(false) => true,
+        _ => false,
+    });
 
     if let Some(brightness) = payload.get("brightness") {
         if let Some(level) = as_number(brightness) {
-            actions.push(DeviceCommandAction {
-                cluster_id: CLUSTER_LEVEL_CONTROL,
-                command: CommandName::MoveToLevelWithOnOff {
-                    level: level.round().clamp(0.0, 254.0) as u8,
-                },
-            });
-            state_handled = true;
+            if !requested_off {
+                actions.push(DeviceCommandAction {
+                    cluster_id: CLUSTER_LEVEL_CONTROL,
+                    command: CommandName::MoveToLevelWithOnOff {
+                        level: level.round().clamp(0.0, 254.0) as u8,
+                    },
+                });
+                state_handled = true;
+            }
         } else {
             ignored.push("brightness".into());
         }
     }
 
     if let Some(raw) = payload.get("state")
-        && !state_handled
+        && (!state_handled || requested_off)
     {
         let normalized = match raw {
             Value::String(text) => text.trim().to_ascii_uppercase(),
@@ -791,7 +804,10 @@ fn color_to_xy(value: &Value) -> Option<(f64, f64)> {
     ) {
         return Some((clamp01(x), clamp01(y)));
     }
-    record.get("hex").and_then(Value::as_str).and_then(hex_to_xy)
+    record
+        .get("hex")
+        .and_then(Value::as_str)
+        .and_then(hex_to_xy)
 }
 
 pub fn hex_to_xy(hex: &str) -> Option<(f64, f64)> {
@@ -840,10 +856,7 @@ mod tests {
 
     fn strip_attrs() -> Attributes {
         attrs(&[
-            (
-                "0/29/0",
-                device_types(&[DEVICE_TYPE_ROOT_NODE]),
-            ),
+            ("0/29/0", device_types(&[DEVICE_TYPE_ROOT_NODE])),
             ("0/40/1", json!("Acme")),
             ("0/40/3", json!("Power Strip S3")),
             ("0/40/5", json!("Kitchen strip")),
@@ -1025,6 +1038,18 @@ mod tests {
     }
 
     #[test]
+    fn off_with_brightness_still_turns_off() {
+        let payload = json!({ "state": "OFF", "brightness": 128 })
+            .as_object()
+            .unwrap()
+            .clone();
+        let (actions, ignored) = commands_for_set(&payload);
+        assert_eq!(actions.len(), 1);
+        assert!(matches!(actions[0].command, CommandName::Off));
+        assert!(ignored.is_empty());
+    }
+
+    #[test]
     fn outlet_is_not_ignored() {
         let payload = json!({ "outlet": "2", "state": "OFF" })
             .as_object()
@@ -1062,6 +1087,7 @@ mod tests {
     fn state_paths() {
         assert!(is_state_attribute_path("2/6/0"));
         assert!(is_state_attribute_path("1/144/8"));
+        assert!(is_state_attribute_path("1/29/0"));
         assert!(!is_state_attribute_path("0/40/5"));
         assert!(!is_state_attribute_path("0/51/0"));
     }

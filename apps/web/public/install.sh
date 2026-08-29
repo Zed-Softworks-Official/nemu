@@ -251,6 +251,33 @@ download_file() {
   curl -fsSL "${BASE_URL}/${src}" -o "${dest}"
 }
 
+# Matter runs on by default (nemu-matter, host network).
+# Wi-Fi Matter needs working IPv6 (link-local at minimum) and BLE commissioning
+# needs bluetoothd on the host D-Bus. Neither failure should block the install;
+# Zigbee and Wi-Fi-onboarded Matter devices keep working.
+check_matter_prereqs() {
+  if [ "$(cat /proc/sys/net/ipv6/conf/all/disable_ipv6 2>/dev/null || echo 0)" = "1" ]; then
+    warn "IPv6 is disabled on this host. Matter requires IPv6 (link-local is enough)."
+    warn "Enable it with: sysctl -w net.ipv6.conf.all.disable_ipv6=0 (and persist in /etc/sysctl.d)"
+  fi
+  if command -v systemctl >/dev/null 2>&1; then
+    if ! systemctl is-active --quiet bluetooth 2>/dev/null; then
+      warn "bluetoothd is not running. BLE commissioning of new Matter devices will fail."
+      warn "Install/enable it with: apt-get install -y bluez && systemctl enable --now bluetooth"
+    fi
+  fi
+}
+
+# Default-route NIC so Matter mDNS stays on the LAN, not a docker bridge.
+detect_primary_interface() {
+  if [ -n "${PRIMARY_INTERFACE:-}" ]; then
+    printf '%s\n' "${PRIMARY_INTERFACE}"
+    return
+  fi
+  ip -4 route show default 2>/dev/null \
+    | awk '{ for (i = 1; i <= NF; i++) if ($i == "dev") { print $(i + 1); exit } }'
+}
+
 ensure_z2m_availability() {
   file="$1"
   if [ ! -f "${file}" ]; then
@@ -297,6 +324,10 @@ write_env_overrides() {
   fi
   if [ -n "${TZ:-}" ]; then
     upsert_env "TZ" "${TZ}" "${ENV_FILE}"
+  fi
+  primary_iface="$(detect_primary_interface)"
+  if [ -n "${primary_iface}" ]; then
+    upsert_env "PRIMARY_INTERFACE" "${primary_iface}" "${ENV_FILE}"
   fi
   ensure_watchtower_token
 }
@@ -356,6 +387,7 @@ NEMU_TLS_SAN=${tls_san}
 WATCHTOWER_POLL_INTERVAL=${WATCHTOWER_POLL_INTERVAL:-3600}
 WATCHTOWER_HTTP_API_TOKEN=${watchtower_token}
 TZ=${TZ:-UTC}
+PRIMARY_INTERFACE=$(detect_primary_interface)
 EOF
     chmod 600 "${ENV_FILE}"
     log "Wrote ${ENV_FILE}"
@@ -369,10 +401,48 @@ EOF
   fi
 }
 
+# nemu-matter runs as uid 1000. Compose named volumes are often created as
+# root, which makes the fabric store unwritable.
+ensure_matter_data_writable() {
+  project="${COMPOSE_PROJECT_NAME:-$(basename "${INSTALL_DIR}")}"
+  vol="${project}_matter-controller-data"
+  docker volume create "${vol}" >/dev/null
+  docker run --rm -v "${vol}:/data" alpine:3.20 chown -R 1000:1000 /data
+}
+
 start_stack() {
   log "Pulling images and starting stack"
   cd "${INSTALL_DIR}"
   docker compose pull
+  ensure_matter_data_writable
+  fetch_script="${INSTALL_DIR}/fetch-matter-roots.sh"
+  manifest="${INSTALL_DIR}/matter-roots.sha256"
+  source_dir="$(CDPATH= cd "$(dirname "$0")" && pwd)"
+  if [ ! -f "${fetch_script}" ] && [ -f "${source_dir}/fetch-matter-roots.sh" ]; then
+    cp "${source_dir}/fetch-matter-roots.sh" "${fetch_script}"
+  fi
+  if [ ! -f "${manifest}" ] && [ -f "${source_dir}/matter-roots.sha256" ]; then
+    cp "${source_dir}/matter-roots.sha256" "${manifest}"
+  fi
+  if [ ! -f "${fetch_script}" ]; then
+    curl -fsSL "${BASE_URL}/fetch-matter-roots.sh" -o "${fetch_script}" || true
+  fi
+  if [ ! -f "${manifest}" ]; then
+    curl -fsSL "${BASE_URL}/matter-roots.sha256" -o "${manifest}" || true
+  fi
+  if [ ! -f "${fetch_script}" ]; then
+    warn "Matter trust-root fetcher is missing at ${fetch_script}; certified devices may not pair."
+  else
+    chmod +x "${fetch_script}" || true
+    vol="${COMPOSE_PROJECT_NAME:-$(basename "${INSTALL_DIR}")}_matter-controller-data"
+    tmp="$(mktemp -d)"
+    MATTER_DATA_DIR="${tmp}" bash "${fetch_script}" || warn "Could not download Matter trust roots; certified devices may not pair."
+    if [ -d "${tmp}/paa-roots" ]; then
+      docker run --rm -v "${vol}:/data" -v "${tmp}:/src:ro" alpine:3.20 \
+        sh -c 'mkdir -p /data/paa-roots /data/cd-roots && cp -a /src/paa-roots/. /data/paa-roots/ && cp -a /src/cd-roots/. /data/cd-roots/ && chown -R 1000:1000 /data'
+    fi
+    rm -rf "${tmp}"
+  fi
   docker compose up -d
 }
 
@@ -430,6 +500,7 @@ main() {
   require_root
   need_cmd curl
   install_docker
+  check_matter_prereqs
   write_files
   start_stack
   wait_for_health || true

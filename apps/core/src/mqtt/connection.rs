@@ -433,6 +433,7 @@ async fn handle_publish(
                 .list()
                 .await
                 .into_iter()
+                .filter(|device| device_protocol(device) == protocol)
                 .filter(|device| state.state_cache.get_state(device.id).is_none())
                 .map(|device| {
                     (

@@ -92,7 +92,9 @@ Notes:
   `ieee_address` for Zigbee, the matterjs-server node id (`nodeId`) for Matter
   strips and single-endpoint nodes, or `nodeId:endpoint` when a multi-endpoint
   node is still split (for example two lights on one node).
-  `friendly_name` is bidirectionally synced (renames flow nemu → bridge).
+  `friendly_name` is bidirectionally synced for Zigbee only (renames flow
+  nemu → zigbee2mqtt). Matter names remain controller-owned and are not
+  synchronized.
 - `device_events` is append-only with a retention job (default 30 days);
   it backs the history UI and optional voice transcript log.
 - Live device state (brightness, temperature, contact…) is **not** a table —

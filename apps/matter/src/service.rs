@@ -4,21 +4,20 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use matter_controller::{
-    AttributePath, AttestationTrust, CommandPath, FabricConfig, FileStore, MatterController,
+    AttestationTrust, AttributePath, CommandPath, FabricConfig, FileStore, MatterController,
     MatterTime, NetworkCredentials, ReadPath, SubscriptionEvent, Value, WiFiCredentials,
 };
 use serde_json::{Map, Value as JsonValue, json};
 use tracing::{info, warn};
 
-use crate::adopt::{
-    AdoptStore, ble_recover_node_ids, node_ids_from_mdns_error, unique_front,
-};
+use crate::adopt::{AdoptStore, ble_recover_node_ids, node_ids_from_mdns_error, unique_front};
 use crate::codec::{empty_structure, unsigned_fields, value_to_json};
 use crate::config::Config;
 use crate::mapping::{
-    Attributes, CommandName, EndpointDevice, apply_set_to_attributes, collapsed_legacy_ids,
-    commands_for_set, device_covers_endpoint, device_descriptor, is_state_attribute_path,
-    map_node_with_fallback, outlet_id_from_set, placeholder_device, state_for_device,
+    Attributes, CLUSTER_DESCRIPTOR, CommandName, EndpointDevice, apply_set_to_attributes,
+    collapsed_legacy_ids, commands_for_set, device_covers_endpoint, device_descriptor,
+    is_state_attribute_path, map_node_with_fallback, outlet_id_from_set, placeholder_device,
+    state_for_device,
 };
 use crate::mqtt::{IncomingMessage, MqttBus, transaction_of};
 use crate::names::NameStore;
@@ -49,6 +48,7 @@ pub struct MatterService {
     index: HashMap<String, Indexed>,
     attributes: HashMap<u64, Attributes>,
     subscribed: HashSet<u64>,
+    published_leaves: HashSet<String>,
     commissioning: bool,
     got_node: bool,
     boot_recover_ids: Vec<u64>,
@@ -64,16 +64,26 @@ impl MatterService {
         let paa_count = count_der_files(&config.paa_dir);
         let cd_count = count_der_files(&config.cd_dir);
         let trust = if paa_count > 0 && cd_count > 0 {
-            info!(paa = paa_count, cd = cd_count, "loaded Matter attestation roots");
+            info!(
+                paa = paa_count,
+                cd = cd_count,
+                "loaded Matter attestation roots"
+            );
             AttestationTrust::from_dirs(&config.paa_dir, &config.cd_dir)
                 .map_err(|error| format!("load attestation roots: {error}"))?
-        } else {
+        } else if config.allow_example_roots {
             warn!(
-                "PAA/CD roots missing at {} / {}; certified devices will not attest. Run scripts/fetch-matter-roots.sh.",
+                "PAA/CD roots missing at {} / {}; using AttestationTrust::example_device_roots() because MATTER_ALLOW_EXAMPLE_ROOTS is set. Certified production devices will not attest.",
                 config.paa_dir.display(),
                 config.cd_dir.display()
             );
             AttestationTrust::example_device_roots()
+        } else {
+            return Err(format!(
+                "PAA/CD roots missing at {} / {}; certified devices cannot attest. Run scripts/fetch-matter-roots.sh or set MATTER_ALLOW_EXAMPLE_ROOTS=1 for development.",
+                config.paa_dir.display(),
+                config.cd_dir.display()
+            ));
         };
 
         let store = Arc::new(FileStore::new(config.store_path()));
@@ -119,6 +129,7 @@ impl MatterService {
             index: HashMap::new(),
             attributes: HashMap::new(),
             subscribed: HashSet::new(),
+            published_leaves: HashSet::new(),
             commissioning: false,
             got_node: false,
             boot_recover_ids: Vec::new(),
@@ -127,11 +138,9 @@ impl MatterService {
         };
         service.mqtt.set_online(true).await;
         let refresh = service.refresh_all_nodes().await;
-        let mut drop = refresh.stale;
-        if service.index.is_empty() {
-            drop.extend(refresh.failed);
-        }
-        service.drop_unreachable_nodes(&unique_front(drop)).await;
+        service
+            .drop_unreachable_nodes(&unique_front(refresh.stale))
+            .await;
         if service.index.is_empty() && !refresh.hints.is_empty() {
             service.boot_recover_ids = unique_front(refresh.hints);
         }
@@ -139,7 +148,10 @@ impl MatterService {
         Ok(service)
     }
 
-    pub async fn run(mut self, mut incoming: tokio::sync::mpsc::UnboundedReceiver<IncomingMessage>) {
+    pub async fn run(
+        mut self,
+        mut incoming: tokio::sync::mpsc::UnboundedReceiver<IncomingMessage>,
+    ) {
         let (attr_tx, mut attr_rx) = tokio::sync::mpsc::unbounded_channel();
         let (done_tx, mut done_rx) = tokio::sync::mpsc::unbounded_channel();
         self.subscribe_nodes(attr_tx.clone());
@@ -164,6 +176,9 @@ impl MatterService {
                             device_id,
                             payload,
                         } => self.handle_set(&device_id, payload).await,
+                        IncomingMessage::SubscribeEnded { node_id } => {
+                            self.subscribed.remove(&node_id);
+                        }
                         IncomingMessage::AttributeChange { .. } => {
                             self.apply_attribute_change(message).await;
                         }
@@ -174,7 +189,12 @@ impl MatterService {
                     self.subscribe_nodes(attr_tx.clone());
                 }
                 Some(update) = attr_rx.recv() => {
-                    self.apply_attribute_change(update).await;
+                    match update {
+                        IncomingMessage::SubscribeEnded { node_id } => {
+                            self.subscribed.remove(&node_id);
+                        }
+                        other => self.apply_attribute_change(other).await,
+                    }
                 }
             }
         }
@@ -265,7 +285,10 @@ impl MatterService {
         let controller = self.controller.clone();
         let mqtt = self.mqtt.clone();
         let cancel = self.boot_cancel.clone();
-        info!(?node_ids, "looking for an already-paired device on the network");
+        info!(
+            ?node_ids,
+            "looking for an already-paired device on the network"
+        );
         tokio::spawn(async move {
             if let Ok(joined) =
                 recover_operational_session(&controller, &mqtt, &cancel, &node_ids, false).await
@@ -385,11 +408,8 @@ impl MatterService {
             .map(|entry| entry.node_id)
             .or_else(|| id.parse().ok());
         if let Some(node_id) = node_id {
-            match tokio::time::timeout(
-                FORGET_NODE_TIMEOUT,
-                self.controller.forget_node(node_id),
-            )
-            .await
+            match tokio::time::timeout(FORGET_NODE_TIMEOUT, self.controller.forget_node(node_id))
+                .await
             {
                 Ok(Ok(_)) => {}
                 Ok(Err(error)) => {
@@ -454,18 +474,12 @@ impl MatterService {
                         CommandName::On | CommandName::Off | CommandName::Toggle => {
                             empty_structure()
                         }
-                        CommandName::MoveToLevelWithOnOff { level } => unsigned_fields(&[
-                            (0, u64::from(*level)),
-                            (1, 0),
-                            (2, 0),
-                            (3, 0),
-                        ]),
-                        CommandName::MoveToColorTemperature { mireds } => unsigned_fields(&[
-                            (0, u64::from(*mireds)),
-                            (1, 0),
-                            (2, 0),
-                            (3, 0),
-                        ]),
+                        CommandName::MoveToLevelWithOnOff { level } => {
+                            unsigned_fields(&[(0, u64::from(*level)), (1, 0), (2, 0), (3, 0)])
+                        }
+                        CommandName::MoveToColorTemperature { mireds } => {
+                            unsigned_fields(&[(0, u64::from(*mireds)), (1, 0), (2, 0), (3, 0)])
+                        }
                         CommandName::MoveToColor { color_x, color_y } => unsigned_fields(&[
                             (0, u64::from(*color_x)),
                             (1, u64::from(*color_y)),
@@ -536,12 +550,11 @@ impl MatterService {
             }
             self.adopted.remove(node_id);
         }
+        if self.index.is_empty() {
+            return;
+        }
         let live: HashSet<u64> = self.index.values().map(|entry| entry.node_id).collect();
-        let leftover: Vec<u64> = self
-            .adopted
-            .ids()
-            .filter(|id| !live.contains(id))
-            .collect();
+        let leftover: Vec<u64> = self.adopted.ids().filter(|id| !live.contains(id)).collect();
         for node_id in leftover {
             info!(node_id, "dropping adopted id with no live device");
             self.adopted.remove(node_id);
@@ -579,7 +592,8 @@ impl MatterService {
         let node = self.controller.node(node_id);
         match tokio::time::timeout(REFRESH_READ_TIMEOUT, node.read(&[ReadPath::all()])).await {
             Ok(Ok(report)) => {
-                self.attributes.insert(node_id, attributes_from_report(report));
+                self.attributes
+                    .insert(node_id, attributes_from_report(report));
                 self.rebuild_index_for_node(node_id);
                 Ok(())
             }
@@ -598,20 +612,14 @@ impl MatterService {
         self.index.retain(|_, entry| entry.node_id != node_id);
         for device in devices {
             let id = device.id.clone();
-            self.index.insert(
-                id,
-                Indexed {
-                    device,
-                    node_id,
-                },
-            );
+            self.index.insert(id, Indexed { device, node_id });
         }
         for leftover in collapsed_legacy_ids(&key, &attributes) {
-            if !self.index.contains_key(&leftover) {
+            if self.published_leaves.insert(leftover.clone()) {
                 let mqtt = self.mqtt.clone();
-                let leftover = leftover.clone();
                 tokio::spawn(async move {
-                    mqtt.event("device_leave", json!({ "ieee_address": leftover })).await;
+                    mqtt.event("device_leave", json!({ "ieee_address": leftover }))
+                        .await;
                 });
             }
         }
@@ -630,6 +638,7 @@ impl MatterService {
                     Ok(sub) => sub,
                     Err(error) => {
                         warn!(error = %error, node_id, "subscribe failed");
+                        let _ = tx.send(IncomingMessage::SubscribeEnded { node_id });
                         return;
                     }
                 };
@@ -644,6 +653,7 @@ impl MatterService {
                         });
                     }
                 }
+                let _ = tx.send(IncomingMessage::SubscribeEnded { node_id });
             });
         }
     }
@@ -660,10 +670,19 @@ impl MatterService {
             return;
         };
         let key = format!("{endpoint}/{cluster}/{attribute}");
+        if cluster == u32::from(CLUSTER_DESCRIPTOR) {
+            if self.refresh_node(node_id).await.is_ok() {
+                self.publish_devices().await;
+            }
+            return;
+        }
         if !is_state_attribute_path(&key) {
             return;
         }
-        self.attributes.entry(node_id).or_default().insert(key, value);
+        self.attributes
+            .entry(node_id)
+            .or_default()
+            .insert(key, value);
         self.rebuild_index_for_node(node_id);
         let ids: Vec<String> = self
             .index
@@ -691,7 +710,11 @@ impl MatterService {
         for id in self.index.keys() {
             self.publish_state(id).await;
             self.mqtt
-                .publish_json(&format!("{id}/availability"), &json!({ "state": "online" }), true)
+                .publish_json(
+                    &format!("{id}/availability"),
+                    &json!({ "state": "online" }),
+                    true,
+                )
                 .await;
         }
     }
@@ -758,15 +781,18 @@ impl MatterService {
         self.attributes.remove(&node_id);
         self.subscribed.remove(&node_id);
         for id in &ids {
-            self.mqtt.event("device_leave", json!({ "ieee_address": id })).await;
+            self.mqtt
+                .event("device_leave", json!({ "ieee_address": id }))
+                .await;
             self.mqtt.publish(id, "", true).await;
-            self.mqtt.publish(&format!("{id}/availability"), "", true).await;
+            self.mqtt
+                .publish(&format!("{id}/availability"), "", true)
+                .await;
         }
         let keep: HashSet<String> = self.index.keys().cloned().collect();
         self.names.retain_only(&keep);
         self.publish_devices().await;
     }
-
 }
 
 async fn publish_progress(mqtt: &MqttBus, stage: &str, message: &str) {

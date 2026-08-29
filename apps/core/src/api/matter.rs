@@ -59,10 +59,23 @@ pub async fn commission(
         .map(str::trim)
         .filter(|value| !value.is_empty());
 
+    let provided_password = body
+        .wifi_password
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+
     let (ssid, password) = if let Some(ssid) = provided_ssid {
-        let password = body.wifi_password.clone().unwrap_or_default();
-        save_wifi(&state, ssid, &password).await?;
-        (Some(ssid.to_string()), password)
+        if let Some(password) = provided_password {
+            save_wifi(&state, ssid, password).await?;
+            (Some(ssid.to_string()), password.to_string())
+        } else if let Some((saved_ssid, saved_password)) =
+            saved.as_ref().filter(|(saved_ssid, _)| saved_ssid == ssid)
+        {
+            (Some(saved_ssid.clone()), saved_password.clone())
+        } else {
+            (Some(ssid.to_string()), String::new())
+        }
     } else if let Some((ssid, password)) = saved {
         (Some(ssid), password)
     } else {
@@ -190,12 +203,15 @@ fn uncloak(key: &str, stored: &str) -> String {
         return stored.to_string();
     };
     let key_bytes = key.as_bytes();
-    bytes
+    let decrypted: Vec<u8> = bytes
         .iter()
         .enumerate()
         .map(|(index, byte)| byte ^ key_bytes[index % key_bytes.len()])
-        .map(char::from)
-        .collect()
+        .collect();
+    match String::from_utf8(decrypted) {
+        Ok(password) => password,
+        Err(_) => stored.to_string(),
+    }
 }
 
 fn to_hex(bytes: &[u8]) -> String {
@@ -210,4 +226,17 @@ fn from_hex(hex: &str) -> Result<Vec<u8>, ()> {
         .step_by(2)
         .map(|index| u8::from_str_radix(&hex[index..index + 2], 16).map_err(|_| ()))
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn uncloak_preserves_utf8_passwords() {
+        let key = "nemu-matter-wifi:test";
+        let password = "café";
+        let stored = cloak_value(key, password);
+        assert_eq!(uncloak(key, &stored), password);
+    }
 }

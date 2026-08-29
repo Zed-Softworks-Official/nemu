@@ -1,4 +1,4 @@
-use rumqttc::{AsyncClient, Event, Incoming, MqttOptions, QoS};
+use rumqttc::{AsyncClient, Event, Incoming, LastWill, MqttOptions, QoS};
 use serde_json::{Value, json};
 use tokio::sync::mpsc;
 use tracing::{error, info, warn};
@@ -7,11 +7,25 @@ use crate::config::Config;
 
 #[derive(Debug, Clone)]
 pub enum IncomingMessage {
-    Commission { payload: Value },
-    Cancel { payload: Value },
-    Remove { payload: Value },
-    Rename { payload: Value },
-    Set { device_id: String, payload: Value },
+    Commission {
+        payload: Value,
+    },
+    Cancel {
+        payload: Value,
+    },
+    Remove {
+        payload: Value,
+    },
+    Rename {
+        payload: Value,
+    },
+    Set {
+        device_id: String,
+        payload: Value,
+    },
+    SubscribeEnded {
+        node_id: u64,
+    },
     AttributeChange {
         node_id: u64,
         endpoint: u16,
@@ -67,8 +81,12 @@ impl MqttBus {
     }
 
     pub async fn event(&self, event_type: &str, data: Value) {
-        self.publish_json("bridge/event", &json!({ "type": event_type, "data": data }), false)
-            .await;
+        self.publish_json(
+            "bridge/event",
+            &json!({ "type": event_type, "data": data }),
+            false,
+        )
+        .await;
     }
 }
 
@@ -81,6 +99,12 @@ pub fn start(config: &Config) -> (MqttBus, mpsc::UnboundedReceiver<IncomingMessa
     options.set_keep_alive(std::time::Duration::from_secs(30));
     options.set_max_packet_size(256 * 1024, 256 * 1024);
     options.set_clean_session(false);
+    options.set_last_will(LastWill::new(
+        format!("{}/bridge/state", config.mqtt_base_topic),
+        r#"{"state":"offline"}"#,
+        QoS::AtLeastOnce,
+        true,
+    ));
 
     let (client, mut eventloop) = AsyncClient::new(options, 64);
     let bus = MqttBus {
@@ -95,9 +119,11 @@ pub fn start(config: &Config) -> (MqttBus, mpsc::UnboundedReceiver<IncomingMessa
             match eventloop.poll().await {
                 Ok(Event::Incoming(Incoming::ConnAck(_))) => {
                     info!("mqtt connected");
-                    let filter = format!("{base}/#");
-                    if let Err(error) = client.subscribe(filter, QoS::AtLeastOnce).await {
-                        error!(error = %error, "failed to subscribe");
+                    let filters = [format!("{base}/bridge/request/#"), format!("{base}/+/set")];
+                    for filter in filters {
+                        if let Err(error) = client.subscribe(filter, QoS::AtLeastOnce).await {
+                            error!(error = %error, "failed to subscribe");
+                        }
                     }
                 }
                 Ok(Event::Incoming(Incoming::Publish(publish))) => {

@@ -124,11 +124,12 @@ and `external_id` within that protocol; Postgres adds nemu-owned fields (room,
 display metadata). Renames initiated in nemu go _to_ the bridge so the two
 never diverge.
 
-### matter-bridge sidecar
+### Matter service
 
-`apps/matter-bridge` (Node/TypeScript) translates the upstream
-[matterjs-server](https://github.com/matter-js/matterjs-server) WebSocket API
-into the MQTT dialect above under base topic `matter`. Key behaviors:
+`apps/matter` is the shipped Rust service, packaged and deployed as
+`nemu-matter`. It implements Matter natively (controller fabric, BLE/on-network
+commissioning, attribute subscriptions) and publishes the MQTT dialect above
+under base topic `matter`. Key behaviors:
 
 - **One Nemu device per Matter node for power strips.** A multi-outlet strip
   (2+ OnOff switch endpoints, no lights) is one registry device with id
@@ -145,22 +146,20 @@ into the MQTT dialect above under base topic `matter`. Key behaviors:
   state JSON as read-only keys in SI units: `power` (W), `voltage` (V),
   `current` (A), `energy` (kWh). Live cache only — no history tables yet (see
   [energy.md](energy.md)).
-- **Renames are nemu-owned**, persisted in the sidecar's data volume; Matter
-  has no friendly-name sync.
+- **Renames are nemu-owned**, persisted in the Matter service data volume;
+  Matter names are not synchronized with the device.
 - **Wi-Fi commission is BLE-first, then LAN.** After BLE delivers credentials,
-  matterjs may reconnect to a stale IPv4 from the device's previous network.
-  The sidecar watches the host subnet for the new address and finishes with
-  `commission_on_network` + `ip_addr` so pairing does not hang on an
-  unreachable lease.
+  the service finishes commissioning on-network so pairing does not hang on a
+  stale IPv4 lease from the device's previous network.
 
 ## 4. API surface
 
-All routes require the client-token middleware except `/api/health` and the
-pairing endpoints.
+All routes require the client-token middleware except `/`, `GET /api/health`,
+`GET /api/identify`, `POST /api/pair`, and `POST /api/pairing-code`.
 
 | Method + path                                                                 | Purpose                                                                           |
 | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| `GET /api/health`                                                             | liveness: DB, MQTT, z2m bridge state                                              |
+| `GET /api/health`                                                             | liveness: DB, MQTT, z2m and Matter bridge state                                   |
 | `POST /api/pair`                                                              | exchange pairing code for a client token; first code creates the owner member     |
 | `GET /api/members` / `POST /api/members` / `DELETE /api/members/{id}`         | list / invite / remove household accounts                                         |
 | `POST /api/members/bootstrap`                                                 | claim owner on existing installs that already have tokens                         |
@@ -171,8 +170,8 @@ pairing endpoints.
 | `POST /api/devices/{id}/set`                                                  | send a command payload (`{"state":"OFF"}`, `{"brightness":128}`)                  |
 | `GET /api/rooms` / `POST /api/rooms` / `PATCH /api/rooms/{id}` / `DELETE ...` | room CRUD                                                                         |
 | `POST /api/zigbee/permit-join`                                                | `{seconds: 120}` open Zigbee join window                                          |
-| `POST /api/matter/commission`                                                 | `{code, wifiSsid?, wifiPassword?}` commission a Matter device (LAN only)          |
-| `POST /api/matter/cancel`                                                     | abort in-flight Matter commissioning (LAN only)                                   |
+| `POST /api/matter/commission`                                                 | `{code, wifiSsid?, wifiPassword?}` commission a Matter device (LAN only; client token required) |
+| `POST /api/matter/cancel`                                                     | abort in-flight Matter commissioning (LAN only; client token required)            |
 | `GET /api/tokens` / `DELETE /api/tokens/{id}` / `DELETE /api/tokens/current`  | list / revoke paired devices; revoke this dashboard                               |
 | `GET /ws`                                                                     | WebSocket: server pushes `DeviceEvent`s; client may send commands (same executor) |
 
