@@ -344,7 +344,15 @@ pub fn spawn_mqtt_loop(state: AppState, mut eventloop: rumqttc::EventLoop) {
                     let payload = String::from_utf8_lossy(&publish.payload).to_string();
                     if let Err(e) = handle_publish(&state, &topic, &payload, &mut was_online).await
                     {
-                        debug!(topic = %topic, error = %e, "mqtt message handling error");
+                        if state
+                            .mqtt
+                            .bridge_for_topic(&topic)
+                            .is_some_and(|bridge| bridge.protocol == Protocol::Matter)
+                        {
+                            warn!(topic = %topic, error = %e, "mqtt message handling error");
+                        } else {
+                            debug!(topic = %topic, error = %e, "mqtt message handling error");
+                        }
                     }
                 }
                 Ok(Event::Incoming(Incoming::Disconnect)) => {
@@ -514,13 +522,28 @@ async fn handle_bridge_event(
                 .and_then(|v| v.as_str())
                 .unwrap_or("unknown");
 
-            if let Ok(device) = state
+            match state
                 .registry
                 .upsert_from_join(state, protocol, &external_id, friendly, device_type, model)
                 .await
             {
-                let resource = state.registry.to_resource(state, &device).await;
-                state.emit(DeviceEvent::DeviceJoined { device: resource });
+                Ok(device) => {
+                    info!(
+                        %protocol,
+                        external_id = %external_id,
+                        "device joined"
+                    );
+                    let resource = state.registry.to_resource(state, &device).await;
+                    state.emit(DeviceEvent::DeviceJoined { device: resource });
+                }
+                Err(error) => {
+                    warn!(
+                        %protocol,
+                        external_id = %external_id,
+                        error = %error,
+                        "failed to upsert joined device"
+                    );
+                }
             }
         }
     }

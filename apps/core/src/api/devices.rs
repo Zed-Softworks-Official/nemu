@@ -140,11 +140,18 @@ pub async fn delete_device(
         .ok_or_else(|| ApiError::not_found("device_not_found", "device not found"))?;
 
     let protocol = crate::mqtt::device_protocol(&existing);
-    state
+    if let Err(error) = state
         .mqtt
         .remove_device(protocol, &existing.external_id)
         .await
-        .map_err(|error| ApiError::service_unavailable("device_remove_failed", error))?;
+    {
+        if !remove_already_gone(&error) {
+            return Err(ApiError::service_unavailable(
+                "device_remove_failed",
+                error,
+            ));
+        }
+    }
 
     let _ = state
         .registry
@@ -180,4 +187,9 @@ fn command_to_api(err: CommandError) -> ApiError {
         CommandError::DeviceNotFound => ApiError::not_found(err.code(), err.to_string()),
         CommandError::Mqtt(msg) => ApiError::service_unavailable("mqtt_error", msg),
     }
+}
+
+fn remove_already_gone(error: &str) -> bool {
+    let lower = error.to_ascii_lowercase();
+    lower.contains("not found") || lower.contains("already")
 }

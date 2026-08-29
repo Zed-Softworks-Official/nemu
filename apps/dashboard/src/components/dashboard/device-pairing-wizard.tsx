@@ -640,7 +640,9 @@ function MatterConnectingStep({
                                             : 'font-medium'
                                     }`}
                                 >
-                                    {stage.label}
+                                    {state === 'active' && progress?.message
+                                        ? progress.message
+                                        : stage.label}
                                 </span>
                             </li>
                         )

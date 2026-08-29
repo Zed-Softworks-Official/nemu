@@ -323,6 +323,7 @@ export type CommissionProgress = {
 }
 
 const MATTER_CONNECT_MS = 240_000
+const MATTER_CONNECTED_WAIT_MS = 20_000
 
 export function useDevicePairing(): {
     phase: DevicePairingPhase
@@ -460,7 +461,7 @@ export function useDevicePairing(): {
                 commissionProgressRef.current = progress
                 setCommissionProgress(progress)
                 if (protocol === 'matter' && event.stage === 'connected') {
-                    setExpiresAt(null)
+                    setExpiresAt(Date.now() + MATTER_CONNECTED_WAIT_MS)
                     void absorbMatterJoins()
                 }
             }
@@ -553,6 +554,12 @@ export function useDevicePairing(): {
                         if (
                             commissionProgressRef.current?.stage === 'connected'
                         ) {
+                            setError(
+                                new Error(
+                                    'The device connected but did not appear on the controller.'
+                                )
+                            )
+                            setPhase('error')
                             return
                         }
                         setError(
