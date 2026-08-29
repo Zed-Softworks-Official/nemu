@@ -33,10 +33,6 @@ impl StateCache {
         self.online.get(&device_id).map(|v| *v)
     }
 
-    pub fn is_online(&self, device_id: Uuid) -> bool {
-        self.online_status(device_id).unwrap_or(false)
-    }
-
     pub fn remove(&self, device_id: Uuid) {
         self.states.remove(&device_id);
         self.online.remove(&device_id);
@@ -54,11 +50,11 @@ mod tests {
         cache.set_online(id, false);
         cache.set_online_if_unknown(id, true);
         assert_eq!(cache.online_status(id), Some(false));
-        assert!(!cache.is_online(id));
+        assert!(!cache.online_status(id).unwrap_or(false));
 
         let other = Uuid::new_v4();
         cache.set_online_if_unknown(other, true);
         assert_eq!(cache.online_status(other), Some(true));
-        assert!(cache.is_online(other));
+        assert!(cache.online_status(other).unwrap_or(false));
     }
 }

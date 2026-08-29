@@ -43,4 +43,8 @@ impl Config {
     pub fn names_path(&self) -> PathBuf {
         self.data_dir.join("names.json")
     }
+
+    pub fn adopted_path(&self) -> PathBuf {
+        self.data_dir.join("adopted-nodes.json")
+    }
 }

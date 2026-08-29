@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { deviceSchema, roomSchema } from './device'
+import { deviceSchema, parseDeviceList, roomSchema } from './device'
 
 export const apiErrorBodySchema = z.object({
     error: z.object({
@@ -35,7 +35,7 @@ export const identifyResponseSchema = z.object({
 export type IdentifyResponse = z.infer<typeof identifyResponseSchema>
 
 export const devicesResponseSchema = z.object({
-    devices: z.array(deviceSchema),
+    devices: z.array(z.unknown()).transform((items) => parseDeviceList(items)),
 })
 export type DevicesResponse = z.infer<typeof devicesResponseSchema>
 
