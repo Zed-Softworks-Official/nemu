@@ -32,7 +32,10 @@ export const mintControllerSession = internalAction({
         const expiresAt =
             Math.floor(Date.now() / 1000) + CONTROLLER_JWT_TTL_SECONDS
 
-        const header: { alg: 'ES256'; kid?: string } = { alg: 'ES256' }
+        const header: { alg: 'ES256'; typ: 'JWT'; kid?: string } = {
+            alg: 'ES256',
+            typ: 'JWT',
+        }
         if (kid) header.kid = kid
 
         const token = await new SignJWT({})

@@ -35,13 +35,32 @@ struct RegisterResponse {
     expires_at: Option<i64>,
 }
 
+/// Accept only a non-empty `https` URL; trim a trailing slash when valid.
+fn normalize_https_url(raw: &str) -> Option<String> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    let parsed = reqwest::Url::parse(trimmed).ok()?;
+    if parsed.scheme() != "https" {
+        return None;
+    }
+    let host = parsed.host_str()?;
+    if host.is_empty() {
+        return None;
+    }
+    Some(trimmed.trim_end_matches('/').to_string())
+}
+
 /// Derive the Convex WebSocket (`.convex.cloud`) URL from the HTTP site URL,
-/// unless `NEMU_CONVEX_URL` is set.
+/// unless `NEMU_CONVEX_URL` is a valid https URL.
 pub fn convex_cloud_url(site_url: &str) -> String {
     if let Ok(url) = std::env::var("NEMU_CONVEX_URL") {
-        let trimmed = url.trim();
-        if !trimmed.is_empty() {
-            return trimmed.trim_end_matches('/').to_string();
+        if let Some(normalized) = normalize_https_url(&url) {
+            return normalized;
+        }
+        if !url.trim().is_empty() {
+            warn!("NEMU_CONVEX_URL must be a non-empty https URL; ignoring override");
         }
     }
     site_url
@@ -54,7 +73,9 @@ pub async fn fetch_controller_session(
     controller_id: &str,
     registration_secret: Option<&str>,
 ) -> Result<ControllerSession, String> {
-    let url = format!("{}/controllers/session", site_url.trim_end_matches('/'));
+    let site_url = normalize_https_url(site_url)
+        .ok_or_else(|| "Convex site URL must be a valid https URL".to_string())?;
+    let url = format!("{}/controllers/session", site_url);
     let body = serde_json::json!({
         "controllerId": controller_id,
         "registrationSecret": registration_secret,
@@ -86,7 +107,9 @@ pub async fn register_with_convex(
     registration_secret: Option<&str>,
     lan_ip: Option<&str>,
 ) -> Result<Option<ControllerSession>, String> {
-    let url = format!("{}/controllers/register", site_url.trim_end_matches('/'));
+    let site_url = normalize_https_url(site_url)
+        .ok_or_else(|| "Convex site URL must be a valid https URL".to_string())?;
+    let url = format!("{}/controllers/register", site_url);
 
     let body = RegisterBody {
         controller_id: &identity.controller_id,
@@ -138,5 +161,36 @@ pub async fn register_with_retry(
             warn!(error = %e, "initial Convex registration failed; will retry from relay loop");
             None
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn normalize_https_url_accepts_https_and_trims_slash() {
+        assert_eq!(
+            normalize_https_url(" https://happy-animal-123.convex.cloud/ "),
+            Some("https://happy-animal-123.convex.cloud".to_string())
+        );
+        assert_eq!(
+            normalize_https_url("https://happy-animal-123.convex.site"),
+            Some("https://happy-animal-123.convex.site".to_string())
+        );
+    }
+
+    #[test]
+    fn normalize_https_url_rejects_non_https_and_malformed() {
+        assert_eq!(normalize_https_url(""), None);
+        assert_eq!(normalize_https_url("   "), None);
+        assert_eq!(normalize_https_url("http://evil.example/convex"), None);
+        assert_eq!(
+            normalize_https_url("wss://happy-animal-123.convex.cloud"),
+            None
+        );
+        assert_eq!(normalize_https_url("file:///etc/passwd"), None);
+        assert_eq!(normalize_https_url("not-a-url"), None);
+        assert_eq!(normalize_https_url("https://"), None);
     }
 }

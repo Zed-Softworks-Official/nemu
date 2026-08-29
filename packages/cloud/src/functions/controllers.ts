@@ -9,6 +9,30 @@ import {
     query,
 } from './_generated/server'
 
+function requireRegistrationSecret(
+    provided: string | undefined
+): Response | null {
+    const expected = process.env.CONTROLLER_REGISTRATION_SECRET
+    if (!expected) {
+        return new Response(
+            JSON.stringify({
+                error: 'CONTROLLER_REGISTRATION_SECRET is not configured',
+            }),
+            {
+                status: 503,
+                headers: { 'Content-Type': 'application/json' },
+            }
+        )
+    }
+    if (provided !== expected) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+            status: 401,
+            headers: { 'Content-Type': 'application/json' },
+        })
+    }
+    return null
+}
+
 const controllerPublicValidator = v.object({
     controllerId: v.string(),
     name: v.string(),
@@ -295,13 +319,8 @@ export const registerHttp = httpAction(async (ctx, req) => {
         })
     }
 
-    const expected = process.env.CONTROLLER_REGISTRATION_SECRET
-    if (expected && body.registrationSecret !== expected) {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-            status: 401,
-            headers: { 'Content-Type': 'application/json' },
-        })
-    }
+    const secretError = requireRegistrationSecret(body.registrationSecret)
+    if (secretError) return secretError
 
     if (!body.controllerId || !body.publicKey || !body.name) {
         return new Response(
@@ -374,13 +393,8 @@ export const sessionHttp = httpAction(async (ctx, req) => {
         })
     }
 
-    const expected = process.env.CONTROLLER_REGISTRATION_SECRET
-    if (expected && body.registrationSecret !== expected) {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-            status: 401,
-            headers: { 'Content-Type': 'application/json' },
-        })
-    }
+    const secretError = requireRegistrationSecret(body.registrationSecret)
+    if (secretError) return secretError
 
     if (!body.controllerId) {
         return new Response(
