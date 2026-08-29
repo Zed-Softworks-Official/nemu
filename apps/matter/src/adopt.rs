@@ -1,9 +1,10 @@
 use std::collections::HashSet;
-use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 use tracing::warn;
+
+use crate::store::{load_persisted, persist_atomically};
 
 /// First operational node id the controller assigns to a device (commissioner is 1).
 pub const FIRST_DEVICE_NODE_ID: u64 = 2;
@@ -26,31 +27,10 @@ pub struct AdoptStore {
 impl AdoptStore {
     pub fn load(path: impl AsRef<Path>) -> Self {
         let path = path.as_ref().to_path_buf();
-        let (node_ids, persist_enabled) = match std::fs::read_to_string(&path) {
-            Ok(raw) => match serde_json::from_str::<AdoptFile>(&raw) {
-                Ok(file) => (file.node_ids.into_iter().collect(), true),
-                Err(error) => {
-                    warn!(
-                        error = %error,
-                        path = %path.display(),
-                        "malformed adopt store; preserving on disk"
-                    );
-                    (HashSet::new(), false)
-                }
-            },
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => (HashSet::new(), true),
-            Err(error) => {
-                warn!(
-                    error = %error,
-                    path = %path.display(),
-                    "failed to read adopt store; preserving on disk"
-                );
-                (HashSet::new(), false)
-            }
-        };
+        let (file, persist_enabled) = load_persisted::<AdoptFile>(&path, "adopt store");
         Self {
             path,
-            node_ids,
+            node_ids: file.node_ids.into_iter().collect(),
             persist_enabled,
         }
     }
@@ -97,24 +77,6 @@ impl AdoptStore {
             Err(error) => warn!(error = %error, "failed to serialize adopt store"),
         }
     }
-}
-
-fn persist_atomically(path: &Path, raw: &str) -> std::io::Result<()> {
-    let file_name = path
-        .file_name()
-        .and_then(|name| name.to_str())
-        .unwrap_or("store.json");
-    let tmp = path.with_file_name(format!(".{file_name}.tmp"));
-    let result = (|| {
-        let mut file = std::fs::File::create(&tmp)?;
-        file.write_all(raw.as_bytes())?;
-        file.sync_all()?;
-        std::fs::rename(&tmp, path)
-    })();
-    if result.is_err() {
-        let _ = std::fs::remove_file(&tmp);
-    }
-    result
 }
 
 pub fn next_device_node_id(known: &HashSet<u64>) -> u64 {

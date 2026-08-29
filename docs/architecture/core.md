@@ -90,7 +90,7 @@ the async runtime; the pool is the first refactor (M0 remainder).
   the MQTT loop from consumers (`/ws` sessions, relay snapshots, voice
   confirmations).
 
-## 3. MQTT bridges (zigbee2mqtt + matter-bridge)
+## 3. MQTT bridges (zigbee2mqtt + nemu-matter)
 
 `mqtt/connection.rs` owns one rumqttc `AsyncClient` + event loop with
 exponential backoff reconnect. Core is multi-bridge: config holds a list of
@@ -165,8 +165,8 @@ All routes require the client-token middleware except `/`, `GET /api/health`,
 | `POST /api/members/bootstrap`                                                 | claim owner on existing installs that already have tokens                         |
 | `GET /api/devices`                                                            | registry + latest cached state (optional `?room=`)                                |
 | `GET /api/devices/{id}`                                                       | one device + state                                                                |
-| `PATCH /api/devices/{id}`                                                     | rename / assign room (propagates to z2m)                                          |
-| `DELETE /api/devices/{id}`                                                    | remove from Zigbee network, then delete registry metadata                         |
+| `PATCH /api/devices/{id}`                                                     | rename / assign room (Zigbee: propagates to z2m; Matter: name stays Nemu-owned)   |
+| `DELETE /api/devices/{id}`                                                    | Zigbee: leave the network; Matter: unpair the node; then delete registry metadata |
 | `POST /api/devices/{id}/set`                                                  | send a command payload (`{"state":"OFF"}`, `{"brightness":128}`)                  |
 | `GET /api/rooms` / `POST /api/rooms` / `PATCH /api/rooms/{id}` / `DELETE ...` | room CRUD                                                                         |
 | `POST /api/zigbee/permit-join`                                                | `{seconds: 120}` open Zigbee join window                                          |

@@ -154,6 +154,7 @@ impl MatterService {
     ) {
         let (attr_tx, mut attr_rx) = tokio::sync::mpsc::unbounded_channel();
         let (done_tx, mut done_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (resub_tx, mut resub_rx) = tokio::sync::mpsc::unbounded_channel();
         self.subscribe_nodes(attr_tx.clone());
         if !self.boot_recover_ids.is_empty() {
             let ids = std::mem::take(&mut self.boot_recover_ids);
@@ -177,7 +178,7 @@ impl MatterService {
                             payload,
                         } => self.handle_set(&device_id, payload).await,
                         IncomingMessage::SubscribeEnded { node_id } => {
-                            self.subscribed.remove(&node_id);
+                            self.note_subscribe_ended(node_id, &resub_tx);
                         }
                         IncomingMessage::AttributeChange { .. } => {
                             self.apply_attribute_change(message).await;
@@ -191,10 +192,13 @@ impl MatterService {
                 Some(update) = attr_rx.recv() => {
                     match update {
                         IncomingMessage::SubscribeEnded { node_id } => {
-                            self.subscribed.remove(&node_id);
+                            self.note_subscribe_ended(node_id, &resub_tx);
                         }
                         other => self.apply_attribute_change(other).await,
                     }
+                }
+                Some(()) = resub_rx.recv() => {
+                    self.subscribe_nodes(attr_tx.clone());
                 }
             }
         }
@@ -589,8 +593,17 @@ impl MatterService {
     }
 
     async fn refresh_node(&mut self, node_id: u64) -> Result<(), String> {
+        self.refresh_node_with_timeout(node_id, REFRESH_READ_TIMEOUT)
+            .await
+    }
+
+    async fn refresh_node_with_timeout(
+        &mut self,
+        node_id: u64,
+        timeout: Duration,
+    ) -> Result<(), String> {
         let node = self.controller.node(node_id);
-        match tokio::time::timeout(REFRESH_READ_TIMEOUT, node.read(&[ReadPath::all()])).await {
+        match tokio::time::timeout(timeout, node.read(&[ReadPath::all()])).await {
             Ok(Ok(report)) => {
                 self.attributes
                     .insert(node_id, attributes_from_report(report));
@@ -671,7 +684,11 @@ impl MatterService {
         };
         let key = format!("{endpoint}/{cluster}/{attribute}");
         if cluster == u32::from(CLUSTER_DESCRIPTOR) {
-            if self.refresh_node(node_id).await.is_ok() {
+            if self
+                .refresh_node_with_timeout(node_id, DESCRIPTOR_REFRESH_TIMEOUT)
+                .await
+                .is_ok()
+            {
                 self.publish_devices().await;
             }
             return;
@@ -793,6 +810,15 @@ impl MatterService {
         self.names.retain_only(&keep);
         self.publish_devices().await;
     }
+
+    fn note_subscribe_ended(
+        &mut self,
+        node_id: u64,
+        resub: &tokio::sync::mpsc::UnboundedSender<()>,
+    ) {
+        self.subscribed.remove(&node_id);
+        schedule_subscribe_retry(resub.clone());
+    }
 }
 
 async fn publish_progress(mqtt: &MqttBus, stage: &str, message: &str) {
@@ -910,7 +936,16 @@ const CASE_COMPLETE_TIMEOUT: Duration = Duration::from_secs(8);
 const REFRESH_AFTER_COMMISSION_ATTEMPTS: u32 = 5;
 const REFRESH_AFTER_COMMISSION_GAP: Duration = Duration::from_secs(2);
 const REFRESH_READ_TIMEOUT: Duration = Duration::from_secs(35);
+const DESCRIPTOR_REFRESH_TIMEOUT: Duration = Duration::from_secs(5);
+const SUBSCRIBE_RETRY_GAP: Duration = Duration::from_secs(5);
 const FORGET_NODE_TIMEOUT: Duration = Duration::from_secs(8);
+
+fn schedule_subscribe_retry(tx: tokio::sync::mpsc::UnboundedSender<()>) {
+    tokio::spawn(async move {
+        tokio::time::sleep(SUBSCRIBE_RETRY_GAP).await;
+        let _ = tx.send(());
+    });
+}
 
 async fn recover_operational_session(
     controller: &MatterController,

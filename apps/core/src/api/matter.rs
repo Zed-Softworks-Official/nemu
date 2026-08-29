@@ -58,15 +58,13 @@ pub async fn commission(
         .as_deref()
         .map(str::trim)
         .filter(|value| !value.is_empty());
-
-    let provided_password = body
-        .wifi_password
-        .as_deref()
-        .map(str::trim)
-        .filter(|value| !value.is_empty());
+    // Omitted vs Some("") must stay distinct so saved-SSID fallback only
+    // happens when the client did not send a password at all.
+    let provided_password = body.wifi_password.as_deref();
 
     let (ssid, password) = if let Some(ssid) = provided_ssid {
         if let Some(password) = provided_password {
+            let ssid = validate_wifi_credentials(ssid, password)?;
             save_wifi(&state, ssid, password).await?;
             (Some(ssid.to_string()), password.to_string())
         } else if let Some((saved_ssid, saved_password)) =
@@ -119,24 +117,29 @@ pub async fn put_wifi(
     State(state): State<AppState>,
     Json(body): Json<SaveWifiBody>,
 ) -> ApiResult<Json<WifiResponse>> {
-    let ssid = body.wifi_ssid.trim();
+    let ssid = validate_wifi_credentials(&body.wifi_ssid, &body.wifi_password)?;
+    save_wifi(&state, ssid, &body.wifi_password).await?;
+    Ok(Json(WifiResponse {
+        configured: true,
+        network_name: Some(ssid.to_string()),
+    }))
+}
+
+fn validate_wifi_credentials<'a>(ssid: &'a str, password: &str) -> Result<&'a str, ApiError> {
+    let ssid = ssid.trim();
     if ssid.is_empty() || ssid.len() > 32 {
         return Err(ApiError::bad_request(
             "invalid_network",
             "home Wi-Fi name must be 1–32 characters",
         ));
     }
-    if body.wifi_password.len() > 64 {
+    if password.len() > 64 {
         return Err(ApiError::bad_request(
             "invalid_password",
             "home Wi-Fi password must be at most 64 characters",
         ));
     }
-    save_wifi(&state, ssid, &body.wifi_password).await?;
-    Ok(Json(WifiResponse {
-        configured: true,
-        network_name: Some(ssid.to_string()),
-    }))
+    Ok(ssid)
 }
 
 async fn load_wifi(state: &AppState) -> Result<Option<(String, String)>, ApiError> {
@@ -238,5 +241,28 @@ mod tests {
         let password = "café";
         let stored = cloak_value(key, password);
         assert_eq!(uncloak(key, &stored), password);
+    }
+
+    #[test]
+    fn validate_wifi_rejects_empty_ssid() {
+        let err = validate_wifi_credentials("  ", "secret").unwrap_err();
+        assert_eq!(err.code, "invalid_network");
+    }
+
+    #[test]
+    fn validate_wifi_rejects_long_password() {
+        let err = validate_wifi_credentials("home", &"x".repeat(65)).unwrap_err();
+        assert_eq!(err.code, "invalid_password");
+    }
+
+    #[test]
+    fn validate_wifi_preserves_password_whitespace() {
+        let ssid = validate_wifi_credentials(" home ", "  secret  ").unwrap();
+        assert_eq!(ssid, "home");
+    }
+
+    #[test]
+    fn validate_wifi_accepts_empty_password() {
+        assert_eq!(validate_wifi_credentials("home", "").unwrap(), "home");
     }
 }

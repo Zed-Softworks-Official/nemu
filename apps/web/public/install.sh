@@ -439,7 +439,8 @@ start_stack() {
     MATTER_DATA_DIR="${tmp}" bash "${fetch_script}" || warn "Could not download Matter trust roots; certified devices may not pair."
     if [ -d "${tmp}/paa-roots" ]; then
       docker run --rm -v "${vol}:/data" -v "${tmp}:/src:ro" alpine:3.20 \
-        sh -c 'mkdir -p /data/paa-roots /data/cd-roots && cp -a /src/paa-roots/. /data/paa-roots/ && cp -a /src/cd-roots/. /data/cd-roots/ && chown -R 1000:1000 /data'
+        sh -c 'mkdir -p /data/paa-roots /data/cd-roots && cp -a /src/paa-roots/. /data/paa-roots/ && cp -a /src/cd-roots/. /data/cd-roots/ && chown -R 1000:1000 /data' \
+        || warn "Could not copy Matter trust roots into the data volume; certified devices may not pair."
     fi
     rm -rf "${tmp}"
   fi

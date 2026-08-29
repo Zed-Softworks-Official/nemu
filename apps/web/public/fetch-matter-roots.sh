@@ -20,11 +20,10 @@ if [ ! -f "${MANIFEST}" ]; then
   exit 1
 fi
 
-mkdir -p "${PAA_DIR}" "${CD_DIR}"
-
 python3 - "${PAA_DIR}" "${CD_DIR}" "${MANIFEST}" "${CHIP_COMMIT}" <<'PY'
 import hashlib
 import json
+import shutil
 import ssl
 import sys
 import tempfile
@@ -86,29 +85,50 @@ def download_verified(files: list[tuple[str, str]], dest: Path, prefix: str, exp
         count += 1
     return count
 
+def activate_dir(src: Path, dest: Path) -> None:
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    incoming = dest.with_name(f".{dest.name}.new")
+    previous = dest.with_name(f".{dest.name}.old")
+    if incoming.exists():
+        shutil.rmtree(incoming)
+    shutil.copytree(src, incoming)
+    if previous.exists():
+        shutil.rmtree(previous)
+    if dest.exists():
+        dest.replace(previous)
+    incoming.replace(dest)
+    if previous.exists():
+        shutil.rmtree(previous)
+
 expected = load_manifest(manifest_path)
 base = f"https://api.github.com/repos/project-chip/connectedhomeip/contents/credentials/production"
-paa = download_verified(
-    list_ders(f"{base}/paa-root-certs?ref={chip_commit}"),
-    paa_dir,
-    "paa",
-    expected,
-)
-cd = download_verified(
-    list_ders(f"{base}/cd-certs?ref={chip_commit}"),
-    cd_dir,
-    "cd",
-    expected,
-)
-missing = [
-    name
-    for name in expected
-    if (name.startswith("paa/") and not (paa_dir / name.removeprefix("paa/")).exists())
-    or (name.startswith("cd/") and not (cd_dir / name.removeprefix("cd/")).exists())
-]
-if missing:
-    sys.exit("missing verified Matter roots: " + ", ".join(missing))
-print(f"Matter attestation roots: {paa} PAA, {cd} CD (commit {chip_commit[:12]})")
-if paa == 0 or cd == 0:
-    sys.exit("failed to download Matter production trust roots")
+with tempfile.TemporaryDirectory(prefix="matter-roots-") as tmp:
+    work = Path(tmp)
+    paa_staging = work / "paa-roots"
+    cd_staging = work / "cd-roots"
+    paa = download_verified(
+        list_ders(f"{base}/paa-root-certs?ref={chip_commit}"),
+        paa_staging,
+        "paa",
+        expected,
+    )
+    cd = download_verified(
+        list_ders(f"{base}/cd-certs?ref={chip_commit}"),
+        cd_staging,
+        "cd",
+        expected,
+    )
+    missing = [
+        name
+        for name in expected
+        if (name.startswith("paa/") and not (paa_staging / name.removeprefix("paa/")).exists())
+        or (name.startswith("cd/") and not (cd_staging / name.removeprefix("cd/")).exists())
+    ]
+    if missing:
+        sys.exit("missing verified Matter roots: " + ", ".join(missing))
+    if paa == 0 or cd == 0:
+        sys.exit("failed to download Matter production trust roots")
+    activate_dir(paa_staging, paa_dir)
+    activate_dir(cd_staging, cd_dir)
+    print(f"Matter attestation roots: {paa} PAA, {cd} CD (commit {chip_commit[:12]})")
 PY
