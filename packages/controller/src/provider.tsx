@@ -15,10 +15,10 @@ import {
     type HouseholdMember,
     type MatterWifiResponse,
     type PatchDeviceRequest,
-    type SaveMatterWifiRequest,
     type PatchRoomRequest,
     type PermitJoinResponse,
     type Room,
+    type SaveMatterWifiRequest,
     statusFromMode,
 } from '@nemu/protocol'
 import type { ConvexReactClient } from 'convex/react'
@@ -47,7 +47,9 @@ type ControllerContextValue = {
     ) => Promise<CommissionResponse>
     cancelMatterCommission: () => Promise<CommissionResponse>
     getMatterWifi: () => Promise<MatterWifiResponse>
-    saveMatterWifi: (request: SaveMatterWifiRequest) => Promise<MatterWifiResponse>
+    saveMatterWifi: (
+        request: SaveMatterWifiRequest
+    ) => Promise<MatterWifiResponse>
     getRooms: () => Promise<Room[]>
     createRoom: (request: CreateRoomRequest) => Promise<Room>
     patchRoom: (roomId: string, patch: PatchRoomRequest) => Promise<Room>
@@ -380,6 +382,8 @@ export function useDevicePairing(): {
     phaseRef.current = phase
     const discoveredDevicesRef = useRef(discoveredDevices)
     discoveredDevicesRef.current = discoveredDevices
+    const commissionProgressRef = useRef(commissionProgress)
+    commissionProgressRef.current = commissionProgress
 
     const stopPairingRadios = useCallback(async () => {
         try {
@@ -407,14 +411,27 @@ export function useDevicePairing(): {
         try {
             const devices = await getDevices()
             const known = knownDeviceIds.current
-            const unknown = devices.filter(
-                (device) =>
-                    device.protocol === 'matter' && !known.has(device.id)
+            const connected =
+                commissionProgressRef.current?.stage === 'connected'
+            const candidates = devices.filter((device) =>
+                isMatterJoinCandidate(device, known, connected)
             )
+            const unknown = candidates.filter((device) => !known.has(device.id))
+            const alreadyDiscovered = discoveredDevicesRef.current
             const joined =
                 unknown.length > 0
                     ? unknown
-                    : devices.filter((device) => device.protocol === 'matter')
+                    : alreadyDiscovered.length > 0
+                      ? alreadyDiscovered
+                      : connected
+                        ? candidates.filter(
+                              (device) =>
+                                  device.protocol === 'matter' ||
+                                  device.protocol === undefined
+                          )
+                        : candidates.filter(
+                              (device) => device.protocol === 'matter'
+                          )
             if (joined.length === 0) return []
             setDiscoveredDevices((current) => {
                 const seen = new Set(current.map((device) => device.id))
@@ -422,6 +439,7 @@ export function useDevicePairing(): {
                 for (const device of joined) {
                     if (!seen.has(device.id)) next.push(device)
                 }
+                discoveredDevicesRef.current = next
                 return next
             })
             return joined
@@ -435,10 +453,16 @@ export function useDevicePairing(): {
 
         return connection.subscribeEvents((event: DeviceEvent) => {
             if (event.type === 'commissionProgress') {
-                setCommissionProgress({
+                const progress = {
                     stage: event.stage,
                     message: event.message,
-                })
+                }
+                commissionProgressRef.current = progress
+                setCommissionProgress(progress)
+                if (protocol === 'matter' && event.stage === 'connected') {
+                    setExpiresAt(null)
+                    void absorbMatterJoins()
+                }
             }
 
             if (event.type === 'interview') {
@@ -457,6 +481,12 @@ export function useDevicePairing(): {
                     ]
                 })
                 if (event.status === 'failed') {
+                    const alreadyJoined =
+                        discoveredDevicesRef.current.length > 0 ||
+                        commissionProgressRef.current?.stage === 'connected'
+                    if (event.externalId === 'commissioning' && alreadyJoined) {
+                        return
+                    }
                     setError(
                         new Error(
                             event.error ??
@@ -469,12 +499,25 @@ export function useDevicePairing(): {
             }
 
             if (event.type === 'deviceJoined') {
+                const joinedProtocol = event.device.protocol
+                if (
+                    protocol === 'matter' &&
+                    joinedProtocol !== undefined &&
+                    joinedProtocol !== 'matter'
+                ) {
+                    return
+                }
                 setDiscoveredDevices((current) => {
                     const next = current.filter(
                         (device) => device.id !== event.device.id
                     )
-                    return [...next, event.device]
+                    const updated = [...next, event.device]
+                    discoveredDevicesRef.current = updated
+                    return updated
                 })
+                if (protocol === 'matter') {
+                    void absorbMatterJoins()
+                }
             }
 
             if (event.type === 'resync' && protocol === 'matter') {
@@ -507,6 +550,11 @@ export function useDevicePairing(): {
                         if (joined.length > 0) return
                         if (phaseRef.current !== 'discovering') return
                         if (discoveredDevicesRef.current.length > 0) return
+                        if (
+                            commissionProgressRef.current?.stage === 'connected'
+                        ) {
+                            return
+                        }
                         setError(
                             new Error(
                                 'Pairing timed out. Put the device back in pairing mode and keep it near the controller.'
@@ -649,8 +697,12 @@ export function useDevicePairing(): {
 
     useEffect(() => {
         if (phase !== 'discovering' || protocol !== 'matter') return
-        if (discoveredDevices.length !== 1) return
-        const device = discoveredDevices[0]
+        if (discoveredDevices.length < 1) return
+        const known = knownDeviceIds.current
+        const unknown = discoveredDevices.filter(
+            (device) => !known.has(device.id)
+        )
+        const device = unknown.at(-1) ?? discoveredDevices.at(-1)
         if (device === undefined) return
         void selectDevice(device)
     }, [discoveredDevices, phase, protocol, selectDevice])
@@ -707,4 +759,14 @@ export function useDevicePairing(): {
 
 function toError(value: unknown): Error {
     return value instanceof Error ? value : new Error(String(value))
+}
+
+function isMatterJoinCandidate(
+    device: Device,
+    known: Set<string>,
+    connected: boolean
+): boolean {
+    if (device.protocol === 'matter') return true
+    if (device.protocol !== undefined) return false
+    return connected || !known.has(device.id)
 }

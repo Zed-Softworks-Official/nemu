@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { deviceSchema, parseDeviceList, roomSchema } from './device'
+import { parseDeviceList, roomSchema } from './device'
 
 export const apiErrorBodySchema = z.object({
     error: z.object({

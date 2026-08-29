@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { deviceSchema, deviceStateSchema } from './device'
+import { type DeviceState, deviceSchema, deviceStateSchema } from './device'
 
 export const deviceEventSchema = z.discriminatedUnion('type', [
     z.object({
@@ -7,7 +7,7 @@ export const deviceEventSchema = z.discriminatedUnion('type', [
         deviceId: z.string(),
         state: deviceStateSchema
             .nullish()
-            .transform((value): Record<string, unknown> => value ?? {}),
+            .transform((value): DeviceState => value ?? {}),
     }),
     z.object({
         type: z.literal('deviceJoined'),
