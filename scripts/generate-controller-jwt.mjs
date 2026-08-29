@@ -10,18 +10,20 @@
  *   pnpm --filter @nemu/cloud exec node ../../scripts/generate-controller-jwt.mjs
  */
 
-import { createRequire } from 'node:module'
 import { randomBytes } from 'node:crypto'
 import { writeFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const cloudDir = join(root, 'packages/cloud')
 const jwksPath = join(cloudDir, 'src/lib/controller.jwks.json')
 
 const require = createRequire(join(cloudDir, 'package.json'))
-const { exportJWK, exportPKCS8, generateKeyPair } = require('jose')
+const { exportJWK, exportPKCS8, generateKeyPair } = await import(
+    pathToFileURL(require.resolve('jose')).href
+)
 
 const kid = `nemu-controller-${randomBytes(4).toString('hex')}`
 

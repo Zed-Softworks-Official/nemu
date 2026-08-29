@@ -222,6 +222,7 @@ async fn run_subscription_relay(
                     error = %e,
                     "failed to handle relay message"
                 );
+                return Err(e);
             }
         }
     }
