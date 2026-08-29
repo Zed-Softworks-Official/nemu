@@ -4,6 +4,8 @@ Nemu’s controller runs as a Docker Compose stack on hardware you own. The supp
 
 ## One-liner
 
+No env vars are required for Nemu cloud. The installer bakes the production Convex site URL and a **public shared** registration secret (anyone who can download the script can register a controller to that deployment — intentional for consumer installs).
+
 ```bash
 curl -fsSL https://get.nemu.sh | sudo sh
 ```
@@ -14,13 +16,14 @@ Inspect the script before running:
 curl -fsSL https://get.nemu.sh
 ```
 
-### Optional environment
+### Optional overrides
 
-`sudo` resets the environment, so installer variables must be passed to `sh`, not `curl`:
+`sudo` resets the environment, so installer variables must be passed to `sh`, not `curl`. Use these for a custom/self-hosted Convex deployment or a different controller name:
 
 ```bash
 curl -fsSL https://get.nemu.sh | sudo \
   NEMU_CONVEX_SITE_URL=https://YOUR_DEPLOYMENT.convex.site \
+  CONTROLLER_REGISTRATION_SECRET=your_secret \
   NEMU_CONTROLLER_NAME=Home \
   sh
 ```
@@ -31,15 +34,16 @@ curl -fsSL https://get.nemu.sh | sudo \
 curl -fsSL https://get.nemu.sh | sudo sh -s -- \
   --force \
   --convex-url=https://YOUR_DEPLOYMENT.convex.cloud \
+  --registration-secret=your_secret \
   --controller-name=Home
 ```
 
 | Variable / flag                                            | Purpose                                                            |
 | ---------------------------------------------------------- | ------------------------------------------------------------------ |
-| `NEMU_CONVEX_SITE_URL` / `--convex-url`                    | Convex HTTP site URL for registration + TLS; relay derives `.convex.cloud` |
+| `NEMU_CONVEX_SITE_URL` / `--convex-url`                    | Override Convex HTTP site URL (default: Nemu prod); relay derives `.convex.cloud` |
 | `CONVEX_URL`                                               | Alias for the Convex deployment URL (`.cloud` → `.site`)           |
 | `NEMU_CONTROLLER_NAME` / `--controller-name`               | Display name (default `Home`)                                      |
-| `CONTROLLER_REGISTRATION_SECRET` / `--registration-secret` | Optional shared secret with cloud                                  |
+| `CONTROLLER_REGISTRATION_SECRET` / `--registration-secret` | Override shared secret with cloud (default: public Nemu prod value) |
 | `NEMU_ZIGBEE_DEVICE` / `--zigbee-device`                   | Host serial path (default auto: `/dev/ttyACM0`, `/dev/ttyUSB0`, …) |
 | `NEMU_FORCE=1` / `--force`                                 | Overwrite compose/config under `/opt/nemu` (keeps `.env`)          |
 | `WATCHTOWER_POLL_INTERVAL`                                 | Seconds between image polls (default `3600`)                       |
@@ -60,7 +64,8 @@ Docker Engine + Compose plugin are installed from Docker’s official Ubuntu apt
 Matter-over-Wi-Fi support is on by default and needs no extra hardware: the
 `nemu-matter` service runs host-networked (Matter requires mDNS and IPv6),
 and new devices are commissioned over the host's Bluetooth adapter via BlueZ.
-The installer warns if IPv6 is disabled or `bluetoothd` is not running.
+The installer installs and enables BlueZ when the Bluetooth service is not
+already active, and warns if it still cannot start (or if IPv6 is disabled).
 `nemu-matter` runs as uid 1000; the installer chowns the Matter data volume
 so the process can write its fabric store.
 

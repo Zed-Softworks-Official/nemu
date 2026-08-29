@@ -4,18 +4,23 @@
 # Environment variables must be passed to `sh`, not `curl`. `sudo` resets the
 # environment, so prefix vars on the `sudo … sh` side (or pass flags after `--`).
 #
-# Usage:
+# Usage (zero-config against Nemu cloud — no env vars required):
 #   curl -fsSL https://get.nemu.sh | sudo sh
-#   curl -fsSL https://get.nemu.sh | sudo NEMU_FORCE=1 NEMU_CONVEX_SITE_URL=https://….convex.site sh
-#   curl -fsSL https://get.nemu.sh | sudo sh -s -- --force --convex-url=https://….convex.cloud
+#   curl -fsSL https://get.nemu.sh | sudo NEMU_FORCE=1 sh
+#   curl -fsSL https://get.nemu.sh | sudo sh -s -- --force
+# Custom Convex / secret (self-hosted or non-prod):
+#   curl -fsSL https://get.nemu.sh | sudo \
+#     NEMU_CONVEX_SITE_URL=https://….convex.site \
+#     CONTROLLER_REGISTRATION_SECRET=… \
+#     sh
 # Inspect without running:
 #   curl -fsSL https://get.nemu.sh
 #
-# Optional env (or matching --flags):
+# Optional env (or matching --flags); unset values fall back to Nemu prod defaults:
 #   NEMU_CONVEX_SITE_URL  Convex HTTP site URL (https://….convex.site)
 #   CONVEX_URL            Alias; .convex.cloud is rewritten to .convex.site
 #   NEMU_CONTROLLER_NAME  Display name (default Home)
-#   CONTROLLER_REGISTRATION_SECRET
+#   CONTROLLER_REGISTRATION_SECRET  Shared with Convex (public default for consumer installs)
 #   NEMU_ZIGBEE_DEVICE    Host serial path
 #   NEMU_FORCE=1          Overwrite existing /opt/nemu compose files
 #   NEMU_INSTALL_DIR      Default /opt/nemu
@@ -27,6 +32,11 @@ BASE_URL="${GET_NEMU_BASE_URL:-https://get.nemu.sh}"
 INSTALL_DIR="${NEMU_INSTALL_DIR:-/opt/nemu}"
 COMPOSE_FILE="${INSTALL_DIR}/docker-compose.yml"
 ENV_FILE="${INSTALL_DIR}/.env"
+
+# Public Nemu prod defaults (anyone with the install script can register a controller).
+# Override via env/flags for self-hosted deployments. Must match Convex CONTROLLER_REGISTRATION_SECRET.
+DEFAULT_NEMU_CONVEX_SITE_URL="https://veracious-goat-294.convex.site"
+DEFAULT_CONTROLLER_REGISTRATION_SECRET="43a1d23942fd0757c14aff37da23c95525aaf48ec51deb6935c4ce79b8c56ac6"
 
 FORCE=0
 ARG_CONVEX_URL=""
@@ -62,6 +72,15 @@ is_force() {
   is_truthy "${NEMU_FORCE:-}" || [ "${FORCE}" = "1" ]
 }
 
+# Read KEY from dotenv (empty if missing / blank).
+read_env() {
+  key="$1"
+  [ -f "${ENV_FILE}" ] || return 0
+  line="$(grep "^${key}=" "${ENV_FILE}" | head -n1 || true)"
+  [ -n "${line}" ] || return 0
+  printf '%s\n' "${line#*=}"
+}
+
 # Convex HTTP actions live on *.convex.site; client URLs are *.convex.cloud.
 normalize_convex_site_url() {
   url="${1:-}"
@@ -70,8 +89,15 @@ normalize_convex_site_url() {
   printf '%s\n' "${url}" | sed 's/\.convex\.cloud/.convex.site/'
 }
 
+# Flag/env → existing .env → baked Nemu prod default.
 resolve_convex_site_url() {
   raw="${ARG_CONVEX_URL:-${NEMU_CONVEX_SITE_URL:-${CONVEX_URL:-${NEXT_PUBLIC_CONVEX_URL:-}}}}"
+  if [ -z "${raw}" ]; then
+    raw="$(read_env NEMU_CONVEX_SITE_URL || true)"
+  fi
+  if [ -z "${raw}" ]; then
+    raw="${DEFAULT_NEMU_CONVEX_SITE_URL}"
+  fi
   normalize_convex_site_url "${raw}"
 }
 
@@ -79,8 +105,16 @@ resolve_controller_name() {
   printf '%s\n' "${ARG_CONTROLLER_NAME:-${NEMU_CONTROLLER_NAME:-Home}}"
 }
 
+# Flag/env → existing .env → baked Nemu prod default.
 resolve_registration_secret() {
-  printf '%s\n' "${ARG_REGISTRATION_SECRET:-${CONTROLLER_REGISTRATION_SECRET:-}}"
+  secret="${ARG_REGISTRATION_SECRET:-${CONTROLLER_REGISTRATION_SECRET:-}}"
+  if [ -z "${secret}" ]; then
+    secret="$(read_env CONTROLLER_REGISTRATION_SECRET || true)"
+  fi
+  if [ -z "${secret}" ]; then
+    secret="${DEFAULT_CONTROLLER_REGISTRATION_SECRET}"
+  fi
+  printf '%s\n' "${secret}"
 }
 
 parse_args() {
@@ -253,18 +287,35 @@ download_file() {
 
 # Matter runs on by default (nemu-matter, host network).
 # Wi-Fi Matter needs working IPv6 (link-local at minimum) and BLE commissioning
-# needs bluetoothd on the host D-Bus. Neither failure should block the install;
-# Zigbee and Wi-Fi-onboarded Matter devices keep working.
+# needs bluetoothd on the host D-Bus. IPv6 stays warn-only; BlueZ is installed
+# when missing. Neither failure blocks the install — Zigbee and already-onboarded
+# Matter devices keep working.
 check_matter_prereqs() {
   if [ "$(cat /proc/sys/net/ipv6/conf/all/disable_ipv6 2>/dev/null || echo 0)" = "1" ]; then
     warn "IPv6 is disabled on this host. Matter requires IPv6 (link-local is enough)."
     warn "Enable it with: sysctl -w net.ipv6.conf.all.disable_ipv6=0 (and persist in /etc/sysctl.d)"
   fi
-  if command -v systemctl >/dev/null 2>&1; then
-    if ! systemctl is-active --quiet bluetooth 2>/dev/null; then
-      warn "bluetoothd is not running. BLE commissioning of new Matter devices will fail."
-      warn "Install/enable it with: apt-get install -y bluez && systemctl enable --now bluetooth"
-    fi
+  if ! command -v systemctl >/dev/null 2>&1; then
+    return
+  fi
+  if systemctl is-active --quiet bluetooth 2>/dev/null; then
+    return
+  fi
+
+  log "Installing BlueZ for Matter BLE commissioning"
+  export DEBIAN_FRONTEND=noninteractive
+  if command -v apt-get >/dev/null 2>&1; then
+    apt-get update -qq
+    apt-get install -y -qq bluez || warn "Failed to install bluez package"
+    systemctl enable --now bluetooth >/dev/null 2>&1 || true
+  else
+    warn "apt-get not available; cannot install BlueZ automatically"
+  fi
+
+  if systemctl is-active --quiet bluetooth 2>/dev/null; then
+    log "Bluetooth service is active"
+  else
+    warn "bluetoothd is not running. BLE commissioning of new Matter devices will fail."
   fi
 }
 
@@ -489,10 +540,6 @@ nemu-core auto-updates from ghcr.io/.../nemu-core:latest via Watchtower (hourly 
 Compose/config changes are not auto-applied — re-run this installer with NEMU_FORCE=1 or edit ${INSTALL_DIR}.
 
 EOF
-  if [ -z "$(resolve_convex_site_url)" ] && ! grep -q '^NEMU_CONVEX_SITE_URL=.\+' "${ENV_FILE}" 2>/dev/null; then
-    warn "NEMU_CONVEX_SITE_URL is unset — cloud registration/relay is disabled until you set it:
-  curl -fsSL ${BASE_URL} | sudo NEMU_CONVEX_SITE_URL=https://YOUR_DEPLOYMENT.convex.site NEMU_FORCE=1 sh"
-  fi
 }
 
 main() {

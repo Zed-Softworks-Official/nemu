@@ -95,10 +95,12 @@ pub async fn fetch_controller_session(
         return Err(format!("session failed ({status}): {text}"));
     }
 
-    response
+    let session: ControllerSession = response
         .json()
         .await
-        .map_err(|e| format!("session decode failed: {e}"))
+        .map_err(|e| format!("session decode failed: {e}"))?;
+
+    Ok(session)
 }
 
 pub async fn register_with_convex(
