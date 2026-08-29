@@ -320,7 +320,7 @@ export type CommissionProgress = {
     message?: string
 }
 
-const MATTER_CONNECT_MS = 180_000
+const MATTER_CONNECT_MS = 240_000
 
 export function useDevicePairing(): {
     phase: DevicePairingPhase

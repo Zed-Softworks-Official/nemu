@@ -1,3 +1,4 @@
+pub mod adopt;
 pub mod codec;
 pub mod config;
 pub mod mapping;

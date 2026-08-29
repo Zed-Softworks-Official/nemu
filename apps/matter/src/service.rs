@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use matter_controller::{
     AttestationTrust, CommandPath, FabricConfig, FileStore, MatterController, MatterTime,
@@ -10,6 +10,7 @@ use matter_controller::{
 use serde_json::{Map, Value as JsonValue, json};
 use tracing::{info, warn};
 
+use crate::adopt::{AdoptStore, FIRST_DEVICE_NODE_ID, next_device_node_id};
 use crate::codec::{empty_structure, unsigned_fields, value_to_json};
 use crate::config::Config;
 use crate::mapping::{
@@ -31,10 +32,13 @@ pub struct MatterService {
     controller: MatterController,
     mqtt: MqttBus,
     names: NameStore,
+    adopted: AdoptStore,
     index: HashMap<String, Indexed>,
     attributes: HashMap<u64, Attributes>,
     subscribed: HashSet<u64>,
     commissioning: bool,
+    got_node: bool,
+    boot_recover_ids: Vec<u64>,
     cancel: Arc<AtomicBool>,
 }
 
@@ -91,19 +95,28 @@ impl MatterService {
         }
 
         let names = NameStore::load(config.names_path());
+        let adopted = AdoptStore::load(config.adopted_path());
         let mut service = Self {
             _config: config,
             controller,
             mqtt,
             names,
+            adopted,
             index: HashMap::new(),
             attributes: HashMap::new(),
             subscribed: HashSet::new(),
             commissioning: false,
+            got_node: false,
+            boot_recover_ids: Vec::new(),
             cancel: Arc::new(AtomicBool::new(false)),
         };
         service.mqtt.set_online(true).await;
-        service.refresh_all_nodes().await;
+        let failed = service.refresh_all_nodes().await;
+        if service.index.is_empty() {
+            let mut ids: HashSet<u64> = failed.into_iter().collect();
+            ids.insert(FIRST_DEVICE_NODE_ID);
+            service.boot_recover_ids = ids.into_iter().collect();
+        }
         service.publish_devices().await;
         Ok(service)
     }
@@ -112,6 +125,10 @@ impl MatterService {
         let (attr_tx, mut attr_rx) = tokio::sync::mpsc::unbounded_channel();
         let (done_tx, mut done_rx) = tokio::sync::mpsc::unbounded_channel();
         self.subscribe_nodes(attr_tx.clone());
+        if !self.boot_recover_ids.is_empty() {
+            let ids = std::mem::take(&mut self.boot_recover_ids);
+            self.spawn_boot_recover(done_tx.clone(), ids);
+        }
         loop {
             tokio::select! {
                 message = incoming.recv() => {
@@ -190,6 +207,7 @@ impl MatterService {
             .to_string();
 
         self.commissioning = true;
+        self.got_node = false;
         self.cancel.store(false, Ordering::SeqCst);
         // Ack before BLE — that step takes 20–40s and must not block MQTT.
         self.mqtt
@@ -204,29 +222,80 @@ impl MatterService {
         let controller = self.controller.clone();
         let mqtt = self.mqtt.clone();
         let cancel = self.cancel.clone();
+        let known = self.known_node_ids().await;
         tokio::spawn(async move {
-            let result =
-                commission_device(&controller, &mqtt, &cancel, &code, wifi_ssid, wifi_password)
-                    .await;
+            let result = commission_device(
+                &controller,
+                &mqtt,
+                &cancel,
+                &code,
+                wifi_ssid,
+                wifi_password,
+                known,
+            )
+            .await;
             let _ = done.send(result);
         });
     }
 
+    fn spawn_boot_recover(
+        &self,
+        done: tokio::sync::mpsc::UnboundedSender<Result<u64, String>>,
+        node_ids: Vec<u64>,
+    ) {
+        let controller = self.controller.clone();
+        let mqtt = self.mqtt.clone();
+        let cancel = self.cancel.clone();
+        info!(?node_ids, "looking for an already-paired device on the network");
+        tokio::spawn(async move {
+            if let Ok(node_id) =
+                recover_operational_session(&controller, &mqtt, &cancel, &node_ids, false).await
+            {
+                let _ = done.send(Ok(node_id));
+            }
+        });
+    }
+
+    async fn known_node_ids(&self) -> HashSet<u64> {
+        let mut known: HashSet<u64> = self.adopted.ids().collect();
+        match self.controller.nodes().await {
+            Ok(nodes) => {
+                for info in nodes {
+                    known.insert(info.node_id);
+                }
+            }
+            Err(error) => warn!(error = %error, "failed to list nodes for next id"),
+        }
+        known
+    }
+
     async fn finish_commission(&mut self, result: Result<u64, String>) {
+        let was_commissioning = self.commissioning;
         let cancelled = self.cancel.swap(false, Ordering::SeqCst);
-        self.commissioning = false;
         match result {
             Ok(node_id) => {
+                self.got_node = true;
+                self.commissioning = false;
+                self.adopted.insert(node_id);
                 publish_progress(&self.mqtt, "setting_up", "Setting up the device").await;
                 self.refresh_node(node_id).await;
                 self.publish_devices().await;
                 self.publish_joins_for_node(node_id).await;
                 publish_progress(&self.mqtt, "connected", "Connected").await;
             }
+            Err(_) if self.got_node => {
+                self.commissioning = false;
+                info!("ignoring later commission error; device already joined");
+            }
             Err(_) if cancelled => {
+                self.commissioning = false;
                 info!("commission finished after cancel");
             }
+            Err(_) if !was_commissioning => {
+                info!("boot recover did not find an operational node");
+            }
             Err(error) => {
+                self.commissioning = false;
                 self.mqtt
                     .event(
                         "device_interview",
@@ -287,6 +356,7 @@ impl MatterService {
             return;
         }
         self.drop_node(node_id).await;
+        self.adopted.remove(node_id);
         self.mqtt
             .respond(
                 "device/remove",
@@ -363,20 +433,28 @@ impl MatterService {
         self.publish_state(device_id).await;
     }
 
-    async fn refresh_all_nodes(&mut self) {
-        let nodes = match self.controller.nodes().await {
-            Ok(nodes) => nodes,
+    async fn refresh_all_nodes(&mut self) -> Vec<u64> {
+        let mut ids: HashSet<u64> = self.adopted.ids().collect();
+        match self.controller.nodes().await {
+            Ok(nodes) => {
+                for info in nodes {
+                    ids.insert(info.node_id);
+                }
+            }
             Err(error) => {
                 warn!(error = %error, "failed to list nodes");
-                return;
             }
-        };
-        for info in nodes {
-            self.refresh_node(info.node_id).await;
         }
+        let mut failed = Vec::new();
+        for node_id in ids {
+            if !self.refresh_node(node_id).await {
+                failed.push(node_id);
+            }
+        }
+        failed
     }
 
-    async fn refresh_node(&mut self, node_id: u64) {
+    async fn refresh_node(&mut self, node_id: u64) -> bool {
         let node = self.controller.node(node_id);
         match node.read(&[ReadPath::all()]).await {
             Ok(report) => {
@@ -389,13 +467,14 @@ impl MatterService {
                     attributes.insert(key, value_to_json(&value));
                 }
                 self.attributes.insert(node_id, attributes);
+                self.rebuild_index_for_node(node_id);
+                true
             }
             Err(error) => {
                 warn!(error = %error, node_id, "wildcard read failed");
-                self.attributes.entry(node_id).or_default();
+                false
             }
         }
-        self.rebuild_index_for_node(node_id);
     }
 
     fn rebuild_index_for_node(&mut self, node_id: u64) {
@@ -597,6 +676,7 @@ async fn commission_device(
     code: &str,
     wifi_ssid: Option<String>,
     wifi_password: String,
+    known: HashSet<u64>,
 ) -> Result<u64, String> {
     if cancel.load(Ordering::SeqCst) {
         return Err("pairing was cancelled".into());
@@ -623,8 +703,24 @@ async fn commission_device(
             }
             Err(error) => {
                 let raw = error.to_string();
-                if is_attestation_error(&raw) || is_session_error(&raw) {
+                if is_attestation_error(&raw) {
                     return Err(human_commission_error(&raw));
+                }
+                if is_session_error(&raw) {
+                    let node_id = next_device_node_id(&known);
+                    info!(
+                        node_id,
+                        error = %raw,
+                        "BLE CASE timed out; recovering over the operational network"
+                    );
+                    return recover_operational_session(
+                        controller,
+                        mqtt,
+                        cancel,
+                        &[node_id],
+                        true,
+                    )
+                    .await;
                 }
                 info!(error = %raw, "BLE commission failed; trying on-network");
             }
@@ -652,6 +748,63 @@ async fn commission_device(
         "Put the device back in pairing mode and try again. If it is new, enter your 2.4 GHz home Wi-Fi."
             .into(),
     )
+}
+
+const GENERAL_COMMISSIONING_CLUSTER: u32 = 0x0030;
+const COMMISSIONING_COMPLETE_COMMAND: u32 = 0x04;
+const CASE_RECOVER_ATTEMPTS: u32 = 18;
+const CASE_RECOVER_GAP: Duration = Duration::from_secs(5);
+
+async fn recover_operational_session(
+    controller: &MatterController,
+    mqtt: &MqttBus,
+    cancel: &AtomicBool,
+    node_ids: &[u64],
+    announce: bool,
+) -> Result<u64, String> {
+    if announce {
+        publish_progress(mqtt, "joining", "Waiting for the device on your network").await;
+    }
+    for attempt in 1..=CASE_RECOVER_ATTEMPTS {
+        if cancel.load(Ordering::SeqCst) {
+            return Err("pairing was cancelled".into());
+        }
+        for node_id in node_ids {
+            let node_id = *node_id;
+            info!(node_id, attempt, "recovering operational CASE");
+            let node = controller.node(node_id);
+            match node.read(&[ReadPath::all()]).await {
+                Ok(_) => {
+                    if let Err(error) = node
+                        .invoke(
+                            CommandPath {
+                                endpoint: 0,
+                                cluster: GENERAL_COMMISSIONING_CLUSTER,
+                                command: COMMISSIONING_COMPLETE_COMMAND,
+                            },
+                            empty_structure(),
+                        )
+                        .await
+                    {
+                        warn!(error = %error, node_id, "CommissioningComplete failed");
+                    } else {
+                        info!(node_id, "sent CommissioningComplete");
+                    }
+                    return Ok(node_id);
+                }
+                Err(error) => {
+                    warn!(
+                        node_id,
+                        attempt,
+                        error = %error,
+                        "operational CASE not ready"
+                    );
+                }
+            }
+        }
+        tokio::time::sleep(CASE_RECOVER_GAP).await;
+    }
+    Err(human_commission_error("CASE session establishment failed"))
 }
 
 fn target_endpoints(device: &EndpointDevice, payload: &Map<String, JsonValue>) -> Vec<u16> {

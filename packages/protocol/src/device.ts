@@ -15,9 +15,22 @@ export const deviceSchema = z.object({
     model: z.string().optional(),
     roomId: z.string().nullable().optional(),
     online: z.boolean(),
-    state: deviceStateSchema.optional(),
+    state: deviceStateSchema
+        .nullish()
+        .transform((value): DeviceState | undefined => value ?? undefined),
 })
 export type Device = z.infer<typeof deviceSchema>
+
+/** Keep a usable list when one row fails validation. */
+export function parseDeviceList(value: unknown): Device[] {
+    if (!Array.isArray(value)) return []
+    const devices: Device[] = []
+    for (const item of value) {
+        const parsed = deviceSchema.safeParse(item)
+        if (parsed.success) devices.push(parsed.data)
+    }
+    return devices
+}
 
 export const roomSchema = z.object({
     id: z.string(),

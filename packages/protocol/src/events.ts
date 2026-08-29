@@ -5,7 +5,9 @@ export const deviceEventSchema = z.discriminatedUnion('type', [
     z.object({
         type: z.literal('deviceState'),
         deviceId: z.string(),
-        state: deviceStateSchema,
+        state: deviceStateSchema
+            .nullish()
+            .transform((value): Record<string, unknown> => value ?? {}),
     }),
     z.object({
         type: z.literal('deviceJoined'),
