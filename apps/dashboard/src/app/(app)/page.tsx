@@ -1,5 +1,7 @@
+import { auth } from '@clerk/nextjs/server'
 import { HomeDashboard } from '~/components/dashboard/home-dashboard'
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+    await auth.protect()
     return <HomeDashboard />
 }
