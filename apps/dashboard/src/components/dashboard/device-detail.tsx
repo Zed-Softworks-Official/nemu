@@ -24,6 +24,16 @@ import {
     CardTitle,
 } from '@nemu/ui/components/card'
 import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '@nemu/ui/components/dialog'
+import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuLabel,
@@ -40,15 +50,18 @@ import {
     EmptyMedia,
     EmptyTitle,
 } from '@nemu/ui/components/empty'
+import { Input } from '@nemu/ui/components/input'
 import { Separator } from '@nemu/ui/components/separator'
 import { Skeleton } from '@nemu/ui/components/skeleton'
 import { Switch } from '@nemu/ui/components/switch'
 import {
     ArrowLeftIcon,
     BatteryMediumIcon,
+    CheckIcon,
     ChevronDownIcon,
     CircleOffIcon,
     LoaderCircleIcon,
+    PencilIcon,
     RadioTowerIcon,
     RefreshCwIcon,
     ServerOffIcon,
@@ -80,8 +93,14 @@ import { PageHeader } from './page-header'
 
 export function DeviceDetail({ deviceId }: { deviceId: string }) {
     const { devices, error, refresh, status } = useDevices()
-    const { reprobe, forgetDevice, sendCommand, getRooms, patchDevice } =
-        useController()
+    const {
+        reprobe,
+        forgetDevice,
+        sendCommand,
+        getRooms,
+        patchDevice,
+        patchOutlet,
+    } = useController()
     const router = useRouter()
     const [forgetOpen, setForgetOpen] = useState(false)
     const [forgetting, setForgetting] = useState(false)
@@ -96,6 +115,14 @@ export function DeviceDetail({ deviceId }: { deviceId: string }) {
     const [roomsError, setRoomsError] = useState<Error | null>(null)
     const [roomPatching, setRoomPatching] = useState(false)
     const [roomError, setRoomError] = useState<Error | null>(null)
+    const [editingName, setEditingName] = useState(false)
+    const [nameDraft, setNameDraft] = useState('')
+    const [nameSaving, setNameSaving] = useState(false)
+    const [nameError, setNameError] = useState<Error | null>(null)
+    const [editingOutletId, setEditingOutletId] = useState<string | null>(null)
+    const [outletNameDraft, setOutletNameDraft] = useState('')
+    const [outletSaving, setOutletSaving] = useState(false)
+    const [outletError, setOutletError] = useState<Error | null>(null)
     const [colorDraft, setColorDraft] = useState('#FFFFFF')
     const device = devices?.find((candidate) => candidate.id === deviceId)
     const commitOnRelease = status.mode === 'relay'
@@ -150,6 +177,10 @@ export function DeviceDetail({ deviceId }: { deviceId: string }) {
             setColorDraft(presented.colorHex)
         }
     }, [device])
+
+    useEffect(() => {
+        if (!editingName && device) setNameDraft(device.name)
+    }, [device, editingName])
 
     if (!devices && error) {
         return (
@@ -245,6 +276,58 @@ export function DeviceDetail({ deviceId }: { deviceId: string }) {
             )
         } finally {
             setRoomPatching(false)
+        }
+    }
+
+    async function handleNameSave() {
+        const name = nameDraft.trim()
+        if (!name || name === presented.name) {
+            setEditingName(false)
+            return
+        }
+        setNameSaving(true)
+        setNameError(null)
+        try {
+            await patchDevice(deviceId, { name })
+            await refresh()
+            setEditingName(false)
+        } catch (nextError) {
+            setNameError(
+                nextError instanceof Error
+                    ? nextError
+                    : new Error(String(nextError))
+            )
+        } finally {
+            setNameSaving(false)
+        }
+    }
+
+    function startNameEdit() {
+        setEditingName(true)
+        setNameDraft(presented.name)
+        setNameError(null)
+    }
+
+    async function handleOutletNameSave(outletId: string, currentName: string) {
+        const name = outletNameDraft.trim()
+        if (!name || name === currentName) {
+            setEditingOutletId(null)
+            return
+        }
+        setOutletSaving(true)
+        setOutletError(null)
+        try {
+            await patchOutlet(deviceId, outletId, { name })
+            await refresh()
+            setEditingOutletId(null)
+        } catch (nextError) {
+            setOutletError(
+                nextError instanceof Error
+                    ? nextError
+                    : new Error(String(nextError))
+            )
+        } finally {
+            setOutletSaving(false)
         }
     }
 
@@ -362,9 +445,93 @@ export function DeviceDetail({ deviceId }: { deviceId: string }) {
                                                 className="flex items-center justify-between gap-3 py-2"
                                                 key={outlet.id}
                                             >
-                                                <span className="font-medium text-sm">
-                                                    {outlet.name}
-                                                </span>
+                                                <div className="flex min-w-0 items-center gap-1">
+                                                    {editingOutletId ===
+                                                    outlet.id ? (
+                                                        <Input
+                                                            aria-label="Outlet name"
+                                                            autoFocus
+                                                            className="h-8"
+                                                            disabled={
+                                                                outletSaving
+                                                            }
+                                                            onChange={(event) =>
+                                                                setOutletNameDraft(
+                                                                    event.target
+                                                                        .value
+                                                                )
+                                                            }
+                                                            onKeyDown={(
+                                                                event
+                                                            ) => {
+                                                                if (
+                                                                    event.key ===
+                                                                    'Enter'
+                                                                )
+                                                                    void handleOutletNameSave(
+                                                                        outlet.id,
+                                                                        outlet.name
+                                                                    )
+                                                                if (
+                                                                    event.key ===
+                                                                    'Escape'
+                                                                )
+                                                                    setEditingOutletId(
+                                                                        null
+                                                                    )
+                                                            }}
+                                                            value={
+                                                                outletNameDraft
+                                                            }
+                                                        />
+                                                    ) : (
+                                                        <span className="font-medium text-sm">
+                                                            {outlet.name}
+                                                        </span>
+                                                    )}
+                                                    {editingOutletId ===
+                                                    outlet.id ? (
+                                                        <Button
+                                                            aria-label={`Save ${outlet.name} name`}
+                                                            disabled={
+                                                                outletSaving
+                                                            }
+                                                            onClick={() =>
+                                                                void handleOutletNameSave(
+                                                                    outlet.id,
+                                                                    outlet.name
+                                                                )
+                                                            }
+                                                            size="icon-sm"
+                                                            variant="ghost"
+                                                        >
+                                                            <CheckIcon />
+                                                        </Button>
+                                                    ) : (
+                                                        <Button
+                                                            aria-label={`Rename ${outlet.name}`}
+                                                            disabled={
+                                                                status.mode !==
+                                                                'lan'
+                                                            }
+                                                            onClick={() => {
+                                                                setEditingOutletId(
+                                                                    outlet.id
+                                                                )
+                                                                setOutletNameDraft(
+                                                                    outlet.name
+                                                                )
+                                                                setOutletError(
+                                                                    null
+                                                                )
+                                                            }}
+                                                            size="icon-sm"
+                                                            variant="ghost"
+                                                        >
+                                                            <PencilIcon />
+                                                        </Button>
+                                                    )}
+                                                </div>
                                                 <Switch
                                                     aria-label={`${outlet.name} power`}
                                                     checked={checked}
@@ -482,6 +649,11 @@ export function DeviceDetail({ deviceId }: { deviceId: string }) {
                                     {commandError.message}
                                 </div>
                             ) : null}
+                            {outletError ? (
+                                <p className="text-destructive text-sm">
+                                    {outletError.message}
+                                </p>
+                            ) : null}
                         </CardContent>
                     </Card>
 
@@ -530,6 +702,102 @@ export function DeviceDetail({ deviceId }: { deviceId: string }) {
                             </CardAction>
                         </CardHeader>
                         <CardContent className="space-y-4">
+                            <div className="space-y-2">
+                                <span className="text-muted-foreground text-sm">
+                                    Name
+                                </span>
+                                <div className="flex gap-2">
+                                    <span className="flex h-9 flex-1 items-center font-medium text-sm">
+                                        {presented.name}
+                                    </span>
+                                    <Dialog
+                                        onOpenChange={(open) => {
+                                            if (!nameSaving) {
+                                                setEditingName(open)
+                                                if (open) startNameEdit()
+                                            }
+                                        }}
+                                        open={editingName}
+                                    >
+                                        <DialogTrigger asChild>
+                                            <Button
+                                                disabled={status.mode !== 'lan'}
+                                                size="sm"
+                                                variant="outline"
+                                            >
+                                                <PencilIcon data-icon="inline-start" />
+                                                Rename
+                                            </Button>
+                                        </DialogTrigger>
+                                        <DialogContent>
+                                            <form
+                                                onSubmit={(event) => {
+                                                    event.preventDefault()
+                                                    void handleNameSave()
+                                                }}
+                                            >
+                                                <DialogHeader>
+                                                    <DialogTitle>
+                                                        Rename device
+                                                    </DialogTitle>
+                                                    <DialogDescription>
+                                                        Choose a name that is
+                                                        easy to recognize.
+                                                    </DialogDescription>
+                                                </DialogHeader>
+                                                <Input
+                                                    aria-label="Device name"
+                                                    autoFocus
+                                                    className="mt-5"
+                                                    disabled={nameSaving}
+                                                    onChange={(event) =>
+                                                        setNameDraft(
+                                                            event.target.value
+                                                        )
+                                                    }
+                                                    value={nameDraft}
+                                                />
+                                                {nameError ? (
+                                                    <p
+                                                        className="mt-3 text-destructive text-xs"
+                                                        role="alert"
+                                                    >
+                                                        {nameError.message}
+                                                    </p>
+                                                ) : null}
+                                                <DialogFooter className="mt-6">
+                                                    <DialogClose asChild>
+                                                        <Button
+                                                            disabled={
+                                                                nameSaving
+                                                            }
+                                                            type="button"
+                                                            variant="outline"
+                                                        >
+                                                            Cancel
+                                                        </Button>
+                                                    </DialogClose>
+                                                    <Button
+                                                        disabled={
+                                                            !nameDraft.trim() ||
+                                                            nameSaving
+                                                        }
+                                                        type="submit"
+                                                    >
+                                                        <CheckIcon data-icon="inline-start" />
+                                                        Save name
+                                                    </Button>
+                                                </DialogFooter>
+                                            </form>
+                                        </DialogContent>
+                                    </Dialog>
+                                </div>
+                                {status.mode !== 'lan' ? (
+                                    <p className="text-muted-foreground text-xs">
+                                        Renaming requires a Home connection.
+                                    </p>
+                                ) : null}
+                            </div>
                             <MetadataRow label="Type" value={presented.type} />
                             <MetadataRow
                                 label="Protocol"

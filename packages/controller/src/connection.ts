@@ -12,10 +12,11 @@ import {
     type HouseholdMember,
     type MatterWifiResponse,
     type PatchDeviceRequest,
-    type SaveMatterWifiRequest,
+    type PatchOutletRequest,
     type PatchRoomRequest,
     type PermitJoinResponse,
     type Room,
+    type SaveMatterWifiRequest,
     statusFromMode,
 } from '@nemu/protocol'
 import type { ConvexReactClient } from 'convex/react'
@@ -259,6 +260,18 @@ export class ControllerConnection {
             )
         }
         return await transport.patchDevice(deviceId, patch)
+    }
+
+    async patchOutlet(
+        deviceId: string,
+        outletId: string,
+        patch: PatchOutletRequest
+    ): Promise<void> {
+        const transport = this.transport
+        if (!transport?.patchOutlet) {
+            throw new Error('Outlet renaming requires a Home connection')
+        }
+        await transport.patchOutlet(deviceId, outletId, patch)
     }
 
     async forgetDevice(deviceId: string): Promise<void> {

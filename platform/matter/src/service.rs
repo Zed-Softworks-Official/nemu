@@ -622,6 +622,16 @@ impl MatterService {
         if devices.is_empty() {
             devices.push(placeholder_device(&key));
         }
+        for device in &mut devices {
+            if let Some(outlets) = &mut device.outlets {
+                for outlet in outlets {
+                    let outlet_key = format!("{}#{}", key, outlet.endpoint_id);
+                    if let Some(name) = self.names.get(&outlet_key) {
+                        outlet.name = name.to_string();
+                    }
+                }
+            }
+        }
         self.index.retain(|_, entry| entry.node_id != node_id);
         for device in devices {
             let id = device.id.clone();

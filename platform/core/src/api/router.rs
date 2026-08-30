@@ -63,6 +63,10 @@ pub fn router(state: AppState) -> Router {
         )
         .route("/api/devices/{id}/set", post(devices::set_device))
         .route(
+            "/api/devices/{id}/outlets/{outlet_id}",
+            patch(devices::patch_outlet),
+        )
+        .route(
             "/api/rooms",
             get(rooms::list_rooms).post(rooms::create_room),
         )

@@ -27,6 +27,11 @@ pub struct PatchDeviceBody {
     pub room_id: Option<Option<String>>,
 }
 
+#[derive(Deserialize)]
+pub struct PatchOutletBody {
+    pub name: String,
+}
+
 pub async fn list_devices(
     State(state): State<AppState>,
     Query(query): Query<ListDevicesQuery>,
@@ -155,6 +160,43 @@ pub async fn delete_device(
         .mark_left(&state, protocol, &existing.external_id)
         .await;
 
+    Ok(axum::http::StatusCode::NO_CONTENT)
+}
+
+pub async fn patch_outlet(
+    State(state): State<AppState>,
+    Path((id, outlet_id)): Path<(String, String)>,
+    Json(body): Json<PatchOutletBody>,
+) -> ApiResult<axum::http::StatusCode> {
+    let device_id = parse_device_id(&id)?;
+    let device = state
+        .registry
+        .get(device_id)
+        .await
+        .ok_or_else(|| ApiError::not_found("device_not_found", "device not found"))?;
+    if crate::mqtt::device_protocol(&device) != crate::config::Protocol::Matter {
+        return Err(ApiError::bad_request(
+            "outlet_rename_unsupported",
+            "only Matter power-strip outlets can be renamed",
+        ));
+    }
+    let outlet_id = outlet_id.trim();
+    if outlet_id.is_empty() {
+        return Err(ApiError::bad_request("invalid_outlet", "outlet id must not be empty"));
+    }
+    let name = body.name.trim();
+    if name.is_empty() {
+        return Err(ApiError::bad_request("invalid_name", "name must not be empty"));
+    }
+    state
+        .mqtt
+        .rename_device(
+            crate::config::Protocol::Matter,
+            &format!("{}#{}", device.external_id, outlet_id),
+            name,
+        )
+        .await
+        .map_err(|e| ApiError::service_unavailable("mqtt_error", e))?;
     Ok(axum::http::StatusCode::NO_CONTENT)
 }
 

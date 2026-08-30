@@ -11,10 +11,11 @@ import type {
     HouseholdMember,
     MatterWifiResponse,
     PatchDeviceRequest,
-    SaveMatterWifiRequest,
+    PatchOutletRequest,
     PatchRoomRequest,
     PermitJoinResponse,
     Room,
+    SaveMatterWifiRequest,
 } from '@nemu/protocol'
 
 export interface ControllerTransport {
@@ -36,6 +37,11 @@ export interface ControllerTransport {
     patchRoom?(roomId: string, patch: PatchRoomRequest): Promise<Room>
     deleteRoom?(roomId: string): Promise<void>
     patchDevice?(deviceId: string, patch: PatchDeviceRequest): Promise<Device>
+    patchOutlet?(
+        deviceId: string,
+        outletId: string,
+        patch: PatchOutletRequest
+    ): Promise<void>
     forgetDevice?(deviceId: string): Promise<void>
     getMembers?(): Promise<HouseholdMember[]>
     inviteMember?(email: string): Promise<HouseholdMember>
@@ -59,5 +65,10 @@ export interface ControllerTransport {
     patchRoom?(roomId: string, patch: PatchRoomRequest): Promise<Room>
     deleteRoom?(roomId: string): Promise<void>
     patchDevice?(deviceId: string, patch: PatchDeviceRequest): Promise<Device>
+    patchOutlet?(
+        deviceId: string,
+        outletId: string,
+        patch: PatchOutletRequest
+    ): Promise<void>
     forgetDevice?(deviceId: string): Promise<void>
 }

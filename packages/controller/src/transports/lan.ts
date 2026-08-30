@@ -23,9 +23,11 @@ import {
     matterWifiResponseSchema,
     membersResponseSchema,
     type PatchDeviceRequest,
+    type PatchOutletRequest,
     type PatchRoomRequest,
     type PermitJoinResponse,
     patchDeviceRequestSchema,
+    patchOutletRequestSchema,
     patchRoomRequestSchema,
     permitJoinRequestSchema,
     permitJoinResponseSchema,
@@ -211,6 +213,18 @@ export class LanTransport implements ControllerTransport {
             body
         )
         return deviceSchema.parse(data)
+    }
+
+    async patchOutlet(
+        deviceId: string,
+        outletId: string,
+        patch: PatchOutletRequest
+    ): Promise<void> {
+        const body = patchOutletRequestSchema.parse(patch)
+        await this.http.patch(
+            `/api/devices/${encodeURIComponent(deviceId)}/outlets/${encodeURIComponent(outletId)}`,
+            body
+        )
     }
 
     async forgetDevice(deviceId: string): Promise<void> {

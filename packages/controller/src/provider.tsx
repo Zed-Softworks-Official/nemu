@@ -15,6 +15,7 @@ import {
     type HouseholdMember,
     type MatterWifiResponse,
     type PatchDeviceRequest,
+    type PatchOutletRequest,
     type PatchRoomRequest,
     type PermitJoinResponse,
     type Room,
@@ -58,6 +59,11 @@ type ControllerContextValue = {
         deviceId: string,
         patch: PatchDeviceRequest
     ) => Promise<Device>
+    patchOutlet: (
+        deviceId: string,
+        outletId: string,
+        patch: PatchOutletRequest
+    ) => Promise<void>
     forgetDevice: (deviceId: string) => Promise<void>
     getMembers: () => Promise<HouseholdMember[]>
     inviteMember: (email: string) => Promise<HouseholdMember>
@@ -159,6 +165,11 @@ export function ControllerProvider({
             connection.patchDevice(deviceId, patch),
         [connection]
     )
+    const patchOutlet = useCallback(
+        (deviceId: string, outletId: string, patch: PatchOutletRequest) =>
+            connection.patchOutlet(deviceId, outletId, patch),
+        [connection]
+    )
     const forgetDevice = useCallback(
         (deviceId: string) => connection.forgetDevice(deviceId),
         [connection]
@@ -203,6 +214,7 @@ export function ControllerProvider({
             patchRoom,
             deleteRoom,
             patchDevice,
+            patchOutlet,
             forgetDevice,
             getMembers,
             inviteMember,
@@ -228,6 +240,7 @@ export function ControllerProvider({
             patchRoom,
             deleteRoom,
             patchDevice,
+            patchOutlet,
             forgetDevice,
             getMembers,
             inviteMember,

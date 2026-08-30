@@ -107,6 +107,11 @@ export const patchDeviceRequestSchema = z
     })
 export type PatchDeviceRequest = z.infer<typeof patchDeviceRequestSchema>
 
+export const patchOutletRequestSchema = z.object({
+    name: z.string().trim().min(1),
+})
+export type PatchOutletRequest = z.infer<typeof patchOutletRequestSchema>
+
 export const pairRequestSchema = z.object({
     code: z.string(),
     clientLabel: z.string(),
