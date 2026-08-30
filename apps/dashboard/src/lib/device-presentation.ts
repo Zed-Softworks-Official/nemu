@@ -12,6 +12,8 @@ export type PresentedOutlet = {
     id: string
     name: string
     enabled: boolean
+    power?: number
+    energy?: number
 }
 
 export type PresentedDevice = Device & {
@@ -234,10 +236,26 @@ function readOutlets(state: DeviceState): PresentedOutlet[] | undefined {
             record.state === 'ON' ||
             record.state === true ||
             record.state === 'on'
-        outlets.push({ id, name, enabled })
+        const power = readRecordNumber(record, ['power'])
+        const energy = readRecordNumber(record, ['energy'])
+        outlets.push({ id, name, enabled, power, energy })
     }
 
     return outlets.length > 0 ? outlets : undefined
+}
+
+function readRecordNumber(
+    record: Record<string, unknown>,
+    keys: string[]
+): number | undefined {
+    for (const key of keys) {
+        const value = record[key]
+        if (typeof value === 'number' && Number.isFinite(value)) {
+            return value
+        }
+    }
+
+    return undefined
 }
 
 function hasColorObject(state: DeviceState): boolean {

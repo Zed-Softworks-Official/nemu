@@ -3,6 +3,7 @@ import {
     DoorOpenIcon,
     HomeIcon,
     type LucideIcon,
+    ZapIcon,
 } from 'lucide-react'
 
 type NavigationItem = {
@@ -26,5 +27,10 @@ export const navigation: NavigationItem[] = [
         label: 'Rooms',
         icon: DoorOpenIcon,
         href: '/rooms',
+    },
+    {
+        label: 'Energy',
+        icon: ZapIcon,
+        href: '/energy',
     },
 ]

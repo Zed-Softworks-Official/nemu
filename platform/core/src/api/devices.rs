@@ -182,11 +182,17 @@ pub async fn patch_outlet(
     }
     let outlet_id = outlet_id.trim();
     if outlet_id.is_empty() {
-        return Err(ApiError::bad_request("invalid_outlet", "outlet id must not be empty"));
+        return Err(ApiError::bad_request(
+            "invalid_outlet",
+            "outlet id must not be empty",
+        ));
     }
     let name = body.name.trim();
     if name.is_empty() {
-        return Err(ApiError::bad_request("invalid_name", "name must not be empty"));
+        return Err(ApiError::bad_request(
+            "invalid_name",
+            "name must not be empty",
+        ));
     }
     state
         .mqtt
