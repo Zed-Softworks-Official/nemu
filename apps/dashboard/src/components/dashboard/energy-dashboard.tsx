@@ -350,12 +350,13 @@ export function EnergyDashboard() {
                                                         <ChartTooltipContent
                                                             indicator="line"
                                                             labelFormatter={(
-                                                                value
+                                                                _,
+                                                                payload
                                                             ) =>
                                                                 formatFullTime(
-                                                                    Number(
-                                                                        value
-                                                                    )
+                                                                    payload[0]
+                                                                        ?.payload
+                                                                        ?.timestamp
                                                                 )
                                                             }
                                                         />
@@ -1002,13 +1003,19 @@ function formatAxisPower(value: number): string {
 }
 
 function formatTime(timestamp: number): string {
+    if (!Number.isFinite(timestamp)) return ''
+
     return new Intl.DateTimeFormat('en', {
         hour: 'numeric',
         minute: '2-digit',
     }).format(timestamp)
 }
 
-function formatFullTime(timestamp: number): string {
+function formatFullTime(timestamp: unknown): string {
+    if (typeof timestamp !== 'number' || !Number.isFinite(timestamp)) {
+        return 'Latest reading'
+    }
+
     return new Intl.DateTimeFormat('en', {
         hour: 'numeric',
         minute: '2-digit',
