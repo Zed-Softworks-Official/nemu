@@ -17,3 +17,17 @@ Public deployment docs remain in git:
 ## Privacy (non-negotiable)
 
 Home inventory and state stay on the controller. Convex is identity, pairing, ephemeral relay, and ACME only — never devices, rooms, telemetry, or voice.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in Linear (Nemu team), via Linear MCP. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default role names: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` and `docs/adr/` at the repo root, created lazily. See `docs/agents/domain.md`.
