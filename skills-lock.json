@@ -361,6 +361,12 @@
             "skillPath": "pstack/skills/technical-writing/SKILL.md",
             "computedHash": "0a1bf9d082feaaecc0fe7a808daf3fd03a91e9fad55dd785584b27c7b09420db"
         },
+        "to-spec": {
+            "source": "mattpocock/skills",
+            "sourceType": "github",
+            "skillPath": "skills/engineering/to-spec/SKILL.md",
+            "computedHash": "3fa1a0695d4ea242fae9e569e4d22aa1788623197abb33bfadafae7315789bbf"
+        },
         "to-tickets": {
             "source": "mattpocock/skills",
             "sourceType": "github",
