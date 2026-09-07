@@ -24,17 +24,19 @@ Public install/deploy notes remain in git under `docs/deployment/`.
 2. Match the task to a Skills row (Area / When to use).
 3. Open that skill’s **Page** link (or `Page id` → `superhuman://docs/06TiZ2FvM1/pages/{Page id}`) and `content_read` the instructions. Skill instructions live on dedicated child pages under **Skills**, not in table canvas cells.
 4. For each linked Docs row, open the Docs **Page** / `Page id` the same way. Bodies live on child pages under **Docs**.
-5. Prefer **Status: Current** docs. Trust **Repo Map** and the Architecture page for paths.
-6. Then change code under the skill’s **Repo globs**.
+5. Classify the claim before using it: **Current Architecture** and **Status: Current** describe shipped behavior; **Target Architecture** and **Status: Accepted** describe approved but potentially unimplemented behavior; **Beta Roadmap** defines sequence and completion gates.
+6. Use **Repo Map** only for the current tree. Never describe target behavior as shipped.
+7. Then change code under the skill’s **Repo globs**.
 
-Voice is **planned / local-only** and not implemented in `platform/core` yet — do not assume voice modules or endpoints exist.
+Voice is post-beta and not implemented in `platform/core`. Design the separate speaker-like Device architecture before adding voice modules or endpoints.
 
 ## Hard privacy rules
 
-1. Controller Postgres holds all home state (devices, rooms, telemetry, voice, automations).
-2. Convex stores identity + bindings + ephemeral relay + ACME only (`controllers`, `acmeAccounts`, `pairings`, `invites`, `relayMessages`).
-3. Never add device inventory, rooms, scenes, state, telemetry, history, or voice to Convex.
-4. Relay is a TTL pipe, not a store. Audio never leaves the device.
+1. The Controller is authoritative for Memberships, Access Clients, Device inventory, Rooms, state, Automations, History, Audit records, and operations. PostgreSQL holds the canonical durable model; adapters retain protocol stores.
+2. Convex may persist identity references, signed Membership routing projections, Controller public identity, invitations, ACME records, and an Owner-enabled opaque encrypted Home backup.
+3. Convex has no durable readable Home model or History. Relay holds only short-lived end-to-end encrypted envelopes and short-lived traffic metadata.
+4. Controller, Access Client, TLS, and backup private keys stay outside Convex. Cloud logs exclude Relay contents, Device identifiers, Commands, and Device state.
+5. Treat the current plaintext Relay, shared registration secret, and cloud-generated TLS key as migration gaps, not patterns to extend.
 
 ## Current path map (quick)
 

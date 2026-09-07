@@ -6,7 +6,7 @@ Architecture and design live in Superhuman Docs:
 
 **[Nemu](https://docs.superhuman.com/d/_d06TiZ2FvM1)** (`superhuman://docs/06TiZ2FvM1`)
 
-Before changing product code, load the project skill **`.cursor/skills/nemu-docs/SKILL.md`**: match a **Skills** row, open skill/Docs **Page**s, then edit under the listed repo globs.
+Before changing product code, load **`.cursor/skills/nemu-docs/SKILL.md`**: match a **Skills** row and read its linked pages. Use **Current Architecture** for shipped facts, **Target Architecture** for accepted decisions, and **Beta Roadmap** for sequence. Never describe target behavior as shipped.
 
 Public deployment docs remain in git:
 
@@ -16,7 +16,7 @@ Public deployment docs remain in git:
 
 ## Privacy (non-negotiable)
 
-Home inventory and state stay on the controller. Convex is identity, pairing, ephemeral relay, and ACME only — never devices, rooms, telemetry, or voice.
+Readable Home inventory, state, telemetry, Automations, History, and voice data stay on the Controller. Convex is limited to identity references, signed Membership routing projections, Controller public identity, invitations, ACME records, short-lived end-to-end encrypted Relay envelopes, and an Owner-enabled opaque encrypted Home backup. Convex receives no Controller, Access Client, TLS, or backup private keys and has no durable readable Home model or History.
 
 ## Agent skills
 
