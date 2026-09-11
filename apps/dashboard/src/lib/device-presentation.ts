@@ -5,6 +5,14 @@ import {
     COLOR_TEMP_MIN_MIREDS,
     normalizeHex,
 } from '~/lib/device-commands'
+import { formatPower } from '~/lib/energy-presentation'
+
+export {
+    formatCurrent,
+    formatEnergy,
+    formatPower,
+    formatVoltage,
+} from '~/lib/energy-presentation'
 
 export type DeviceCategory = 'light' | 'climate' | 'sensor' | 'outlet'
 
@@ -409,18 +417,6 @@ function formatNumber(value: number): string {
     return new Intl.NumberFormat('en', {
         maximumFractionDigits: 1,
     }).format(value)
-}
-
-export function formatPower(watts: number): string {
-    return `${new Intl.NumberFormat('en', {
-        maximumFractionDigits: watts >= 10 ? 0 : 1,
-    }).format(watts)} W`
-}
-
-export function formatEnergy(kwh: number): string {
-    return `${new Intl.NumberFormat('en', {
-        maximumFractionDigits: 3,
-    }).format(kwh)} kWh`
 }
 
 function clamp(value: number, min: number, max: number): number {

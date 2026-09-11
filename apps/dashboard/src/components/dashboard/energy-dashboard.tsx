@@ -39,13 +39,18 @@ import {
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts'
+import { getCategoryLabel, presentDevice } from '~/lib/device-presentation'
 import {
+    appendPowerSample,
+    buildMeterReadings,
     formatEnergy,
     formatPower,
-    getCategoryLabel,
-    type PresentedDevice,
-    presentDevice,
-} from '~/lib/device-presentation'
+    isLivePowerReading,
+    type LivePowerReading,
+    type MeterReading,
+    type PowerSample,
+    type PowerSession,
+} from '~/lib/energy-presentation'
 import { DeviceIcon } from './device-icon'
 import { PageHeader } from './page-header'
 
@@ -55,31 +60,6 @@ const liveChartConfig = {
         color: 'var(--chart-2)',
     },
 } satisfies ChartConfig
-
-type PowerSample = {
-    timestamp: number
-    watts: number
-}
-
-type MeterReading = {
-    id: string
-    device: PresentedDevice
-    scope: 'Device' | 'Component'
-    name: string
-    detail: string
-    online: boolean
-    power?: number
-    energy?: number
-}
-
-type LivePowerReading = MeterReading & {
-    power: number
-}
-
-type PowerSession = {
-    sourceId: string
-    samples: PowerSample[]
-}
 
 export function EnergyDashboard() {
     const { devices, error, refresh, status } = useDevices()
@@ -229,7 +209,7 @@ export function EnergyDashboard() {
                                                 key={reading.id}
                                                 value={reading.id}
                                             >
-                                                {reading.name}
+                                                {formatMeterName(reading)}
                                             </option>
                                         ))}
                                     </select>
@@ -256,12 +236,15 @@ export function EnergyDashboard() {
                                             )}
                                         </p>
                                         <p className="mt-1 text-muted-foreground text-xs">
-                                            {selectedPowerReading.detail}
+                                            {formatMeterDetail(
+                                                selectedPowerReading
+                                            )}
                                         </p>
                                     </div>
                                     <ChartContainer
                                         className="aspect-auto h-64 w-full min-w-0"
                                         config={liveChartConfig}
+                                        key={selectedPowerReading.id}
                                     >
                                         <AreaChart
                                             accessibilityLayer
@@ -442,7 +425,8 @@ function MeterReadingsCard({ readings }: { readings: MeterReading[] }) {
                                     />
                                 </div>
                                 <p className="truncate text-muted-foreground text-xs">
-                                    {reading.scope} · {reading.detail} ·{' '}
+                                    {reading.scope} ·{' '}
+                                    {formatMeterDetail(reading)} ·{' '}
                                     {reading.online ? 'Online' : 'Offline'}
                                 </p>
                             </div>
@@ -595,76 +579,6 @@ function EnergySkeleton() {
     )
 }
 
-function buildMeterReadings(devices: PresentedDevice[]): MeterReading[] {
-    const readings: MeterReading[] = []
-
-    for (const device of devices) {
-        const power = isPowerReading(device.power) ? device.power : undefined
-        const energy = isEnergyReading(device.energy)
-            ? device.energy
-            : undefined
-
-        if (power !== undefined || energy !== undefined) {
-            readings.push({
-                id: `device:${device.id}`,
-                device,
-                scope: 'Device',
-                name: device.name,
-                detail: getCategoryLabel(device.category),
-                online: device.online,
-                power,
-                energy,
-            })
-        }
-
-        for (const outlet of device.outlets ?? []) {
-            const outletPower = isPowerReading(outlet.power)
-                ? outlet.power
-                : undefined
-            const outletEnergy = isEnergyReading(outlet.energy)
-                ? outlet.energy
-                : undefined
-
-            if (outletPower === undefined && outletEnergy === undefined) {
-                continue
-            }
-
-            readings.push({
-                id: `component:${device.id}:${outlet.id}`,
-                device,
-                scope: 'Component',
-                name: outlet.name,
-                detail: device.name,
-                online: device.online,
-                power: outletPower,
-                energy: outletEnergy,
-            })
-        }
-    }
-
-    return readings.sort((left, right) => {
-        if (left.online !== right.online) return left.online ? -1 : 1
-        return (
-            left.name.localeCompare(right.name) ||
-            left.id.localeCompare(right.id)
-        )
-    })
-}
-
-function isLivePowerReading(
-    reading: MeterReading
-): reading is LivePowerReading {
-    return reading.online && reading.power !== undefined
-}
-
-function isPowerReading(value: number | undefined): value is number {
-    return value !== undefined && Number.isFinite(value)
-}
-
-function isEnergyReading(value: number | undefined): value is number {
-    return value !== undefined && Number.isFinite(value) && value >= 0
-}
-
 function usePowerSamples(reading: LivePowerReading | undefined): PowerSample[] {
     const [session, setSession] = useState<PowerSession>()
     const readingId = reading?.id
@@ -677,25 +591,14 @@ function usePowerSamples(reading: LivePowerReading | undefined): PowerSample[] {
         }
 
         const recordSample = () => {
-            const timestamp = Date.now()
-            setSession((current) => {
-                const samples =
-                    current?.sourceId === readingId ? current.samples : []
-                const latest = samples.at(-1)
-                if (
-                    latest &&
-                    latest.watts === power &&
-                    timestamp - latest.timestamp < 1_000
-                ) {
-                    return current
-                }
-                return {
+            setSession((session) =>
+                appendPowerSample({
+                    session,
                     sourceId: readingId,
-                    samples: [...samples, { timestamp, watts: power }].slice(
-                        -120
-                    ),
-                }
-            })
+                    watts: power,
+                    timestamp: Date.now(),
+                })
+            )
         }
 
         recordSample()
@@ -705,6 +608,18 @@ function usePowerSamples(reading: LivePowerReading | undefined): PowerSample[] {
 
     if (session === undefined || session.sourceId !== readingId) return []
     return session.samples
+}
+
+function formatMeterName(reading: MeterReading): string {
+    return reading.scope === 'Component'
+        ? `${reading.name} · ${reading.device.name}`
+        : reading.name
+}
+
+function formatMeterDetail(reading: MeterReading): string {
+    return reading.scope === 'Device'
+        ? getCategoryLabel(reading.device.category)
+        : reading.device.name
 }
 
 function formatAxisPower(value: number): string {

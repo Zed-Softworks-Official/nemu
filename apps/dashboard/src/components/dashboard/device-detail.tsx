@@ -83,8 +83,10 @@ import {
     COLOR_TEMP_MAX_MIREDS,
     COLOR_TEMP_MIN_MIREDS,
     colorTempLabel,
+    formatCurrent,
     formatEnergy,
     formatPower,
+    formatVoltage,
     presentDevice,
 } from '~/lib/device-presentation'
 import { DeviceControlSlider } from './device-control-slider'
@@ -409,7 +411,9 @@ export function DeviceDetail({ deviceId }: { deviceId: string }) {
                         </CardHeader>
                         <CardContent className="space-y-5">
                             {presented.power !== undefined ||
-                            presented.energy !== undefined ? (
+                            presented.energy !== undefined ||
+                            presented.voltage !== undefined ||
+                            presented.current !== undefined ? (
                                 <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
                                     {presented.power !== undefined ? (
                                         <div>
@@ -428,6 +432,30 @@ export function DeviceDetail({ deviceId }: { deviceId: string }) {
                                             </p>
                                             <p className="font-medium">
                                                 {formatEnergy(presented.energy)}
+                                            </p>
+                                        </div>
+                                    ) : null}
+                                    {presented.voltage !== undefined ? (
+                                        <div>
+                                            <p className="text-muted-foreground text-xs">
+                                                Voltage
+                                            </p>
+                                            <p className="font-medium">
+                                                {formatVoltage(
+                                                    presented.voltage
+                                                )}
+                                            </p>
+                                        </div>
+                                    ) : null}
+                                    {presented.current !== undefined ? (
+                                        <div>
+                                            <p className="text-muted-foreground text-xs">
+                                                Current
+                                            </p>
+                                            <p className="font-medium">
+                                                {formatCurrent(
+                                                    presented.current
+                                                )}
                                             </p>
                                         </div>
                                     ) : null}

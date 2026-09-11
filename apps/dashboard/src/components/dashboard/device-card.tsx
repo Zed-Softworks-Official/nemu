@@ -24,7 +24,8 @@ export function DeviceCard({ device }: { device: PresentedDevice }) {
     const [error, setError] = useState<Error | null>(null)
     const checked = pendingPower ?? device.enabled
     const canToggle =
-        device.supportsPower && (status.mode === 'lan' || status.mode === 'relay')
+        device.supportsPower &&
+        (status.mode === 'lan' || status.mode === 'relay')
 
     useEffect(() => {
         setPendingPower(null)
