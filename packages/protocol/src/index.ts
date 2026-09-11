@@ -1,4 +1,5 @@
 export * from './api'
+export * from './capability'
 export * from './commands'
 export * from './connection'
 export * from './device'

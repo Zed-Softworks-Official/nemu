@@ -1,0 +1,13 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "allowJs": false,
+        "checkJs": false,
+        "module": "NodeNext",
+        "moduleResolution": "NodeNext",
+        "noEmit": false,
+        "outDir": "dist/test",
+        "rootDir": "src"
+    },
+    "include": ["src/capability.ts", "src/capability.test.ts"]
+}
