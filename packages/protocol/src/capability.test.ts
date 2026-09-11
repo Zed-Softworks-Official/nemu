@@ -10,6 +10,7 @@ import { deviceStateSchema } from './device.js'
 
 const baseRevision = {
     revisionId: 'limits-2026-09-11',
+    declaredAt: '2026-09-11T20:00:00.000Z',
     effectiveAt: '2026-09-11T20:00:00.000Z',
     scale: 3,
     bounds: {
@@ -211,10 +212,11 @@ describe('numeric Capability contract', () => {
         }
     })
 
-    it('gives revisions stable identities and ordered effective times', () => {
+    it('gives revisions stable identities and prospective effective times', () => {
         const nextRevision = {
             ...baseRevision,
             revisionId: 'limits-2026-10-01',
+            declaredAt: '2026-09-15T00:00:00.000Z',
             effectiveAt: '2026-10-01T00:00:00.000Z',
             freshnessMs: 30_000,
         }
@@ -239,6 +241,19 @@ describe('numeric Capability contract', () => {
             numericCapabilitySchema.safeParse({
                 ...capability('power', 'W'),
                 constraintRevisions: [nextRevision, baseRevision],
+            }).success,
+            false
+        )
+        assert.equal(
+            numericCapabilitySchema.safeParse({
+                ...capability('power', 'W'),
+                constraintRevisions: [
+                    baseRevision,
+                    {
+                        ...nextRevision,
+                        declaredAt: '2026-10-02T00:00:00.000Z',
+                    },
+                ],
             }).success,
             false
         )

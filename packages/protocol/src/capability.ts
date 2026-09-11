@@ -81,6 +81,7 @@ export type CapabilityAccuracy = z.infer<typeof capabilityAccuracySchema>
 export const capabilityConstraintRevisionSchema = z
     .strictObject({
         revisionId: capabilityConstraintRevisionIdSchema,
+        declaredAt: z.iso.datetime({ offset: true }),
         effectiveAt: z.iso.datetime({ offset: true }),
         scale: fixedPointScaleSchema,
         bounds: z.strictObject({
@@ -96,6 +97,17 @@ export const capabilityConstraintRevisionSchema = z
         accuracy: capabilityAccuracySchema.optional(),
     })
     .superRefine((revision, context) => {
+        if (
+            Date.parse(revision.effectiveAt) < Date.parse(revision.declaredAt)
+        ) {
+            context.addIssue({
+                code: 'custom',
+                message:
+                    'constraint revisions cannot take effect retroactively',
+                path: ['effectiveAt'],
+            })
+        }
+
         const { minimum, maximum } = revision.bounds
         if (minimum >= maximum) {
             context.addIssue({
