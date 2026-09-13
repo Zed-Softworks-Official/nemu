@@ -3,12 +3,14 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
+use chrono::Utc;
 use rumqttc::{AsyncClient, Event, Incoming, MqttOptions, QoS, Transport};
 use serde_json::{Value as JsonValue, json};
 use tokio::sync::{Mutex, oneshot};
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
+use crate::capabilities::{DeviceIdentity, UnavailableReason};
 use crate::config::{BridgeConfig, Config, Protocol};
 use crate::db::models::Device;
 use crate::devices::registry::log_event;
@@ -358,6 +360,9 @@ pub fn spawn_mqtt_loop(state: AppState, mut eventloop: rumqttc::EventLoop) {
                 Ok(Event::Incoming(Incoming::Disconnect)) => {
                     warn!("mqtt broker disconnected");
                     state.health.set_mqtt(false);
+                    state
+                        .capabilities
+                        .mark_all_unavailable(UnavailableReason::AdapterDisconnected, Utc::now());
                     state.emit(health_event(&state));
                 }
                 Ok(_) => {}
@@ -366,6 +371,9 @@ pub fn spawn_mqtt_loop(state: AppState, mut eventloop: rumqttc::EventLoop) {
                     state.health.set_mqtt(false);
                     state.health.set_bridge(Protocol::Zigbee, false);
                     state.health.set_bridge(Protocol::Matter, false);
+                    state
+                        .capabilities
+                        .mark_all_unavailable(UnavailableReason::AdapterDisconnected, Utc::now());
                     state.emit(health_event(&state));
                     tokio::time::sleep(Duration::from_millis(backoff_ms)).await;
                     backoff_ms = (backoff_ms.saturating_mul(2)).min(30_000);
@@ -405,6 +413,14 @@ async fn handle_publish(
             let previously = was_online.get(protocol);
             state.health.set_bridge(protocol, online);
             was_online.set(protocol, online);
+
+            if !online {
+                state.capabilities.mark_protocol_unavailable(
+                    protocol.as_str(),
+                    UnavailableReason::AdapterDisconnected,
+                    Utc::now(),
+                );
+            }
 
             state.emit(health_event(state));
 
@@ -456,6 +472,16 @@ async fn handle_publish(
                 state.state_cache.set_online(device.id, online);
                 if online {
                     state.registry.touch_last_seen(&state.db, device.id).await;
+                } else {
+                    let capability_device = DeviceIdentity {
+                        protocol: protocol.as_str().into(),
+                        external_id: device.external_id.clone(),
+                    };
+                    state.capabilities.mark_device_unavailable(
+                        &capability_device,
+                        UnavailableReason::Explicit,
+                        Utc::now(),
+                    );
                 }
             }
             Ok(())

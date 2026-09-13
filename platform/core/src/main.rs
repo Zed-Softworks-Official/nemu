@@ -10,6 +10,7 @@ use tracing_subscriber::EnvFilter;
 const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
 
 mod api;
+pub mod capabilities;
 mod commands;
 mod config;
 mod crypto;
@@ -27,6 +28,7 @@ mod tls;
 mod tls_sync;
 mod watchtower;
 
+use capabilities::CapabilityService;
 use config::Config;
 use devices::{DeviceRegistry, StateCache};
 use identity::load_or_create_identity;
@@ -125,10 +127,14 @@ async fn main() {
     let (mqtt_handle, eventloop) = create_client(&config);
     let (events, _) = broadcast::channel(512);
 
+    let capabilities = Arc::new(CapabilityService::new(pool.clone()));
+    capabilities.spawn_freshness_loop();
+
     let state = AppState {
         db: pool,
         registry,
         state_cache: Arc::new(StateCache::new()),
+        capabilities,
         mqtt: mqtt_handle,
         events,
         health: Arc::new(HealthFlags::default()),

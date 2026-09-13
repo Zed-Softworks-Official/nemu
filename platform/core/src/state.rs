@@ -4,6 +4,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use deadpool_diesel::postgres::Pool;
 use tokio::sync::broadcast;
 
+use crate::capabilities::CapabilityService;
 use crate::devices::{DeviceRegistry, StateCache};
 use crate::events::DeviceEvent;
 use crate::identity::ControllerIdentity;
@@ -17,6 +18,7 @@ pub struct AppState {
     pub db: DbPool,
     pub registry: Arc<DeviceRegistry>,
     pub state_cache: Arc<StateCache>,
+    pub capabilities: Arc<CapabilityService>,
     pub mqtt: MqttHandle,
     pub events: broadcast::Sender<DeviceEvent>,
     pub health: Arc<HealthFlags>,

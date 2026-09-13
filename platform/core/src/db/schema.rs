@@ -1,6 +1,26 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
+    capability_identities (id) {
+        id -> Uuid,
+        #[max_length = 16]
+        protocol -> Varchar,
+        #[max_length = 255]
+        device_external_id -> Varchar,
+        component_path -> Array<Nullable<Text>>,
+        #[max_length = 32]
+        kind -> Varchar,
+        #[max_length = 16]
+        physical_scope_kind -> Varchar,
+        #[max_length = 255]
+        physical_scope_component_id -> Varchar,
+        tombstoned_at -> Nullable<Timestamptz>,
+        created_at -> Timestamptz,
+        updated_at -> Timestamptz,
+    }
+}
+
+diesel::table! {
     client_tokens (id) {
         id -> Uuid,
         #[max_length = 128]
@@ -11,23 +31,6 @@ diesel::table! {
         last_seen_at -> Nullable<Timestamptz>,
         #[max_length = 255]
         user_id -> Nullable<Varchar>,
-    }
-}
-
-diesel::table! {
-    members (id) {
-        id -> Uuid,
-        #[max_length = 255]
-        user_id -> Nullable<Varchar>,
-        #[max_length = 255]
-        email -> Varchar,
-        #[max_length = 255]
-        display_name -> Nullable<Varchar>,
-        #[max_length = 32]
-        role -> Varchar,
-        #[max_length = 32]
-        status -> Varchar,
-        created_at -> Timestamptz,
     }
 }
 
@@ -64,6 +67,23 @@ diesel::table! {
 }
 
 diesel::table! {
+    members (id) {
+        id -> Uuid,
+        #[max_length = 255]
+        user_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        email -> Varchar,
+        #[max_length = 255]
+        display_name -> Nullable<Varchar>,
+        #[max_length = 32]
+        role -> Varchar,
+        #[max_length = 32]
+        status -> Varchar,
+        created_at -> Timestamptz,
+    }
+}
+
+diesel::table! {
     pairing_codes (id) {
         id -> Uuid,
         #[max_length = 128]
@@ -96,6 +116,7 @@ diesel::joinable!(device_events -> devices (device_id));
 diesel::joinable!(devices -> rooms (room_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
+    capability_identities,
     client_tokens,
     device_events,
     devices,

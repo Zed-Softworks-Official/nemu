@@ -227,6 +227,15 @@ impl DeviceRegistry {
 
                 self.remove_id(id).await;
                 state.state_cache.remove(id);
+                let capability_device = crate::capabilities::DeviceIdentity {
+                    protocol: protocol.as_str().into(),
+                    external_id: device.external_id.clone(),
+                };
+                state.capabilities.mark_device_unavailable(
+                    &capability_device,
+                    crate::capabilities::UnavailableReason::MissingInventory,
+                    now,
+                );
                 state.emit(DeviceEvent::DeviceLeft {
                     device_id: id.to_string(),
                 });
@@ -313,6 +322,17 @@ impl DeviceRegistry {
 
         let removed = self.remove_id(id).await;
         state.state_cache.remove(id);
+        let capability_device = crate::capabilities::DeviceIdentity {
+            protocol: protocol.as_str().into(),
+            external_id: external_id.into(),
+        };
+        if let Err(error) = state
+            .capabilities
+            .tombstone_device(&capability_device, Utc::now())
+            .await
+        {
+            warn!(%protocol, %external_id, %error, "failed to tombstone Device Capabilities");
+        }
         state.emit(DeviceEvent::DeviceLeft {
             device_id: id.to_string(),
         });
