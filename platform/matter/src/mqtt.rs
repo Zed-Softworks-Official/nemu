@@ -26,6 +26,10 @@ pub enum IncomingMessage {
     SubscribeEnded {
         node_id: u64,
     },
+    CapabilityIds {
+        device_id: String,
+        payload: Value,
+    },
     AttributeChange {
         node_id: u64,
         endpoint: u16,
@@ -119,7 +123,11 @@ pub fn start(config: &Config) -> (MqttBus, mpsc::UnboundedReceiver<IncomingMessa
             match eventloop.poll().await {
                 Ok(Event::Incoming(Incoming::ConnAck(_))) => {
                     info!("mqtt connected");
-                    let filters = [format!("{base}/bridge/request/#"), format!("{base}/+/set")];
+                    let filters = [
+                        format!("{base}/bridge/request/#"),
+                        format!("{base}/+/set"),
+                        format!("{base}/+/capability-ids"),
+                    ];
                     for filter in filters {
                         if let Err(error) = client.subscribe(filter, QoS::AtLeastOnce).await {
                             error!(error = %error, "failed to subscribe");
@@ -160,6 +168,14 @@ fn parse_incoming(base: &str, topic: &str, payload: &[u8]) -> Option<IncomingMes
     }
     if rest == "bridge/request/device/rename" {
         return Some(IncomingMessage::Rename { payload: value });
+    }
+    if let Some(device_id) = rest.strip_suffix("/capability-ids")
+        && !device_id.contains('/')
+    {
+        return Some(IncomingMessage::CapabilityIds {
+            device_id: device_id.to_string(),
+            payload: value,
+        });
     }
     if let Some(device_id) = rest.strip_suffix("/set")
         && !device_id.contains('/')

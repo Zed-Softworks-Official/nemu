@@ -10,11 +10,15 @@ use tokio::sync::{Mutex, oneshot};
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
-use crate::capabilities::{DeviceIdentity, UnavailableReason};
+use crate::capabilities::{
+    AdapterCapabilityManifest, AdapterObservationReport, DeviceIdentity, UnavailableReason,
+    registration_message,
+};
 use crate::config::{BridgeConfig, Config, Protocol};
 use crate::db::models::Device;
 use crate::devices::registry::log_event;
 use crate::events::{DeviceEvent, InterviewStatus};
+use crate::mqtt::meters::{MeterCursor, translate_zigbee};
 use crate::mqtt::z2m::{
     self, IncomingTopic, commission_cancel_topic, commission_topic, get_state_payload, get_topic,
     health_check_topic, parse_availability, parse_bridge_event, parse_bridge_response,
@@ -80,6 +84,13 @@ impl MqttHandle {
         let body = payload.to_string();
         self.client
             .publish(topic, QoS::AtLeastOnce, false, body)
+            .await
+            .map_err(|e| e.to_string())
+    }
+
+    pub async fn publish_retained(&self, topic: String, payload: String) -> Result<(), String> {
+        self.client
+            .publish(topic, QoS::AtLeastOnce, true, payload)
             .await
             .map_err(|e| e.to_string())
     }
@@ -325,6 +336,9 @@ pub fn spawn_mqtt_loop(state: AppState, mut eventloop: rumqttc::EventLoop) {
     tokio::spawn(async move {
         let mut backoff_ms: u64 = 500;
         let mut was_online = BridgeOnlineFlags::default();
+        let mut zigbee_cursors: HashMap<String, MeterCursor> = HashMap::new();
+        let mut adapter_manifests: HashMap<String, AdapterCapabilityManifest> = HashMap::new();
+        let mut adapter_reports: HashMap<String, AdapterObservationReport> = HashMap::new();
 
         loop {
             match eventloop.poll().await {
@@ -344,7 +358,17 @@ pub fn spawn_mqtt_loop(state: AppState, mut eventloop: rumqttc::EventLoop) {
                 Ok(Event::Incoming(Incoming::Publish(publish))) => {
                     let topic = publish.topic.clone();
                     let payload = String::from_utf8_lossy(&publish.payload).to_string();
-                    if let Err(e) = handle_publish(&state, &topic, &payload, &mut was_online).await
+                    if let Err(e) = handle_publish(
+                        &state,
+                        &topic,
+                        &payload,
+                        publish.retain,
+                        &mut was_online,
+                        &mut zigbee_cursors,
+                        &mut adapter_manifests,
+                        &mut adapter_reports,
+                    )
+                    .await
                     {
                         if state
                             .mqtt
@@ -400,7 +424,11 @@ async fn handle_publish(
     state: &AppState,
     topic: &str,
     payload: &str,
+    retained: bool,
     was_online: &mut BridgeOnlineFlags,
+    zigbee_cursors: &mut HashMap<String, MeterCursor>,
+    adapter_manifests: &mut HashMap<String, AdapterCapabilityManifest>,
+    adapter_reports: &mut HashMap<String, AdapterObservationReport>,
 ) -> Result<(), String> {
     let Some(bridge) = state.mqtt.bridge_for_topic(topic).cloned() else {
         return Ok(());
@@ -464,7 +492,37 @@ async fn handle_publish(
         }
         IncomingTopic::BridgeEvent => handle_bridge_event(state, protocol, payload).await,
         IncomingTopic::DeviceState { friendly_name } => {
-            handle_device_state(state, protocol, &friendly_name, payload).await
+            handle_device_state(
+                state,
+                protocol,
+                &friendly_name,
+                payload,
+                retained,
+                zigbee_cursors,
+            )
+            .await
+        }
+        IncomingTopic::DeviceCapabilities { friendly_name } => {
+            handle_capability_manifest(
+                state,
+                protocol,
+                &friendly_name,
+                payload,
+                adapter_manifests,
+                adapter_reports,
+            )
+            .await
+        }
+        IncomingTopic::DeviceObservations { friendly_name } => {
+            handle_capability_observations(
+                state,
+                protocol,
+                &friendly_name,
+                payload,
+                adapter_manifests,
+                adapter_reports,
+            )
+            .await
         }
         IncomingTopic::DeviceAvailability { friendly_name } => {
             let online = parse_availability(payload).map_err(|e| e.to_string())?;
@@ -609,6 +667,8 @@ async fn handle_device_state(
     protocol: Protocol,
     topic_segment: &str,
     payload: &str,
+    retained: bool,
+    zigbee_cursors: &mut HashMap<String, MeterCursor>,
 ) -> Result<(), String> {
     let value: JsonValue =
         serde_json::from_str(payload).map_err(|e| format!("invalid device state json: {e}"))?;
@@ -636,7 +696,132 @@ async fn handle_device_state(
 
     state.emit(DeviceEvent::DeviceState {
         device_id: device.id.to_string(),
-        state: value,
+        state: value.clone(),
     });
+
+    if protocol == Protocol::Zigbee {
+        let received_at = Utc::now();
+        let previous = zigbee_cursors.get(&device.external_id).cloned();
+        if let Some(meter) = translate_zigbee(
+            &device.external_id,
+            &value,
+            previous.as_ref(),
+            received_at,
+            retained,
+        ) {
+            if let Err(error) = state
+                .capabilities
+                .admit_adapter(meter.manifest, meter.report, received_at)
+                .await
+            {
+                warn!(
+                    external_id = %device.external_id,
+                    error = %error,
+                    "zigbee meter admission failed"
+                );
+            }
+            zigbee_cursors.insert(device.external_id, meter.cursor);
+        }
+    }
+    Ok(())
+}
+
+async fn handle_capability_manifest(
+    state: &AppState,
+    protocol: Protocol,
+    topic_segment: &str,
+    payload: &str,
+    adapter_manifests: &mut HashMap<String, AdapterCapabilityManifest>,
+    adapter_reports: &mut HashMap<String, AdapterObservationReport>,
+) -> Result<(), String> {
+    let Some(device) = resolve_topic_device(state, protocol, topic_segment).await else {
+        return Ok(());
+    };
+    let key = format!("{}:{}", protocol.as_str(), device.external_id);
+    if payload.trim().is_empty() {
+        adapter_manifests.remove(&key);
+        adapter_reports.remove(&key);
+        let identity = DeviceIdentity {
+            protocol: protocol.as_str().into(),
+            external_id: device.external_id,
+        };
+        if let Err(error) = state
+            .capabilities
+            .tombstone_device(&identity, Utc::now())
+            .await
+        {
+            warn!(error = %error, "failed to tombstone cleared Capability manifest");
+        }
+        return Ok(());
+    }
+
+    let manifest: AdapterCapabilityManifest = serde_json::from_str(payload)
+        .map_err(|error| format!("invalid Capability manifest: {error}"))?;
+    if manifest.device.external_id != device.external_id
+        || manifest.device.protocol != protocol.as_str()
+    {
+        return Err("Capability manifest device does not match the topic".into());
+    }
+    let received_at = Utc::now();
+    let registered = state
+        .capabilities
+        .register_adapter_manifest(manifest.clone(), received_at)
+        .await
+        .map_err(|error| error.to_string())?;
+    let message = registration_message(&manifest.device, &registered);
+    let topic = format!(
+        "{}/{topic_segment}/capability-ids",
+        state.mqtt.base_topic(protocol)?
+    );
+    if let Err(error) = state
+        .mqtt
+        .publish_retained(topic, message.to_string())
+        .await
+    {
+        warn!(error = %error, "failed to publish Capability IDs");
+    }
+    adapter_manifests.insert(key.clone(), manifest.clone());
+    if let Some(report) = adapter_reports.get(&key).cloned()
+        && let Err(error) =
+            state
+                .capabilities
+                .ingest_registered_report(&manifest.device, &report, received_at)
+    {
+        warn!(error = %error, "failed to ingest queued Capability observations");
+    }
+    Ok(())
+}
+
+async fn handle_capability_observations(
+    state: &AppState,
+    protocol: Protocol,
+    topic_segment: &str,
+    payload: &str,
+    adapter_manifests: &mut HashMap<String, AdapterCapabilityManifest>,
+    adapter_reports: &mut HashMap<String, AdapterObservationReport>,
+) -> Result<(), String> {
+    if payload.trim().is_empty() {
+        return Ok(());
+    }
+    let Some(device) = resolve_topic_device(state, protocol, topic_segment).await else {
+        return Ok(());
+    };
+    let report: AdapterObservationReport = serde_json::from_str(payload)
+        .map_err(|error| format!("invalid Capability observations: {error}"))?;
+    let identity = DeviceIdentity {
+        protocol: protocol.as_str().into(),
+        external_id: device.external_id.clone(),
+    };
+    let key = format!("{}:{}", protocol.as_str(), device.external_id);
+    adapter_reports.insert(key.clone(), report.clone());
+    if adapter_manifests.contains_key(&key) {
+        if let Err(error) =
+            state
+                .capabilities
+                .ingest_registered_report(&identity, &report, Utc::now())
+        {
+            warn!(error = %error, "failed to ingest Capability observations");
+        }
+    }
     Ok(())
 }

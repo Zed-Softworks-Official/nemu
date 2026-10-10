@@ -1,7 +1,13 @@
+mod adapter;
 mod current_state;
 mod persistence;
 mod service;
 mod types;
+
+pub use adapter::{
+    AdapterCapabilityManifest, AdapterEnvelopeError, AdapterObservation, AdapterObservationReport,
+    Admission, negotiate_observation_schema, registration_message, resolve_adapter_report,
+};
 
 pub use current_state::CurrentState;
 pub use persistence::{CapabilityRepository, CapabilityStoreError};

@@ -57,6 +57,8 @@ pub enum IncomingTopic {
     BridgeResponse { endpoint: String },
     DeviceState { friendly_name: String },
     DeviceAvailability { friendly_name: String },
+    DeviceCapabilities { friendly_name: String },
+    DeviceObservations { friendly_name: String },
     Ignored,
 }
 
@@ -83,6 +85,14 @@ pub fn parse_topic(base_topic: &str, topic: &str) -> IncomingTopic {
                 IncomingTopic::DeviceAvailability {
                     friendly_name: name.to_string(),
                 }
+            } else if let Some(name) = named_device_suffix(rest, "/capabilities") {
+                IncomingTopic::DeviceCapabilities {
+                    friendly_name: name,
+                }
+            } else if let Some(name) = named_device_suffix(rest, "/observations") {
+                IncomingTopic::DeviceObservations {
+                    friendly_name: name,
+                }
             } else if rest.ends_with("/set") || rest.ends_with("/get") || rest.contains('/') {
                 IncomingTopic::Ignored
             } else {
@@ -92,6 +102,14 @@ pub fn parse_topic(base_topic: &str, topic: &str) -> IncomingTopic {
             }
         }
     }
+}
+
+fn named_device_suffix(rest: &str, suffix: &str) -> Option<String> {
+    let name = rest.strip_suffix(suffix)?;
+    if name.is_empty() || name.contains('/') {
+        return None;
+    }
+    Some(name.to_string())
 }
 
 pub fn parse_bridge_state(payload: &str) -> Result<bool, Z2mError> {
@@ -248,6 +266,18 @@ mod tests {
             parse_topic(base, "zigbee2mqtt/Kitchen Light"),
             IncomingTopic::DeviceState {
                 friendly_name: "Kitchen Light".into()
+            }
+        );
+        assert_eq!(
+            parse_topic(base, "zigbee2mqtt/Kitchen Light/capabilities"),
+            IncomingTopic::DeviceCapabilities {
+                friendly_name: "Kitchen Light".into(),
+            }
+        );
+        assert_eq!(
+            parse_topic(base, "zigbee2mqtt/Kitchen Light/observations"),
+            IncomingTopic::DeviceObservations {
+                friendly_name: "Kitchen Light".into(),
             }
         );
         assert_eq!(

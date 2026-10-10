@@ -7,16 +7,28 @@ use tokio::sync::broadcast;
 
 use crate::state::DbPool;
 
+use std::collections::HashMap;
+use std::sync::Mutex;
+
 use super::{
+    AdapterCapabilityManifest, AdapterEnvelopeError, AdapterObservationReport, Admission,
     CapabilityChange, CapabilityReport, CapabilityReportValidationError, CapabilityRepository,
     CapabilitySnapshot, CapabilityStoreError, CompleteCapabilityManifest, CurrentState,
     DeviceIdentity, IngestResult, RegisteredCapability, StateEpoch, UnavailableReason,
+    resolve_adapter_report,
 };
 
 #[derive(Clone)]
+struct CachedManifest {
+    supported_versions: Vec<u16>,
+    declarations: Vec<super::CapabilityDeclaration>,
+    registered: Vec<RegisteredCapability>,
+}
+
 pub struct CapabilityService {
     repository: CapabilityRepository,
     current: Arc<CurrentState>,
+    manifests: Mutex<HashMap<DeviceIdentity, CachedManifest>>,
 }
 
 impl CapabilityService {
@@ -24,7 +36,82 @@ impl CapabilityService {
         Self {
             repository: CapabilityRepository::new(pool),
             current: Arc::new(CurrentState::new(StateEpoch::new())),
+            manifests: Mutex::new(HashMap::new()),
         }
+    }
+
+    pub async fn register_adapter_manifest(
+        &self,
+        manifest: AdapterCapabilityManifest,
+        received_at: DateTime<Utc>,
+    ) -> Result<Vec<RegisteredCapability>, CapabilityServiceError> {
+        self.reconcile_cached(manifest, received_at).await
+    }
+
+    pub fn ingest_registered_report(
+        &self,
+        device: &DeviceIdentity,
+        report: &AdapterObservationReport,
+        received_at: DateTime<Utc>,
+    ) -> Result<IngestResult, CapabilityServiceError> {
+        let cached = self
+            .manifests
+            .lock()
+            .expect("capability manifest cache poisoned")
+            .get(device)
+            .cloned()
+            .ok_or(CapabilityServiceError::UnregisteredManifest)?;
+        let resolved =
+            resolve_adapter_report(&cached.registered, &cached.supported_versions, report)?;
+        self.ingest_report(resolved, received_at)
+    }
+
+    pub async fn admit_adapter(
+        &self,
+        manifest: AdapterCapabilityManifest,
+        report: AdapterObservationReport,
+        received_at: DateTime<Utc>,
+    ) -> Result<Admission, CapabilityServiceError> {
+        let supported_versions = manifest.supported_observation_envelope_versions.clone();
+        let registered = self.reconcile_cached(manifest, received_at).await?;
+        let resolved = resolve_adapter_report(&registered, &supported_versions, &report)?;
+        let ingest = self.ingest_report(resolved, received_at)?;
+        Ok(Admission { registered, ingest })
+    }
+
+    async fn reconcile_cached(
+        &self,
+        manifest: AdapterCapabilityManifest,
+        received_at: DateTime<Utc>,
+    ) -> Result<Vec<RegisteredCapability>, CapabilityServiceError> {
+        if let Some(cached) = self
+            .manifests
+            .lock()
+            .expect("capability manifest cache poisoned")
+            .get(&manifest.device)
+            && cached.declarations == manifest.capabilities
+            && cached.supported_versions == manifest.supported_observation_envelope_versions
+        {
+            return Ok(cached.registered.clone());
+        }
+
+        let device = manifest.device.clone();
+        let supported_versions = manifest.supported_observation_envelope_versions.clone();
+        let declarations = manifest.capabilities.clone();
+        let complete = manifest.complete()?;
+        let registered = self.reconcile_manifest(complete, received_at).await?;
+        self.manifests
+            .lock()
+            .expect("capability manifest cache poisoned")
+            .insert(
+                device,
+                CachedManifest {
+                    supported_versions,
+                    declarations,
+                    registered: registered.clone(),
+                },
+            );
+        Ok(registered)
     }
 
     pub async fn reconcile_manifest(
@@ -52,6 +139,10 @@ impl CapabilityService {
             .await?;
         self.current
             .reconcile_manifest(device, Vec::new(), removed_at);
+        self.manifests
+            .lock()
+            .expect("capability manifest cache poisoned")
+            .remove(device);
         Ok(())
     }
 
@@ -131,4 +222,8 @@ pub enum CapabilityServiceError {
     InvalidJson(#[from] serde_json::Error),
     #[error(transparent)]
     InvalidReport(#[from] CapabilityReportValidationError),
+    #[error(transparent)]
+    Adapter(#[from] AdapterEnvelopeError),
+    #[error("Capability manifest is not registered")]
+    UnregisteredManifest,
 }

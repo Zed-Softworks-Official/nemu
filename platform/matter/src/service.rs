@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use matter_controller::{
@@ -14,10 +14,14 @@ use crate::adopt::{AdoptStore, ble_recover_node_ids, node_ids_from_mdns_error, u
 use crate::codec::{empty_structure, unsigned_fields, value_to_json};
 use crate::config::Config;
 use crate::mapping::{
-    Attributes, CLUSTER_DESCRIPTOR, CommandName, EndpointDevice, apply_set_to_attributes,
-    collapsed_legacy_ids, commands_for_set, device_covers_endpoint, device_descriptor,
-    is_state_attribute_path, map_node_with_fallback, outlet_id_from_set, placeholder_device,
-    state_for_device,
+    Attributes, CLUSTER_DESCRIPTOR, CLUSTER_ELECTRICAL_ENERGY, CLUSTER_ELECTRICAL_POWER,
+    CommandName, EndpointDevice, apply_set_to_attributes, collapsed_legacy_ids, commands_for_set,
+    device_covers_endpoint, device_descriptor, is_state_attribute_path, map_node_with_fallback,
+    outlet_id_from_set, placeholder_device, state_for_device,
+};
+use crate::meters::{
+    MeterIdentityStore, PublishedMeter, assigned_capability_ids, meter_publication,
+    observation_stamp,
 };
 use crate::mqtt::{IncomingMessage, MqttBus, transaction_of};
 use crate::names::NameStore;
@@ -54,6 +58,8 @@ pub struct MatterService {
     boot_recover_ids: Vec<u64>,
     cancel: Arc<AtomicBool>,
     boot_cancel: Arc<AtomicBool>,
+    meter_identities: Mutex<MeterIdentityStore>,
+    capability_ids: Mutex<HashMap<String, HashMap<String, String>>>,
 }
 
 impl MatterService {
@@ -120,6 +126,7 @@ impl MatterService {
 
         let names = NameStore::load(config.names_path());
         let adopted = AdoptStore::load(config.adopted_path());
+        let meter_identities = MeterIdentityStore::load(config.meter_identities_path());
         let mut service = Self {
             _config: config,
             controller,
@@ -135,6 +142,8 @@ impl MatterService {
             boot_recover_ids: Vec::new(),
             cancel: Arc::new(AtomicBool::new(false)),
             boot_cancel: Arc::new(AtomicBool::new(false)),
+            meter_identities: Mutex::new(meter_identities),
+            capability_ids: Mutex::new(HashMap::new()),
         };
         service.mqtt.set_online(true).await;
         let refresh = service.refresh_all_nodes().await;
@@ -182,6 +191,10 @@ impl MatterService {
                         }
                         IncomingMessage::AttributeChange { .. } => {
                             self.apply_attribute_change(message).await;
+                        }
+                        IncomingMessage::CapabilityIds { device_id, payload } => {
+                            self.store_capability_ids(&device_id, &payload);
+                            self.publish_state(&device_id, false).await;
                         }
                     }
                 }
@@ -466,7 +479,7 @@ impl MatterService {
             &actions,
         );
         self.rebuild_index_for_node(node_id);
-        self.publish_state(device_id).await;
+        self.publish_state(device_id, false).await;
 
         let controller = self.controller.clone();
         let device_id = device_id.to_string();
@@ -711,6 +724,8 @@ impl MatterService {
             .or_default()
             .insert(key, value);
         self.rebuild_index_for_node(node_id);
+        let fresh_meter = cluster == u32::from(CLUSTER_ELECTRICAL_POWER)
+            || cluster == u32::from(CLUSTER_ELECTRICAL_ENERGY);
         let ids: Vec<String> = self
             .index
             .iter()
@@ -718,7 +733,7 @@ impl MatterService {
             .map(|(id, _)| id.clone())
             .collect();
         for id in ids {
-            self.publish_state(&id).await;
+            self.publish_state(&id, fresh_meter).await;
         }
     }
 
@@ -735,7 +750,7 @@ impl MatterService {
             .publish_json("bridge/devices", &JsonValue::Array(descriptors), true)
             .await;
         for id in self.index.keys() {
-            self.publish_state(id).await;
+            self.publish_state(id, false).await;
             self.mqtt
                 .publish_json(
                     &format!("{id}/availability"),
@@ -746,17 +761,133 @@ impl MatterService {
         }
     }
 
-    async fn publish_state(&self, id: &str) {
+    async fn publish_state(&self, id: &str, fresh_meter: bool) {
         let Some(entry) = self.index.get(id) else {
             return;
         };
+        let device = entry.device.clone();
         let attributes = self
             .attributes
             .get(&entry.node_id)
             .cloned()
             .unwrap_or_default();
-        let state = state_for_device(&entry.device, &attributes);
+        let state = state_for_device(&device, &attributes);
         self.mqtt.publish_json(id, &state, true).await;
+        self.publish_meter(id, &device, &attributes, fresh_meter)
+            .await;
+    }
+
+    async fn publish_meter(
+        &self,
+        id: &str,
+        device: &EndpointDevice,
+        attributes: &Attributes,
+        fresh_meter: bool,
+    ) {
+        let capability_ids = self
+            .capability_ids
+            .lock()
+            .expect("capability id map poisoned")
+            .get(id)
+            .cloned()
+            .unwrap_or_default();
+        let previous = self
+            .meter_identities
+            .lock()
+            .expect("meter identity store poisoned")
+            .get(id)
+            .cloned();
+        let Some(probe) = meter_publication(
+            device,
+            attributes,
+            "1970-01-01T00:00:00Z",
+            "probe",
+            &capability_ids,
+        ) else {
+            if previous.is_some() {
+                self.meter_identities
+                    .lock()
+                    .expect("meter identity store poisoned")
+                    .remove(id);
+                self.mqtt
+                    .publish(&format!("{id}/capabilities"), "", true)
+                    .await;
+                self.mqtt
+                    .publish(&format!("{id}/observations"), "", true)
+                    .await;
+            }
+            return;
+        };
+        let reuses_envelope = previous
+            .as_ref()
+            .is_some_and(|published| published.fingerprint == probe.fingerprint && !fresh_meter);
+        let stamp = if reuses_envelope {
+            observation_stamp(id, 0, None, previous.as_ref(), &probe.fingerprint, false)
+        } else {
+            let Some(now) = SystemTime::now().duration_since(UNIX_EPOCH).ok() else {
+                warn!(
+                    device_id = id,
+                    "skipped meter observation because the clock is unavailable"
+                );
+                self.mqtt
+                    .publish_json(&format!("{id}/capabilities"), &probe.manifest, true)
+                    .await;
+                return;
+            };
+            let sequence = self
+                .meter_identities
+                .lock()
+                .expect("meter identity store poisoned")
+                .next_sequence();
+            observation_stamp(
+                id,
+                sequence,
+                Some((now.as_secs(), now.as_millis())),
+                None,
+                &probe.fingerprint,
+                true,
+            )
+        };
+        let Some(stamp) = stamp else {
+            return;
+        };
+        let Some(publication) = meter_publication(
+            device,
+            attributes,
+            &stamp.observed_at,
+            &stamp.observation_id,
+            &capability_ids,
+        ) else {
+            return;
+        };
+        let published = PublishedMeter {
+            fingerprint: publication.fingerprint.clone(),
+            observed_at: stamp.observed_at,
+            observation_id: stamp.observation_id,
+        };
+        if previous.as_ref() != Some(&published) {
+            self.meter_identities
+                .lock()
+                .expect("meter identity store poisoned")
+                .insert(id, published);
+        }
+        self.mqtt
+            .publish_json(&format!("{id}/capabilities"), &publication.manifest, true)
+            .await;
+        self.mqtt
+            .publish_json(&format!("{id}/observations"), &publication.report, true)
+            .await;
+    }
+
+    fn store_capability_ids(&self, device_id: &str, payload: &JsonValue) {
+        let assigned = assigned_capability_ids(payload);
+        if assigned.is_empty() {
+            return;
+        }
+        self.capability_ids
+            .lock()
+            .expect("capability id map poisoned")
+            .insert(device_id.to_string(), assigned);
     }
 
     async fn publish_joins_for_node(&self, node_id: u64) {
@@ -787,7 +918,7 @@ impl MatterService {
                     }),
                 )
                 .await;
-            self.publish_state(id).await;
+            self.publish_state(id, false).await;
         }
         let count = self
             .index
@@ -815,6 +946,20 @@ impl MatterService {
             self.mqtt
                 .publish(&format!("{id}/availability"), "", true)
                 .await;
+            self.mqtt
+                .publish(&format!("{id}/capabilities"), "", true)
+                .await;
+            self.mqtt
+                .publish(&format!("{id}/observations"), "", true)
+                .await;
+            self.meter_identities
+                .lock()
+                .expect("meter identity store poisoned")
+                .remove(id);
+            self.capability_ids
+                .lock()
+                .expect("capability id map poisoned")
+                .remove(id);
         }
         let keep: HashSet<String> = self.index.keys().cloned().collect();
         self.names.retain_only(&keep);

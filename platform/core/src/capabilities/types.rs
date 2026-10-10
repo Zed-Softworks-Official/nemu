@@ -475,6 +475,14 @@ impl NumericValue {
         &self.constraint_revision_id
     }
 
+    pub fn new(value: i64, scale: u8, constraint_revision_id: impl Into<String>) -> Self {
+        Self {
+            value,
+            scale,
+            constraint_revision_id: constraint_revision_id.into(),
+        }
+    }
+
     #[cfg(test)]
     pub fn for_test(value: i64, scale: u8, constraint_revision_id: &str) -> Self {
         Self {
