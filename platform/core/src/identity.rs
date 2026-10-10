@@ -114,6 +114,29 @@ pub(crate) fn get_string(conn: &mut PgConnection, key: &str) -> Result<Option<St
     }
 }
 
+pub(crate) async fn read_setting(pool: &DbPool, key: &str) -> Result<Option<String>, String> {
+    let key = key.to_string();
+    let conn = pool
+        .get()
+        .await
+        .map_err(|error| format!("db pool error: {error}"))?;
+    conn.interact(move |conn| get_string(conn, &key))
+        .await
+        .map_err(|error| format!("db interact error: {error}"))?
+}
+
+pub(crate) async fn write_setting(pool: &DbPool, key: &str, value: &str) -> Result<(), String> {
+    let key = key.to_string();
+    let value = value.to_string();
+    let conn = pool
+        .get()
+        .await
+        .map_err(|error| format!("db pool error: {error}"))?;
+    conn.interact(move |conn| set_string(conn, &key, &value))
+        .await
+        .map_err(|error| format!("db interact error: {error}"))?
+}
+
 pub(crate) fn set_string(conn: &mut PgConnection, key: &str, value: &str) -> Result<(), String> {
     let payload = json!({ "value": value });
     diesel::insert_into(settings::table)

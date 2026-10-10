@@ -26,6 +26,8 @@ export interface ControllerTransport {
     sendCommand(cmd: DeviceCommand): Promise<CommandResult>
     subscribeEvents(cb: (event: DeviceEvent) => void): () => void
     requestCapabilitySnapshot?(): void | Promise<void>
+    /** Fires after a dropped LAN socket opens again. */
+    onSocketReopen?(cb: () => void): () => void
     permitJoin?(seconds: number): Promise<PermitJoinResponse>
     /** Matter commissioning. LAN transport only, same policy as permitJoin. */
     commissionMatter?(request: CommissionRequest): Promise<CommissionResponse>

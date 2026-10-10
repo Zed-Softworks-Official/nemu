@@ -132,6 +132,8 @@ pub fn verified_power_milliwatts(attributes: &Attributes, endpoint: u16) -> Opti
     );
     match (active, rms) {
         (Some(0), Some(load)) if load != 0 => Some(load),
+        // ActivePower stuck at 0, with no RMS reading, is not a measured idle.
+        (Some(0), None) => None,
         (Some(value), _) => Some(value),
         (None, Some(load)) => Some(load),
         (None, None) => None,
@@ -967,6 +969,21 @@ mod tests {
         assert_eq!(
             state_for_endpoint(&attributes, 1).get("power"),
             Some(&json!(60.0))
+        );
+    }
+
+    #[test]
+    fn lone_zero_active_power_is_not_a_reading() {
+        let attributes = attrs(&[("1/144/8", json!(0))]);
+        assert!(state_for_endpoint(&attributes, 1).get("power").is_none());
+    }
+
+    #[test]
+    fn corroborated_zero_stays_idle() {
+        let attributes = attrs(&[("1/144/8", json!(0)), ("1/144/13", json!(0))]);
+        assert_eq!(
+            state_for_endpoint(&attributes, 1).get("power"),
+            Some(&json!(0.0))
         );
     }
 

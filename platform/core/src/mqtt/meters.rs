@@ -1,12 +1,15 @@
+use std::collections::HashMap;
+
 use chrono::{DateTime, Duration, Utc};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use uuid::Uuid;
 
 use crate::capabilities::{
     AdapterCapabilityManifest, AdapterObservation, AdapterObservationReport, CanonicalUnit,
-    CapabilityDeclaration, CapabilityIdentity, CapabilityKind, CapabilityReading,
+    CapabilityDeclaration, CapabilityId, CapabilityIdentity, CapabilityKind, CapabilityReading,
     ConstraintRevision, DeviceIdentity, Directionality, FixedPointBounds, HistoryAdmissionRate,
-    NumericValue, PhysicalScope, TimeTrust,
+    NumericValue, PhysicalScope, RegisteredCapability, TimeTrust,
 };
 
 const PROFILE_REVISION: &str = "zigbee-electrical-v1";
@@ -15,7 +18,7 @@ const PROFILE_FRESHNESS_MS: u64 = 600_000;
 const RETRY_WINDOW: Duration = Duration::seconds(2);
 const MAX_SAFE_INTEGER: i64 = 9_007_199_254_740_991;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MeterCursor {
     fingerprint: String,
     observation_id: String,
@@ -29,12 +32,59 @@ pub struct ZigbeeMeter {
     pub cursor: MeterCursor,
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ZigbeeJournal {
+    #[serde(default)]
+    cursors: HashMap<String, MeterCursor>,
+    #[serde(default)]
+    capability_ids: HashMap<String, HashMap<String, String>>,
+}
+
+impl ZigbeeJournal {
+    pub fn parse(raw: &str) -> Self {
+        serde_json::from_str(raw).unwrap_or_default()
+    }
+
+    pub fn export(&self) -> String {
+        serde_json::to_string(self).unwrap_or_else(|_| "{}".to_string())
+    }
+
+    pub fn cursor(&self, external_id: &str) -> Option<&MeterCursor> {
+        self.cursors.get(external_id)
+    }
+
+    pub fn assigned(&self, external_id: &str) -> HashMap<String, String> {
+        self.capability_ids
+            .get(external_id)
+            .cloned()
+            .unwrap_or_default()
+    }
+
+    pub fn remember_cursor(&mut self, external_id: &str, cursor: MeterCursor) {
+        self.cursors.insert(external_id.to_string(), cursor);
+    }
+
+    pub fn remember_ids(&mut self, external_id: &str, registered: &[RegisteredCapability]) {
+        let ids = registered
+            .iter()
+            .map(|capability| {
+                (
+                    capability.declaration.identity.kind.as_str().to_string(),
+                    capability.id.into_uuid().to_string(),
+                )
+            })
+            .collect();
+        self.capability_ids.insert(external_id.to_string(), ids);
+    }
+}
+
 pub fn translate_zigbee(
     external_id: &str,
     state: &Value,
     cursor: Option<&MeterCursor>,
     received_at: DateTime<Utc>,
     retained: bool,
+    assigned: &HashMap<String, String>,
 ) -> Option<ZigbeeMeter> {
     let device = DeviceIdentity::new("zigbee", external_id).ok()?;
     let record = state.as_object()?;
@@ -118,8 +168,12 @@ pub fn translate_zigbee(
         observations: readings
             .into_iter()
             .map(|(declaration, value)| AdapterObservation {
-                identity: declaration.identity,
-                capability_id: None,
+                identity: declaration.identity.clone(),
+                capability_id: assigned
+                    .get(declaration.identity.kind.as_str())
+                    .and_then(|raw| Uuid::parse_str(raw).ok())
+                    .map(CapabilityId::from_uuid),
+                reset: None,
                 reading: CapabilityReading::Value(value),
             })
             .collect(),
@@ -221,6 +275,23 @@ mod tests {
     use chrono::{TimeZone, Utc};
 
     use super::*;
+
+    fn translate(
+        external_id: &str,
+        state: &Value,
+        cursor: Option<&MeterCursor>,
+        received_at: DateTime<Utc>,
+        retained: bool,
+    ) -> Option<ZigbeeMeter> {
+        translate_zigbee(
+            external_id,
+            state,
+            cursor,
+            received_at,
+            retained,
+            &HashMap::new(),
+        )
+    }
     use crate::capabilities::{
         Availability, CapabilityId, CurrentState, RegisteredCapability, StateEpoch,
     };
@@ -250,7 +321,7 @@ mod tests {
 
     #[test]
     fn zigbee_readings_use_canonical_units_and_one_observation() {
-        let meter = translate_zigbee("ieee-1", &plug(), None, at(10), false).unwrap();
+        let meter = translate("ieee-1", &plug(), None, at(10), false).unwrap();
         assert_eq!(meter.report.observations.len(), 4);
         assert_eq!(meter.report.schema_version, None);
         let power = meter
@@ -287,36 +358,31 @@ mod tests {
 
     #[test]
     fn missing_meter_keys_are_not_zero() {
-        assert!(
-            translate_zigbee("ieee-1", &json!({ "state": "ON" }), None, at(1), false).is_none()
-        );
+        assert!(translate("ieee-1", &json!({ "state": "ON" }), None, at(1), false).is_none());
     }
 
     #[test]
     fn immediate_retry_keeps_the_observation_and_a_later_report_does_not() {
-        let first = translate_zigbee("ieee-1", &plug(), None, at(10), false).unwrap();
-        let retry =
-            translate_zigbee("ieee-1", &plug(), Some(&first.cursor), at(11), false).unwrap();
+        let first = translate("ieee-1", &plug(), None, at(10), false).unwrap();
+        let retry = translate("ieee-1", &plug(), Some(&first.cursor), at(11), false).unwrap();
         assert_eq!(retry.report.observation_id, first.report.observation_id);
         assert_eq!(retry.report.observed_at, first.report.observed_at);
-        let later =
-            translate_zigbee("ieee-1", &plug(), Some(&first.cursor), at(20), false).unwrap();
+        let later = translate("ieee-1", &plug(), Some(&first.cursor), at(20), false).unwrap();
         assert_ne!(later.report.observation_id, first.report.observation_id);
         assert_eq!(later.report.observed_at, at(20));
     }
 
     #[test]
     fn retained_replay_keeps_the_original_envelope() {
-        let first = translate_zigbee("ieee-1", &plug(), None, at(10), true).unwrap();
-        let replay =
-            translate_zigbee("ieee-1", &plug(), Some(&first.cursor), at(80), true).unwrap();
+        let first = translate("ieee-1", &plug(), None, at(10), true).unwrap();
+        let replay = translate("ieee-1", &plug(), Some(&first.cursor), at(80), true).unwrap();
         assert_eq!(replay.report.observation_id, first.report.observation_id);
         assert_eq!(replay.report.observed_at, first.report.observed_at);
     }
 
     #[test]
     fn zigbee_profile_is_current_state_only_and_disconnects() {
-        let meter = translate_zigbee("ieee-1", &plug(), None, at(10), false).unwrap();
+        let meter = translate("ieee-1", &plug(), None, at(10), false).unwrap();
         let state = CurrentState::new(StateEpoch::new());
         let registered = meter
             .manifest
@@ -340,8 +406,7 @@ mod tests {
                 && outcome.history
                     == HistoryAdmissionOutcome::Rejected(HistoryRejection::UnsupportedSchemaVersion)
         }));
-        let retry =
-            translate_zigbee("ieee-1", &plug(), Some(&meter.cursor), at(11), false).unwrap();
+        let retry = translate("ieee-1", &plug(), Some(&meter.cursor), at(11), false).unwrap();
         let replayed = resolve_adapter_report(
             &registered,
             &retry.manifest.supported_observation_envelope_versions,
@@ -359,5 +424,75 @@ mod tests {
         assert!(state.snapshot().capabilities.iter().all(|capability| {
             matches!(capability.availability, Availability::Unavailable { .. })
         }));
+    }
+
+    #[test]
+    fn returned_capability_id_is_stamped_on_the_next_report() {
+        let id = Uuid::new_v4();
+        let mut assigned = HashMap::new();
+        assigned.insert("power".to_string(), id.to_string());
+        let meter = translate_zigbee("ieee-1", &plug(), None, at(10), false, &assigned).unwrap();
+        let power = meter
+            .report
+            .observations
+            .iter()
+            .find(|observation| observation.identity.kind == CapabilityKind::Power)
+            .unwrap();
+        assert_eq!(power.capability_id, Some(CapabilityId::from_uuid(id)));
+    }
+
+    #[test]
+    fn retained_identity_survives_a_restart() {
+        let first = translate("ieee-1", &plug(), None, at(10), true).unwrap();
+        let mut journal = ZigbeeJournal::default();
+        journal.remember_cursor("ieee-1", first.cursor.clone());
+        let restored = ZigbeeJournal::parse(&journal.export());
+        let replay = translate("ieee-1", &plug(), restored.cursor("ieee-1"), at(80), true).unwrap();
+        assert_eq!(replay.report.observation_id, first.report.observation_id);
+        assert_eq!(replay.report.observed_at, first.report.observed_at);
+    }
+
+    #[test]
+    fn reset_marker_is_omitted_until_the_adapter_reports_one() {
+        let meter = translate("ieee-1", &plug(), None, at(10), false).unwrap();
+        let raw = serde_json::to_value(&meter.report).unwrap();
+        assert!(raw["observations"][0].get("reset").is_none());
+        let mut report = meter.report;
+        report.observations[0].reset = Some(true);
+        let parsed: AdapterObservationReport =
+            serde_json::from_str(&serde_json::to_string(&report).unwrap()).unwrap();
+        assert_eq!(parsed.observations[0].reset, Some(true));
+    }
+
+    #[test]
+    fn zigbee_fixture_load_changes_the_live_power() {
+        let idle: Value =
+            serde_json::from_str(include_str!("../../fixtures/zigbee-plug-idle.json")).unwrap();
+        let load: Value =
+            serde_json::from_str(include_str!("../../fixtures/zigbee-plug-load.json")).unwrap();
+        let idle_meter = translate("plug-1", &idle, None, at(1), false).unwrap();
+        let load_meter =
+            translate("plug-1", &load, Some(&idle_meter.cursor), at(30), false).unwrap();
+        let idle_power = power_value(&idle_meter);
+        let load_power = power_value(&load_meter);
+        assert_eq!(idle_power, 0);
+        assert_eq!(load_power, 4_250);
+        assert_ne!(
+            load_meter.report.observation_id,
+            idle_meter.report.observation_id
+        );
+    }
+
+    fn power_value(meter: &ZigbeeMeter) -> i64 {
+        let power = meter
+            .report
+            .observations
+            .iter()
+            .find(|observation| observation.identity.kind == CapabilityKind::Power)
+            .unwrap();
+        match &power.reading {
+            CapabilityReading::Value(value) => value.value(),
+            CapabilityReading::Unavailable => panic!("missing power"),
+        }
     }
 }

@@ -95,6 +95,8 @@ export class LanTransport implements ControllerTransport {
     private reconnectAttempt = 0
     private reconnectTimer: ReturnType<typeof setTimeout> | null = null
     private readonly listeners = new Set<(event: DeviceEvent) => void>()
+    private readonly reopenListeners = new Set<() => void>()
+    private socketGeneration = 0
     private readonly pending = new Map<string, PendingCommand>()
 
     constructor(options: LanTransportOptions) {
@@ -288,6 +290,13 @@ export class LanTransport implements ControllerTransport {
         }
     }
 
+    onSocketReopen(cb: () => void): () => void {
+        this.reopenListeners.add(cb)
+        return () => {
+            this.reopenListeners.delete(cb)
+        }
+    }
+
     requestCapabilitySnapshot(): void {
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
             throw new Error('WebSocket not connected')
@@ -338,8 +347,15 @@ export class LanTransport implements ControllerTransport {
             this.ws = ws
 
             const onOpen = () => {
+                const reopened = this.socketGeneration > 0
+                this.socketGeneration += 1
                 this.reconnectAttempt = 0
                 cleanup()
+                if (reopened) {
+                    for (const listener of this.reopenListeners) {
+                        listener()
+                    }
+                }
                 resolve()
             }
             const onError = () => {

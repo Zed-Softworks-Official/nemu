@@ -62,6 +62,7 @@ export class ControllerConnection {
     private readonly statusListeners = new Set<StatusListener>()
     private readonly eventListeners = new Set<(event: DeviceEvent) => void>()
     private eventUnsub: (() => void) | null = null
+    private reopenUnsub: (() => void) | null = null
     private reprobeTimer: ReturnType<typeof setInterval> | null = null
     private readonly options: ControllerConnectionOptions
     private started = false
@@ -489,6 +490,12 @@ export class ControllerConnection {
                 listener(event)
             }
         })
+        this.reopenUnsub =
+            transport.onSocketReopen?.(() => {
+                this.capabilitySession.connect(() =>
+                    this.requestCapabilitySnapshot()
+                )
+            }) ?? null
         this.capabilitySession.connect(() => this.requestCapabilitySnapshot())
     }
 
@@ -499,6 +506,8 @@ export class ControllerConnection {
     private teardownTransport(): void {
         this.eventUnsub?.()
         this.eventUnsub = null
+        this.reopenUnsub?.()
+        this.reopenUnsub = null
         this.capabilitySession.disconnect()
         this.transport?.disconnect()
         this.transport = null

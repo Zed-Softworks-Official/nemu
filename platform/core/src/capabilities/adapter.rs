@@ -49,6 +49,8 @@ pub struct AdapterObservation {
     pub identity: super::CapabilityIdentity,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub capability_id: Option<CapabilityId>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reset: Option<bool>,
     pub reading: CapabilityReading,
 }
 

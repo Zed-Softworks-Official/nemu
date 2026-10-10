@@ -20,6 +20,9 @@ pub const PROFILE_EFFECTIVE_AT: &str = "2026-01-01T00:00:00Z";
 pub const PROFILE_FRESHNESS_MS: u64 = 90_000;
 const MAX_SAFE_INTEGER: i64 = 9_007_199_254_740_991;
 const MILLI_SCALE: u8 = 3;
+/// The cluster encoding is known. History eligibility waits until a physical
+/// load has proved the profile, so an unverified meter stays current-state-only.
+const PROFILE_VERIFIED: bool = false;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MeterPublication {
@@ -199,6 +202,24 @@ pub fn meter_publication(
     observation_id: &str,
     capability_ids: &HashMap<String, String>,
 ) -> Option<MeterPublication> {
+    meter_publication_with_reset(
+        device,
+        attributes,
+        observed_at,
+        observation_id,
+        capability_ids,
+        None,
+    )
+}
+
+pub fn meter_publication_with_reset(
+    device: &EndpointDevice,
+    attributes: &Attributes,
+    observed_at: &str,
+    observation_id: &str,
+    capability_ids: &HashMap<String, String>,
+    reset: Option<bool>,
+) -> Option<MeterPublication> {
     let readings = readings_for(device, attributes);
     if readings.is_empty() {
         return None;
@@ -215,26 +236,34 @@ pub fn meter_publication(
         .collect::<Vec<_>>();
     let observations = readings
         .iter()
-        .map(|reading| observation_json(device, reading, capability_ids))
+        .map(|reading| observation_json(device, reading, capability_ids, reset))
         .collect::<Vec<_>>();
+    let supported_versions = if PROFILE_VERIFIED {
+        json!([1])
+    } else {
+        json!([])
+    };
+    let mut report = json!({
+        "observationId": observation_id,
+        "observedAt": observed_at,
+        "timeTrust": "trustworthy",
+        "observations": observations,
+    });
+    if PROFILE_VERIFIED && let Some(object) = report.as_object_mut() {
+        object.insert("schemaVersion".into(), json!(1));
+    }
 
     Some(MeterPublication {
         manifest: json!({
             "schemaVersion": 1,
-            "supportedObservationEnvelopeVersions": [1],
+            "supportedObservationEnvelopeVersions": supported_versions,
             "device": {
                 "protocol": "matter",
                 "externalId": device.id,
             },
             "capabilities": capabilities,
         }),
-        report: json!({
-            "schemaVersion": 1,
-            "observationId": observation_id,
-            "observedAt": observed_at,
-            "timeTrust": "trustworthy",
-            "observations": observations,
-        }),
+        report,
         fingerprint,
     })
 }
@@ -426,6 +455,7 @@ fn observation_json(
     device: &EndpointDevice,
     reading: &Reading,
     capability_ids: &HashMap<String, String>,
+    reset: Option<bool>,
 ) -> Value {
     let mut observation = json!({
         "identity": identity_json(device, reading),
@@ -438,10 +468,13 @@ fn observation_json(
             }
         }
     });
-    if let Some(capability_id) = capability_ids.get(&reading.key)
-        && let Some(object) = observation.as_object_mut()
-    {
-        object.insert("capabilityId".into(), json!(capability_id));
+    if let Some(object) = observation.as_object_mut() {
+        if let Some(capability_id) = capability_ids.get(&reading.key) {
+            object.insert("capabilityId".into(), json!(capability_id));
+        }
+        if let Some(reset) = reset {
+            object.insert("reset".into(), json!(reset));
+        }
     }
     observation
 }
@@ -540,9 +573,12 @@ mod tests {
         assert!(ids.contains(&"importedEnergy"));
         assert_eq!(observations.len(), 4);
         assert_eq!(publication.report["observationId"], "obs-1");
+        assert!(publication.report.get("schemaVersion").is_none());
         assert_eq!(
-            publication.manifest["supportedObservationEnvelopeVersions"][0],
-            1
+            publication.manifest["supportedObservationEnvelopeVersions"]
+                .as_array()
+                .map(Vec::len),
+            Some(0)
         );
     }
 
@@ -636,6 +672,33 @@ mod tests {
         assert_eq!(published.observation_id, "plug-1:1:1");
         assert_eq!(loaded.next_sequence(), 2);
         let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn fixture_load_uses_the_adapter_clock_and_optional_reset() {
+        let pairs: serde_json::Map<String, Value> =
+            serde_json::from_str(include_str!("../fixtures/plug-under-load.json")).unwrap();
+        let attrs = pairs.into_iter().collect();
+        let device = map_node("plug-1", &attrs).remove(0);
+        let publication = meter_publication_with_reset(
+            &device,
+            &attrs,
+            "2026-10-09T12:00:00Z",
+            "obs-fixture",
+            &HashMap::new(),
+            Some(true),
+        )
+        .unwrap();
+        assert_eq!(publication.report["observedAt"], "2026-10-09T12:00:00Z");
+        let power = publication.report["observations"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|observation| observation["identity"]["kind"] == "power")
+            .unwrap();
+        assert_eq!(power["reading"]["value"]["value"], 60_000);
+        assert_eq!(power["reset"], true);
+        assert!(publication.report.get("schemaVersion").is_none());
     }
 
     #[test]

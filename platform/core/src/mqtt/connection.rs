@@ -18,7 +18,10 @@ use crate::config::{BridgeConfig, Config, Protocol};
 use crate::db::models::Device;
 use crate::devices::registry::log_event;
 use crate::events::{DeviceEvent, InterviewStatus};
-use crate::mqtt::meters::{MeterCursor, translate_zigbee};
+use crate::identity::{read_setting, write_setting};
+
+const ZIGBEE_METER_JOURNAL: &str = "zigbee_meter_journal";
+use crate::mqtt::meters::{ZigbeeJournal, translate_zigbee};
 use crate::mqtt::z2m::{
     self, IncomingTopic, commission_cancel_topic, commission_topic, get_state_payload, get_topic,
     health_check_topic, parse_availability, parse_bridge_event, parse_bridge_response,
@@ -336,7 +339,14 @@ pub fn spawn_mqtt_loop(state: AppState, mut eventloop: rumqttc::EventLoop) {
     tokio::spawn(async move {
         let mut backoff_ms: u64 = 500;
         let mut was_online = BridgeOnlineFlags::default();
-        let mut zigbee_cursors: HashMap<String, MeterCursor> = HashMap::new();
+        let mut zigbee_journal = match read_setting(&state.db, ZIGBEE_METER_JOURNAL).await {
+            Ok(Some(raw)) => ZigbeeJournal::parse(&raw),
+            Ok(None) => ZigbeeJournal::default(),
+            Err(error) => {
+                warn!(error = %error, "zigbee meter journal unavailable");
+                ZigbeeJournal::default()
+            }
+        };
         let mut adapter_manifests: HashMap<String, AdapterCapabilityManifest> = HashMap::new();
         let mut adapter_reports: HashMap<String, AdapterObservationReport> = HashMap::new();
 
@@ -364,7 +374,7 @@ pub fn spawn_mqtt_loop(state: AppState, mut eventloop: rumqttc::EventLoop) {
                         &payload,
                         publish.retain,
                         &mut was_online,
-                        &mut zigbee_cursors,
+                        &mut zigbee_journal,
                         &mut adapter_manifests,
                         &mut adapter_reports,
                     )
@@ -426,7 +436,7 @@ async fn handle_publish(
     payload: &str,
     retained: bool,
     was_online: &mut BridgeOnlineFlags,
-    zigbee_cursors: &mut HashMap<String, MeterCursor>,
+    zigbee_journal: &mut ZigbeeJournal,
     adapter_manifests: &mut HashMap<String, AdapterCapabilityManifest>,
     adapter_reports: &mut HashMap<String, AdapterObservationReport>,
 ) -> Result<(), String> {
@@ -498,7 +508,7 @@ async fn handle_publish(
                 &friendly_name,
                 payload,
                 retained,
-                zigbee_cursors,
+                zigbee_journal,
             )
             .await
         }
@@ -668,7 +678,7 @@ async fn handle_device_state(
     topic_segment: &str,
     payload: &str,
     retained: bool,
-    zigbee_cursors: &mut HashMap<String, MeterCursor>,
+    zigbee_journal: &mut ZigbeeJournal,
 ) -> Result<(), String> {
     let value: JsonValue =
         serde_json::from_str(payload).map_err(|e| format!("invalid device state json: {e}"))?;
@@ -701,26 +711,39 @@ async fn handle_device_state(
 
     if protocol == Protocol::Zigbee {
         let received_at = Utc::now();
-        let previous = zigbee_cursors.get(&device.external_id).cloned();
+        let external_id = device.external_id.clone();
+        let previous = zigbee_journal.cursor(&external_id).cloned();
+        let assigned = zigbee_journal.assigned(&external_id);
         if let Some(meter) = translate_zigbee(
-            &device.external_id,
+            &external_id,
             &value,
             previous.as_ref(),
             received_at,
             retained,
+            &assigned,
         ) {
-            if let Err(error) = state
+            match state
                 .capabilities
                 .admit_adapter(meter.manifest, meter.report, received_at)
                 .await
             {
-                warn!(
-                    external_id = %device.external_id,
-                    error = %error,
-                    "zigbee meter admission failed"
-                );
+                Ok(admission) => {
+                    zigbee_journal.remember_ids(&external_id, &admission.registered);
+                }
+                Err(error) => {
+                    warn!(
+                        external_id = %external_id,
+                        error = %error,
+                        "zigbee meter admission failed"
+                    );
+                }
             }
-            zigbee_cursors.insert(device.external_id, meter.cursor);
+            zigbee_journal.remember_cursor(&external_id, meter.cursor);
+            if let Err(error) =
+                write_setting(&state.db, ZIGBEE_METER_JOURNAL, &zigbee_journal.export()).await
+            {
+                warn!(error = %error, "failed to persist zigbee meter journal");
+            }
         }
     }
     Ok(())
