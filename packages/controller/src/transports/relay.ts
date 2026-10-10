@@ -70,6 +70,7 @@ export class RelayTransport implements ControllerTransport {
     private connected = false
     private watchTimer: ReturnType<typeof setInterval> | null = null
     private watchRequestId: string | null = null
+    private previousWatchRequestId: string | null = null
 
     constructor(options: RelayTransportOptions) {
         this.convex = options.convex
@@ -104,6 +105,7 @@ export class RelayTransport implements ControllerTransport {
             this.watchTimer = null
         }
         this.watchRequestId = null
+        this.previousWatchRequestId = null
         this.pendingIds.clear()
         this.seenResponses.clear()
     }
@@ -352,9 +354,10 @@ export class RelayTransport implements ControllerTransport {
             requestId,
             payload: JSON.stringify(envelope),
         })
-        if (this.watchRequestId) {
-            this.pendingIds.delete(this.watchRequestId)
+        if (this.previousWatchRequestId) {
+            this.pendingIds.delete(this.previousWatchRequestId)
         }
+        this.previousWatchRequestId = this.watchRequestId
         this.watchRequestId = requestId
         this.pendingIds.add(requestId)
     }

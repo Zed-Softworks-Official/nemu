@@ -123,11 +123,16 @@ describe('capability current-state session', () => {
 
         session.deliver(snapshot(epochA, 4, [reading(powerId, 4, 1500)]), ask)
         assert.equal(session.view(), null)
+        assert.deepEqual(requests, ['snapshot', 'snapshot'])
+
+        session.deliver(snapshot(epochA, 4, [reading(powerId, 4, 1500)]), ask)
+        assert.equal(session.view(), null)
+        assert.deepEqual(requests, ['snapshot', 'snapshot'])
 
         session.deliver(snapshot(epochB, 2, [reading(powerId, 2, 20)]), ask)
         assert.equal(session.view()?.epoch, epochB)
         assert.equal(session.view()?.capabilities[0]?.value?.value, 20)
-        assert.deepEqual(requests, ['snapshot'])
+        assert.deepEqual(requests, ['snapshot', 'snapshot'])
     })
 
     it('ignores duplicate revisions', () => {

@@ -85,7 +85,15 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                         }
                     }
                     Err(RecvError::Lagged(skipped)) => {
-                        debug!(skipped, "capability ws consumer lagged; client will request a snapshot");
+                        debug!(skipped, "capability ws consumer lagged; sending snapshot");
+                        let snapshot = DeviceEvent::from_capability_snapshot(
+                            state.capabilities.snapshot(),
+                        );
+                        if let Ok(payload) = serde_json::to_string(&snapshot) {
+                            if sender.send(Message::Text(payload.into())).await.is_err() {
+                                break;
+                            }
+                        }
                     }
                     Err(RecvError::Closed) => break,
                 }

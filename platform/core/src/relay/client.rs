@@ -610,48 +610,47 @@ fn spawn_capability_watch_pushes(state: AppState, site_url: String) {
     tokio::spawn(async move {
         let mut changes = state.capabilities.subscribe();
         loop {
-            match changes.recv().await {
+            let message = match changes.recv().await {
                 Ok(change) => {
-                    let watches = live_capability_watches(&state);
-                    if watches.is_empty() {
-                        continue;
-                    }
-                    let Ok(message) =
-                        serde_json::to_value(DeviceEvent::from_capability_change(change))
-                    else {
-                        continue;
-                    };
-                    for watch in watches {
-                        let payload =
-                            build_typed_response(&state, &watch.request_id, message.clone());
-                        if let Err(error) = respond(
-                            &state,
-                            &mut RespondVia::Http {
-                                site_url: &site_url,
-                            },
-                            &watch.request_id,
-                            payload,
-                        )
-                        .await
-                        {
-                            warn!(
-                                request_id = %watch.request_id,
-                                error = %error,
-                                "failed to push Capability change"
-                            );
-                        }
-                    }
+                    serde_json::to_value(DeviceEvent::from_capability_change(change)).ok()
                 }
                 Err(RecvError::Lagged(skipped)) => {
                     warn!(
                         skipped,
-                        "capability relay consumer lagged; clients request a snapshot"
+                        "capability relay consumer lagged; pushing a snapshot"
                     );
+                    serde_json::to_value(DeviceEvent::from_capability_snapshot(
+                        state.capabilities.snapshot(),
+                    ))
+                    .ok()
                 }
                 Err(RecvError::Closed) => break,
+            };
+            if let Some(message) = message {
+                push_capability_message(&state, &site_url, message).await;
             }
         }
     });
+}
+
+async fn push_capability_message(state: &AppState, site_url: &str, message: JsonValue) {
+    for watch in live_capability_watches(state) {
+        let payload = build_typed_response(state, &watch.request_id, message.clone());
+        if let Err(error) = respond(
+            state,
+            &mut RespondVia::Http { site_url },
+            &watch.request_id,
+            payload,
+        )
+        .await
+        {
+            warn!(
+                request_id = %watch.request_id,
+                error = %error,
+                "failed to push Capability message"
+            );
+        }
+    }
 }
 
 fn register_capability_watch(state: &AppState, token_id: Uuid, request_id: &str) {

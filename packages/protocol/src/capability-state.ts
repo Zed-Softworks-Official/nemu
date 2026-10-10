@@ -11,6 +11,7 @@ export class CapabilitySession {
     private current: CapabilityView | null = null
     private snapshotRequestOpen = false
     private expectedEpoch: string | null = null
+    private rejectedSnapshotKey: string | null = null
     private readonly listeners = new Set<
         (view: CapabilityView | null) => void
     >()
@@ -37,6 +38,7 @@ export class CapabilitySession {
         this.current = null
         this.snapshotRequestOpen = false
         this.expectedEpoch = null
+        this.rejectedSnapshotKey = null
         this.publish()
     }
 
@@ -45,7 +47,9 @@ export class CapabilitySession {
         requestSnapshot: () => void | Promise<void>
     ): void {
         if (event.type === 'capabilitySnapshot') {
-            this.applySnapshot(event)
+            if (this.applySnapshot(event) === 'unsatisfied') {
+                this.invoke(requestSnapshot)
+            }
             return
         }
         if (event.type !== 'capabilityChange') return
@@ -54,12 +58,17 @@ export class CapabilitySession {
 
     private applySnapshot(
         snapshot: Extract<DeviceEvent, { type: 'capabilitySnapshot' }>
-    ): void {
+    ): 'installed' | 'unsatisfied' {
         if (
             this.expectedEpoch !== null &&
             snapshot.epoch !== this.expectedEpoch
         ) {
-            return
+            const key = `${snapshot.epoch}:${snapshot.revision}`
+            if (!this.snapshotRequestOpen || this.rejectedSnapshotKey === key) {
+                return 'installed'
+            }
+            this.rejectedSnapshotKey = key
+            return 'unsatisfied'
         }
         this.current = {
             epoch: snapshot.epoch,
@@ -70,7 +79,9 @@ export class CapabilitySession {
         }
         this.expectedEpoch = null
         this.snapshotRequestOpen = false
+        this.rejectedSnapshotKey = null
         this.publish()
+        return 'installed'
     }
 
     private applyChange(
@@ -80,6 +91,7 @@ export class CapabilitySession {
             const hadState = this.current !== null
             this.current = null
             this.expectedEpoch = change.epoch
+            this.rejectedSnapshotKey = null
             if (hadState) this.publish()
             return this.openSnapshotRequest()
         }
