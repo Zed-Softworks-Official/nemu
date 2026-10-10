@@ -1,5 +1,7 @@
 import {
     type BootstrapOwnerRequest,
+    CapabilitySession,
+    type CapabilityView,
     type ClientToken,
     type CommandResult,
     type CommissionRequest,
@@ -63,6 +65,7 @@ export class ControllerConnection {
     private reprobeTimer: ReturnType<typeof setInterval> | null = null
     private readonly options: ControllerConnectionOptions
     private started = false
+    private readonly capabilitySession = new CapabilitySession()
 
     constructor(options: ControllerConnectionOptions = {}) {
         this.options = options
@@ -85,6 +88,16 @@ export class ControllerConnection {
         return () => {
             this.eventListeners.delete(cb)
         }
+    }
+
+    getCapabilityView(): CapabilityView | null {
+        return this.capabilitySession.view()
+    }
+
+    subscribeCapabilityView(
+        cb: (view: CapabilityView | null) => void
+    ): () => void {
+        return this.capabilitySession.subscribe(cb)
     }
 
     async start(): Promise<void> {
@@ -469,18 +482,24 @@ export class ControllerConnection {
         this.teardownTransport()
         this.transport = transport
         this.eventUnsub = transport.subscribeEvents((event) => {
+            this.capabilitySession.deliver(event, () =>
+                this.requestCapabilitySnapshot()
+            )
             for (const listener of this.eventListeners) {
                 listener(event)
             }
-            if (event.type === 'resync' || event.type === 'deviceLeft') {
-                // UI hooks refetch; nothing else required here
-            }
         })
+        this.capabilitySession.connect(() => this.requestCapabilitySnapshot())
+    }
+
+    private requestCapabilitySnapshot(): void | Promise<void> {
+        return this.transport?.requestCapabilitySnapshot?.()
     }
 
     private teardownTransport(): void {
         this.eventUnsub?.()
         this.eventUnsub = null
+        this.capabilitySession.disconnect()
         this.transport?.disconnect()
         this.transport = null
     }

@@ -370,3 +370,58 @@ export function negotiateObservationEnvelopeVersion({
 
     return { status: 'incompatible' }
 }
+
+export const capabilityUnavailableReasonSchema = z.enum([
+    'neverObserved',
+    'explicit',
+    'adapterDisconnected',
+    'missingInventory',
+    'freshnessExpired',
+    'manifestRemoved',
+])
+export type CapabilityUnavailableReason = z.infer<
+    typeof capabilityUnavailableReasonSchema
+>
+
+export const capabilityAvailabilitySchema = z.discriminatedUnion('status', [
+    z.object({ status: z.literal('available') }),
+    z.object({
+        status: z.literal('unavailable'),
+        reason: capabilityUnavailableReasonSchema,
+        since: z.iso.datetime({ offset: true }),
+    }),
+])
+export type CapabilityAvailability = z.infer<
+    typeof capabilityAvailabilitySchema
+>
+
+export const capabilityCurrentStateSchema = z.object({
+    capabilityId: capabilityIdSchema,
+    kind: capabilityKindSchema,
+    value: numericCapabilityValueSchema.optional(),
+    availability: capabilityAvailabilitySchema,
+    observedAt: z.iso.datetime({ offset: true }).optional(),
+    receivedAt: z.iso.datetime({ offset: true }).optional(),
+    revision: z.number().int().nonnegative(),
+})
+export type CapabilityCurrentState = z.infer<
+    typeof capabilityCurrentStateSchema
+>
+
+export const capabilitySnapshotEventSchema = z.object({
+    type: z.literal('capabilitySnapshot'),
+    epoch: z.uuid(),
+    revision: z.number().int().nonnegative(),
+    capabilities: z.array(capabilityCurrentStateSchema),
+})
+export type CapabilitySnapshotEvent = z.infer<
+    typeof capabilitySnapshotEventSchema
+>
+
+export const capabilityChangeEventSchema = z.object({
+    type: z.literal('capabilityChange'),
+    epoch: z.uuid(),
+    revision: z.number().int().nonnegative(),
+    state: capabilityCurrentStateSchema,
+})
+export type CapabilityChangeEvent = z.infer<typeof capabilityChangeEventSchema>

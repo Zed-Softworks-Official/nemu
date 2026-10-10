@@ -1,8 +1,10 @@
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 use deadpool_diesel::postgres::Pool;
 use tokio::sync::broadcast;
+use uuid::Uuid;
 
 use crate::capabilities::CapabilityService;
 use crate::devices::{DeviceRegistry, StateCache};
@@ -27,6 +29,14 @@ pub struct AppState {
     pub registration_secret: Option<String>,
     pub lan_ip: Option<String>,
     pub watchtower: Option<WatchtowerClient>,
+    pub capability_watches: Arc<Mutex<Vec<CapabilityWatch>>>,
+}
+
+#[derive(Clone)]
+pub struct CapabilityWatch {
+    pub request_id: String,
+    pub token_id: Uuid,
+    pub expires_at: Instant,
 }
 
 #[derive(Debug, Default)]

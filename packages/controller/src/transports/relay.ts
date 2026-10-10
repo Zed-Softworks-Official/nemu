@@ -52,7 +52,7 @@ export type RelayTransportOptions = {
 
 /**
  * Relay transport talks to Convex mailbox functions.
- * Live state is coarser than LAN: we poll for responses and optional snapshots.
+ * Capability snapshots and live changes use the same messages as LAN.
  */
 export class RelayTransport implements ControllerTransport {
     readonly mode = 'relay' as const
@@ -68,6 +68,8 @@ export class RelayTransport implements ControllerTransport {
     private pollTimer: ReturnType<typeof setInterval> | null = null
     private seenResponses = new Set<string>()
     private connected = false
+    private watchTimer: ReturnType<typeof setInterval> | null = null
+    private watchRequestId: string | null = null
 
     constructor(options: RelayTransportOptions) {
         this.convex = options.convex
@@ -81,6 +83,14 @@ export class RelayTransport implements ControllerTransport {
     async connect(): Promise<void> {
         this.connected = true
         this.startPolling()
+        this.watchTimer = setInterval(() => {
+            void this.renewCapabilityWatch().catch(() => {
+                // The next renewal retries. Live changes resume when the watch is accepted.
+            })
+        }, 20_000)
+        void this.renewCapabilityWatch().catch(() => {
+            // The renewal interval retries.
+        })
     }
 
     disconnect(): void {
@@ -89,8 +99,20 @@ export class RelayTransport implements ControllerTransport {
             clearInterval(this.pollTimer)
             this.pollTimer = null
         }
+        if (this.watchTimer) {
+            clearInterval(this.watchTimer)
+            this.watchTimer = null
+        }
+        this.watchRequestId = null
         this.pendingIds.clear()
         this.seenResponses.clear()
+    }
+
+    async requestCapabilitySnapshot(): Promise<void> {
+        const parsed = await this.request({ type: 'getCapabilitySnapshot' })
+        if (parsed.message.type === 'capabilitySnapshot') {
+            this.emit(parsed.message)
+        }
     }
 
     async getDevices(): Promise<Device[]> {
@@ -296,6 +318,11 @@ export class RelayTransport implements ControllerTransport {
                             error: envelope.message.error,
                         })
                     } else if (
+                        envelope.message.type === 'capabilitySnapshot' ||
+                        envelope.message.type === 'capabilityChange'
+                    ) {
+                        this.emit(envelope.message)
+                    } else if (
                         envelope.message.type === 'devices' ||
                         envelope.message.type === 'snapshot'
                     ) {
@@ -308,6 +335,28 @@ export class RelayTransport implements ControllerTransport {
         } catch {
             // transient poll failures are ignored; next tick retries
         }
+    }
+
+    private async renewCapabilityWatch(): Promise<void> {
+        if (!this.connected) return
+        const token = this.getToken()
+        if (!token) return
+        const requestId = crypto.randomUUID()
+        const envelope = relayToControllerEnvelopeSchema.parse({
+            requestId,
+            clientToken: token,
+            message: { type: 'watchCapabilityChanges' },
+        })
+        await this.convex.mutation(this.api.send, {
+            controllerId: this.controllerId,
+            requestId,
+            payload: JSON.stringify(envelope),
+        })
+        if (this.watchRequestId) {
+            this.pendingIds.delete(this.watchRequestId)
+        }
+        this.watchRequestId = requestId
+        this.pendingIds.add(requestId)
     }
 
     private waitForResponse(requestId: string): Promise<RelayResponseDoc> {

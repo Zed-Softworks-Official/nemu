@@ -288,6 +288,13 @@ export class LanTransport implements ControllerTransport {
         }
     }
 
+    requestCapabilitySnapshot(): void {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+            throw new Error('WebSocket not connected')
+        }
+        this.ws.send(JSON.stringify({ type: 'requestCapabilitySnapshot' }))
+    }
+
     private async sendViaWs(
         requestId: string,
         cmd: DeviceCommand

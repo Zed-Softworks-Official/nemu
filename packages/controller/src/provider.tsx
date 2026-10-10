@@ -2,6 +2,7 @@
 
 import {
     type BootstrapOwnerRequest,
+    type CapabilityView,
     type ClientToken,
     type CommandResult,
     type CommissionRequest,
@@ -12,6 +13,7 @@ import {
     type DeviceCommand,
     type DeviceEvent,
     type DeviceProtocol,
+    deviceEventRefreshesInventory,
     type HouseholdMember,
     type MatterWifiResponse,
     type PatchDeviceRequest,
@@ -297,18 +299,27 @@ export function useDevices(): {
 
     useEffect(() => {
         return connection.subscribeEvents((event: DeviceEvent) => {
-            if (
-                event.type === 'resync' ||
-                event.type === 'deviceJoined' ||
-                event.type === 'deviceLeft' ||
-                event.type === 'deviceState'
-            ) {
+            if (deviceEventRefreshesInventory(event)) {
                 void refresh()
             }
         })
     }, [connection, refresh])
 
     return { devices, error, refresh, status }
+}
+
+export function useCapabilityState(): {
+    view: CapabilityView | null
+    status: ConnectionStatus
+} {
+    const { connection, status } = useController()
+    const [view, setView] = useState<CapabilityView | null>(
+        connection.getCapabilityView()
+    )
+
+    useEffect(() => connection.subscribeCapabilityView(setView), [connection])
+
+    return { view, status }
 }
 
 export type DevicePairingPhase =

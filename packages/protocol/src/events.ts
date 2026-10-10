@@ -1,5 +1,9 @@
 import { z } from 'zod'
-import { type DeviceState, deviceSchema, deviceStateSchema } from './device'
+import {
+    capabilityChangeEventSchema,
+    capabilitySnapshotEventSchema,
+} from './capability.js'
+import { type DeviceState, deviceSchema, deviceStateSchema } from './device.js'
 
 export const deviceEventSchema = z.discriminatedUnion('type', [
     z.object({
@@ -51,13 +55,20 @@ export const deviceEventSchema = z.discriminatedUnion('type', [
             })
             .optional(),
     }),
+    capabilitySnapshotEventSchema,
+    capabilityChangeEventSchema,
 ])
 export type DeviceEvent = z.infer<typeof deviceEventSchema>
 
-export const clientWsMessageSchema = z.object({
-    type: z.literal('command'),
-    requestId: z.string(),
-    deviceId: z.string(),
-    payload: deviceStateSchema,
-})
+export const clientWsMessageSchema = z.discriminatedUnion('type', [
+    z.object({
+        type: z.literal('command'),
+        requestId: z.string(),
+        deviceId: z.string(),
+        payload: deviceStateSchema,
+    }),
+    z.object({
+        type: z.literal('requestCapabilitySnapshot'),
+    }),
+])
 export type ClientWsMessage = z.infer<typeof clientWsMessageSchema>

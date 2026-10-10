@@ -17,6 +17,7 @@ pub async fn ws_handler(ws: WebSocketUpgrade, State(state): State<AppState>) -> 
 async fn handle_socket(socket: WebSocket, state: AppState) {
     let (mut sender, mut receiver) = socket.split();
     let mut events = state.events.subscribe();
+    let mut capability_events = state.capabilities.subscribe();
 
     // Prompt client to refetch full device list.
     if let Ok(payload) = serde_json::to_string(&DeviceEvent::Resync) {
@@ -33,6 +34,13 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
         db: true,
     };
     if let Ok(payload) = serde_json::to_string(&health) {
+        if sender.send(Message::Text(payload.into())).await.is_err() {
+            return;
+        }
+    }
+
+    let snapshot = DeviceEvent::from_capability_snapshot(state.capabilities.snapshot());
+    if let Ok(payload) = serde_json::to_string(&snapshot) {
         if sender.send(Message::Text(payload.into())).await.is_err() {
             return;
         }
@@ -59,6 +67,25 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                         if sender.send(Message::Text(payload.into())).await.is_err() {
                             break;
                         }
+                    }
+                    Err(RecvError::Closed) => break,
+                }
+            }
+            change = capability_events.recv() => {
+                match change {
+                    Ok(change) => {
+                        let event = DeviceEvent::from_capability_change(change);
+                        match serde_json::to_string(&event) {
+                            Ok(payload) => {
+                                if sender.send(Message::Text(payload.into())).await.is_err() {
+                                    break;
+                                }
+                            }
+                            Err(e) => warn!(error = %e, "failed to serialize capability change"),
+                        }
+                    }
+                    Err(RecvError::Lagged(skipped)) => {
+                        debug!(skipped, "capability ws consumer lagged; client will request a snapshot");
                     }
                     Err(RecvError::Closed) => break,
                 }
@@ -120,6 +147,14 @@ async fn handle_client_text(
             };
 
             let payload = serde_json::to_string(&event).map_err(|e| e.to_string())?;
+            sender
+                .send(Message::Text(payload.into()))
+                .await
+                .map_err(|e| e.to_string())?;
+        }
+        ClientWsMessage::RequestCapabilitySnapshot => {
+            let snapshot = DeviceEvent::from_capability_snapshot(state.capabilities.snapshot());
+            let payload = serde_json::to_string(&snapshot).map_err(|e| e.to_string())?;
             sender
                 .send(Message::Text(payload.into()))
                 .await

@@ -9,5 +9,11 @@
         "outDir": "dist/test",
         "rootDir": "src"
     },
-    "include": ["src/capability.ts", "src/capability.test.ts"]
+    "include": [
+        "src/capability.ts",
+        "src/capability.test.ts",
+        "src/capability-state.ts",
+        "src/capability-state.test.ts",
+        "src/capability-transport.test.ts"
+    ]
 }

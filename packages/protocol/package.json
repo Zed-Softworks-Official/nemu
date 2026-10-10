@@ -8,7 +8,7 @@
     },
     "scripts": {
         "check-types": "tsc --noEmit",
-        "test": "tsc -p tsconfig.test.json && node --test dist/test/capability.test.js"
+        "test": "tsc -p tsconfig.test.json && node --test dist/test/*.test.js"
     },
     "dependencies": {
         "zod": "catalog:"

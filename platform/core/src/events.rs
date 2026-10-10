@@ -50,6 +50,36 @@ pub enum DeviceEvent {
         #[serde(skip_serializing_if = "Option::is_none")]
         error: Option<ErrorBody>,
     },
+    #[serde(rename = "capabilitySnapshot")]
+    CapabilitySnapshot {
+        epoch: crate::capabilities::StateEpoch,
+        revision: u64,
+        capabilities: Vec<crate::capabilities::CapabilityState>,
+    },
+    #[serde(rename = "capabilityChange")]
+    CapabilityChange {
+        epoch: crate::capabilities::StateEpoch,
+        revision: u64,
+        state: crate::capabilities::CapabilityState,
+    },
+}
+
+impl DeviceEvent {
+    pub fn from_capability_snapshot(snapshot: crate::capabilities::CapabilitySnapshot) -> Self {
+        Self::CapabilitySnapshot {
+            epoch: snapshot.epoch,
+            revision: snapshot.revision,
+            capabilities: snapshot.capabilities,
+        }
+    }
+
+    pub fn from_capability_change(change: crate::capabilities::CapabilityChange) -> Self {
+        Self::CapabilityChange {
+            epoch: change.epoch,
+            revision: change.revision,
+            state: change.state,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -112,6 +142,45 @@ pub struct RoomResource {
     pub sort_order: Option<i32>,
 }
 
+#[cfg(test)]
+mod tests {
+    use uuid::Uuid;
+
+    use super::DeviceEvent;
+    use crate::capabilities::{
+        Availability, CapabilityChange, CapabilityId, CapabilityKind, CapabilityState,
+        NumericValue, StateEpoch,
+    };
+
+    #[test]
+    fn capability_change_uses_the_shared_transport_shape() {
+        let event = DeviceEvent::from_capability_change(CapabilityChange {
+            epoch: StateEpoch::from_uuid(Uuid::nil()),
+            revision: 5,
+            state: CapabilityState {
+                capability_id: CapabilityId::from_uuid(Uuid::nil()),
+                kind: CapabilityKind::Power,
+                value: Some(NumericValue::for_test(1500, 3, "limits")),
+                availability: Availability::Available,
+                observed_at: None,
+                received_at: None,
+                revision: 5,
+            },
+        });
+        let json = serde_json::to_value(&event).expect("capability change serializes");
+        assert_eq!(json["type"], "capabilityChange");
+        assert_eq!(json["revision"], 5);
+        assert_eq!(
+            json["state"]["capabilityId"],
+            "00000000-0000-0000-0000-000000000000"
+        );
+        assert_eq!(json["state"]["kind"], "power");
+        assert_eq!(json["state"]["availability"]["status"], "available");
+        assert_eq!(json["state"]["value"]["constraintRevisionId"], "limits");
+        assert!(json["state"].get("observedAt").is_none());
+    }
+}
+
 impl From<&crate::db::models::Room> for RoomResource {
     fn from(room: &crate::db::models::Room) -> Self {
         Self {
@@ -133,4 +202,6 @@ pub enum ClientWsMessage {
         device_id: String,
         payload: JsonValue,
     },
+    #[serde(rename = "requestCapabilitySnapshot")]
+    RequestCapabilitySnapshot,
 }

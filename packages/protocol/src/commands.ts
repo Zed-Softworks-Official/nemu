@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { deviceStateSchema } from './device'
+import { deviceStateSchema } from './device.js'
 
 export const deviceCommandSchema = z.object({
     deviceId: z.string(),

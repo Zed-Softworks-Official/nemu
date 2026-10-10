@@ -142,6 +142,7 @@ async fn main() {
         convex_site_url: config.convex_site_url.clone(),
         registration_secret: config.registration_secret.clone(),
         lan_ip: lan_ip.clone(),
+        capability_watches: Arc::new(std::sync::Mutex::new(Vec::new())),
         watchtower: match (
             config.watchtower_url.clone(),
             config.watchtower_token.clone(),

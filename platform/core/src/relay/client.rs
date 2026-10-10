@@ -1,10 +1,11 @@
 use std::collections::{BTreeMap, HashSet};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use convex::{AuthenticationToken, ConvexClient, FunctionResult, Value};
 use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value as JsonValue, json};
+use tokio::sync::broadcast::error::RecvError;
 use tracing::{debug, info, warn};
 use uuid::Uuid;
 
@@ -15,14 +16,16 @@ use crate::api::members::{
 };
 use crate::api::pairing::{list_household_tokens, revoke_current_token, revoke_household_token};
 use crate::commands::execute_set;
+use crate::events::DeviceEvent;
 use crate::pairing::tokens::verify_client_token;
 use crate::registration::{convex_cloud_url, fetch_controller_session, register_with_convex};
-use crate::state::AppState;
+use crate::state::{AppState, CapabilityWatch};
 
 /// HTTP fallback poll interval when the WebSocket client is unavailable.
 const FALLBACK_POLL_INTERVAL_MS: u64 = 15_000;
 const IDLE_BACKOFF_MS: u64 = 5_000;
 const FALLBACK_ROUNDS_BEFORE_RETRY: u32 = 4;
+const CAPABILITY_WATCH_TTL: Duration = Duration::from_secs(45);
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -93,6 +96,10 @@ enum ToControllerMessage {
         #[serde(rename = "displayName")]
         display_name: Option<String>,
     },
+    #[serde(rename = "getCapabilitySnapshot")]
+    GetCapabilitySnapshot,
+    #[serde(rename = "watchCapabilityChanges")]
+    WatchCapabilityChanges,
 }
 
 #[derive(Serialize)]
@@ -124,6 +131,7 @@ async fn run_relay_loop(state: AppState) {
     let cloud_url = convex_cloud_url(&site_url);
 
     info!(%cloud_url, "relay client started");
+    spawn_capability_watch_pushes(state.clone(), site_url.clone());
 
     loop {
         match run_subscription_relay(&state, &site_url, &cloud_url).await {
@@ -433,6 +441,19 @@ async fn handle_message(
             ),
             Err(err) => build_error_response(state, &message.request_id, &err.code, &err.message),
         },
+        ToControllerMessage::GetCapabilitySnapshot => {
+            let event = DeviceEvent::from_capability_snapshot(state.capabilities.snapshot());
+            let message_body = serde_json::to_value(&event).unwrap_or(JsonValue::Null);
+            build_typed_response(state, &message.request_id, message_body)
+        }
+        ToControllerMessage::WatchCapabilityChanges => {
+            register_capability_watch(state, auth.token_id, &message.request_id);
+            build_typed_response(
+                state,
+                &message.request_id,
+                json!({ "type": "capabilityWatchAck" }),
+            )
+        }
     };
 
     respond(state, respond_via, &message.request_id, response_payload).await
@@ -583,4 +604,76 @@ fn sign_envelope(state: &AppState, mut envelope: JsonValue) -> String {
     let signature = state.identity.keypair.sign_b64(&bytes);
     envelope["signature"] = json!(signature);
     envelope.to_string()
+}
+
+fn spawn_capability_watch_pushes(state: AppState, site_url: String) {
+    tokio::spawn(async move {
+        let mut changes = state.capabilities.subscribe();
+        loop {
+            match changes.recv().await {
+                Ok(change) => {
+                    let watches = live_capability_watches(&state);
+                    if watches.is_empty() {
+                        continue;
+                    }
+                    let Ok(message) =
+                        serde_json::to_value(DeviceEvent::from_capability_change(change))
+                    else {
+                        continue;
+                    };
+                    for watch in watches {
+                        let payload =
+                            build_typed_response(&state, &watch.request_id, message.clone());
+                        if let Err(error) = respond(
+                            &state,
+                            &mut RespondVia::Http {
+                                site_url: &site_url,
+                            },
+                            &watch.request_id,
+                            payload,
+                        )
+                        .await
+                        {
+                            warn!(
+                                request_id = %watch.request_id,
+                                error = %error,
+                                "failed to push Capability change"
+                            );
+                        }
+                    }
+                }
+                Err(RecvError::Lagged(skipped)) => {
+                    warn!(
+                        skipped,
+                        "capability relay consumer lagged; clients request a snapshot"
+                    );
+                }
+                Err(RecvError::Closed) => break,
+            }
+        }
+    });
+}
+
+fn register_capability_watch(state: &AppState, token_id: Uuid, request_id: &str) {
+    let mut watches = state
+        .capability_watches
+        .lock()
+        .expect("capability watch lock");
+    let now = Instant::now();
+    watches.retain(|watch| watch.token_id != token_id && watch.expires_at > now);
+    watches.push(CapabilityWatch {
+        request_id: request_id.to_string(),
+        token_id,
+        expires_at: now + CAPABILITY_WATCH_TTL,
+    });
+}
+
+fn live_capability_watches(state: &AppState) -> Vec<CapabilityWatch> {
+    let mut watches = state
+        .capability_watches
+        .lock()
+        .expect("capability watch lock");
+    let now = Instant::now();
+    watches.retain(|watch| watch.expires_at > now);
+    watches.clone()
 }

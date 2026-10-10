@@ -25,6 +25,7 @@ export interface ControllerTransport {
     getDevices(): Promise<Device[]>
     sendCommand(cmd: DeviceCommand): Promise<CommandResult>
     subscribeEvents(cb: (event: DeviceEvent) => void): () => void
+    requestCapabilitySnapshot?(): void | Promise<void>
     permitJoin?(seconds: number): Promise<PermitJoinResponse>
     /** Matter commissioning. LAN transport only, same policy as permitJoin. */
     commissionMatter?(request: CommissionRequest): Promise<CommissionResponse>

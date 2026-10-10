@@ -1,6 +1,10 @@
 import { z } from 'zod'
-import { clientTokenSchema, householdMemberSchema } from './api'
-import { deviceStateSchema } from './device'
+import { clientTokenSchema, householdMemberSchema } from './api.js'
+import {
+    capabilityChangeEventSchema,
+    capabilitySnapshotEventSchema,
+} from './capability.js'
+import { deviceStateSchema } from './device.js'
 
 const relayCommandMessageSchema = z.object({
     type: z.literal('command'),
@@ -47,6 +51,8 @@ const authenticatedRelayMessageSchema = z.union([
         email: z.string(),
         displayName: z.string().optional(),
     }),
+    z.object({ type: z.literal('getCapabilitySnapshot') }),
+    z.object({ type: z.literal('watchCapabilityChanges') }),
 ])
 
 export const relayToControllerEnvelopeSchema = z.union([
@@ -91,6 +97,9 @@ export const relayToClientEnvelopeSchema = z.object({
             type: z.literal('tokens'),
             tokens: z.array(clientTokenSchema),
         }),
+        capabilitySnapshotEventSchema,
+        capabilityChangeEventSchema,
+        z.object({ type: z.literal('capabilityWatchAck') }),
     ]),
 })
 export type RelayToClientEnvelope = z.infer<typeof relayToClientEnvelopeSchema>
