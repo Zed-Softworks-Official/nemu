@@ -1,5 +1,6 @@
 mod adapter;
 mod current_state;
+mod history;
 mod persistence;
 mod service;
 mod types;

@@ -105,6 +105,17 @@ pub enum CanonicalUnit {
     Amperes,
 }
 
+impl CanonicalUnit {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Watts => "W",
+            Self::WattHours => "Wh",
+            Self::Volts => "V",
+            Self::Amperes => "A",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Directionality {
@@ -500,6 +511,15 @@ pub enum TimeTrust {
     Untrustworthy,
 }
 
+impl TimeTrust {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Trustworthy => "trustworthy",
+            Self::Untrustworthy => "untrustworthy",
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "status", content = "value", rename_all = "camelCase")]
 pub enum CapabilityReading {
@@ -513,6 +533,8 @@ pub struct CapabilityObservation {
     pub capability_id: CapabilityId,
     pub kind: CapabilityKind,
     pub reading: CapabilityReading,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reset: Option<bool>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -630,6 +652,8 @@ pub enum HistoryRejection {
     ExactReplay,
     Unavailable,
     InvalidCapability,
+    AdmissionRate,
+    QueueFull,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -806,6 +830,7 @@ mod tests {
             capability_id,
             kind: CapabilityKind::Power,
             reading: CapabilityReading::Unavailable,
+            reset: None,
         };
         let report = CapabilityReport {
             schema_version: Some(1),

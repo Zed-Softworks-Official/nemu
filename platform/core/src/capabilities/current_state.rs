@@ -315,6 +315,15 @@ impl CurrentState {
         changes
     }
 
+    pub fn registered(&self, id: CapabilityId) -> Option<RegisteredCapability> {
+        self.inner
+            .read()
+            .expect("Capability state lock poisoned")
+            .definitions
+            .get(&id)
+            .cloned()
+    }
+
     pub fn snapshot(&self) -> CapabilitySnapshot {
         let inner = self.inner.read().expect("Capability state lock poisoned");
         CapabilitySnapshot {
@@ -561,6 +570,7 @@ mod tests {
             capability_id,
             kind: CapabilityKind::Power,
             reading: CapabilityReading::Value(value(raw)),
+            reset: None,
         }
     }
 
@@ -988,6 +998,7 @@ mod tests {
             capability_id,
             kind: CapabilityKind::Power,
             reading: CapabilityReading::Unavailable,
+            reset: None,
         };
         state.ingest(
             report(

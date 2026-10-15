@@ -127,8 +127,14 @@ async fn main() {
     let (mqtt_handle, eventloop) = create_client(&config);
     let (events, _) = broadcast::channel(512);
 
-    let capabilities = Arc::new(CapabilityService::new(pool.clone()));
+    let history_manager = Manager::new(config.database_url.clone(), Runtime::Tokio1);
+    let history_pool = Pool::builder(history_manager)
+        .max_size(2)
+        .build()
+        .expect("failed to create history database pool");
+    let capabilities = Arc::new(CapabilityService::new(pool.clone(), history_pool));
     capabilities.spawn_freshness_loop();
+    capabilities.spawn_history_loop();
 
     let state = AppState {
         db: pool,

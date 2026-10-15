@@ -103,6 +103,7 @@ pub fn resolve_adapter_report(
             capability_id: capability.id,
             kind: observation.identity.kind,
             reading: observation.reading.clone(),
+            reset: observation.reset,
         });
     }
     if observations.is_empty() {
@@ -368,5 +369,20 @@ mod tests {
         .unwrap();
         assert_eq!(resolved.observations.len(), 2);
         assert_eq!(resolved.observation_id.as_deref(), Some("obs-1"));
+    }
+
+    #[test]
+    fn reset_marker_survives_resolution() {
+        let manifest = matter_power_manifest();
+        let (_, registered) = register(&manifest);
+        let mut report = power_report(60_000, None);
+        report.observations[0].reset = Some(true);
+        let resolved = resolve_adapter_report(
+            &registered,
+            &manifest.supported_observation_envelope_versions,
+            &report,
+        )
+        .unwrap();
+        assert_eq!(resolved.observations[0].reset, Some(true));
     }
 }

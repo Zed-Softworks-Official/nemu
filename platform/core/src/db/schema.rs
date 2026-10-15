@@ -21,6 +21,43 @@ diesel::table! {
 }
 
 diesel::table! {
+    capability_observation_keys (observation_id, capability_id) {
+        #[max_length = 255]
+        observation_id -> Varchar,
+        capability_id -> Uuid,
+    }
+}
+
+diesel::table! {
+    capability_observations (observation_id, capability_id, observed_at) {
+        #[max_length = 255]
+        observation_id -> Varchar,
+        capability_id -> Uuid,
+        #[max_length = 32]
+        kind -> Varchar,
+        #[max_length = 8]
+        unit -> Varchar,
+        value -> Int8,
+        scale -> Int2,
+        #[max_length = 255]
+        constraint_revision_id -> Varchar,
+        schema_version -> Int2,
+        #[max_length = 32]
+        time_trust -> Varchar,
+        observed_at -> Timestamptz,
+        received_at -> Timestamptz,
+        reset -> Nullable<Bool>,
+    }
+}
+
+diesel::table! {
+    capability_recording_bounds (capability_id) {
+        capability_id -> Uuid,
+        recording_since -> Timestamptz,
+    }
+}
+
+diesel::table! {
     client_tokens (id) {
         id -> Uuid,
         #[max_length = 128]
@@ -112,11 +149,17 @@ diesel::table! {
     }
 }
 
+diesel::joinable!(capability_observation_keys -> capability_identities (capability_id));
+diesel::joinable!(capability_observations -> capability_identities (capability_id));
+diesel::joinable!(capability_recording_bounds -> capability_identities (capability_id));
 diesel::joinable!(device_events -> devices (device_id));
 diesel::joinable!(devices -> rooms (room_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     capability_identities,
+    capability_observation_keys,
+    capability_observations,
+    capability_recording_bounds,
     client_tokens,
     device_events,
     devices,

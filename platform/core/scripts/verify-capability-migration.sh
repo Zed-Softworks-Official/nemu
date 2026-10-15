@@ -40,3 +40,6 @@ diesel migration run
 cargo test --locked \
     capabilities::persistence::tests::tombstones_resurrect_only_an_exact_identity_match \
     -- --ignored --exact
+cargo test --locked \
+    capabilities::history::tests::stores_one_row_per_observation_and_keeps_recording_since \
+    -- --ignored --exact

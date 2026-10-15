@@ -29,14 +29,20 @@ pub struct CapabilityService {
     repository: CapabilityRepository,
     current: Arc<CurrentState>,
     manifests: Mutex<HashMap<DeviceIdentity, CachedManifest>>,
+    history: Arc<Mutex<super::history::HistoryGate>>,
+    history_store: super::history::HistoryRepository,
 }
 
 impl CapabilityService {
-    pub fn new(pool: DbPool) -> Self {
+    pub fn new(pool: DbPool, history_pool: DbPool) -> Self {
         Self {
             repository: CapabilityRepository::new(pool),
             current: Arc::new(CurrentState::new(StateEpoch::new())),
             manifests: Mutex::new(HashMap::new()),
+            history: Arc::new(Mutex::new(super::history::HistoryGate::new(
+                super::history::HISTORY_QUEUE_CAPACITY,
+            ))),
+            history_store: super::history::HistoryRepository::new(history_pool),
         }
     }
 
@@ -163,7 +169,14 @@ impl CapabilityService {
         received_at: DateTime<Utc>,
     ) -> Result<IngestResult, CapabilityServiceError> {
         report.validate()?;
-        Ok(self.current.ingest(report, received_at))
+        let mut result = self.current.ingest(report.clone(), received_at);
+        self.history.lock().expect("history gate poisoned").admit(
+            &mut result,
+            &report,
+            received_at,
+            |id| self.current.registered(id),
+        );
+        Ok(result)
     }
 
     pub fn mark_device_unavailable(
@@ -200,6 +213,10 @@ impl CapabilityService {
 
     pub fn subscribe(&self) -> broadcast::Receiver<CapabilityChange> {
         self.current.subscribe()
+    }
+
+    pub fn spawn_history_loop(&self) {
+        super::history::spawn_loop(Arc::clone(&self.history), self.history_store.clone());
     }
 
     pub fn spawn_freshness_loop(&self) {

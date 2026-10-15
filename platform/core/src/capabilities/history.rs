@@ -1,0 +1,924 @@
+use std::collections::{HashMap, HashSet, VecDeque};
+use std::sync::{Arc, Mutex};
+use std::time::Duration as StdDuration;
+
+use chrono::{DateTime, Duration, Utc};
+use diesel::prelude::*;
+use thiserror::Error;
+
+use crate::db::schema::{
+    capability_observation_keys, capability_observations, capability_recording_bounds,
+};
+use crate::state::DbPool;
+
+use super::{
+    CanonicalUnit, CapabilityId, CapabilityKind, CapabilityReading, CapabilityReport,
+    HistoryAdmissionOutcome, HistoryRejection, IngestResult, RegisteredCapability, TimeTrust,
+};
+
+pub(super) const HISTORY_QUEUE_CAPACITY: usize = 1024;
+pub(super) const HISTORY_FLUSH_BATCH: usize = 64;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct PendingObservation {
+    observation_id: String,
+    capability_id: CapabilityId,
+    kind: CapabilityKind,
+    unit: CanonicalUnit,
+    value: i64,
+    scale: u8,
+    constraint_revision_id: String,
+    schema_version: u16,
+    observed_at: DateTime<Utc>,
+    received_at: DateTime<Utc>,
+    reset: Option<bool>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct HistoryBatch {
+    bounds: Vec<(CapabilityId, DateTime<Utc>)>,
+    observations: Vec<PendingObservation>,
+}
+
+impl HistoryBatch {
+    fn is_empty(&self) -> bool {
+        self.bounds.is_empty() && self.observations.is_empty()
+    }
+}
+
+/// In-process admission policy. Postgres is consulted only by the flush loop.
+pub(super) struct HistoryGate {
+    capacity: usize,
+    recording_since: HashMap<CapabilityId, DateTime<Utc>>,
+    pending_bounds: Vec<(CapabilityId, DateTime<Utc>)>,
+    /// Observation ids still waiting in a lane. Ids in `inflight` are reserved until the write
+    /// commits. A replay after a successful flush is dropped by the observation-key table.
+    queued_ids: HashSet<(String, CapabilityId)>,
+    inflight: HashSet<(String, CapabilityId)>,
+    rate_window: HashMap<CapabilityId, VecDeque<DateTime<Utc>>>,
+    lanes: HashMap<CapabilityId, VecDeque<PendingObservation>>,
+    order: VecDeque<CapabilityId>,
+    queued: usize,
+}
+
+impl HistoryGate {
+    pub(super) fn new(capacity: usize) -> Self {
+        Self {
+            capacity,
+            recording_since: HashMap::new(),
+            pending_bounds: Vec::new(),
+            queued_ids: HashSet::new(),
+            inflight: HashSet::new(),
+            rate_window: HashMap::new(),
+            lanes: HashMap::new(),
+            order: VecDeque::new(),
+            queued: 0,
+        }
+    }
+
+    pub(super) fn admit(
+        &mut self,
+        result: &mut IngestResult,
+        report: &CapabilityReport,
+        received_at: DateTime<Utc>,
+        lookup: impl Fn(CapabilityId) -> Option<RegisteredCapability>,
+    ) {
+        for outcome in &mut result.outcomes {
+            let Some(registered) = lookup(outcome.capability_id) else {
+                if outcome.history == HistoryAdmissionOutcome::Eligible {
+                    outcome.history =
+                        HistoryAdmissionOutcome::Rejected(HistoryRejection::InvalidCapability);
+                }
+                continue;
+            };
+            self.note_recording(outcome.capability_id, received_at);
+            if outcome.history != HistoryAdmissionOutcome::Eligible {
+                continue;
+            }
+            let Some(observation) = report
+                .observations
+                .iter()
+                .find(|observation| observation.capability_id == outcome.capability_id)
+            else {
+                outcome.history =
+                    HistoryAdmissionOutcome::Rejected(HistoryRejection::InvalidCapability);
+                continue;
+            };
+            let CapabilityReading::Value(value) = &observation.reading else {
+                outcome.history = HistoryAdmissionOutcome::Rejected(HistoryRejection::Unavailable);
+                continue;
+            };
+            let Some(revision) = registered
+                .declaration
+                .constraint(value.constraint_revision_id())
+            else {
+                outcome.history =
+                    HistoryAdmissionOutcome::Rejected(HistoryRejection::InvalidCapability);
+                continue;
+            };
+            let Some(observation_id) = report.observation_id.clone() else {
+                outcome.history =
+                    HistoryAdmissionOutcome::Rejected(HistoryRejection::MissingObservationId);
+                continue;
+            };
+            let Some(schema_version) = report.schema_version else {
+                outcome.history =
+                    HistoryAdmissionOutcome::Rejected(HistoryRejection::UnsupportedSchemaVersion);
+                continue;
+            };
+            let identity = (observation_id.clone(), outcome.capability_id);
+            if self.queued_ids.contains(&identity) || self.inflight.contains(&identity) {
+                outcome.history = HistoryAdmissionOutcome::Rejected(HistoryRejection::ExactReplay);
+                continue;
+            }
+            if !self.rate_allows(
+                outcome.capability_id,
+                received_at,
+                &revision.history_admission,
+            ) {
+                outcome.history =
+                    HistoryAdmissionOutcome::Rejected(HistoryRejection::AdmissionRate);
+                continue;
+            }
+            if self.queued + self.inflight.len() >= self.capacity {
+                outcome.history = HistoryAdmissionOutcome::Rejected(HistoryRejection::QueueFull);
+                continue;
+            }
+            self.note_receipt(outcome.capability_id, received_at);
+            self.enqueue(PendingObservation {
+                observation_id,
+                capability_id: outcome.capability_id,
+                kind: observation.kind,
+                unit: registered.declaration.unit,
+                value: value.value(),
+                scale: value.scale(),
+                constraint_revision_id: value.constraint_revision_id().to_string(),
+                schema_version,
+                observed_at: report.observed_at,
+                received_at,
+                reset: observation.reset,
+            });
+        }
+    }
+
+    fn note_recording(&mut self, id: CapabilityId, received_at: DateTime<Utc>) {
+        if self.recording_since.contains_key(&id) {
+            return;
+        }
+        self.recording_since.insert(id, received_at);
+        self.pending_bounds.push((id, received_at));
+    }
+
+    fn rate_allows(
+        &mut self,
+        id: CapabilityId,
+        received_at: DateTime<Utc>,
+        rate: &super::HistoryAdmissionRate,
+    ) -> bool {
+        let Ok(interval_ms) = i64::try_from(rate.interval_ms) else {
+            return false;
+        };
+        let window = Duration::milliseconds(interval_ms);
+        let admitted_at = self.rate_window.entry(id).or_default();
+        admitted_at.retain(|previous| received_at.signed_duration_since(*previous) < window);
+        admitted_at.len() < rate.maximum_observations as usize
+    }
+
+    fn note_receipt(&mut self, id: CapabilityId, received_at: DateTime<Utc>) {
+        self.rate_window
+            .entry(id)
+            .or_default()
+            .push_back(received_at);
+    }
+
+    fn enqueue(&mut self, row: PendingObservation) {
+        let id = row.capability_id;
+        self.queued_ids.insert((row.observation_id.clone(), id));
+        let lane = self.lanes.entry(id).or_default();
+        let was_empty = lane.is_empty();
+        lane.push_back(row);
+        if was_empty {
+            self.order.push_back(id);
+        }
+        self.queued += 1;
+    }
+
+    fn drain(&mut self, limit: usize) -> HistoryBatch {
+        let bounds = std::mem::take(&mut self.pending_bounds);
+        let mut observations = Vec::new();
+        while observations.len() < limit {
+            let Some(id) = self.order.pop_front() else {
+                break;
+            };
+            let Some((row, more)) = self.lanes.get_mut(&id).and_then(|lane| {
+                let row = lane.pop_front()?;
+                Some((row, !lane.is_empty()))
+            }) else {
+                self.lanes.remove(&id);
+                continue;
+            };
+            let identity = (row.observation_id.clone(), row.capability_id);
+            self.queued_ids.remove(&identity);
+            self.inflight.insert(identity);
+            self.queued = self.queued.saturating_sub(1);
+            if more {
+                self.order.push_back(id);
+            } else {
+                self.lanes.remove(&id);
+            }
+            observations.push(row);
+        }
+        HistoryBatch {
+            bounds,
+            observations,
+        }
+    }
+
+    fn acknowledge(&mut self, batch: &HistoryBatch) {
+        for row in &batch.observations {
+            self.inflight
+                .remove(&(row.observation_id.clone(), row.capability_id));
+        }
+    }
+
+    fn requeue(&mut self, batch: HistoryBatch) {
+        let mut restored = batch.bounds;
+        restored.append(&mut self.pending_bounds);
+        self.pending_bounds = restored;
+        for row in batch.observations.into_iter().rev() {
+            let id = row.capability_id;
+            self.inflight.remove(&(row.observation_id.clone(), id));
+            self.queued_ids.insert((row.observation_id.clone(), id));
+            let lane = self.lanes.entry(id).or_default();
+            let was_empty = lane.is_empty();
+            lane.push_front(row);
+            self.queued += 1;
+            if was_empty {
+                self.order.push_front(id);
+            }
+        }
+    }
+}
+
+#[derive(Clone)]
+pub(super) struct HistoryRepository {
+    pool: DbPool,
+}
+
+impl HistoryRepository {
+    pub(super) fn new(pool: DbPool) -> Self {
+        Self { pool }
+    }
+
+    async fn commit(&self, batch: HistoryBatch) -> Result<(), HistoryStoreError> {
+        if batch.is_empty() {
+            return Ok(());
+        }
+        let conn = self.pool.get().await?;
+        conn.interact(move |conn| commit_sync(conn, &batch)).await?
+    }
+}
+
+fn commit_sync(conn: &mut PgConnection, batch: &HistoryBatch) -> Result<(), HistoryStoreError> {
+    conn.transaction(|conn| {
+        diesel::sql_query("SET LOCAL statement_timeout = '2s'").execute(conn)?;
+        for (capability_id, recording_since) in &batch.bounds {
+            diesel::insert_into(capability_recording_bounds::table)
+                .values((
+                    capability_recording_bounds::capability_id.eq(capability_id.into_uuid()),
+                    capability_recording_bounds::recording_since.eq(*recording_since),
+                ))
+                .on_conflict(capability_recording_bounds::capability_id)
+                .do_nothing()
+                .execute(conn)?;
+        }
+        for row in &batch.observations {
+            let inserted = diesel::insert_into(capability_observation_keys::table)
+                .values((
+                    capability_observation_keys::observation_id.eq(&row.observation_id),
+                    capability_observation_keys::capability_id.eq(row.capability_id.into_uuid()),
+                ))
+                .on_conflict((
+                    capability_observation_keys::observation_id,
+                    capability_observation_keys::capability_id,
+                ))
+                .do_nothing()
+                .execute(conn)?;
+            if inserted == 0 {
+                continue;
+            }
+            diesel::insert_into(capability_observations::table)
+                .values((
+                    capability_observations::observation_id.eq(&row.observation_id),
+                    capability_observations::capability_id.eq(row.capability_id.into_uuid()),
+                    capability_observations::kind.eq(row.kind.as_str()),
+                    capability_observations::unit.eq(row.unit.as_str()),
+                    capability_observations::value.eq(row.value),
+                    capability_observations::scale.eq(i16::from(row.scale)),
+                    capability_observations::constraint_revision_id.eq(&row.constraint_revision_id),
+                    capability_observations::schema_version.eq(i16::try_from(row.schema_version)?),
+                    capability_observations::time_trust.eq(TimeTrust::Trustworthy.as_str()),
+                    capability_observations::observed_at.eq(row.observed_at),
+                    capability_observations::received_at.eq(row.received_at),
+                    capability_observations::reset.eq(row.reset),
+                ))
+                .execute(conn)?;
+        }
+        Ok(())
+    })
+}
+
+#[derive(Debug, Error)]
+pub(super) enum HistoryStoreError {
+    #[error("database pool error: {0}")]
+    Pool(#[from] deadpool_diesel::PoolError),
+    #[error("database interaction failed: {0}")]
+    Interaction(#[from] deadpool_diesel::InteractError),
+    #[error(transparent)]
+    Database(#[from] diesel::result::Error),
+    #[error("observation schema version does not fit in the history row")]
+    SchemaVersion,
+}
+
+impl From<std::num::TryFromIntError> for HistoryStoreError {
+    fn from(_: std::num::TryFromIntError) -> Self {
+        Self::SchemaVersion
+    }
+}
+
+pub(super) fn spawn_loop(gate: Arc<Mutex<HistoryGate>>, store: HistoryRepository) {
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(StdDuration::from_millis(200));
+        loop {
+            interval.tick().await;
+            let batch = gate
+                .lock()
+                .expect("history gate poisoned")
+                .drain(HISTORY_FLUSH_BATCH);
+            if batch.is_empty() {
+                continue;
+            }
+            match store.commit(batch.clone()).await {
+                Ok(()) => {
+                    gate.lock()
+                        .expect("history gate poisoned")
+                        .acknowledge(&batch);
+                }
+                Err(error) => {
+                    tracing::warn!(%error, "capability history flush failed");
+                    gate.lock().expect("history gate poisoned").requeue(batch);
+                }
+            }
+        }
+    });
+}
+
+#[cfg(test)]
+mod tests {
+    use chrono::{TimeZone, Utc};
+    use uuid::Uuid;
+
+    use super::*;
+    use crate::capabilities::{
+        Availability, CapabilityKind, CapabilityObservation, CapabilityReading, CapabilityReport,
+        CurrentState, CurrentStateDisposition, DeviceIdentity, NumericValue, PhysicalScope,
+        RegisteredCapability, StateEpoch,
+    };
+
+    fn at(second: i64) -> DateTime<Utc> {
+        Utc.timestamp_opt(second, 0).single().unwrap()
+    }
+
+    fn capability(id: CapabilityId, kind: CapabilityKind, rate: u32) -> RegisteredCapability {
+        let mut registered = RegisteredCapability::for_test(
+            id,
+            "zigbee",
+            "plug-1",
+            kind,
+            PhysicalScope::Device,
+            60_000,
+        );
+        registered.declaration.constraint_revisions[0]
+            .history_admission
+            .maximum_observations = rate;
+        registered
+    }
+
+    fn report(
+        observation_id: &str,
+        observed_at: i64,
+        capability_id: CapabilityId,
+        kind: CapabilityKind,
+        raw: i64,
+        reset: Option<bool>,
+    ) -> CapabilityReport {
+        CapabilityReport {
+            schema_version: Some(1),
+            observation_id: Some(observation_id.to_string()),
+            observed_at: at(observed_at),
+            time_trust: TimeTrust::Trustworthy,
+            observations: vec![CapabilityObservation {
+                capability_id,
+                kind,
+                reading: CapabilityReading::Value(NumericValue::for_test(raw, 0, "limits-1")),
+                reset,
+            }],
+        }
+    }
+
+    fn admit(
+        gate: &mut HistoryGate,
+        state: &CurrentState,
+        report: CapabilityReport,
+        received_at: DateTime<Utc>,
+    ) -> IngestResult {
+        let mut result = state.ingest(report.clone(), received_at);
+        gate.admit(&mut result, &report, received_at, |id| state.registered(id));
+        result
+    }
+
+    #[test]
+    fn duplicate_observation_is_not_queued_twice() {
+        let id = CapabilityId::from_uuid(Uuid::from_u128(1));
+        let registered = capability(id, CapabilityKind::Power, 60);
+        let state = CurrentState::new(StateEpoch::from_uuid(Uuid::from_u128(9)));
+        let device = registered.declaration.identity.device.clone();
+        state.reconcile_manifest(&device, vec![registered], at(0));
+        let mut gate = HistoryGate::new(8);
+        let first = admit(
+            &mut gate,
+            &state,
+            report("obs-1", 10, id, CapabilityKind::Power, 100, Some(true)),
+            at(20),
+        );
+        assert_eq!(first.outcomes[0].history, HistoryAdmissionOutcome::Eligible);
+        let replay = admit(
+            &mut gate,
+            &state,
+            report("obs-1", 11, id, CapabilityKind::Power, 110, Some(false)),
+            at(21),
+        );
+        assert_eq!(replay.outcomes[0].current, CurrentStateDisposition::Changed);
+        assert_eq!(
+            replay.outcomes[0].history,
+            HistoryAdmissionOutcome::Rejected(HistoryRejection::ExactReplay)
+        );
+        assert_eq!(gate.queued, 1);
+        let batch = gate.drain(8);
+        let row = &batch.observations[0];
+        assert_eq!(row.observed_at, at(10));
+        assert_eq!(row.received_at, at(20));
+        assert_eq!(row.reset, Some(true));
+        assert_eq!(gate.recording_since[&id], at(20));
+    }
+
+    #[test]
+    fn admission_rate_keeps_the_first_recording_time() {
+        let id = CapabilityId::from_uuid(Uuid::from_u128(2));
+        let registered = capability(id, CapabilityKind::Power, 1);
+        let state = CurrentState::new(StateEpoch::from_uuid(Uuid::from_u128(9)));
+        let device = registered.declaration.identity.device.clone();
+        state.reconcile_manifest(&device, vec![registered], at(0));
+        let mut gate = HistoryGate::new(8);
+        let first = admit(
+            &mut gate,
+            &state,
+            report("obs-1", 10, id, CapabilityKind::Power, 100, None),
+            at(10),
+        );
+        assert_eq!(first.outcomes[0].history, HistoryAdmissionOutcome::Eligible);
+        let second = admit(
+            &mut gate,
+            &state,
+            report("obs-2", 11, id, CapabilityKind::Power, 140, None),
+            at(11),
+        );
+        assert_eq!(second.outcomes[0].current, CurrentStateDisposition::Changed);
+        assert_eq!(
+            second.outcomes[0].history,
+            HistoryAdmissionOutcome::Rejected(HistoryRejection::AdmissionRate)
+        );
+        assert_eq!(gate.recording_since[&id], at(10));
+        assert_eq!(gate.queued, 1);
+        let current = state
+            .snapshot()
+            .capabilities
+            .into_iter()
+            .find(|capability| capability.capability_id == id)
+            .unwrap();
+        assert_eq!(current.value.unwrap().value(), 140);
+        assert_eq!(current.availability, Availability::Available);
+    }
+
+    #[test]
+    fn full_queue_rejects_without_using_the_rate_slot() {
+        let power = CapabilityId::from_uuid(Uuid::from_u128(3));
+        let energy = CapabilityId::from_uuid(Uuid::from_u128(4));
+        let power_capability = capability(power, CapabilityKind::Power, 2);
+        let energy_capability = capability(energy, CapabilityKind::ImportedEnergy, 2);
+        let device = power_capability.declaration.identity.device.clone();
+        let state = CurrentState::new(StateEpoch::from_uuid(Uuid::from_u128(9)));
+        state.reconcile_manifest(&device, vec![power_capability, energy_capability], at(0));
+        let mut gate = HistoryGate::new(1);
+        assert_eq!(
+            admit(
+                &mut gate,
+                &state,
+                report("power-1", 10, power, CapabilityKind::Power, 100, None),
+                at(10),
+            )
+            .outcomes[0]
+                .history,
+            HistoryAdmissionOutcome::Eligible
+        );
+        let rejected = admit(
+            &mut gate,
+            &state,
+            report(
+                "energy-1",
+                10,
+                energy,
+                CapabilityKind::ImportedEnergy,
+                50,
+                None,
+            ),
+            at(10),
+        );
+        assert_eq!(
+            rejected.outcomes[0].history,
+            HistoryAdmissionOutcome::Rejected(HistoryRejection::QueueFull)
+        );
+        assert_eq!(
+            rejected.outcomes[0].current,
+            CurrentStateDisposition::Changed
+        );
+        let flushed = gate.drain(8);
+        gate.acknowledge(&flushed);
+        let retried = admit(
+            &mut gate,
+            &state,
+            report(
+                "energy-2",
+                11,
+                energy,
+                CapabilityKind::ImportedEnergy,
+                60,
+                None,
+            ),
+            at(10),
+        );
+        assert_eq!(
+            retried.outcomes[0].history,
+            HistoryAdmissionOutcome::Eligible
+        );
+    }
+
+    #[test]
+    fn ineligible_reading_is_not_queued() {
+        let id = CapabilityId::from_uuid(Uuid::from_u128(5));
+        let registered = capability(id, CapabilityKind::Power, 60);
+        let state = CurrentState::new(StateEpoch::from_uuid(Uuid::from_u128(9)));
+        let device = registered.declaration.identity.device.clone();
+        state.reconcile_manifest(&device, vec![registered], at(0));
+        let mut reading = report("obs-1", 10, id, CapabilityKind::Power, 80, None);
+        reading.time_trust = TimeTrust::Untrustworthy;
+        let mut gate = HistoryGate::new(8);
+        let ingested = admit(&mut gate, &state, reading, at(12));
+        assert_eq!(
+            ingested.outcomes[0].current,
+            CurrentStateDisposition::Changed
+        );
+        assert_eq!(
+            ingested.outcomes[0].history,
+            HistoryAdmissionOutcome::Rejected(HistoryRejection::UntrustworthyTime)
+        );
+        assert_eq!(gate.queued, 0);
+        assert_eq!(gate.recording_since[&id], at(12));
+        assert!(gate.drain(8).observations.is_empty());
+    }
+
+    #[test]
+    fn flush_alternates_between_capabilities() {
+        let power = CapabilityId::from_uuid(Uuid::from_u128(6));
+        let energy = CapabilityId::from_uuid(Uuid::from_u128(7));
+        let power_capability = capability(power, CapabilityKind::Power, 60);
+        let energy_capability = capability(energy, CapabilityKind::ImportedEnergy, 60);
+        let device = power_capability.declaration.identity.device.clone();
+        let state = CurrentState::new(StateEpoch::from_uuid(Uuid::from_u128(9)));
+        state.reconcile_manifest(&device, vec![power_capability, energy_capability], at(0));
+        let mut gate = HistoryGate::new(8);
+        admit(
+            &mut gate,
+            &state,
+            report("power-1", 10, power, CapabilityKind::Power, 10, None),
+            at(10),
+        );
+        admit(
+            &mut gate,
+            &state,
+            report("power-2", 11, power, CapabilityKind::Power, 11, None),
+            at(11),
+        );
+        admit(
+            &mut gate,
+            &state,
+            report(
+                "energy-1",
+                12,
+                energy,
+                CapabilityKind::ImportedEnergy,
+                12,
+                None,
+            ),
+            at(12),
+        );
+        let batch = gate.drain(2);
+        let ids = batch
+            .observations
+            .iter()
+            .map(|row| row.observation_id.as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(ids, ["power-1", "energy-1"]);
+        assert_eq!(gate.drain(2).observations[0].observation_id, "power-2");
+    }
+
+    #[test]
+    fn failed_flush_returns_the_batch_to_the_queue() {
+        let id = CapabilityId::from_uuid(Uuid::from_u128(8));
+        let registered = capability(id, CapabilityKind::Power, 60);
+        let state = CurrentState::new(StateEpoch::from_uuid(Uuid::from_u128(9)));
+        let device = registered.declaration.identity.device.clone();
+        state.reconcile_manifest(&device, vec![registered], at(0));
+        let mut gate = HistoryGate::new(8);
+        admit(
+            &mut gate,
+            &state,
+            report("obs-1", 10, id, CapabilityKind::Power, 5, None),
+            at(10),
+        );
+        let batch = gate.drain(8);
+        assert_eq!(gate.queued, 0);
+        gate.requeue(batch);
+        assert_eq!(gate.queued, 1);
+        assert_eq!(gate.drain(8).observations[0].observation_id, "obs-1");
+        assert_eq!(gate.recording_since[&id], at(10));
+    }
+
+    #[test]
+    fn uncommitted_flush_keeps_the_queue_bound_and_identity() {
+        let id = CapabilityId::from_uuid(Uuid::from_u128(12));
+        let registered = capability(id, CapabilityKind::Power, 60);
+        let state = CurrentState::new(StateEpoch::from_uuid(Uuid::from_u128(9)));
+        let device = registered.declaration.identity.device.clone();
+        state.reconcile_manifest(&device, vec![registered], at(0));
+        let mut gate = HistoryGate::new(1);
+        admit(
+            &mut gate,
+            &state,
+            report("obs-1", 10, id, CapabilityKind::Power, 5, None),
+            at(10),
+        );
+        let batch = gate.drain(8);
+        assert_eq!(gate.queued, 0);
+        let replay = admit(
+            &mut gate,
+            &state,
+            report("obs-1", 11, id, CapabilityKind::Power, 6, None),
+            at(11),
+        );
+        assert_eq!(
+            replay.outcomes[0].history,
+            HistoryAdmissionOutcome::Rejected(HistoryRejection::ExactReplay)
+        );
+        let other = CapabilityId::from_uuid(Uuid::from_u128(13));
+        let other_capability = capability(other, CapabilityKind::ImportedEnergy, 60);
+        state.reconcile_manifest(
+            &device,
+            vec![state.registered(id).unwrap(), other_capability],
+            at(0),
+        );
+        let blocked = admit(
+            &mut gate,
+            &state,
+            report(
+                "energy-1",
+                12,
+                other,
+                CapabilityKind::ImportedEnergy,
+                9,
+                None,
+            ),
+            at(12),
+        );
+        assert_eq!(
+            blocked.outcomes[0].history,
+            HistoryAdmissionOutcome::Rejected(HistoryRejection::QueueFull)
+        );
+        gate.acknowledge(&batch);
+        let admitted = admit(
+            &mut gate,
+            &state,
+            report(
+                "energy-2",
+                13,
+                other,
+                CapabilityKind::ImportedEnergy,
+                10,
+                None,
+            ),
+            at(13),
+        );
+        assert_eq!(
+            admitted.outcomes[0].history,
+            HistoryAdmissionOutcome::Eligible
+        );
+    }
+
+    #[test]
+    fn unknown_capability_does_not_start_recording() {
+        let id = CapabilityId::from_uuid(Uuid::from_u128(10));
+        let mut gate = HistoryGate::new(4);
+        let reading = report("obs-1", 10, id, CapabilityKind::Power, 5, None);
+        let mut result = IngestResult {
+            outcomes: vec![super::super::ObservationOutcome {
+                capability_id: id,
+                current: CurrentStateDisposition::UnknownCapability,
+                history: HistoryAdmissionOutcome::Rejected(HistoryRejection::InvalidCapability),
+            }],
+            changes: Vec::new(),
+        };
+        gate.admit(&mut result, &reading, at(10), |_| None);
+        assert!(gate.recording_since.get(&id).is_none());
+        assert!(gate.pending_bounds.is_empty());
+    }
+
+    fn isolated_pool() -> DbPool {
+        let database_url = std::env::var("CAPABILITY_TEST_DATABASE_URL")
+            .expect("CAPABILITY_TEST_DATABASE_URL must name the isolated test database");
+        let manager =
+            deadpool_diesel::postgres::Manager::new(database_url, deadpool_diesel::Runtime::Tokio1);
+        deadpool_diesel::postgres::Pool::builder(manager)
+            .max_size(2)
+            .build()
+            .unwrap()
+    }
+
+    #[tokio::test]
+    #[ignore = "requires the isolated PostgreSQL database created by the verification script"]
+    async fn stores_one_row_per_observation_and_keeps_recording_since() {
+        let repository = crate::capabilities::CapabilityRepository::new(isolated_pool());
+        let store = HistoryRepository::new(isolated_pool());
+        let external_id = format!("plug-{}", Uuid::new_v4());
+        let device = DeviceIdentity::new("zigbee", &external_id).unwrap();
+        let declaration = RegisteredCapability::for_test(
+            CapabilityId::from_uuid(Uuid::new_v4()),
+            &device.protocol,
+            &device.external_id,
+            CapabilityKind::Power,
+            PhysicalScope::Device,
+            60_000,
+        )
+        .declaration;
+        let registered = repository
+            .reconcile_complete_manifest(
+                crate::capabilities::CompleteCapabilityManifest {
+                    device: device.clone(),
+                    capabilities: vec![declaration],
+                },
+                at(1),
+            )
+            .await
+            .unwrap();
+        let id = registered[0].id;
+        let state = CurrentState::new(StateEpoch::from_uuid(Uuid::from_u128(11)));
+        state.reconcile_manifest(&device, registered, at(1));
+        let mut gate = HistoryGate::new(8);
+        admit(
+            &mut gate,
+            &state,
+            report(
+                "obs-kept",
+                1_781_308_800,
+                id,
+                CapabilityKind::Power,
+                25,
+                Some(true),
+            ),
+            at(1_781_308_900),
+        );
+        admit(
+            &mut gate,
+            &state,
+            report(
+                "obs-kept",
+                1_781_308_800,
+                id,
+                CapabilityKind::Power,
+                25,
+                Some(true),
+            ),
+            at(1_781_308_901),
+        );
+        let mut ancient = report(
+            "obs-ancient",
+            631_152_000,
+            id,
+            CapabilityKind::Power,
+            7,
+            None,
+        );
+        ancient.observed_at = at(631_152_000);
+        admit(&mut gate, &state, ancient, at(1_781_308_902));
+        let batch = gate.drain(8);
+        let recording_since = batch
+            .bounds
+            .iter()
+            .find(|(capability_id, _)| *capability_id == id)
+            .unwrap()
+            .1;
+        store.commit(batch.clone()).await.unwrap();
+        let mut shifted = batch.clone();
+        shifted.bounds.clear();
+        for row in &mut shifted.observations {
+            if row.observation_id == "obs-kept" {
+                row.observed_at = at(1_781_400_000);
+            }
+        }
+        store.commit(shifted).await.unwrap();
+        store
+            .commit(HistoryBatch {
+                bounds: vec![(id, at(1_900_000_000))],
+                observations: Vec::new(),
+            })
+            .await
+            .unwrap();
+
+        let conn = store.pool.get().await.unwrap();
+        let capability_id = id.into_uuid();
+        let rows = conn
+            .interact(move |conn| stored_rows(conn, capability_id))
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(rows.len(), 2);
+        let kept = rows
+            .iter()
+            .find(|row| row.observation_id == "obs-kept")
+            .unwrap();
+        assert_eq!(kept.value, 25);
+        assert_eq!(kept.observed_at, at(1_781_308_800));
+        assert_eq!(kept.received_at, at(1_781_308_900));
+        assert_eq!(kept.reset, Some(true));
+        assert!(kept.partition.contains("capability_observations_y2026"));
+        let ancient = rows
+            .iter()
+            .find(|row| row.observation_id == "obs-ancient")
+            .unwrap();
+        assert!(
+            ancient
+                .partition
+                .contains("capability_observations_default")
+        );
+        assert_eq!(rows[0].recording_since, recording_since);
+    }
+
+    #[derive(QueryableByName)]
+    struct StoredHistoryRow {
+        #[diesel(sql_type = diesel::sql_types::Text)]
+        observation_id: String,
+        #[diesel(sql_type = diesel::sql_types::BigInt)]
+        value: i64,
+        #[diesel(sql_type = diesel::sql_types::Timestamptz)]
+        observed_at: DateTime<Utc>,
+        #[diesel(sql_type = diesel::sql_types::Timestamptz)]
+        received_at: DateTime<Utc>,
+        #[diesel(sql_type = diesel::sql_types::Nullable<diesel::sql_types::Bool>)]
+        reset: Option<bool>,
+        #[diesel(sql_type = diesel::sql_types::Text)]
+        partition: String,
+        #[diesel(sql_type = diesel::sql_types::Timestamptz)]
+        recording_since: DateTime<Utc>,
+    }
+
+    fn stored_rows(
+        conn: &mut PgConnection,
+        capability_id: Uuid,
+    ) -> Result<Vec<StoredHistoryRow>, diesel::result::Error> {
+        diesel::sql_query(
+            "SELECT observation.observation_id,
+                    observation.value,
+                    observation.observed_at,
+                    observation.received_at,
+                    observation.reset,
+                    observation.tableoid::regclass::text AS partition,
+                    bounds.recording_since
+             FROM capability_observations observation
+             JOIN capability_recording_bounds bounds
+               ON bounds.capability_id = observation.capability_id
+             WHERE observation.capability_id = $1
+             ORDER BY observation.observation_id",
+        )
+        .bind::<diesel::sql_types::Uuid, _>(capability_id)
+        .load(conn)
+    }
+}
