@@ -142,6 +142,55 @@ impl MeterIdentityStore {
     }
 }
 
+/// A device timestamp becomes observedAt only after the meter profile is verified.
+/// Until then the adapter clock is the observation time.
+pub fn select_observed_seconds(
+    device_unix: Option<u64>,
+    adapter_unix: u64,
+    profile_verified: bool,
+) -> u64 {
+    if profile_verified {
+        device_unix.unwrap_or(adapter_unix)
+    } else {
+        adapter_unix
+    }
+}
+
+pub fn fresh_observed_unix(
+    device: &EndpointDevice,
+    attributes: &Attributes,
+    adapter_unix: u64,
+) -> u64 {
+    select_observed_seconds(
+        device_energy_timestamp(device, attributes),
+        adapter_unix,
+        PROFILE_VERIFIED,
+    )
+}
+
+pub fn device_energy_timestamp(device: &EndpointDevice, attributes: &Attributes) -> Option<u64> {
+    endpoint_subjects(device)
+        .into_iter()
+        .find_map(|(endpoint, _, _)| {
+            let measurement = attr(attributes, endpoint, CLUSTER_ELECTRICAL_ENERGY, 1)?;
+            let record = measurement.as_object()?;
+            let raw = record
+                .get("2")
+                .or_else(|| record.get("endTimestamp"))
+                .or_else(|| record.get("1"))
+                .or_else(|| record.get("startTimestamp"))?;
+            match raw {
+                Value::Number(number) => number.as_u64().or_else(|| {
+                    number
+                        .as_i64()
+                        .filter(|value| *value >= 0)
+                        .map(|value| value as u64)
+                }),
+                _ => None,
+            }
+        })
+}
+
 pub fn rfc3339_utc(seconds: u64) -> String {
     let days = (seconds / 86_400) as i64;
     let tod = seconds % 86_400;
@@ -672,6 +721,41 @@ mod tests {
         assert_eq!(published.observation_id, "plug-1:1:1");
         assert_eq!(loaded.next_sequence(), 2);
         let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn device_timestamp_is_accepted_only_for_a_verified_profile() {
+        let pairs: serde_json::Map<String, Value> =
+            serde_json::from_str(include_str!("../fixtures/plug-under-load.json")).unwrap();
+        let attrs = pairs.into_iter().collect();
+        let device = map_node("plug-1", &attrs).remove(0);
+        assert_eq!(
+            device_energy_timestamp(&device, &attrs),
+            Some(1_700_000_000)
+        );
+        let adapter_unix = 1_800_000_000;
+        assert_eq!(
+            select_observed_seconds(Some(1_700_000_000), adapter_unix, false),
+            adapter_unix
+        );
+        assert_eq!(
+            select_observed_seconds(Some(1_700_000_000), adapter_unix, true),
+            1_700_000_000
+        );
+        assert_eq!(
+            select_observed_seconds(None, adapter_unix, true),
+            adapter_unix
+        );
+        let publication = meter_publication(
+            &device,
+            &attrs,
+            "2026-10-09T12:00:00Z",
+            "obs-fixture",
+            &HashMap::new(),
+        )
+        .unwrap();
+        assert_eq!(publication.report["observedAt"], "2026-10-09T12:00:00Z");
+        assert_ne!(publication.report["observedAt"], "2023-11-14T22:13:20Z");
     }
 
     #[test]

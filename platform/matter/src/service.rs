@@ -20,8 +20,8 @@ use crate::mapping::{
     outlet_id_from_set, placeholder_device, state_for_device,
 };
 use crate::meters::{
-    MeterIdentityStore, PublishedMeter, assigned_capability_ids, meter_publication,
-    observation_stamp,
+    MeterIdentityStore, PublishedMeter, assigned_capability_ids, fresh_observed_unix,
+    meter_publication, observation_stamp,
 };
 use crate::mqtt::{IncomingMessage, MqttBus, transaction_of};
 use crate::names::NameStore;
@@ -839,10 +839,11 @@ impl MatterService {
                 .lock()
                 .expect("meter identity store poisoned")
                 .next_sequence();
+            let observed_unix = fresh_observed_unix(device, attributes, now.as_secs());
             observation_stamp(
                 id,
                 sequence,
-                Some((now.as_secs(), now.as_millis())),
+                Some((observed_unix, now.as_millis())),
                 None,
                 &probe.fingerprint,
                 true,
