@@ -1,6 +1,6 @@
 'use client'
 
-import { useController, useDevices } from '@nemu/controller'
+import { useCapabilityState, useController, useDevices } from '@nemu/controller'
 import { Badge } from '@nemu/ui/components/badge'
 import { Button } from '@nemu/ui/components/button'
 import {
@@ -63,10 +63,14 @@ const liveChartConfig = {
 
 export function EnergyDashboard() {
     const { devices, error, refresh, status } = useDevices()
+    const { view } = useCapabilityState()
     const { reprobe } = useController()
     const presentedDevices = useMemo(
-        () => devices?.map(presentDevice) ?? [],
-        [devices]
+        () =>
+            devices?.map((device) =>
+                presentDevice(device, view?.capabilities)
+            ) ?? [],
+        [devices, view]
     )
     const meterReadings = useMemo(
         () => buildMeterReadings(presentedDevices),
@@ -113,7 +117,7 @@ export function EnergyDashboard() {
         )
     }
 
-    if (!devices) {
+    if (!devices || (!view && status.mode !== 'offline')) {
         return <EnergySkeleton />
     }
 

@@ -116,14 +116,19 @@ impl HistoryGate {
                     HistoryAdmissionOutcome::Rejected(HistoryRejection::InvalidCapability);
                 continue;
             };
+            let Some(schema_version) = report.schema_version else {
+                outcome.history =
+                    HistoryAdmissionOutcome::Rejected(HistoryRejection::UnsupportedSchemaVersion);
+                continue;
+            };
             let Some(observation_id) = report.observation_id.clone() else {
                 outcome.history =
                     HistoryAdmissionOutcome::Rejected(HistoryRejection::MissingObservationId);
                 continue;
             };
-            let Some(schema_version) = report.schema_version else {
+            let Some(observed_at) = report.observed_at else {
                 outcome.history =
-                    HistoryAdmissionOutcome::Rejected(HistoryRejection::UnsupportedSchemaVersion);
+                    HistoryAdmissionOutcome::Rejected(HistoryRejection::MissingObservedAt);
                 continue;
             };
             let identity = (observation_id.clone(), outcome.capability_id);
@@ -154,7 +159,7 @@ impl HistoryGate {
                 scale: value.scale(),
                 constraint_revision_id: value.constraint_revision_id().to_string(),
                 schema_version,
-                observed_at: report.observed_at,
+                observed_at,
                 received_at,
                 reset: observation.reset,
             });
@@ -415,7 +420,7 @@ mod tests {
         CapabilityReport {
             schema_version: Some(1),
             observation_id: Some(observation_id.to_string()),
-            observed_at: at(observed_at),
+            observed_at: Some(at(observed_at)),
             time_trust: TimeTrust::Trustworthy,
             observations: vec![CapabilityObservation {
                 capability_id,
@@ -827,7 +832,7 @@ mod tests {
             7,
             None,
         );
-        ancient.observed_at = at(631_152_000);
+        ancient.observed_at = Some(at(631_152_000));
         admit(&mut gate, &state, ancient, at(1_781_308_902));
         let batch = gate.drain(8);
         let recording_since = batch

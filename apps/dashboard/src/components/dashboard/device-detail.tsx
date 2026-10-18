@@ -1,6 +1,6 @@
 'use client'
 
-import { useController, useDevices } from '@nemu/controller'
+import { useCapabilityState, useController, useDevices } from '@nemu/controller'
 import type { DeviceState, Room } from '@nemu/protocol'
 import {
     AlertDialog,
@@ -95,6 +95,7 @@ import { PageHeader } from './page-header'
 
 export function DeviceDetail({ deviceId }: { deviceId: string }) {
     const { devices, error, refresh, status } = useDevices()
+    const { view } = useCapabilityState()
     const {
         reprobe,
         forgetDevice,
@@ -174,11 +175,11 @@ export function DeviceDetail({ deviceId }: { deviceId: string }) {
 
     useEffect(() => {
         if (!device) return
-        const presented = presentDevice(device)
+        const presented = presentDevice(device, view?.capabilities)
         if (presented.colorHex) {
             setColorDraft(presented.colorHex)
         }
-    }, [device])
+    }, [device, view])
 
     useEffect(() => {
         if (!editingName && device) setNameDraft(device.name)
@@ -224,7 +225,7 @@ export function DeviceDetail({ deviceId }: { deviceId: string }) {
         )
     }
 
-    const presented = presentDevice(device)
+    const presented = presentDevice(device, view?.capabilities)
     const stateEntries = Object.entries(device.state ?? {})
         .filter(([key]) => key !== 'outlets')
         .slice(0, 6)

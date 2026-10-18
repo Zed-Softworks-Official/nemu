@@ -773,7 +773,8 @@ async fn handle_device_state(
         return Ok(());
     };
 
-    state.state_cache.set_state(device.id, value.clone());
+    let published = without_meter_report(value.clone());
+    state.state_cache.set_state(device.id, published.clone());
     state.state_cache.set_online(device.id, true);
     state.registry.touch_last_seen(&state.db, device.id).await;
 
@@ -781,13 +782,13 @@ async fn handle_device_state(
         &state.db,
         Some(device.id),
         "state",
-        json!({ "state": value }),
+        json!({ "state": published }),
     )
     .await;
 
     state.emit(DeviceEvent::DeviceState {
         device_id: device.id.to_string(),
-        state: value.clone(),
+        state: published,
     });
 
     if protocol == Protocol::Zigbee {
@@ -928,4 +929,51 @@ async fn handle_capability_observations(
         }
     }
     Ok(())
+}
+
+fn without_meter_report(mut value: JsonValue) -> JsonValue {
+    strip_meter_fields(&mut value);
+    value
+}
+
+fn strip_meter_fields(value: &mut JsonValue) {
+    let Some(object) = value.as_object_mut() else {
+        return;
+    };
+    for key in ["power", "energy", "voltage", "current"] {
+        object.remove(key);
+    }
+    if let Some(outlets) = object.get_mut("outlets").and_then(JsonValue::as_array_mut) {
+        for outlet in outlets {
+            strip_meter_fields(outlet);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::without_meter_report;
+
+    #[test]
+    fn device_state_report_omits_meter_readings() {
+        let published = without_meter_report(json!({
+            "state": "ON",
+            "brightness": 100,
+            "power": 42.5,
+            "voltage": 120.0,
+            "current": 0.3,
+            "energy": 15.0,
+            "outlets": [{ "id": "1", "state": "ON", "power": 4.0, "energy": 1.0 }]
+        }));
+        assert_eq!(
+            published,
+            json!({
+                "state": "ON",
+                "brightness": 100,
+                "outlets": [{ "id": "1", "state": "ON" }]
+            })
+        );
+    }
 }

@@ -185,6 +185,7 @@ export const updateStatusResponseSchema = z.object({
     currentVersion: z.string(),
     updateAvailable: z.boolean(),
     image: z.string().optional(),
+    images: z.array(z.string()).optional(),
 })
 export type UpdateStatusResponse = z.infer<typeof updateStatusResponseSchema>
 

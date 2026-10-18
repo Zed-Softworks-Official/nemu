@@ -5,9 +5,9 @@ The package has no React or Convex dependencies. It uses TypeScript and Zod.
 
 ## Numeric capabilities
 
-`numericCapabilitySchema` defines the typed measurement contract beside the
-legacy `deviceStateSchema`. It supports power, imported energy, exported
-energy, voltage, and current. Each kind has one canonical unit.
+`numericCapabilitySchema` defines the typed measurement contract for power,
+imported energy, exported energy, voltage, and current. Command payloads still
+use `deviceStateSchema`. Each kind has one canonical unit.
 
 Fixed-point values use `value / 10 ** scale` in the Capability's canonical
 unit. `value` must be a safe integer, and `scale` ranges from 0 through 9. A

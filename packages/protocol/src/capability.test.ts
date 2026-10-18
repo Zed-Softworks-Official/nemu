@@ -383,18 +383,16 @@ describe('Capability manifest negotiation', () => {
     })
 })
 
-describe('legacy state compatibility', () => {
-    it('keeps arbitrary legacy Device state available', () => {
+describe('command payloads', () => {
+    it('keeps control commands free-form', () => {
         assert.deepEqual(
             deviceStateSchema.parse({
-                power: 12.5,
-                energy: 3.2,
-                vendorSpecific: { mode: 'eco' },
+                state: 'ON',
+                brightness: 180,
             }),
             {
-                power: 12.5,
-                energy: 3.2,
-                vendorSpecific: { mode: 'eco' },
+                state: 'ON',
+                brightness: 180,
             }
         )
     })

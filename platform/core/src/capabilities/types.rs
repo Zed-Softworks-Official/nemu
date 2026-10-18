@@ -544,7 +544,8 @@ pub struct CapabilityReport {
     pub schema_version: Option<u16>,
     #[serde(default)]
     pub observation_id: Option<String>,
-    pub observed_at: DateTime<Utc>,
+    #[serde(default)]
+    pub observed_at: Option<DateTime<Utc>>,
     pub time_trust: TimeTrust,
     pub observations: Vec<CapabilityObservation>,
 }
@@ -603,6 +604,8 @@ pub enum Availability {
 #[serde(rename_all = "camelCase")]
 pub struct CapabilityState {
     pub capability_id: CapabilityId,
+    pub device: DeviceIdentity,
+    pub physical_scope: PhysicalScope,
     pub kind: CapabilityKind,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub value: Option<NumericValue>,
@@ -647,6 +650,7 @@ pub enum CurrentStateDisposition {
 #[serde(rename_all = "camelCase")]
 pub enum HistoryRejection {
     MissingObservationId,
+    MissingObservedAt,
     UntrustworthyTime,
     UnsupportedSchemaVersion,
     ExactReplay,
@@ -835,7 +839,7 @@ mod tests {
         let report = CapabilityReport {
             schema_version: Some(1),
             observation_id: Some("observation-1".into()),
-            observed_at: DateTime::<Utc>::UNIX_EPOCH,
+            observed_at: Some(DateTime::<Utc>::UNIX_EPOCH),
             time_trust: TimeTrust::Trustworthy,
             observations: vec![observation.clone(), observation],
         };

@@ -1,5 +1,46 @@
-import type { CapabilityCurrentState } from './capability.ts'
+import type { CapabilityCurrentState, CapabilityKind } from './capability.ts'
 import type { DeviceEvent } from './events.ts'
+
+export function canonicalQuantity(value: {
+    value: number
+    scale: number
+}): number {
+    return value.value / 10 ** value.scale
+}
+
+export type ScopedMeasurement = {
+    kind: CapabilityKind
+    quantity: number
+    componentId?: string
+}
+
+export function measurementsForDevice(
+    device: { protocol?: string; externalId?: string },
+    capabilities: readonly CapabilityCurrentState[]
+): ScopedMeasurement[] {
+    if (device.protocol === undefined || device.externalId === undefined) {
+        return []
+    }
+    const measurements: ScopedMeasurement[] = []
+    for (const capability of capabilities) {
+        if (
+            capability.device.protocol !== device.protocol ||
+            capability.device.externalId !== device.externalId ||
+            capability.value === undefined
+        ) {
+            continue
+        }
+        measurements.push({
+            kind: capability.kind,
+            quantity: canonicalQuantity(capability.value),
+            componentId:
+                capability.physicalScope.kind === 'component'
+                    ? capability.physicalScope.componentId
+                    : undefined,
+        })
+    }
+    return measurements
+}
 
 export type CapabilityView = {
     epoch: string

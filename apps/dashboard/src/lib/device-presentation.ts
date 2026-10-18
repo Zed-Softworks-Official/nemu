@@ -1,4 +1,10 @@
-import type { Device, DeviceState } from '@nemu/protocol'
+import {
+    type CapabilityCurrentState,
+    type Device,
+    type DeviceState,
+    measurementsForDevice,
+    type ScopedMeasurement,
+} from '@nemu/protocol'
 import {
     brightnessToPercent,
     COLOR_TEMP_MAX_MIREDS,
@@ -54,10 +60,22 @@ const categoryLabels: Record<DeviceCategory, string> = {
     outlet: 'Outlets',
 }
 
-export function presentDevice(device: Device): PresentedDevice {
+export function presentDevice(
+    device: Device,
+    capabilities?: readonly CapabilityCurrentState[]
+): PresentedDevice {
     const state = device.state ?? {}
+    const measurements = measurementsForDevice(device, capabilities ?? [])
     const category = getDeviceCategory(device)
-    const outlets = readOutlets(state)
+    const deviceMeasurements = measurementFields(measurements)
+    const outlets = readOutlets(state)?.map((outlet) => {
+        const measured = measurementFields(measurements, outlet.id)
+        return {
+            ...outlet,
+            power: measured.power,
+            energy: measured.energy,
+        }
+    })
     const isStrip =
         device.type === 'strip' || (outlets !== undefined && outlets.length > 0)
     const enabled =
@@ -73,10 +91,10 @@ export function presentDevice(device: Device): PresentedDevice {
     const battery = readNumber(state, ['battery', 'batteryLevel'])
     const temperature = readNumber(state, ['temperature'])
     const humidity = readNumber(state, ['humidity'])
-    const power = readNumber(state, ['power'])
-    const energy = readNumber(state, ['energy'])
-    const voltage = readNumber(state, ['voltage'])
-    const current = readNumber(state, ['current'])
+    const power = deviceMeasurements.power
+    const energy = deviceMeasurements.energy
+    const voltage = deviceMeasurements.voltage
+    const current = deviceMeasurements.current
     const supportsPower =
         !isStrip &&
         (category === 'light' ||
@@ -369,6 +387,33 @@ function xyToHex(x: number, y: number): string {
 
     const max = Math.max(r, g, b, 1e-6)
     return rgbToHex((r / max) * 255, (g / max) * 255, (b / max) * 255)
+}
+
+function measurementFields(
+    measurements: readonly ScopedMeasurement[],
+    componentId?: string
+): {
+    power?: number
+    energy?: number
+    voltage?: number
+    current?: number
+} {
+    const scoped = measurements.filter(
+        (measurement) => measurement.componentId === componentId
+    )
+    const only = (kind: ScopedMeasurement['kind']) => {
+        const matches = scoped.filter(
+            (measurement) => measurement.kind === kind
+        )
+        return matches.length === 1 ? matches[0]?.quantity : undefined
+    }
+    const imported = only('importedEnergy')
+    return {
+        power: only('power'),
+        energy: imported === undefined ? undefined : imported / 1000,
+        voltage: only('voltage'),
+        current: only('current'),
+    }
 }
 
 function readBoolean(

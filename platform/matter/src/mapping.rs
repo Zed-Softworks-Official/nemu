@@ -560,14 +560,6 @@ pub fn device_descriptor(device: &EndpointDevice, friendly_name: &str) -> Value 
     })
 }
 
-fn round2(value: f64) -> f64 {
-    (value * 100.0).round() / 100.0
-}
-
-fn round3(value: f64) -> f64 {
-    (value * 1000.0).round() / 1000.0
-}
-
 fn round4(value: f64) -> f64 {
     (value * 10_000.0).round() / 10_000.0
 }
@@ -604,29 +596,6 @@ pub fn state_for_endpoint(attributes: &Attributes, endpoint: u16) -> Map<String,
             "color".into(),
             json!({ "x": round4(x / 65536.0), "y": round4(y / 65536.0) }),
         );
-    }
-
-    if let Some(active_power) = verified_power_milliwatts(attributes, endpoint) {
-        state.insert("power".into(), json!(round2(active_power as f64 / 1000.0)));
-    }
-    if let Some(voltage) = attr(attributes, endpoint, CLUSTER_ELECTRICAL_POWER, 4)
-        .or_else(|| attr(attributes, endpoint, CLUSTER_ELECTRICAL_POWER, 11))
-        .and_then(as_number)
-    {
-        state.insert("voltage".into(), json!(round2(voltage / 1000.0)));
-    }
-    if let Some(current) = attr(attributes, endpoint, CLUSTER_ELECTRICAL_POWER, 5)
-        .or_else(|| attr(attributes, endpoint, CLUSTER_ELECTRICAL_POWER, 12))
-        .and_then(as_number)
-    {
-        state.insert("current".into(), json!(round3(current / 1000.0)));
-    }
-
-    if let Some(energy_mwh) = attr(attributes, endpoint, CLUSTER_ELECTRICAL_ENERGY, 1)
-        .and_then(|imported| struct_field(imported, 0, &["energy"]))
-        .and_then(as_number)
-    {
-        state.insert("energy".into(), json!(round3(energy_mwh / 1_000_000.0)));
     }
 
     state
@@ -966,25 +935,22 @@ mod tests {
     #[test]
     fn unverified_zero_active_power_does_not_hide_a_load() {
         let attributes = attrs(&[("1/144/8", json!(0)), ("1/144/13", json!(60_000))]);
-        assert_eq!(
-            state_for_endpoint(&attributes, 1).get("power"),
-            Some(&json!(60.0))
-        );
+        assert_eq!(verified_power_milliwatts(&attributes, 1), Some(60_000));
+        assert!(state_for_endpoint(&attributes, 1).get("power").is_none());
     }
 
     #[test]
     fn lone_zero_active_power_is_not_a_reading() {
         let attributes = attrs(&[("1/144/8", json!(0))]);
+        assert_eq!(verified_power_milliwatts(&attributes, 1), None);
         assert!(state_for_endpoint(&attributes, 1).get("power").is_none());
     }
 
     #[test]
     fn corroborated_zero_stays_idle() {
         let attributes = attrs(&[("1/144/8", json!(0)), ("1/144/13", json!(0))]);
-        assert_eq!(
-            state_for_endpoint(&attributes, 1).get("power"),
-            Some(&json!(0.0))
-        );
+        assert_eq!(verified_power_milliwatts(&attributes, 1), Some(0));
+        assert!(state_for_endpoint(&attributes, 1).get("power").is_none());
     }
 
     #[test]
@@ -996,10 +962,8 @@ mod tests {
     #[test]
     fn null_active_power_uses_rms_load() {
         let attributes = attrs(&[("1/144/8", Value::Null), ("1/144/13", json!(40_000))]);
-        assert_eq!(
-            state_for_endpoint(&attributes, 1).get("power"),
-            Some(&json!(40.0))
-        );
+        assert_eq!(verified_power_milliwatts(&attributes, 1), Some(40_000));
+        assert!(state_for_endpoint(&attributes, 1).get("power").is_none());
     }
 
     #[test]
@@ -1018,7 +982,7 @@ mod tests {
         assert_eq!(devices[0].energy_endpoint_id, Some(1));
         assert_eq!(
             state_for_device(&devices[0], &attributes),
-            json!({ "state": "ON", "power": 8.0 })
+            json!({ "state": "ON" })
         );
     }
 
@@ -1084,11 +1048,7 @@ mod tests {
                     { "id": "2", "name": "Outlet 1", "state": "ON" },
                     { "id": "3", "name": "Outlet 2", "state": "OFF" },
                     { "id": "4", "name": "Outlet 3", "state": "OFF" }
-                ],
-                "power": 12.5,
-                "voltage": 230.1,
-                "current": 0.054,
-                "energy": 1.234
+                ]
             })
         );
     }

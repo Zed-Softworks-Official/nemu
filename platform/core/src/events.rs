@@ -110,6 +110,8 @@ pub struct DeviceResource {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub room_id: Option<String>,
     pub online: bool,
+    #[serde(rename = "externalId")]
+    pub external_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub state: Option<JsonValue>,
 }
@@ -128,6 +130,7 @@ impl DeviceResource {
             model: device.model.clone(),
             room_id: device.room_id.map(|id| id.to_string()),
             online,
+            external_id: device.external_id.clone(),
             state,
         }
     }
@@ -159,6 +162,9 @@ mod tests {
             revision: 5,
             state: CapabilityState {
                 capability_id: CapabilityId::from_uuid(Uuid::nil()),
+                device: crate::capabilities::DeviceIdentity::new("matter", "plug-1")
+                    .expect("device identity"),
+                physical_scope: crate::capabilities::PhysicalScope::Device,
                 kind: CapabilityKind::Power,
                 value: Some(NumericValue::for_test(1500, 3, "limits")),
                 availability: Availability::Available,
@@ -175,6 +181,9 @@ mod tests {
             "00000000-0000-0000-0000-000000000000"
         );
         assert_eq!(json["state"]["kind"], "power");
+        assert_eq!(json["state"]["device"]["protocol"], "matter");
+        assert_eq!(json["state"]["device"]["externalId"], "plug-1");
+        assert_eq!(json["state"]["physicalScope"]["kind"], "device");
         assert_eq!(json["state"]["availability"]["status"], "available");
         assert_eq!(json["state"]["value"]["constraintRevisionId"], "limits");
         assert!(json["state"].get("observedAt").is_none());

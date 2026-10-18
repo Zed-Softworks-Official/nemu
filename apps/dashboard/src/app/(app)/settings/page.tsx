@@ -761,11 +761,11 @@ function updateStatusCopy(state: CoreUpdateState): string {
     switch (state.kind) {
         case 'idle':
         case 'checking':
-            return 'Checking for a newer core image…'
+            return 'Checking for a controller release…'
         case 'upToDate':
-            return 'Core is up to date.'
+            return 'Core and adapters are up to date.'
         case 'available':
-            return 'A new image is available.'
+            return 'A controller release is available. Core and adapters update together.'
         case 'applying':
             return 'Starting update…'
         case 'restarting':

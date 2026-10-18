@@ -37,8 +37,10 @@ impl AdapterCapabilityManifest {
 pub struct AdapterObservationReport {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub schema_version: Option<u16>,
-    pub observation_id: String,
-    pub observed_at: DateTime<Utc>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub observation_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub observed_at: Option<DateTime<Utc>>,
     pub time_trust: TimeTrust,
     pub observations: Vec<AdapterObservation>,
 }
@@ -74,12 +76,26 @@ pub fn resolve_adapter_report(
     supported_versions: &[u16],
     report: &AdapterObservationReport,
 ) -> Result<CapabilityReport, AdapterEnvelopeError> {
-    if !valid_observation_id(&report.observation_id) {
-        return Err(AdapterEnvelopeError::InvalidObservationId);
-    }
     if report.observations.is_empty() {
         return Err(AdapterEnvelopeError::EmptyReport);
     }
+    let schema_version = negotiate_observation_schema(supported_versions, report.schema_version);
+    let (observation_id, observed_at) = if schema_version.is_some() {
+        let observation_id = report
+            .observation_id
+            .as_deref()
+            .filter(|observation_id| valid_observation_id(observation_id))
+            .map(str::to_string);
+        let Some(observation_id) = observation_id else {
+            return Err(AdapterEnvelopeError::InvalidObservationId);
+        };
+        let Some(observed_at) = report.observed_at else {
+            return Err(AdapterEnvelopeError::MissingObservedAt);
+        };
+        (Some(observation_id), Some(observed_at))
+    } else {
+        (None, None)
+    };
 
     let mut seen = std::collections::HashSet::new();
     let mut observations = Vec::new();
@@ -111,9 +127,9 @@ pub fn resolve_adapter_report(
     }
 
     Ok(CapabilityReport {
-        schema_version: negotiate_observation_schema(supported_versions, report.schema_version),
-        observation_id: Some(report.observation_id.clone()),
-        observed_at: report.observed_at,
+        schema_version,
+        observation_id,
+        observed_at,
         time_trust: report.time_trust,
         observations,
     })
@@ -139,6 +155,8 @@ pub enum AdapterEnvelopeError {
     UnsupportedManifest,
     #[error("observation ID is invalid")]
     InvalidObservationId,
+    #[error("compatible observation report has no observedAt")]
+    MissingObservedAt,
     #[error("observation report is empty")]
     EmptyReport,
     #[error("observation report does not match a reconciled Capability")]
@@ -277,6 +295,8 @@ mod tests {
         )
         .unwrap();
         assert_eq!(resolved.schema_version, None);
+        assert_eq!(resolved.observation_id, None);
+        assert_eq!(resolved.observed_at, None);
         let ingested = state.ingest(resolved, at(2));
         assert_eq!(
             ingested.outcomes[0].current,
@@ -286,6 +306,37 @@ mod tests {
             ingested.outcomes[0].history,
             HistoryAdmissionOutcome::Rejected(HistoryRejection::UnsupportedSchemaVersion)
         );
+    }
+
+    #[test]
+    fn legacy_report_without_identity_updates_current_state_only() {
+        let mut manifest = matter_power_manifest();
+        manifest.supported_observation_envelope_versions.clear();
+        let (state, registered) = register(&manifest);
+        let mut report = power_report(60_000, None);
+        report.schema_version = None;
+        report.observation_id = None;
+        report.observed_at = None;
+        let resolved = resolve_adapter_report(
+            &registered,
+            &manifest.supported_observation_envelope_versions,
+            &report,
+        )
+        .unwrap();
+        assert_eq!(resolved.observation_id, None);
+        assert_eq!(resolved.observed_at, None);
+        let ingested = state.ingest(resolved, at(2));
+        assert_eq!(
+            ingested.outcomes[0].current,
+            CurrentStateDisposition::Changed
+        );
+        assert_eq!(
+            ingested.outcomes[0].history,
+            HistoryAdmissionOutcome::Rejected(HistoryRejection::UnsupportedSchemaVersion)
+        );
+        let current = &state.snapshot().capabilities[0];
+        assert_eq!(current.value.as_ref().unwrap().value(), 60_000);
+        assert_eq!(current.observed_at, None);
     }
 
     #[test]

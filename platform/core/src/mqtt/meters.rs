@@ -182,8 +182,8 @@ pub fn translate_zigbee(
     };
     let report = AdapterObservationReport {
         schema_version: None,
-        observation_id,
-        observed_at,
+        observation_id: Some(observation_id.clone()),
+        observed_at: Some(observed_at),
         time_trust,
         observations: readings
             .into_iter()
@@ -201,8 +201,8 @@ pub fn translate_zigbee(
     };
     let cursor = MeterCursor {
         fingerprint,
-        observation_id: report.observation_id.clone(),
-        observed_at: report.observed_at,
+        observation_id,
+        observed_at,
         time_trust,
         imported_energy,
     };
@@ -401,7 +401,7 @@ mod tests {
         assert_eq!(retry.report.observed_at, first.report.observed_at);
         let later = translate("ieee-1", &plug(), Some(&first.cursor), at(20), false).unwrap();
         assert_ne!(later.report.observation_id, first.report.observation_id);
-        assert_eq!(later.report.observed_at, at(20));
+        assert_eq!(later.report.observed_at, Some(at(20)));
     }
 
     #[test]
@@ -523,11 +523,13 @@ mod tests {
             &legacy.report,
         )
         .unwrap();
+        assert_eq!(resolved.observation_id, None);
+        assert_eq!(resolved.observed_at, None);
         let ingested = state.ingest(resolved, at(10));
         assert!(ingested.outcomes.iter().all(|outcome| {
             outcome.current == CurrentStateDisposition::Changed
                 && outcome.history
-                    == HistoryAdmissionOutcome::Rejected(HistoryRejection::UntrustworthyTime)
+                    == HistoryAdmissionOutcome::Rejected(HistoryRejection::UnsupportedSchemaVersion)
         }));
         let power = state
             .snapshot()

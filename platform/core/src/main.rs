@@ -156,7 +156,10 @@ async fn main() {
             (Some(url), Some(token)) => Some(WatchtowerClient::new(
                 url,
                 token,
-                config.watchtower_image.clone(),
+                crate::watchtower::RELEASE_BUNDLE
+                    .into_iter()
+                    .map(str::to_string)
+                    .collect(),
             )),
             _ => None,
         },

@@ -1,6 +1,6 @@
 'use client'
 
-import { useController, useDevices } from '@nemu/controller'
+import { useCapabilityState, useController, useDevices } from '@nemu/controller'
 import type { Room } from '@nemu/protocol'
 import { Badge } from '@nemu/ui/components/badge'
 import { Button } from '@nemu/ui/components/button'
@@ -32,6 +32,7 @@ import { StatCard } from './stat-card'
 
 export function HomeDashboard() {
     const { devices, error, refresh, status } = useDevices()
+    const { view } = useCapabilityState()
     const { getRooms, reprobe } = useController()
     const [rooms, setRooms] = useState<Room[]>([])
     const [roomsError, setRoomsError] = useState<Error | null>(null)
@@ -68,8 +69,11 @@ export function HomeDashboard() {
     }, [getRooms, status.mode])
 
     const presentedDevices = useMemo(
-        () => devices?.map(presentDevice) ?? [],
-        [devices]
+        () =>
+            devices?.map((device) =>
+                presentDevice(device, view?.capabilities)
+            ) ?? [],
+        [devices, view]
     )
 
     const onlineDevices = presentedDevices.filter((device) => device.online)

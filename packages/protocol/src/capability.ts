@@ -397,6 +397,11 @@ export type CapabilityAvailability = z.infer<
 
 export const capabilityCurrentStateSchema = z.object({
     capabilityId: capabilityIdSchema,
+    device: z.object({
+        protocol: z.string().min(1),
+        externalId: z.string().min(1),
+    }),
+    physicalScope: capabilityPhysicalScopeSchema,
     kind: capabilityKindSchema,
     value: numericCapabilityValueSchema.optional(),
     availability: capabilityAvailabilitySchema,

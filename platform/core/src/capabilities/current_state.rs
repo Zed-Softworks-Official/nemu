@@ -17,7 +17,7 @@ use super::types::{
 struct ObservationFingerprint {
     schema_version: Option<u16>,
     observation_id: Option<String>,
-    observed_at: DateTime<Utc>,
+    observed_at: Option<DateTime<Utc>>,
     time_trust: TimeTrust,
     kind: CapabilityKind,
     reading: CapabilityReading,
@@ -25,7 +25,7 @@ struct ObservationFingerprint {
 
 #[derive(Debug)]
 struct ReplayWindow {
-    observed_at: DateTime<Utc>,
+    observed_at: Option<DateTime<Utc>>,
     fingerprints: HashSet<ObservationFingerprint>,
 }
 
@@ -77,6 +77,8 @@ impl CurrentState {
                 inner.revision = next_revision(inner.revision);
                 let state = CapabilityState {
                     capability_id: id,
+                    device: capability.declaration.identity.device.clone(),
+                    physical_scope: capability.declaration.identity.physical_scope.clone(),
                     kind,
                     value: None,
                     availability: Availability::Unavailable {
@@ -195,12 +197,14 @@ impl CurrentState {
                 .cloned()
                 .expect("registered state missing");
             let current_receipt_order = inner.receipt_orders.get(&id).copied().unwrap_or(0);
-            let disposition = match current.observed_at {
-                Some(current_observed_at) if report.observed_at < current_observed_at => {
+            let disposition = match (current.observed_at, report.observed_at) {
+                (Some(current_observed_at), Some(observed_at))
+                    if observed_at < current_observed_at =>
+                {
                     CurrentStateDisposition::Older
                 }
-                Some(current_observed_at)
-                    if report.observed_at == current_observed_at
+                (Some(current_observed_at), Some(observed_at))
+                    if observed_at == current_observed_at
                         && receipt_order < current_receipt_order =>
                 {
                     CurrentStateDisposition::Older
@@ -208,6 +212,7 @@ impl CurrentState {
                 _ => apply_observation(
                     self.epoch,
                     &mut inner,
+                    &definition,
                     observation,
                     report.observed_at,
                     received_at,
@@ -347,8 +352,9 @@ impl CurrentState {
 fn apply_observation(
     epoch: StateEpoch,
     inner: &mut InnerState,
+    definition: &RegisteredCapability,
     observation: &CapabilityObservation,
-    observed_at: DateTime<Utc>,
+    observed_at: Option<DateTime<Utc>>,
     received_at: DateTime<Utc>,
     changes: &mut Vec<CapabilityChange>,
 ) -> CurrentStateDisposition {
@@ -376,7 +382,7 @@ fn apply_observation(
     };
     let no_visible_change = current.value == value
         && current.availability == availability
-        && current.observed_at == Some(observed_at);
+        && current.observed_at == observed_at;
     if no_visible_change {
         return CurrentStateDisposition::Unchanged;
     }
@@ -384,10 +390,12 @@ fn apply_observation(
     inner.revision = next_revision(inner.revision);
     let state = CapabilityState {
         capability_id: id,
+        device: definition.declaration.identity.device.clone(),
+        physical_scope: definition.declaration.identity.physical_scope.clone(),
         kind: observation.kind,
         value,
         availability,
-        observed_at: Some(observed_at),
+        observed_at,
         received_at: Some(received_at),
         revision: inner.revision,
     };
@@ -404,14 +412,17 @@ fn history_outcome(
     report: &CapabilityReport,
     observation: &CapabilityObservation,
 ) -> HistoryAdmissionOutcome {
+    if report.schema_version != Some(1) {
+        return HistoryAdmissionOutcome::Rejected(HistoryRejection::UnsupportedSchemaVersion);
+    }
     if report.observation_id.is_none() {
         return HistoryAdmissionOutcome::Rejected(HistoryRejection::MissingObservationId);
     }
+    if report.observed_at.is_none() {
+        return HistoryAdmissionOutcome::Rejected(HistoryRejection::MissingObservedAt);
+    }
     if report.time_trust != TimeTrust::Trustworthy {
         return HistoryAdmissionOutcome::Rejected(HistoryRejection::UntrustworthyTime);
-    }
-    if report.schema_version != Some(1) {
-        return HistoryAdmissionOutcome::Rejected(HistoryRejection::UnsupportedSchemaVersion);
     }
     if observation.reading == CapabilityReading::Unavailable {
         return HistoryAdmissionOutcome::Rejected(HistoryRejection::Unavailable);
@@ -443,7 +454,7 @@ fn matching_capabilities(
 fn record_fingerprint(
     inner: &mut InnerState,
     id: CapabilityId,
-    observed_at: DateTime<Utc>,
+    observed_at: Option<DateTime<Utc>>,
     fingerprint: ObservationFingerprint,
 ) {
     match inner.replay_windows.entry(id) {
@@ -583,7 +594,7 @@ mod tests {
         CapabilityReport {
             schema_version: Some(1),
             observation_id: observation_id.map(str::to_string),
-            observed_at: at(observed_at),
+            observed_at: Some(at(observed_at)),
             time_trust,
             observations,
         }

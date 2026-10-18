@@ -15,6 +15,7 @@ export const deviceSchema = z.object({
     model: z.string().optional(),
     roomId: z.string().nullable().optional(),
     online: z.boolean(),
+    externalId: z.string().optional(),
     state: deviceStateSchema
         .nullish()
         .transform((value): DeviceState | undefined => value ?? undefined),

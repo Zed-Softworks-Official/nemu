@@ -8,6 +8,8 @@ const epoch = '2b7e1c4a-8f3d-4a6b-9c1e-5d8a7b6c4e32'
 
 const reading = {
     capabilityId,
+    device: { protocol: 'matter', externalId: 'plug-1' },
+    physicalScope: { kind: 'device' },
     kind: 'power',
     value: {
         value: 1500,

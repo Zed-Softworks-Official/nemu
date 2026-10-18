@@ -4,6 +4,7 @@ import type { CapabilityCurrentState } from './capability.ts'
 import {
     CapabilitySession,
     deviceEventRefreshesInventory,
+    measurementsForDevice,
 } from './capability-state.ts'
 import { type DeviceEvent, deviceEventSchema } from './events.ts'
 
@@ -19,6 +20,8 @@ function reading(
 ): CapabilityCurrentState {
     return {
         capabilityId: capabilityId as CapabilityCurrentState['capabilityId'],
+        device: { protocol: 'matter', externalId: 'plug-1' },
+        physicalScope: { kind: 'device' },
         kind: 'power',
         value: {
             value,
@@ -187,6 +190,21 @@ describe('capability current-state session', () => {
         assert.deepEqual(requests, ['reconnect'])
     })
 
+    it('does not treat a legacy state report as capability state', () => {
+        const session = new CapabilitySession()
+        session.deliver(
+            {
+                type: 'deviceState',
+                deviceId: 'device-1',
+                state: { power: 12.5, energy: 3 },
+            },
+            () => {
+                throw new Error('legacy state report requested a snapshot')
+            }
+        )
+        assert.equal(session.view(), null)
+    })
+
     it('keeps device inventory refresh off the live observation path', () => {
         const live = change(epochA, 3, reading(powerId, 3, 1600))
         const full = snapshot(epochA, 3, [reading(powerId, 3, 1600)])
@@ -226,5 +244,30 @@ describe('capability current-state session', () => {
             assert.equal(inventoryReads, 0)
             assert.equal(session.view()?.revision, 40)
         })
+    })
+
+    it('reads measurements from the typed snapshot for the matching device', () => {
+        const measurements = measurementsForDevice(
+            { protocol: 'matter', externalId: 'plug-1' },
+            [
+                reading(powerId, 4, 1500),
+                {
+                    ...reading(voltageId, 4, 120_000),
+                    kind: 'voltage',
+                    physicalScope: { kind: 'component', componentId: '2' },
+                },
+            ]
+        )
+        assert.deepEqual(measurements, [
+            { kind: 'power', quantity: 1.5, componentId: undefined },
+            { kind: 'voltage', quantity: 120, componentId: '2' },
+        ])
+        assert.deepEqual(
+            measurementsForDevice(
+                { protocol: 'zigbee', externalId: 'plug-1' },
+                [reading(powerId, 4, 1500)]
+            ),
+            []
+        )
     })
 })
