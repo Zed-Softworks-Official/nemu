@@ -1,10 +1,10 @@
 import { z } from 'zod'
-import { clientTokenSchema, householdMemberSchema } from './api.js'
+import { clientTokenSchema, householdMemberSchema } from './api.ts'
 import {
     capabilityChangeEventSchema,
     capabilitySnapshotEventSchema,
-} from './capability.js'
-import { deviceStateSchema } from './device.js'
+} from './capability.ts'
+import { deviceStateSchema } from './device.ts'
 
 const relayCommandMessageSchema = z.object({
     type: z.literal('command'),

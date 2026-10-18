@@ -5,8 +5,8 @@ import {
     negotiateObservationEnvelopeVersion,
     numericCapabilitySchema,
     parseNumericCapabilityValue,
-} from './capability.js'
-import { deviceStateSchema } from './device.js'
+} from './capability.ts'
+import { deviceStateSchema } from './device.ts'
 
 const baseRevision = {
     revisionId: 'limits-2026-09-11',

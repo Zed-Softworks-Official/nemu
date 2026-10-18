@@ -191,6 +191,19 @@ pub fn health_check_topic(base_topic: &str) -> String {
     format!("{base_topic}/bridge/request/health/check")
 }
 
+/// A retained Matter "online" survives broker restart after the process has
+/// died. Confirm it with a live health response before trusting it.
+pub fn matter_online_needs_probe(retained: bool, online: bool) -> bool {
+    retained && online
+}
+
+pub fn bridge_response_wakes_request(endpoint: &str) -> bool {
+    matches!(
+        endpoint,
+        "device/remove" | "commission" | "commission/cancel" | "health/check"
+    )
+}
+
 /// nemu-matter: start commissioning by pairing code.
 pub fn commission_topic(base_topic: &str) -> String {
     format!("{base_topic}/bridge/request/commission")
@@ -211,14 +224,25 @@ pub fn rename_payload(from: &str, to: &str) -> String {
     json!({ "from": from, "to": to }).to_string()
 }
 
-pub fn remove_payload(id: &str, transaction: &str) -> String {
+pub fn remove_payload(id: &str, transaction: &str, force: bool) -> String {
     json!({
         "id": id,
-        "force": false,
+        "force": force,
+        // Leave the device free to pair again. `force` only skips the radio
+        // leave when the coordinator cannot reach it.
         "block": false,
         "transaction": transaction
     })
     .to_string()
+}
+
+/// Zigbee2MQTT could not deliver the leave. A force remove drops the device
+/// from the coordinator without waiting for a route to it.
+pub fn zigbee_remove_needs_force(error: &str) -> bool {
+    let lower = error.to_ascii_lowercase();
+    lower.contains("nwkroutediscoveryfailed")
+        || lower.contains("failed to send zdo")
+        || lower.contains("(0xd0)")
 }
 
 pub fn interview_status(
@@ -363,7 +387,8 @@ mod tests {
             remove_topic("zigbee2mqtt"),
             "zigbee2mqtt/bridge/request/device/remove"
         );
-        let value: JsonValue = serde_json::from_str(&remove_payload("0xabc", "txn-1")).unwrap();
+        let value: JsonValue =
+            serde_json::from_str(&remove_payload("0xabc", "txn-1", false)).unwrap();
         assert_eq!(
             value,
             json!({
@@ -373,6 +398,17 @@ mod tests {
                 "transaction": "txn-1"
             })
         );
+        let forced: JsonValue =
+            serde_json::from_str(&remove_payload("0xabc", "txn-2", true)).unwrap();
+        assert_eq!(forced["force"], true);
+    }
+
+    #[test]
+    fn unreachable_zigbee_leave_is_forced() {
+        let error = "Failed to remove device 'Light' (block: false, force: false) (Error: failed to send ZDO request seq: (8) Error: Failed APS-DATA.request with confirm status: NwkRouteDiscoveryFailed (0xd0))";
+        assert!(zigbee_remove_needs_force(error));
+        assert!(!zigbee_remove_needs_force("interview failed"));
+        assert!(!zigbee_remove_needs_force("device removal timed out"));
     }
 
     #[test]
@@ -390,5 +426,15 @@ mod tests {
         .unwrap();
         assert_eq!(response.status, "error");
         assert_eq!(response.error.as_deref(), Some("device asleep"));
+    }
+
+    #[test]
+    fn retained_matter_online_is_not_proof_the_service_is_alive() {
+        assert!(matter_online_needs_probe(true, true));
+        assert!(!matter_online_needs_probe(true, false));
+        assert!(!matter_online_needs_probe(false, true));
+        assert!(bridge_response_wakes_request("health/check"));
+        assert!(bridge_response_wakes_request("device/remove"));
+        assert!(!bridge_response_wakes_request("device/rename"));
     }
 }

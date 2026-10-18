@@ -23,15 +23,17 @@ use crate::identity::{read_setting, write_setting};
 const ZIGBEE_METER_JOURNAL: &str = "zigbee_meter_journal";
 use crate::mqtt::meters::{ZigbeeJournal, translate_zigbee};
 use crate::mqtt::z2m::{
-    self, IncomingTopic, commission_cancel_topic, commission_topic, get_state_payload, get_topic,
-    health_check_topic, parse_availability, parse_bridge_event, parse_bridge_response,
-    parse_bridge_state, parse_devices_payload, parse_topic, permit_join_payload, permit_join_topic,
-    remove_payload, remove_topic, rename_payload, rename_topic, set_topic,
+    self, IncomingTopic, bridge_response_wakes_request, commission_cancel_topic, commission_topic,
+    get_state_payload, get_topic, health_check_topic, matter_online_needs_probe,
+    parse_availability, parse_bridge_event, parse_bridge_response, parse_bridge_state,
+    parse_devices_payload, parse_topic, permit_join_payload, permit_join_topic, remove_payload,
+    remove_topic, rename_payload, rename_topic, set_topic, zigbee_remove_needs_force,
 };
 use crate::state::AppState;
 
 const STATE_REFRESH_GAP: Duration = Duration::from_millis(75);
 const BRIDGE_RESPONSE_TIMEOUT: Duration = Duration::from_secs(15);
+const MATTER_HEALTH_TIMEOUT: Duration = Duration::from_secs(2);
 
 type PendingResponse = oneshot::Sender<Result<JsonValue, String>>;
 
@@ -122,20 +124,65 @@ impl MqttHandle {
     }
 
     pub async fn remove_device(&self, protocol: Protocol, external_id: &str) -> Result<(), String> {
+        if protocol == Protocol::Matter {
+            self.ensure_matter_running().await?;
+        }
         let topic = remove_topic(self.base_topic(protocol)?);
+        match self.request_remove(&topic, external_id, false).await {
+            Ok(()) => Ok(()),
+            Err(error) if protocol == Protocol::Zigbee && zigbee_remove_needs_force(&error) => self
+                .request_remove(&topic, external_id, true)
+                .await
+                .map_err(|error| Self::map_remove_error(protocol, error)),
+            Err(error) => Err(Self::map_remove_error(protocol, error)),
+        }
+    }
+
+    async fn request_remove(
+        &self,
+        topic: &str,
+        external_id: &str,
+        force: bool,
+    ) -> Result<(), String> {
         let transaction = Uuid::new_v4().to_string();
-        let body = remove_payload(external_id, &transaction);
-        self.request_with_transaction(topic, body, transaction)
+        let body = remove_payload(external_id, &transaction, force);
+        self.request_with_transaction(
+            topic.to_string(),
+            body,
+            transaction,
+            BRIDGE_RESPONSE_TIMEOUT,
+        )
+        .await
+        .map(|_| ())
+    }
+
+    fn map_remove_error(protocol: Protocol, error: String) -> String {
+        match protocol {
+            Protocol::Zigbee if error == TIMEOUT_MARKER => {
+                "device removal timed out; wake the device and try again".into()
+            }
+            Protocol::Matter if error == TIMEOUT_MARKER => {
+                "unpairing timed out; check that the Matter service is running".into()
+            }
+            _ => error,
+        }
+    }
+
+    /// The Matter process answers this from its MQTT task, even while a node
+    /// read is still running. A missing answer means the process is gone.
+    async fn ensure_matter_running(&self) -> Result<(), String> {
+        let topic = health_check_topic(self.base_topic(Protocol::Matter)?);
+        let transaction = Uuid::new_v4().to_string();
+        let body = json!({ "transaction": transaction }).to_string();
+        self.request_with_transaction(topic, body, transaction, MATTER_HEALTH_TIMEOUT)
             .await
             .map(|_| ())
-            .map_err(|error| match protocol {
-                Protocol::Zigbee if error == TIMEOUT_MARKER => {
-                    "device removal timed out; wake the device and try again".into()
+            .map_err(|error| {
+                if error == TIMEOUT_MARKER {
+                    "the Matter service is not running".into()
+                } else {
+                    error
                 }
-                Protocol::Matter if error == TIMEOUT_MARKER => {
-                    "unpairing timed out; check that the Matter service is running".into()
-                }
-                _ => error,
             })
     }
 
@@ -146,15 +193,20 @@ impl MqttHandle {
         let transaction = Uuid::new_v4().to_string();
         let mut body = payload;
         body["transaction"] = JsonValue::String(transaction.clone());
-        self.request_with_transaction(topic, body.to_string(), transaction)
-            .await
-            .map_err(|error| {
-                if error == TIMEOUT_MARKER {
-                    "the Matter service did not respond; check that it is running".into()
-                } else {
-                    error
-                }
-            })
+        self.request_with_transaction(
+            topic,
+            body.to_string(),
+            transaction,
+            BRIDGE_RESPONSE_TIMEOUT,
+        )
+        .await
+        .map_err(|error| {
+            if error == TIMEOUT_MARKER {
+                "the Matter service did not respond; check that it is running".into()
+            } else {
+                error
+            }
+        })
     }
 
     /// Ask the matter bridge to abort an in-flight commission.
@@ -165,7 +217,7 @@ impl MqttHandle {
         };
         let transaction = Uuid::new_v4().to_string();
         let body = json!({ "transaction": transaction }).to_string();
-        self.request_with_transaction(topic, body, transaction)
+        self.request_with_transaction(topic, body, transaction, BRIDGE_RESPONSE_TIMEOUT)
             .await
             .map_err(|error| {
                 if error == TIMEOUT_MARKER {
@@ -181,6 +233,7 @@ impl MqttHandle {
         topic: String,
         body: String,
         transaction: String,
+        timeout: Duration,
     ) -> Result<JsonValue, String> {
         let (sender, receiver) = oneshot::channel();
         self.pending_responses
@@ -197,7 +250,7 @@ impl MqttHandle {
             return Err(error.to_string());
         }
 
-        match tokio::time::timeout(BRIDGE_RESPONSE_TIMEOUT, receiver).await {
+        match tokio::time::timeout(timeout, receiver).await {
             Ok(Ok(result)) => result,
             Ok(Err(_)) => Err("bridge response channel closed".into()),
             Err(_) => {
@@ -335,6 +388,30 @@ fn health_event(state: &AppState) -> DeviceEvent {
     }
 }
 
+async fn confirm_matter_bridge(state: &AppState) {
+    match state.mqtt.ensure_matter_running().await {
+        Ok(()) => {
+            if !state.health.matter() {
+                state.health.set_bridge(Protocol::Matter, true);
+                state.emit(health_event(state));
+                state.emit(DeviceEvent::Resync);
+            }
+        }
+        Err(error) => {
+            warn!(%error, "matter bridge did not answer health check");
+            if state.health.matter() {
+                state.health.set_bridge(Protocol::Matter, false);
+                state.capabilities.mark_protocol_unavailable(
+                    Protocol::Matter.as_str(),
+                    UnavailableReason::AdapterDisconnected,
+                    Utc::now(),
+                );
+                state.emit(health_event(state));
+            }
+        }
+    }
+}
+
 pub fn spawn_mqtt_loop(state: AppState, mut eventloop: rumqttc::EventLoop) {
     tokio::spawn(async move {
         let mut backoff_ms: u64 = 500;
@@ -448,6 +525,13 @@ async fn handle_publish(
     match parse_topic(&bridge.base_topic, topic) {
         IncomingTopic::BridgeState => {
             let online = parse_bridge_state(payload).map_err(|e| e.to_string())?;
+            if protocol == Protocol::Matter && matter_online_needs_probe(retained, online) {
+                let state = state.clone();
+                tokio::spawn(async move {
+                    confirm_matter_bridge(&state).await;
+                });
+                return Ok(());
+            }
             let previously = was_online.get(protocol);
             state.health.set_bridge(protocol, online);
             was_online.set(protocol, online);
@@ -555,10 +639,7 @@ async fn handle_publish(
             Ok(())
         }
         IncomingTopic::BridgeResponse { endpoint } => {
-            if endpoint == "device/remove"
-                || endpoint == "commission"
-                || endpoint == "commission/cancel"
-            {
+            if bridge_response_wakes_request(&endpoint) {
                 state.mqtt.resolve_bridge_response(payload).await
             } else {
                 Ok(())

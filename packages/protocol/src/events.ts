@@ -2,8 +2,8 @@ import { z } from 'zod'
 import {
     capabilityChangeEventSchema,
     capabilitySnapshotEventSchema,
-} from './capability.js'
-import { type DeviceState, deviceSchema, deviceStateSchema } from './device.js'
+} from './capability.ts'
+import { type DeviceState, deviceSchema, deviceStateSchema } from './device.ts'
 
 export const deviceEventSchema = z.discriminatedUnion('type', [
     z.object({

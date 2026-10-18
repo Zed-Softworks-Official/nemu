@@ -6,6 +6,7 @@
         "module": "NodeNext",
         "moduleResolution": "NodeNext",
         "noEmit": false,
+        "rewriteRelativeImportExtensions": true,
         "outDir": "dist/test",
         "rootDir": "src"
     },

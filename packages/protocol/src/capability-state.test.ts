@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import type { CapabilityCurrentState } from './capability.js'
+import type { CapabilityCurrentState } from './capability.ts'
 import {
     CapabilitySession,
     deviceEventRefreshesInventory,
-} from './capability-state.js'
-import { type DeviceEvent, deviceEventSchema } from './events.js'
+} from './capability-state.ts'
+import { type DeviceEvent, deviceEventSchema } from './events.ts'
 
 const powerId = '6f1d7c6a-6a2e-4d0a-9c3e-3d6c1b9a4e21'
 const voltageId = '91c2a4de-1b70-4f55-8a6d-0e5c7b8a1234'

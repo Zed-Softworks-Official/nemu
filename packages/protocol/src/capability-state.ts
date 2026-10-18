@@ -1,5 +1,5 @@
-import type { CapabilityCurrentState } from './capability.js'
-import type { DeviceEvent } from './events.js'
+import type { CapabilityCurrentState } from './capability.ts'
+import type { DeviceEvent } from './events.ts'
 
 export type CapabilityView = {
     epoch: string

@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -37,10 +37,101 @@ struct JoinedNode {
     attributes: Option<Attributes>,
 }
 
-struct RefreshOutcome {
-    failed: Vec<u64>,
+struct BootScan {
     hints: Vec<u64>,
     stale: Vec<u64>,
+    settled: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ReadPurpose {
+    Boot,
+    Descriptor,
+    Commission,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct PendingRead {
+    node_id: u64,
+    purpose: ReadPurpose,
+}
+
+struct NodeReadDone {
+    node_id: u64,
+    purpose: ReadPurpose,
+    result: Result<Attributes, String>,
+}
+
+/// One node read at a time, so an unpair can be acked while that read is still
+/// outstanding. The controller gives up on the ack after 15s; a wildcard read
+/// is allowed to take longer than that.
+#[derive(Default)]
+struct ReadScheduler {
+    queue: VecDeque<PendingRead>,
+    in_flight: Option<PendingRead>,
+    removed: HashSet<u64>,
+}
+
+impl ReadScheduler {
+    fn enqueue(&mut self, node_id: u64, purpose: ReadPurpose) {
+        if self.removed.contains(&node_id) {
+            return;
+        }
+        let duplicate = self
+            .in_flight
+            .is_some_and(|read| read.node_id == node_id && read.purpose == purpose)
+            || self
+                .queue
+                .iter()
+                .any(|read| read.node_id == node_id && read.purpose == purpose);
+        if duplicate {
+            return;
+        }
+        self.queue.push_back(PendingRead { node_id, purpose });
+    }
+
+    fn cancel(&mut self, node_id: u64) {
+        self.removed.insert(node_id);
+        self.queue.retain(|read| read.node_id != node_id);
+    }
+
+    fn poll(&mut self) -> Option<PendingRead> {
+        if self.in_flight.is_some() {
+            return None;
+        }
+        while let Some(read) = self.queue.pop_front() {
+            if self.removed.contains(&read.node_id) {
+                continue;
+            }
+            self.in_flight = Some(read);
+            return Some(read);
+        }
+        None
+    }
+
+    /// `false` when the node was unpaired while the read was outstanding.
+    fn finish(&mut self, node_id: u64, purpose: ReadPurpose) -> bool {
+        if self
+            .in_flight
+            .is_some_and(|read| read.node_id == node_id && read.purpose == purpose)
+        {
+            self.in_flight = None;
+        }
+        !self.removed.contains(&node_id)
+    }
+
+    fn ignored(&self, node_id: u64) -> bool {
+        self.removed.contains(&node_id)
+    }
+
+    fn boot_pending(&self) -> bool {
+        self.in_flight
+            .is_some_and(|read| read.purpose == ReadPurpose::Boot)
+            || self
+                .queue
+                .iter()
+                .any(|read| read.purpose == ReadPurpose::Boot)
+    }
 }
 
 pub struct MatterService {
@@ -55,11 +146,13 @@ pub struct MatterService {
     published_leaves: HashSet<String>,
     commissioning: bool,
     got_node: bool,
-    boot_recover_ids: Vec<u64>,
     cancel: Arc<AtomicBool>,
     boot_cancel: Arc<AtomicBool>,
     meter_identities: Mutex<MeterIdentityStore>,
     capability_ids: Mutex<HashMap<String, HashMap<String, String>>>,
+    reads: ReadScheduler,
+    inventory_ready: bool,
+    pending_joins: Vec<u64>,
 }
 
 impl MatterService {
@@ -127,7 +220,7 @@ impl MatterService {
         let names = NameStore::load(config.names_path());
         let adopted = AdoptStore::load(config.adopted_path());
         let meter_identities = MeterIdentityStore::load(config.meter_identities_path());
-        let mut service = Self {
+        let service = Self {
             _config: config,
             controller,
             mqtt,
@@ -139,21 +232,15 @@ impl MatterService {
             published_leaves: HashSet::new(),
             commissioning: false,
             got_node: false,
-            boot_recover_ids: Vec::new(),
             cancel: Arc::new(AtomicBool::new(false)),
             boot_cancel: Arc::new(AtomicBool::new(false)),
             meter_identities: Mutex::new(meter_identities),
             capability_ids: Mutex::new(HashMap::new()),
+            reads: ReadScheduler::default(),
+            inventory_ready: false,
+            pending_joins: Vec::new(),
         };
         service.mqtt.set_online(true).await;
-        let refresh = service.refresh_all_nodes().await;
-        service
-            .drop_unreachable_nodes(&unique_front(refresh.stale))
-            .await;
-        if service.index.is_empty() && !refresh.hints.is_empty() {
-            service.boot_recover_ids = unique_front(refresh.hints);
-        }
-        service.publish_devices().await;
         Ok(service)
     }
 
@@ -164,13 +251,18 @@ impl MatterService {
         let (attr_tx, mut attr_rx) = tokio::sync::mpsc::unbounded_channel();
         let (done_tx, mut done_rx) = tokio::sync::mpsc::unbounded_channel();
         let (resub_tx, mut resub_rx) = tokio::sync::mpsc::unbounded_channel();
-        self.subscribe_nodes(attr_tx.clone());
-        if !self.boot_recover_ids.is_empty() {
-            let ids = std::mem::take(&mut self.boot_recover_ids);
-            self.spawn_boot_recover(done_tx.clone(), ids);
-        }
+        let (read_tx, mut read_rx) = tokio::sync::mpsc::unbounded_channel();
+        self.enqueue_boot_reads().await;
+        let mut boot = BootScan {
+            hints: Vec::new(),
+            stale: Vec::new(),
+            settled: false,
+        };
         loop {
+            self.dispatch_read(&read_tx);
+            self.maybe_settle_boot(&mut boot, &done_tx, &attr_tx).await;
             tokio::select! {
+                biased;
                 message = incoming.recv() => {
                     let Some(message) = message else {
                         break;
@@ -197,6 +289,9 @@ impl MatterService {
                             self.publish_state(&device_id, false).await;
                         }
                     }
+                }
+                Some(done) = read_rx.recv() => {
+                    self.finish_read(done, &mut boot, &attr_tx).await;
                 }
                 Some(result) = done_rx.recv() => {
                     self.finish_commission(result).await;
@@ -342,31 +437,12 @@ impl MatterService {
                     self.attributes.insert(node_id, attributes);
                     self.rebuild_index_for_node(node_id);
                 } else {
-                    self.refresh_node_with_retries(node_id).await;
-                }
-                self.ensure_node_in_index(node_id);
-                let published = self.node_device_count(node_id);
-                info!(
-                    node_id,
-                    devices = published,
-                    "publishing commissioned Matter node"
-                );
-                self.publish_devices().await;
-                self.publish_joins_for_node(node_id).await;
-                if published == 0 {
-                    self.mqtt
-                        .event(
-                            "device_interview",
-                            json!({
-                                "ieee_address": "commissioning",
-                                "status": "failed",
-                                "error": "The device connected but did not appear on the controller.",
-                            }),
-                        )
-                        .await;
+                    // The retries can take minutes. Leave the service loop free
+                    // so unpair is acked while the read is still running.
+                    self.reads.enqueue(node_id, ReadPurpose::Commission);
                     return;
                 }
-                publish_progress(&self.mqtt, "connected", "Connected").await;
+                self.publish_joined_node(node_id).await;
             }
             Err(_) if self.got_node => {
                 self.commissioning = false;
@@ -425,17 +501,11 @@ impl MatterService {
             .map(|entry| entry.node_id)
             .or_else(|| id.parse().ok());
         if let Some(node_id) = node_id {
-            match tokio::time::timeout(FORGET_NODE_TIMEOUT, self.controller.forget_node(node_id))
-                .await
-            {
-                Ok(Ok(_)) => {}
-                Ok(Err(error)) => {
-                    warn!(error = %error, node_id, "forget_node failed; dropping locally")
-                }
-                Err(_) => warn!(node_id, "forget_node timed out; dropping locally"),
-            }
+            self.reads.cancel(node_id);
+            self.pending_joins.retain(|id| *id != node_id);
             self.drop_node(node_id).await;
             self.adopted.remove(node_id);
+            self.forget_later(node_id);
         }
         self.mqtt
             .respond(
@@ -522,7 +592,7 @@ impl MatterService {
         });
     }
 
-    async fn refresh_all_nodes(&mut self) -> RefreshOutcome {
+    async fn enqueue_boot_reads(&mut self) {
         let mut ids: HashSet<u64> = self.adopted.ids().collect();
         match self.controller.nodes().await {
             Ok(nodes) => {
@@ -534,37 +604,162 @@ impl MatterService {
                 warn!(error = %error, "failed to list nodes");
             }
         }
-        let mut failed = Vec::new();
-        let mut hints = Vec::new();
-        let mut stale = Vec::new();
         for node_id in ids {
-            if let Err(error) = self.refresh_node(node_id).await {
-                warn!(error = %error, node_id, "wildcard read failed");
-                failed.push(node_id);
-                let seen = node_ids_from_mdns_error(&error);
-                if !seen.is_empty() {
-                    stale.push(node_id);
-                    hints.extend(seen);
+            self.reads.enqueue(node_id, ReadPurpose::Boot);
+        }
+    }
+
+    fn dispatch_read(&mut self, tx: &tokio::sync::mpsc::UnboundedSender<NodeReadDone>) {
+        let Some(read) = self.reads.poll() else {
+            return;
+        };
+        let controller = self.controller.clone();
+        let tx = tx.clone();
+        tokio::spawn(async move {
+            let result = match read.purpose {
+                ReadPurpose::Commission => read_node_with_retries(&controller, read.node_id).await,
+                ReadPurpose::Descriptor => {
+                    read_node_attributes(&controller, read.node_id, DESCRIPTOR_REFRESH_TIMEOUT)
+                        .await
+                }
+                ReadPurpose::Boot => {
+                    read_node_attributes(&controller, read.node_id, REFRESH_READ_TIMEOUT).await
+                }
+            };
+            let _ = tx.send(NodeReadDone {
+                node_id: read.node_id,
+                purpose: read.purpose,
+                result,
+            });
+        });
+    }
+
+    async fn maybe_settle_boot(
+        &mut self,
+        boot: &mut BootScan,
+        done_tx: &tokio::sync::mpsc::UnboundedSender<Result<JoinedNode, String>>,
+        attr_tx: &tokio::sync::mpsc::UnboundedSender<IncomingMessage>,
+    ) {
+        if boot.settled || self.reads.boot_pending() {
+            return;
+        }
+        boot.settled = true;
+        self.drop_unreachable_nodes(&unique_front(boot.stale.clone()))
+            .await;
+        if self.index.is_empty() && !boot.hints.is_empty() {
+            self.spawn_boot_recover(done_tx.clone(), unique_front(boot.hints.clone()));
+        }
+        self.inventory_ready = true;
+        self.publish_devices().await;
+        self.subscribe_nodes(attr_tx.clone());
+        let pending = std::mem::take(&mut self.pending_joins);
+        for node_id in pending {
+            self.publish_joined_node(node_id).await;
+        }
+    }
+
+    async fn finish_read(
+        &mut self,
+        done: NodeReadDone,
+        boot: &mut BootScan,
+        attr_tx: &tokio::sync::mpsc::UnboundedSender<IncomingMessage>,
+    ) {
+        if !self.reads.finish(done.node_id, done.purpose) {
+            return;
+        }
+        match done.purpose {
+            ReadPurpose::Boot => match done.result {
+                Ok(attributes) => {
+                    self.attributes.insert(done.node_id, attributes);
+                    self.rebuild_index_for_node(done.node_id);
+                }
+                Err(error) => {
+                    warn!(error = %error, node_id = done.node_id, "wildcard read failed");
+                    let seen = node_ids_from_mdns_error(&error);
+                    if !seen.is_empty() {
+                        boot.stale.push(done.node_id);
+                        boot.hints.extend(seen);
+                    }
+                }
+            },
+            ReadPurpose::Descriptor => {
+                if let Ok(attributes) = done.result {
+                    self.attributes.insert(done.node_id, attributes);
+                    self.rebuild_index_for_node(done.node_id);
+                    if self.inventory_ready {
+                        self.publish_devices().await;
+                    }
                 }
             }
+            ReadPurpose::Commission => {
+                if let Ok(attributes) = done.result {
+                    self.attributes.insert(done.node_id, attributes);
+                    self.rebuild_index_for_node(done.node_id);
+                } else if let Err(error) = &done.result {
+                    warn!(
+                        error = %error,
+                        node_id = done.node_id,
+                        "wildcard read failed after commission"
+                    );
+                }
+                self.publish_joined_node(done.node_id).await;
+                self.subscribe_nodes(attr_tx.clone());
+            }
         }
-        RefreshOutcome {
-            failed,
-            hints: unique_front(hints),
-            stale,
+    }
+
+    async fn publish_joined_node(&mut self, node_id: u64) {
+        if self.reads.ignored(node_id) {
+            return;
         }
+        self.ensure_node_in_index(node_id);
+        if !self.inventory_ready {
+            if !self.pending_joins.contains(&node_id) {
+                self.pending_joins.push(node_id);
+            }
+            return;
+        }
+        let published = self.node_device_count(node_id);
+        info!(
+            node_id,
+            devices = published,
+            "publishing commissioned Matter node"
+        );
+        self.publish_devices().await;
+        self.publish_joins_for_node(node_id).await;
+        if published == 0 {
+            self.mqtt
+                .event(
+                    "device_interview",
+                    json!({
+                        "ieee_address": "commissioning",
+                        "status": "failed",
+                        "error": "The device connected but did not appear on the controller.",
+                    }),
+                )
+                .await;
+            return;
+        }
+        publish_progress(&self.mqtt, "connected", "Connected").await;
+    }
+
+    fn forget_later(&self, node_id: u64) {
+        let controller = self.controller.clone();
+        tokio::spawn(async move {
+            match tokio::time::timeout(FORGET_NODE_TIMEOUT, controller.forget_node(node_id)).await {
+                Ok(Ok(_)) => {}
+                Ok(Err(error)) => {
+                    warn!(error = %error, node_id, "forget_node failed; dropping locally")
+                }
+                Err(_) => warn!(node_id, "forget_node timed out; dropping locally"),
+            }
+        });
     }
 
     async fn drop_unreachable_nodes(&mut self, node_ids: &[u64]) {
         for node_id in unique_front(node_ids.iter().copied()) {
             info!(node_id, "forgetting unreachable Matter node");
-            match self.controller.forget_node(node_id).await {
-                Ok(true) => info!(node_id, "removed stale controller node"),
-                Ok(false) => {}
-                Err(error) => {
-                    warn!(error = %error, node_id, "failed to forget Matter node")
-                }
-            }
+            self.forget_later(node_id);
             self.adopted.remove(node_id);
         }
         if self.index.is_empty() {
@@ -575,18 +770,6 @@ impl MatterService {
         for node_id in leftover {
             info!(node_id, "dropping adopted id with no live device");
             self.adopted.remove(node_id);
-        }
-    }
-
-    async fn refresh_node_with_retries(&mut self, node_id: u64) {
-        for attempt in 1..=REFRESH_AFTER_COMMISSION_ATTEMPTS {
-            if self.refresh_node(node_id).await.is_ok() {
-                return;
-            }
-            if attempt < REFRESH_AFTER_COMMISSION_ATTEMPTS {
-                warn!(node_id, attempt, "retrying wildcard read after commission");
-                tokio::time::sleep(REFRESH_AFTER_COMMISSION_GAP).await;
-            }
         }
     }
 
@@ -603,29 +786,6 @@ impl MatterService {
             .values()
             .filter(|entry| entry.node_id == node_id)
             .count()
-    }
-
-    async fn refresh_node(&mut self, node_id: u64) -> Result<(), String> {
-        self.refresh_node_with_timeout(node_id, REFRESH_READ_TIMEOUT)
-            .await
-    }
-
-    async fn refresh_node_with_timeout(
-        &mut self,
-        node_id: u64,
-        timeout: Duration,
-    ) -> Result<(), String> {
-        let node = self.controller.node(node_id);
-        match tokio::time::timeout(timeout, node.read(&[ReadPath::all()])).await {
-            Ok(Ok(report)) => {
-                self.attributes
-                    .insert(node_id, attributes_from_report(report));
-                self.rebuild_index_for_node(node_id);
-                Ok(())
-            }
-            Ok(Err(error)) => Err(error.to_string()),
-            Err(_) => Err("wildcard read timed out".into()),
-        }
     }
 
     fn rebuild_index_for_node(&mut self, node_id: u64) {
@@ -707,13 +867,7 @@ impl MatterService {
         };
         let key = format!("{endpoint}/{cluster}/{attribute}");
         if cluster == u32::from(CLUSTER_DESCRIPTOR) {
-            if self
-                .refresh_node_with_timeout(node_id, DESCRIPTOR_REFRESH_TIMEOUT)
-                .await
-                .is_ok()
-            {
-                self.publish_devices().await;
-            }
+            self.reads.enqueue(node_id, ReadPurpose::Descriptor);
             return;
         }
         if !is_state_attribute_path(&key) {
@@ -964,7 +1118,9 @@ impl MatterService {
         }
         let keep: HashSet<String> = self.index.keys().cloned().collect();
         self.names.retain_only(&keep);
-        self.publish_devices().await;
+        if self.inventory_ready {
+            self.publish_devices().await;
+        }
     }
 
     fn note_subscribe_ended(
@@ -1204,6 +1360,39 @@ fn promote_node(candidates: &mut Vec<u64>, index: usize, node_id: u64) {
     }
 }
 
+async fn read_node_attributes(
+    controller: &MatterController,
+    node_id: u64,
+    timeout: Duration,
+) -> Result<Attributes, String> {
+    let node = controller.node(node_id);
+    match tokio::time::timeout(timeout, node.read(&[ReadPath::all()])).await {
+        Ok(Ok(report)) => Ok(attributes_from_report(report)),
+        Ok(Err(error)) => Err(error.to_string()),
+        Err(_) => Err("wildcard read timed out".into()),
+    }
+}
+
+async fn read_node_with_retries(
+    controller: &MatterController,
+    node_id: u64,
+) -> Result<Attributes, String> {
+    let mut last = "wildcard read failed".to_string();
+    for attempt in 1..=REFRESH_AFTER_COMMISSION_ATTEMPTS {
+        match read_node_attributes(controller, node_id, REFRESH_READ_TIMEOUT).await {
+            Ok(attributes) => return Ok(attributes),
+            Err(error) => {
+                last = error;
+                if attempt < REFRESH_AFTER_COMMISSION_ATTEMPTS {
+                    warn!(node_id, attempt, "retrying wildcard read after commission");
+                    tokio::time::sleep(REFRESH_AFTER_COMMISSION_GAP).await;
+                }
+            }
+        }
+    }
+    Err(last)
+}
+
 fn attributes_from_report(report: Vec<(AttributePath, Value)>) -> Attributes {
     let mut attributes = Attributes::new();
     for (path, value) in report {
@@ -1278,5 +1467,42 @@ impl Drop for MatterService {
         tokio::spawn(async move {
             mqtt.set_online(false).await;
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use super::{ReadPurpose, ReadScheduler};
+
+    #[tokio::test(start_paused = true)]
+    async fn unpair_is_accepted_while_a_node_read_is_outstanding() {
+        let mut reads = ReadScheduler::default();
+        reads.enqueue(1, ReadPurpose::Boot);
+        reads.enqueue(2, ReadPurpose::Boot);
+        let started = tokio::time::Instant::now();
+        assert!(reads.poll().is_some());
+
+        let (tx, mut rx) = tokio::sync::oneshot::channel();
+        tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_secs(35)).await;
+            let _ = tx.send(());
+        });
+
+        reads.cancel(1);
+        assert!(reads.ignored(1));
+        assert!(
+            started.elapsed() < Duration::from_secs(15),
+            "unpair waited for the wildcard read"
+        );
+        assert!(rx.try_recv().is_err());
+        assert!(
+            reads.poll().is_none(),
+            "the in-flight read is still outstanding"
+        );
+        assert!(!reads.finish(1, ReadPurpose::Boot));
+        assert!(reads.poll().is_some());
+        assert!(reads.finish(2, ReadPurpose::Boot));
     }
 }

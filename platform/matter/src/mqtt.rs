@@ -135,7 +135,15 @@ pub fn start(config: &Config) -> (MqttBus, mpsc::UnboundedReceiver<IncomingMessa
                     }
                 }
                 Ok(Event::Incoming(Incoming::Publish(publish))) => {
-                    if let Some(message) = parse_incoming(&base, &publish.topic, &publish.payload) {
+                    if publish.topic == format!("{base}/bridge/request/health/check") {
+                        // Answer on this task with try_publish. Awaiting publish
+                        // here would deadlock the event loop, and the service
+                        // loop may be inside a wildcard read for longer than
+                        // the controller waits.
+                        reply_health(&client, &base, &publish.payload);
+                    } else if let Some(message) =
+                        parse_incoming(&base, &publish.topic, &publish.payload)
+                    {
                         let _ = tx.send(message);
                     }
                 }
@@ -190,4 +198,17 @@ fn parse_incoming(base: &str, topic: &str, payload: &[u8]) -> Option<IncomingMes
 
 pub fn transaction_of(payload: &Value) -> Option<&str> {
     payload.get("transaction").and_then(Value::as_str)
+}
+
+fn reply_health(client: &AsyncClient, base: &str, payload: &[u8]) {
+    let body = String::from_utf8_lossy(payload);
+    let value: Value = serde_json::from_str(&body).unwrap_or(Value::Null);
+    let mut response = json!({ "status": "ok" });
+    if let Some(transaction) = transaction_of(&value) {
+        response["transaction"] = json!(transaction);
+    }
+    let topic = format!("{base}/bridge/response/health/check");
+    if let Err(error) = client.try_publish(topic, QoS::AtLeastOnce, false, response.to_string()) {
+        warn!(error = %error, "health response publish failed");
+    }
 }

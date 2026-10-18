@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { deviceEventSchema } from './events.js'
-import { relayToClientEnvelopeSchema } from './relay.js'
+import { deviceEventSchema } from './events.ts'
+import { relayToClientEnvelopeSchema } from './relay.ts'
 
 const capabilityId = '6f1d7c6a-6a2e-4d0a-9c3e-3d6c1b9a4e21'
 const epoch = '2b7e1c4a-8f3d-4a6b-9c1e-5d8a7b6c4e32'
