@@ -748,7 +748,7 @@ mod tests {
             changes: Vec::new(),
         };
         gate.admit(&mut result, &reading, at(10), |_| None);
-        assert!(gate.recording_since.get(&id).is_none());
+        assert!(!gate.recording_since.contains_key(&id));
         assert!(gate.pending_bounds.is_empty());
     }
 
