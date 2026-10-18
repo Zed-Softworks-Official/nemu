@@ -36,7 +36,7 @@
         "husky": "^9.1.7",
         "lint-staged": "^16.4.0",
         "prettier": "^3.6.2",
-        "turbo": "^2.11.7",
+        "turbo": "^2.11.9",
         "typescript": "5.9.2"
     },
     "lint-staged": {
@@ -44,7 +44,7 @@
         "!(.agents)/**/*.{js,jsx,ts,tsx,json,css,html}": "biome check --write --no-errors-on-unmatched --files-ignore-unknown=true",
         "**/Dockerfile*": "bash scripts/hooks/hadolint.sh"
     },
-    "packageManager": "pnpm@12.11.2",
+    "packageManager": "pnpm@12.14.0",
     "engines": {
         "node": ">=18"
     }
