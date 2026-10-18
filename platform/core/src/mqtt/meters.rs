@@ -182,8 +182,11 @@ pub fn translate_zigbee(
     };
     let report = AdapterObservationReport {
         schema_version: None,
-        observation_id: Some(observation_id.clone()),
-        observed_at: Some(observed_at),
+        // The cursor keeps a retry identity for the adapter journal. The
+        // report itself stays untimed: this profile is not a History schema,
+        // so Core must not be handed an invented observation id or observed_at.
+        observation_id: None,
+        observed_at: None,
         time_trust,
         observations: readings
             .into_iter()
@@ -356,6 +359,8 @@ mod tests {
         let meter = translate("ieee-1", &plug(), None, at(10), false).unwrap();
         assert_eq!(meter.report.observations.len(), 4);
         assert_eq!(meter.report.schema_version, None);
+        assert_eq!(meter.report.observation_id, None);
+        assert_eq!(meter.report.observed_at, None);
         let power = meter
             .report
             .observations
@@ -397,19 +402,22 @@ mod tests {
     fn immediate_retry_keeps_the_observation_and_a_later_report_does_not() {
         let first = translate("ieee-1", &plug(), None, at(10), false).unwrap();
         let retry = translate("ieee-1", &plug(), Some(&first.cursor), at(11), false).unwrap();
-        assert_eq!(retry.report.observation_id, first.report.observation_id);
-        assert_eq!(retry.report.observed_at, first.report.observed_at);
+        assert_eq!(retry.report.observation_id, None);
+        assert_eq!(retry.cursor.observation_id, first.cursor.observation_id);
+        assert_eq!(retry.cursor.observed_at, first.cursor.observed_at);
         let later = translate("ieee-1", &plug(), Some(&first.cursor), at(20), false).unwrap();
-        assert_ne!(later.report.observation_id, first.report.observation_id);
-        assert_eq!(later.report.observed_at, Some(at(20)));
+        assert_ne!(later.cursor.observation_id, first.cursor.observation_id);
+        assert_eq!(later.cursor.observed_at, at(20));
     }
 
     #[test]
     fn retained_replay_keeps_the_original_envelope() {
         let first = translate("ieee-1", &plug(), None, at(10), true).unwrap();
         let replay = translate("ieee-1", &plug(), Some(&first.cursor), at(80), true).unwrap();
-        assert_eq!(replay.report.observation_id, first.report.observation_id);
-        assert_eq!(replay.report.observed_at, first.report.observed_at);
+        assert_eq!(replay.report.observation_id, None);
+        assert_eq!(replay.report.observed_at, None);
+        assert_eq!(replay.cursor.observation_id, first.cursor.observation_id);
+        assert_eq!(replay.cursor.observed_at, first.cursor.observed_at);
     }
 
     #[test]
@@ -480,8 +488,8 @@ mod tests {
         journal.remember_cursor("ieee-1", first.cursor.clone());
         let restored = ZigbeeJournal::parse(&journal.export());
         let replay = translate("ieee-1", &plug(), restored.cursor("ieee-1"), at(80), true).unwrap();
-        assert_eq!(replay.report.observation_id, first.report.observation_id);
-        assert_eq!(replay.report.observed_at, first.report.observed_at);
+        assert_eq!(replay.cursor.observation_id, first.cursor.observation_id);
+        assert_eq!(replay.cursor.observed_at, first.cursor.observed_at);
     }
 
     #[test]
@@ -502,7 +510,8 @@ mod tests {
         assert_eq!(live.report.time_trust, TimeTrust::Trustworthy);
         let replay = translate("ieee-1", &plug(), Some(&live.cursor), at(80), true).unwrap();
         assert_eq!(replay.report.time_trust, TimeTrust::Trustworthy);
-        assert_eq!(replay.report.observation_id, live.report.observation_id);
+        assert_eq!(replay.report.observation_id, None);
+        assert_eq!(replay.cursor.observation_id, live.cursor.observation_id);
 
         let legacy = translate("ieee-1", &plug(), None, at(10), true).unwrap();
         assert_eq!(legacy.report.time_trust, TimeTrust::Untrustworthy);
@@ -586,16 +595,17 @@ mod tests {
             reading_value(&load_meter, CapabilityKind::ImportedEnergy),
             15_260
         );
+        assert_eq!(load_meter.report.observation_id, None);
         assert_ne!(
-            load_meter.report.observation_id,
-            idle_meter.report.observation_id
+            load_meter.cursor.observation_id,
+            idle_meter.cursor.observation_id
         );
         let replay = translate("plug-1", &load, Some(&load_meter.cursor), at(31), true).unwrap();
         assert_eq!(
-            replay.report.observation_id,
-            load_meter.report.observation_id
+            replay.cursor.observation_id,
+            load_meter.cursor.observation_id
         );
-        assert_eq!(replay.report.observed_at, load_meter.report.observed_at);
+        assert_eq!(replay.cursor.observed_at, load_meter.cursor.observed_at);
 
         let state = CurrentState::new(StateEpoch::new());
         let registered = load_meter

@@ -121,6 +121,11 @@ impl HistoryGate {
                     HistoryAdmissionOutcome::Rejected(HistoryRejection::UnsupportedSchemaVersion);
                 continue;
             };
+            if schema_version != 1 {
+                outcome.history =
+                    HistoryAdmissionOutcome::Rejected(HistoryRejection::UnsupportedSchemaVersion);
+                continue;
+            }
             let Some(observation_id) = report.observation_id.clone() else {
                 outcome.history =
                     HistoryAdmissionOutcome::Rejected(HistoryRejection::MissingObservationId);
@@ -386,8 +391,8 @@ mod tests {
     use super::*;
     use crate::capabilities::{
         Availability, CapabilityKind, CapabilityObservation, CapabilityReading, CapabilityReport,
-        CurrentState, CurrentStateDisposition, DeviceIdentity, NumericValue, PhysicalScope,
-        RegisteredCapability, StateEpoch,
+        CurrentState, CurrentStateDisposition, DeviceIdentity, IngestResult, NumericValue,
+        ObservationOutcome, PhysicalScope, RegisteredCapability, StateEpoch,
     };
 
     fn at(second: i64) -> DateTime<Utc> {
@@ -440,6 +445,34 @@ mod tests {
         let mut result = state.ingest(report.clone(), received_at);
         gate.admit(&mut result, &report, received_at, |id| state.registered(id));
         result
+    }
+
+    #[test]
+    fn non_current_schema_is_not_queued_even_if_marked_eligible() {
+        let id = CapabilityId::from_uuid(Uuid::from_u128(1));
+        let registered = capability(id, CapabilityKind::Power, 60);
+        let state = CurrentState::new(StateEpoch::from_uuid(Uuid::from_u128(9)));
+        let device = registered.declaration.identity.device.clone();
+        state.reconcile_manifest(&device, vec![registered], at(0));
+        let mut report = report("obs-future", 10, id, CapabilityKind::Power, 100, None);
+        report.schema_version = Some(2);
+        let mut result = IngestResult {
+            outcomes: vec![ObservationOutcome {
+                capability_id: id,
+                current: CurrentStateDisposition::Changed,
+                history: HistoryAdmissionOutcome::Eligible,
+            }],
+            changes: Vec::new(),
+        };
+        let mut gate = HistoryGate::new(8);
+        gate.admit(&mut result, &report, at(20), |capability_id| {
+            state.registered(capability_id)
+        });
+        assert_eq!(
+            result.outcomes[0].history,
+            HistoryAdmissionOutcome::Rejected(HistoryRejection::UnsupportedSchemaVersion)
+        );
+        assert_eq!(gate.queued, 0);
     }
 
     #[test]

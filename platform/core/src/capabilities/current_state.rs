@@ -209,6 +209,10 @@ impl CurrentState {
                 {
                     CurrentStateDisposition::Older
                 }
+                // An incompatible report has no observed_at. It can refresh a
+                // current value that also has no time, but it cannot replace a
+                // timed value or clear that timestamp.
+                (Some(_), None) => CurrentStateDisposition::Older,
                 _ => apply_observation(
                     self.epoch,
                     &mut inner,
@@ -826,6 +830,88 @@ mod tests {
             outcome.outcomes[0].history,
             HistoryAdmissionOutcome::Rejected(HistoryRejection::MissingObservationId)
         );
+    }
+
+    #[test]
+    fn untimed_report_does_not_replace_a_timed_current_value() {
+        let capability_id = id(31);
+        let state = CurrentState::new(StateEpoch::from_uuid(Uuid::from_u128(99)));
+        state.reconcile_manifest(
+            &device("matter", "plug-1"),
+            vec![capability(capability_id, "matter", "plug-1", 60_000)],
+            at(0),
+        );
+        state.ingest(
+            report(
+                Some("observation-1"),
+                10,
+                TimeTrust::Trustworthy,
+                vec![observation(capability_id, 100)],
+            ),
+            at(11),
+        );
+
+        let mut untimed = report(
+            None,
+            20,
+            TimeTrust::Untrustworthy,
+            vec![observation(capability_id, 200)],
+        );
+        untimed.schema_version = None;
+        untimed.observation_id = None;
+        untimed.observed_at = None;
+        let outcome = state.ingest(untimed, at(30));
+
+        assert!(outcome.changes.is_empty());
+        assert_eq!(outcome.outcomes[0].current, CurrentStateDisposition::Older);
+        assert_eq!(
+            outcome.outcomes[0].history,
+            HistoryAdmissionOutcome::Rejected(HistoryRejection::UnsupportedSchemaVersion)
+        );
+        let current = &state.snapshot().capabilities[0];
+        assert_eq!(current.value.as_ref().unwrap().value(), 100);
+        assert_eq!(current.observed_at, Some(at(10)));
+    }
+
+    #[test]
+    fn untimed_report_updates_current_state_that_has_no_time() {
+        let capability_id = id(32);
+        let state = CurrentState::new(StateEpoch::from_uuid(Uuid::from_u128(99)));
+        state.reconcile_manifest(
+            &device("zigbee", "plug-1"),
+            vec![capability(capability_id, "zigbee", "plug-1", 60_000)],
+            at(0),
+        );
+
+        let mut first = report(
+            None,
+            10,
+            TimeTrust::Untrustworthy,
+            vec![observation(capability_id, 100)],
+        );
+        first.schema_version = None;
+        first.observation_id = None;
+        first.observed_at = None;
+        let opened = state.ingest(first, at(11));
+        assert_eq!(opened.outcomes[0].current, CurrentStateDisposition::Changed);
+
+        let mut second = report(
+            None,
+            20,
+            TimeTrust::Untrustworthy,
+            vec![observation(capability_id, 200)],
+        );
+        second.schema_version = None;
+        second.observation_id = None;
+        second.observed_at = None;
+        let updated = state.ingest(second, at(12));
+        assert_eq!(
+            updated.outcomes[0].current,
+            CurrentStateDisposition::Changed
+        );
+        let current = &state.snapshot().capabilities[0];
+        assert_eq!(current.value.as_ref().unwrap().value(), 200);
+        assert_eq!(current.observed_at, None);
     }
 
     #[test]

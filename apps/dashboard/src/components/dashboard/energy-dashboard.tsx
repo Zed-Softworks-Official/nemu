@@ -117,7 +117,7 @@ export function EnergyDashboard() {
         )
     }
 
-    if (!devices || (!view && status.mode !== 'offline')) {
+    if (!devices) {
         return <EnergySkeleton />
     }
 
