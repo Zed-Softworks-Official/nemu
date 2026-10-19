@@ -5,6 +5,7 @@ use serde::Serialize;
 use crate::api::auth::AuthenticatedClient;
 use crate::api::error::{ApiError, ApiResult};
 use crate::api::members::require_owner;
+use crate::audit::{self, AuditKind, AuditWrite};
 use crate::state::AppState;
 use crate::watchtower::unavailable_message;
 
@@ -61,6 +62,22 @@ pub async fn apply(
         tracing::warn!(error = %error, "watchtower apply failed");
         ApiError::service_unavailable("watchtower_unavailable", unavailable_message())
     })?;
+    if let Err(error) = audit::record(
+        &state.db,
+        AuditWrite {
+            kind: AuditKind::Update,
+            actor_user_id: auth.user_id,
+            summary: format!("started update from {}", env!("CARGO_PKG_VERSION")),
+            detail: serde_json::json!({
+                "action": "apply",
+                "version": env!("CARGO_PKG_VERSION"),
+            }),
+        },
+    )
+    .await
+    {
+        tracing::warn!(%error, "failed to record update audit");
+    }
 
     Ok(Json(ApplyUpdateResponse { started: true }))
 }

@@ -1,6 +1,20 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
+    audit_records (id) {
+        id -> Int8,
+        #[max_length = 64]
+        kind -> Varchar,
+        #[max_length = 255]
+        actor_user_id -> Nullable<Varchar>,
+        #[max_length = 512]
+        summary -> Varchar,
+        detail -> Jsonb,
+        created_at -> Timestamptz,
+    }
+}
+
+diesel::table! {
     capability_identities (id) {
         id -> Uuid,
         #[max_length = 16]
@@ -72,6 +86,24 @@ diesel::table! {
 }
 
 diesel::table! {
+    command_outcomes (command_id) {
+        #[max_length = 255]
+        command_id -> Varchar,
+        device_id -> Nullable<Uuid>,
+        payload -> Jsonb,
+        #[max_length = 32]
+        outcome -> Varchar,
+        #[max_length = 64]
+        error_code -> Nullable<Varchar>,
+        dispatch_expires_at -> Timestamptz,
+        retain_until -> Timestamptz,
+        claimed_at -> Nullable<Timestamptz>,
+        created_at -> Timestamptz,
+        updated_at -> Timestamptz,
+    }
+}
+
+diesel::table! {
     device_events (id) {
         id -> Int8,
         device_id -> Nullable<Uuid>,
@@ -100,6 +132,17 @@ diesel::table! {
         last_seen -> Nullable<Timestamptz>,
         #[max_length = 16]
         protocol -> Varchar,
+    }
+}
+
+diesel::table! {
+    diagnostic_events (id, received_at) {
+        id -> Uuid,
+        received_at -> Timestamptz,
+        #[max_length = 64]
+        kind -> Varchar,
+        device_id -> Nullable<Uuid>,
+        payload -> Jsonb,
     }
 }
 
@@ -152,17 +195,21 @@ diesel::table! {
 diesel::joinable!(capability_observation_keys -> capability_identities (capability_id));
 diesel::joinable!(capability_observations -> capability_identities (capability_id));
 diesel::joinable!(capability_recording_bounds -> capability_identities (capability_id));
+diesel::joinable!(command_outcomes -> devices (device_id));
 diesel::joinable!(device_events -> devices (device_id));
 diesel::joinable!(devices -> rooms (room_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
+    audit_records,
     capability_identities,
     capability_observation_keys,
     capability_observations,
     capability_recording_bounds,
     client_tokens,
+    command_outcomes,
     device_events,
     devices,
+    diagnostic_events,
     members,
     pairing_codes,
     rooms,

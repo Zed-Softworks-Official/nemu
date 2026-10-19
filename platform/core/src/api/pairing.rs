@@ -7,6 +7,7 @@ use uuid::Uuid;
 use crate::api::auth::AuthenticatedClient;
 use crate::api::error::{ApiError, ApiResult};
 use crate::api::members::{pair_member_session, require_owner};
+use crate::audit::{self, AuditKind, AuditWrite};
 use crate::pairing::codes::{consume_pairing_code, mint_pairing_code};
 use crate::pairing::members::count_members;
 use crate::pairing::tokens::{count_client_tokens, list_client_tokens, revoke_client_token};
@@ -219,6 +220,7 @@ pub async fn revoke_current_token(state: &AppState, auth: &AuthenticatedClient) 
         .await
         .map_err(ApiError::internal)?;
     if deleted {
+        record_revocation(state, auth, auth.token_id, &auth.label).await;
         Ok(())
     } else {
         Err(ApiError::not_found("not_found", "Token not found"))
@@ -251,8 +253,30 @@ pub async fn revoke_household_token(
         .map_err(ApiError::internal)?;
 
     if deleted {
+        record_revocation(state, auth, id, &target.label).await;
         Ok(())
     } else {
         Err(ApiError::not_found("not_found", "Token not found"))
+    }
+}
+
+async fn record_revocation(
+    state: &AppState,
+    auth: &AuthenticatedClient,
+    token_id: Uuid,
+    label: &str,
+) {
+    if let Err(error) = audit::record(
+        &state.db,
+        AuditWrite {
+            kind: AuditKind::AccessClientRevoked,
+            actor_user_id: auth.user_id.clone(),
+            summary: format!("revoked access client {label}"),
+            detail: serde_json::json!({ "action": "revoke", "tokenId": token_id, "label": label }),
+        },
+    )
+    .await
+    {
+        tracing::warn!(%error, "failed to record access client revocation");
     }
 }

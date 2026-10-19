@@ -658,6 +658,8 @@ pub enum HistoryRejection {
     InvalidCapability,
     AdmissionRate,
     QueueFull,
+    /// Observation time is older than that Capability kind's correction window.
+    Late,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

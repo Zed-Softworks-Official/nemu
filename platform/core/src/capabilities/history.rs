@@ -61,6 +61,20 @@ pub(super) struct HistoryGate {
     queued: usize,
 }
 
+/// Raw retention is the correction window. Older observations stay out of History.
+fn outside_correction_window(
+    kind: CapabilityKind,
+    observed_at: DateTime<Utc>,
+    received_at: DateTime<Utc>,
+) -> bool {
+    let window = match kind {
+        CapabilityKind::Power => Duration::hours(48),
+        CapabilityKind::ImportedEnergy | CapabilityKind::ExportedEnergy => Duration::days(7),
+        CapabilityKind::Voltage | CapabilityKind::Current => Duration::hours(24),
+    };
+    received_at.signed_duration_since(observed_at) > window
+}
+
 impl HistoryGate {
     pub(super) fn new(capacity: usize) -> Self {
         Self {
@@ -139,6 +153,10 @@ impl HistoryGate {
             let identity = (observation_id.clone(), outcome.capability_id);
             if self.queued_ids.contains(&identity) || self.inflight.contains(&identity) {
                 outcome.history = HistoryAdmissionOutcome::Rejected(HistoryRejection::ExactReplay);
+                continue;
+            }
+            if outside_correction_window(observation.kind, observed_at, received_at) {
+                outcome.history = HistoryAdmissionOutcome::Rejected(HistoryRejection::Late);
                 continue;
             }
             if !self.rate_allows(
@@ -473,6 +491,29 @@ mod tests {
             HistoryAdmissionOutcome::Rejected(HistoryRejection::UnsupportedSchemaVersion)
         );
         assert_eq!(gate.queued, 0);
+    }
+
+    #[test]
+    fn observation_outside_the_correction_window_is_rejected() {
+        let id = CapabilityId::from_uuid(Uuid::from_u128(21));
+        let registered = capability(id, CapabilityKind::Power, 60);
+        let state = CurrentState::new(StateEpoch::from_uuid(Uuid::from_u128(9)));
+        let device = registered.declaration.identity.device.clone();
+        state.reconcile_manifest(&device, vec![registered], at(0));
+        let mut gate = HistoryGate::new(8);
+        let received_at = at(10) + Duration::hours(48) + Duration::seconds(1);
+        let result = admit(
+            &mut gate,
+            &state,
+            report("late-1", 10, id, CapabilityKind::Power, 5, None),
+            received_at,
+        );
+        assert_eq!(
+            result.outcomes[0].history,
+            HistoryAdmissionOutcome::Rejected(HistoryRejection::Late)
+        );
+        assert_eq!(gate.queued, 0);
+        assert_eq!(result.outcomes[0].current, CurrentStateDisposition::Changed);
     }
 
     #[test]
@@ -866,7 +907,11 @@ mod tests {
             None,
         );
         ancient.observed_at = Some(at(631_152_000));
-        admit(&mut gate, &state, ancient, at(1_781_308_902));
+        let ancient_result = admit(&mut gate, &state, ancient, at(1_781_308_902));
+        assert_eq!(
+            ancient_result.outcomes[0].history,
+            HistoryAdmissionOutcome::Rejected(HistoryRejection::Late)
+        );
         let batch = gate.drain(8);
         let recording_since = batch
             .bounds
@@ -898,7 +943,7 @@ mod tests {
             .await
             .unwrap()
             .unwrap();
-        assert_eq!(rows.len(), 2);
+        assert_eq!(rows.len(), 1);
         let kept = rows
             .iter()
             .find(|row| row.observation_id == "obs-kept")
@@ -908,15 +953,7 @@ mod tests {
         assert_eq!(kept.received_at, at(1_781_308_900));
         assert_eq!(kept.reset, Some(true));
         assert!(kept.partition.contains("capability_observations_y2026"));
-        let ancient = rows
-            .iter()
-            .find(|row| row.observation_id == "obs-ancient")
-            .unwrap();
-        assert!(
-            ancient
-                .partition
-                .contains("capability_observations_default")
-        );
+        assert!(rows.iter().all(|row| row.observation_id != "obs-ancient"));
         assert_eq!(rows[0].recording_since, recording_since);
     }
 

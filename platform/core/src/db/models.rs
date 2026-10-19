@@ -67,14 +67,6 @@ pub struct UpdateDevice {
     pub updated_at: Option<DateTime<Utc>>,
 }
 
-#[derive(Debug, Insertable)]
-#[diesel(table_name = crate::db::schema::device_events)]
-pub struct NewDeviceEvent {
-    pub device_id: Option<Uuid>,
-    pub kind: String,
-    pub payload: JsonValue,
-}
-
 #[derive(Debug, Clone, Queryable, Selectable, Identifiable)]
 #[diesel(table_name = crate::db::schema::pairing_codes)]
 #[diesel(check_for_backend(diesel::pg::Pg))]

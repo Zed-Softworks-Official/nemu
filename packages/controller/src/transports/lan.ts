@@ -279,7 +279,9 @@ export class LanTransport implements ControllerTransport {
             return await this.sendViaWs(requestId, cmd)
         }
 
-        await this.http.post(`/api/devices/${cmd.deviceId}/set`, cmd.payload)
+        await this.http.post(`/api/devices/${cmd.deviceId}/set`, cmd.payload, {
+            headers: { 'x-command-id': requestId },
+        })
         return { requestId, ok: true }
     }
 

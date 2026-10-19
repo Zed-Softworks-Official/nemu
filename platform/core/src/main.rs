@@ -10,19 +10,23 @@ use tracing_subscriber::EnvFilter;
 const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
 
 mod api;
+mod audit;
 pub mod capabilities;
 mod commands;
 mod config;
 mod crypto;
 mod db;
 mod devices;
+pub mod diagnostics;
 mod events;
 mod identity;
+mod ledger;
 mod listen;
 mod mqtt;
 mod pairing;
 mod registration;
 mod relay;
+mod retention;
 mod state;
 mod tls;
 mod tls_sync;
@@ -135,6 +139,7 @@ async fn main() {
     let capabilities = Arc::new(CapabilityService::new(pool.clone(), history_pool));
     capabilities.spawn_freshness_loop();
     capabilities.spawn_history_loop();
+    retention::spawn(pool.clone());
 
     let state = AppState {
         db: pool,

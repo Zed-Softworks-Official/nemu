@@ -43,3 +43,4 @@ cargo test --locked \
 cargo test --locked \
     capabilities::history::tests::stores_one_row_per_observation_and_keeps_recording_since \
     -- --ignored --exact
+cargo test --locked -- --ignored command_audit_diagnostic_

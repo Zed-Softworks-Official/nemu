@@ -1,11 +1,14 @@
 use axum::Json;
 use axum::extract::{Path, Query, State};
+use axum::http::HeaderMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use uuid::Uuid;
 
+use crate::api::auth::AuthenticatedClient;
 use crate::api::error::{ApiError, ApiResult};
-use crate::commands::{CommandError, execute_set};
+use crate::audit::{self, AuditKind, AuditWrite};
+use crate::commands::{COMMAND_ID_HEADER, CommandError, execute_set};
 use crate::db::models::UpdateDevice;
 use crate::events::DeviceResource;
 use crate::state::AppState;
@@ -135,6 +138,7 @@ pub async fn patch_device(
 
 pub async fn delete_device(
     State(state): State<AppState>,
+    auth: AuthenticatedClient,
     Path(id): Path<String>,
 ) -> ApiResult<axum::http::StatusCode> {
     let device_id = parse_device_id(&id)?;
@@ -159,6 +163,22 @@ pub async fn delete_device(
         .registry
         .mark_left(&state, protocol, &existing.external_id)
         .await;
+    if let Err(error) = audit::record(
+        &state.db,
+        AuditWrite {
+            kind: AuditKind::DeviceRemoval,
+            actor_user_id: auth.user_id,
+            summary: format!("removed device {device_id}"),
+            detail: serde_json::json!({
+                "deviceId": device_id,
+                "protocol": protocol.as_str(),
+            }),
+        },
+    )
+    .await
+    {
+        tracing::warn!(%error, "failed to record device removal");
+    }
 
     Ok(axum::http::StatusCode::NO_CONTENT)
 }
@@ -209,10 +229,18 @@ pub async fn patch_outlet(
 pub async fn set_device(
     State(state): State<AppState>,
     Path(id): Path<String>,
+    headers: HeaderMap,
     Json(payload): Json<JsonValue>,
 ) -> ApiResult<Json<StatusOk>> {
     let device_id = parse_device_id(&id)?;
-    execute_set(&state, device_id, payload)
+    let command_id = headers
+        .get(COMMAND_ID_HEADER)
+        .and_then(|value| value.to_str().ok())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(|| Uuid::new_v4().to_string());
+    execute_set(&state, &command_id, device_id, payload)
         .await
         .map_err(command_to_api)?;
     Ok(Json(StatusOk { ok: true }))
@@ -230,7 +258,12 @@ fn parse_device_id(id: &str) -> ApiResult<Uuid> {
 fn command_to_api(err: CommandError) -> ApiError {
     match err {
         CommandError::DeviceNotFound => ApiError::not_found(err.code(), err.to_string()),
+        CommandError::Unavailable | CommandError::Unconfirmed | CommandError::Failed(_) => {
+            ApiError::conflict(err.code(), err.to_string())
+        }
         CommandError::Mqtt(msg) => ApiError::service_unavailable("mqtt_error", msg),
+        CommandError::InvalidId => ApiError::bad_request(err.code(), err.to_string()),
+        CommandError::Store(msg) => ApiError::internal(msg),
     }
 }
 

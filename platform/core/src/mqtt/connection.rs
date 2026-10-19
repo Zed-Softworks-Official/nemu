@@ -16,7 +16,7 @@ use crate::capabilities::{
 };
 use crate::config::{BridgeConfig, Config, Protocol};
 use crate::db::models::Device;
-use crate::devices::registry::log_event;
+use crate::diagnostics::{self, DiagnosticKind, DiagnosticWrite};
 use crate::events::{DeviceEvent, InterviewStatus};
 use crate::identity::{read_setting, write_setting};
 
@@ -624,6 +624,7 @@ async fn handle_publish(
                 state.state_cache.set_online(device.id, online);
                 if online {
                     state.registry.touch_last_seen(&state.db, device.id).await;
+                    crate::commands::resume_pending(state, &device).await;
                 } else {
                     let capability_device = DeviceIdentity {
                         protocol: protocol.as_str().into(),
@@ -778,13 +779,23 @@ async fn handle_device_state(
     state.state_cache.set_online(device.id, true);
     state.registry.touch_last_seen(&state.db, device.id).await;
 
-    let _ = log_event(
+    if let Err(error) = diagnostics::record(
         &state.db,
-        Some(device.id),
-        "state",
-        json!({ "state": published }),
+        DiagnosticWrite {
+            kind: DiagnosticKind::AdapterEvent,
+            device_id: Some(device.id),
+            payload: json!({ "state": published }),
+            received_at: Utc::now(),
+        },
     )
-    .await;
+    .await
+    {
+        warn!(%error, "failed to record adapter diagnostic");
+    }
+    if !retained {
+        crate::commands::confirm_device(state, device.id).await;
+    }
+    crate::commands::resume_pending(state, &device).await;
 
     state.emit(DeviceEvent::DeviceState {
         device_id: device.id.to_string(),

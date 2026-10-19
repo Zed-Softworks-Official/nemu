@@ -2,9 +2,11 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
+use serde_json::json;
 use thiserror::Error;
-use tokio::sync::broadcast;
+use tokio::sync::{broadcast, mpsc};
 
+use crate::diagnostics::{self, DiagnosticKind, DiagnosticWrite};
 use crate::state::DbPool;
 
 use std::collections::HashMap;
@@ -14,7 +16,8 @@ use super::{
     AdapterCapabilityManifest, AdapterEnvelopeError, AdapterObservationReport, Admission,
     CapabilityChange, CapabilityReport, CapabilityReportValidationError, CapabilityRepository,
     CapabilitySnapshot, CapabilityStoreError, CompleteCapabilityManifest, CurrentState,
-    DeviceIdentity, IngestResult, RegisteredCapability, StateEpoch, UnavailableReason,
+    CurrentStateDisposition, DeviceIdentity, HistoryAdmissionOutcome, HistoryRejection,
+    IngestResult, ObservationOutcome, RegisteredCapability, StateEpoch, UnavailableReason,
     resolve_adapter_report,
 };
 
@@ -31,10 +34,13 @@ pub struct CapabilityService {
     manifests: Mutex<HashMap<DeviceIdentity, CachedManifest>>,
     history: Arc<Mutex<super::history::HistoryGate>>,
     history_store: super::history::HistoryRepository,
+    diagnostic_tx: mpsc::Sender<DiagnosticWrite>,
 }
 
 impl CapabilityService {
     pub fn new(pool: DbPool, history_pool: DbPool) -> Self {
+        let (diagnostic_tx, diagnostic_rx) = mpsc::channel(diagnostics::QUEUE_CAPACITY);
+        diagnostics::spawn_writer(pool.clone(), diagnostic_rx);
         Self {
             repository: CapabilityRepository::new(pool),
             current: Arc::new(CurrentState::new(StateEpoch::new())),
@@ -43,6 +49,7 @@ impl CapabilityService {
                 super::history::HISTORY_QUEUE_CAPACITY,
             ))),
             history_store: super::history::HistoryRepository::new(history_pool),
+            diagnostic_tx,
         }
     }
 
@@ -176,6 +183,9 @@ impl CapabilityService {
             received_at,
             |id| self.current.registered(id),
         );
+        for write in diagnostic_writes(&result.outcomes, received_at) {
+            let _ = self.diagnostic_tx.try_send(write);
+        }
         Ok(result)
     }
 
@@ -231,6 +241,44 @@ impl CapabilityService {
     }
 }
 
+pub(crate) fn diagnostic_writes(
+    outcomes: &[ObservationOutcome],
+    received_at: DateTime<Utc>,
+) -> Vec<DiagnosticWrite> {
+    let mut writes = Vec::new();
+    for outcome in outcomes {
+        let mut kinds = Vec::new();
+        if outcome.current == CurrentStateDisposition::InvalidValue {
+            kinds.push(DiagnosticKind::InvalidValue);
+        }
+        match outcome.history {
+            HistoryAdmissionOutcome::Rejected(HistoryRejection::UnsupportedSchemaVersion) => {
+                kinds.push(DiagnosticKind::IncompatibleReport);
+            }
+            HistoryAdmissionOutcome::Rejected(HistoryRejection::AdmissionRate) => {
+                kinds.push(DiagnosticKind::RateRejection);
+            }
+            HistoryAdmissionOutcome::Rejected(HistoryRejection::Late) => {
+                kinds.push(DiagnosticKind::LateHistoryRejection);
+            }
+            _ => {}
+        }
+        for kind in kinds {
+            writes.push(DiagnosticWrite {
+                kind,
+                device_id: None,
+                payload: json!({
+                    "capabilityId": outcome.capability_id,
+                    "current": outcome.current,
+                    "history": outcome.history,
+                }),
+                received_at,
+            });
+        }
+    }
+    writes
+}
+
 #[derive(Debug, Error)]
 pub enum CapabilityServiceError {
     #[error(transparent)]
@@ -243,4 +291,68 @@ pub enum CapabilityServiceError {
     Adapter(#[from] AdapterEnvelopeError),
     #[error("Capability manifest is not registered")]
     UnregisteredManifest,
+}
+
+#[cfg(test)]
+mod tests {
+    use chrono::Utc;
+    use uuid::Uuid;
+
+    use super::*;
+    use crate::capabilities::CapabilityId;
+
+    #[test]
+    fn diagnostics_cover_invalid_incompatible_rate_and_late_history() {
+        let id = CapabilityId::from_uuid(Uuid::nil());
+        let outcomes = vec![
+            note(
+                id,
+                CurrentStateDisposition::InvalidValue,
+                HistoryAdmissionOutcome::Rejected(HistoryRejection::InvalidCapability),
+            ),
+            note(
+                id,
+                CurrentStateDisposition::Changed,
+                HistoryAdmissionOutcome::Rejected(HistoryRejection::UnsupportedSchemaVersion),
+            ),
+            note(
+                id,
+                CurrentStateDisposition::Changed,
+                HistoryAdmissionOutcome::Rejected(HistoryRejection::AdmissionRate),
+            ),
+            note(
+                id,
+                CurrentStateDisposition::Changed,
+                HistoryAdmissionOutcome::Rejected(HistoryRejection::Late),
+            ),
+            note(
+                id,
+                CurrentStateDisposition::Changed,
+                HistoryAdmissionOutcome::Eligible,
+            ),
+        ];
+        let writes = diagnostic_writes(&outcomes, Utc::now());
+        let kinds: Vec<_> = writes.iter().map(|write| write.kind).collect();
+        assert_eq!(
+            kinds,
+            vec![
+                DiagnosticKind::InvalidValue,
+                DiagnosticKind::IncompatibleReport,
+                DiagnosticKind::RateRejection,
+                DiagnosticKind::LateHistoryRejection,
+            ]
+        );
+    }
+
+    fn note(
+        capability_id: CapabilityId,
+        current: CurrentStateDisposition,
+        history: HistoryAdmissionOutcome,
+    ) -> ObservationOutcome {
+        ObservationOutcome {
+            capability_id,
+            current,
+            history,
+        }
+    }
 }

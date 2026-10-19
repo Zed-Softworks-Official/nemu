@@ -370,7 +370,7 @@ async fn handle_message(
             ref payload,
         } => {
             let result = match Uuid::parse_str(device_id) {
-                Ok(id) => execute_set(state, id, payload.clone()).await,
+                Ok(id) => execute_set(state, &message.request_id, id, payload.clone()).await,
                 Err(_) => Err(crate::commands::CommandError::DeviceNotFound),
             };
             match result {

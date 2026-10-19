@@ -137,7 +137,7 @@ async fn handle_client_text(
             payload,
         } => {
             let result = match Uuid::parse_str(&device_id) {
-                Ok(id) => execute_set(state, id, payload).await,
+                Ok(id) => execute_set(state, &request_id, id, payload).await,
                 Err(_) => Err(crate::commands::CommandError::DeviceNotFound),
             };
 
