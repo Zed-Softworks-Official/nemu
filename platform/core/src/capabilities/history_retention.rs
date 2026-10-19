@@ -1713,6 +1713,114 @@ mod tests {
     }
 
     #[test]
+    fn crash_restart_resumes_unverified_rollup_and_partition_deletion() {
+        let range = verified_raw_range();
+        let now = range.end + Duration::hours(48) + Duration::seconds(1);
+        let verified_rollup = raw_verified(&range);
+        let buckets: Vec<RollupBucket> = verified_rollup
+            .iter()
+            .map(|row| RollupBucket {
+                resolution: row.resolution,
+                start: row.range_start,
+                end: row.range_end,
+            })
+            .collect();
+        assert!(!buckets.is_empty());
+        assert_eq!(
+            rollup_rerun(&[], range.capability_id, range.kind, &buckets),
+            RollupRerun::Recompute
+        );
+        let unverified_rollup: Vec<Checkpoint> = verified_rollup
+            .iter()
+            .copied()
+            .map(|row| Checkpoint {
+                verified: false,
+                ..row
+            })
+            .collect();
+        assert_eq!(
+            rollup_rerun(
+                &unverified_rollup,
+                range.capability_id,
+                range.kind,
+                &buckets
+            ),
+            RollupRerun::Recompute
+        );
+        assert_eq!(
+            rollup_rerun(&verified_rollup, range.capability_id, range.kind, &buckets),
+            RollupRerun::Noop
+        );
+
+        assert_eq!(
+            plan_drops(900, 1_000, false, now, &[range], &verified_rollup),
+            vec![CleanupAction::DropRange(range)]
+        );
+        let mut checkpoints = verified_rollup.clone();
+        let cleanup = Checkpoint {
+            capability_id: range.capability_id,
+            kind: range.kind,
+            step: RetentionStep::Cleanup,
+            resolution: Resolution::Raw,
+            range_start: range.start,
+            range_end: range.end,
+            verified: false,
+        };
+        upsert_checkpoint(&mut checkpoints, cleanup);
+        assert_eq!(checkpoints.len(), verified_rollup.len() + 1);
+        assert_eq!(
+            plan_drops(900, 1_000, false, now, &[range], &checkpoints),
+            vec![CleanupAction::DropRange(range)]
+        );
+        upsert_checkpoint(
+            &mut checkpoints,
+            Checkpoint {
+                verified: true,
+                ..cleanup
+            },
+        );
+        assert_eq!(checkpoints.len(), verified_rollup.len() + 1);
+        assert!(rerun_is_noop(
+            &checkpoints,
+            checkpoints.last().expect("cleanup checkpoint")
+        ));
+        assert!(plan_drops(900, 1_000, false, now, &[range], &checkpoints).is_empty());
+
+        let older = DiagnosticPartition {
+            name: "diagnostic_events_2026010100".to_string(),
+            range_end: now - Duration::hours(50),
+            bytes: 10,
+        };
+        let newer = DiagnosticPartition {
+            name: "diagnostic_events_2026010101".to_string(),
+            range_end: now - Duration::hours(49),
+            bytes: 10,
+        };
+        let kept = DiagnosticPartition {
+            name: "diagnostic_events_2026010200".to_string(),
+            range_end: now,
+            bytes: 10,
+        };
+        let history = DiagnosticPartition {
+            name: "capability_observations_y2026".to_string(),
+            range_end: now - Duration::days(30),
+            bytes: MAX_BYTES,
+        };
+        assert_eq!(
+            diagnostic_partitions_to_prune(
+                &[history.clone(), older.clone(), newer.clone(), kept.clone()],
+                now
+            ),
+            vec![older.name.clone(), newer.name.clone()]
+        );
+        assert_eq!(
+            diagnostic_partitions_to_prune(&[newer.clone(), kept.clone()], now),
+            vec![newer.name.clone()]
+        );
+        assert!(diagnostic_partitions_to_prune(&[kept, history], now).is_empty());
+    }
+
+    #[test]
     fn planner_refuses_to_drop_fine_tier_until_next_resolution_is_verified() {
         let capability_id = Uuid::from_u128(7);
         let raw = HistoryRange {

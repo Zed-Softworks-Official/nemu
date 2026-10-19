@@ -627,21 +627,32 @@ pub(super) fn spawn_loop(gate: Arc<Mutex<HistoryGate>>, store: HistoryRepository
                     tracing::warn!(%error, "capability history flush failed");
                     let onset = {
                         let mut gate = gate.lock().expect("history gate poisoned");
-                        gate.requeue(batch);
-                        gate.note_storage(Utc::now())
+                        requeue_after_storage_outage(&mut gate, batch, Utc::now())
                     };
-                    if let Err(error) = journal
-                        .lock()
-                        .expect("admission journal poisoned")
-                        .open_provisional(GapReason::StorageFailure, GapScope::Home, onset)
-                    {
-                        tracing::warn!(%error, "history storage-failure journal failed");
-                    }
+                    note_storage_outage(
+                        &mut journal.lock().expect("admission journal poisoned"),
+                        onset,
+                    );
                 }
             }
             reconcile_journal(&journal, &store).await;
         }
     });
+}
+
+fn requeue_after_storage_outage(
+    gate: &mut HistoryGate,
+    batch: HistoryBatch,
+    now: DateTime<Utc>,
+) -> DateTime<Utc> {
+    gate.requeue(batch);
+    gate.note_storage(now)
+}
+
+fn note_storage_outage(journal: &mut AdmissionJournal, onset: DateTime<Utc>) {
+    if let Err(error) = journal.open_provisional(GapReason::StorageFailure, GapScope::Home, onset) {
+        tracing::warn!(%error, "history storage-failure journal failed");
+    }
 }
 
 fn apply_journal_signals(journal: &Mutex<AdmissionJournal>, signals: JournalSignals) {
@@ -1100,6 +1111,59 @@ mod tests {
         assert_eq!(gate.queued, 1);
         assert_eq!(gate.drain(8).observations[0].observation_id, "obs-1");
         assert_eq!(gate.recording_since[&id], at(10));
+    }
+
+    #[test]
+    fn postgres_outage_requeues_the_batch_and_opens_a_home_gap() {
+        let id = CapabilityId::from_uuid(Uuid::from_u128(37));
+        let registered = capability(id, CapabilityKind::Power, 60);
+        let state = CurrentState::new(StateEpoch::from_uuid(Uuid::from_u128(9)));
+        let device = registered.declaration.identity.device.clone();
+        state.reconcile_manifest(&device, vec![registered], at(0));
+        let mut gate = HistoryGate::new(8);
+        admit(
+            &mut gate,
+            &state,
+            report("obs-outage", 10, id, CapabilityKind::Power, 5, None),
+            at(10),
+        );
+        let batch = gate.drain(8);
+        assert_eq!(gate.queued, 0);
+        let mut journal = AdmissionJournal::open_in_memory().unwrap();
+        let onset = requeue_after_storage_outage(&mut gate, batch, at(30));
+        note_storage_outage(&mut journal, onset);
+        assert_eq!(onset, at(30));
+        assert_eq!(gate.storage_since, Some(at(30)));
+        assert_eq!(gate.queued, 1);
+        assert_eq!(journal.provisional().len(), 1);
+        assert_eq!(journal.provisional()[0].reason, GapReason::StorageFailure);
+        assert_eq!(journal.provisional()[0].scope, GapScope::Home);
+        assert_eq!(journal.provisional()[0].onset, at(30));
+        assert_eq!(
+            journal.gap_accounting(),
+            admission_journal::GapAccounting::Certain
+        );
+
+        let again = gate.drain(8);
+        let later = requeue_after_storage_outage(&mut gate, again, at(40));
+        note_storage_outage(&mut journal, later);
+        assert_eq!(later, at(30));
+        assert_eq!(journal.provisional().len(), 1);
+        assert_eq!(journal.provisional()[0].onset, at(30));
+
+        let batch = gate.drain(8);
+        let mut failed = AdmissionJournal::open_in_memory().unwrap();
+        failed.fail_next_write();
+        let onset = requeue_after_storage_outage(&mut gate, batch, at(50));
+        note_storage_outage(&mut failed, onset);
+        assert_eq!(onset, at(30));
+        assert_eq!(gate.queued, 1);
+        assert_eq!(gate.drain(8).observations[0].observation_id, "obs-outage");
+        assert!(failed.provisional().is_empty());
+        assert_eq!(
+            failed.gap_accounting(),
+            admission_journal::GapAccounting::Uncertain
+        );
     }
 
     #[test]
