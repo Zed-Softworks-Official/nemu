@@ -867,6 +867,12 @@ async fn handle_capability_manifest(
     {
         return Err("Capability manifest device does not match the topic".into());
     }
+    // Matter republishes this manifest when it receives capability IDs.
+    // Publishing IDs again for an unchanged manifest loops forever and
+    // starves device commands.
+    if !should_publish_capability_ids(adapter_manifests.get(&key), &manifest) {
+        return Ok(());
+    }
     let received_at = Utc::now();
     let registered = state
         .capabilities
@@ -931,6 +937,13 @@ async fn handle_capability_observations(
     Ok(())
 }
 
+fn should_publish_capability_ids(
+    cached: Option<&AdapterCapabilityManifest>,
+    next: &AdapterCapabilityManifest,
+) -> bool {
+    cached != Some(next)
+}
+
 fn without_meter_report(mut value: JsonValue) -> JsonValue {
     strip_meter_fields(&mut value);
     value
@@ -954,7 +967,23 @@ fn strip_meter_fields(value: &mut JsonValue) {
 mod tests {
     use serde_json::json;
 
-    use super::without_meter_report;
+    use super::{should_publish_capability_ids, without_meter_report};
+    use crate::capabilities::AdapterCapabilityManifest;
+
+    #[test]
+    fn unchanged_capability_manifest_is_not_published_again() {
+        let manifest = AdapterCapabilityManifest {
+            schema_version: 1,
+            supported_observation_envelope_versions: vec![1],
+            device: crate::capabilities::DeviceIdentity {
+                protocol: "matter".into(),
+                external_id: "2".into(),
+            },
+            capabilities: Vec::new(),
+        };
+        assert!(should_publish_capability_ids(None, &manifest));
+        assert!(!should_publish_capability_ids(Some(&manifest), &manifest));
+    }
 
     #[test]
     fn device_state_report_omits_meter_readings() {

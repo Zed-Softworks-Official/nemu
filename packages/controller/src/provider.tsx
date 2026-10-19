@@ -86,6 +86,8 @@ export type ControllerProviderProps = {
     controllerId?: string | null
     /** Auto-start connection manager (default true). */
     autoStart?: boolean
+    /** False until Convex has a user token. Local discovery still runs. */
+    relayAllowed?: boolean
 }
 
 export function ControllerProvider({
@@ -95,7 +97,11 @@ export function ControllerProvider({
     lanCandidates,
     controllerId,
     autoStart = true,
+    relayAllowed = true,
 }: ControllerProviderProps) {
+    const relayAllowedRef = useRef(relayAllowed)
+    const relayWasAllowed = useRef(relayAllowed)
+    relayAllowedRef.current = relayAllowed
     const connection = useMemo(
         () =>
             new ControllerConnection({
@@ -103,6 +109,7 @@ export function ControllerProvider({
                 relayApi,
                 lanCandidates,
                 controllerId,
+                relayAllowed: () => relayAllowedRef.current,
             }),
         [convex, relayApi, lanCandidates, controllerId]
     )
@@ -121,6 +128,14 @@ export function ControllerProvider({
             connection.stop()
         }
     }, [connection, autoStart])
+
+    useEffect(() => {
+        const becameAllowed = relayAllowed && !relayWasAllowed.current
+        relayWasAllowed.current = relayAllowed
+        if (!autoStart || !becameAllowed) return
+        if (connection.getStatus().mode !== 'offline') return
+        void connection.reprobe()
+    }, [connection, autoStart, relayAllowed])
 
     const reprobe = useCallback(() => connection.reprobe(), [connection])
     const getDevices = useCallback(() => connection.getDevices(), [connection])

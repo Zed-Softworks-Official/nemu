@@ -48,6 +48,11 @@ export type ControllerConnectionOptions = {
     reprobeIntervalMs?: number
     /** Manual controller id when identify isn't available yet. */
     controllerId?: string | null
+    /**
+     * When set, relay is skipped until this returns true. The local socket
+     * still connects. Callers use it so `relay:send` waits for Convex auth.
+     */
+    relayAllowed?: () => boolean
 }
 
 type StatusListener = (status: ConnectionStatus) => void
@@ -447,6 +452,10 @@ export class ControllerConnection {
         const controllerId =
             this.options.controllerId ?? getRememberedControllerId()
         const token = getClientToken()
+
+        if (this.options.relayAllowed && !this.options.relayAllowed()) {
+            return false
+        }
 
         if (!convex || !relayApi || !controllerId || !token) {
             return false

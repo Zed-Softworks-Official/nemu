@@ -5,6 +5,7 @@ import {
     api,
     ConvexProviderWithClerk,
     ConvexReactClient,
+    useConvexAuth,
     useQuery,
 } from '@nemu/cloud'
 import {
@@ -37,6 +38,7 @@ export function NemuProvider(props: { children: React.ReactNode }) {
 
 function PairedControllerProvider(props: { children: React.ReactNode }) {
     const { isSignedIn } = useAuth()
+    const { isAuthenticated } = useConvexAuth()
     const mine = useQuery(api.controllers.listMine, isSignedIn ? {} : 'skip')
     const lanCandidates = useMemo(
         () =>
@@ -50,6 +52,7 @@ function PairedControllerProvider(props: { children: React.ReactNode }) {
         <ControllerProvider
             convex={convex}
             lanCandidates={lanCandidates}
+            relayAllowed={isAuthenticated}
             relayApi={relayApi}
         >
             {props.children}

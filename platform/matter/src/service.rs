@@ -10,7 +10,9 @@ use matter_controller::{
 use serde_json::{Map, Value as JsonValue, json};
 use tracing::{info, warn};
 
-use crate::adopt::{AdoptStore, ble_recover_node_ids, node_ids_from_mdns_error, unique_front};
+use crate::adopt::{
+    AdoptStore, ble_recover_node_ids, foreign_fabric_only, node_ids_from_mdns_error, unique_front,
+};
 use crate::codec::{empty_structure, unsigned_fields, value_to_json};
 use crate::config::Config;
 use crate::mapping::{
@@ -285,8 +287,9 @@ impl MatterService {
                             self.apply_attribute_change(message).await;
                         }
                         IncomingMessage::CapabilityIds { device_id, payload } => {
-                            self.store_capability_ids(&device_id, &payload);
-                            self.publish_state(&device_id, false).await;
+                            if self.store_capability_ids(&device_id, &payload) {
+                                self.publish_state(&device_id, false).await;
+                            }
                         }
                     }
                 }
@@ -1020,12 +1023,13 @@ impl MatterService {
             observed_at: stamp.observed_at,
             observation_id: stamp.observation_id,
         };
-        if previous.as_ref() != Some(&published) {
-            self.meter_identities
-                .lock()
-                .expect("meter identity store poisoned")
-                .insert(id, published);
+        if previous.as_ref() == Some(&published) {
+            return;
         }
+        self.meter_identities
+            .lock()
+            .expect("meter identity store poisoned")
+            .insert(id, published);
         self.mqtt
             .publish_json(&format!("{id}/capabilities"), &publication.manifest, true)
             .await;
@@ -1034,15 +1038,20 @@ impl MatterService {
             .await;
     }
 
-    fn store_capability_ids(&self, device_id: &str, payload: &JsonValue) {
+    fn store_capability_ids(&self, device_id: &str, payload: &JsonValue) -> bool {
         let assigned = assigned_capability_ids(payload);
         if assigned.is_empty() {
-            return;
+            return false;
         }
-        self.capability_ids
+        let mut ids = self
+            .capability_ids
             .lock()
-            .expect("capability id map poisoned")
-            .insert(device_id.to_string(), assigned);
+            .expect("capability id map poisoned");
+        if ids.get(device_id) == Some(&assigned) {
+            return false;
+        }
+        ids.insert(device_id.to_string(), assigned);
+        true
     }
 
     async fn publish_joins_for_node(&self, node_id: u64) {
@@ -1199,14 +1208,18 @@ async fn commission_device(
                         "BLE CASE timed out; recovering over the operational network"
                     );
                     tokio::time::sleep(Duration::from_secs(2)).await;
-                    return recover_operational_session(
-                        controller,
-                        mqtt,
-                        cancel,
-                        &candidates,
-                        true,
-                    )
-                    .await;
+                    match recover_operational_session(controller, mqtt, cancel, &candidates, true)
+                        .await
+                    {
+                        Ok(joined) => return Ok(joined),
+                        Err(error) if error == "pairing was cancelled" => return Err(error),
+                        Err(error) if error == FOREIGN_FABRIC => {
+                            info!(
+                                "live Matter device belongs to another fabric; trying on-network"
+                            );
+                        }
+                        Err(error) => return Err(error),
+                    }
                 }
                 info!(error = %raw, "BLE commission failed; trying on-network");
             }
@@ -1251,6 +1264,7 @@ const REFRESH_READ_TIMEOUT: Duration = Duration::from_secs(35);
 const DESCRIPTOR_REFRESH_TIMEOUT: Duration = Duration::from_secs(5);
 const SUBSCRIBE_RETRY_GAP: Duration = Duration::from_secs(5);
 const FORGET_NODE_TIMEOUT: Duration = Duration::from_secs(8);
+const FOREIGN_FABRIC: &str = "device belongs to another fabric";
 
 fn schedule_subscribe_retry(tx: tokio::sync::mpsc::UnboundedSender<()>) {
     tokio::spawn(async move {
@@ -1319,6 +1333,13 @@ async fn recover_operational_session(
                         error = %raw,
                         "operational CASE not ready"
                     );
+                    if foreign_fabric_only(&raw) {
+                        candidates.retain(|&id| id != node_id);
+                        if candidates.is_empty() {
+                            return Err(FOREIGN_FABRIC.into());
+                        }
+                        continue;
+                    }
                     let hints = node_ids_from_mdns_error(&raw);
                     if let Some(hint) = hints.first().copied()
                         && hint != node_id
