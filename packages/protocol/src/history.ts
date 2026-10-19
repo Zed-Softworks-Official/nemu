@@ -45,6 +45,7 @@ export const historyQueryFields = {
     resolution: historyResolutionSchema,
     freshnessLimitMs: z.number().int().positive(),
     maxPoints: z.number().int().positive().max(1000),
+    cursor: z.string().min(1).optional(),
 }
 
 export const historyQueryMessageSchema = z.object({
@@ -52,6 +53,13 @@ export const historyQueryMessageSchema = z.object({
     ...historyQueryFields,
 })
 export type HistoryQueryMessage = z.infer<typeof historyQueryMessageSchema>
+
+/** Same historyQuery type. Core already stored the query on the cursor. */
+export const historyCursorMessageSchema = z.object({
+    type: z.literal('historyQuery'),
+    cursor: z.string().min(1),
+})
+export type HistoryCursorMessage = z.infer<typeof historyCursorMessageSchema>
 
 export const historyQuerySchema = z.object(historyQueryFields)
 export type HistoryQuery = z.infer<typeof historyQuerySchema>
@@ -61,12 +69,7 @@ const historyIntervalSchema = z.object({
     start: z.string().datetime(),
     end: z.string().datetime(),
     reason: z
-        .enum([
-            'untrusted_time',
-            'storage_failure',
-            'queue_loss',
-            'disk_floor',
-        ])
+        .enum(['untrusted_time', 'storage_failure', 'queue_loss', 'disk_floor'])
         .optional(),
 })
 
@@ -87,16 +90,18 @@ export const historySeriesSchema = z.object({
     meterEpochBoundaries: z.array(z.string().datetime()),
     gaps: z.array(historyIntervalSchema),
     missing: z.array(historyIntervalSchema),
-    points: z.array(
-        z.object({
-            start: z.string().datetime(),
-            end: z.string().datetime(),
-            value: z.number().int(),
-            scale: z.number().int().nonnegative(),
-            provenance: z.enum(['measured', 'estimated']),
-            coverage: coverageSchema,
-        })
-    ),
+    points: z
+        .array(
+            z.object({
+                start: z.string().datetime(),
+                end: z.string().datetime(),
+                value: z.number().int(),
+                scale: z.number().int().nonnegative(),
+                provenance: z.enum(['measured', 'estimated']),
+                coverage: coverageSchema,
+            })
+        )
+        .max(1000),
 })
 
 const historyHealthSchema = z.object({
@@ -123,8 +128,23 @@ export const historyQueryResultSchema = z.object({
     type: z.literal('historyQueryResult'),
     requestId: z.string(),
     asOf: z.string().datetime(),
-    series: z.array(historySeriesSchema),
+    incomplete: z.boolean(),
+    nextCursor: z.string().min(1).optional(),
+    series: z.array(historySeriesSchema).max(20),
     reasons: z.array(z.enum(['gap', 'coverage'])),
     health: historyHealthSchema.optional(),
 })
 export type HistoryQueryResult = z.infer<typeof historyQueryResultSchema>
+
+export const historyQueryRestartSchema = z.object({
+    type: z.literal('historyQueryRestart'),
+    requestId: z.string(),
+    reason: z.enum(['cursor_expired', 'cursor_unknown']),
+})
+export type HistoryQueryRestart = z.infer<typeof historyQueryRestartSchema>
+
+export const historyQueryReadSchema = z.discriminatedUnion('type', [
+    historyQueryResultSchema,
+    historyQueryRestartSchema,
+])
+export type HistoryQueryRead = z.infer<typeof historyQueryReadSchema>

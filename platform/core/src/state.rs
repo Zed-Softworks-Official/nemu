@@ -22,6 +22,8 @@ pub struct AppState {
     /// admission pool inside `CapabilityService`.
     pub history_query_pool: DbPool,
     pub history_query_slots: Arc<Semaphore>,
+    /// Short-lived History cursors. Core memory only; never written to Convex.
+    pub history_cursors: Arc<Mutex<crate::capabilities::history_query::HistoryCursorStore>>,
     pub registry: Arc<DeviceRegistry>,
     pub state_cache: Arc<StateCache>,
     pub capabilities: Arc<CapabilityService>,

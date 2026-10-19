@@ -179,9 +179,8 @@ async fn handle_client_text(
         }
         ClientWsMessage::HistoryQuery { request_id, query } => {
             let payload = match history_query::query_for_client(state, auth, query).await {
-                Ok(response) => {
-                    let mut body = serde_json::to_value(&response).map_err(|e| e.to_string())?;
-                    body["type"] = serde_json::json!("historyQueryResult");
+                Ok(outcome) => {
+                    let mut body = serde_json::to_value(&outcome).map_err(|e| e.to_string())?;
                     body["requestId"] = serde_json::json!(request_id);
                     body
                 }

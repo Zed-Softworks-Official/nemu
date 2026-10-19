@@ -4,7 +4,7 @@ import {
     capabilitySnapshotEventSchema,
 } from './capability.ts'
 import { type DeviceState, deviceSchema, deviceStateSchema } from './device.ts'
-import { historyQueryFields } from './history.ts'
+import { historyCursorMessageSchema, historyQueryFields } from './history.ts'
 
 export const deviceEventSchema = z.discriminatedUnion('type', [
     z.object({
@@ -62,7 +62,7 @@ export const deviceEventSchema = z.discriminatedUnion('type', [
 ])
 export type DeviceEvent = z.infer<typeof deviceEventSchema>
 
-export const clientWsMessageSchema = z.discriminatedUnion('type', [
+export const clientWsMessageSchema = z.union([
     z.object({
         type: z.literal('command'),
         requestId: z.string(),
@@ -76,6 +76,9 @@ export const clientWsMessageSchema = z.discriminatedUnion('type', [
         type: z.literal('historyQuery'),
         requestId: z.string(),
         ...historyQueryFields,
+    }),
+    historyCursorMessageSchema.extend({
+        requestId: z.string(),
     }),
 ])
 export type ClientWsMessage = z.infer<typeof clientWsMessageSchema>

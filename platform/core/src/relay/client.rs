@@ -468,9 +468,8 @@ async fn handle_message(
         }
         ToControllerMessage::HistoryQuery { query } => {
             match crate::capabilities::history_query::query_for_client(state, &auth, query).await {
-                Ok(response) => match serde_json::to_value(&response) {
+                Ok(outcome) => match serde_json::to_value(&outcome) {
                     Ok(mut body) => {
-                        body["type"] = json!("historyQueryResult");
                         body["requestId"] = json!(message.request_id);
                         build_typed_response(state, &message.request_id, body)
                     }

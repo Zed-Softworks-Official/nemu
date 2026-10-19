@@ -9,7 +9,7 @@ import type {
     DeviceCommand,
     DeviceEvent,
     HistoryQuery,
-    HistoryQueryResult,
+    HistoryQueryRead,
     HouseholdMember,
     MatterWifiResponse,
     PatchDeviceRequest,
@@ -30,7 +30,7 @@ export interface ControllerTransport {
      * Returns the active view only. Callers keep the result in memory;
      * this transport does not store the series.
      */
-    queryHistory(query: HistoryQuery): Promise<HistoryQueryResult>
+    queryHistory(query: HistoryQuery): Promise<HistoryQueryRead>
     subscribeEvents(cb: (event: DeviceEvent) => void): () => void
     requestCapabilitySnapshot?(): void | Promise<void>
     /** Fires after a dropped LAN socket opens again. */

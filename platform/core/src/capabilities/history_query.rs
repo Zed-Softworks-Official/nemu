@@ -6,15 +6,19 @@
 //! admission pool, so a query cannot take the last connection from commands or
 //! identity. Admission keeps its own pool inside `CapabilityService`.
 //!
-//! The logical response is one transaction, so every series shares one snapshot.
-//! Pagination cursors are intentionally absent. Readable series stay on the
-//! Controller; this module does not write them to Convex.
+//! The logical response is one repeatable-read transaction. Core chooses one
+//! asOf and one bucket set, materializes every series, then pages that capture.
+//! Later pages come from the in-memory cursor, which keeps only unreturned
+//! scope pages plus the query, asOf, and PostgreSQL snapshot id. Readable
+//! series and cursors stay on the Controller; this module does not write them
+//! to Convex.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap, VecDeque};
 
 use chrono::{DateTime, Duration, Utc};
 use diesel::prelude::*;
 use diesel::sql_types::{BigInt, Nullable, SmallInt, Text, Timestamptz, Uuid as SqlUuid};
+use serde::de::{self, Deserializer};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use uuid::Uuid;
@@ -30,6 +34,12 @@ use super::home_calendar::{self, TimezonePeriod};
 
 /// Hard cap for one series. Callers cannot raise it.
 pub const ABSOLUTE_POINT_CAP: u32 = 1_000;
+/// Scope pages never split a series. A page holds at most this many series.
+pub const SERIES_PAGE_LIMIT: usize = 20;
+/// Cursors expire a few minutes after the snapshot is materialized.
+pub const HISTORY_CURSOR_TTL_SECONDS: i64 = 300;
+/// Live cursors stay in Core memory and are capped.
+pub const MAX_LIVE_HISTORY_CURSORS: usize = 32;
 /// Small pool reserved for History reads.
 pub const HISTORY_QUERY_POOL_SIZE: usize = 2;
 /// At most one in-flight query per dedicated connection.
@@ -41,6 +51,14 @@ const BUCKET_SCAN_LIMIT: usize = 20_000;
 
 pub fn history_query_timeout_sql() -> &'static str {
     "SET LOCAL statement_timeout = '3s'"
+}
+
+pub fn history_query_isolation_sql() -> &'static str {
+    "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ"
+}
+
+pub fn history_snapshot_id_sql() -> &'static str {
+    "SELECT pg_current_snapshot()::text AS snapshot"
 }
 
 #[derive(Debug, Error, PartialEq, Eq)]
@@ -181,9 +199,17 @@ pub enum HistoryScope {
     },
 }
 
+/// A fresh query or a continuation of one already materialized. A cursor wins
+/// so Core does not recompute a page from a newer database state.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum HistoryQueryRequest {
+    Continuation { cursor: String },
+    Query(HistoryQueryBody),
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct HistoryQueryRequest {
+pub struct HistoryQueryBody {
     pub scope: HistoryScope,
     pub metric: HistoryMetric,
     pub start: DateTime<Utc>,
@@ -191,6 +217,24 @@ pub struct HistoryQueryRequest {
     pub resolution: QueryResolution,
     pub freshness_limit_ms: u64,
     pub max_points: u32,
+}
+
+impl<'de> Deserialize<'de> for HistoryQueryRequest {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value = serde_json::Value::deserialize(deserializer)?;
+        if let Some(cursor) = value.get("cursor").and_then(|cursor| cursor.as_str()) {
+            if !cursor.is_empty() {
+                return Ok(Self::Continuation {
+                    cursor: cursor.to_string(),
+                });
+            }
+        }
+        let body = serde_json::from_value(value).map_err(de::Error::custom)?;
+        Ok(Self::Query(body))
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -263,6 +307,33 @@ pub struct HistoryQueryResponse {
     pub reasons: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub health: Option<HistoryHealth>,
+    /// True until the last scope page. Clients must not aggregate across scopes
+    /// while this is true.
+    pub incomplete: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next_cursor: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(tag = "type", rename_all = "camelCase")]
+pub enum HistoryQueryOutcome {
+    #[serde(rename = "historyQueryResult")]
+    Page(HistoryQueryResponse),
+    #[serde(rename = "historyQueryRestart")]
+    Restart(HistoryQueryRestart),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HistoryQueryRestart {
+    pub reason: RestartReason,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RestartReason {
+    CursorExpired,
+    CursorUnknown,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -379,6 +450,61 @@ pub fn effective_point_limit(max_points: u32) -> Result<u32, HistoryQueryError> 
         return Err(HistoryQueryError::InvalidQuery);
     }
     Ok(max_points.min(ABSOLUTE_POINT_CAP))
+}
+
+struct SeriesEstimate {
+    kind: CapabilityKind,
+    raw_points: u32,
+}
+
+struct AlignInput<'a> {
+    requested: QueryResolution,
+    start: DateTime<Utc>,
+    end: DateTime<Utc>,
+    max_points: u32,
+    periods: &'a [TimezonePeriod],
+    series: &'a [SeriesEstimate],
+}
+
+struct ResponsePlan {
+    resolution: QueryResolution,
+    source_resolution: QueryResolution,
+    point_limit: u32,
+    buckets: Vec<Span>,
+}
+
+/// One resolution and one bucket list for every series in the logical response.
+/// Month buckets are derived here and are not written back to PostgreSQL.
+fn align_response(input: &AlignInput<'_>) -> Result<ResponsePlan, HistoryQueryError> {
+    let mut selected: Option<ResolutionChoice> = None;
+    for series in input.series {
+        let choice = select_resolution(&ResolutionInput {
+            kind: series.kind,
+            requested: input.requested,
+            start: input.start,
+            end: input.end,
+            max_points: input.max_points,
+            raw_points: series.raw_points,
+            periods: input.periods,
+        })?;
+        selected = Some(match selected {
+            Some(current) if choice.resolution.rank() > current.resolution.rank() => choice,
+            Some(current) => current,
+            None => choice,
+        });
+    }
+    let choice = selected.ok_or(HistoryQueryError::InvalidQuery)?;
+    let buckets = if choice.resolution == QueryResolution::Raw {
+        Vec::new()
+    } else {
+        buckets_for(choice.resolution, input.start, input.end, input.periods)?
+    };
+    Ok(ResponsePlan {
+        resolution: choice.resolution,
+        source_resolution: choice.source_resolution,
+        point_limit: choice.point_limit,
+        buckets,
+    })
 }
 
 fn retained_candidates(kind: CapabilityKind, requested: QueryResolution) -> Vec<QueryResolution> {
@@ -925,7 +1051,7 @@ fn parse_gap_reason(value: &str) -> Option<GapReason> {
     .find(|reason| reason.as_str() == value)
 }
 
-fn validate_request(request: &HistoryQueryRequest) -> Result<Duration, HistoryQueryError> {
+fn validate_request(request: &HistoryQueryBody) -> Result<Duration, HistoryQueryError> {
     if request.end <= request.start || request.freshness_limit_ms == 0 {
         return Err(HistoryQueryError::InvalidQuery);
     }
@@ -941,36 +1067,53 @@ fn validate_request(request: &HistoryQueryRequest) -> Result<Duration, HistoryQu
 }
 
 /// Both LAN and Relay call this. Identity lookup uses the control pool.
-/// The series read uses only the History query pool.
+/// The series read uses only the History query pool. Cursor fetches do not
+/// touch PostgreSQL.
 pub async fn query_for_client(
     state: &AppState,
     auth: &AuthenticatedClient,
     request: HistoryQueryRequest,
-) -> Result<HistoryQueryResponse, HistoryQueryError> {
+) -> Result<HistoryQueryOutcome, HistoryQueryError> {
     let role = caller_role(state, auth).await?;
-    let freshness = validate_request(&request)?;
-    let _permit = state
-        .history_query_slots
-        .try_acquire()
-        .map_err(|_| HistoryQueryError::Busy)?;
-    let conn = state
-        .history_query_pool
-        .get()
-        .await
-        .map_err(|_| HistoryQueryError::Database)?;
-    let loaded = conn
-        .interact(move |conn| load_query(conn, &request, freshness))
-        .await
-        .map_err(|_| HistoryQueryError::Database)?
-        .map_err(|error| match error {
-            QueryLoadError::Invalid => HistoryQueryError::InvalidQuery,
-            QueryLoadError::Database(message) => {
-                tracing::warn!(error = %message, "history query failed");
-                HistoryQueryError::Database
-            }
-        })?;
-    let health = admission_journal::current_health();
-    finish_response(role, loaded, &health)
+    match request {
+        HistoryQueryRequest::Continuation { cursor } => {
+            let mut cursors = state
+                .history_cursors
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            Ok(cursors.continue_page(Utc::now(), &cursor, role))
+        }
+        HistoryQueryRequest::Query(request) => {
+            let freshness = validate_request(&request)?;
+            let _permit = state
+                .history_query_slots
+                .try_acquire()
+                .map_err(|_| HistoryQueryError::Busy)?;
+            let conn = state
+                .history_query_pool
+                .get()
+                .await
+                .map_err(|_| HistoryQueryError::Database)?;
+            let loaded = conn
+                .interact(move |conn| load_query(conn, &request, freshness))
+                .await
+                .map_err(|_| HistoryQueryError::Database)?
+                .map_err(|error| match error {
+                    QueryLoadError::Invalid => HistoryQueryError::InvalidQuery,
+                    QueryLoadError::Database(message) => {
+                        tracing::warn!(error = %message, "history query failed");
+                        HistoryQueryError::Database
+                    }
+                })?;
+            let health = admission_journal::current_health();
+            let now = Utc::now();
+            let mut cursors = state
+                .history_cursors
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            finish_response(role, loaded, &health, &mut cursors, now)
+        }
+    }
 }
 
 async fn caller_role(
@@ -993,10 +1136,16 @@ fn finish_response(
     role: HistoryRole,
     loaded: LoadedQuery,
     health: &HistoryHealth,
-) -> Result<HistoryQueryResponse, HistoryQueryError> {
+    cursors: &mut HistoryCursorStore,
+    now: DateTime<Utc>,
+) -> Result<HistoryQueryOutcome, HistoryQueryError> {
     let reveal = role == HistoryRole::Owner;
     let mut series = Vec::with_capacity(loaded.series.len());
+    let mut buckets = Vec::new();
     for row in loaded.series {
+        if buckets.is_empty() {
+            buckets.clone_from(&row.buckets);
+        }
         series.push(assemble_series(AssembleInput {
             capability_id: row.capability_id,
             label: row.label,
@@ -1018,15 +1167,22 @@ fn finish_response(
         })?);
     }
     let series_have_gaps = series.iter().any(|row| !row.gaps.is_empty());
-    Ok(HistoryQueryResponse {
-        as_of: loaded.as_of,
-        reasons: safe_reasons(health, series_have_gaps),
-        health: match role {
-            HistoryRole::Owner => Some(health.clone()),
-            HistoryRole::Member => None,
+    Ok(HistoryQueryOutcome::Page(cursors.open_page(
+        now,
+        MaterializedHistory {
+            role,
+            query: loaded.query,
+            as_of: loaded.as_of,
+            snapshot: loaded.snapshot,
+            buckets,
+            series,
+            reasons: safe_reasons(health, series_have_gaps),
+            health: match role {
+                HistoryRole::Owner => Some(health.clone()),
+                HistoryRole::Member => None,
+            },
         },
-        series,
-    })
+    )))
 }
 
 enum QueryLoadError {
@@ -1051,6 +1207,8 @@ impl From<HistoryQueryError> for QueryLoadError {
 
 struct LoadedQuery {
     as_of: DateTime<Utc>,
+    snapshot: String,
+    query: HistoryQueryBody,
     series: Vec<LoadedSeries>,
 }
 
@@ -1075,15 +1233,17 @@ struct LoadedSeries {
 
 fn load_query(
     conn: &mut PgConnection,
-    request: &HistoryQueryRequest,
+    request: &HistoryQueryBody,
     freshness: Duration,
 ) -> Result<LoadedQuery, QueryLoadError> {
     conn.transaction(|conn| {
-        diesel::sql_query(history_query_timeout_sql()).execute(conn)?;
+        // Repeatable read plus the snapshot id. The id is kept with the cursor;
+        // later pages are served from the materialized capture, not a new read.
+        let snapshot = capture_snapshot(conn)?;
         let as_of = Utc::now();
         let periods = load_periods(conn)?;
         let identities = load_identities(conn, &request.scope)?;
-        let mut series = Vec::new();
+        let mut pending = Vec::new();
         for identity in identities {
             let Some(row) = identity_ref(&identity) else {
                 continue;
@@ -1096,81 +1256,117 @@ fn load_query(
             let Some(recording_since) = load_recording_since(conn, row.id)? else {
                 continue;
             };
-            let available_since = load_available_since(conn, row.id)?;
-            let raw_points = load_raw_count(conn, row.id, request.start, request.end)?;
-            let choice = select_resolution(&ResolutionInput {
+            pending.push(PendingSeries {
+                id: row.id,
                 kind: row.kind,
+                component_path: row.component_path,
+                recording_since,
+                available_since: load_available_since(conn, row.id)?,
+                raw_points: load_raw_count(conn, row.id, request.start, request.end)?,
+            });
+        }
+        let estimates: Vec<SeriesEstimate> = pending
+            .iter()
+            .map(|row| SeriesEstimate {
+                kind: row.kind,
+                raw_points: row.raw_points,
+            })
+            .collect();
+        let plan = if estimates.is_empty() {
+            None
+        } else {
+            Some(align_response(&AlignInput {
                 requested: request.resolution,
                 start: request.start,
                 end: request.end,
                 max_points: request.max_points,
-                raw_points,
                 periods: &periods,
-            })?;
-            let buckets = if choice.resolution == QueryResolution::Raw {
-                Vec::new()
-            } else if choice.resolution == QueryResolution::Monthly {
-                buckets_for(
-                    QueryResolution::Monthly,
-                    request.start,
-                    request.end,
-                    &periods,
-                )?
-            } else {
-                buckets_for(choice.resolution, request.start, request.end, &periods)?
-            };
-            let (samples, observations) = load_points(
-                conn,
-                row.id,
-                row.kind,
-                request.metric,
-                choice.resolution,
-                request.start,
-                request.end,
-                choice.point_limit,
-            )?;
-            let mut quality = load_gaps(conn, row.id, request.start, request.end)?;
-            if choice.resolution != QueryResolution::Raw {
-                for sample in &samples {
-                    if sample.covered_ns <= 0 {
-                        quality.push(InputInterval {
-                            kind: IntervalKind::Unavailable,
-                            start: sample.start,
-                            end: sample.end,
-                            reason: None,
-                        });
-                    }
-                }
-            }
-            series.push(LoadedSeries {
-                capability_id: row.id,
-                label: series_label(request.metric, row.id, &row.component_path),
-                resolution: choice.resolution,
-                source_resolution: choice.source_resolution,
-                provenance: series_provenance(request.metric, row.kind),
-                recording_since,
-                available_since,
-                range: Span {
-                    start: request.start,
-                    end: request.end,
-                },
-                buckets,
-                samples,
-                observations,
-                quality,
-                meter_epoch_boundaries: load_epoch_boundaries(
+                series: &estimates,
+            })?)
+        };
+        let mut series = Vec::new();
+        if let Some(plan) = plan {
+            for row in pending {
+                let (samples, observations) = load_points(
                     conn,
                     row.id,
+                    row.kind,
+                    request.metric,
+                    plan.resolution,
                     request.start,
                     request.end,
-                )?,
-                freshness,
-                point_limit: choice.point_limit,
-                periods: periods.clone(),
-            });
+                    plan.point_limit,
+                )?;
+                let mut quality = load_gaps(conn, row.id, request.start, request.end)?;
+                if plan.resolution != QueryResolution::Raw {
+                    for sample in &samples {
+                        if sample.covered_ns <= 0 {
+                            quality.push(InputInterval {
+                                kind: IntervalKind::Unavailable,
+                                start: sample.start,
+                                end: sample.end,
+                                reason: None,
+                            });
+                        }
+                    }
+                }
+                series.push(LoadedSeries {
+                    capability_id: row.id,
+                    label: series_label(request.metric, row.id, &row.component_path),
+                    resolution: plan.resolution,
+                    source_resolution: plan.source_resolution,
+                    provenance: series_provenance(request.metric, row.kind),
+                    recording_since: row.recording_since,
+                    available_since: row.available_since,
+                    range: Span {
+                        start: request.start,
+                        end: request.end,
+                    },
+                    buckets: plan.buckets.clone(),
+                    samples,
+                    observations,
+                    quality,
+                    meter_epoch_boundaries: load_epoch_boundaries(
+                        conn,
+                        row.id,
+                        request.start,
+                        request.end,
+                    )?,
+                    freshness,
+                    point_limit: plan.point_limit,
+                    periods: periods.clone(),
+                });
+            }
         }
-        Ok(LoadedQuery { as_of, series })
+        Ok(LoadedQuery {
+            as_of,
+            snapshot,
+            query: request.clone(),
+            series,
+        })
     })
+}
+
+struct PendingSeries {
+    id: Uuid,
+    kind: CapabilityKind,
+    component_path: Vec<String>,
+    recording_since: DateTime<Utc>,
+    available_since: Option<DateTime<Utc>>,
+    raw_points: u32,
+}
+
+#[derive(QueryableByName)]
+struct SnapshotRow {
+    #[diesel(sql_type = Text)]
+    snapshot: String,
+}
+
+fn capture_snapshot(conn: &mut PgConnection) -> Result<String, diesel::result::Error> {
+    diesel::sql_query(history_query_isolation_sql()).execute(conn)?;
+    diesel::sql_query(history_query_timeout_sql()).execute(conn)?;
+    let row = diesel::sql_query(history_snapshot_id_sql()).get_result::<SnapshotRow>(conn)?;
+    Ok(row.snapshot)
 }
 
 #[derive(QueryableByName)]
@@ -1613,6 +1809,190 @@ fn load_gaps(
         .collect())
 }
 
+struct MaterializedHistory {
+    role: HistoryRole,
+    query: HistoryQueryBody,
+    as_of: DateTime<Utc>,
+    snapshot: String,
+    buckets: Vec<Span>,
+    series: Vec<HistorySeries>,
+    reasons: Vec<String>,
+    health: Option<HistoryHealth>,
+}
+
+#[derive(Debug)]
+struct StoredCursor {
+    seq: u64,
+    role: HistoryRole,
+    query: HistoryQueryBody,
+    as_of: DateTime<Utc>,
+    snapshot: String,
+    buckets: Vec<Span>,
+    reasons: Vec<String>,
+    health: Option<HistoryHealth>,
+    pages: VecDeque<Vec<HistorySeries>>,
+    created_at: DateTime<Utc>,
+}
+
+struct PreservedCursor {
+    query: HistoryQueryBody,
+    as_of: DateTime<Utc>,
+    snapshot: String,
+    buckets: Vec<Span>,
+}
+
+/// In-memory cursors. The token is random. The store keeps the query, asOf,
+/// snapshot id, and only the scope pages that have not been returned.
+#[derive(Debug, Default)]
+pub struct HistoryCursorStore {
+    cursors: HashMap<String, StoredCursor>,
+    next_seq: u64,
+}
+
+impl HistoryCursorStore {
+    fn open_page(
+        &mut self,
+        now: DateTime<Utc>,
+        mut materialized: MaterializedHistory,
+    ) -> HistoryQueryResponse {
+        materialized
+            .series
+            .sort_by(|left, right| left.capability_id.cmp(&right.capability_id));
+        let mut pages: VecDeque<Vec<HistorySeries>> = materialized
+            .series
+            .chunks(SERIES_PAGE_LIMIT)
+            .map(|chunk| chunk.to_vec())
+            .collect();
+        let first = pages.pop_front().unwrap_or_default();
+        let incomplete = !pages.is_empty();
+        let next_cursor = if incomplete {
+            self.next_seq = self.next_seq.saturating_add(1);
+            let stored = StoredCursor {
+                seq: self.next_seq,
+                role: materialized.role,
+                query: materialized.query,
+                as_of: materialized.as_of,
+                snapshot: materialized.snapshot,
+                buckets: materialized.buckets,
+                reasons: materialized.reasons.clone(),
+                health: materialized.health.clone(),
+                pages,
+                created_at: now,
+            };
+            Some(self.insert(now, stored))
+        } else {
+            None
+        };
+        HistoryQueryResponse {
+            as_of: materialized.as_of,
+            series: first,
+            reasons: materialized.reasons,
+            health: materialized.health,
+            incomplete,
+            next_cursor,
+        }
+    }
+
+    fn continue_page(
+        &mut self,
+        now: DateTime<Utc>,
+        cursor: &str,
+        role: HistoryRole,
+    ) -> HistoryQueryOutcome {
+        let Some(entry) = self.cursors.get(cursor) else {
+            return HistoryQueryOutcome::Restart(HistoryQueryRestart {
+                reason: RestartReason::CursorUnknown,
+            });
+        };
+        if role != entry.role {
+            return HistoryQueryOutcome::Restart(HistoryQueryRestart {
+                reason: RestartReason::CursorUnknown,
+            });
+        }
+        if cursor_expired(entry.created_at, now) {
+            self.cursors.remove(cursor);
+            return HistoryQueryOutcome::Restart(HistoryQueryRestart {
+                reason: RestartReason::CursorExpired,
+            });
+        }
+        let entry = self
+            .cursors
+            .get_mut(cursor)
+            .expect("cursor remains until it expires");
+        let series = entry.pages.pop_front().unwrap_or_default();
+        let incomplete = !entry.pages.is_empty();
+        let response = HistoryQueryResponse {
+            as_of: entry.as_of,
+            series,
+            reasons: entry.reasons.clone(),
+            health: entry.health.clone(),
+            incomplete,
+            next_cursor: incomplete.then(|| cursor.to_string()),
+        };
+        if !incomplete {
+            self.cursors.remove(cursor);
+        }
+        HistoryQueryOutcome::Page(response)
+    }
+
+    fn preserved(&self, cursor: &str) -> Option<PreservedCursor> {
+        self.cursors.get(cursor).map(|cursor| PreservedCursor {
+            query: cursor.query.clone(),
+            as_of: cursor.as_of,
+            snapshot: cursor.snapshot.clone(),
+            buckets: cursor.buckets.clone(),
+        })
+    }
+
+    fn retained_capability_ids(&self, cursor: &str) -> Option<Vec<Uuid>> {
+        self.cursors.get(cursor).map(|cursor| {
+            cursor
+                .pages
+                .iter()
+                .flat_map(|page| page.iter().map(|series| series.capability_id))
+                .collect()
+        })
+    }
+
+    fn live_count(&self) -> usize {
+        self.cursors.len()
+    }
+
+    fn insert(&mut self, now: DateTime<Utc>, cursor: StoredCursor) -> String {
+        self.evict(now);
+        let token = format!("hqc_{}", Uuid::new_v4().simple());
+        self.cursors.insert(token.clone(), cursor);
+        token
+    }
+
+    fn evict(&mut self, now: DateTime<Utc>) {
+        let expired: Vec<String> = self
+            .cursors
+            .iter()
+            .filter(|(_, cursor)| cursor_expired(cursor.created_at, now))
+            .map(|(id, _)| id.clone())
+            .collect();
+        for id in expired {
+            self.cursors.remove(&id);
+        }
+        while self.cursors.len() >= MAX_LIVE_HISTORY_CURSORS {
+            let oldest = self
+                .cursors
+                .iter()
+                .min_by_key(|(_, cursor)| cursor.seq)
+                .map(|(id, _)| id.clone());
+            let Some(oldest) = oldest else {
+                break;
+            };
+            self.cursors.remove(&oldest);
+        }
+    }
+}
+
+fn cursor_expired(created_at: DateTime<Utc>, now: DateTime<Utc>) -> bool {
+    now.signed_duration_since(created_at).num_seconds() >= HISTORY_CURSOR_TTL_SECONDS
+}
+
 fn load_epoch_boundaries(
     conn: &mut PgConnection,
     capability_id: Uuid,
@@ -1637,12 +2017,15 @@ mod tests {
     use uuid::Uuid;
 
     use super::{
-        ABSOLUTE_POINT_CAP, AssembleInput, CapabilityKind, CapabilityRef,
-        HISTORY_QUERY_CONCURRENCY, HISTORY_QUERY_POOL_SIZE, HistoryInterval, HistoryMetric,
-        HistoryQueryRequest, HistoryQueryResponse, HistoryRole, HistoryScope, IntervalKind,
-        ObservationSample, Provenance, QueryResolution, ResolutionInput, RollupSample, Span,
-        StoredEnergy, authorize_history_read, buckets_for, capability_in_scope,
-        effective_point_limit, history_query_timeout_sql, read_stored_energy, select_resolution,
+        ABSOLUTE_POINT_CAP, AlignInput, AssembleInput, CapabilityKind, CapabilityRef,
+        HISTORY_QUERY_CONCURRENCY, HISTORY_QUERY_POOL_SIZE, HistoryCursorStore, HistoryInterval,
+        HistoryMetric, HistoryPoint, HistoryQueryBody, HistoryQueryOutcome, HistoryQueryRequest,
+        HistoryQueryResponse, HistoryRole, HistoryScope, HistorySeries, IntervalKind,
+        MAX_LIVE_HISTORY_CURSORS, MaterializedHistory, ObservationSample, Provenance,
+        QueryResolution, ResolutionInput, RestartReason, RollupSample, SERIES_PAGE_LIMIT,
+        SeriesEstimate, Span, StoredEnergy, align_response, authorize_history_read, buckets_for,
+        capability_in_scope, effective_point_limit, history_query_isolation_sql,
+        history_query_timeout_sql, history_snapshot_id_sql, read_stored_energy, select_resolution,
         series_label,
     };
     use crate::capabilities::admission_journal::{
@@ -2074,6 +2457,8 @@ mod tests {
             series: vec![series],
             reasons: super::safe_reasons(&health, true),
             health: None,
+            incomplete: false,
+            next_cursor: None,
         };
         let json = serde_json::to_value(&response).unwrap();
         let rendered = json.to_string();
@@ -2119,6 +2504,8 @@ mod tests {
             series: vec![series],
             reasons: super::safe_reasons(&health, true),
             health: Some(health),
+            incomplete: false,
+            next_cursor: None,
         };
         let json = serde_json::to_value(&response).unwrap();
         assert_eq!(json["health"]["queue"]["queued"], 1024);
@@ -2157,7 +2544,7 @@ mod tests {
 
     #[test]
     fn query_request_accepts_capability_device_and_component_scope() {
-        let capability: HistoryQueryRequest = serde_json::from_value(serde_json::json!({
+        let capability = serde_json::from_value::<HistoryQueryRequest>(serde_json::json!({
             "scope": { "type": "capability", "capabilityId": "00000000-0000-0000-0000-000000000001" },
             "metric": "importedEnergy",
             "start": "2026-10-01T00:00:00Z",
@@ -2167,11 +2554,14 @@ mod tests {
             "maxPoints": 1000
         }))
         .unwrap();
+        let HistoryQueryRequest::Query(capability) = capability else {
+            panic!("fresh query");
+        };
         assert!(matches!(capability.scope, HistoryScope::Capability { .. }));
         assert_eq!(capability.metric, HistoryMetric::ImportedEnergy);
         assert_eq!(capability.resolution, QueryResolution::FifteenMinute);
 
-        let device: HistoryQueryRequest = serde_json::from_value(serde_json::json!({
+        let device = serde_json::from_value::<HistoryQueryRequest>(serde_json::json!({
             "scope": { "type": "device", "deviceId": "00000000-0000-0000-0000-000000000002" },
             "metric": "power",
             "start": "2026-10-01T00:00:00Z",
@@ -2181,9 +2571,12 @@ mod tests {
             "maxPoints": 24
         }))
         .unwrap();
+        let HistoryQueryRequest::Query(device) = device else {
+            panic!("device query");
+        };
         assert!(matches!(device.scope, HistoryScope::Device { .. }));
 
-        let component: HistoryQueryRequest = serde_json::from_value(serde_json::json!({
+        let component = serde_json::from_value::<HistoryQueryRequest>(serde_json::json!({
             "scope": {
                 "type": "component",
                 "deviceId": "00000000-0000-0000-0000-000000000002",
@@ -2197,6 +2590,9 @@ mod tests {
             "maxPoints": 24
         }))
         .unwrap();
+        let HistoryQueryRequest::Query(component) = component else {
+            panic!("component query");
+        };
         assert!(matches!(component.scope, HistoryScope::Component { .. }));
 
         let home = serde_json::from_value::<HistoryQueryRequest>(serde_json::json!({
@@ -2257,5 +2653,362 @@ mod tests {
                 .any(|interval: &HistoryInterval| { interval.kind == IntervalKind::Missing })
         );
         assert!(!series.points.iter().any(|point| point.value == 0));
+    }
+
+    fn sample_query() -> HistoryQueryBody {
+        HistoryQueryBody {
+            scope: HistoryScope::Device {
+                device_id: Uuid::from_u128(9),
+            },
+            metric: HistoryMetric::Power,
+            start: utc(2026, 1, 1, 0, 0, 0),
+            end: utc(2026, 1, 2, 0, 0, 0),
+            resolution: QueryResolution::Hourly,
+            freshness_limit_ms: 60_000,
+            max_points: 1_000,
+        }
+    }
+
+    fn series_on_buckets(id: u128, buckets: &[Span], value: i64) -> HistorySeries {
+        HistorySeries {
+            capability_id: Uuid::from_u128(id),
+            label: format!("power {id}"),
+            resolution: QueryResolution::Hourly,
+            source_resolution: QueryResolution::Hourly,
+            provenance: Provenance::Measured,
+            coverage: super::Coverage {
+                covered_ns: 1,
+                elapsed_ns: 1,
+            },
+            recording_since: utc(2020, 1, 1, 0, 0, 0),
+            available_since: Some(utc(2024, 6, 1, 0, 0, 0)),
+            meter_epoch_boundaries: Vec::new(),
+            gaps: Vec::new(),
+            missing: Vec::new(),
+            points: buckets
+                .iter()
+                .map(|bucket| HistoryPoint {
+                    start: bucket.start,
+                    end: bucket.end,
+                    value,
+                    scale: 0,
+                    provenance: Provenance::Measured,
+                    coverage: super::Coverage {
+                        covered_ns: 1,
+                        elapsed_ns: 1,
+                    },
+                })
+                .collect(),
+        }
+    }
+
+    fn materialized(
+        as_of: chrono::DateTime<Utc>,
+        snapshot: &str,
+        buckets: Vec<Span>,
+        series: Vec<HistorySeries>,
+    ) -> MaterializedHistory {
+        MaterializedHistory {
+            role: HistoryRole::Owner,
+            query: sample_query(),
+            as_of,
+            snapshot: snapshot.to_string(),
+            buckets,
+            series,
+            reasons: vec!["gap".into()],
+            health: Some(degraded_health()),
+        }
+    }
+
+    #[test]
+    fn aligned_plan_is_chosen_once_and_monthly_names_its_daily_source() {
+        let periods = [TimezonePeriod {
+            timezone: "America/Los_Angeles".into(),
+            effective_from: utc(2019, 1, 1, 0, 0, 0),
+            effective_until: None,
+        }];
+        let start = utc(2020, 1, 1, 8, 0, 0);
+        let end = utc(2024, 1, 1, 8, 0, 0);
+        let plan = align_response(&AlignInput {
+            requested: QueryResolution::Daily,
+            start,
+            end,
+            max_points: 1_000,
+            periods: &periods,
+            series: &[SeriesEstimate {
+                kind: CapabilityKind::ImportedEnergy,
+                raw_points: 0,
+            }],
+        })
+        .unwrap();
+        assert_eq!(plan.resolution, QueryResolution::Monthly);
+        assert_eq!(plan.source_resolution, QueryResolution::Daily);
+        assert!(plan.buckets.len() > 12);
+        assert!(plan.buckets.len() <= ABSOLUTE_POINT_CAP as usize);
+        assert_eq!(plan.buckets[0].start, utc(2020, 1, 1, 8, 0, 0));
+        assert_eq!(plan.buckets[0].end, utc(2020, 2, 1, 8, 0, 0));
+        assert_eq!(
+            history_query_isolation_sql(),
+            "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ"
+        );
+        assert_eq!(
+            history_snapshot_id_sql(),
+            "SELECT pg_current_snapshot()::text AS snapshot"
+        );
+    }
+
+    #[test]
+    fn mixed_series_share_one_bucket_set() {
+        let start = utc(2026, 1, 1, 0, 0, 0);
+        let end = utc(2026, 1, 9, 0, 0, 0);
+        let plan = align_response(&AlignInput {
+            requested: QueryResolution::OneMinute,
+            start,
+            end,
+            max_points: 1_000,
+            periods: &[],
+            series: &[
+                SeriesEstimate {
+                    kind: CapabilityKind::Power,
+                    raw_points: 0,
+                },
+                SeriesEstimate {
+                    kind: CapabilityKind::Voltage,
+                    raw_points: 0,
+                },
+            ],
+        })
+        .unwrap();
+        assert_eq!(plan.resolution, QueryResolution::Hourly);
+        assert_eq!(plan.buckets.len(), 8 * 24);
+        let again = align_response(&AlignInput {
+            requested: QueryResolution::OneMinute,
+            start,
+            end,
+            max_points: 1_000,
+            periods: &[],
+            series: &[
+                SeriesEstimate {
+                    kind: CapabilityKind::Power,
+                    raw_points: 0,
+                },
+                SeriesEstimate {
+                    kind: CapabilityKind::Voltage,
+                    raw_points: 0,
+                },
+            ],
+        })
+        .unwrap();
+        assert_eq!(plan.buckets, again.buckets);
+    }
+
+    #[test]
+    fn later_pages_reuse_as_of_buckets_and_snapshot_without_recomputing() {
+        let as_of = utc(2026, 6, 1, 12, 0, 0);
+        let start = utc(2026, 1, 1, 0, 0, 0);
+        let buckets = buckets_for(
+            QueryResolution::Hourly,
+            start,
+            start + Duration::hours(3),
+            &[],
+        )
+        .unwrap();
+        let snapshot = "10:20:10";
+        let series = (1..=21)
+            .map(|id| series_on_buckets(id, &buckets, 40 + i64::try_from(id).unwrap()))
+            .collect();
+        let mut store = HistoryCursorStore::default();
+        let first = store.open_page(
+            as_of,
+            materialized(as_of, snapshot, buckets.clone(), series),
+        );
+        assert!(first.incomplete);
+        assert_eq!(first.series.len(), SERIES_PAGE_LIMIT);
+        assert!(first.series.iter().all(|series| series.points.len() == 3));
+        let cursor = first.next_cursor.clone().expect("next page");
+        assert!(!cursor.contains(snapshot));
+        assert!(!cursor.contains("2026-"));
+        assert!(!cursor.contains("power"));
+        let preserved = store.preserved(&cursor).expect("cursor");
+        assert_eq!(preserved.as_of, as_of);
+        assert_eq!(preserved.snapshot, snapshot);
+        assert_eq!(preserved.query, sample_query());
+        assert_eq!(preserved.buckets, buckets);
+        assert_eq!(store.retained_capability_ids(&cursor).unwrap().len(), 1);
+        assert!(
+            !store
+                .retained_capability_ids(&cursor)
+                .unwrap()
+                .contains(&Uuid::from_u128(1))
+        );
+
+        let second =
+            match store.continue_page(as_of + Duration::minutes(1), &cursor, HistoryRole::Owner) {
+                HistoryQueryOutcome::Page(page) => page,
+                HistoryQueryOutcome::Restart(_) => panic!("cursor was recomputed or dropped"),
+            };
+        assert_eq!(second.as_of, as_of);
+        assert!(!second.incomplete);
+        assert!(second.next_cursor.is_none());
+        assert_eq!(second.series.len(), 1);
+        assert_eq!(second.series[0].points.len(), buckets.len());
+        assert_eq!(second.series[0].points[0].start, buckets[0].start);
+        assert_eq!(second.series[0].points[0].end, buckets[0].end);
+        assert_eq!(second.series[0].points[0].value, 61);
+        assert_eq!(
+            first.series[0].points[0].start,
+            second.series[0].points[0].start
+        );
+        assert!(store.preserved(&cursor).is_none());
+    }
+
+    #[test]
+    fn pages_do_not_split_a_series_and_mark_partial_pages_incomplete() {
+        let as_of = utc(2026, 6, 1, 0, 0, 0);
+        let start = utc(2026, 1, 1, 0, 0, 0);
+        let buckets = vec![
+            Span {
+                start,
+                end: start + Duration::hours(1),
+            },
+            Span {
+                start: start + Duration::hours(1),
+                end: start + Duration::hours(2),
+            },
+            Span {
+                start: start + Duration::hours(2),
+                end: start + Duration::hours(3),
+            },
+        ];
+        let series = (1..=41)
+            .map(|id| series_on_buckets(id, &buckets, i64::try_from(id).unwrap()))
+            .collect();
+        let mut store = HistoryCursorStore::default();
+        let first = store.open_page(
+            as_of,
+            materialized(as_of, "snap-a", buckets.clone(), series),
+        );
+        let cursor = first.next_cursor.clone().unwrap();
+        let second = match store.continue_page(as_of, &cursor, HistoryRole::Owner) {
+            HistoryQueryOutcome::Page(page) => page,
+            HistoryQueryOutcome::Restart(_) => panic!("missing second page"),
+        };
+        let third = match store.continue_page(
+            as_of,
+            second.next_cursor.as_deref().unwrap(),
+            HistoryRole::Owner,
+        ) {
+            HistoryQueryOutcome::Page(page) => page,
+            HistoryQueryOutcome::Restart(_) => panic!("missing third page"),
+        };
+        assert!(first.incomplete && second.incomplete);
+        assert!(!third.incomplete);
+        assert_eq!(first.series.len(), 20);
+        assert_eq!(second.series.len(), 20);
+        assert_eq!(third.series.len(), 1);
+        let mut seen = std::collections::BTreeSet::new();
+        for page in [&first, &second, &third] {
+            for series in &page.series {
+                assert_eq!(series.points.len(), 3);
+                assert!(seen.insert(series.capability_id));
+            }
+        }
+        assert_eq!(seen.len(), 41);
+        let json = serde_json::to_value(&first).unwrap();
+        assert_eq!(json["incomplete"], true);
+        assert!(json.get("nextCursor").is_some());
+        assert!(json.get("snapshot").is_none());
+    }
+
+    #[test]
+    fn expired_or_unknown_cursors_restart_and_live_cursors_are_bounded() {
+        let as_of = utc(2026, 6, 1, 0, 0, 0);
+        let buckets = vec![Span {
+            start: utc(2026, 1, 1, 0, 0, 0),
+            end: utc(2026, 1, 1, 1, 0, 0),
+        }];
+        let mut store = HistoryCursorStore::default();
+        let expired = store.open_page(
+            as_of,
+            materialized(
+                as_of,
+                "snap-old",
+                buckets.clone(),
+                (1..=21)
+                    .map(|id| series_on_buckets(id, &buckets, 1))
+                    .collect(),
+            ),
+        );
+        let expired_cursor = expired.next_cursor.unwrap();
+        match store.continue_page(
+            as_of + Duration::minutes(5) + Duration::seconds(1),
+            &expired_cursor,
+            HistoryRole::Owner,
+        ) {
+            HistoryQueryOutcome::Restart(restart) => {
+                assert_eq!(restart.reason, RestartReason::CursorExpired);
+                let json = serde_json::to_value(HistoryQueryOutcome::Restart(restart)).unwrap();
+                assert_eq!(json["type"], "historyQueryRestart");
+                assert_eq!(json["reason"], "cursor_expired");
+                assert!(json.get("series").is_none());
+            }
+            HistoryQueryOutcome::Page(_) => panic!("expired cursor recomputed a page"),
+        }
+
+        match store.continue_page(as_of, "missing-cursor", HistoryRole::Owner) {
+            HistoryQueryOutcome::Restart(restart) => {
+                assert_eq!(restart.reason, RestartReason::CursorUnknown);
+            }
+            HistoryQueryOutcome::Page(_) => panic!("unknown cursor recomputed a page"),
+        }
+
+        let mut first_cursor = None;
+        for index in 0..MAX_LIVE_HISTORY_CURSORS + 1 {
+            let page = store.open_page(
+                as_of + Duration::seconds(index as i64),
+                materialized(
+                    as_of,
+                    "snap-live",
+                    buckets.clone(),
+                    (1..=21)
+                        .map(|id| series_on_buckets(id, &buckets, i64::try_from(index).unwrap()))
+                        .collect(),
+                ),
+            );
+            if index == 0 {
+                first_cursor = page.next_cursor;
+            }
+        }
+        assert!(store.live_count() <= MAX_LIVE_HISTORY_CURSORS);
+        match store.continue_page(as_of, first_cursor.unwrap().as_str(), HistoryRole::Owner) {
+            HistoryQueryOutcome::Restart(restart) => {
+                assert_eq!(restart.reason, RestartReason::CursorUnknown);
+            }
+            HistoryQueryOutcome::Page(_) => panic!("evicted cursor recomputed a page"),
+        }
+    }
+
+    #[test]
+    fn cursor_continuation_does_not_require_a_second_query_shape() {
+        let continued = serde_json::from_value::<HistoryQueryRequest>(serde_json::json!({
+            "cursor": "hqc_example"
+        }))
+        .unwrap();
+        assert!(matches!(
+            continued,
+            HistoryQueryRequest::Continuation { cursor } if cursor == "hqc_example"
+        ));
+        let ignored = serde_json::from_value::<HistoryQueryRequest>(serde_json::json!({
+            "cursor": "hqc_example",
+            "scope": { "type": "device", "deviceId": "00000000-0000-0000-0000-000000000009" },
+            "metric": "power",
+            "start": "2026-10-01T00:00:00Z",
+            "end": "2026-10-02T00:00:00Z",
+            "resolution": "hourly",
+            "freshnessLimitMs": 1000,
+            "maxPoints": 24
+        }))
+        .unwrap();
+        assert!(matches!(ignored, HistoryQueryRequest::Continuation { .. }));
     }
 }

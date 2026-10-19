@@ -7,9 +7,9 @@ import {
     type DeviceCommand,
     type DeviceEvent,
     type HistoryQuery,
-    type HistoryQueryResult,
-    historyQueryResultSchema,
+    type HistoryQueryRead,
     type HouseholdMember,
+    historyQueryReadSchema,
     householdMemberSchema,
     parseDeviceList,
     relayToClientEnvelopeSchema,
@@ -157,13 +157,16 @@ export class RelayTransport implements ControllerTransport {
      * Returns the parsed series for the caller to hold. The transport does not
      * keep a copy after this promise settles.
      */
-    async queryHistory(query: HistoryQuery): Promise<HistoryQueryResult> {
+    async queryHistory(query: HistoryQuery): Promise<HistoryQueryRead> {
         const parsed = await this.request({
             type: 'historyQuery',
             ...query,
         })
-        if (parsed.message.type === 'historyQueryResult') {
-            return historyQueryResultSchema.parse(parsed.message)
+        if (
+            parsed.message.type === 'historyQueryResult' ||
+            parsed.message.type === 'historyQueryRestart'
+        ) {
+            return historyQueryReadSchema.parse(parsed.message)
         }
         this.throwIfCommandError(parsed, 'query history')
         throw new Error('Unexpected relay response for historyQuery')
@@ -330,7 +333,10 @@ export class RelayTransport implements ControllerTransport {
                         JSON.parse(message.payload)
                     )
                     // The active view is returned by queryHistory. Do not retain the series here.
-                    if (envelope.message.type === 'historyQueryResult') {
+                    if (
+                        envelope.message.type === 'historyQueryResult' ||
+                        envelope.message.type === 'historyQueryRestart'
+                    ) {
                         continue
                     }
                     if (this.seenResponses.has(key)) continue

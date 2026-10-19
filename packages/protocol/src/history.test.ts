@@ -3,6 +3,7 @@ import { describe, it } from 'node:test'
 import { clientWsMessageSchema } from './events.ts'
 import {
     historyQueryMessageSchema,
+    historyQueryRestartSchema,
     historyQueryResultSchema,
 } from './history.ts'
 import {
@@ -28,6 +29,7 @@ const memberResult = {
     type: 'historyQueryResult' as const,
     requestId: 'req-1',
     asOf: '2026-10-02T00:00:01.000Z',
+    incomplete: false,
     reasons: ['gap', 'coverage'],
     series: [
         {
@@ -96,7 +98,12 @@ describe('history query messages', () => {
         })
         assert.equal(lan.type, 'historyQuery')
         assert.equal(relay.message.type, 'historyQuery')
-        if (lan.type === 'historyQuery' && relay.message.type === 'historyQuery') {
+        if (
+            lan.type === 'historyQuery' &&
+            relay.message.type === 'historyQuery' &&
+            'scope' in lan &&
+            'scope' in relay.message
+        ) {
             assert.deepEqual(lan.scope, relay.message.scope)
             assert.equal(lan.metric, relay.message.metric)
             assert.equal(lan.resolution, relay.message.resolution)
@@ -120,7 +127,9 @@ describe('history query messages', () => {
         if (relay.message.type === 'historyQueryResult') {
             assert.equal(relay.message.series[0]?.points.length, 1)
             assert.deepEqual(
-                relay.message.series[0]?.missing.map((interval) => interval.kind),
+                relay.message.series[0]?.missing.map(
+                    (interval) => interval.kind
+                ),
                 ['missing', 'stale', 'rejected', 'unavailable']
             )
         }
@@ -137,6 +146,85 @@ describe('history query messages', () => {
             historyQueryMessageSchema.parse({
                 ...query,
                 maxPoints: 1001,
+            })
+        )
+    })
+
+    it('keeps one history query and marks a partial page incomplete', () => {
+        const page = {
+            ...memberResult,
+            incomplete: true,
+            nextCursor: 'hqc_opaque',
+        }
+        const parsed = historyQueryResultSchema.parse(page)
+        assert.equal(parsed.incomplete, true)
+        assert.equal(parsed.nextCursor, 'hqc_opaque')
+        assert.equal(parsed.series.length <= 20, true)
+        const continued = {
+            ...query,
+            cursor: parsed.nextCursor,
+        }
+        const lan = clientWsMessageSchema.parse({
+            ...continued,
+            requestId: 'req-2',
+        })
+        const relay = relayToControllerEnvelopeSchema.parse({
+            requestId: 'req-2',
+            clientToken: 'token',
+            message: continued,
+        })
+        assert.equal(lan.type, 'historyQuery')
+        assert.equal(relay.message.type, 'historyQuery')
+        const cursorOnly = {
+            type: 'historyQuery' as const,
+            cursor: 'hqc_opaque',
+        }
+        clientWsMessageSchema.parse({ ...cursorOnly, requestId: 'req-3' })
+        relayToControllerEnvelopeSchema.parse({
+            requestId: 'req-3',
+            clientToken: 'token',
+            message: cursorOnly,
+        })
+        const monthly = historyQueryResultSchema.parse({
+            ...memberResult,
+            incomplete: false,
+            series: [
+                {
+                    ...memberResult.series[0],
+                    resolution: 'monthly',
+                    sourceResolution: 'daily',
+                },
+            ],
+        })
+        assert.equal(monthly.series[0]?.resolution, 'monthly')
+        assert.equal(monthly.series[0]?.sourceResolution, 'daily')
+        assert.equal(monthly.nextCursor, undefined)
+    })
+
+    it('returns an explicit restart instead of another page', () => {
+        const restart = {
+            type: 'historyQueryRestart' as const,
+            requestId: 'req-1',
+            reason: 'cursor_expired' as const,
+        }
+        const parsed = historyQueryRestartSchema.parse(restart)
+        const relay = relayToClientEnvelopeSchema.parse({
+            requestId: 'req-1',
+            signature: 'signed',
+            message: restart,
+        })
+        assert.equal(parsed.reason, 'cursor_expired')
+        assert.equal('series' in parsed, false)
+        assert.equal(relay.message.type, 'historyQueryRestart')
+        assert.throws(() => historyQueryResultSchema.parse(restart))
+        assert.throws(() =>
+            historyQueryResultSchema.parse({
+                ...memberResult,
+                incomplete: true,
+                series: Array.from(
+                    { length: 21 },
+                    () => memberResult.series[0]
+                ),
             })
         )
     })

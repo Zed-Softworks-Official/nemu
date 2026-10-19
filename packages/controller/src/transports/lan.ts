@@ -8,9 +8,6 @@ import {
     type CreateRoomRequest,
     clientWsMessageSchema,
     commissionRequestSchema,
-    type HistoryQuery,
-    type HistoryQueryResult,
-    historyQueryResultSchema,
     commissionResponseSchema,
     createRoomRequestSchema,
     type Device,
@@ -19,7 +16,10 @@ import {
     deviceEventSchema,
     deviceSchema,
     devicesResponseSchema,
+    type HistoryQuery,
+    type HistoryQueryRead,
     type HouseholdMember,
+    historyQueryReadSchema,
     householdMemberSchema,
     inviteMemberRequestSchema,
     type MatterWifiResponse,
@@ -77,7 +77,7 @@ type PendingCommand = {
 }
 
 type PendingHistory = {
-    resolve: (result: HistoryQueryResult) => void
+    resolve: (result: HistoryQueryRead) => void
     reject: (err: Error) => void
     timer: ReturnType<typeof setTimeout>
 }
@@ -290,7 +290,7 @@ export class LanTransport implements ControllerTransport {
      * Holds the response only until this promise settles. Nothing is written
      * to localStorage, IndexedDB, or a service worker.
      */
-    async queryHistory(query: HistoryQuery): Promise<HistoryQueryResult> {
+    async queryHistory(query: HistoryQuery): Promise<HistoryQueryRead> {
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
             throw new Error('WebSocket not connected')
         }
@@ -300,7 +300,7 @@ export class LanTransport implements ControllerTransport {
             requestId,
             ...query,
         })
-        return await new Promise<HistoryQueryResult>((resolve, reject) => {
+        return await new Promise<HistoryQueryRead>((resolve, reject) => {
             const timer = setTimeout(() => {
                 this.historyPending.delete(requestId)
                 reject(new Error('History query timed out'))
@@ -426,7 +426,7 @@ export class LanTransport implements ControllerTransport {
             return
         }
 
-        const history = historyQueryResultSchema.safeParse(raw)
+        const history = historyQueryReadSchema.safeParse(raw)
         if (history.success) {
             const pending = this.historyPending.get(history.data.requestId)
             if (pending) {

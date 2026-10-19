@@ -153,6 +153,9 @@ async fn main() {
         history_query_slots: std::sync::Arc::new(tokio::sync::Semaphore::new(
             capabilities::history_query::HISTORY_QUERY_CONCURRENCY,
         )),
+        history_cursors: std::sync::Arc::new(std::sync::Mutex::new(
+            capabilities::history_query::HistoryCursorStore::default(),
+        )),
         registry,
         state_cache: Arc::new(StateCache::new()),
         capabilities,
