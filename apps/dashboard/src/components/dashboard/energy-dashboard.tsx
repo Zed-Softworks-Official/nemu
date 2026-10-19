@@ -64,7 +64,9 @@ import {
     livePowerFlowLabel,
     type MeterReading,
     type MeterScope,
+    type PresentedContributorBreakdown,
     type PresentedHistorySeries,
+    presentContributorBreakdown,
     presentEnergySummary,
     presentHistorySeries,
     selectableMeterScopes,
@@ -298,11 +300,14 @@ function HomeEnergy({
     const [chart, setChart] = useState<{
         key: string
         series: PresentedHistorySeries[]
+        contributors: PresentedContributorBreakdown[]
     } | null>(null)
     const [historyError, setHistoryError] = useState<string | null>(null)
     const [attempt, setAttempt] = useState(0)
     const chartKey = `${designation.id}:${range}:${mode}`
     const visibleChart = chart?.key === chartKey ? chart.series : null
+    const visibleContributors =
+        chart?.key === chartKey ? chart.contributors : []
     const visibleToday = today?.designationId === designation.id ? today : null
     const live = liveDesignatedPower(
         capabilities,
@@ -366,52 +371,44 @@ function HomeEnergy({
         void (async () => {
             try {
                 const loaded: PresentedHistorySeries[] = []
-                if (mode === 'power' && quantities.powerCapabilityId) {
-                    const series = await readMetric(
+                const contributors: PresentedContributorBreakdown[] = []
+                const loadMetric = async (
+                    metric: 'power' | 'importedEnergy' | 'exportedEnergy'
+                ) => {
+                    const result = await collectHistory(
                         queryHistory,
-                        'power',
-                        queryWindow
+                        homeHistoryQuery({
+                            metric,
+                            start: queryWindow.start,
+                            end: queryWindow.end,
+                            resolution: queryWindow.resolution,
+                            breakdown: true,
+                        })
                     )
                     loaded.push(
-                        ...series.map((item) =>
-                            presentHistorySeries({ ...item, metric: 'power' })
+                        ...result.series.map((item) =>
+                            presentHistorySeries({ ...item, metric })
                         )
                     )
+                    const presented = presentContributorBreakdown(
+                        result.breakdown,
+                        metric
+                    )
+                    if (presented) contributors.push(presented)
+                }
+                if (mode === 'power' && quantities.powerCapabilityId) {
+                    await loadMetric('power')
                 }
                 if (mode === 'energy') {
                     if (plan.imported !== 'absent') {
-                        const series = await readMetric(
-                            queryHistory,
-                            'importedEnergy',
-                            queryWindow
-                        )
-                        loaded.push(
-                            ...series.map((item) =>
-                                presentHistorySeries({
-                                    ...item,
-                                    metric: 'importedEnergy',
-                                })
-                            )
-                        )
+                        await loadMetric('importedEnergy')
                     }
                     if (plan.exported !== 'absent') {
-                        const series = await readMetric(
-                            queryHistory,
-                            'exportedEnergy',
-                            queryWindow
-                        )
-                        loaded.push(
-                            ...series.map((item) =>
-                                presentHistorySeries({
-                                    ...item,
-                                    metric: 'exportedEnergy',
-                                })
-                            )
-                        )
+                        await loadMetric('exportedEnergy')
                     }
                 }
                 if (!cancelled) {
-                    setChart({ key: chartKey, series: loaded })
+                    setChart({ key: chartKey, series: loaded, contributors })
                     setHistoryError(null)
                 }
             } catch (err) {
@@ -526,11 +523,19 @@ function HomeEnergy({
                         {visibleChart === null ? (
                             <Skeleton className="h-64" />
                         ) : (
-                            <HistoryChart
-                                mode={mode}
-                                range={range}
-                                series={visibleChart}
-                            />
+                            <>
+                                <HistoryChart
+                                    mode={mode}
+                                    range={range}
+                                    series={visibleChart}
+                                />
+                                {visibleContributors.map((group) => (
+                                    <ContributorBreakdownView
+                                        group={group}
+                                        key={group.title}
+                                    />
+                                ))}
+                            </>
                         )}
                     </CardContent>
                 </Card>
@@ -657,6 +662,71 @@ function HistoryChart({
                     </LineChart>
                 </ChartContainer>
             )}
+        </div>
+    )
+}
+
+function ContributorBreakdownView({
+    group,
+}: {
+    group: PresentedContributorBreakdown
+}) {
+    const sections = [
+        { title: 'Consuming', rows: group.consuming },
+        { title: 'Producing', rows: group.producing },
+    ].filter((section) => section.rows.length > 0)
+    return (
+        <div className="space-y-3 border-t pt-4">
+            <div>
+                <p className="font-medium text-sm">{group.title}</p>
+                <p className="text-muted-foreground text-sm">
+                    Rankings stay separate so generation does not cancel
+                    consumption.
+                </p>
+            </div>
+            {group.inconsistent ? (
+                <p className="text-sm">
+                    These meters disagree beyond their tolerance. Unattributed
+                    energy is omitted.
+                </p>
+            ) : null}
+            {sections.map((section) => (
+                <div key={section.title}>
+                    <p className="text-muted-foreground text-sm">
+                        {section.title}
+                    </p>
+                    <ul className="mt-1 space-y-1 text-sm">
+                        {section.rows.map((row) => (
+                            <li
+                                className="flex flex-wrap justify-between gap-2"
+                                key={row.capabilityId}
+                            >
+                                <span>
+                                    {row.rank === null ? '–' : row.rank}.{' '}
+                                    {row.label}
+                                </span>
+                                <span>
+                                    {row.quantity}
+                                    {row.percentage === null
+                                        ? ''
+                                        : ` · ${row.percentage}`}
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            ))}
+            {group.unattributed ? (
+                <p className="text-sm">
+                    Unattributed {group.unattributed.quantity}
+                    {group.unattributed.percentage === null
+                        ? ''
+                        : ` · ${group.unattributed.percentage}`}
+                    {group.unattributed.withinMeterTolerance
+                        ? ' · Within meter tolerance'
+                        : ''}
+                </p>
+            ) : null}
         </div>
     )
 }
@@ -1377,7 +1447,11 @@ function mergeHistory(
         existing.gaps.push(...next.gaps)
         existing.missing.push(...next.missing)
     }
-    return { ...page, series }
+    return {
+        ...page,
+        series,
+        breakdown: page.breakdown ?? current.breakdown,
+    }
 }
 
 function chartRows(

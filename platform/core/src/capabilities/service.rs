@@ -170,6 +170,15 @@ impl CapabilityService {
         self.ingest_report(report, received_at)
     }
 
+    pub fn constraint_revisions(
+        &self,
+        id: super::CapabilityId,
+    ) -> Option<Vec<super::ConstraintRevision>> {
+        self.current
+            .registered(id)
+            .map(|registered| registered.declaration.constraint_revisions)
+    }
+
     pub fn ingest_report(
         &self,
         report: CapabilityReport,

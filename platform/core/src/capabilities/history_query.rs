@@ -29,6 +29,10 @@ use crate::state::AppState;
 
 use super::CapabilityKind;
 use super::admission_journal::{self, GapReason, HistoryHealth, MemberReason};
+use super::contributor_breakdown::{
+    self, AlignedBucket, BreakdownInput, BreakdownMeter, BreakdownQuantity, BreakdownScope,
+    ContributorBreakdown, HomeMeterScope, SeriesProvenance,
+};
 use super::history_retention::{self, Resolution as RetainedResolution};
 use super::home_calendar::{self, TimezonePeriod};
 
@@ -218,6 +222,10 @@ pub struct HistoryQueryBody {
     pub resolution: QueryResolution,
     pub freshness_limit_ms: u64,
     pub max_points: u32,
+    /// Home queries rank downstream contributors when this is set. Other scopes
+    /// ignore it. The result stays on this query; there is no second request.
+    #[serde(default)]
+    pub breakdown: bool,
 }
 
 impl<'de> Deserialize<'de> for HistoryQueryRequest {
@@ -319,6 +327,10 @@ pub struct HistoryQueryResponse {
     pub incomplete: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub next_cursor: Option<String>,
+    /// Omitted unless the caller asked for a Home breakdown. Percentages and
+    /// Unattributed are present only when the calculation proved them.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub breakdown: Option<ContributorBreakdown>,
 }
 
 #[derive(Debug, Serialize)]
@@ -1109,7 +1121,7 @@ pub async fn query_for_client(
                 .get()
                 .await
                 .map_err(|_| HistoryQueryError::Database)?;
-            let loaded = conn
+            let mut loaded = conn
                 .interact(move |conn| load_query(conn, &request, freshness))
                 .await
                 .map_err(|_| HistoryQueryError::Database)?
@@ -1120,13 +1132,22 @@ pub async fn query_for_client(
                         HistoryQueryError::Database
                     }
                 })?;
+            let breakdown = loaded.breakdown_input.take().map(|mut input| {
+                fill_breakdown_accuracy(
+                    &mut input,
+                    &state.capabilities,
+                    loaded.query.start,
+                    loaded.query.end,
+                );
+                contributor_breakdown::calculate_contributor_breakdown(&input)
+            });
             let health = admission_journal::current_health();
             let now = Utc::now();
             let mut cursors = state
                 .history_cursors
                 .lock()
                 .unwrap_or_else(|poisoned| poisoned.into_inner());
-            finish_response(role, loaded, &health, &mut cursors, now)
+            finish_response(role, loaded, breakdown, &health, &mut cursors, now)
         }
     }
 }
@@ -1150,6 +1171,7 @@ async fn caller_role(
 fn finish_response(
     role: HistoryRole,
     loaded: LoadedQuery,
+    breakdown: Option<ContributorBreakdown>,
     health: &HistoryHealth,
     cursors: &mut HistoryCursorStore,
     now: DateTime<Utc>,
@@ -1177,6 +1199,7 @@ fn finish_response(
                     HistoryRole::Owner => Some(health.clone()),
                     HistoryRole::Member => None,
                 },
+                breakdown,
             },
         )));
     }
@@ -1222,6 +1245,7 @@ fn finish_response(
                 HistoryRole::Owner => Some(health.clone()),
                 HistoryRole::Member => None,
             },
+            breakdown: None,
         },
     )))
 }
@@ -1253,6 +1277,7 @@ struct LoadedQuery {
     series: Vec<LoadedSeries>,
     home_series: Option<Vec<HistorySeries>>,
     home_buckets: Vec<Span>,
+    breakdown_input: Option<BreakdownInput>,
 }
 
 struct LoadedSeries {
@@ -1366,10 +1391,7 @@ fn intersect_span(left: Span, right: Span) -> Option<Span> {
 }
 
 /// Instants where a designation starts or ends inside the query window.
-fn designation_boundary_instants(
-    periods: &[HomePeriodSlice],
-    range: Span,
-) -> Vec<DateTime<Utc>> {
+fn designation_boundary_instants(periods: &[HomePeriodSlice], range: Span) -> Vec<DateTime<Utc>> {
     let mut bounds = Vec::new();
     for period in periods {
         if range.start <= period.effective_from && period.effective_from <= range.end {
@@ -1890,6 +1912,330 @@ fn load_home_series(
     })
 }
 
+fn load_breakdown_input(
+    conn: &mut PgConnection,
+    request: &HistoryQueryBody,
+    home: &HomeLoad,
+) -> Result<Option<BreakdownInput>, QueryLoadError> {
+    if !request.breakdown || !matches!(request.scope, HistoryScope::Home) {
+        return Ok(None);
+    }
+    let Some(quantity) = breakdown_quantity(request.metric) else {
+        return Ok(None);
+    };
+    if home.series.is_empty() {
+        return Ok(None);
+    }
+    let periods = super::home_meter::load_all_periods(conn)?;
+    let overlapping: Vec<_> = periods
+        .iter()
+        .filter(|period| {
+            period.effective_from < request.end
+                && period
+                    .effective_until
+                    .is_none_or(|until| until > request.start)
+        })
+        .collect();
+    if overlapping.is_empty() {
+        return Ok(None);
+    }
+    let scopes: Vec<HomeMeterScope> = overlapping
+        .iter()
+        .map(|period| home_meter_scope(period))
+        .collect();
+    let designation_boundary = home.series.len() > 1
+        || home
+            .series
+            .iter()
+            .any(|series| !series.designation_boundaries.is_empty())
+        || scopes.windows(2).any(|pair| pair[0] != pair[1]);
+    let home_scope = scopes.into_iter().next().unwrap_or(HomeMeterScope::Home);
+    let buckets = home_bucket_spans(home);
+    let home_ids: Vec<Uuid> = home
+        .series
+        .iter()
+        .map(|series| series.capability_id)
+        .collect();
+    let mut contributors = Vec::new();
+    for row in load_contributor_identities(conn)? {
+        let Some(kind) = CapabilityKind::parse(&row.kind).ok() else {
+            continue;
+        };
+        if !metric_reads_kind(request.metric, kind) || home_ids.contains(&row.id) {
+            continue;
+        }
+        let component_path = contributor_component_path(&row);
+        let (mut samples, observations) = load_points(
+            conn,
+            row.id,
+            kind,
+            request.metric,
+            home.series[0].resolution,
+            request.start,
+            request.end,
+            request.max_points.min(ABSOLUTE_POINT_CAP),
+        )?;
+        for observation in observations {
+            samples.push(RollupSample {
+                start: observation.at,
+                end: observation.at,
+                value: Some(observation.value),
+                scale: observation.scale,
+                covered_ns: 0,
+                elapsed_ns: 0,
+                provenance: Provenance::Measured,
+                sum_values: false,
+            });
+        }
+        let gaps = load_gaps(conn, row.id, request.start, request.end)?;
+        let covered_ns = samples.iter().map(|sample| sample.covered_ns.max(0)).sum();
+        let elapsed_ns = samples.iter().map(|sample| sample.elapsed_ns.max(0)).sum();
+        contributors.push(BreakdownMeter {
+            capability_id: row.id,
+            label: series_label(request.metric, row.id, &component_path),
+            scope: BreakdownScope {
+                device_key: contributor_breakdown::device_key(
+                    &row.protocol,
+                    &row.device_external_id,
+                ),
+                component_path,
+            },
+            quantity,
+            provenance: match series_provenance(request.metric, kind) {
+                Provenance::Measured => SeriesProvenance::Measured,
+                Provenance::Estimated => SeriesProvenance::Estimated,
+            },
+            covered_ns,
+            elapsed_ns,
+            history_gaps: !gaps.is_empty(),
+            accuracy: None,
+            buckets: samples_on_buckets(&samples, &buckets),
+        });
+    }
+    Ok(Some(BreakdownInput {
+        quantity,
+        home_scope,
+        designation_boundary,
+        home_capability_ids: home_ids,
+        home: home_breakdown_meter(home, &buckets, quantity),
+        contributors,
+        // No tested adapter profile is registered. Beta does not accept an
+        // Owner topology, so cross-device meters stay rankings.
+        disjoint_devices: None,
+    }))
+}
+
+fn breakdown_quantity(metric: HistoryMetric) -> Option<BreakdownQuantity> {
+    Some(match metric {
+        HistoryMetric::Power => BreakdownQuantity::InstantaneousPower,
+        HistoryMetric::ImportedEnergy => BreakdownQuantity::ImportedEnergy,
+        HistoryMetric::ExportedEnergy => BreakdownQuantity::ExportedEnergy,
+        HistoryMetric::Voltage | HistoryMetric::Current => return None,
+    })
+}
+
+fn home_meter_scope(period: &super::home_meter::DesignationPeriod) -> HomeMeterScope {
+    let device_key =
+        contributor_breakdown::device_key(&period.protocol, &period.device_external_id);
+    match period.physical_scope_kind.as_str() {
+        "device" => HomeMeterScope::Device { device_key },
+        "component" => {
+            let component_path = if !period.component_path.is_empty() {
+                period.component_path.clone()
+            } else if period.physical_scope_component_id.is_empty() {
+                Vec::new()
+            } else {
+                vec![period.physical_scope_component_id.clone()]
+            };
+            HomeMeterScope::Component {
+                device_key,
+                component_path,
+            }
+        }
+        _ => HomeMeterScope::Home,
+    }
+}
+
+fn home_bucket_spans(home: &HomeLoad) -> Vec<Span> {
+    if !home.buckets.is_empty() {
+        return home.buckets.clone();
+    }
+    let mut spans = Vec::new();
+    for series in &home.series {
+        for point in &series.points {
+            let span = Span {
+                start: point.start,
+                end: point.end,
+            };
+            if !spans
+                .iter()
+                .any(|existing: &Span| existing.start == span.start && existing.end == span.end)
+            {
+                spans.push(span);
+            }
+        }
+    }
+    spans.sort_by_key(|span| span.start);
+    spans
+}
+
+fn home_breakdown_meter(
+    home: &HomeLoad,
+    buckets: &[Span],
+    quantity: BreakdownQuantity,
+) -> BreakdownMeter {
+    let first = &home.series[0];
+    let provenance = if home
+        .series
+        .iter()
+        .any(|series| series.provenance == Provenance::Estimated)
+    {
+        SeriesProvenance::Estimated
+    } else {
+        SeriesProvenance::Measured
+    };
+    let (covered_ns, elapsed_ns) = if home.series.len() == 1 {
+        (first.coverage.covered_ns, first.coverage.elapsed_ns)
+    } else {
+        (
+            home.series
+                .iter()
+                .map(|series| series.coverage.covered_ns)
+                .sum(),
+            first.coverage.elapsed_ns,
+        )
+    };
+    BreakdownMeter {
+        capability_id: first.capability_id,
+        label: first.label.clone(),
+        scope: BreakdownScope {
+            device_key: "home".into(),
+            component_path: Vec::new(),
+        },
+        quantity,
+        provenance,
+        covered_ns,
+        elapsed_ns,
+        history_gaps: home.series.iter().any(|series| !series.gaps.is_empty()),
+        accuracy: None,
+        buckets: buckets
+            .iter()
+            .map(|bucket| {
+                let matches: Vec<_> = home
+                    .series
+                    .iter()
+                    .flat_map(|series| series.points.iter())
+                    .filter(|point| point.start == bucket.start && point.end == bucket.end)
+                    .collect();
+                let (value, scale) = if matches.len() == 1 {
+                    (Some(matches[0].value), matches[0].scale)
+                } else {
+                    (None, matches.first().map(|point| point.scale).unwrap_or(0))
+                };
+                AlignedBucket {
+                    start: bucket.start,
+                    end: bucket.end,
+                    value,
+                    scale,
+                }
+            })
+            .collect(),
+    }
+}
+
+fn samples_on_buckets(samples: &[RollupSample], buckets: &[Span]) -> Vec<AlignedBucket> {
+    buckets
+        .iter()
+        .map(|bucket| {
+            let matched: Vec<_> = samples
+                .iter()
+                .filter(|sample| sample.start == bucket.start && sample.end == bucket.end)
+                .collect();
+            let scale = matched.first().map(|sample| sample.scale).unwrap_or(0);
+            let value = if matched.is_empty() {
+                None
+            } else if matched.iter().any(|sample| sample.value.is_none()) {
+                None
+            } else if matched.len() == 1 || matched.iter().all(|sample| sample.sum_values) {
+                let sum = matched.iter().fold(0i128, |total, sample| {
+                    total + i128::from(sample.value.unwrap_or(0))
+                });
+                i64::try_from(sum).ok()
+            } else {
+                None
+            };
+            AlignedBucket {
+                start: bucket.start,
+                end: bucket.end,
+                value,
+                scale,
+            }
+        })
+        .collect()
+}
+
+fn contributor_component_path(row: &ContributorIdentityRow) -> Vec<String> {
+    if row.physical_scope_kind == "device" && row.component_path.is_empty() {
+        return Vec::new();
+    }
+    if !row.component_path.is_empty() {
+        return row.component_path.split('/').map(str::to_string).collect();
+    }
+    if row.physical_scope_component_id.is_empty() {
+        vec!["component".into()]
+    } else {
+        vec![row.physical_scope_component_id.clone()]
+    }
+}
+
+fn load_contributor_identities(
+    conn: &mut PgConnection,
+) -> Result<Vec<ContributorIdentityRow>, diesel::result::Error> {
+    diesel::sql_query(
+        "SELECT id, kind::text AS kind, protocol, device_external_id,
+                physical_scope_kind::text AS physical_scope_kind,
+                physical_scope_component_id,
+                COALESCE(array_to_string(component_path, '/'), '')::text AS component_path
+         FROM capability_identities
+         WHERE tombstoned_at IS NULL",
+    )
+    .load(conn)
+}
+
+fn fill_breakdown_accuracy(
+    input: &mut BreakdownInput,
+    capabilities: &crate::capabilities::CapabilityService,
+    start: DateTime<Utc>,
+    end: DateTime<Utc>,
+) {
+    let home_ids = if input.home_capability_ids.is_empty() {
+        vec![input.home.capability_id]
+    } else {
+        input.home_capability_ids.clone()
+    };
+    input.home.accuracy = merged_accuracy(capabilities, &home_ids, start, end);
+    for meter in &mut input.contributors {
+        meter.accuracy = merged_accuracy(capabilities, &[meter.capability_id], start, end);
+    }
+}
+
+fn merged_accuracy(
+    capabilities: &crate::capabilities::CapabilityService,
+    ids: &[Uuid],
+    start: DateTime<Utc>,
+    end: DateTime<Utc>,
+) -> Option<contributor_breakdown::MeterAccuracy> {
+    let mut parts = Vec::new();
+    for id in ids {
+        let revisions =
+            capabilities.constraint_revisions(crate::capabilities::CapabilityId::from_uuid(*id))?;
+        parts.push(contributor_breakdown::accuracy_for_window(
+            &revisions, start, end,
+        )?);
+    }
+    contributor_breakdown::conservative_accuracy(&parts)
+}
+
 fn load_query(
     conn: &mut PgConnection,
     request: &HistoryQueryBody,
@@ -1903,6 +2249,7 @@ fn load_query(
         let periods = load_periods(conn)?;
         if matches!(request.scope, HistoryScope::Home) {
             let home = load_home_series(conn, request, freshness, &periods)?;
+            let breakdown_input = load_breakdown_input(conn, request, &home)?;
             return Ok(LoadedQuery {
                 as_of,
                 snapshot,
@@ -1910,6 +2257,7 @@ fn load_query(
                 series: Vec::new(),
                 home_series: Some(home.series),
                 home_buckets: home.buckets,
+                breakdown_input,
             });
         }
         let identities = load_identities(conn, &request.scope)?;
@@ -2015,6 +2363,7 @@ fn load_query(
             series,
             home_series: None,
             home_buckets: Vec::new(),
+            breakdown_input: None,
         })
     })
 }
@@ -2049,6 +2398,24 @@ struct PeriodRow {
     effective_from: DateTime<Utc>,
     #[diesel(sql_type = Nullable<Timestamptz>)]
     effective_until: Option<DateTime<Utc>>,
+}
+
+#[derive(QueryableByName)]
+struct ContributorIdentityRow {
+    #[diesel(sql_type = SqlUuid)]
+    id: Uuid,
+    #[diesel(sql_type = Text)]
+    kind: String,
+    #[diesel(sql_type = Text)]
+    protocol: String,
+    #[diesel(sql_type = Text)]
+    device_external_id: String,
+    #[diesel(sql_type = Text)]
+    physical_scope_kind: String,
+    #[diesel(sql_type = Text)]
+    physical_scope_component_id: String,
+    #[diesel(sql_type = Text)]
+    component_path: String,
 }
 
 #[derive(QueryableByName)]
@@ -2491,6 +2858,7 @@ struct MaterializedHistory {
     series: Vec<HistorySeries>,
     reasons: Vec<String>,
     health: Option<HistoryHealth>,
+    breakdown: Option<ContributorBreakdown>,
 }
 
 #[derive(Debug)]
@@ -2503,6 +2871,7 @@ struct StoredCursor {
     buckets: Vec<Span>,
     reasons: Vec<String>,
     health: Option<HistoryHealth>,
+    breakdown: Option<ContributorBreakdown>,
     pages: VecDeque<Vec<HistorySeries>>,
     created_at: DateTime<Utc>,
 }
@@ -2549,6 +2918,7 @@ impl HistoryCursorStore {
                 buckets: materialized.buckets,
                 reasons: materialized.reasons.clone(),
                 health: materialized.health.clone(),
+                breakdown: materialized.breakdown.clone(),
                 pages,
                 created_at: now,
             };
@@ -2563,6 +2933,7 @@ impl HistoryCursorStore {
             health: materialized.health,
             incomplete,
             next_cursor,
+            breakdown: materialized.breakdown,
         }
     }
 
@@ -2601,6 +2972,7 @@ impl HistoryCursorStore {
             health: entry.health.clone(),
             incomplete,
             next_cursor: incomplete.then(|| cursor.to_string()),
+            breakdown: entry.breakdown.clone(),
         };
         if !incomplete {
             self.cursors.remove(cursor);
@@ -3132,6 +3504,7 @@ mod tests {
             health: None,
             incomplete: false,
             next_cursor: None,
+            breakdown: None,
         };
         let json = serde_json::to_value(&response).unwrap();
         let rendered = json.to_string();
@@ -3179,6 +3552,7 @@ mod tests {
             health: Some(health),
             incomplete: false,
             next_cursor: None,
+            breakdown: None,
         };
         let json = serde_json::to_value(&response).unwrap();
         assert_eq!(json["health"]["queue"]["queued"], 1024);
@@ -3282,6 +3656,24 @@ mod tests {
             panic!("home query");
         };
         assert!(matches!(home.scope, HistoryScope::Home));
+        assert!(!home.breakdown);
+
+        let flagged = serde_json::from_value::<HistoryQueryRequest>(serde_json::json!({
+            "scope": { "type": "home" },
+            "metric": "importedEnergy",
+            "start": "2026-10-01T00:00:00Z",
+            "end": "2026-10-01T01:00:00Z",
+            "resolution": "hourly",
+            "freshnessLimitMs": 1000,
+            "maxPoints": 24,
+            "breakdown": true
+        }))
+        .unwrap();
+        let HistoryQueryRequest::Query(flagged) = flagged else {
+            panic!("home breakdown query");
+        };
+        assert!(flagged.breakdown);
+        assert!(matches!(flagged.scope, HistoryScope::Home));
     }
 
     #[test]
@@ -3523,6 +3915,7 @@ mod tests {
             resolution: QueryResolution::Hourly,
             freshness_limit_ms: 60_000,
             max_points: 1_000,
+            breakdown: false,
         }
     }
 
@@ -3576,6 +3969,7 @@ mod tests {
             series,
             reasons: vec!["gap".into()],
             health: Some(degraded_health()),
+            breakdown: None,
         }
     }
 

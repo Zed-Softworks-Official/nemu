@@ -1,5 +1,6 @@
 mod adapter;
 pub mod admission_journal;
+pub mod contributor_breakdown;
 mod current_state;
 mod gauge_rollup;
 mod history;

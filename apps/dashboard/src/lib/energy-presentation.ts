@@ -440,6 +440,7 @@ export function homeHistoryQuery(input: {
     start: string
     end: string
     resolution: HistoryResolutionName
+    breakdown?: boolean
 }): {
     scope: { type: 'home' }
     metric: 'power' | 'importedEnergy' | 'exportedEnergy'
@@ -448,6 +449,7 @@ export function homeHistoryQuery(input: {
     resolution: HistoryResolutionName
     freshnessLimitMs: number
     maxPoints: number
+    breakdown?: boolean
 } {
     return {
         scope: { type: 'home' },
@@ -457,7 +459,118 @@ export function homeHistoryQuery(input: {
         resolution: input.resolution,
         freshnessLimitMs: 60_000,
         maxPoints: 1000,
+        ...(input.breakdown ? { breakdown: true } : {}),
     }
+}
+
+export interface ContributorRankingInput {
+    capabilityId: string
+    label: string
+    rank: number | null
+    value: number | null
+    scale: number
+    percentageBasisPoints?: number
+}
+
+export interface ContributorBreakdownInput {
+    consuming: readonly ContributorRankingInput[]
+    producing: readonly ContributorRankingInput[]
+    unattributed?: {
+        value: number
+        scale: number
+        percentageBasisPoints?: number
+        withinMeterTolerance: boolean
+    }
+    status:
+        | 'rankingsOnly'
+        | 'attributed'
+        | 'withinMeterTolerance'
+        | 'inconsistent'
+}
+
+export interface PresentedContributor {
+    capabilityId: string
+    label: string
+    rank: number | null
+    quantity: string
+    percentage: string | null
+}
+
+export interface PresentedContributorBreakdown {
+    title: string
+    consuming: PresentedContributor[]
+    producing: PresentedContributor[]
+    unattributed: {
+        quantity: string
+        percentage: string | null
+        withinMeterTolerance: boolean
+    } | null
+    inconsistent: boolean
+}
+
+export function presentContributorBreakdown(
+    breakdown: ContributorBreakdownInput | undefined,
+    metric: 'power' | 'importedEnergy' | 'exportedEnergy'
+): PresentedContributorBreakdown | null {
+    if (breakdown === undefined) return null
+    const power = metric === 'power'
+    const presentRow = (
+        row: ContributorRankingInput
+    ): PresentedContributor => ({
+        capabilityId: row.capabilityId,
+        label: row.label,
+        rank: row.rank,
+        quantity:
+            row.value === null
+                ? 'Unknown'
+                : power
+                  ? formatPower(row.value / 10 ** row.scale)
+                  : formatEnergy(row.value / 10 ** row.scale / 1000),
+        percentage:
+            row.percentageBasisPoints === undefined
+                ? null
+                : formatBasisPoints(row.percentageBasisPoints),
+    })
+    return {
+        title:
+            metric === 'power'
+                ? 'Power contributors'
+                : metric === 'exportedEnergy'
+                  ? 'Export contributors'
+                  : 'Import contributors',
+        consuming: breakdown.consuming.map(presentRow),
+        producing: breakdown.producing.map(presentRow),
+        unattributed: breakdown.unattributed
+            ? {
+                  quantity: power
+                      ? formatPower(
+                            breakdown.unattributed.value /
+                                10 ** breakdown.unattributed.scale
+                        )
+                      : formatEnergy(
+                            breakdown.unattributed.value /
+                                10 ** breakdown.unattributed.scale /
+                                1000
+                        ),
+                  percentage:
+                      breakdown.unattributed.percentageBasisPoints === undefined
+                          ? null
+                          : formatBasisPoints(
+                                breakdown.unattributed.percentageBasisPoints
+                            ),
+                  withinMeterTolerance:
+                      breakdown.unattributed.withinMeterTolerance,
+              }
+            : null,
+        inconsistent: breakdown.status === 'inconsistent',
+    }
+}
+
+function formatBasisPoints(basisPoints: number): string {
+    const percent = basisPoints / 100
+    return `${new Intl.NumberFormat('en', {
+        maximumFractionDigits: 2,
+    }).format(percent)}%`
 }
 
 export function presentHistorySeries(

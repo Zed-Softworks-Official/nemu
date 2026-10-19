@@ -290,6 +290,119 @@ describe('history query messages', () => {
         assert.equal('series' in parsed, false)
         assert.equal(relay.message.type, 'historyQueryRestart')
         assert.throws(() => historyQueryResultSchema.parse(restart))
+
+        const rankingsOnly = historyQueryResultSchema.parse({
+            ...memberResult,
+            breakdown: {
+                consuming: [
+                    {
+                        capabilityId,
+                        label: 'Oven',
+                        rank: 1,
+                        value: 40,
+                        scale: 0,
+                    },
+                ],
+                producing: [],
+                status: 'rankingsOnly',
+            },
+        })
+        assert.equal(rankingsOnly.breakdown?.status, 'rankingsOnly')
+        assert.equal(rankingsOnly.breakdown?.unattributed, undefined)
+        assert.equal(
+            rankingsOnly.breakdown?.consuming[0]?.percentageBasisPoints,
+            undefined
+        )
+        const withShare = {
+            ...memberResult,
+            breakdown: {
+                consuming: [
+                    {
+                        capabilityId,
+                        label: 'Oven',
+                        rank: 1,
+                        value: 40,
+                        scale: 0,
+                        percentageBasisPoints: 4000,
+                    },
+                ],
+                producing: [
+                    {
+                        capabilityId: deviceId,
+                        label: 'Solar',
+                        rank: 1,
+                        value: -20,
+                        scale: 0,
+                    },
+                ],
+                unattributed: {
+                    value: 60,
+                    scale: 0,
+                    percentageBasisPoints: 6000,
+                    withinMeterTolerance: false,
+                },
+                status: 'attributed',
+            },
+        }
+        const lanBreakdown = clientWsMessageSchema.parse({
+            ...query,
+            scope: { type: 'home' as const },
+            breakdown: true,
+            requestId: 'req-breakdown',
+        })
+        const relayBreakdown = relayToControllerEnvelopeSchema.parse({
+            requestId: 'req-breakdown',
+            clientToken: 'token',
+            message: {
+                ...query,
+                scope: { type: 'home' as const },
+                breakdown: true,
+            },
+        })
+        assert.equal(lanBreakdown.type, 'historyQuery')
+        assert.equal(relayBreakdown.message.type, 'historyQuery')
+        if (
+            lanBreakdown.type === 'historyQuery' &&
+            relayBreakdown.message.type === 'historyQuery' &&
+            'breakdown' in lanBreakdown &&
+            'breakdown' in relayBreakdown.message
+        ) {
+            assert.equal(lanBreakdown.breakdown, true)
+            assert.equal(relayBreakdown.message.breakdown, true)
+        }
+        const relayResult = relayToClientEnvelopeSchema.parse({
+            requestId: 'req-breakdown',
+            signature: 'signed',
+            message: withShare,
+        })
+        assert.equal(relayResult.message.type, 'historyQueryResult')
+        if (relayResult.message.type === 'historyQueryResult') {
+            assert.equal(
+                relayResult.message.breakdown?.consuming[0]
+                    ?.percentageBasisPoints,
+                4000
+            )
+            assert.equal(relayResult.message.breakdown?.unattributed?.value, 60)
+        }
+        const inconsistent = historyQueryResultSchema.parse({
+            ...memberResult,
+            breakdown: {
+                consuming: [
+                    {
+                        capabilityId,
+                        label: 'Oven',
+                        rank: 1,
+                        value: 200,
+                        scale: 0,
+                        percentageBasisPoints: 20000,
+                    },
+                ],
+                producing: [],
+                status: 'inconsistent',
+            },
+        })
+        assert.equal(inconsistent.breakdown?.unattributed, undefined)
+        assert.equal(inconsistent.breakdown?.status, 'inconsistent')
         assert.throws(() =>
             historyQueryResultSchema.parse({
                 ...memberResult,

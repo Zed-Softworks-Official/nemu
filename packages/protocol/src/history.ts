@@ -49,6 +49,8 @@ export const historyQueryFields = {
     freshnessLimitMs: z.number().int().positive(),
     maxPoints: z.number().int().positive().max(1000),
     cursor: z.string().min(1).optional(),
+    /** Home queries may rank downstream contributors on this same response. */
+    breakdown: z.boolean().optional(),
 }
 
 export const historyQueryMessageSchema = z.object({
@@ -129,6 +131,35 @@ const historyHealthSchema = z.object({
     ),
 })
 
+const contributorRankingSchema = z.object({
+    capabilityId: z.string().uuid(),
+    label: z.string(),
+    rank: z.number().int().positive().nullable(),
+    value: z.number().int().nullable(),
+    scale: z.number().int().nonnegative(),
+    percentageBasisPoints: z.number().int().optional(),
+})
+
+const unattributedShareSchema = z.object({
+    value: z.number().int(),
+    scale: z.number().int().nonnegative(),
+    percentageBasisPoints: z.number().int().optional(),
+    withinMeterTolerance: z.boolean(),
+})
+
+export const contributorBreakdownSchema = z.object({
+    consuming: z.array(contributorRankingSchema),
+    producing: z.array(contributorRankingSchema),
+    unattributed: unattributedShareSchema.optional(),
+    status: z.enum([
+        'rankingsOnly',
+        'attributed',
+        'withinMeterTolerance',
+        'inconsistent',
+    ]),
+})
+export type ContributorBreakdown = z.infer<typeof contributorBreakdownSchema>
+
 export const historyQueryResultSchema = z.object({
     type: z.literal('historyQueryResult'),
     requestId: z.string(),
@@ -138,6 +169,7 @@ export const historyQueryResultSchema = z.object({
     series: z.array(historySeriesSchema).max(20),
     reasons: z.array(z.enum(['gap', 'coverage'])),
     health: historyHealthSchema.optional(),
+    breakdown: contributorBreakdownSchema.optional(),
 })
 export type HistoryQueryResult = z.infer<typeof historyQueryResultSchema>
 

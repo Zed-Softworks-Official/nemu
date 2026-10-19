@@ -8,6 +8,7 @@ import {
     historyRangeOptions,
     homeHistoryQuery,
     livePowerFlow,
+    presentContributorBreakdown,
     presentEnergySummary,
     presentHistorySeries,
     selectableMeterScopes,
@@ -194,6 +195,103 @@ describe('history ranges', () => {
         assert.equal(query.maxPoints, 1000)
         assert.equal(query.freshnessLimitMs, 60_000)
         assert.equal('cursor' in query, false)
+        assert.equal('breakdown' in query, false)
+        const ranked = homeHistoryQuery({
+            metric: 'importedEnergy',
+            start: '2026-10-18T00:00:00.000Z',
+            end: '2026-10-18T15:00:00.000Z',
+            resolution: 'fifteen_minute',
+            breakdown: true,
+        })
+        assert.equal(ranked.breakdown, true)
+    })
+})
+
+describe('contributor breakdown', () => {
+    it('shows rankings without inventing percentages or Unattributed', () => {
+        const presented = presentContributorBreakdown(
+            {
+                consuming: [
+                    {
+                        capabilityId: importedId,
+                        label: 'Oven',
+                        rank: 1,
+                        value: 40,
+                        scale: 0,
+                    },
+                    {
+                        capabilityId: powerId,
+                        label: 'Unknown meter',
+                        rank: null,
+                        value: null,
+                        scale: 0,
+                    },
+                ],
+                producing: [],
+                status: 'rankingsOnly',
+            },
+            'importedEnergy'
+        )
+        assert.equal(presented?.consuming[0]?.quantity, '0.04 kWh')
+        assert.equal(presented?.consuming[0]?.percentage, null)
+        assert.equal(presented?.consuming[1]?.quantity, 'Unknown')
+        assert.notEqual(presented?.consuming[1]?.quantity, '0 kWh')
+        assert.equal(presented?.unattributed, null)
+        assert.equal(presented?.inconsistent, false)
+    })
+
+    it('shows percentage and Unattributed only when the response includes them', () => {
+        const presented = presentContributorBreakdown(
+            {
+                consuming: [
+                    {
+                        capabilityId: importedId,
+                        label: 'Oven',
+                        rank: 1,
+                        value: 40,
+                        scale: 0,
+                        percentageBasisPoints: 4000,
+                    },
+                ],
+                producing: [],
+                unattributed: {
+                    value: 60,
+                    scale: 0,
+                    percentageBasisPoints: 6000,
+                    withinMeterTolerance: false,
+                },
+                status: 'attributed',
+            },
+            'importedEnergy'
+        )
+        assert.equal(presented?.consuming[0]?.percentage, '40%')
+        assert.equal(presented?.unattributed?.quantity, '0.06 kWh')
+        assert.equal(presented?.unattributed?.percentage, '60%')
+        assert.equal(presented?.unattributed?.withinMeterTolerance, false)
+    })
+
+    it('keeps an inconsistent breakdown from looking like zero Unattributed', () => {
+        const presented = presentContributorBreakdown(
+            {
+                consuming: [
+                    {
+                        capabilityId: importedId,
+                        label: 'Oven',
+                        rank: 1,
+                        value: 200,
+                        scale: 0,
+                        percentageBasisPoints: 20000,
+                    },
+                ],
+                producing: [],
+                status: 'inconsistent',
+            },
+            'importedEnergy'
+        )
+        assert.equal(presented?.inconsistent, true)
+        assert.equal(presented?.unattributed, null)
+        assert.equal(presented?.consuming[0]?.percentage, '200%')
+        assert.equal(presentContributorBreakdown(undefined, 'power'), null)
     })
 })
 
