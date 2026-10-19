@@ -4,6 +4,7 @@ mod current_state;
 mod gauge_rollup;
 mod history;
 pub mod history_budget;
+mod home_calendar;
 mod meter_epoch;
 mod persistence;
 mod service;

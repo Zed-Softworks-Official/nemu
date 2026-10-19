@@ -181,6 +181,15 @@ diesel::table! {
 }
 
 diesel::table! {
+    home_timezone_periods (effective_from) {
+        #[max_length = 64]
+        timezone -> Varchar,
+        effective_from -> Timestamptz,
+        effective_until -> Nullable<Timestamptz>,
+    }
+}
+
+diesel::table! {
     meter_epochs (id) {
         id -> Int8,
         capability_id -> Uuid,
@@ -299,6 +308,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     gauge_rollups,
     history_budget,
     history_gaps,
+    home_timezone_periods,
     meter_epochs,
     energy_counter_rollups,
     members,
