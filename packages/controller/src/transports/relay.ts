@@ -160,6 +160,7 @@ export class RelayTransport implements ControllerTransport {
             return {
                 requestId: parsed.requestId,
                 ok: parsed.message.ok,
+                outcome: parsed.message.outcome,
                 error: parsed.message.error,
             }
         }
@@ -317,6 +318,7 @@ export class RelayTransport implements ControllerTransport {
                             type: 'commandResult',
                             requestId: envelope.requestId,
                             ok: envelope.message.ok,
+                            outcome: envelope.message.outcome,
                             error: envelope.message.error,
                         })
                     } else if (

@@ -75,6 +75,21 @@ pub fn authorize_read(role: &str, status: &str) -> Result<(), &'static str> {
     }
 }
 
+pub fn insert_on(
+    conn: &mut PgConnection,
+    event: &AuditWrite,
+) -> Result<AuditRow, diesel::result::Error> {
+    diesel::insert_into(audit_records::table)
+        .values(NewAudit {
+            kind: event.kind.as_str(),
+            actor_user_id: event.actor_user_id.as_deref(),
+            summary: &event.summary,
+            detail: &event.detail,
+        })
+        .returning(AuditRow::as_returning())
+        .get_result(conn)
+}
+
 pub async fn record(pool: &DbPool, event: AuditWrite) -> Result<AuditRow, String> {
     let conn = pool.get().await.map_err(|error| error.to_string())?;
     let kind = event.kind.as_str().to_string();
@@ -133,12 +148,7 @@ mod tests {
     }
 
     fn pool() -> DbPool {
-        use deadpool_diesel::postgres::{Manager, Pool, Runtime};
-
-        let database_url = std::env::var("CAPABILITY_TEST_DATABASE_URL")
-            .expect("CAPABILITY_TEST_DATABASE_URL must name the isolated test database");
-        let manager = Manager::new(database_url, Runtime::Tokio1);
-        Pool::builder(manager).max_size(2).build().unwrap()
+        crate::db::test_pool()
     }
 
     #[tokio::test]

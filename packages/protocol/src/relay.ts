@@ -15,6 +15,7 @@ const relayCommandMessageSchema = z.object({
 const relayCommandResultMessageSchema = z.object({
     type: z.literal('commandResult'),
     ok: z.boolean(),
+    outcome: z.string().optional(),
     error: z
         .object({
             code: z.string(),

@@ -677,6 +677,36 @@ pub struct ObservationOutcome {
     pub history: HistoryAdmissionOutcome,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ObservationDiagnostic {
+    InvalidValue,
+    IncompatibleReport,
+    RateRejection,
+    LateHistoryRejection,
+}
+
+impl ObservationOutcome {
+    pub fn diagnostics(&self) -> Vec<ObservationDiagnostic> {
+        let mut kinds = Vec::new();
+        if self.current == CurrentStateDisposition::InvalidValue {
+            kinds.push(ObservationDiagnostic::InvalidValue);
+        }
+        match self.history {
+            HistoryAdmissionOutcome::Rejected(HistoryRejection::UnsupportedSchemaVersion) => {
+                kinds.push(ObservationDiagnostic::IncompatibleReport);
+            }
+            HistoryAdmissionOutcome::Rejected(HistoryRejection::AdmissionRate) => {
+                kinds.push(ObservationDiagnostic::RateRejection);
+            }
+            HistoryAdmissionOutcome::Rejected(HistoryRejection::Late) => {
+                kinds.push(ObservationDiagnostic::LateHistoryRejection);
+            }
+            _ => {}
+        }
+        kinds
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IngestResult {
     pub outcomes: Vec<ObservationOutcome>,

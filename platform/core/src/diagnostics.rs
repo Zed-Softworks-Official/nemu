@@ -8,7 +8,9 @@ use crate::db::schema::diagnostic_events;
 use crate::state::DbPool;
 
 pub const MAX_BYTES: u64 = 256 * 1024 * 1024;
-pub const QUEUE_CAPACITY: usize = 1024;
+/// Free space kept for Commands, updates, and Controller operation.
+/// Diagnostic partitions are removed to restore it. History is not.
+pub const FREE_SPACE_FLOOR: u64 = 1024 * 1024 * 1024;
 
 pub fn max_age() -> Duration {
     Duration::hours(48)
@@ -92,7 +94,56 @@ pub fn partitions_to_drop(
     dropped
 }
 
-pub fn spawn_writer(pool: DbPool, mut incoming: mpsc::Receiver<DiagnosticWrite>) {
+/// Drops the oldest Diagnostic partitions until `bytes_needed` is covered.
+/// The newest partition stays so the log can keep accepting rows. Product
+/// History names are refused.
+pub fn partitions_to_free(
+    mut partitions: Vec<DiagnosticPartition>,
+    bytes_needed: u64,
+) -> Vec<String> {
+    if bytes_needed == 0 {
+        return Vec::new();
+    }
+    partitions.retain(|partition| partition_name_allowed(&partition.name));
+    partitions.sort_by_key(|partition| partition.range_end);
+    if partitions.len() <= 1 {
+        return Vec::new();
+    }
+    let newest = partitions.len() - 1;
+    let mut freed = 0u64;
+    let mut dropped = Vec::new();
+    for partition in partitions.into_iter().take(newest) {
+        dropped.push(partition.name);
+        freed = freed.saturating_add(partition.bytes);
+        if freed >= bytes_needed {
+            break;
+        }
+    }
+    dropped
+}
+
+pub fn free_space_shortfall() -> u64 {
+    match filesystem_free_bytes() {
+        Ok(free) if free < FREE_SPACE_FLOOR => FREE_SPACE_FLOOR - free,
+        _ => 0,
+    }
+}
+
+fn filesystem_free_bytes() -> Result<u64, String> {
+    let path = std::env::current_dir().map_err(|error| error.to_string())?;
+    let path = std::ffi::CString::new(path.as_os_str().as_encoded_bytes())
+        .map_err(|error| error.to_string())?;
+    let mut stat = unsafe { std::mem::zeroed::<libc::statvfs>() };
+    let rc = unsafe { libc::statvfs(path.as_ptr(), &mut stat) };
+    if rc != 0 {
+        return Err("failed to read free disk space".to_string());
+    }
+    Ok(u64::try_from(stat.f_bavail)
+        .unwrap_or(0)
+        .saturating_mul(u64::try_from(stat.f_frsize).unwrap_or(0)))
+}
+
+pub fn spawn_writer(pool: DbPool, mut incoming: mpsc::UnboundedReceiver<DiagnosticWrite>) {
     tokio::spawn(async move {
         while let Some(write) = incoming.recv().await {
             if let Err(error) = record(&pool, write).await {
@@ -175,13 +226,14 @@ pub async fn prune_before_history(
     pool: &DbPool,
     now: DateTime<Utc>,
 ) -> Result<Vec<String>, String> {
-    prune_with_limit(pool, now, MAX_BYTES).await
+    prune_with_limit(pool, now, MAX_BYTES, free_space_shortfall()).await
 }
 
 async fn prune_with_limit(
     pool: &DbPool,
     now: DateTime<Utc>,
     max_bytes: u64,
+    bytes_to_free: u64,
 ) -> Result<Vec<String>, String> {
     let conn = pool.get().await.map_err(|error| error.to_string())?;
     let oldest_end = now - max_age();
@@ -191,7 +243,12 @@ async fn prune_with_limit(
         )
         .execute(conn)?;
         let partitions = list_partitions(conn)?;
-        let names = partitions_to_drop(partitions, oldest_end, max_bytes);
+        let mut names = partitions_to_drop(partitions.clone(), oldest_end, max_bytes);
+        let kept = partitions
+            .into_iter()
+            .filter(|partition| !names.iter().any(|name| name == &partition.name))
+            .collect();
+        names.extend(partitions_to_free(kept, bytes_to_free));
         for name in &names {
             drop_partition(conn, name)?;
         }
@@ -290,15 +347,35 @@ mod tests {
         };
         let dropped = partitions_to_drop(vec![heavy_new, heavy_old.clone()], oldest_end, MAX_BYTES);
         assert_eq!(dropped, vec![heavy_old.name]);
+
+        let history = DiagnosticPartition {
+            name: "capability_observations_y2026".into(),
+            range_end: at(1),
+            bytes: 500,
+        };
+        let oldest = DiagnosticPartition {
+            name: partition_name(at(1)),
+            range_end: at(2),
+            bytes: 40,
+        };
+        let middle = DiagnosticPartition {
+            name: partition_name(at(2)),
+            range_end: at(3),
+            bytes: 40,
+        };
+        let newest = DiagnosticPartition {
+            name: partition_name(at(3)),
+            range_end: at(4),
+            bytes: 40,
+        };
+        let middle_name = middle.name.clone();
+        let dropped = partitions_to_free(vec![newest.clone(), history, oldest.clone(), middle], 50);
+        assert_eq!(dropped, vec![oldest.name, middle_name]);
+        assert!(partitions_to_free(vec![newest], 50).is_empty());
     }
 
     fn pool() -> DbPool {
-        use deadpool_diesel::postgres::{Manager, Pool, Runtime};
-
-        let database_url = std::env::var("CAPABILITY_TEST_DATABASE_URL")
-            .expect("CAPABILITY_TEST_DATABASE_URL must name the isolated test database");
-        let manager = Manager::new(database_url, Runtime::Tokio1);
-        Pool::builder(manager).max_size(2).build().unwrap()
+        crate::db::test_pool()
     }
 
     async fn count_matching(pool: &DbPool, marker: &str, table: &str, column: &str) -> i64 {

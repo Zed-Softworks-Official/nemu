@@ -832,14 +832,7 @@ mod tests {
     }
 
     fn isolated_pool() -> DbPool {
-        let database_url = std::env::var("CAPABILITY_TEST_DATABASE_URL")
-            .expect("CAPABILITY_TEST_DATABASE_URL must name the isolated test database");
-        let manager =
-            deadpool_diesel::postgres::Manager::new(database_url, deadpool_diesel::Runtime::Tokio1);
-        deadpool_diesel::postgres::Pool::builder(manager)
-            .max_size(2)
-            .build()
-            .unwrap()
+        crate::db::test_pool()
     }
 
     #[tokio::test]

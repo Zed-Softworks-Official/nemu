@@ -2,6 +2,7 @@ use chrono::Utc;
 use diesel::prelude::*;
 use uuid::Uuid;
 
+use crate::audit::{self, AuditWrite};
 use crate::crypto::{random_token, sha256_hex};
 use crate::db::models::{ClientToken, NewClientToken};
 use crate::db::schema::client_tokens;
@@ -20,6 +21,7 @@ pub async fn mint_client_token(
     pool: &DbPool,
     label: &str,
     user_id: Option<&str>,
+    mut audit: Option<AuditWrite>,
 ) -> Result<IssuedClientToken, String> {
     let conn = pool
         .get()
@@ -27,9 +29,22 @@ pub async fn mint_client_token(
         .map_err(|e| format!("db pool error: {e}"))?;
     let label = label.to_string();
     let user_id = user_id.map(str::to_string);
-    conn.interact(move |conn| mint_client_token_sync(conn, &label, user_id.as_deref()))
-        .await
-        .map_err(|e| format!("db interact error: {e}"))?
+    conn.interact(move |conn| {
+        conn.transaction(|conn| -> Result<IssuedClientToken, anyhow::Error> {
+            let issued = mint_client_token_sync(conn, &label, user_id.as_deref())
+                .map_err(anyhow::Error::msg)?;
+            if let Some(audit) = audit.as_mut() {
+                if let Some(detail) = audit.detail.as_object_mut() {
+                    detail.insert("tokenId".to_string(), serde_json::json!(issued.id));
+                }
+                audit::insert_on(conn, audit)?;
+            }
+            Ok(issued)
+        })
+        .map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|e| format!("db interact error: {e}"))?
 }
 
 fn mint_client_token_sync(
@@ -106,16 +121,26 @@ pub async fn list_client_tokens(pool: &DbPool) -> Result<Vec<ClientToken>, Strin
     .map_err(|e| format!("db interact error: {e}"))?
 }
 
-pub async fn revoke_client_token(pool: &DbPool, id: Uuid) -> Result<bool, String> {
+pub async fn revoke_client_token(
+    pool: &DbPool,
+    id: Uuid,
+    audit: Option<AuditWrite>,
+) -> Result<bool, String> {
     let conn = pool
         .get()
         .await
         .map_err(|e| format!("db pool error: {e}"))?;
     conn.interact(move |conn| {
-        let deleted = diesel::delete(client_tokens::table.find(id))
-            .execute(conn)
-            .map_err(|e| format!("token delete failed: {e}"))?;
-        Ok(deleted > 0)
+        conn.transaction(|conn| -> Result<bool, anyhow::Error> {
+            let deleted = diesel::delete(client_tokens::table.find(id)).execute(conn)?;
+            if deleted > 0
+                && let Some(audit) = &audit
+            {
+                audit::insert_on(conn, audit)?;
+            }
+            Ok(deleted > 0)
+        })
+        .map_err(|error| error.to_string())
     })
     .await
     .map_err(|e| format!("db interact error: {e}"))?

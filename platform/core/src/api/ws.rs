@@ -142,14 +142,16 @@ async fn handle_client_text(
             };
 
             let event = match result {
-                Ok(()) => DeviceEvent::CommandResult {
+                Ok(outcome) => DeviceEvent::CommandResult {
                     request_id,
                     ok: true,
+                    outcome: Some(outcome.as_str().to_string()),
                     error: None,
                 },
                 Err(err) => DeviceEvent::CommandResult {
                     request_id,
                     ok: false,
+                    outcome: None,
                     error: Some(err.to_error_body()),
                 },
             };

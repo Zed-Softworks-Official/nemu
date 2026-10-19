@@ -8,7 +8,7 @@ use uuid::Uuid;
 use crate::api::auth::AuthenticatedClient;
 use crate::api::error::{ApiError, ApiResult};
 use crate::audit::{self, AuditKind, AuditWrite};
-use crate::commands::{COMMAND_ID_HEADER, CommandError, execute_set};
+use crate::commands::{COMMAND_ID_HEADER, CommandError, execute_set, require_command_id};
 use crate::db::models::UpdateDevice;
 use crate::events::DeviceResource;
 use crate::state::AppState;
@@ -149,6 +149,20 @@ pub async fn delete_device(
         .ok_or_else(|| ApiError::not_found("device_not_found", "device not found"))?;
 
     let protocol = crate::mqtt::device_protocol(&existing);
+    audit::record(
+        &state.db,
+        AuditWrite {
+            kind: AuditKind::DeviceRemoval,
+            actor_user_id: auth.user_id,
+            summary: format!("removed device {device_id}"),
+            detail: serde_json::json!({
+                "deviceId": device_id,
+                "protocol": protocol.as_str(),
+            }),
+        },
+    )
+    .await
+    .map_err(ApiError::internal)?;
     if let Err(error) = state
         .mqtt
         .remove_device(protocol, &existing.external_id)
@@ -163,22 +177,6 @@ pub async fn delete_device(
         .registry
         .mark_left(&state, protocol, &existing.external_id)
         .await;
-    if let Err(error) = audit::record(
-        &state.db,
-        AuditWrite {
-            kind: AuditKind::DeviceRemoval,
-            actor_user_id: auth.user_id,
-            summary: format!("removed device {device_id}"),
-            detail: serde_json::json!({
-                "deviceId": device_id,
-                "protocol": protocol.as_str(),
-            }),
-        },
-    )
-    .await
-    {
-        tracing::warn!(%error, "failed to record device removal");
-    }
 
     Ok(axum::http::StatusCode::NO_CONTENT)
 }
@@ -233,22 +231,25 @@ pub async fn set_device(
     Json(payload): Json<JsonValue>,
 ) -> ApiResult<Json<StatusOk>> {
     let device_id = parse_device_id(&id)?;
-    let command_id = headers
-        .get(COMMAND_ID_HEADER)
-        .and_then(|value| value.to_str().ok())
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .map(str::to_string)
-        .unwrap_or_else(|| Uuid::new_v4().to_string());
-    execute_set(&state, &command_id, device_id, payload)
+    let command_id = require_command_id(
+        headers
+            .get(COMMAND_ID_HEADER)
+            .and_then(|value| value.to_str().ok()),
+    )
+    .map_err(command_to_api)?;
+    let outcome = execute_set(&state, &command_id, device_id, payload)
         .await
         .map_err(command_to_api)?;
-    Ok(Json(StatusOk { ok: true }))
+    Ok(Json(StatusOk {
+        ok: true,
+        outcome: outcome.as_str().to_string(),
+    }))
 }
 
 #[derive(Serialize)]
 pub struct StatusOk {
     pub ok: bool,
+    pub outcome: String,
 }
 
 fn parse_device_id(id: &str) -> ApiResult<Uuid> {

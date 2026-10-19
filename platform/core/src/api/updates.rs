@@ -58,15 +58,11 @@ pub async fn apply(
         ApiError::service_unavailable("watchtower_unavailable", unavailable_message())
     })?;
 
-    client.apply().await.map_err(|error| {
-        tracing::warn!(error = %error, "watchtower apply failed");
-        ApiError::service_unavailable("watchtower_unavailable", unavailable_message())
-    })?;
-    if let Err(error) = audit::record(
+    audit::record(
         &state.db,
         AuditWrite {
             kind: AuditKind::Update,
-            actor_user_id: auth.user_id,
+            actor_user_id: auth.user_id.clone(),
             summary: format!("started update from {}", env!("CARGO_PKG_VERSION")),
             detail: serde_json::json!({
                 "action": "apply",
@@ -75,9 +71,11 @@ pub async fn apply(
         },
     )
     .await
-    {
-        tracing::warn!(%error, "failed to record update audit");
-    }
+    .map_err(ApiError::internal)?;
+    client.apply().await.map_err(|error| {
+        tracing::warn!(error = %error, "watchtower apply failed");
+        ApiError::service_unavailable("watchtower_unavailable", unavailable_message())
+    })?;
 
     Ok(Json(ApplyUpdateResponse { started: true }))
 }

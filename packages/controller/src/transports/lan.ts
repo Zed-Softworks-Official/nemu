@@ -279,10 +279,13 @@ export class LanTransport implements ControllerTransport {
             return await this.sendViaWs(requestId, cmd)
         }
 
-        await this.http.post(`/api/devices/${cmd.deviceId}/set`, cmd.payload, {
+        const { data } = await this.http.post<{
+            ok: boolean
+            outcome?: string
+        }>(`/api/devices/${cmd.deviceId}/set`, cmd.payload, {
             headers: { 'x-command-id': requestId },
         })
-        return { requestId, ok: true }
+        return { requestId, ok: data.ok, outcome: data.outcome }
     }
 
     subscribeEvents(cb: (event: DeviceEvent) => void): () => void {
@@ -398,6 +401,7 @@ export class LanTransport implements ControllerTransport {
                 pending.resolve({
                     requestId: event.requestId,
                     ok: event.ok,
+                    outcome: event.outcome,
                     error: event.error,
                 })
             }

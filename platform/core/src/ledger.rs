@@ -22,6 +22,49 @@ fn claim_ttl() -> Duration {
     Duration::seconds(10)
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CommandOutcome {
+    PendingDispatch,
+    Accepted,
+    Confirmed,
+    Rejected,
+    Failed,
+    Unconfirmed,
+}
+
+impl CommandOutcome {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::PendingDispatch => "pending_dispatch",
+            Self::Accepted => "accepted",
+            Self::Confirmed => "confirmed",
+            Self::Rejected => "rejected",
+            Self::Failed => "failed",
+            Self::Unconfirmed => "unconfirmed",
+        }
+    }
+
+    pub fn parse(value: &str) -> Option<Self> {
+        match value {
+            "pending_dispatch" => Some(Self::PendingDispatch),
+            "accepted" => Some(Self::Accepted),
+            "confirmed" => Some(Self::Confirmed),
+            "rejected" => Some(Self::Rejected),
+            "failed" => Some(Self::Failed),
+            "unconfirmed" => Some(Self::Unconfirmed),
+            _ => None,
+        }
+    }
+}
+
+struct Admission {
+    command_id: String,
+    device_id: Option<Uuid>,
+    payload: JsonValue,
+    available: bool,
+    now: DateTime<Utc>,
+}
+
 #[derive(Debug, Clone, Queryable, Selectable)]
 #[diesel(table_name = command_outcomes)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
@@ -37,6 +80,12 @@ pub struct CommandRow {
     pub claimed_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+}
+
+impl CommandRow {
+    pub fn outcome_kind(&self) -> Option<CommandOutcome> {
+        CommandOutcome::parse(&self.outcome)
+    }
 }
 
 #[derive(Debug, Insertable)]
@@ -76,12 +125,18 @@ pub async fn admit(
     available: bool,
     now: DateTime<Utc>,
 ) -> Result<AdmitDecision, String> {
-    let command_id = command_id.trim().to_string();
-    if !valid_command_id(&command_id) {
+    let admission = Admission {
+        command_id: command_id.trim().to_string(),
+        device_id,
+        payload,
+        available,
+        now,
+    };
+    if !valid_command_id(&admission.command_id) {
         return Err("command id is invalid".to_string());
     }
     let conn = pool.get().await.map_err(|error| error.to_string())?;
-    conn.interact(move |conn| admit_sync(conn, command_id, device_id, payload, available, now))
+    conn.interact(move |conn| admit_sync(conn, admission))
         .await
         .map_err(|error| error.to_string())?
         .map_err(|error| error.to_string())
@@ -89,56 +144,44 @@ pub async fn admit(
 
 fn admit_sync(
     conn: &mut PgConnection,
-    command_id: String,
-    device_id: Option<Uuid>,
-    payload: JsonValue,
-    available: bool,
-    now: DateTime<Utc>,
+    admission: Admission,
 ) -> Result<AdmitDecision, diesel::result::Error> {
     conn.transaction(|conn| {
         if let Some(existing) = command_outcomes::table
-            .filter(command_outcomes::command_id.eq(&command_id))
+            .filter(command_outcomes::command_id.eq(&admission.command_id))
             .select(CommandRow::as_select())
             .first(conn)
             .optional()?
         {
-            return finish_existing(conn, existing, device_id, payload, available, now);
+            return finish_existing(conn, existing, admission);
         }
-        insert_new(conn, command_id, device_id, payload, available, now)
+        insert_new(conn, admission)
     })
 }
 
 fn finish_existing(
     conn: &mut PgConnection,
     existing: CommandRow,
-    device_id: Option<Uuid>,
-    payload: JsonValue,
-    available: bool,
-    now: DateTime<Utc>,
+    admission: Admission,
 ) -> Result<AdmitDecision, diesel::result::Error> {
-    if existing.retain_until <= now {
+    if existing.retain_until <= admission.now {
         diesel::delete(
             command_outcomes::table.filter(command_outcomes::command_id.eq(&existing.command_id)),
         )
         .execute(conn)?;
-        return insert_new(
-            conn,
-            existing.command_id,
-            device_id,
-            payload,
-            available,
-            now,
-        );
+        return insert_new(conn, admission);
     }
-    if existing.outcome == "pending_dispatch" && existing.dispatch_expires_at <= now {
+    if existing.outcome_kind() == Some(CommandOutcome::PendingDispatch)
+        && existing.dispatch_expires_at <= admission.now
+    {
         let row = diesel::update(
             command_outcomes::table.filter(command_outcomes::command_id.eq(&existing.command_id)),
         )
         .set((
-            command_outcomes::outcome.eq("failed"),
+            command_outcomes::outcome.eq(CommandOutcome::Failed.as_str()),
             command_outcomes::error_code.eq(Some("dispatch_expired")),
             command_outcomes::claimed_at.eq(None::<DateTime<Utc>>),
-            command_outcomes::updated_at.eq(now),
+            command_outcomes::updated_at.eq(admission.now),
         ))
         .returning(CommandRow::as_returning())
         .get_result(conn)?;
@@ -149,35 +192,31 @@ fn finish_existing(
 
 fn insert_new(
     conn: &mut PgConnection,
-    command_id: String,
-    device_id: Option<Uuid>,
-    payload: JsonValue,
-    available: bool,
-    now: DateTime<Utc>,
+    admission: Admission,
 ) -> Result<AdmitDecision, diesel::result::Error> {
-    let dispatch = available && device_id.is_some();
+    let dispatch = admission.available && admission.device_id.is_some();
     let outcome = if dispatch {
-        "pending_dispatch"
+        CommandOutcome::PendingDispatch
     } else {
-        "rejected"
+        CommandOutcome::Rejected
     };
-    let error_code = if device_id.is_none() {
+    let error_code = if admission.device_id.is_none() {
         Some("device_not_found".to_string())
-    } else if !available {
+    } else if !admission.available {
         Some("unavailable".to_string())
     } else {
         None
     };
     let inserted = diesel::insert_into(command_outcomes::table)
         .values(NewCommand {
-            command_id: command_id.clone(),
-            device_id,
-            payload: payload.clone(),
-            outcome: outcome.to_string(),
+            command_id: admission.command_id.clone(),
+            device_id: admission.device_id,
+            payload: admission.payload.clone(),
+            outcome: outcome.as_str().to_string(),
             error_code,
-            dispatch_expires_at: now + dispatch_ttl(),
-            retain_until: now + outcome_retention(),
-            claimed_at: dispatch.then_some(now),
+            dispatch_expires_at: admission.now + dispatch_ttl(),
+            retain_until: admission.now + outcome_retention(),
+            claimed_at: dispatch.then_some(admission.now),
         })
         .on_conflict(command_outcomes::command_id)
         .do_nothing()
@@ -186,12 +225,12 @@ fn insert_new(
         .optional()?;
     let Some(row) = inserted else {
         let existing = command_outcomes::table
-            .filter(command_outcomes::command_id.eq(command_id))
+            .filter(command_outcomes::command_id.eq(admission.command_id))
             .select(CommandRow::as_select())
             .first(conn)?;
         return Ok(AdmitDecision::Stored(existing));
     };
-    if row.outcome == "pending_dispatch" {
+    if row.outcome_kind() == Some(CommandOutcome::PendingDispatch) {
         Ok(AdmitDecision::Dispatch(row))
     } else {
         Ok(AdmitDecision::Stored(row))
@@ -203,7 +242,7 @@ pub async fn mark_accepted(
     command_id: &str,
     now: DateTime<Utc>,
 ) -> Result<(), String> {
-    update_outcome(pool, command_id, "accepted", None, now).await
+    update_outcome(pool, command_id, CommandOutcome::Accepted, None, now, false).await
 }
 
 pub async fn mark_failed(
@@ -212,22 +251,54 @@ pub async fn mark_failed(
     error_code: &str,
     now: DateTime<Utc>,
 ) -> Result<(), String> {
-    update_outcome(pool, command_id, "failed", Some(error_code), now).await
+    update_outcome(
+        pool,
+        command_id,
+        CommandOutcome::Failed,
+        Some(error_code),
+        now,
+        true,
+    )
+    .await
+}
+
+/// Records that MQTT publication returned. The claim stays live until the
+/// dispatch window ends so a restart does not send the Command again.
+pub async fn note_published(
+    pool: &DbPool,
+    command_id: &str,
+    claimed_until: DateTime<Utc>,
+) -> Result<(), String> {
+    let command_id = command_id.to_string();
+    let conn = pool.get().await.map_err(|error| error.to_string())?;
+    conn.interact(move |conn| {
+        diesel::update(command_outcomes::table.filter(command_outcomes::command_id.eq(command_id)))
+            .set(command_outcomes::claimed_at.eq(claimed_until))
+            .execute(conn)
+    })
+    .await
+    .map_err(|error| error.to_string())?
+    .map_err(|error| error.to_string())?;
+    Ok(())
 }
 
 async fn update_outcome(
     pool: &DbPool,
     command_id: &str,
-    outcome: &str,
+    outcome: CommandOutcome,
     error_code: Option<&str>,
     now: DateTime<Utc>,
+    clear_claim: bool,
 ) -> Result<(), String> {
     let command_id = command_id.to_string();
-    let outcome = outcome.to_string();
+    let outcome = outcome.as_str().to_string();
     let error_code = error_code.map(str::to_string);
     let conn = pool.get().await.map_err(|error| error.to_string())?;
     conn.interact(move |conn| {
-        diesel::update(command_outcomes::table.filter(command_outcomes::command_id.eq(command_id)))
+        if clear_claim {
+            diesel::update(
+                command_outcomes::table.filter(command_outcomes::command_id.eq(command_id)),
+            )
             .set((
                 command_outcomes::outcome.eq(outcome),
                 command_outcomes::error_code.eq(error_code),
@@ -235,6 +306,17 @@ async fn update_outcome(
                 command_outcomes::updated_at.eq(now),
             ))
             .execute(conn)
+        } else {
+            diesel::update(
+                command_outcomes::table.filter(command_outcomes::command_id.eq(command_id)),
+            )
+            .set((
+                command_outcomes::outcome.eq(outcome),
+                command_outcomes::error_code.eq(error_code),
+                command_outcomes::updated_at.eq(now),
+            ))
+            .execute(conn)
+        }
     })
     .await
     .map_err(|error| error.to_string())?
@@ -253,11 +335,11 @@ pub async fn confirm_accepted(
             command_outcomes::table.filter(
                 command_outcomes::device_id
                     .eq(device_id)
-                    .and(command_outcomes::outcome.eq("accepted")),
+                    .and(command_outcomes::outcome.eq(CommandOutcome::Accepted.as_str())),
             ),
         )
         .set((
-            command_outcomes::outcome.eq("confirmed"),
+            command_outcomes::outcome.eq(CommandOutcome::Confirmed.as_str()),
             command_outcomes::error_code.eq(None::<String>),
             command_outcomes::updated_at.eq(now),
         ))
@@ -281,7 +363,10 @@ pub async fn claim_pending(
             command_outcomes::table.filter(
                 command_outcomes::device_id
                     .eq(device_id)
-                    .and(command_outcomes::outcome.eq("pending_dispatch"))
+                    .and(command_outcomes::outcome.eq_any([
+                        CommandOutcome::PendingDispatch.as_str(),
+                        CommandOutcome::Accepted.as_str(),
+                    ]))
                     .and(command_outcomes::dispatch_expires_at.gt(now))
                     .and(
                         command_outcomes::claimed_at
@@ -290,10 +375,7 @@ pub async fn claim_pending(
                     ),
             ),
         )
-        .set((
-            command_outcomes::claimed_at.eq(now),
-            command_outcomes::updated_at.eq(now),
-        ))
+        .set(command_outcomes::claimed_at.eq(now))
         .returning(CommandRow::as_returning())
         .get_results(conn)
     })
@@ -309,12 +391,12 @@ pub async fn sweep(pool: &DbPool, now: DateTime<Utc>) -> Result<(), String> {
         diesel::update(
             command_outcomes::table.filter(
                 command_outcomes::outcome
-                    .eq("pending_dispatch")
+                    .eq(CommandOutcome::PendingDispatch.as_str())
                     .and(command_outcomes::dispatch_expires_at.le(now)),
             ),
         )
         .set((
-            command_outcomes::outcome.eq("failed"),
+            command_outcomes::outcome.eq(CommandOutcome::Failed.as_str()),
             command_outcomes::error_code.eq(Some("dispatch_expired")),
             command_outcomes::claimed_at.eq(None::<DateTime<Utc>>),
             command_outcomes::updated_at.eq(now),
@@ -323,12 +405,12 @@ pub async fn sweep(pool: &DbPool, now: DateTime<Utc>) -> Result<(), String> {
         diesel::update(
             command_outcomes::table.filter(
                 command_outcomes::outcome
-                    .eq("accepted")
+                    .eq(CommandOutcome::Accepted.as_str())
                     .and(command_outcomes::updated_at.le(deadline)),
             ),
         )
         .set((
-            command_outcomes::outcome.eq("unconfirmed"),
+            command_outcomes::outcome.eq(CommandOutcome::Unconfirmed.as_str()),
             command_outcomes::error_code.eq(Some("unconfirmed")),
             command_outcomes::updated_at.eq(now),
         ))
@@ -387,12 +469,7 @@ mod tests {
     }
 
     fn pool() -> DbPool {
-        use deadpool_diesel::postgres::{Manager, Pool, Runtime};
-
-        let database_url = std::env::var("CAPABILITY_TEST_DATABASE_URL")
-            .expect("CAPABILITY_TEST_DATABASE_URL must name the isolated test database");
-        let manager = Manager::new(database_url, Runtime::Tokio1);
-        Pool::builder(manager).max_size(2).build().unwrap()
+        crate::db::test_pool()
     }
 
     async fn insert_device(pool: &DbPool) -> Uuid {
@@ -460,6 +537,15 @@ mod tests {
         .unwrap();
         assert!(matches!(first, AdmitDecision::Dispatch(_)));
 
+        let resumed = claim_pending(&pool, device_id, now + claim_ttl() + Duration::seconds(1))
+            .await
+            .unwrap();
+        assert!(resumed.iter().any(|row| row.command_id == command_id));
+        let again = claim_pending(&pool, device_id, now + claim_ttl() + Duration::seconds(1))
+            .await
+            .unwrap();
+        assert!(again.iter().all(|row| row.command_id != command_id));
+
         let reloaded = get(&pool, &command_id).await.unwrap().unwrap();
         assert_eq!(reloaded.outcome, "pending_dispatch");
         assert!(reloaded.retain_until > now);
@@ -504,6 +590,18 @@ mod tests {
         mark_accepted(&pool, &row.command_id, accepted_at)
             .await
             .unwrap();
+        let unsent = claim_pending(
+            &pool,
+            device_id,
+            accepted_at + claim_ttl() + Duration::seconds(1),
+        )
+        .await
+        .unwrap();
+        assert!(
+            unsent
+                .iter()
+                .any(|claimed| claimed.command_id == accepted_id)
+        );
         sweep(
             &pool,
             accepted_at + confirmation_deadline() + Duration::seconds(1),

@@ -18,6 +18,7 @@ ed25519-dalek = { version = "3.0.0", features = ["rand_core"] }
 futures-util = "0.3.31"
 hex = "0.4.3"
 hyper = { version = "1", features = ["http1", "server"] }
+libc = "0.2"
 hyper-util = { version = "0.1", features = ["http1", "server-auto", "tokio"] }
 rand = "0.10.2"
 rcgen = "0.14"

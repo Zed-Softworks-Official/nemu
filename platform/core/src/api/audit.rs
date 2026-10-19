@@ -42,9 +42,7 @@ pub async fn list_audit(
     State(state): State<AppState>,
     auth: AuthenticatedClient,
 ) -> ApiResult<Json<AuditResponse>> {
-    let member = require_owner(&state, &auth).await?;
-    audit::authorize_read(&member.role, &member.status)
-        .map_err(|_| ApiError::forbidden("owner_required", "Only the home owner can do that"))?;
+    require_owner(&state, &auth).await?;
     let records = audit::list_recent(&state.db, 200)
         .await
         .map_err(ApiError::internal)?;

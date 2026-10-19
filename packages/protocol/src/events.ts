@@ -48,6 +48,7 @@ export const deviceEventSchema = z.discriminatedUnion('type', [
         type: z.literal('commandResult'),
         requestId: z.string(),
         ok: z.boolean(),
+        outcome: z.string().optional(),
         error: z
             .object({
                 code: z.string(),

@@ -5,7 +5,7 @@ use tracing::warn;
 use uuid::Uuid;
 
 use crate::db::models::Device;
-use crate::ledger::{self, AdmitDecision, CommandRow};
+use crate::ledger::{self, AdmitDecision, CommandOutcome, CommandRow};
 use crate::mqtt::{device_protocol, device_topic_id};
 use crate::state::AppState;
 
@@ -55,18 +55,37 @@ impl CommandError {
     }
 }
 
-fn stored_result(row: CommandRow) -> Result<(), CommandError> {
-    match row.outcome.as_str() {
-        "pending_dispatch" | "accepted" | "confirmed" => Ok(()),
-        "rejected" => match row.error_code.as_deref() {
+pub fn device_available(present: bool, online: Option<bool>) -> bool {
+    present && online == Some(true)
+}
+
+pub fn require_command_id(command_id: Option<&str>) -> Result<String, CommandError> {
+    let Some(command_id) = command_id.map(str::trim).filter(|value| !value.is_empty()) else {
+        return Err(CommandError::InvalidId);
+    };
+    if ledger::valid_command_id(command_id) {
+        Ok(command_id.to_string())
+    } else {
+        Err(CommandError::InvalidId)
+    }
+}
+
+fn stored_result(row: CommandRow) -> Result<CommandOutcome, CommandError> {
+    match row.outcome_kind() {
+        Some(
+            outcome @ (CommandOutcome::PendingDispatch
+            | CommandOutcome::Accepted
+            | CommandOutcome::Confirmed),
+        ) => Ok(outcome),
+        Some(CommandOutcome::Rejected) => match row.error_code.as_deref() {
             Some("device_not_found") => Err(CommandError::DeviceNotFound),
             _ => Err(CommandError::Unavailable),
         },
-        "unconfirmed" => Err(CommandError::Unconfirmed),
-        "failed" => Err(CommandError::Failed(
+        Some(CommandOutcome::Unconfirmed) => Err(CommandError::Unconfirmed),
+        Some(CommandOutcome::Failed) => Err(CommandError::Failed(
             row.error_code.unwrap_or_else(|| "failed".to_string()),
         )),
-        other => Err(CommandError::Failed(other.to_string())),
+        None => Err(CommandError::Failed(row.outcome)),
     }
 }
 
@@ -79,13 +98,13 @@ pub async fn execute_set(
     command_id: &str,
     device_id: Uuid,
     payload: JsonValue,
-) -> Result<(), CommandError> {
+) -> Result<CommandOutcome, CommandError> {
     if !ledger::valid_command_id(command_id) {
         return Err(CommandError::InvalidId);
     }
     let now = Utc::now();
     let device = state.registry.get(device_id).await;
-    let available = device.is_some() && state.state_cache.online_status(device_id) != Some(false);
+    let available = device_available(device.is_some(), state.state_cache.online_status(device_id));
     let decision = ledger::admit(
         &state.db,
         command_id,
@@ -117,7 +136,11 @@ async fn publish_and_record(
     state: &AppState,
     device: &Device,
     row: &CommandRow,
-) -> Result<(), CommandError> {
+) -> Result<CommandOutcome, CommandError> {
+    let now = Utc::now();
+    ledger::mark_accepted(&state.db, &row.command_id, now)
+        .await
+        .map_err(CommandError::Store)?;
     match state
         .mqtt
         .publish_set(
@@ -128,11 +151,12 @@ async fn publish_and_record(
         .await
     {
         Ok(()) => {
-            if let Err(error) = ledger::mark_accepted(&state.db, &row.command_id, Utc::now()).await
+            if let Err(error) =
+                ledger::note_published(&state.db, &row.command_id, row.dispatch_expires_at).await
             {
-                warn!(%error, command_id = %row.command_id, "failed to record command acceptance");
+                warn!(%error, command_id = %row.command_id, "failed to record command publication");
             }
-            Ok(())
+            Ok(CommandOutcome::Accepted)
         }
         Err(error) => {
             if let Err(store) =
@@ -182,5 +206,44 @@ mod tests {
         );
         assert!(!ledger::valid_command_id(""));
         assert!(ledger::valid_command_id("request-1"));
+        assert!(device_available(true, Some(true)));
+        assert!(!device_available(true, None));
+        assert!(!device_available(true, Some(false)));
+        assert!(!device_available(false, Some(true)));
+        assert!(require_command_id(None).is_err());
+        assert!(require_command_id(Some("  ")).is_err());
+        assert_eq!(
+            require_command_id(Some(" request-1 ")).unwrap(),
+            "request-1"
+        );
+        let pending = CommandRow {
+            outcome: CommandOutcome::PendingDispatch.as_str().into(),
+            ..sample_row()
+        };
+        let accepted = CommandRow {
+            outcome: CommandOutcome::Accepted.as_str().into(),
+            ..sample_row()
+        };
+        assert_eq!(
+            stored_result(pending).unwrap(),
+            CommandOutcome::PendingDispatch
+        );
+        assert_eq!(stored_result(accepted).unwrap(), CommandOutcome::Accepted);
+    }
+
+    fn sample_row() -> CommandRow {
+        let now = Utc::now();
+        CommandRow {
+            command_id: "cmd-1".into(),
+            device_id: None,
+            payload: JsonValue::Null,
+            outcome: CommandOutcome::Confirmed.as_str().into(),
+            error_code: None,
+            dispatch_expires_at: now,
+            retain_until: now,
+            claimed_at: None,
+            created_at: now,
+            updated_at: now,
+        }
     }
 }

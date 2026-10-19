@@ -17,8 +17,8 @@ use super::{
     CapabilityChange, CapabilityReport, CapabilityReportValidationError, CapabilityRepository,
     CapabilitySnapshot, CapabilityStoreError, CompleteCapabilityManifest, CurrentState,
     CurrentStateDisposition, DeviceIdentity, HistoryAdmissionOutcome, HistoryRejection,
-    IngestResult, ObservationOutcome, RegisteredCapability, StateEpoch, UnavailableReason,
-    resolve_adapter_report,
+    IngestResult, ObservationDiagnostic, ObservationOutcome, RegisteredCapability, StateEpoch,
+    UnavailableReason, resolve_adapter_report,
 };
 
 #[derive(Clone)]
@@ -34,12 +34,12 @@ pub struct CapabilityService {
     manifests: Mutex<HashMap<DeviceIdentity, CachedManifest>>,
     history: Arc<Mutex<super::history::HistoryGate>>,
     history_store: super::history::HistoryRepository,
-    diagnostic_tx: mpsc::Sender<DiagnosticWrite>,
+    diagnostic_tx: mpsc::UnboundedSender<DiagnosticWrite>,
 }
 
 impl CapabilityService {
     pub fn new(pool: DbPool, history_pool: DbPool) -> Self {
-        let (diagnostic_tx, diagnostic_rx) = mpsc::channel(diagnostics::QUEUE_CAPACITY);
+        let (diagnostic_tx, diagnostic_rx) = mpsc::unbounded_channel();
         diagnostics::spawn_writer(pool.clone(), diagnostic_rx);
         Self {
             repository: CapabilityRepository::new(pool),
@@ -184,7 +184,7 @@ impl CapabilityService {
             |id| self.current.registered(id),
         );
         for write in diagnostic_writes(&result.outcomes, received_at) {
-            let _ = self.diagnostic_tx.try_send(write);
+            let _ = self.diagnostic_tx.send(write);
         }
         Ok(result)
     }
@@ -247,23 +247,13 @@ pub(crate) fn diagnostic_writes(
 ) -> Vec<DiagnosticWrite> {
     let mut writes = Vec::new();
     for outcome in outcomes {
-        let mut kinds = Vec::new();
-        if outcome.current == CurrentStateDisposition::InvalidValue {
-            kinds.push(DiagnosticKind::InvalidValue);
-        }
-        match outcome.history {
-            HistoryAdmissionOutcome::Rejected(HistoryRejection::UnsupportedSchemaVersion) => {
-                kinds.push(DiagnosticKind::IncompatibleReport);
-            }
-            HistoryAdmissionOutcome::Rejected(HistoryRejection::AdmissionRate) => {
-                kinds.push(DiagnosticKind::RateRejection);
-            }
-            HistoryAdmissionOutcome::Rejected(HistoryRejection::Late) => {
-                kinds.push(DiagnosticKind::LateHistoryRejection);
-            }
-            _ => {}
-        }
-        for kind in kinds {
+        for reason in outcome.diagnostics() {
+            let kind = match reason {
+                ObservationDiagnostic::InvalidValue => DiagnosticKind::InvalidValue,
+                ObservationDiagnostic::IncompatibleReport => DiagnosticKind::IncompatibleReport,
+                ObservationDiagnostic::RateRejection => DiagnosticKind::RateRejection,
+                ObservationDiagnostic::LateHistoryRejection => DiagnosticKind::LateHistoryRejection,
+            };
             writes.push(DiagnosticWrite {
                 kind,
                 device_id: None,

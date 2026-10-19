@@ -138,17 +138,22 @@ pub async fn invite_member(
         return Ok(MemberResource::from(&existing));
     }
 
-    let member = insert_member(&state.db, None, &email, None, "member", "pending")
-        .await
-        .map_err(ApiError::internal)?;
-    record_audit(
-        state,
-        AuditKind::MembershipChange,
-        auth.user_id.clone(),
-        format!("invited {email}"),
-        serde_json::json!({ "action": "invite", "email": email, "role": "member" }),
+    let member = insert_member(
+        &state.db,
+        None,
+        &email,
+        None,
+        "member",
+        "pending",
+        Some(AuditWrite {
+            kind: AuditKind::MembershipChange,
+            actor_user_id: auth.user_id.clone(),
+            summary: format!("invited {email}"),
+            detail: serde_json::json!({ "action": "invite", "email": email, "role": "member" }),
+        }),
     )
-    .await;
+    .await
+    .map_err(ApiError::internal)?;
     Ok(MemberResource::from(&member))
 }
 
@@ -196,23 +201,24 @@ pub async fn remove_member(
             .map_err(ApiError::internal)?;
     }
 
-    let deleted = delete_member(&state.db, id)
-        .await
-        .map_err(ApiError::internal)?;
-    if deleted {
-        record_audit(
-            state,
-            AuditKind::MembershipChange,
-            actor.as_ref().and_then(|member| member.user_id.clone()),
-            format!("removed member {}", target.email),
-            serde_json::json!({
+    let deleted = delete_member(
+        &state.db,
+        id,
+        Some(AuditWrite {
+            kind: AuditKind::MembershipChange,
+            actor_user_id: actor.as_ref().and_then(|member| member.user_id.clone()),
+            summary: format!("removed member {}", target.email),
+            detail: serde_json::json!({
                 "action": "remove",
                 "memberId": target.id,
                 "email": target.email,
                 "role": target.role,
             }),
-        )
-        .await;
+        }),
+    )
+    .await
+    .map_err(ApiError::internal)?;
+    if deleted {
         Ok(())
     } else {
         Err(ApiError::not_found("not_found", "Member not found"))
@@ -248,17 +254,10 @@ pub async fn bootstrap_owner(
         display_name.map(str::trim).filter(|name| !name.is_empty()),
         "owner",
         "active",
+        Some(bootstrap_audit(user_id, &email)),
     )
     .await
     .map_err(ApiError::internal)?;
-    record_audit(
-        state,
-        AuditKind::MembershipChange,
-        Some(user_id.to_string()),
-        format!("bootstrapped owner {email}"),
-        serde_json::json!({ "action": "bootstrap", "email": email, "role": "owner" }),
-    )
-    .await;
     Ok(MemberResource::from(&member))
 }
 
@@ -283,17 +282,14 @@ pub async fn mint_session(
     let member =
         resolve_or_activate_member(state, user_id, &email, input.display_name.as_deref()).await?;
 
-    let issued = mint_client_token(&state.db, label, member.user_id.as_deref())
-        .await
-        .map_err(ApiError::internal)?;
-    record_audit(
-        state,
-        AuditKind::AccessClientPaired,
-        Some(user_id.to_string()),
-        format!("paired access client {label}"),
-        serde_json::json!({ "action": "pair", "label": label, "tokenId": issued.id }),
+    let issued = mint_client_token(
+        &state.db,
+        label,
+        member.user_id.as_deref(),
+        Some(pairing_audit(user_id, label)),
     )
-    .await;
+    .await
+    .map_err(ApiError::internal)?;
 
     Ok(SessionMintResult {
         client_token: issued.token,
@@ -324,36 +320,22 @@ pub async fn pair_member_session(
             display_name.map(str::trim).filter(|name| !name.is_empty()),
             "owner",
             "active",
+            Some(bootstrap_audit(user_id, &email)),
         )
         .await
         .map_err(ApiError::internal)?;
-        record_audit(
-            state,
-            AuditKind::MembershipChange,
-            Some(user_id.to_string()),
-            format!("bootstrapped owner {email}"),
-            serde_json::json!({ "action": "bootstrap", "email": email, "role": "owner" }),
-        )
-        .await;
     } else {
         resolve_or_activate_member(state, user_id, email, display_name).await?;
     }
 
-    let issued = mint_client_token(&state.db, client_label, Some(user_id.trim()))
-        .await
-        .map_err(ApiError::internal)?;
-    record_audit(
-        state,
-        AuditKind::AccessClientPaired,
-        Some(user_id.trim().to_string()),
-        format!("paired access client {client_label}"),
-        serde_json::json!({
-            "action": "pair",
-            "label": client_label,
-            "tokenId": issued.id,
-        }),
+    let issued = mint_client_token(
+        &state.db,
+        client_label,
+        Some(user_id.trim()),
+        Some(pairing_audit(user_id.trim(), client_label)),
     )
-    .await;
+    .await
+    .map_err(ApiError::internal)?;
 
     Ok(SessionMintResult {
         client_token: issued.token,
@@ -368,13 +350,27 @@ pub async fn require_owner(state: &AppState, auth: &AuthenticatedClient) -> ApiR
             "Link this dashboard to a household account first",
         )
     })?;
-    if member.role != "owner" || member.status != "active" {
-        return Err(ApiError::forbidden(
-            "owner_required",
-            "Only the home owner can do that",
-        ));
-    }
+    audit::authorize_read(&member.role, &member.status)
+        .map_err(|_| ApiError::forbidden("owner_required", "Only the home owner can do that"))?;
     Ok(member)
+}
+
+fn bootstrap_audit(user_id: &str, email: &str) -> AuditWrite {
+    AuditWrite {
+        kind: AuditKind::MembershipChange,
+        actor_user_id: Some(user_id.to_string()),
+        summary: format!("bootstrapped owner {email}"),
+        detail: serde_json::json!({ "action": "bootstrap", "email": email, "role": "owner" }),
+    }
+}
+
+fn pairing_audit(user_id: &str, label: &str) -> AuditWrite {
+    AuditWrite {
+        kind: AuditKind::AccessClientPaired,
+        actor_user_id: Some(user_id.to_string()),
+        summary: format!("paired access client {label}"),
+        detail: serde_json::json!({ "action": "pair", "label": label }),
+    }
 }
 
 async fn member_for_client(
@@ -422,21 +418,19 @@ async fn resolve_or_activate_member(
             member.id,
             user_id,
             display_name.map(str::trim).filter(|name| !name.is_empty()),
+            Some(AuditWrite {
+                kind: AuditKind::MembershipChange,
+                actor_user_id: Some(user_id.to_string()),
+                summary: format!("activated member {}", member.email),
+                detail: serde_json::json!({
+                    "action": "activate",
+                    "memberId": member.id,
+                    "email": member.email,
+                }),
+            }),
         )
         .await
         .map_err(ApiError::internal)?;
-        record_audit(
-            state,
-            AuditKind::MembershipChange,
-            Some(user_id.to_string()),
-            format!("activated member {}", activated.email),
-            serde_json::json!({
-                "action": "activate",
-                "memberId": activated.id,
-                "email": activated.email,
-            }),
-        )
-        .await;
         return Ok(activated);
     }
 
@@ -448,26 +442,4 @@ async fn resolve_or_activate_member(
     }
 
     Ok(member)
-}
-
-async fn record_audit(
-    state: &AppState,
-    kind: AuditKind,
-    actor_user_id: Option<String>,
-    summary: String,
-    detail: serde_json::Value,
-) {
-    if let Err(error) = audit::record(
-        &state.db,
-        AuditWrite {
-            kind,
-            actor_user_id,
-            summary,
-            detail,
-        },
-    )
-    .await
-    {
-        tracing::warn!(%error, "failed to record audit");
-    }
 }

@@ -374,11 +374,18 @@ async fn handle_message(
                 Err(_) => Err(crate::commands::CommandError::DeviceNotFound),
             };
             match result {
-                Ok(()) => build_command_result(state, &message.request_id, true, None),
+                Ok(outcome) => build_command_result(
+                    state,
+                    &message.request_id,
+                    true,
+                    Some(outcome.as_str()),
+                    None,
+                ),
                 Err(err) => build_command_result(
                     state,
                     &message.request_id,
                     false,
+                    None,
                     Some((err.code(), err.to_string())),
                 ),
             }
@@ -403,7 +410,7 @@ async fn handle_message(
         },
         ToControllerMessage::RemoveMember { member_id } => {
             match remove_member(state, &auth, &member_id).await {
-                Ok(()) => build_command_result(state, &message.request_id, true, None),
+                Ok(()) => build_command_result(state, &message.request_id, true, None, None),
                 Err(err) => {
                     build_error_response(state, &message.request_id, &err.code, &err.message)
                 }
@@ -419,14 +426,14 @@ async fn handle_message(
         },
         ToControllerMessage::RevokeToken { token_id } => {
             match revoke_household_token(state, &auth, &token_id).await {
-                Ok(()) => build_command_result(state, &message.request_id, true, None),
+                Ok(()) => build_command_result(state, &message.request_id, true, None, None),
                 Err(err) => {
                     build_error_response(state, &message.request_id, &err.code, &err.message)
                 }
             }
         }
         ToControllerMessage::RevokeCurrent => match revoke_current_token(state, &auth).await {
-            Ok(()) => build_command_result(state, &message.request_id, true, None),
+            Ok(()) => build_command_result(state, &message.request_id, true, None, None),
             Err(err) => build_error_response(state, &message.request_id, &err.code, &err.message),
         },
         ToControllerMessage::BootstrapOwner {
@@ -576,12 +583,16 @@ fn build_command_result(
     state: &AppState,
     request_id: &str,
     ok: bool,
+    outcome: Option<&str>,
     error: Option<(&str, String)>,
 ) -> String {
     let mut message = json!({
         "type": "commandResult",
         "ok": ok,
     });
+    if let Some(outcome) = outcome {
+        message["outcome"] = json!(outcome);
+    }
     if let Some((code, msg)) = error {
         message["error"] = json!({ "code": code, "message": msg });
     }
@@ -594,7 +605,13 @@ fn build_command_result(
 }
 
 fn build_error_response(state: &AppState, request_id: &str, code: &str, message: &str) -> String {
-    build_command_result(state, request_id, false, Some((code, message.to_string())))
+    build_command_result(
+        state,
+        request_id,
+        false,
+        None,
+        Some((code, message.to_string())),
+    )
 }
 
 fn sign_envelope(state: &AppState, mut envelope: JsonValue) -> String {

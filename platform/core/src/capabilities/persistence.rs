@@ -164,7 +164,6 @@ pub enum CapabilityStoreError {
 #[cfg(test)]
 mod tests {
     use chrono::{TimeZone, Utc};
-    use deadpool_diesel::postgres::{Manager, Pool, Runtime};
 
     use super::*;
     use crate::capabilities::{CanonicalUnit, CapabilityKind, DeviceIdentity, PhysicalScope};
@@ -174,10 +173,7 @@ mod tests {
     }
 
     fn pool() -> DbPool {
-        let database_url = std::env::var("CAPABILITY_TEST_DATABASE_URL")
-            .expect("CAPABILITY_TEST_DATABASE_URL must name the isolated test database");
-        let manager = Manager::new(database_url, Runtime::Tokio1);
-        Pool::builder(manager).max_size(2).build().unwrap()
+        crate::db::test_pool()
     }
 
     fn manifest(
