@@ -33,6 +33,8 @@ struct PendingObservation {
     observed_at: DateTime<Utc>,
     received_at: DateTime<Utc>,
     reset: Option<bool>,
+    resolution: i64,
+    freshness: Duration,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -89,7 +91,7 @@ struct JournalSignals {
 }
 
 /// Raw retention is the correction window. Older observations stay out of History.
-fn outside_correction_window(
+pub(super) fn outside_correction_window(
     kind: CapabilityKind,
     observed_at: DateTime<Utc>,
     received_at: DateTime<Utc>,
@@ -128,6 +130,19 @@ impl HistoryGate {
         breached: impl Fn() -> bool + Send + Sync + 'static,
     ) {
         self.disk_floor_breached = Arc::new(breached);
+    }
+
+    #[cfg(test)]
+    pub(super) fn queued_len(&self) -> usize {
+        self.queued
+    }
+
+    #[cfg(test)]
+    pub(super) fn queued_observed_at(&self, capability_id: CapabilityId) -> Option<DateTime<Utc>> {
+        self.lanes
+            .get(&capability_id)
+            .and_then(|lane| lane.front())
+            .map(|row| row.observed_at)
     }
 
     pub(super) fn admit(
@@ -207,6 +222,11 @@ impl HistoryGate {
                     HistoryAdmissionOutcome::Rejected(HistoryRejection::UnsupportedSchemaVersion);
                 continue;
             }
+            let Ok(freshness_ms) = i64::try_from(revision.freshness_ms) else {
+                outcome.history =
+                    HistoryAdmissionOutcome::Rejected(HistoryRejection::InvalidCapability);
+                continue;
+            };
             let Some(observation_id) = report.observation_id.clone() else {
                 outcome.history =
                     HistoryAdmissionOutcome::Rejected(HistoryRejection::MissingObservationId);
@@ -260,6 +280,8 @@ impl HistoryGate {
                 observed_at,
                 received_at,
                 reset: observation.reset,
+                resolution: revision.resolution,
+                freshness: Duration::milliseconds(freshness_ms),
             });
             if self.at_capacity() {
                 self.pressure_since.get_or_insert(received_at);
@@ -465,6 +487,7 @@ fn commit_sync(conn: &mut PgConnection, batch: &HistoryBatch) -> Result<(), Hist
                 .do_nothing()
                 .execute(conn)?;
         }
+        let mut written = Vec::new();
         for row in &batch.observations {
             let inserted = diesel::insert_into(capability_observation_keys::table)
                 .values((
@@ -478,6 +501,7 @@ fn commit_sync(conn: &mut PgConnection, batch: &HistoryBatch) -> Result<(), Hist
                 .do_nothing()
                 .execute(conn)?;
             if inserted == 0 {
+                written.push(written_observation(row, false));
                 continue;
             }
             diesel::insert_into(capability_observations::table)
@@ -496,9 +520,29 @@ fn commit_sync(conn: &mut PgConnection, batch: &HistoryBatch) -> Result<(), Hist
                     capability_observations::reset.eq(row.reset),
                 ))
                 .execute(conn)?;
+            written.push(written_observation(row, true));
         }
+        super::history_retention::after_observation_write(conn, &written)?;
         Ok(())
     })
+}
+
+fn written_observation(
+    row: &PendingObservation,
+    newly_inserted: bool,
+) -> super::history_retention::WrittenObservation {
+    super::history_retention::WrittenObservation {
+        capability_id: row.capability_id.into_uuid(),
+        kind: row.kind,
+        value: row.value,
+        scale: row.scale,
+        observed_at: row.observed_at,
+        received_at: row.received_at,
+        reset: row.reset.unwrap_or(false),
+        resolution: row.resolution,
+        freshness: row.freshness,
+        newly_inserted,
+    }
 }
 
 #[derive(Debug, Error)]

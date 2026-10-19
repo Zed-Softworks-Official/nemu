@@ -170,6 +170,21 @@ diesel::table! {
 }
 
 diesel::table! {
+    history_retention_checkpoints (capability_id, step, resolution, range_start, range_end) {
+        capability_id -> Uuid,
+        #[max_length = 32]
+        kind -> Varchar,
+        #[max_length = 16]
+        step -> Varchar,
+        #[max_length = 16]
+        resolution -> Varchar,
+        range_start -> Timestamptz,
+        range_end -> Timestamptz,
+        verified -> Bool,
+    }
+}
+
+diesel::table! {
     history_gaps (id) {
         id -> Int8,
         capability_id -> Nullable<Uuid>,
@@ -282,6 +297,7 @@ diesel::joinable!(devices -> rooms (room_id));
 diesel::joinable!(energy_counter_rollups -> capability_identities (capability_id));
 diesel::joinable!(gauge_rollups -> capability_identities (capability_id));
 diesel::joinable!(history_gaps -> capability_identities (capability_id));
+diesel::joinable!(history_retention_checkpoints -> capability_identities (capability_id));
 diesel::joinable!(meter_epochs -> capability_identities (capability_id));
 diesel::joinable!(power_rollups -> capability_identities (capability_id));
 
@@ -299,6 +315,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     gauge_rollups,
     history_budget,
     history_gaps,
+    history_retention_checkpoints,
     meter_epochs,
     energy_counter_rollups,
     members,
