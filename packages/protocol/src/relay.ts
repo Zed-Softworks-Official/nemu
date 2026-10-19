@@ -7,12 +7,16 @@ import {
 import { deviceStateSchema } from './device.ts'
 import {
     designateHomeMeterMessageSchema,
+    exportHistoryBackupMessageSchema,
     getHomeMeterDesignationMessageSchema,
+    historyBackupRestoredSchema,
+    historyBackupResultSchema,
     historyCursorMessageSchema,
     historyQueryMessageSchema,
     historyQueryRestartSchema,
     historyQueryResultSchema,
     homeMeterDesignationResultSchema,
+    importHistoryBackupMessageSchema,
 } from './history.ts'
 
 const relayCommandMessageSchema = z.object({
@@ -67,6 +71,8 @@ const authenticatedRelayMessageSchema = z.union([
     historyCursorMessageSchema,
     designateHomeMeterMessageSchema,
     getHomeMeterDesignationMessageSchema,
+    exportHistoryBackupMessageSchema,
+    importHistoryBackupMessageSchema,
 ])
 
 export const relayToControllerEnvelopeSchema = z.union([
@@ -117,6 +123,8 @@ export const relayToClientEnvelopeSchema = z.object({
         historyQueryResultSchema,
         historyQueryRestartSchema,
         homeMeterDesignationResultSchema,
+        historyBackupResultSchema,
+        historyBackupRestoredSchema,
     ]),
 })
 export type RelayToClientEnvelope = z.infer<typeof relayToClientEnvelopeSchema>

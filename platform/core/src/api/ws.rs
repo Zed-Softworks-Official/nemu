@@ -210,6 +210,34 @@ async fn handle_client_text(
             };
             send_json(sender, payload).await?;
         }
+        ClientWsMessage::ExportHistoryBackup { request_id } => {
+            let payload =
+                match crate::capabilities::history_backup::export_for_client(state, auth).await {
+                    Ok(archive) => serde_json::json!({
+                        "type": "historyBackup",
+                        "requestId": request_id,
+                        "archive": archive,
+                    }),
+                    Err(error) => history_backup_error(&request_id, &error),
+                };
+            send_json(sender, payload).await?;
+        }
+        ClientWsMessage::ImportHistoryBackup {
+            request_id,
+            archive,
+        } => {
+            let payload =
+                match crate::capabilities::history_backup::import_for_client(state, auth, &archive)
+                    .await
+                {
+                    Ok(()) => serde_json::json!({
+                        "type": "historyBackupRestored",
+                        "requestId": request_id,
+                    }),
+                    Err(error) => history_backup_error(&request_id, &error),
+                };
+            send_json(sender, payload).await?;
+        }
     }
 
     Ok(())
@@ -232,6 +260,18 @@ fn designation_body(
         "type": "homeMeterDesignation",
         "requestId": request_id,
         "designation": designation,
+    })
+}
+
+fn history_backup_error(
+    request_id: &str,
+    error: &crate::capabilities::history_backup::BackupClientError,
+) -> serde_json::Value {
+    serde_json::json!({
+        "type": "commandResult",
+        "requestId": request_id,
+        "ok": false,
+        "error": { "code": error.code(), "message": error.message() }
     })
 }
 

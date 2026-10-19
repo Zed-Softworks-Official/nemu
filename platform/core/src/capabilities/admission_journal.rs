@@ -20,6 +20,9 @@ pub enum GapReason {
     StorageFailure,
     QueueLoss,
     DiskFloor,
+    /// Downtime from a History backup snapshot until recording resumes.
+    /// Member-facing History still says only that a gap exists.
+    Restore,
 }
 
 impl GapReason {
@@ -29,15 +32,17 @@ impl GapReason {
             Self::StorageFailure => "storage_failure",
             Self::QueueLoss => "queue_loss",
             Self::DiskFloor => "disk_floor",
+            Self::Restore => "restore",
         }
     }
 
-    fn parse(value: &str) -> Option<Self> {
+    pub fn parse(value: &str) -> Option<Self> {
         match value {
             "untrusted_time" => Some(Self::UntrustedTime),
             "storage_failure" => Some(Self::StorageFailure),
             "queue_loss" => Some(Self::QueueLoss),
             "disk_floor" => Some(Self::DiskFloor),
+            "restore" => Some(Self::Restore),
             _ => None,
         }
     }
@@ -1335,6 +1340,12 @@ mod tests {
                     onset: at(4),
                     until: Some(at(9)),
                 },
+                GapInterval {
+                    reason: GapReason::Restore,
+                    scope: GapScope::Home,
+                    onset: at(4),
+                    until: Some(at(9)),
+                },
             ],
         };
         let projected = health.member_projection();
@@ -1348,6 +1359,7 @@ mod tests {
         assert!(!rendered.contains("disk"));
         assert!(!rendered.contains("1024"));
         assert!(!rendered.contains("untrusted_time"));
+        assert!(!rendered.contains("restore"));
     }
 
     #[test]
@@ -1415,5 +1427,7 @@ mod tests {
         assert_eq!(GapReason::StorageFailure.as_str(), "storage_failure");
         assert_eq!(GapReason::QueueLoss.as_str(), "queue_loss");
         assert_eq!(GapReason::DiskFloor.as_str(), "disk_floor");
+        assert_eq!(GapReason::Restore.as_str(), "restore");
+        assert_eq!(GapReason::parse("restore"), Some(GapReason::Restore));
     }
 }

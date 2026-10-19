@@ -234,4 +234,15 @@ pub enum ClientWsMessage {
         #[serde(rename = "requestId")]
         request_id: String,
     },
+    #[serde(rename = "exportHistoryBackup")]
+    ExportHistoryBackup {
+        #[serde(rename = "requestId")]
+        request_id: String,
+    },
+    #[serde(rename = "importHistoryBackup")]
+    ImportHistoryBackup {
+        #[serde(rename = "requestId")]
+        request_id: String,
+        archive: String,
+    },
 }

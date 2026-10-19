@@ -112,6 +112,10 @@ enum ToControllerMessage {
     },
     #[serde(rename = "getHomeMeterDesignation")]
     GetHomeMeterDesignation,
+    #[serde(rename = "exportHistoryBackup")]
+    ExportHistoryBackup,
+    #[serde(rename = "importHistoryBackup")]
+    ImportHistoryBackup { archive: String },
 }
 
 #[derive(Serialize)]
@@ -523,6 +527,39 @@ async fn handle_message(
                 ),
                 Err(error) => {
                     build_error_response(state, &message.request_id, error.code(), &error.message())
+                }
+            }
+        }
+        ToControllerMessage::ExportHistoryBackup => {
+            match crate::capabilities::history_backup::export_for_client(state, &auth).await {
+                Ok(archive) => build_typed_response(
+                    state,
+                    &message.request_id,
+                    json!({
+                        "type": "historyBackup",
+                        "requestId": message.request_id,
+                        "archive": archive,
+                    }),
+                ),
+                Err(error) => {
+                    build_error_response(state, &message.request_id, error.code(), error.message())
+                }
+            }
+        }
+        ToControllerMessage::ImportHistoryBackup { archive } => {
+            match crate::capabilities::history_backup::import_for_client(state, &auth, &archive)
+                .await
+            {
+                Ok(()) => build_typed_response(
+                    state,
+                    &message.request_id,
+                    json!({
+                        "type": "historyBackupRestored",
+                        "requestId": message.request_id,
+                    }),
+                ),
+                Err(error) => {
+                    build_error_response(state, &message.request_id, error.code(), error.message())
                 }
             }
         }

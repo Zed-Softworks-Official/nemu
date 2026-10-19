@@ -6,9 +6,11 @@ import {
 import { type DeviceState, deviceSchema, deviceStateSchema } from './device.ts'
 import {
     designateHomeMeterMessageSchema,
+    exportHistoryBackupMessageSchema,
     getHomeMeterDesignationMessageSchema,
     historyCursorMessageSchema,
     historyQueryFields,
+    importHistoryBackupMessageSchema,
 } from './history.ts'
 
 export const deviceEventSchema = z.discriminatedUnion('type', [
@@ -89,6 +91,12 @@ export const clientWsMessageSchema = z.union([
         requestId: z.string(),
     }),
     getHomeMeterDesignationMessageSchema.extend({
+        requestId: z.string(),
+    }),
+    exportHistoryBackupMessageSchema.extend({
+        requestId: z.string(),
+    }),
+    importHistoryBackupMessageSchema.extend({
         requestId: z.string(),
     }),
 ])

@@ -1073,6 +1073,7 @@ fn parse_gap_reason(value: &str) -> Option<GapReason> {
         GapReason::StorageFailure,
         GapReason::QueueLoss,
         GapReason::DiskFloor,
+        GapReason::Restore,
     ]
     .into_iter()
     .find(|reason| reason.as_str() == value)
@@ -2831,7 +2832,7 @@ fn load_gaps(
     let rows = diesel::sql_query(
         "SELECT reason::text AS reason, onset, until
          FROM history_gaps
-         WHERE capability_id = $1 AND onset < $3 AND (until IS NULL OR until > $2)
+         WHERE (capability_id = $1 OR capability_id IS NULL) AND onset < $3 AND (until IS NULL OR until > $2)
          ORDER BY onset",
     )
     .bind::<SqlUuid, _>(capability_id)

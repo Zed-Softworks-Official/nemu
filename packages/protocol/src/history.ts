@@ -74,7 +74,13 @@ const historyIntervalSchema = z.object({
     start: z.string().datetime(),
     end: z.string().datetime(),
     reason: z
-        .enum(['untrusted_time', 'storage_failure', 'queue_loss', 'disk_floor'])
+        .enum([
+            'untrusted_time',
+            'storage_failure',
+            'queue_loss',
+            'disk_floor',
+            'restore',
+        ])
         .optional(),
 })
 
@@ -226,6 +232,35 @@ export const homeMeterDesignationSchema = z.object({
     physicalScopeComponentId: z.string(),
 })
 export type HomeMeterDesignation = z.infer<typeof homeMeterDesignationSchema>
+
+export const exportHistoryBackupMessageSchema = z.object({
+    type: z.literal('exportHistoryBackup'),
+})
+export type ExportHistoryBackupMessage = z.infer<
+    typeof exportHistoryBackupMessageSchema
+>
+
+export const importHistoryBackupMessageSchema = z.object({
+    type: z.literal('importHistoryBackup'),
+    /** Ciphertext. The Controller keeps the backup key. */
+    archive: z.string().min(1),
+})
+export type ImportHistoryBackupMessage = z.infer<
+    typeof importHistoryBackupMessageSchema
+>
+
+export const historyBackupResultSchema = z.object({
+    type: z.literal('historyBackup'),
+    requestId: z.string(),
+    archive: z.string().min(1),
+})
+export type HistoryBackupResult = z.infer<typeof historyBackupResultSchema>
+
+export const historyBackupRestoredSchema = z.object({
+    type: z.literal('historyBackupRestored'),
+    requestId: z.string(),
+})
+export type HistoryBackupRestored = z.infer<typeof historyBackupRestoredSchema>
 
 export const homeMeterDesignationResultSchema = z.object({
     type: z.literal('homeMeterDesignation'),
