@@ -222,4 +222,16 @@ pub enum ClientWsMessage {
         #[serde(flatten)]
         query: crate::capabilities::history_query::HistoryQueryRequest,
     },
+    #[serde(rename = "designateHomeMeter")]
+    DesignateHomeMeter {
+        #[serde(rename = "requestId")]
+        request_id: String,
+        #[serde(flatten)]
+        selection: crate::capabilities::home_meter::DesignationSelection,
+    },
+    #[serde(rename = "getHomeMeterDesignation")]
+    GetHomeMeterDesignation {
+        #[serde(rename = "requestId")]
+        request_id: String,
+    },
 }

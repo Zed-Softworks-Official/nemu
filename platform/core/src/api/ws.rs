@@ -8,6 +8,7 @@ use uuid::Uuid;
 
 use crate::api::auth::AuthenticatedClient;
 use crate::capabilities::history_query::{self, HistoryQueryError};
+use crate::capabilities::home_meter::{self, DesignationClientError};
 use crate::commands::execute_set;
 use crate::events::{ClientWsMessage, DeviceEvent};
 use crate::state::AppState;
@@ -192,6 +193,23 @@ async fn handle_client_text(
                 .await
                 .map_err(|e| e.to_string())?;
         }
+        ClientWsMessage::GetHomeMeterDesignation { request_id } => {
+            let payload = match home_meter::read_designation_for_client(state, auth).await {
+                Ok(designation) => designation_body(&request_id, designation),
+                Err(error) => designation_error(&request_id, &error),
+            };
+            send_json(sender, payload).await?;
+        }
+        ClientWsMessage::DesignateHomeMeter {
+            request_id,
+            selection,
+        } => {
+            let payload = match home_meter::designate_for_client(state, auth, selection).await {
+                Ok(designation) => designation_body(&request_id, Some(designation)),
+                Err(error) => designation_error(&request_id, &error),
+            };
+            send_json(sender, payload).await?;
+        }
     }
 
     Ok(())
@@ -204,4 +222,35 @@ fn history_query_error(request_id: &str, error: &HistoryQueryError) -> serde_jso
         "ok": false,
         "error": { "code": error.code(), "message": error.message() }
     })
+}
+
+fn designation_body(
+    request_id: &str,
+    designation: Option<crate::capabilities::home_meter::DesignationPeriod>,
+) -> serde_json::Value {
+    serde_json::json!({
+        "type": "homeMeterDesignation",
+        "requestId": request_id,
+        "designation": designation,
+    })
+}
+
+fn designation_error(request_id: &str, error: &DesignationClientError) -> serde_json::Value {
+    serde_json::json!({
+        "type": "commandResult",
+        "requestId": request_id,
+        "ok": false,
+        "error": { "code": error.code(), "message": error.message() }
+    })
+}
+
+async fn send_json(
+    sender: &mut futures_util::stream::SplitSink<WebSocket, Message>,
+    payload: serde_json::Value,
+) -> Result<(), String> {
+    let text = serde_json::to_string(&payload).map_err(|error| error.to_string())?;
+    sender
+        .send(Message::Text(text.into()))
+        .await
+        .map_err(|error| error.to_string())
 }

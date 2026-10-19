@@ -196,6 +196,26 @@ diesel::table! {
 }
 
 diesel::table! {
+    home_meter_designation_periods (id) {
+        id -> Uuid,
+        effective_from -> Timestamptz,
+        effective_until -> Nullable<Timestamptz>,
+        power_capability_id -> Nullable<Uuid>,
+        imported_energy_capability_id -> Nullable<Uuid>,
+        exported_energy_capability_id -> Nullable<Uuid>,
+        #[max_length = 16]
+        protocol -> Varchar,
+        #[max_length = 255]
+        device_external_id -> Varchar,
+        component_path -> Array<Text>,
+        #[max_length = 16]
+        physical_scope_kind -> Varchar,
+        #[max_length = 255]
+        physical_scope_component_id -> Varchar,
+    }
+}
+
+diesel::table! {
     home_timezone_periods (effective_from) {
         #[max_length = 64]
         timezone -> Varchar,
@@ -325,6 +345,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     history_budget,
     history_gaps,
     history_retention_checkpoints,
+    home_meter_designation_periods,
     home_timezone_periods,
     meter_epochs,
     energy_counter_rollups,

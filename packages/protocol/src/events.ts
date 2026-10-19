@@ -4,7 +4,12 @@ import {
     capabilitySnapshotEventSchema,
 } from './capability.ts'
 import { type DeviceState, deviceSchema, deviceStateSchema } from './device.ts'
-import { historyCursorMessageSchema, historyQueryFields } from './history.ts'
+import {
+    designateHomeMeterMessageSchema,
+    getHomeMeterDesignationMessageSchema,
+    historyCursorMessageSchema,
+    historyQueryFields,
+} from './history.ts'
 
 export const deviceEventSchema = z.discriminatedUnion('type', [
     z.object({
@@ -78,6 +83,12 @@ export const clientWsMessageSchema = z.union([
         ...historyQueryFields,
     }),
     historyCursorMessageSchema.extend({
+        requestId: z.string(),
+    }),
+    designateHomeMeterMessageSchema.extend({
+        requestId: z.string(),
+    }),
+    getHomeMeterDesignationMessageSchema.extend({
         requestId: z.string(),
     }),
 ])

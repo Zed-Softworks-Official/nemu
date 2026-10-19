@@ -10,6 +10,8 @@ import type {
     DeviceEvent,
     HistoryQuery,
     HistoryQueryRead,
+    HomeMeterDesignation,
+    HomeMeterDesignationSelection,
     HouseholdMember,
     MatterWifiResponse,
     PatchDeviceRequest,
@@ -31,6 +33,14 @@ export interface ControllerTransport {
      * this transport does not store the series.
      */
     queryHistory(query: HistoryQuery): Promise<HistoryQueryRead>
+    /**
+     * The current designation stays on the Controller. Callers hold only
+     * the response for the active view.
+     */
+    getHomeMeterDesignation(): Promise<HomeMeterDesignation | null>
+    designateHomeMeter(
+        selection: HomeMeterDesignationSelection
+    ): Promise<HomeMeterDesignation>
     subscribeEvents(cb: (event: DeviceEvent) => void): () => void
     requestCapabilitySnapshot?(): void | Promise<void>
     /** Fires after a dropped LAN socket opens again. */

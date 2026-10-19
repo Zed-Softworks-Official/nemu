@@ -34,6 +34,9 @@ export const historyScopeSchema = z.discriminatedUnion('type', [
         deviceId: z.string().uuid(),
         componentPath: z.array(z.string().min(1)).min(1),
     }),
+    z.object({
+        type: z.literal('home'),
+    }),
 ])
 export type HistoryScope = z.infer<typeof historyScopeSchema>
 
@@ -88,6 +91,7 @@ export const historySeriesSchema = z.object({
     recordingSince: z.string().datetime(),
     availableSince: z.string().datetime().nullable(),
     meterEpochBoundaries: z.array(z.string().datetime()),
+    designationBoundaries: z.array(z.string().datetime()).default([]),
     gaps: z.array(historyIntervalSchema),
     missing: z.array(historyIntervalSchema),
     points: z
@@ -99,6 +103,7 @@ export const historySeriesSchema = z.object({
                 scale: z.number().int().nonnegative(),
                 provenance: z.enum(['measured', 'estimated']),
                 coverage: coverageSchema,
+                partial: z.boolean().optional(),
             })
         )
         .max(1000),
@@ -148,3 +153,53 @@ export const historyQueryReadSchema = z.discriminatedUnion('type', [
     historyQueryRestartSchema,
 ])
 export type HistoryQueryRead = z.infer<typeof historyQueryReadSchema>
+
+const optionalCapabilityId = z.string().uuid().nullable().optional()
+
+export const homeMeterDesignationSelectionSchema = z.object({
+    powerCapabilityId: optionalCapabilityId,
+    importedEnergyCapabilityId: optionalCapabilityId,
+    exportedEnergyCapabilityId: optionalCapabilityId,
+})
+export type HomeMeterDesignationSelection = z.infer<
+    typeof homeMeterDesignationSelectionSchema
+>
+
+export const designateHomeMeterMessageSchema =
+    homeMeterDesignationSelectionSchema.extend({
+        type: z.literal('designateHomeMeter'),
+    })
+export type DesignateHomeMeterMessage = z.infer<
+    typeof designateHomeMeterMessageSchema
+>
+
+export const getHomeMeterDesignationMessageSchema = z.object({
+    type: z.literal('getHomeMeterDesignation'),
+})
+export type GetHomeMeterDesignationMessage = z.infer<
+    typeof getHomeMeterDesignationMessageSchema
+>
+
+export const homeMeterDesignationSchema = z.object({
+    id: z.string().uuid(),
+    effectiveFrom: z.string().datetime(),
+    effectiveUntil: z.string().datetime().nullable(),
+    powerCapabilityId: z.string().uuid().nullable(),
+    importedEnergyCapabilityId: z.string().uuid().nullable(),
+    exportedEnergyCapabilityId: z.string().uuid().nullable(),
+    protocol: z.string().min(1),
+    deviceExternalId: z.string().min(1),
+    componentPath: z.array(z.string()),
+    physicalScopeKind: z.enum(['home', 'device', 'component']),
+    physicalScopeComponentId: z.string(),
+})
+export type HomeMeterDesignation = z.infer<typeof homeMeterDesignationSchema>
+
+export const homeMeterDesignationResultSchema = z.object({
+    type: z.literal('homeMeterDesignation'),
+    requestId: z.string(),
+    designation: homeMeterDesignationSchema.nullable(),
+})
+export type HomeMeterDesignationResult = z.infer<
+    typeof homeMeterDesignationResultSchema
+>

@@ -55,18 +55,22 @@ impl CapabilityRepository {
         conn.interact(move |conn| {
             conn.transaction(|conn| {
                 lock_device_identity(conn, &device)?;
-                diesel::update(
+                let protocol = device.protocol.clone();
+                let external_id = device.external_id.clone();
+                let count = diesel::update(
                     capability_identities::table
                         .filter(capability_identities::protocol.eq(device.protocol))
                         .filter(capability_identities::device_external_id.eq(device.external_id))
                         .filter(capability_identities::tombstoned_at.is_null()),
                 )
                 .set(capability_identities::tombstoned_at.eq(Some(removed_at)))
-                .execute(conn)
-                .map_err(CapabilityStoreError::from)
+                .execute(conn)?;
+                super::home_meter::on_device_tombstoned(conn, &protocol, &external_id, removed_at)?;
+                Ok::<_, diesel::result::Error>(count)
             })
         })
         .await?
+        .map_err(CapabilityStoreError::from)
     }
 }
 
@@ -117,8 +121,8 @@ fn reconcile_sync(
             .map(|capability| capability.id.into_uuid())
             .collect::<Vec<_>>();
         let active_for_device = capability_identities::table
-            .filter(capability_identities::protocol.eq(protocol))
-            .filter(capability_identities::device_external_id.eq(external_id))
+            .filter(capability_identities::protocol.eq(protocol.clone()))
+            .filter(capability_identities::device_external_id.eq(external_id.clone()))
             .filter(capability_identities::tombstoned_at.is_null());
         if retained_ids.is_empty() {
             diesel::update(active_for_device)
@@ -126,11 +130,19 @@ fn reconcile_sync(
                 .execute(conn)?;
         } else {
             diesel::update(
-                active_for_device.filter(capability_identities::id.ne_all(retained_ids)),
+                active_for_device.filter(capability_identities::id.ne_all(&retained_ids)),
             )
             .set(capability_identities::tombstoned_at.eq(Some(received_at)))
             .execute(conn)?;
         }
+
+        super::home_meter::on_device_returned(
+            conn,
+            &protocol,
+            &external_id,
+            &retained_ids,
+            received_at,
+        )?;
 
         Ok(registered)
     })

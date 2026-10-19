@@ -6,10 +6,13 @@ import {
 } from './capability.ts'
 import { deviceStateSchema } from './device.ts'
 import {
+    designateHomeMeterMessageSchema,
+    getHomeMeterDesignationMessageSchema,
     historyCursorMessageSchema,
     historyQueryMessageSchema,
     historyQueryRestartSchema,
     historyQueryResultSchema,
+    homeMeterDesignationResultSchema,
 } from './history.ts'
 
 const relayCommandMessageSchema = z.object({
@@ -62,6 +65,8 @@ const authenticatedRelayMessageSchema = z.union([
     z.object({ type: z.literal('watchCapabilityChanges') }),
     historyQueryMessageSchema,
     historyCursorMessageSchema,
+    designateHomeMeterMessageSchema,
+    getHomeMeterDesignationMessageSchema,
 ])
 
 export const relayToControllerEnvelopeSchema = z.union([
@@ -111,6 +116,7 @@ export const relayToClientEnvelopeSchema = z.object({
         z.object({ type: z.literal('capabilityWatchAck') }),
         historyQueryResultSchema,
         historyQueryRestartSchema,
+        homeMeterDesignationResultSchema,
     ]),
 })
 export type RelayToClientEnvelope = z.infer<typeof relayToClientEnvelopeSchema>

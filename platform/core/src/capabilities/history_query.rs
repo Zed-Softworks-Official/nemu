@@ -1,4 +1,4 @@
-//! Authorized Device and Component History queries.
+//! Authorized Device, Component, and Home History queries.
 //!
 //! Reads use a dedicated PostgreSQL pool (`HISTORY_QUERY_POOL_SIZE` connections),
 //! a matching concurrency semaphore, and `SET LOCAL statement_timeout` on the
@@ -197,6 +197,7 @@ pub enum HistoryScope {
         device_id: Uuid,
         component_path: Vec<String>,
     },
+    Home,
 }
 
 /// A fresh query or a continuation of one already materialized. A cursor wins
@@ -280,6 +281,9 @@ pub struct HistoryPoint {
     pub scale: u8,
     pub provenance: Provenance,
     pub coverage: Coverage,
+    /// A response bucket that contains a Home-meter designation boundary.
+    #[serde(default, skip_serializing_if = "skip_false")]
+    pub partial: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -294,6 +298,9 @@ pub struct HistorySeries {
     pub recording_since: DateTime<Utc>,
     pub available_since: Option<DateTime<Utc>>,
     pub meter_epoch_boundaries: Vec<DateTime<Utc>>,
+    /// Every Home-meter designation boundary in the query window.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub designation_boundaries: Vec<DateTime<Utc>>,
     pub gaps: Vec<HistoryInterval>,
     pub missing: Vec<HistoryInterval>,
     pub points: Vec<HistoryPoint>,
@@ -739,6 +746,7 @@ pub fn capability_in_scope(scope: &HistoryScope, row: &CapabilityRef) -> bool {
         HistoryScope::Component { component_path, .. } => {
             row.scope_kind == "component" && row.component_path == *component_path
         }
+        HistoryScope::Home => false,
     }
 }
 
@@ -833,6 +841,7 @@ fn assemble_series(input: AssembleInput) -> Result<HistorySeries, HistoryQueryEr
         recording_since: input.recording_since,
         available_since: input.available_since,
         meter_epoch_boundaries: input.meter_epoch_boundaries,
+        designation_boundaries: Vec::new(),
         gaps,
         missing,
         points,
@@ -861,6 +870,7 @@ fn assemble_raw(
                 covered_ns: 0,
                 elapsed_ns: 0,
             },
+            partial: false,
         });
     }
     let mut instants: Vec<DateTime<Utc>> = input.observations.iter().map(|row| row.at).collect();
@@ -928,6 +938,7 @@ fn assemble_buckets(
                 covered_ns: sample.covered_ns,
                 elapsed_ns: sample.elapsed_ns.max(elapsed_ns(bucket.start, bucket.end)),
             },
+            partial: false,
         });
     }
     Ok(points)
@@ -1036,6 +1047,10 @@ fn clip_span(start: DateTime<Utc>, end: DateTime<Utc>, range: Span) -> Option<Sp
     (start < end).then_some(Span { start, end })
 }
 
+fn skip_false(value: &bool) -> bool {
+    !*value
+}
+
 fn elapsed_ns(start: DateTime<Utc>, end: DateTime<Utc>) -> i64 {
     (end - start).num_nanoseconds().unwrap_or(i64::MAX)
 }
@@ -1139,6 +1154,32 @@ fn finish_response(
     cursors: &mut HistoryCursorStore,
     now: DateTime<Utc>,
 ) -> Result<HistoryQueryOutcome, HistoryQueryError> {
+    if let Some(mut series) = loaded.home_series {
+        if role != HistoryRole::Owner {
+            for row in &mut series {
+                for gap in &mut row.gaps {
+                    gap.reason = None;
+                }
+            }
+        }
+        let series_have_gaps = series.iter().any(|row| !row.gaps.is_empty());
+        return Ok(HistoryQueryOutcome::Page(cursors.open_page(
+            now,
+            MaterializedHistory {
+                role,
+                query: loaded.query,
+                as_of: loaded.as_of,
+                snapshot: loaded.snapshot,
+                buckets: loaded.home_buckets,
+                series,
+                reasons: safe_reasons(health, series_have_gaps),
+                health: match role {
+                    HistoryRole::Owner => Some(health.clone()),
+                    HistoryRole::Member => None,
+                },
+            },
+        )));
+    }
     let reveal = role == HistoryRole::Owner;
     let mut series = Vec::with_capacity(loaded.series.len());
     let mut buckets = Vec::new();
@@ -1210,6 +1251,8 @@ struct LoadedQuery {
     snapshot: String,
     query: HistoryQueryBody,
     series: Vec<LoadedSeries>,
+    home_series: Option<Vec<HistorySeries>>,
+    home_buckets: Vec<Span>,
 }
 
 struct LoadedSeries {
@@ -1231,6 +1274,622 @@ struct LoadedSeries {
     periods: Vec<TimezonePeriod>,
 }
 
+#[derive(Clone)]
+struct HomePeriodSlice {
+    capability_id: Uuid,
+    effective_from: DateTime<Utc>,
+    effective_until: Option<DateTime<Utc>>,
+    provenance: Provenance,
+    label: String,
+    meter_epoch_boundaries: Vec<DateTime<Utc>>,
+}
+
+#[derive(Clone)]
+struct HomeObservation {
+    capability_id: Uuid,
+    start: DateTime<Utc>,
+    end: DateTime<Utc>,
+    value: i64,
+    scale: u8,
+    covered_ns: i64,
+    elapsed_ns: i64,
+    provenance: Provenance,
+    sum_values: bool,
+}
+
+struct HomeAssembly<'a> {
+    metric: HistoryMetric,
+    range: Span,
+    resolution: QueryResolution,
+    source_resolution: QueryResolution,
+    buckets: &'a [Span],
+    recording_since: DateTime<Utc>,
+    /// Periods that supply this metric.
+    periods: &'a [HomePeriodSlice],
+    /// Every designation period, including ones that do not supply this metric.
+    boundary_periods: &'a [HomePeriodSlice],
+    samples: &'a [HomeObservation],
+    quality: &'a [(Uuid, InputInterval)],
+    reveal_gap_reasons: bool,
+}
+
+struct HomeLoad {
+    series: Vec<HistorySeries>,
+    buckets: Vec<Span>,
+}
+
+fn designated_source(
+    period: &super::home_meter::DesignationPeriod,
+    metric: HistoryMetric,
+) -> Option<(Uuid, Provenance, CapabilityKind)> {
+    match metric {
+        HistoryMetric::Power => period
+            .power_capability_id
+            .map(|id| (id, Provenance::Measured, CapabilityKind::Power)),
+        HistoryMetric::ImportedEnergy => {
+            if let Some(id) = period.imported_energy_capability_id {
+                Some((id, Provenance::Measured, CapabilityKind::ImportedEnergy))
+            } else {
+                period
+                    .power_capability_id
+                    .map(|id| (id, Provenance::Estimated, CapabilityKind::Power))
+            }
+        }
+        HistoryMetric::ExportedEnergy => {
+            if let Some(id) = period.exported_energy_capability_id {
+                Some((id, Provenance::Measured, CapabilityKind::ExportedEnergy))
+            } else {
+                period
+                    .power_capability_id
+                    .map(|id| (id, Provenance::Estimated, CapabilityKind::Power))
+            }
+        }
+        HistoryMetric::Voltage | HistoryMetric::Current => None,
+    }
+}
+
+fn clip_period(
+    from: DateTime<Utc>,
+    until: Option<DateTime<Utc>>,
+    range_start: DateTime<Utc>,
+    range_end: DateTime<Utc>,
+) -> Option<Span> {
+    let start = from.max(range_start);
+    let end = until.unwrap_or(range_end).min(range_end);
+    (start < end).then_some(Span { start, end })
+}
+
+fn intersect_span(left: Span, right: Span) -> Option<Span> {
+    let start = left.start.max(right.start);
+    let end = left.end.min(right.end);
+    (start < end).then_some(Span { start, end })
+}
+
+/// Instants where a designation starts or ends inside the query window.
+fn designation_boundary_instants(
+    periods: &[HomePeriodSlice],
+    range: Span,
+) -> Vec<DateTime<Utc>> {
+    let mut bounds = Vec::new();
+    for period in periods {
+        if range.start <= period.effective_from && period.effective_from <= range.end {
+            bounds.push(period.effective_from);
+        }
+        if let Some(until) = period.effective_until {
+            if range.start <= until && until <= range.end {
+                bounds.push(until);
+            }
+        }
+    }
+    bounds.sort();
+    bounds.dedup();
+    bounds
+}
+
+fn bucket_crosses_boundary(bucket: Span, boundaries: &[DateTime<Utc>]) -> bool {
+    boundaries
+        .iter()
+        .any(|boundary| bucket.start < *boundary && *boundary < bucket.end)
+}
+
+fn uncovered_spans(range: Span, segments: &[Span]) -> Vec<Span> {
+    let mut cursor = range.start;
+    let mut gaps = Vec::new();
+    for segment in segments {
+        if segment.start > cursor {
+            let end = segment.start.min(range.end);
+            if cursor < end {
+                gaps.push(Span { start: cursor, end });
+            }
+        }
+        if segment.end > cursor {
+            cursor = segment.end;
+        }
+    }
+    if cursor < range.end {
+        gaps.push(Span {
+            start: cursor,
+            end: range.end,
+        });
+    }
+    gaps
+}
+
+fn sample_during_period(sample: &HomeObservation, period: &HomePeriodSlice) -> bool {
+    if let Some(until) = period.effective_until {
+        return sample_in_window(
+            sample,
+            Span {
+                start: period.effective_from,
+                end: until,
+            },
+        );
+    }
+    sample.start >= period.effective_from || sample.end > period.effective_from
+}
+
+fn sample_in_window(sample: &HomeObservation, window: Span) -> bool {
+    if sample.start == sample.end {
+        return sample.start >= window.start && sample.start < window.end;
+    }
+    intersect_span(
+        Span {
+            start: sample.start,
+            end: sample.end,
+        },
+        window,
+    )
+    .is_some()
+}
+
+fn scaled_sample_value(sample: &HomeObservation, window: Span) -> Option<i128> {
+    if sample.start == sample.end {
+        return sample_in_window(sample, window).then_some(i128::from(sample.value));
+    }
+    let overlap = intersect_span(
+        Span {
+            start: sample.start,
+            end: sample.end,
+        },
+        window,
+    )?;
+    if !sample.sum_values {
+        return Some(i128::from(sample.value));
+    }
+    let sample_ns = elapsed_ns(sample.start, sample.end).max(1);
+    let overlap_ns = elapsed_ns(overlap.start, overlap.end);
+    Some(i128::from(sample.value) * i128::from(overlap_ns) / i128::from(sample_ns))
+}
+
+/// Home results follow designation periods. Values never combine across a
+/// boundary, undesignated time stays missing, and a bucket that contains a
+/// boundary is partial.
+fn assemble_home_history(input: &HomeAssembly<'_>) -> Vec<HistorySeries> {
+    let boundaries = designation_boundary_instants(input.boundary_periods, input.range);
+    let mut segments = Vec::new();
+    for period in input.periods {
+        if let Some(span) = clip_period(
+            period.effective_from,
+            period.effective_until,
+            input.range.start,
+            input.range.end,
+        ) {
+            segments.push((period, span));
+        }
+    }
+    let segment_spans: Vec<Span> = segments.iter().map(|(_, span)| *span).collect();
+    let undesignated = uncovered_spans(input.range, &segment_spans);
+    if segments.is_empty() {
+        let Some(period) = input.periods.first() else {
+            return Vec::new();
+        };
+        return vec![home_series(
+            input,
+            period,
+            &boundaries,
+            Vec::new(),
+            undesignated_missing(&undesignated),
+            Vec::new(),
+        )];
+    }
+    segments
+        .iter()
+        .map(|(period, span)| {
+            let (points, mut missing) = home_points(input, period, *span, &boundaries);
+            missing.extend(undesignated_missing(&undesignated));
+            let gaps = home_gaps(input, period.capability_id, *span);
+            home_series(input, period, &boundaries, points, missing, gaps)
+        })
+        .collect()
+}
+
+fn undesignated_missing(spans: &[Span]) -> Vec<HistoryInterval> {
+    spans
+        .iter()
+        .map(|span| HistoryInterval {
+            kind: IntervalKind::Missing,
+            start: span.start,
+            end: span.end,
+            reason: None,
+        })
+        .collect()
+}
+
+fn home_gaps(input: &HomeAssembly<'_>, capability_id: Uuid, span: Span) -> Vec<HistoryInterval> {
+    input
+        .quality
+        .iter()
+        .filter(|(id, _)| *id == capability_id)
+        .filter_map(|(_, interval)| {
+            let clipped = clip_span(interval.start, interval.end, span)?;
+            if interval.kind != IntervalKind::History {
+                return None;
+            }
+            Some(HistoryInterval {
+                kind: IntervalKind::History,
+                start: clipped.start,
+                end: clipped.end,
+                reason: if input.reveal_gap_reasons {
+                    interval.reason.map(GapReason::as_str).map(str::to_string)
+                } else {
+                    None
+                },
+            })
+        })
+        .collect()
+}
+
+fn home_points(
+    input: &HomeAssembly<'_>,
+    period: &HomePeriodSlice,
+    span: Span,
+    boundaries: &[DateTime<Utc>],
+) -> (Vec<HistoryPoint>, Vec<HistoryInterval>) {
+    if input.resolution == QueryResolution::Raw {
+        let points = input
+            .samples
+            .iter()
+            .filter(|sample| {
+                sample.capability_id == period.capability_id && sample_in_window(sample, span)
+            })
+            .map(|sample| HistoryPoint {
+                start: sample.start,
+                end: sample.end,
+                value: sample.value,
+                scale: sample.scale,
+                provenance: sample.provenance,
+                coverage: Coverage {
+                    covered_ns: sample.covered_ns,
+                    elapsed_ns: sample.elapsed_ns,
+                },
+                partial: false,
+            })
+            .collect();
+        return (points, Vec::new());
+    }
+    let mut points = Vec::new();
+    let mut missing = Vec::new();
+    for bucket in input.buckets {
+        let Some(window) = intersect_span(*bucket, span) else {
+            continue;
+        };
+        let partial = bucket_crosses_boundary(*bucket, boundaries);
+        let usable: Vec<&HomeObservation> = input
+            .samples
+            .iter()
+            .filter(|sample| {
+                sample.capability_id == period.capability_id && sample_in_window(sample, window)
+            })
+            .collect();
+        if usable.is_empty() {
+            missing.push(HistoryInterval {
+                kind: IntervalKind::Missing,
+                start: window.start,
+                end: window.end,
+                reason: None,
+            });
+            continue;
+        }
+        let sums = usable.iter().any(|sample| sample.sum_values);
+        let value = if sums {
+            usable.iter().fold(0i128, |total, sample| {
+                total + scaled_sample_value(sample, window).unwrap_or(0)
+            })
+        } else {
+            let mut weighted = 0i128;
+            let mut weight = 0i128;
+            for sample in &usable {
+                let overlap = if sample.start == sample.end {
+                    Span {
+                        start: sample.start,
+                        end: sample.end,
+                    }
+                } else {
+                    let Some(overlap) = intersect_span(
+                        Span {
+                            start: sample.start,
+                            end: sample.end,
+                        },
+                        window,
+                    ) else {
+                        continue;
+                    };
+                    overlap
+                };
+                let sample_weight = elapsed_ns(overlap.start, overlap.end).max(1);
+                weighted += i128::from(sample.value) * i128::from(sample_weight);
+                weight += i128::from(sample_weight);
+            }
+            if weight == 0 {
+                i128::from(usable[0].value)
+            } else {
+                weighted / weight
+            }
+        };
+        let Some(value) = i64::try_from(value).ok() else {
+            missing.push(HistoryInterval {
+                kind: IntervalKind::Unavailable,
+                start: window.start,
+                end: window.end,
+                reason: None,
+            });
+            continue;
+        };
+        let scale = usable[0].scale;
+        let provenance = usable[0].provenance;
+        let covered = usable.iter().fold(0i128, |total, sample| {
+            if sample.sum_values && sample.start != sample.end {
+                let sample_ns = elapsed_ns(sample.start, sample.end).max(1);
+                let overlap_ns = intersect_span(
+                    Span {
+                        start: sample.start,
+                        end: sample.end,
+                    },
+                    window,
+                )
+                .map(|overlap| elapsed_ns(overlap.start, overlap.end))
+                .unwrap_or(0);
+                total
+                    + i128::from(sample.covered_ns) * i128::from(overlap_ns) / i128::from(sample_ns)
+            } else {
+                total + i128::from(sample.covered_ns)
+            }
+        });
+        points.push(HistoryPoint {
+            start: if partial { window.start } else { bucket.start },
+            end: if partial { window.end } else { bucket.end },
+            value,
+            scale,
+            provenance,
+            coverage: Coverage {
+                covered_ns: i64::try_from(covered).unwrap_or(0),
+                elapsed_ns: elapsed_ns(window.start, window.end).max(0),
+            },
+            partial,
+        });
+    }
+    (points, missing)
+}
+
+fn home_series(
+    input: &HomeAssembly<'_>,
+    period: &HomePeriodSlice,
+    boundaries: &[DateTime<Utc>],
+    points: Vec<HistoryPoint>,
+    missing: Vec<HistoryInterval>,
+    gaps: Vec<HistoryInterval>,
+) -> HistorySeries {
+    let covered: i64 = points.iter().map(|point| point.coverage.covered_ns).sum();
+    let elapsed = elapsed_ns(input.range.start, input.range.end).max(0);
+    let available_since = input
+        .samples
+        .iter()
+        .filter(|sample| {
+            input.periods.iter().any(|period| {
+                sample.capability_id == period.capability_id && sample_during_period(sample, period)
+            })
+        })
+        .map(|sample| sample.start)
+        .min();
+    HistorySeries {
+        capability_id: period.capability_id,
+        label: if period.label.is_empty() {
+            series_label(input.metric, period.capability_id, &[])
+        } else {
+            period.label.clone()
+        },
+        resolution: input.resolution,
+        source_resolution: input.source_resolution,
+        provenance: period.provenance,
+        coverage: Coverage {
+            covered_ns: covered.min(elapsed),
+            elapsed_ns: elapsed,
+        },
+        recording_since: input.recording_since,
+        available_since,
+        meter_epoch_boundaries: period.meter_epoch_boundaries.clone(),
+        designation_boundaries: boundaries.to_vec(),
+        gaps,
+        missing,
+        points,
+    }
+}
+
+fn load_home_series(
+    conn: &mut PgConnection,
+    request: &HistoryQueryBody,
+    freshness: Duration,
+    timezone_periods: &[TimezonePeriod],
+) -> Result<HomeLoad, QueryLoadError> {
+    let _ = freshness;
+    let stored = super::home_meter::load_all_periods(conn)?;
+    let Some(recording_since) = stored.iter().map(|period| period.effective_from).min() else {
+        return Ok(HomeLoad {
+            series: Vec::new(),
+            buckets: Vec::new(),
+        });
+    };
+    struct Slice {
+        capability_id: Uuid,
+        kind: CapabilityKind,
+        provenance: Provenance,
+        effective_from: DateTime<Utc>,
+        effective_until: Option<DateTime<Utc>>,
+        component_path: Vec<String>,
+    }
+    let mut slices = Vec::new();
+    let mut estimates = Vec::new();
+    for period in &stored {
+        let Some((capability_id, provenance, kind)) = designated_source(period, request.metric)
+        else {
+            continue;
+        };
+        let raw_points = clip_period(
+            period.effective_from,
+            period.effective_until,
+            request.start,
+            request.end,
+        )
+        .map(|span| load_raw_count(conn, capability_id, span.start, span.end))
+        .transpose()?
+        .unwrap_or(0);
+        estimates.push(SeriesEstimate { kind, raw_points });
+        slices.push(Slice {
+            capability_id,
+            kind,
+            provenance,
+            effective_from: period.effective_from,
+            effective_until: period.effective_until,
+            component_path: period.component_path.clone(),
+        });
+    }
+    if slices.is_empty() {
+        return Ok(HomeLoad {
+            series: Vec::new(),
+            buckets: Vec::new(),
+        });
+    }
+    let plan = align_response(&AlignInput {
+        requested: request.resolution,
+        start: request.start,
+        end: request.end,
+        max_points: request.max_points,
+        periods: timezone_periods,
+        series: &estimates,
+    })?;
+    let mut samples = Vec::new();
+    let mut quality = Vec::new();
+    let mut epochs = Vec::new();
+    for slice in &slices {
+        let Some(span) = clip_period(
+            slice.effective_from,
+            slice.effective_until,
+            request.start,
+            request.end,
+        ) else {
+            epochs.push((slice.capability_id, slice.effective_from, Vec::new()));
+            continue;
+        };
+        let (loaded, observations) = load_points(
+            conn,
+            slice.capability_id,
+            slice.kind,
+            request.metric,
+            plan.resolution,
+            span.start,
+            span.end,
+            plan.point_limit,
+        )?;
+        for sample in loaded {
+            let Some(value) = sample.value else {
+                continue;
+            };
+            samples.push(HomeObservation {
+                capability_id: slice.capability_id,
+                start: sample.start,
+                end: sample.end,
+                value,
+                scale: sample.scale,
+                covered_ns: sample.covered_ns,
+                elapsed_ns: sample.elapsed_ns,
+                provenance: sample.provenance,
+                sum_values: sample.sum_values,
+            });
+        }
+        for observation in observations {
+            samples.push(HomeObservation {
+                capability_id: slice.capability_id,
+                start: observation.at,
+                end: observation.at,
+                value: observation.value,
+                scale: observation.scale,
+                covered_ns: 0,
+                elapsed_ns: 0,
+                provenance: Provenance::Measured,
+                sum_values: false,
+            });
+        }
+        for interval in load_gaps(conn, slice.capability_id, span.start, span.end)? {
+            quality.push((slice.capability_id, interval));
+        }
+        epochs.push((
+            slice.capability_id,
+            slice.effective_from,
+            load_epoch_boundaries(conn, slice.capability_id, span.start, span.end)?,
+        ));
+    }
+    let periods: Vec<HomePeriodSlice> = slices
+        .iter()
+        .map(|slice| HomePeriodSlice {
+            capability_id: slice.capability_id,
+            effective_from: slice.effective_from,
+            effective_until: slice.effective_until,
+            provenance: slice.provenance,
+            label: series_label(request.metric, slice.capability_id, &slice.component_path),
+            meter_epoch_boundaries: epochs
+                .iter()
+                .find(|(id, from, _)| *id == slice.capability_id && *from == slice.effective_from)
+                .map(|(_, _, bounds)| bounds.clone())
+                .unwrap_or_default(),
+        })
+        .collect();
+    let boundary_periods: Vec<HomePeriodSlice> = stored
+        .iter()
+        .map(|period| HomePeriodSlice {
+            capability_id: period
+                .capability_ids()
+                .into_iter()
+                .next()
+                .unwrap_or(Uuid::nil()),
+            effective_from: period.effective_from,
+            effective_until: period.effective_until,
+            provenance: Provenance::Measured,
+            label: String::new(),
+            meter_epoch_boundaries: Vec::new(),
+        })
+        .collect();
+    let series = assemble_home_history(&HomeAssembly {
+        metric: request.metric,
+        range: Span {
+            start: request.start,
+            end: request.end,
+        },
+        resolution: plan.resolution,
+        source_resolution: plan.source_resolution,
+        buckets: &plan.buckets,
+        recording_since,
+        periods: &periods,
+        boundary_periods: &boundary_periods,
+        samples: &samples,
+        quality: &quality,
+        reveal_gap_reasons: true,
+    });
+    Ok(HomeLoad {
+        series,
+        buckets: plan.buckets,
+    })
+}
+
 fn load_query(
     conn: &mut PgConnection,
     request: &HistoryQueryBody,
@@ -1242,6 +1901,17 @@ fn load_query(
         let snapshot = capture_snapshot(conn)?;
         let as_of = Utc::now();
         let periods = load_periods(conn)?;
+        if matches!(request.scope, HistoryScope::Home) {
+            let home = load_home_series(conn, request, freshness, &periods)?;
+            return Ok(LoadedQuery {
+                as_of,
+                snapshot,
+                query: request.clone(),
+                series: Vec::new(),
+                home_series: Some(home.series),
+                home_buckets: home.buckets,
+            });
+        }
         let identities = load_identities(conn, &request.scope)?;
         let mut pending = Vec::new();
         for identity in identities {
@@ -1343,6 +2013,8 @@ fn load_query(
             snapshot,
             query: request.clone(),
             series,
+            home_series: None,
+            home_buckets: Vec::new(),
         })
     })
 }
@@ -1505,6 +2177,7 @@ fn load_identities(
     scope: &HistoryScope,
 ) -> Result<Vec<IdentityRow>, diesel::result::Error> {
     match scope {
+        HistoryScope::Home => Ok(Vec::new()),
         HistoryScope::Capability { capability_id } => diesel::sql_query(
             "SELECT id, kind::text AS kind, physical_scope_kind::text AS physical_scope_kind,
                     COALESCE(array_to_string(component_path, '/'), '')::text AS component_path
@@ -2603,8 +3276,192 @@ mod tests {
             "resolution": "hourly",
             "freshnessLimitMs": 1000,
             "maxPoints": 24
+        }))
+        .unwrap();
+        let HistoryQueryRequest::Query(home) = home else {
+            panic!("home query");
+        };
+        assert!(matches!(home.scope, HistoryScope::Home));
+    }
+
+    #[test]
+    fn home_queries_stop_at_designation_boundaries_and_leave_earlier_history_alone() {
+        let start = utc(2026, 1, 1, 0, 0, 0);
+        let hour = |hour| utc(2026, 1, 1, hour, 0, 0);
+        let boundary = utc(2026, 1, 1, 2, 30, 0);
+        let end = hour(4);
+        let capability_a = Uuid::from_u128(1);
+        let capability_b = Uuid::from_u128(2);
+        let buckets = [0, 1, 2, 3]
+            .into_iter()
+            .map(|hour_index| Span {
+                start: hour(hour_index),
+                end: hour(hour_index + 1),
+            })
+            .collect::<Vec<_>>();
+        let periods = vec![
+            super::HomePeriodSlice {
+                capability_id: capability_a,
+                effective_from: hour(1),
+                effective_until: Some(boundary),
+                provenance: Provenance::Measured,
+                label: format!("importedEnergy {capability_a}"),
+                meter_epoch_boundaries: Vec::new(),
+            },
+            super::HomePeriodSlice {
+                capability_id: capability_b,
+                effective_from: boundary,
+                effective_until: Some(end),
+                provenance: Provenance::Measured,
+                label: format!("importedEnergy {capability_b}"),
+                meter_epoch_boundaries: Vec::new(),
+            },
+        ];
+        let samples = vec![
+            home_sample(capability_a, start, hour(1), 5, true),
+            home_sample(capability_a, hour(1), hour(2), 10, true),
+            home_sample(capability_a, hour(2), hour(3), 60, true),
+            home_sample(capability_b, hour(2), hour(3), 40, true),
+            home_sample(capability_b, hour(3), end, 8, true),
+        ];
+        let series = super::assemble_home_history(&super::HomeAssembly {
+            metric: HistoryMetric::ImportedEnergy,
+            range: Span { start, end },
+            resolution: QueryResolution::Hourly,
+            source_resolution: QueryResolution::Hourly,
+            buckets: &buckets,
+            recording_since: hour(1),
+            periods: &periods,
+            boundary_periods: &periods,
+            samples: &samples,
+            quality: &[],
+            reveal_gap_reasons: false,
+        });
+        assert_eq!(series.len(), 2);
+        assert!(series.iter().all(|row| row.recording_since == hour(1)));
+        assert!(series.iter().all(|row| {
+            row.designation_boundaries.contains(&hour(1))
+                && row.designation_boundaries.contains(&boundary)
         }));
-        assert!(home.is_err());
+        let values = series
+            .iter()
+            .flat_map(|row| row.points.iter().map(|point| point.value))
+            .collect::<Vec<_>>();
+        assert_eq!(values, vec![10, 30, 20, 8]);
+        assert!(!values.contains(&5));
+        assert!(!values.contains(&0));
+        assert!(!values.contains(&60));
+        assert!(!values.contains(&100));
+        let partial = series
+            .iter()
+            .flat_map(|row| row.points.iter())
+            .filter(|point| point.partial)
+            .map(|point| point.value)
+            .collect::<Vec<_>>();
+        assert_eq!(partial, vec![30, 20]);
+        assert!(series.iter().any(|row| {
+            row.missing.iter().any(|interval| {
+                interval.kind == IntervalKind::Missing
+                    && interval.start == start
+                    && interval.end == hour(1)
+            })
+        }));
+
+        let mut device = empty_input();
+        device.recording_since = utc(2020, 1, 1, 0, 0, 0);
+        device.range = Span {
+            start,
+            end: hour(1),
+        };
+        device.buckets = vec![Span {
+            start,
+            end: hour(1),
+        }];
+        device.samples = vec![sample(start, 5, 1, true)];
+        let device_series = super::assemble_series(device).unwrap();
+        assert_eq!(device_series.points[0].value, 5);
+        assert!(device_series.designation_boundaries.is_empty());
+        assert_eq!(device_series.recording_since, utc(2020, 1, 1, 0, 0, 0));
+    }
+
+    #[test]
+    fn partial_power_buckets_do_not_add_both_sides_of_a_boundary() {
+        let hour = |hour| utc(2026, 1, 1, hour, 0, 0);
+        let boundary = utc(2026, 1, 1, 2, 30, 0);
+        let capability_a = Uuid::from_u128(11);
+        let capability_b = Uuid::from_u128(12);
+        let periods = vec![
+            super::HomePeriodSlice {
+                capability_id: capability_a,
+                effective_from: hour(2),
+                effective_until: Some(boundary),
+                provenance: Provenance::Measured,
+                label: format!("power {capability_a}"),
+                meter_epoch_boundaries: Vec::new(),
+            },
+            super::HomePeriodSlice {
+                capability_id: capability_b,
+                effective_from: boundary,
+                effective_until: Some(hour(3)),
+                provenance: Provenance::Measured,
+                label: format!("power {capability_b}"),
+                meter_epoch_boundaries: Vec::new(),
+            },
+        ];
+        let buckets = vec![Span {
+            start: hour(2),
+            end: hour(3),
+        }];
+        let samples = vec![
+            home_sample(capability_a, hour(2), hour(3), 100, false),
+            home_sample(capability_b, hour(2), hour(3), 40, false),
+        ];
+        let series = super::assemble_home_history(&super::HomeAssembly {
+            metric: HistoryMetric::Power,
+            range: Span {
+                start: hour(2),
+                end: hour(3),
+            },
+            resolution: QueryResolution::Hourly,
+            source_resolution: QueryResolution::Hourly,
+            buckets: &buckets,
+            recording_since: hour(2),
+            periods: &periods,
+            boundary_periods: &periods,
+            samples: &samples,
+            quality: &[],
+            reveal_gap_reasons: false,
+        });
+        let values = series
+            .iter()
+            .flat_map(|row| row.points.iter().map(|point| (point.value, point.partial)))
+            .collect::<Vec<_>>();
+        assert_eq!(values, vec![(100, true), (40, true)]);
+        assert!(!values.iter().any(|(value, _)| *value == 140));
+    }
+
+    fn home_sample(
+        capability_id: Uuid,
+        start: chrono::DateTime<Utc>,
+        end: chrono::DateTime<Utc>,
+        value: i64,
+        sum_values: bool,
+    ) -> super::HomeObservation {
+        super::HomeObservation {
+            capability_id,
+            start,
+            end,
+            value,
+            scale: 0,
+            covered_ns: 1,
+            elapsed_ns: 1,
+            provenance: if sum_values {
+                Provenance::Estimated
+            } else {
+                Provenance::Measured
+            },
+            sum_values,
+        }
     }
 
     #[test]
@@ -2683,6 +3540,7 @@ mod tests {
             recording_since: utc(2020, 1, 1, 0, 0, 0),
             available_since: Some(utc(2024, 6, 1, 0, 0, 0)),
             meter_epoch_boundaries: Vec::new(),
+            designation_boundaries: Vec::new(),
             gaps: Vec::new(),
             missing: Vec::new(),
             points: buckets
@@ -2697,6 +3555,7 @@ mod tests {
                         covered_ns: 1,
                         elapsed_ns: 1,
                     },
+                    partial: false,
                 })
                 .collect(),
         }

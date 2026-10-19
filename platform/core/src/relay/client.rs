@@ -105,6 +105,13 @@ enum ToControllerMessage {
         #[serde(flatten)]
         query: crate::capabilities::history_query::HistoryQueryRequest,
     },
+    #[serde(rename = "designateHomeMeter")]
+    DesignateHomeMeter {
+        #[serde(flatten)]
+        selection: crate::capabilities::home_meter::DesignationSelection,
+    },
+    #[serde(rename = "getHomeMeterDesignation")]
+    GetHomeMeterDesignation,
 }
 
 #[derive(Serialize)]
@@ -482,6 +489,40 @@ async fn handle_message(
                 },
                 Err(error) => {
                     build_error_response(state, &message.request_id, error.code(), error.message())
+                }
+            }
+        }
+        ToControllerMessage::GetHomeMeterDesignation => {
+            match crate::capabilities::home_meter::read_designation_for_client(state, &auth).await {
+                Ok(designation) => build_typed_response(
+                    state,
+                    &message.request_id,
+                    json!({
+                        "type": "homeMeterDesignation",
+                        "requestId": message.request_id,
+                        "designation": designation,
+                    }),
+                ),
+                Err(error) => {
+                    build_error_response(state, &message.request_id, error.code(), &error.message())
+                }
+            }
+        }
+        ToControllerMessage::DesignateHomeMeter { selection } => {
+            match crate::capabilities::home_meter::designate_for_client(state, &auth, selection)
+                .await
+            {
+                Ok(designation) => build_typed_response(
+                    state,
+                    &message.request_id,
+                    json!({
+                        "type": "homeMeterDesignation",
+                        "requestId": message.request_id,
+                        "designation": designation,
+                    }),
+                ),
+                Err(error) => {
+                    build_error_response(state, &message.request_id, error.code(), &error.message())
                 }
             }
         }

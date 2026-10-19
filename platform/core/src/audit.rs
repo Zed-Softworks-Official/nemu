@@ -23,6 +23,7 @@ pub enum AuditKind {
     #[allow(dead_code)]
     AutomationChange,
     HistoryBudgetChange,
+    HomeMeterDesignation,
 }
 
 impl AuditKind {
@@ -36,11 +37,12 @@ impl AuditKind {
             Self::DeviceRemoval => "device_removal",
             Self::AutomationChange => "automation_change",
             Self::HistoryBudgetChange => "history_budget_change",
+            Self::HomeMeterDesignation => "home_meter_designation",
         }
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AuditWrite {
     pub kind: AuditKind,
     pub actor_user_id: Option<String>,

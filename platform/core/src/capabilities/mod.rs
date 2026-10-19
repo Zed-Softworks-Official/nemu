@@ -7,6 +7,7 @@ pub mod history_budget;
 pub mod history_query;
 mod history_retention;
 mod home_calendar;
+pub mod home_meter;
 mod meter_epoch;
 mod persistence;
 mod service;

@@ -2,9 +2,12 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { clientWsMessageSchema } from './events.ts'
 import {
+    designateHomeMeterMessageSchema,
+    getHomeMeterDesignationMessageSchema,
     historyQueryMessageSchema,
     historyQueryRestartSchema,
     historyQueryResultSchema,
+    homeMeterDesignationResultSchema,
 } from './history.ts'
 import {
     relayToClientEnvelopeSchema,
@@ -135,17 +138,87 @@ describe('history query messages', () => {
         }
     })
 
-    it('rejects home scope and point counts above 1000', () => {
-        assert.throws(() =>
-            historyQueryMessageSchema.parse({
-                ...query,
-                scope: { type: 'home' },
-            })
-        )
+    it('accepts home scope and rejects point counts above 1000', () => {
+        const home = historyQueryMessageSchema.parse({
+            ...query,
+            scope: { type: 'home' },
+        })
+        assert.equal(home.scope.type, 'home')
+        const lan = clientWsMessageSchema.parse({
+            ...query,
+            scope: { type: 'home' },
+            requestId: 'req-home',
+        })
+        const relay = relayToControllerEnvelopeSchema.parse({
+            requestId: 'req-home',
+            clientToken: 'token',
+            message: { ...query, scope: { type: 'home' } },
+        })
+        assert.equal(lan.type, 'historyQuery')
+        assert.equal(relay.message.type, 'historyQuery')
         assert.throws(() =>
             historyQueryMessageSchema.parse({
                 ...query,
                 maxPoints: 1001,
+            })
+        )
+    })
+
+    it('uses the same Home meter designation messages on LAN and Relay', () => {
+        const selection = {
+            type: 'designateHomeMeter' as const,
+            powerCapabilityId: capabilityId,
+            importedEnergyCapabilityId: null,
+            exportedEnergyCapabilityId: null,
+        }
+        const lan = clientWsMessageSchema.parse({
+            ...selection,
+            requestId: 'req-designate',
+        })
+        const relay = relayToControllerEnvelopeSchema.parse({
+            requestId: 'req-designate',
+            clientToken: 'token',
+            message: selection,
+        })
+        assert.equal(lan.type, 'designateHomeMeter')
+        assert.equal(relay.message.type, 'designateHomeMeter')
+        designateHomeMeterMessageSchema.parse(selection)
+        getHomeMeterDesignationMessageSchema.parse({
+            type: 'getHomeMeterDesignation',
+        })
+        const read = clientWsMessageSchema.parse({
+            type: 'getHomeMeterDesignation',
+            requestId: 'req-read',
+        })
+        assert.equal(read.type, 'getHomeMeterDesignation')
+        const result = homeMeterDesignationResultSchema.parse({
+            type: 'homeMeterDesignation',
+            requestId: 'req-read',
+            designation: {
+                id: deviceId,
+                effectiveFrom: '2026-10-19T01:00:00.000Z',
+                effectiveUntil: null,
+                powerCapabilityId: capabilityId,
+                importedEnergyCapabilityId: null,
+                exportedEnergyCapabilityId: null,
+                protocol: 'matter',
+                deviceExternalId: 'meter-a',
+                componentPath: [],
+                physicalScopeKind: 'device',
+                physicalScopeComponentId: '',
+            },
+        })
+        assert.equal(result.designation?.powerCapabilityId, capabilityId)
+        const relayResult = relayToClientEnvelopeSchema.parse({
+            requestId: 'req-read',
+            signature: 'signed',
+            message: result,
+        })
+        assert.equal(relayResult.message.type, 'homeMeterDesignation')
+        assert.throws(() =>
+            designateHomeMeterMessageSchema.parse({
+                type: 'designateHomeMeter',
+                powerCapabilityId: 'not-a-uuid',
             })
         )
     })

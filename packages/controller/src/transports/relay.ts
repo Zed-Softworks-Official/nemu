@@ -8,8 +8,11 @@ import {
     type DeviceEvent,
     type HistoryQuery,
     type HistoryQueryRead,
+    type HomeMeterDesignation,
+    type HomeMeterDesignationSelection,
     type HouseholdMember,
     historyQueryReadSchema,
+    homeMeterDesignationResultSchema,
     householdMemberSchema,
     parseDeviceList,
     relayToClientEnvelopeSchema,
@@ -170,6 +173,36 @@ export class RelayTransport implements ControllerTransport {
         }
         this.throwIfCommandError(parsed, 'query history')
         throw new Error('Unexpected relay response for historyQuery')
+    }
+
+    async getHomeMeterDesignation(): Promise<HomeMeterDesignation | null> {
+        const parsed = await this.request({ type: 'getHomeMeterDesignation' })
+        if (parsed.message.type === 'homeMeterDesignation') {
+            return homeMeterDesignationResultSchema.parse(parsed.message)
+                .designation
+        }
+        this.throwIfCommandError(parsed, 'read the Home meter')
+        throw new Error('Unexpected relay response for getHomeMeterDesignation')
+    }
+
+    async designateHomeMeter(
+        selection: HomeMeterDesignationSelection
+    ): Promise<HomeMeterDesignation> {
+        const parsed = await this.request({
+            type: 'designateHomeMeter',
+            ...selection,
+        })
+        if (parsed.message.type === 'homeMeterDesignation') {
+            const designation = homeMeterDesignationResultSchema.parse(
+                parsed.message
+            ).designation
+            if (!designation) {
+                throw new Error('Home meter designation was not saved')
+            }
+            return designation
+        }
+        this.throwIfCommandError(parsed, 'designate the Home meter')
+        throw new Error('Unexpected relay response for designateHomeMeter')
     }
 
     async sendCommand(cmd: DeviceCommand): Promise<CommandResult> {
@@ -335,7 +368,8 @@ export class RelayTransport implements ControllerTransport {
                     // The active view is returned by queryHistory. Do not retain the series here.
                     if (
                         envelope.message.type === 'historyQueryResult' ||
-                        envelope.message.type === 'historyQueryRestart'
+                        envelope.message.type === 'historyQueryRestart' ||
+                        envelope.message.type === 'homeMeterDesignation'
                     ) {
                         continue
                     }
