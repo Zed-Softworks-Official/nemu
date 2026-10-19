@@ -1,4 +1,5 @@
 mod adapter;
+pub mod admission_journal;
 mod current_state;
 mod history;
 mod persistence;

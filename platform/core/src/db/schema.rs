@@ -147,6 +147,17 @@ diesel::table! {
 }
 
 diesel::table! {
+    history_gaps (id) {
+        id -> Int8,
+        capability_id -> Nullable<Uuid>,
+        #[max_length = 32]
+        reason -> Varchar,
+        onset -> Timestamptz,
+        until -> Nullable<Timestamptz>,
+    }
+}
+
+diesel::table! {
     members (id) {
         id -> Uuid,
         #[max_length = 255]
@@ -198,6 +209,7 @@ diesel::joinable!(capability_recording_bounds -> capability_identities (capabili
 diesel::joinable!(command_outcomes -> devices (device_id));
 diesel::joinable!(device_events -> devices (device_id));
 diesel::joinable!(devices -> rooms (room_id));
+diesel::joinable!(history_gaps -> capability_identities (capability_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     audit_records,
@@ -210,6 +222,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     device_events,
     devices,
     diagnostic_events,
+    history_gaps,
     members,
     pairing_codes,
     rooms,
