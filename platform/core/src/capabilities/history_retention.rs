@@ -930,11 +930,10 @@ fn load_sweep_snapshot(
     already_running: bool,
 ) -> Result<Option<SweepSnapshot>, String> {
     let usage_bytes = history_usage_bytes(conn)?;
-    let filesystem_total = super::history_budget::read_filesystem_stats(
-        &super::history_budget::filesystem_path(None),
-    )
-    .ok()
-    .map(|stats| stats.total_bytes);
+    let filesystem_total =
+        super::history_budget::read_filesystem_stats(&super::history_budget::filesystem_path(None))
+            .ok()
+            .map(|stats| stats.total_bytes);
     let Some(budget_bytes) = configured_budget_bytes(conn, filesystem_total)? else {
         return Ok(None);
     };
@@ -997,7 +996,10 @@ fn load_expired_ranges(
         let Ok(kind) = CapabilityKind::parse(&row.kind) else {
             continue;
         };
-        let Some(end) = row.observed_at.checked_add_signed(Duration::microseconds(1)) else {
+        let Some(end) = row
+            .observed_at
+            .checked_add_signed(Duration::microseconds(1))
+        else {
             continue;
         };
         let range = HistoryRange {

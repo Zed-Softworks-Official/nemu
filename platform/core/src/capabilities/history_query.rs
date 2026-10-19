@@ -1877,8 +1877,7 @@ fn load_home_series(
         for interval in load_gaps(conn, slice.capability_id, span.start, span.end)? {
             quality.push((slice.capability_id, interval));
         }
-        let rejected =
-            load_rejected_intervals(conn, slice.capability_id, span.start, span.end)?;
+        let rejected = load_rejected_intervals(conn, slice.capability_id, span.start, span.end)?;
         let mut rejected_quality = Vec::new();
         append_rejected_intervals(&mut rejected_quality, &rejected);
         for interval in rejected_quality {
@@ -2346,8 +2345,7 @@ fn load_query(
                     plan.point_limit,
                 )?;
                 let mut quality = load_gaps(conn, row.id, request.start, request.end)?;
-                let rejected =
-                    load_rejected_intervals(conn, row.id, request.start, request.end)?;
+                let rejected = load_rejected_intervals(conn, row.id, request.start, request.end)?;
                 append_rejected_intervals(&mut quality, &rejected);
                 if plan.resolution != QueryResolution::Raw {
                     for sample in &samples {
@@ -3415,7 +3413,9 @@ mod tests {
         assert!(!migration.to_lowercase().contains("kind"));
         let schema = include_str!("../db/schema.rs");
         assert!(schema.contains("history_missing_intervals ("));
-        assert!(schema.contains("history_missing_intervals -> capability_identities (capability_id)"));
+        assert!(
+            schema.contains("history_missing_intervals -> capability_identities (capability_id)")
+        );
         assert!(schema.contains("history_missing_intervals,"));
 
         let start = utc(2026, 1, 1, 0, 0, 0);

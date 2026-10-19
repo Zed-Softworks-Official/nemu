@@ -666,17 +666,17 @@ mod tests {
         let rejected = evaluate_budget_change(1_000, 100, 400, false, &known).unwrap_err();
         assert_eq!(
             rejected.likely_resolution_loss,
-            vec![
-                ResolutionTier::DiagnosticPartitions,
-                ResolutionTier::Raw,
-            ]
+            vec![ResolutionTier::DiagnosticPartitions, ResolutionTier::Raw,]
         );
 
         let accepted = evaluate_budget_change(1_000, 100, 400, true, &known).unwrap();
         assert!(accepted.write_audit);
         assert!(accepted.view_fields.proposed_deletion);
         assert!(!accepted.view_fields.restores_deleted_history);
-        assert_eq!(accepted.view_fields.likely_resolution_loss, rejected.likely_resolution_loss);
+        assert_eq!(
+            accepted.view_fields.likely_resolution_loss,
+            rejected.likely_resolution_loss
+        );
 
         let unknown = evaluate_budget_change(1_000, 100, 400, true, &[]).unwrap();
         assert!(unknown.view_fields.likely_resolution_loss.is_empty());

@@ -14,9 +14,7 @@ use chacha20poly1305::aead::{Aead, KeyInit, Payload};
 use chrono::{DateTime, Utc};
 use diesel::prelude::*;
 use diesel::sql_types::Uuid as SqlUuid;
-use diesel::sql_types::{
-    Array, BigInt, Bool, Integer, Nullable, SmallInt, Text, Timestamptz,
-};
+use diesel::sql_types::{Array, BigInt, Bool, Integer, Nullable, SmallInt, Text, Timestamptz};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -1031,7 +1029,8 @@ fn revision_from_columns(columns: &RevisionColumns) -> ConstraintRevision {
         resolution: columns.resolution,
         freshness_ms: u64::try_from(columns.freshness_ms).unwrap_or(0),
         history_admission: HistoryAdmissionRate {
-            maximum_observations: u32::try_from(columns.admission_maximum_observations).unwrap_or(0),
+            maximum_observations: u32::try_from(columns.admission_maximum_observations)
+                .unwrap_or(0),
             interval_ms: u64::try_from(columns.admission_interval_ms).unwrap_or(0),
         },
         accuracy,
@@ -2933,11 +2932,15 @@ mod tests {
         assert!(!migration.to_lowercase().contains("jsonb"));
         let schema = include_str!("../db/schema.rs");
         assert!(schema.contains("capability_constraint_revisions ("));
-        assert!(schema.contains(
-            "capability_constraint_revisions -> capability_identities (capability_id)"
-        ));
+        assert!(
+            schema.contains(
+                "capability_constraint_revisions -> capability_identities (capability_id)"
+            )
+        );
         assert!(schema.contains("capability_constraint_revisions,"));
-        assert!(constraint_revision_upsert_sql().contains("ON CONFLICT (capability_id, revision_id)"));
+        assert!(
+            constraint_revision_upsert_sql().contains("ON CONFLICT (capability_id, revision_id)")
+        );
         assert!(constraint_revision_upsert_sql().contains("DO UPDATE"));
         assert!(
             constraint_revision_restore_sql().contains("ON CONFLICT (capability_id, revision_id)")

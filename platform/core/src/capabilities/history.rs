@@ -5,8 +5,8 @@ use std::time::Duration as StdDuration;
 use chrono::{DateTime, Duration, Utc};
 use diesel::prelude::*;
 use diesel::sql_types::{Timestamptz, Uuid as SqlUuid};
-use uuid::Uuid;
 use thiserror::Error;
+use uuid::Uuid;
 
 use crate::db::schema::{
     capability_observation_keys, capability_observations, capability_recording_bounds,
