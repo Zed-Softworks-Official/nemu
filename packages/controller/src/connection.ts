@@ -11,6 +11,10 @@ import {
     type Device,
     type DeviceCommand,
     type DeviceEvent,
+    type HistoryQuery,
+    type HistoryQueryRead,
+    type HomeMeterDesignation,
+    type HomeMeterDesignationSelection,
     type HouseholdMember,
     type MatterWifiResponse,
     type PatchDeviceRequest,
@@ -301,6 +305,27 @@ export class ControllerConnection {
             )
         }
         await transport.forgetDevice(deviceId)
+    }
+
+    /**
+     * Returns the active History view. The connection does not retain the
+     * series after this promise settles.
+     */
+    async queryHistory(query: HistoryQuery): Promise<HistoryQueryRead> {
+        const transport = this.requireConnectedTransport('Energy History')
+        return await transport.queryHistory(query)
+    }
+
+    async getHomeMeterDesignation(): Promise<HomeMeterDesignation | null> {
+        const transport = this.requireConnectedTransport('Home meter')
+        return await transport.getHomeMeterDesignation()
+    }
+
+    async designateHomeMeter(
+        selection: HomeMeterDesignationSelection
+    ): Promise<HomeMeterDesignation> {
+        const transport = this.requireConnectedTransport('Home meter')
+        return await transport.designateHomeMeter(selection)
     }
 
     async getMembers(): Promise<HouseholdMember[]> {

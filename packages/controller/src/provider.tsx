@@ -14,6 +14,10 @@ import {
     type DeviceEvent,
     type DeviceProtocol,
     deviceEventRefreshesInventory,
+    type HistoryQuery,
+    type HistoryQueryRead,
+    type HomeMeterDesignation,
+    type HomeMeterDesignationSelection,
     type HouseholdMember,
     type MatterWifiResponse,
     type PatchDeviceRequest,
@@ -43,6 +47,11 @@ type ControllerContextValue = {
     status: ConnectionStatus
     reprobe: () => Promise<void>
     getDevices: () => Promise<Device[]>
+    queryHistory: (query: HistoryQuery) => Promise<HistoryQueryRead>
+    getHomeMeterDesignation: () => Promise<HomeMeterDesignation | null>
+    designateHomeMeter: (
+        selection: HomeMeterDesignationSelection
+    ) => Promise<HomeMeterDesignation>
     sendCommand: (cmd: DeviceCommand) => Promise<CommandResult>
     permitJoin: (seconds: number) => Promise<PermitJoinResponse>
     commissionMatter: (
@@ -139,6 +148,19 @@ export function ControllerProvider({
 
     const reprobe = useCallback(() => connection.reprobe(), [connection])
     const getDevices = useCallback(() => connection.getDevices(), [connection])
+    const queryHistory = useCallback(
+        (query: HistoryQuery) => connection.queryHistory(query),
+        [connection]
+    )
+    const getHomeMeterDesignation = useCallback(
+        () => connection.getHomeMeterDesignation(),
+        [connection]
+    )
+    const designateHomeMeter = useCallback(
+        (selection: HomeMeterDesignationSelection) =>
+            connection.designateHomeMeter(selection),
+        [connection]
+    )
     const sendCommand = useCallback(
         (cmd: DeviceCommand) => connection.sendCommand(cmd),
         [connection]
@@ -220,6 +242,9 @@ export function ControllerProvider({
             status,
             reprobe,
             getDevices,
+            queryHistory,
+            getHomeMeterDesignation,
+            designateHomeMeter,
             sendCommand,
             permitJoin,
             commissionMatter,
@@ -246,6 +271,9 @@ export function ControllerProvider({
             status,
             reprobe,
             getDevices,
+            queryHistory,
+            getHomeMeterDesignation,
+            designateHomeMeter,
             sendCommand,
             permitJoin,
             commissionMatter,
