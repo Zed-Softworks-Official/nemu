@@ -6,15 +6,21 @@ use tokio::sync::broadcast::error::RecvError;
 use tracing::{debug, warn};
 use uuid::Uuid;
 
+use crate::api::auth::AuthenticatedClient;
+use crate::capabilities::history_query::{self, HistoryQueryError};
 use crate::commands::execute_set;
 use crate::events::{ClientWsMessage, DeviceEvent};
 use crate::state::AppState;
 
-pub async fn ws_handler(ws: WebSocketUpgrade, State(state): State<AppState>) -> impl IntoResponse {
-    ws.on_upgrade(move |socket| handle_socket(socket, state))
+pub async fn ws_handler(
+    ws: WebSocketUpgrade,
+    State(state): State<AppState>,
+    auth: AuthenticatedClient,
+) -> impl IntoResponse {
+    ws.on_upgrade(move |socket| handle_socket(socket, state, auth))
 }
 
-async fn handle_socket(socket: WebSocket, state: AppState) {
+async fn handle_socket(socket: WebSocket, state: AppState, auth: AuthenticatedClient) {
     let (mut sender, mut receiver) = socket.split();
     let mut events = state.events.subscribe();
     let mut capability_events = state.capabilities.subscribe();
@@ -101,7 +107,7 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
             msg = receiver.next() => {
                 match msg {
                     Some(Ok(Message::Text(text))) => {
-                        if let Err(e) = handle_client_text(&state, &mut sender, &text).await {
+                        if let Err(e) = handle_client_text(&state, &auth, &mut sender, &text).await {
                             debug!(error = %e, "ws client message error");
                         }
                     }
@@ -124,6 +130,7 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
 
 async fn handle_client_text(
     state: &AppState,
+    auth: &AuthenticatedClient,
     sender: &mut futures_util::stream::SplitSink<WebSocket, Message>,
     text: &str,
 ) -> Result<(), String> {
@@ -170,7 +177,32 @@ async fn handle_client_text(
                 .await
                 .map_err(|e| e.to_string())?;
         }
+        ClientWsMessage::HistoryQuery { request_id, query } => {
+            let payload = match history_query::query_for_client(state, auth, query).await {
+                Ok(response) => {
+                    let mut body = serde_json::to_value(&response).map_err(|e| e.to_string())?;
+                    body["type"] = serde_json::json!("historyQueryResult");
+                    body["requestId"] = serde_json::json!(request_id);
+                    body
+                }
+                Err(error) => history_query_error(&request_id, &error),
+            };
+            let text = serde_json::to_string(&payload).map_err(|e| e.to_string())?;
+            sender
+                .send(Message::Text(text.into()))
+                .await
+                .map_err(|e| e.to_string())?;
+        }
     }
 
     Ok(())
+}
+
+fn history_query_error(request_id: &str, error: &HistoryQueryError) -> serde_json::Value {
+    serde_json::json!({
+        "type": "commandResult",
+        "requestId": request_id,
+        "ok": false,
+        "error": { "code": error.code(), "message": error.message() }
+    })
 }

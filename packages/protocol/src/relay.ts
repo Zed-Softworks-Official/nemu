@@ -5,6 +5,10 @@ import {
     capabilitySnapshotEventSchema,
 } from './capability.ts'
 import { deviceStateSchema } from './device.ts'
+import {
+    historyQueryMessageSchema,
+    historyQueryResultSchema,
+} from './history.ts'
 
 const relayCommandMessageSchema = z.object({
     type: z.literal('command'),
@@ -54,6 +58,7 @@ const authenticatedRelayMessageSchema = z.union([
     }),
     z.object({ type: z.literal('getCapabilitySnapshot') }),
     z.object({ type: z.literal('watchCapabilityChanges') }),
+    historyQueryMessageSchema,
 ])
 
 export const relayToControllerEnvelopeSchema = z.union([
@@ -101,6 +106,7 @@ export const relayToClientEnvelopeSchema = z.object({
         capabilitySnapshotEventSchema,
         capabilityChangeEventSchema,
         z.object({ type: z.literal('capabilityWatchAck') }),
+        historyQueryResultSchema,
     ]),
 })
 export type RelayToClientEnvelope = z.infer<typeof relayToClientEnvelopeSchema>

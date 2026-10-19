@@ -8,6 +8,9 @@ import {
     type CreateRoomRequest,
     clientWsMessageSchema,
     commissionRequestSchema,
+    type HistoryQuery,
+    type HistoryQueryResult,
+    historyQueryResultSchema,
     commissionResponseSchema,
     createRoomRequestSchema,
     type Device,
@@ -73,6 +76,12 @@ type PendingCommand = {
     timer: ReturnType<typeof setTimeout>
 }
 
+type PendingHistory = {
+    resolve: (result: HistoryQueryResult) => void
+    reject: (err: Error) => void
+    timer: ReturnType<typeof setTimeout>
+}
+
 export type LanTransportOptions = {
     baseUrl: string
     getToken: GetToken
@@ -98,6 +107,7 @@ export class LanTransport implements ControllerTransport {
     private readonly reopenListeners = new Set<() => void>()
     private socketGeneration = 0
     private readonly pending = new Map<string, PendingCommand>()
+    private readonly historyPending = new Map<string, PendingHistory>()
 
     constructor(options: LanTransportOptions) {
         this.baseUrl = options.baseUrl.replace(/\/$/, '')
@@ -134,6 +144,11 @@ export class LanTransport implements ControllerTransport {
             pending.reject(new Error('LAN transport disconnected'))
         }
         this.pending.clear()
+        for (const [, pending] of this.historyPending) {
+            clearTimeout(pending.timer)
+            pending.reject(new Error('LAN transport disconnected'))
+        }
+        this.historyPending.clear()
     }
 
     async getDevices(): Promise<Device[]> {
@@ -271,6 +286,30 @@ export class LanTransport implements ControllerTransport {
         return householdMemberSchema.parse(data)
     }
 
+    /**
+     * Holds the response only until this promise settles. Nothing is written
+     * to localStorage, IndexedDB, or a service worker.
+     */
+    async queryHistory(query: HistoryQuery): Promise<HistoryQueryResult> {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+            throw new Error('WebSocket not connected')
+        }
+        const requestId = crypto.randomUUID()
+        const message = clientWsMessageSchema.parse({
+            type: 'historyQuery',
+            requestId,
+            ...query,
+        })
+        return await new Promise<HistoryQueryResult>((resolve, reject) => {
+            const timer = setTimeout(() => {
+                this.historyPending.delete(requestId)
+                reject(new Error('History query timed out'))
+            }, this.commandTimeoutMs)
+            this.historyPending.set(requestId, { resolve, reject, timer })
+            this.ws?.send(JSON.stringify(message))
+        })
+    }
+
     async sendCommand(cmd: DeviceCommand): Promise<CommandResult> {
         const requestId = crypto.randomUUID()
 
@@ -387,6 +426,17 @@ export class LanTransport implements ControllerTransport {
             return
         }
 
+        const history = historyQueryResultSchema.safeParse(raw)
+        if (history.success) {
+            const pending = this.historyPending.get(history.data.requestId)
+            if (pending) {
+                clearTimeout(pending.timer)
+                this.historyPending.delete(history.data.requestId)
+                pending.resolve(history.data)
+            }
+            return
+        }
+
         const parsed = deviceEventSchema.safeParse(raw)
         if (!parsed.success) {
             return
@@ -394,6 +444,15 @@ export class LanTransport implements ControllerTransport {
 
         const event = parsed.data
         if (event.type === 'commandResult') {
+            const historyPending = this.historyPending.get(event.requestId)
+            if (historyPending && !event.ok) {
+                clearTimeout(historyPending.timer)
+                this.historyPending.delete(event.requestId)
+                historyPending.reject(
+                    new Error(event.error?.message ?? 'History query failed')
+                )
+                return
+            }
             const pending = this.pending.get(event.requestId)
             if (pending) {
                 clearTimeout(pending.timer)

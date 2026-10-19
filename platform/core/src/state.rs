@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 use deadpool_diesel::postgres::Pool;
-use tokio::sync::broadcast;
+use tokio::sync::{Semaphore, broadcast};
 use uuid::Uuid;
 
 use crate::capabilities::CapabilityService;
@@ -18,6 +18,10 @@ pub type DbPool = Pool;
 #[derive(Clone)]
 pub struct AppState {
     pub db: DbPool,
+    /// History reads. Separate from `db` (control and identity) and from the
+    /// admission pool inside `CapabilityService`.
+    pub history_query_pool: DbPool,
+    pub history_query_slots: Arc<Semaphore>,
     pub registry: Arc<DeviceRegistry>,
     pub state_cache: Arc<StateCache>,
     pub capabilities: Arc<CapabilityService>,

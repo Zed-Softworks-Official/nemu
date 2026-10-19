@@ -136,6 +136,12 @@ async fn main() {
         .max_size(2)
         .build()
         .expect("failed to create history database pool");
+    // Query reads do not share the control pool or the admission pool above.
+    let history_query_manager = Manager::new(config.database_url.clone(), Runtime::Tokio1);
+    let history_query_pool = Pool::builder(history_query_manager)
+        .max_size(capabilities::history_query::HISTORY_QUERY_POOL_SIZE)
+        .build()
+        .expect("failed to create history query pool");
     let capabilities = Arc::new(CapabilityService::new(pool.clone(), history_pool));
     capabilities.spawn_freshness_loop();
     capabilities.spawn_history_loop();
@@ -143,6 +149,10 @@ async fn main() {
 
     let state = AppState {
         db: pool,
+        history_query_pool,
+        history_query_slots: std::sync::Arc::new(tokio::sync::Semaphore::new(
+            capabilities::history_query::HISTORY_QUERY_CONCURRENCY,
+        )),
         registry,
         state_cache: Arc::new(StateCache::new()),
         capabilities,

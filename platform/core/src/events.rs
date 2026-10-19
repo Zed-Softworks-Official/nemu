@@ -215,4 +215,11 @@ pub enum ClientWsMessage {
     },
     #[serde(rename = "requestCapabilitySnapshot")]
     RequestCapabilitySnapshot,
+    #[serde(rename = "historyQuery")]
+    HistoryQuery {
+        #[serde(rename = "requestId")]
+        request_id: String,
+        #[serde(flatten)]
+        query: crate::capabilities::history_query::HistoryQueryRequest,
+    },
 }

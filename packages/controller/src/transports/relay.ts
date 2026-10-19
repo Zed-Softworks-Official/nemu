@@ -6,6 +6,9 @@ import {
     type Device,
     type DeviceCommand,
     type DeviceEvent,
+    type HistoryQuery,
+    type HistoryQueryResult,
+    historyQueryResultSchema,
     type HouseholdMember,
     householdMemberSchema,
     parseDeviceList,
@@ -148,6 +151,22 @@ export class RelayTransport implements ControllerTransport {
         }
 
         throw new Error('Unexpected relay response for getDevices')
+    }
+
+    /**
+     * Returns the parsed series for the caller to hold. The transport does not
+     * keep a copy after this promise settles.
+     */
+    async queryHistory(query: HistoryQuery): Promise<HistoryQueryResult> {
+        const parsed = await this.request({
+            type: 'historyQuery',
+            ...query,
+        })
+        if (parsed.message.type === 'historyQueryResult') {
+            return historyQueryResultSchema.parse(parsed.message)
+        }
+        this.throwIfCommandError(parsed, 'query history')
+        throw new Error('Unexpected relay response for historyQuery')
     }
 
     async sendCommand(cmd: DeviceCommand): Promise<CommandResult> {
@@ -306,13 +325,16 @@ export class RelayTransport implements ControllerTransport {
             })
             for (const message of messages) {
                 const key = `${message.requestId}:${message.payload}`
-                if (this.seenResponses.has(key)) continue
-                this.seenResponses.add(key)
-
                 try {
                     const envelope = relayToClientEnvelopeSchema.parse(
                         JSON.parse(message.payload)
                     )
+                    // The active view is returned by queryHistory. Do not retain the series here.
+                    if (envelope.message.type === 'historyQueryResult') {
+                        continue
+                    }
+                    if (this.seenResponses.has(key)) continue
+                    this.seenResponses.add(key)
                     if (envelope.message.type === 'commandResult') {
                         this.emit({
                             type: 'commandResult',

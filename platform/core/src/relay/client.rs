@@ -100,6 +100,11 @@ enum ToControllerMessage {
     GetCapabilitySnapshot,
     #[serde(rename = "watchCapabilityChanges")]
     WatchCapabilityChanges,
+    #[serde(rename = "historyQuery")]
+    HistoryQuery {
+        #[serde(flatten)]
+        query: crate::capabilities::history_query::HistoryQueryRequest,
+    },
 }
 
 #[derive(Serialize)]
@@ -460,6 +465,26 @@ async fn handle_message(
                 &message.request_id,
                 json!({ "type": "capabilityWatchAck" }),
             )
+        }
+        ToControllerMessage::HistoryQuery { query } => {
+            match crate::capabilities::history_query::query_for_client(state, &auth, query).await {
+                Ok(response) => match serde_json::to_value(&response) {
+                    Ok(mut body) => {
+                        body["type"] = json!("historyQueryResult");
+                        body["requestId"] = json!(message.request_id);
+                        build_typed_response(state, &message.request_id, body)
+                    }
+                    Err(_) => build_error_response(
+                        state,
+                        &message.request_id,
+                        "history_unavailable",
+                        "History query failed",
+                    ),
+                },
+                Err(error) => {
+                    build_error_response(state, &message.request_id, error.code(), error.message())
+                }
+            }
         }
     };
 

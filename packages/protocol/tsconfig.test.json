@@ -15,6 +15,10 @@
         "src/capability.test.ts",
         "src/capability-state.ts",
         "src/capability-state.test.ts",
-        "src/capability-transport.test.ts"
+        "src/capability-transport.test.ts",
+        "src/history.ts",
+        "src/history.test.ts",
+        "src/events.ts",
+        "src/relay.ts"
     ]
 }
