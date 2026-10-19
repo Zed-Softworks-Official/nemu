@@ -935,6 +935,7 @@ pub(crate) fn install(journal: Arc<Mutex<AdmissionJournal>>) {
         .expect("admission journal install poisoned") = Some(journal);
 }
 
+#[cfg(test)]
 fn clear_install() {
     *INSTALLED
         .lock()

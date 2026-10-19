@@ -25,6 +25,8 @@ pub struct TimezonePeriod {
 }
 
 /// Closing the open period and opening the next one at a future midnight.
+/// No running route changes the Home timezone yet; tests cover the rule.
+#[cfg(test)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TimezoneChange {
     pub closed: TimezonePeriod,
@@ -35,10 +37,13 @@ pub struct TimezoneChange {
 pub enum CalendarError {
     #[error("unknown IANA timezone")]
     UnknownTimezone,
+    #[cfg(test)]
     #[error("timezone period is open")]
     OpenPeriod,
+    #[cfg(test)]
     #[error("timezone change was requested before the period started")]
     RequestBeforePeriod,
+    #[cfg(test)]
     #[error("timezone is unchanged")]
     UnchangedTimezone,
     #[error("local midnight does not exist")]
@@ -71,6 +76,7 @@ pub fn monthly_bucket(
 
 /// A change requested at `requested_at` takes effect at the next midnight in
 /// `new_timezone`. The old period keeps its timezone and earlier bounds.
+#[cfg(test)]
 pub fn schedule_timezone_change(
     current: &TimezonePeriod,
     new_timezone: &str,
@@ -107,6 +113,7 @@ pub fn schedule_timezone_change(
 
 /// Rebuilds every local day in a closed period. Days the period does not cover
 /// completely are partial. An open period has no finite end.
+#[cfg(test)]
 pub fn daily_buckets(period: &TimezonePeriod) -> Result<Vec<CalendarBucket>, CalendarError> {
     let until = period.effective_until.ok_or(CalendarError::OpenPeriod)?;
     if until <= period.effective_from {
@@ -195,6 +202,7 @@ fn next_month(date: NaiveDate) -> Result<NaiveDate, CalendarError> {
 
 /// Next local midnight strictly after `instant`. An exact midnight waits for
 /// the following one, so a timezone change does not take effect immediately.
+#[cfg(test)]
 fn next_local_midnight(tz: Tz, instant: DateTime<Utc>) -> Result<DateTime<Utc>, CalendarError> {
     let date = instant.with_timezone(&tz).date_naive();
     local_midnight(tz, date.succ_opt().ok_or(CalendarError::DateOverflow)?)

@@ -1037,6 +1037,7 @@ fn revision_from_columns(columns: &RevisionColumns) -> ConstraintRevision {
     }
 }
 
+#[cfg(test)]
 pub(super) fn remember_revision(
     rows: &mut Vec<ArchivedConstraintRevision>,
     capability_id: Uuid,

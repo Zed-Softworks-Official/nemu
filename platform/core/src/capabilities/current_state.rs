@@ -126,7 +126,7 @@ impl CurrentState {
     pub fn ingest(&self, report: CapabilityReport, received_at: DateTime<Utc>) -> IngestResult {
         let previous = self
             .next_receipt_order
-            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
+            .try_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
                 current.checked_add(1)
             })
             .expect("Capability receipt order exhausted");

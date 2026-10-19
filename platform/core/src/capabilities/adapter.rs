@@ -5,8 +5,7 @@ use thiserror::Error;
 
 use super::{
     CapabilityId, CapabilityObservation, CapabilityReading, CapabilityReport,
-    CompleteCapabilityManifest, CurrentStateDisposition, DeviceIdentity, HistoryAdmissionOutcome,
-    HistoryRejection, IngestResult, RegisteredCapability, TimeTrust,
+    CompleteCapabilityManifest, DeviceIdentity, IngestResult, RegisteredCapability, TimeTrust,
 };
 
 const CORE_OBSERVATION_SCHEMA: u16 = 1;
@@ -172,7 +171,8 @@ mod tests {
 
     use super::*;
     use crate::capabilities::{
-        Availability, CapabilityKind, CurrentState, PhysicalScope, UnavailableReason,
+        Availability, CapabilityKind, CurrentState, CurrentStateDisposition,
+        HistoryAdmissionOutcome, HistoryRejection, PhysicalScope, UnavailableReason,
     };
 
     fn at(second: i64) -> DateTime<Utc> {

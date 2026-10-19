@@ -211,6 +211,9 @@ pub fn measure_energy(
 
 /// Allocate preserved segment endpoints again. The stored `measured` field is ignored so the
 /// fixed-point result depends only on the endpoint values, the resolution, and the buckets.
+/// Retention recomputes from the original observations through `measure_energy`. This checks
+/// that those endpoints reproduce the same rollup.
+#[cfg(test)]
 pub fn recompute_from_endpoints(
     capability_id: Uuid,
     resolution: i64,

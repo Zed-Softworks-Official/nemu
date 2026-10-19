@@ -660,7 +660,9 @@ fn calendar_owner(
 }
 
 /// Stored counter energy is returned as stored. A coverage-free estimate is omitted
-/// instead of becoming a zero bucket.
+/// instead of becoming a zero bucket. The live query applies that rule while assembling
+/// buckets; this helper is the direct check used by tests.
+#[cfg(test)]
 pub(crate) fn read_stored_energy(stored: StoredEnergy) -> Option<RollupSample> {
     match stored {
         StoredEnergy::Counter {
@@ -710,6 +712,7 @@ pub(crate) fn read_stored_energy(stored: StoredEnergy) -> Option<RollupSample> {
     }
 }
 
+#[cfg(test)]
 pub(crate) enum StoredEnergy {
     Counter {
         start: DateTime<Utc>,
@@ -2957,9 +2960,16 @@ struct MaterializedHistory {
 struct StoredCursor {
     seq: u64,
     role: HistoryRole,
+    /// Kept with the cursor so a later page cannot be paired with a different query.
+    /// Continuation serves the pages already materialized from this query.
+    #[cfg_attr(not(test), allow(dead_code))]
     query: HistoryQueryBody,
     as_of: DateTime<Utc>,
+    /// Snapshot that produced `pages`. Tests read it; continuation does not recompute.
+    #[cfg_attr(not(test), allow(dead_code))]
     snapshot: String,
+    /// Bucket set shared by every page of this cursor.
+    #[cfg_attr(not(test), allow(dead_code))]
     buckets: Vec<Span>,
     reasons: Vec<String>,
     health: Option<HistoryHealth>,
@@ -2968,6 +2978,7 @@ struct StoredCursor {
     created_at: DateTime<Utc>,
 }
 
+#[cfg(test)]
 struct PreservedCursor {
     query: HistoryQueryBody,
     as_of: DateTime<Utc>,
@@ -3072,6 +3083,7 @@ impl HistoryCursorStore {
         HistoryQueryOutcome::Page(response)
     }
 
+    #[cfg(test)]
     fn preserved(&self, cursor: &str) -> Option<PreservedCursor> {
         self.cursors.get(cursor).map(|cursor| PreservedCursor {
             query: cursor.query.clone(),
@@ -3081,6 +3093,7 @@ impl HistoryCursorStore {
         })
     }
 
+    #[cfg(test)]
     fn retained_capability_ids(&self, cursor: &str) -> Option<Vec<Uuid>> {
         self.cursors.get(cursor).map(|cursor| {
             cursor
@@ -3091,6 +3104,7 @@ impl HistoryCursorStore {
         })
     }
 
+    #[cfg(test)]
     fn live_count(&self) -> usize {
         self.cursors.len()
     }

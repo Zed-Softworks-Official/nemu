@@ -16,9 +16,8 @@ use super::{
     AdapterCapabilityManifest, AdapterEnvelopeError, AdapterObservationReport, Admission,
     CapabilityChange, CapabilityReport, CapabilityReportValidationError, CapabilityRepository,
     CapabilitySnapshot, CapabilityStoreError, CompleteCapabilityManifest, CurrentState,
-    CurrentStateDisposition, DeviceIdentity, HistoryAdmissionOutcome, HistoryRejection,
-    IngestResult, ObservationDiagnostic, ObservationOutcome, RegisteredCapability, StateEpoch,
-    UnavailableReason, resolve_adapter_report,
+    DeviceIdentity, IngestResult, ObservationDiagnostic, ObservationOutcome, RegisteredCapability,
+    StateEpoch, UnavailableReason, resolve_adapter_report,
 };
 
 #[derive(Clone)]
@@ -298,7 +297,9 @@ mod tests {
     use uuid::Uuid;
 
     use super::*;
-    use crate::capabilities::CapabilityId;
+    use crate::capabilities::{
+        CapabilityId, CurrentStateDisposition, HistoryAdmissionOutcome, HistoryRejection,
+    };
 
     #[test]
     fn diagnostics_cover_invalid_incompatible_rate_and_late_history() {

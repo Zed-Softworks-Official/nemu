@@ -563,6 +563,7 @@ fn floor_minutes(at: DateTime<Utc>, step: u32) -> DateTime<Utc> {
         .and_utc()
 }
 
+#[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct BucketUpsert {
     pub capability_id: Uuid,
@@ -572,6 +573,7 @@ pub struct BucketUpsert {
 }
 
 /// In-memory stand-in for the existing `ON CONFLICT` rollup upserts.
+#[cfg(test)]
 pub fn upsert_bucket_rows(table: &mut Vec<BucketUpsert>, rows: &[BucketUpsert]) {
     for row in rows {
         if let Some(existing) = table.iter_mut().find(|kept| {
@@ -620,6 +622,7 @@ pub struct Checkpoint {
     pub verified: bool,
 }
 
+#[cfg(test)]
 pub fn upsert_checkpoint(table: &mut Vec<Checkpoint>, checkpoint: Checkpoint) {
     if let Some(existing) = table
         .iter_mut()
@@ -632,12 +635,14 @@ pub fn upsert_checkpoint(table: &mut Vec<Checkpoint>, checkpoint: Checkpoint) {
     table.push(checkpoint);
 }
 
+#[cfg(test)]
 pub fn rerun_is_noop(checkpoints: &[Checkpoint], step: &Checkpoint) -> bool {
     checkpoints
         .iter()
         .any(|row| row.verified && same_checkpoint_key(row, step))
 }
 
+#[cfg(test)]
 fn same_checkpoint_key(left: &Checkpoint, right: &Checkpoint) -> bool {
     left.capability_id == right.capability_id
         && left.step == right.step
