@@ -136,6 +136,21 @@ diesel::table! {
 }
 
 diesel::table! {
+    gauge_rollups (capability_id, bucket_start) {
+        capability_id -> Uuid,
+        #[max_length = 16]
+        gauge_kind -> Varchar,
+        bucket_start -> Timestamptz,
+        bucket_end -> Timestamptz,
+        scale -> Int2,
+        mean_value -> Nullable<Int8>,
+        observed_min -> Nullable<Int8>,
+        observed_max -> Nullable<Int8>,
+        coverage_ns -> Int8,
+    }
+}
+
+diesel::table! {
     history_budget (id) {
         id -> Int2,
         budget_bytes -> Int8,
@@ -194,6 +209,22 @@ diesel::table! {
 }
 
 diesel::table! {
+    power_rollups (capability_id, bucket_start) {
+        capability_id -> Uuid,
+        bucket_start -> Timestamptz,
+        bucket_end -> Timestamptz,
+        scale -> Int2,
+        mean_value -> Nullable<Int8>,
+        observed_min -> Nullable<Int8>,
+        observed_max -> Nullable<Int8>,
+        estimated_import -> Int8,
+        estimated_export -> Int8,
+        coverage_ns -> Int8,
+        gap_ns -> Int8,
+    }
+}
+
+diesel::table! {
     rooms (id) {
         id -> Uuid,
         #[max_length = 255]
@@ -217,7 +248,9 @@ diesel::joinable!(capability_recording_bounds -> capability_identities (capabili
 diesel::joinable!(command_outcomes -> devices (device_id));
 diesel::joinable!(device_events -> devices (device_id));
 diesel::joinable!(devices -> rooms (room_id));
+diesel::joinable!(gauge_rollups -> capability_identities (capability_id));
 diesel::joinable!(history_gaps -> capability_identities (capability_id));
+diesel::joinable!(power_rollups -> capability_identities (capability_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     audit_records,
@@ -230,10 +263,12 @@ diesel::allow_tables_to_appear_in_same_query!(
     device_events,
     devices,
     diagnostic_events,
+    gauge_rollups,
     history_budget,
     history_gaps,
     members,
     pairing_codes,
+    power_rollups,
     rooms,
     settings,
 );
