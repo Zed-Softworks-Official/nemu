@@ -181,6 +181,37 @@ diesel::table! {
 }
 
 diesel::table! {
+    meter_epochs (id) {
+        id -> Int8,
+        capability_id -> Uuid,
+        started_at -> Timestamptz,
+        ended_at -> Nullable<Timestamptz>,
+        #[max_length = 32]
+        reason -> Varchar,
+    }
+}
+
+diesel::table! {
+    energy_counter_rollups (id) {
+        id -> Int8,
+        capability_id -> Uuid,
+        bucket_start -> Timestamptz,
+        bucket_end -> Timestamptz,
+        first_observed_at -> Timestamptz,
+        first_value -> Int8,
+        last_observed_at -> Timestamptz,
+        last_value -> Int8,
+        measured_energy -> Int8,
+        coverage_numerator -> Int8,
+        coverage_denominator -> Int8,
+        #[max_length = 32]
+        allocation -> Varchar,
+        #[max_length = 32]
+        provenance -> Varchar,
+    }
+}
+
+diesel::table! {
     members (id) {
         id -> Uuid,
         #[max_length = 255]
@@ -248,8 +279,10 @@ diesel::joinable!(capability_recording_bounds -> capability_identities (capabili
 diesel::joinable!(command_outcomes -> devices (device_id));
 diesel::joinable!(device_events -> devices (device_id));
 diesel::joinable!(devices -> rooms (room_id));
+diesel::joinable!(energy_counter_rollups -> capability_identities (capability_id));
 diesel::joinable!(gauge_rollups -> capability_identities (capability_id));
 diesel::joinable!(history_gaps -> capability_identities (capability_id));
+diesel::joinable!(meter_epochs -> capability_identities (capability_id));
 diesel::joinable!(power_rollups -> capability_identities (capability_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
@@ -266,6 +299,8 @@ diesel::allow_tables_to_appear_in_same_query!(
     gauge_rollups,
     history_budget,
     history_gaps,
+    meter_epochs,
+    energy_counter_rollups,
     members,
     pairing_codes,
     power_rollups,
