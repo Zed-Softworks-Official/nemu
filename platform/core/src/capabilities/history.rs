@@ -46,6 +46,14 @@ impl HistoryBatch {
     }
 }
 
+fn default_disk_floor() -> Arc<dyn Fn() -> bool + Send + Sync> {
+    if cfg!(test) {
+        Arc::new(|| false)
+    } else {
+        Arc::new(super::history_budget::live_disk_floor_breached)
+    }
+}
+
 /// In-process admission policy. Postgres is consulted only by the flush loop.
 pub(super) struct HistoryGate {
     capacity: usize,
@@ -59,6 +67,7 @@ pub(super) struct HistoryGate {
     lanes: HashMap<CapabilityId, VecDeque<PendingObservation>>,
     order: VecDeque<CapabilityId>,
     queued: usize,
+    disk_floor_breached: Arc<dyn Fn() -> bool + Send + Sync>,
 }
 
 /// Raw retention is the correction window. Older observations stay out of History.
@@ -87,7 +96,16 @@ impl HistoryGate {
             lanes: HashMap::new(),
             order: VecDeque::new(),
             queued: 0,
+            disk_floor_breached: default_disk_floor(),
         }
+    }
+
+    #[cfg(test)]
+    pub(super) fn set_disk_floor_breached(
+        &mut self,
+        breached: impl Fn() -> bool + Send + Sync + 'static,
+    ) {
+        self.disk_floor_breached = Arc::new(breached);
     }
 
     pub(super) fn admit(
@@ -97,6 +115,23 @@ impl HistoryGate {
         received_at: DateTime<Utc>,
         lookup: impl Fn(CapabilityId) -> Option<RegisteredCapability>,
     ) {
+        if (self.disk_floor_breached)() {
+            let mut stopped = false;
+            for outcome in &mut result.outcomes {
+                if lookup(outcome.capability_id).is_some() {
+                    self.note_recording(outcome.capability_id, received_at);
+                }
+                if outcome.history == HistoryAdmissionOutcome::Eligible {
+                    outcome.history =
+                        HistoryAdmissionOutcome::Rejected(HistoryRejection::DiskFloor);
+                    stopped = true;
+                }
+            }
+            if stopped {
+                crate::capabilities::admission_journal::note_disk_floor(received_at);
+            }
+            return;
+        }
         for outcome in &mut result.outcomes {
             let Some(registered) = lookup(outcome.capability_id) else {
                 if outcome.history == HistoryAdmissionOutcome::Eligible {
@@ -829,6 +864,53 @@ mod tests {
         gate.admit(&mut result, &reading, at(10), |_| None);
         assert!(!gate.recording_since.contains_key(&id));
         assert!(gate.pending_bounds.is_empty());
+    }
+
+    #[test]
+    fn disk_floor_rejects_eligible_history_and_leaves_current_state() {
+        let id = CapabilityId::from_uuid(Uuid::from_u128(26));
+        let other = CapabilityId::from_uuid(Uuid::from_u128(27));
+        let registered = capability(id, CapabilityKind::Power, 60);
+        let state = CurrentState::new(StateEpoch::from_uuid(Uuid::from_u128(9)));
+        let device = registered.declaration.identity.device.clone();
+        state.reconcile_manifest(&device, vec![registered], at(0));
+        let mut gate = HistoryGate::new(8);
+        gate.set_disk_floor_breached(|| true);
+        crate::capabilities::admission_journal::clear_disk_floor_for_test();
+        let report = report("floor-1", 10, id, CapabilityKind::Power, 5, None);
+        let mut result = IngestResult {
+            outcomes: vec![
+                ObservationOutcome {
+                    capability_id: id,
+                    current: CurrentStateDisposition::Changed,
+                    history: HistoryAdmissionOutcome::Eligible,
+                },
+                ObservationOutcome {
+                    capability_id: other,
+                    current: CurrentStateDisposition::Older,
+                    history: HistoryAdmissionOutcome::Rejected(HistoryRejection::Late),
+                },
+            ],
+            changes: Vec::new(),
+        };
+        gate.admit(&mut result, &report, at(20), |capability_id| {
+            state.registered(capability_id)
+        });
+        assert_eq!(
+            result.outcomes[0].history,
+            HistoryAdmissionOutcome::Rejected(HistoryRejection::DiskFloor)
+        );
+        assert_eq!(result.outcomes[0].current, CurrentStateDisposition::Changed);
+        assert_eq!(result.outcomes[1].current, CurrentStateDisposition::Older);
+        assert_eq!(
+            result.outcomes[1].history,
+            HistoryAdmissionOutcome::Rejected(HistoryRejection::Late)
+        );
+        assert_eq!(gate.queued, 0);
+        assert_eq!(
+            crate::capabilities::admission_journal::disk_floor_onsets_for_test(),
+            vec![at(20)]
+        );
     }
 
     fn isolated_pool() -> DbPool {

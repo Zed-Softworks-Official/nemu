@@ -660,6 +660,8 @@ pub enum HistoryRejection {
     QueueFull,
     /// Observation time is older than that Capability kind's correction window.
     Late,
+    /// Free space reached the History disk floor, so the observation was not admitted.
+    DiskFloor,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

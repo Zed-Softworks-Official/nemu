@@ -136,6 +136,14 @@ diesel::table! {
 }
 
 diesel::table! {
+    history_budget (id) {
+        id -> Int2,
+        budget_bytes -> Int8,
+        updated_at -> Timestamptz,
+    }
+}
+
+diesel::table! {
     diagnostic_events (id, received_at) {
         id -> Uuid,
         received_at -> Timestamptz,
@@ -210,6 +218,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     device_events,
     devices,
     diagnostic_events,
+    history_budget,
     members,
     pairing_codes,
     rooms,

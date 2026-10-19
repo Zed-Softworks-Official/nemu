@@ -22,6 +22,7 @@ pub enum AuditKind {
     /// Automations are not implemented yet. The store accepts the record when they are.
     #[allow(dead_code)]
     AutomationChange,
+    HistoryBudgetChange,
 }
 
 impl AuditKind {
@@ -34,6 +35,7 @@ impl AuditKind {
             Self::Restore => "restore",
             Self::DeviceRemoval => "device_removal",
             Self::AutomationChange => "automation_change",
+            Self::HistoryBudgetChange => "history_budget_change",
         }
     }
 }
