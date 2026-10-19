@@ -3,6 +3,7 @@ pub mod admission_journal;
 mod current_state;
 mod history;
 pub mod history_budget;
+mod meter_epoch;
 mod persistence;
 mod service;
 mod types;
