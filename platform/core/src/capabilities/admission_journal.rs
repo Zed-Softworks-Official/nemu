@@ -11,10 +11,13 @@ static DISK_FLOOR_ONSETS: Mutex<Vec<DateTime<Utc>>> = Mutex::new(Vec::new());
 
 pub fn note_disk_floor(onset: DateTime<Utc>) {
     // NEM-25 replaces this body with the admission-gap journal.
-    DISK_FLOOR_ONSETS
+    // Keep the first onset only so a sustained floor breach stays bounded.
+    let mut onsets = DISK_FLOOR_ONSETS
         .lock()
-        .expect("disk floor journal poisoned")
-        .push(onset);
+        .expect("disk floor journal poisoned");
+    if onsets.is_empty() {
+        onsets.push(onset);
+    }
 }
 
 #[cfg(test)]
