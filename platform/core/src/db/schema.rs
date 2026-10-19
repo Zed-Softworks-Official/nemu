@@ -72,6 +72,25 @@ diesel::table! {
 }
 
 diesel::table! {
+    capability_constraint_revisions (capability_id, revision_id) {
+        capability_id -> Uuid,
+        #[max_length = 255]
+        revision_id -> Varchar,
+        declared_at -> Timestamptz,
+        effective_at -> Timestamptz,
+        scale -> Int2,
+        bound_minimum -> Int8,
+        bound_maximum -> Int8,
+        resolution -> Int8,
+        freshness_ms -> Int8,
+        admission_maximum_observations -> Int8,
+        admission_interval_ms -> Int8,
+        accuracy_absolute_maximum_error -> Nullable<Int8>,
+        accuracy_relative_maximum_error_ppm -> Nullable<Int4>,
+    }
+}
+
+diesel::table! {
     client_tokens (id) {
         id -> Uuid,
         #[max_length = 128]
@@ -181,6 +200,14 @@ diesel::table! {
         range_start -> Timestamptz,
         range_end -> Timestamptz,
         verified -> Bool,
+    }
+}
+
+diesel::table! {
+    history_missing_intervals (capability_id, started_at, ended_at) {
+        capability_id -> Uuid,
+        started_at -> Timestamptz,
+        ended_at -> Timestamptz,
     }
 }
 
@@ -319,6 +346,7 @@ diesel::table! {
 
 diesel::joinable!(capability_observation_keys -> capability_identities (capability_id));
 diesel::joinable!(capability_observations -> capability_identities (capability_id));
+diesel::joinable!(capability_constraint_revisions -> capability_identities (capability_id));
 diesel::joinable!(capability_recording_bounds -> capability_identities (capability_id));
 diesel::joinable!(command_outcomes -> devices (device_id));
 diesel::joinable!(device_events -> devices (device_id));
@@ -326,6 +354,7 @@ diesel::joinable!(devices -> rooms (room_id));
 diesel::joinable!(energy_counter_rollups -> capability_identities (capability_id));
 diesel::joinable!(gauge_rollups -> capability_identities (capability_id));
 diesel::joinable!(history_gaps -> capability_identities (capability_id));
+diesel::joinable!(history_missing_intervals -> capability_identities (capability_id));
 diesel::joinable!(history_retention_checkpoints -> capability_identities (capability_id));
 diesel::joinable!(meter_epochs -> capability_identities (capability_id));
 diesel::joinable!(power_rollups -> capability_identities (capability_id));
@@ -335,6 +364,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     capability_identities,
     capability_observation_keys,
     capability_observations,
+    capability_constraint_revisions,
     capability_recording_bounds,
     client_tokens,
     command_outcomes,
@@ -344,6 +374,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     gauge_rollups,
     history_budget,
     history_gaps,
+    history_missing_intervals,
     history_retention_checkpoints,
     home_meter_designation_periods,
     home_timezone_periods,

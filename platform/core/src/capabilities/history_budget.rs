@@ -19,7 +19,9 @@ pub const HISTORY_RELATIONS: &[&str] = &[
     "capability_observations",
     "capability_observation_keys",
     "capability_recording_bounds",
+    "capability_constraint_revisions",
     "history_gaps",
+    "history_missing_intervals",
     "meter_epochs",
     "home_meter_designation_periods",
     "power_rollups",
@@ -196,7 +198,7 @@ pub fn project_resolution_loss(bytes_to_free: u64, tiers: &[TierBytes]) -> Vec<R
                 loss.push(tier);
                 remaining = remaining.saturating_sub(bytes);
             }
-            None => loss.push(tier),
+            None => break,
         }
     }
     loss
@@ -276,13 +278,39 @@ pub fn read_filesystem_stats(path: &std::path::Path) -> Result<FilesystemStats, 
     })
 }
 
-pub fn filesystem_path(postgres_data_directory: Option<&str>) -> std::path::PathBuf {
-    if let Some(configured) =
-        std::env::var_os("NEMU_POSTGRES_DATA_DIR").filter(|value| !value.is_empty())
-    {
+static INSTALLED_DATA_DIR: std::sync::Mutex<Option<std::path::PathBuf>> =
+    std::sync::Mutex::new(None);
+
+/// Remembers the PostgreSQL data directory resolved once from the existing pool.
+/// `NEMU_POSTGRES_DATA_DIR` still wins for both the live floor check and the budget API.
+pub fn install_postgres_data_dir(path: std::path::PathBuf) {
+    if path.as_os_str().is_empty() {
+        return;
+    }
+    *INSTALLED_DATA_DIR
+        .lock()
+        .expect("postgres data directory lock poisoned") = Some(path);
+}
+
+pub fn installed_postgres_data_dir() -> Option<std::path::PathBuf> {
+    INSTALLED_DATA_DIR
+        .lock()
+        .expect("postgres data directory lock poisoned")
+        .clone()
+}
+
+pub fn select_filesystem_path(
+    env_dir: Option<&std::ffi::OsStr>,
+    installed: Option<&std::path::Path>,
+    queried: Option<&str>,
+) -> std::path::PathBuf {
+    if let Some(configured) = env_dir.filter(|value| !value.is_empty()) {
         return std::path::PathBuf::from(configured);
     }
-    if let Some(directory) = postgres_data_directory
+    if let Some(installed) = installed {
+        return installed.to_path_buf();
+    }
+    if let Some(directory) = queried
         .map(std::path::PathBuf::from)
         .filter(|path| path.is_dir())
     {
@@ -291,14 +319,57 @@ pub fn filesystem_path(postgres_data_directory: Option<&str>) -> std::path::Path
     std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."))
 }
 
-pub fn live_disk_floor_breached() -> bool {
-    match read_filesystem_stats(&filesystem_path(None)) {
+pub fn filesystem_path(postgres_data_directory: Option<&str>) -> std::path::PathBuf {
+    let env = std::env::var_os("NEMU_POSTGRES_DATA_DIR").filter(|value| !value.is_empty());
+    let installed = installed_postgres_data_dir();
+    select_filesystem_path(
+        env.as_deref(),
+        installed.as_deref(),
+        postgres_data_directory,
+    )
+}
+
+/// A failed measurement does not block admission.
+pub fn disk_floor_from_stats(measurement: Result<FilesystemStats, String>) -> bool {
+    match measurement {
         Ok(stats) => admission_blocked(stats.free_bytes, free_space_floor(stats.total_bytes, 0)),
         Err(error) => {
             tracing::warn!(%error, "history disk floor could not be measured");
             false
         }
     }
+}
+
+pub fn live_disk_floor_breached() -> bool {
+    disk_floor_from_stats(read_filesystem_stats(&filesystem_path(None)))
+}
+
+/// Reads `data_directory` once on the pool the caller already holds. Admission
+/// never calls this.
+pub async fn resolve_data_directory(pool: &DbPool) -> Result<(), String> {
+    if std::env::var_os("NEMU_POSTGRES_DATA_DIR")
+        .filter(|value| !value.is_empty())
+        .is_some()
+    {
+        return Ok(());
+    }
+    if installed_postgres_data_dir().is_some() {
+        return Ok(());
+    }
+    let conn = pool.get().await.map_err(|error| error.to_string())?;
+    let directory = conn
+        .interact(|conn| {
+            diesel::sql_query(DATA_DIRECTORY_SQL)
+                .get_result::<SettingRow>(conn)
+                .optional()
+        })
+        .await
+        .map_err(|error| error.to_string())?
+        .map_err(|error| error.to_string())?;
+    if let Some(row) = directory {
+        install_postgres_data_dir(std::path::PathBuf::from(row.setting));
+    }
+    Ok(())
 }
 
 pub async fn load_snapshot(pool: &DbPool) -> Result<BudgetSnapshot, String> {
@@ -402,13 +473,18 @@ fn diagnostic_relation_bytes(conn: &mut PgConnection) -> Result<u64, String> {
 }
 
 fn postgres_filesystem(conn: &mut PgConnection) -> Result<FilesystemStats, String> {
-    let directory = diesel::sql_query(DATA_DIRECTORY_SQL)
-        .get_result::<SettingRow>(conn)
-        .ok()
-        .map(|row| row.setting);
-    let preferred = filesystem_path(directory.as_deref());
-    if let Ok(stats) = read_filesystem_stats(&preferred) {
-        return Ok(stats);
+    if installed_postgres_data_dir().is_none()
+        && std::env::var_os("NEMU_POSTGRES_DATA_DIR")
+            .filter(|value| !value.is_empty())
+            .is_none()
+    {
+        let directory = diesel::sql_query(DATA_DIRECTORY_SQL)
+            .get_result::<SettingRow>(conn)
+            .ok()
+            .map(|row| row.setting);
+        if let Some(directory) = directory {
+            install_postgres_data_dir(std::path::PathBuf::from(directory));
+        }
     }
     read_filesystem_stats(&filesystem_path(None))
 }
@@ -476,6 +552,8 @@ mod tests {
                 "capability_observation_keys" => Some(20),
                 "capability_recording_bounds" => Some(5),
                 "history_gaps" => Some(7),
+                "history_missing_intervals" => Some(23),
+                "capability_constraint_revisions" => Some(19),
                 "meter_epochs" => Some(3),
                 "home_meter_designation_periods" => Some(2),
                 "power_rollups" => Some(11),
@@ -485,7 +563,7 @@ mod tests {
             })
         })
         .unwrap();
-        assert_eq!(usage, 178);
+        assert_eq!(usage, 220);
     }
 
     #[test]
@@ -550,18 +628,22 @@ mod tests {
                 bytes: 0,
             }],
         );
-        assert_eq!(
-            unknown,
-            vec![
-                ResolutionTier::Raw,
-                ResolutionTier::OneMinute,
-                ResolutionTier::FiveMinute,
-                ResolutionTier::FifteenMinute,
-                ResolutionTier::Hourly,
-                ResolutionTier::Daily,
-            ]
+        assert!(
+            unknown.is_empty(),
+            "a missing tier size is unknown, not a confirmed loss"
         );
-        assert_eq!(*unknown.last().unwrap(), ResolutionTier::Daily);
+
+        let stops_before_unknown = project_resolution_loss(
+            100,
+            &[TierBytes {
+                tier: ResolutionTier::DiagnosticPartitions,
+                bytes: 40,
+            }],
+        );
+        assert_eq!(
+            stops_before_unknown,
+            vec![ResolutionTier::DiagnosticPartitions]
+        );
     }
 
     #[test]
@@ -571,21 +653,33 @@ mod tests {
         assert!(!confirmation_required(100, 900, 400));
         assert!(!confirmation_required(1_000, 400, 400));
 
-        let rejected = evaluate_budget_change(1_000, 100, 400, false, &[]).unwrap_err();
-        assert!(!rejected.likely_resolution_loss.is_empty());
+        let known = [
+            TierBytes {
+                tier: ResolutionTier::DiagnosticPartitions,
+                bytes: 50,
+            },
+            TierBytes {
+                tier: ResolutionTier::Raw,
+                bytes: 50,
+            },
+        ];
+        let rejected = evaluate_budget_change(1_000, 100, 400, false, &known).unwrap_err();
         assert_eq!(
-            rejected.likely_resolution_loss.last().copied(),
-            Some(ResolutionTier::Daily)
+            rejected.likely_resolution_loss,
+            vec![
+                ResolutionTier::DiagnosticPartitions,
+                ResolutionTier::Raw,
+            ]
         );
 
-        let accepted = evaluate_budget_change(1_000, 100, 400, true, &[]).unwrap();
+        let accepted = evaluate_budget_change(1_000, 100, 400, true, &known).unwrap();
         assert!(accepted.write_audit);
         assert!(accepted.view_fields.proposed_deletion);
         assert!(!accepted.view_fields.restores_deleted_history);
-        assert_eq!(
-            accepted.view_fields.likely_resolution_loss.last().copied(),
-            Some(ResolutionTier::Daily)
-        );
+        assert_eq!(accepted.view_fields.likely_resolution_loss, rejected.likely_resolution_loss);
+
+        let unknown = evaluate_budget_change(1_000, 100, 400, true, &[]).unwrap();
+        assert!(unknown.view_fields.likely_resolution_loss.is_empty());
     }
 
     #[test]
@@ -628,13 +722,34 @@ mod tests {
         assert!(tight.floor_breached);
         assert!(tight.proposed_deletion);
         assert_eq!(
-            tight.likely_resolution_loss.first().copied(),
-            Some(ResolutionTier::DiagnosticPartitions)
-        );
-        assert_eq!(
-            tight.likely_resolution_loss.last().copied(),
-            Some(ResolutionTier::Daily)
+            tight.likely_resolution_loss,
+            vec![ResolutionTier::DiagnosticPartitions]
         );
         assert!(!tight.restores_deleted_history);
+    }
+
+    #[test]
+    fn live_floor_and_budget_read_the_same_data_directory() {
+        let installed = std::path::Path::new("/var/lib/postgresql/16/main");
+        let queried = "/tmp/other-filesystem";
+        assert_eq!(
+            select_filesystem_path(None, Some(installed), Some(queried)),
+            installed
+        );
+        assert_eq!(
+            select_filesystem_path(
+                Some(std::ffi::OsStr::new("/env/pgdata")),
+                Some(installed),
+                Some(queried),
+            ),
+            std::path::PathBuf::from("/env/pgdata")
+        );
+        assert!(disk_floor_from_stats(Ok(FilesystemStats {
+            total_bytes: 100 * GIB,
+            free_bytes: 0,
+        })));
+        assert!(!disk_floor_from_stats(Err(
+            "failed to read filesystem space".into()
+        )));
     }
 }

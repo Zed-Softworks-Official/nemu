@@ -4,6 +4,8 @@ use std::time::Duration as StdDuration;
 
 use chrono::{DateTime, Duration, Utc};
 use diesel::prelude::*;
+use diesel::sql_types::{Timestamptz, Uuid as SqlUuid};
+use uuid::Uuid;
 use thiserror::Error;
 
 use crate::db::schema::{
@@ -75,6 +77,14 @@ pub(super) struct HistoryGate {
     storage_since: Option<DateTime<Utc>>,
     untrusted_since: Option<DateTime<Utc>>,
     pending_finalizations: Vec<PendingFinalization>,
+    pending_rejected: Vec<RejectedInterval>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct RejectedInterval {
+    pub capability_id: Uuid,
+    pub start: DateTime<Utc>,
+    pub end: DateTime<Utc>,
 }
 
 struct PendingFinalization {
@@ -121,7 +131,17 @@ impl HistoryGate {
             storage_since: None,
             untrusted_since: None,
             pending_finalizations: Vec::new(),
+            pending_rejected: Vec::new(),
         }
+    }
+
+    pub(super) fn take_rejected_intervals(&mut self) -> Vec<RejectedInterval> {
+        std::mem::take(&mut self.pending_rejected)
+    }
+
+    fn restore_rejected(&mut self, mut intervals: Vec<RejectedInterval>) {
+        intervals.append(&mut self.pending_rejected);
+        self.pending_rejected = intervals;
     }
 
     #[cfg(test)]
@@ -244,6 +264,13 @@ impl HistoryGate {
             }
             if outside_correction_window(observation.kind, observed_at, received_at) {
                 outcome.history = HistoryAdmissionOutcome::Rejected(HistoryRejection::Late);
+                if let Some(end) = observed_at.checked_add_signed(Duration::microseconds(1)) {
+                    self.pending_rejected.push(RejectedInterval {
+                        capability_id: outcome.capability_id.into_uuid(),
+                        start: observed_at,
+                        end,
+                    });
+                }
                 continue;
             }
             if !self.rate_allows(
@@ -459,6 +486,31 @@ impl HistoryRepository {
         conn.interact(move |conn| commit_sync(conn, &batch)).await?
     }
 
+    async fn insert_rejected(
+        &self,
+        intervals: Vec<RejectedInterval>,
+    ) -> Result<(), HistoryStoreError> {
+        if intervals.is_empty() {
+            return Ok(());
+        }
+        let conn = self.pool.get().await?;
+        conn.interact(move |conn| {
+            for interval in &intervals {
+                diesel::sql_query(
+                    "INSERT INTO history_missing_intervals (capability_id, started_at, ended_at)
+                     VALUES ($1, $2, $3)
+                     ON CONFLICT (capability_id, started_at, ended_at) DO NOTHING",
+                )
+                .bind::<SqlUuid, _>(interval.capability_id)
+                .bind::<Timestamptz, _>(interval.start)
+                .bind::<Timestamptz, _>(interval.end)
+                .execute(conn)?;
+            }
+            Ok(())
+        })
+        .await?
+    }
+
     async fn upsert_finalized(&self, gaps: Vec<FinalizedGap>) -> Result<(), HistoryStoreError> {
         if gaps.is_empty() {
             return Ok(());
@@ -577,12 +629,19 @@ pub(super) fn spawn_loop(gate: Arc<Mutex<HistoryGate>>, store: HistoryRepository
         let mut interval = tokio::time::interval(StdDuration::from_millis(200));
         loop {
             interval.tick().await;
-            let (batch, signals) = {
+            let (batch, signals, rejected) = {
                 let mut gate = gate.lock().expect("history gate poisoned");
+                let rejected = gate.take_rejected_intervals();
                 let signals = gate.take_journal_signals();
                 let batch = gate.drain(HISTORY_FLUSH_BATCH);
-                (batch, signals)
+                (batch, signals, rejected)
             };
+            if let Err(error) = store.insert_rejected(rejected.clone()).await {
+                tracing::warn!(%error, "rejected history interval persist failed");
+                gate.lock()
+                    .expect("history gate poisoned")
+                    .restore_rejected(rejected);
+            }
             apply_journal_signals(&journal, signals);
             if batch.is_empty() {
                 let below_capacity = gate.lock().expect("history gate poisoned").below_capacity();

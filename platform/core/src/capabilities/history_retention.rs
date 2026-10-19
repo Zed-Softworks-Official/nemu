@@ -6,7 +6,7 @@ use std::collections::HashMap;
 
 use chrono::{DateTime, Duration, Months, Timelike, Utc};
 use diesel::prelude::*;
-use diesel::sql_types::{BigInt, Bool, Nullable, Text, Timestamptz, Uuid as SqlUuid};
+use diesel::sql_types::{Array, BigInt, Bool, Nullable, Text, Timestamptz, Uuid as SqlUuid};
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -778,6 +778,379 @@ pub fn plan_cleanup(input: &CleanupInput<'_>) -> Vec<CleanupAction> {
     actions
 }
 
+/// Inputs the running sweep loads after diagnostic partitions have already been pruned.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SweepSnapshot {
+    pub now: DateTime<Utc>,
+    pub usage_bytes: u64,
+    pub budget_bytes: u64,
+    pub already_running: bool,
+    pub ranges: Vec<HistoryRange>,
+    pub checkpoints: Vec<Checkpoint>,
+}
+
+pub fn planned_drops(snapshot: &SweepSnapshot) -> Vec<HistoryRange> {
+    plan_cleanup(&CleanupInput {
+        now: snapshot.now,
+        usage_bytes: snapshot.usage_bytes,
+        budget_bytes: snapshot.budget_bytes,
+        already_running: snapshot.already_running,
+        diagnostic_partitions: &[],
+        ranges: &snapshot.ranges,
+        checkpoints: &snapshot.checkpoints,
+    })
+    .into_iter()
+    .filter_map(|action| match action {
+        CleanupAction::DropRange(range) => Some(range),
+        CleanupAction::PruneDiagnostics { .. } => None,
+    })
+    .collect()
+}
+
+/// Applies only the ranges `planned_drops` returns, in that order. Daily stays last
+/// because the planner already orders it.
+pub fn apply_planned_drops(
+    snapshot: &SweepSnapshot,
+    mut apply: impl FnMut(&HistoryRange) -> Result<(), String>,
+) -> Result<Vec<HistoryRange>, String> {
+    let drops = planned_drops(snapshot);
+    for range in &drops {
+        apply(range)?;
+    }
+    Ok(drops)
+}
+
+pub async fn sweep_budget(
+    pool: &crate::state::DbPool,
+    now: DateTime<Utc>,
+    already_running: bool,
+) -> Result<bool, String> {
+    let conn = pool.get().await.map_err(|error| error.to_string())?;
+    conn.interact(move |conn| apply_budget_sweep(conn, now, already_running))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+fn apply_budget_sweep(
+    conn: &mut PgConnection,
+    now: DateTime<Utc>,
+    already_running: bool,
+) -> Result<bool, String> {
+    let Some(snapshot) = load_sweep_snapshot(conn, now, already_running)? else {
+        return Ok(false);
+    };
+    let drops = apply_planned_drops(&snapshot, |range| {
+        delete_history_range(conn, range).map_err(|error| error.to_string())
+    })?;
+    let dropped_bytes = drops
+        .iter()
+        .fold(0u64, |total, range| total.saturating_add(range.bytes));
+    let remaining = snapshot.usage_bytes.saturating_sub(dropped_bytes);
+    let started = history_cleanup_running(
+        snapshot.usage_bytes,
+        snapshot.budget_bytes,
+        snapshot.already_running,
+    );
+    Ok(history_cleanup_running(
+        remaining,
+        snapshot.budget_bytes,
+        started,
+    ))
+}
+
+fn delete_history_range(
+    conn: &mut PgConnection,
+    range: &HistoryRange,
+) -> Result<(), diesel::result::Error> {
+    match range.resolution {
+        Resolution::Raw => {
+            diesel::sql_query(
+                "DELETE FROM capability_observations
+                 WHERE capability_id = $1 AND kind = $2
+                   AND observed_at >= $3 AND observed_at < $4",
+            )
+            .bind::<SqlUuid, _>(range.capability_id)
+            .bind::<Text, _>(range.kind.as_str())
+            .bind::<Timestamptz, _>(range.start)
+            .bind::<Timestamptz, _>(range.end)
+            .execute(conn)?;
+        }
+        _ => match range.kind {
+            CapabilityKind::Power => {
+                diesel::sql_query(
+                    "DELETE FROM power_rollups
+                     WHERE capability_id = $1 AND bucket_start = $2 AND bucket_end = $3",
+                )
+                .bind::<SqlUuid, _>(range.capability_id)
+                .bind::<Timestamptz, _>(range.start)
+                .bind::<Timestamptz, _>(range.end)
+                .execute(conn)?;
+            }
+            CapabilityKind::Voltage | CapabilityKind::Current => {
+                diesel::sql_query(
+                    "DELETE FROM gauge_rollups
+                     WHERE capability_id = $1 AND gauge_kind = $2
+                       AND bucket_start = $3 AND bucket_end = $4",
+                )
+                .bind::<SqlUuid, _>(range.capability_id)
+                .bind::<Text, _>(range.kind.as_str())
+                .bind::<Timestamptz, _>(range.start)
+                .bind::<Timestamptz, _>(range.end)
+                .execute(conn)?;
+            }
+            CapabilityKind::ImportedEnergy | CapabilityKind::ExportedEnergy => {
+                diesel::sql_query(
+                    "DELETE FROM energy_counter_rollups
+                     WHERE capability_id = $1 AND bucket_start = $2 AND bucket_end = $3",
+                )
+                .bind::<SqlUuid, _>(range.capability_id)
+                .bind::<Timestamptz, _>(range.start)
+                .bind::<Timestamptz, _>(range.end)
+                .execute(conn)?;
+            }
+        },
+    }
+    upsert_checkpoint_row(
+        conn,
+        &Checkpoint {
+            capability_id: range.capability_id,
+            kind: range.kind,
+            step: RetentionStep::Cleanup,
+            resolution: range.resolution,
+            range_start: range.start,
+            range_end: range.end,
+            verified: true,
+        },
+    )
+}
+
+fn load_sweep_snapshot(
+    conn: &mut PgConnection,
+    now: DateTime<Utc>,
+    already_running: bool,
+) -> Result<Option<SweepSnapshot>, String> {
+    let usage_bytes = history_usage_bytes(conn)?;
+    let filesystem_total = super::history_budget::read_filesystem_stats(
+        &super::history_budget::filesystem_path(None),
+    )
+    .ok()
+    .map(|stats| stats.total_bytes);
+    let Some(budget_bytes) = configured_budget_bytes(conn, filesystem_total)? else {
+        return Ok(None);
+    };
+    Ok(Some(SweepSnapshot {
+        now,
+        usage_bytes,
+        budget_bytes,
+        already_running,
+        ranges: load_expired_ranges(conn, now)?,
+        checkpoints: load_all_checkpoints(conn)?,
+    }))
+}
+
+fn history_usage_bytes(conn: &mut PgConnection) -> Result<u64, String> {
+    let names: Vec<String> = super::history_budget::HISTORY_RELATIONS
+        .iter()
+        .map(|name| (*name).to_string())
+        .collect();
+    let rows = diesel::sql_query(super::history_budget::HISTORY_USAGE_SQL)
+        .bind::<Array<Text>, _>(names)
+        .load::<SweepUsageRow>(conn)
+        .map_err(|error| error.to_string())?;
+    let reported: Vec<(&str, u64)> = rows
+        .iter()
+        .filter_map(|row| {
+            u64::try_from(row.bytes)
+                .ok()
+                .map(|bytes| (row.name.as_str(), bytes))
+        })
+        .collect();
+    Ok(super::history_budget::history_usage_bytes(&reported))
+}
+
+fn configured_budget_bytes(
+    conn: &mut PgConnection,
+    filesystem_total: Option<u64>,
+) -> Result<Option<u64>, String> {
+    let stored = diesel::sql_query("SELECT budget_bytes FROM history_budget WHERE id = 1")
+        .get_result::<SweepBudgetRow>(conn)
+        .optional()
+        .map_err(|error| error.to_string())?;
+    if let Some(row) = stored {
+        return Ok(Some(u64::try_from(row.budget_bytes).unwrap_or(0)));
+    }
+    Ok(filesystem_total.map(super::history_budget::default_budget_bytes))
+}
+
+fn load_expired_ranges(
+    conn: &mut PgConnection,
+    now: DateTime<Utc>,
+) -> Result<Vec<HistoryRange>, String> {
+    let mut ranges = Vec::new();
+    let raw_rows = diesel::sql_query(
+        "SELECT capability_id, kind, observed_at, pg_column_size(capability_observations.*)::bigint AS bytes
+         FROM capability_observations",
+    )
+    .load::<RawRangeRow>(conn)
+    .map_err(|error| error.to_string())?;
+    for row in raw_rows {
+        let Ok(kind) = CapabilityKind::parse(&row.kind) else {
+            continue;
+        };
+        let Some(end) = row.observed_at.checked_add_signed(Duration::microseconds(1)) else {
+            continue;
+        };
+        let range = HistoryRange {
+            capability_id: row.capability_id,
+            kind,
+            resolution: Resolution::Raw,
+            start: row.observed_at,
+            end,
+            bytes: u64::try_from(row.bytes).unwrap_or(0),
+        };
+        if range_expired(&range, now) {
+            ranges.push(range);
+        }
+    }
+    let rollup_sql = [
+        "SELECT r.capability_id, i.kind, r.bucket_start, r.bucket_end,
+                pg_column_size(r.*)::bigint AS bytes
+         FROM power_rollups r
+         JOIN capability_identities i ON i.id = r.capability_id",
+        "SELECT capability_id, gauge_kind AS kind, bucket_start, bucket_end,
+                pg_column_size(gauge_rollups.*)::bigint AS bytes
+         FROM gauge_rollups",
+        "SELECT r.capability_id, i.kind, r.bucket_start, r.bucket_end,
+                pg_column_size(r.*)::bigint AS bytes
+         FROM energy_counter_rollups r
+         JOIN capability_identities i ON i.id = r.capability_id",
+    ];
+    for sql in rollup_sql {
+        let rows = diesel::sql_query(sql)
+            .load::<RollupRangeRow>(conn)
+            .map_err(|error| error.to_string())?;
+        for row in rows {
+            let Ok(kind) = CapabilityKind::parse(&row.kind) else {
+                continue;
+            };
+            let Some(resolution) = resolution_of_span(row.bucket_start, row.bucket_end) else {
+                continue;
+            };
+            if !retention_tiers(kind)
+                .iter()
+                .any(|tier| tier.resolution == resolution)
+            {
+                continue;
+            }
+            let range = HistoryRange {
+                capability_id: row.capability_id,
+                kind,
+                resolution,
+                start: row.bucket_start,
+                end: row.bucket_end,
+                bytes: u64::try_from(row.bytes).unwrap_or(0),
+            };
+            if range_expired(&range, now) {
+                ranges.push(range);
+            }
+        }
+    }
+    Ok(ranges)
+}
+
+fn resolution_of_span(start: DateTime<Utc>, end: DateTime<Utc>) -> Option<Resolution> {
+    let seconds = (end - start).num_seconds();
+    Some(match seconds {
+        60 => Resolution::OneMinute,
+        300 => Resolution::FiveMinute,
+        900 => Resolution::FifteenMinute,
+        3600 => Resolution::Hourly,
+        82_800..=90_000 => Resolution::Daily,
+        _ => return None,
+    })
+}
+
+fn load_all_checkpoints(conn: &mut PgConnection) -> Result<Vec<Checkpoint>, String> {
+    let rows = diesel::sql_query(
+        "SELECT capability_id, kind, step, resolution, range_start, range_end, verified
+         FROM history_retention_checkpoints",
+    )
+    .load::<SweepCheckpointRow>(conn)
+    .map_err(|error| error.to_string())?;
+    Ok(rows
+        .into_iter()
+        .filter_map(|row| {
+            Some(Checkpoint {
+                capability_id: row.capability_id,
+                kind: CapabilityKind::parse(&row.kind).ok()?,
+                step: RetentionStep::parse(&row.step)?,
+                resolution: Resolution::parse(&row.resolution)?,
+                range_start: row.range_start,
+                range_end: row.range_end,
+                verified: row.verified,
+            })
+        })
+        .collect())
+}
+
+#[derive(QueryableByName)]
+struct SweepUsageRow {
+    #[diesel(sql_type = Text)]
+    name: String,
+    #[diesel(sql_type = BigInt)]
+    bytes: i64,
+}
+
+#[derive(QueryableByName)]
+struct SweepBudgetRow {
+    #[diesel(sql_type = BigInt)]
+    budget_bytes: i64,
+}
+
+#[derive(QueryableByName)]
+struct SweepCheckpointRow {
+    #[diesel(sql_type = SqlUuid)]
+    capability_id: Uuid,
+    #[diesel(sql_type = Text)]
+    kind: String,
+    #[diesel(sql_type = Text)]
+    step: String,
+    #[diesel(sql_type = Text)]
+    resolution: String,
+    #[diesel(sql_type = Timestamptz)]
+    range_start: DateTime<Utc>,
+    #[diesel(sql_type = Timestamptz)]
+    range_end: DateTime<Utc>,
+    #[diesel(sql_type = Bool)]
+    verified: bool,
+}
+
+#[derive(QueryableByName)]
+struct RawRangeRow {
+    #[diesel(sql_type = SqlUuid)]
+    capability_id: Uuid,
+    #[diesel(sql_type = Text)]
+    kind: String,
+    #[diesel(sql_type = Timestamptz)]
+    observed_at: DateTime<Utc>,
+    #[diesel(sql_type = BigInt)]
+    bytes: i64,
+}
+
+#[derive(QueryableByName)]
+struct RollupRangeRow {
+    #[diesel(sql_type = SqlUuid)]
+    capability_id: Uuid,
+    #[diesel(sql_type = Text)]
+    kind: String,
+    #[diesel(sql_type = Timestamptz)]
+    bucket_start: DateTime<Utc>,
+    #[diesel(sql_type = Timestamptz)]
+    bucket_end: DateTime<Utc>,
+    #[diesel(sql_type = BigInt)]
+    bytes: i64,
+}
+
 pub fn drop_block(
     range: &HistoryRange,
     ranges: &[HistoryRange],
@@ -1446,6 +1819,11 @@ mod tests {
         assert_eq!(writes.len(), 1);
         assert_eq!(writes[0].kind, DiagnosticKind::LateHistoryRejection);
         assert_eq!(writes[0].received_at, received);
+        let rejected_intervals = gate.take_rejected_intervals();
+        assert_eq!(rejected_intervals.len(), 1);
+        assert_eq!(rejected_intervals[0].capability_id, rejected_id.into_uuid());
+        assert_eq!(rejected_intervals[0].start, observed);
+        assert!(rejected_intervals[0].end > rejected_intervals[0].start);
     }
 
     #[test]
@@ -2179,5 +2557,80 @@ mod tests {
         let mut result = state.ingest(report.clone(), received_at);
         gate.admit(&mut result, &report, received_at, |id| state.registered(id));
         result
+    }
+
+    #[test]
+    fn sweep_applies_the_planner_drop_at_ninety_percent_and_not_below_eighty() {
+        let now = utc(2026, 6, 15, 0, 0, 0);
+        let raw = HistoryRange {
+            capability_id: Uuid::from_u128(7),
+            kind: CapabilityKind::Power,
+            resolution: Resolution::Raw,
+            start: utc(2026, 6, 12, 22, 59, 0),
+            end: utc(2026, 6, 12, 23, 0, 0),
+            bytes: 50,
+        };
+        let daily = HistoryRange {
+            capability_id: raw.capability_id,
+            kind: CapabilityKind::Power,
+            resolution: Resolution::Daily,
+            start: utc(2014, 6, 14, 0, 0, 0),
+            end: utc(2014, 6, 15, 0, 0, 0),
+            bytes: 50,
+        };
+        let fresh = HistoryRange {
+            capability_id: raw.capability_id,
+            kind: CapabilityKind::Power,
+            resolution: Resolution::Raw,
+            start: now - Duration::minutes(1),
+            end: now,
+            bytes: 500,
+        };
+        let checkpoints = raw_verified(&raw);
+        let high = SweepSnapshot {
+            now,
+            usage_bytes: 900,
+            budget_bytes: 1_000,
+            already_running: false,
+            ranges: vec![daily, fresh, raw],
+            checkpoints: checkpoints.clone(),
+        };
+        let mut dropped = Vec::new();
+        let applied = apply_planned_drops(&high, |range| {
+            dropped.push(*range);
+            Ok(())
+        })
+        .unwrap();
+        let planned = planned_drops(&high);
+        assert_eq!(applied, planned);
+        assert_eq!(dropped, planned);
+        assert_eq!(
+            applied,
+            vec![
+                CleanupAction::DropRange(raw),
+                CleanupAction::DropRange(daily),
+            ]
+            .into_iter()
+            .filter_map(|action| match action {
+                CleanupAction::DropRange(range) => Some(range),
+                CleanupAction::PruneDiagnostics { .. } => None,
+            })
+            .collect::<Vec<_>>()
+        );
+        assert_eq!(applied.last().unwrap().resolution, Resolution::Daily);
+        assert!(applied.iter().all(|range| range.start != fresh.start));
+
+        let low = SweepSnapshot {
+            usage_bytes: 799,
+            ..high
+        };
+        let mut quiet = Vec::new();
+        let none = apply_planned_drops(&low, |range| {
+            quiet.push(*range);
+            Ok(())
+        })
+        .unwrap();
+        assert!(none.is_empty());
+        assert!(quiet.is_empty());
     }
 }

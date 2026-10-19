@@ -1,0 +1,1 @@
+DROP TABLE capability_constraint_revisions;

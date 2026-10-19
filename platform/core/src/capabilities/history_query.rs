@@ -1520,6 +1520,7 @@ fn assemble_home_history(input: &HomeAssembly<'_>) -> Vec<HistorySeries> {
         .map(|(period, span)| {
             let (points, mut missing) = home_points(input, period, *span, &boundaries);
             missing.extend(undesignated_missing(&undesignated));
+            missing.extend(home_rejected(input, period.capability_id, *span));
             let gaps = home_gaps(input, period.capability_id, *span);
             home_series(input, period, &boundaries, points, missing, gaps)
         })
@@ -1534,6 +1535,27 @@ fn undesignated_missing(spans: &[Span]) -> Vec<HistoryInterval> {
             start: span.start,
             end: span.end,
             reason: None,
+        })
+        .collect()
+}
+
+fn home_rejected(
+    input: &HomeAssembly<'_>,
+    capability_id: Uuid,
+    span: Span,
+) -> Vec<HistoryInterval> {
+    input
+        .quality
+        .iter()
+        .filter(|(id, interval)| *id == capability_id && interval.kind == IntervalKind::Rejected)
+        .filter_map(|(_, interval)| {
+            let clipped = clip_span(interval.start, interval.end, span)?;
+            Some(HistoryInterval {
+                kind: IntervalKind::Rejected,
+                start: clipped.start,
+                end: clipped.end,
+                reason: None,
+            })
         })
         .collect()
 }
@@ -1853,6 +1875,13 @@ fn load_home_series(
             });
         }
         for interval in load_gaps(conn, slice.capability_id, span.start, span.end)? {
+            quality.push((slice.capability_id, interval));
+        }
+        let rejected =
+            load_rejected_intervals(conn, slice.capability_id, span.start, span.end)?;
+        let mut rejected_quality = Vec::new();
+        append_rejected_intervals(&mut rejected_quality, &rejected);
+        for interval in rejected_quality {
             quality.push((slice.capability_id, interval));
         }
         epochs.push((
@@ -2317,6 +2346,9 @@ fn load_query(
                     plan.point_limit,
                 )?;
                 let mut quality = load_gaps(conn, row.id, request.start, request.end)?;
+                let rejected =
+                    load_rejected_intervals(conn, row.id, request.start, request.end)?;
+                append_rejected_intervals(&mut quality, &rejected);
                 if plan.resolution != QueryResolution::Raw {
                     for sample in &samples {
                         if sample.covered_ns <= 0 {
@@ -2823,6 +2855,67 @@ fn load_energy(
         .collect())
 }
 
+fn append_rejected_intervals(
+    quality: &mut Vec<InputInterval>,
+    rejected: &[(DateTime<Utc>, DateTime<Utc>)],
+) {
+    for (start, end) in rejected {
+        if end <= start {
+            continue;
+        }
+        let already = quality.iter().any(|interval| {
+            interval.start == *start
+                && interval.end == *end
+                && matches!(
+                    interval.kind,
+                    IntervalKind::Rejected
+                        | IntervalKind::Unavailable
+                        | IntervalKind::Stale
+                        | IntervalKind::Missing
+                )
+        });
+        if already {
+            continue;
+        }
+        quality.push(InputInterval {
+            kind: IntervalKind::Rejected,
+            start: *start,
+            end: *end,
+            reason: None,
+        });
+    }
+}
+
+fn load_rejected_intervals(
+    conn: &mut PgConnection,
+    capability_id: Uuid,
+    start: DateTime<Utc>,
+    end: DateTime<Utc>,
+) -> Result<Vec<(DateTime<Utc>, DateTime<Utc>)>, diesel::result::Error> {
+    let rows = diesel::sql_query(
+        "SELECT started_at, ended_at
+         FROM history_missing_intervals
+         WHERE capability_id = $1 AND started_at < $3 AND ended_at > $2
+         ORDER BY started_at",
+    )
+    .bind::<SqlUuid, _>(capability_id)
+    .bind::<Timestamptz, _>(start)
+    .bind::<Timestamptz, _>(end)
+    .load::<RejectedIntervalRow>(conn)?;
+    Ok(rows
+        .into_iter()
+        .map(|row| (row.started_at, row.ended_at))
+        .collect())
+}
+
+#[derive(QueryableByName)]
+struct RejectedIntervalRow {
+    #[diesel(sql_type = Timestamptz)]
+    started_at: DateTime<Utc>,
+    #[diesel(sql_type = Timestamptz)]
+    ended_at: DateTime<Utc>,
+}
+
 fn load_gaps(
     conn: &mut PgConnection,
     capability_id: Uuid,
@@ -3308,6 +3401,84 @@ mod tests {
         assert!(series.points.len() <= ABSOLUTE_POINT_CAP as usize);
         assert_eq!(effective_point_limit(5_000).unwrap(), ABSOLUTE_POINT_CAP);
         assert!(effective_point_limit(0).is_err());
+    }
+
+    #[test]
+    fn live_query_reports_persisted_rejected_intervals_without_duplicating_synthesized_gaps() {
+        let migration = include_str!(
+            "../../migrations/2026-10-19-000010-0000_history_missing_intervals/up.sql"
+        );
+        assert!(migration.contains("CREATE TABLE history_missing_intervals"));
+        assert!(migration.contains("PRIMARY KEY (capability_id, started_at, ended_at)"));
+        assert!(migration.contains("REFERENCES capability_identities"));
+        assert!(!migration.to_lowercase().contains("jsonb"));
+        assert!(!migration.to_lowercase().contains("kind"));
+        let schema = include_str!("../db/schema.rs");
+        assert!(schema.contains("history_missing_intervals ("));
+        assert!(schema.contains("history_missing_intervals -> capability_identities (capability_id)"));
+        assert!(schema.contains("history_missing_intervals,"));
+
+        let start = utc(2026, 1, 1, 0, 0, 0);
+        let mut input = empty_input();
+        input.quality = vec![
+            super::InputInterval {
+                kind: IntervalKind::Stale,
+                start,
+                end: start + Duration::hours(1),
+                reason: None,
+            },
+            super::InputInterval {
+                kind: IntervalKind::Unavailable,
+                start: start + Duration::hours(1),
+                end: start + Duration::hours(2),
+                reason: None,
+            },
+            super::InputInterval {
+                kind: IntervalKind::Missing,
+                start: start + Duration::hours(2),
+                end: start + Duration::hours(3),
+                reason: None,
+            },
+        ];
+        let rejected = (
+            start + Duration::minutes(30),
+            start + Duration::minutes(30) + Duration::microseconds(1),
+        );
+        super::append_rejected_intervals(&mut input.quality, &[rejected]);
+        super::append_rejected_intervals(&mut input.quality, &[rejected]);
+        let series = super::assemble_series(input).unwrap();
+        assert_eq!(
+            series
+                .missing
+                .iter()
+                .filter(|interval| interval.kind == IntervalKind::Rejected)
+                .count(),
+            1
+        );
+        assert_eq!(
+            series
+                .missing
+                .iter()
+                .filter(|interval| interval.kind == IntervalKind::Stale)
+                .count(),
+            1
+        );
+        assert_eq!(
+            series
+                .missing
+                .iter()
+                .filter(|interval| interval.kind == IntervalKind::Unavailable)
+                .count(),
+            1
+        );
+        assert_eq!(
+            series
+                .missing
+                .iter()
+                .filter(|interval| interval.kind == IntervalKind::Missing)
+                .count(),
+            1
+        );
     }
 
     #[test]

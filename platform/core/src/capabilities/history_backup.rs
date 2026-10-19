@@ -14,7 +14,9 @@ use chacha20poly1305::aead::{Aead, KeyInit, Payload};
 use chrono::{DateTime, Utc};
 use diesel::prelude::*;
 use diesel::sql_types::Uuid as SqlUuid;
-use diesel::sql_types::{Array, BigInt, Bool, Nullable, SmallInt, Text, Timestamptz};
+use diesel::sql_types::{
+    Array, BigInt, Bool, Integer, Nullable, SmallInt, Text, Timestamptz,
+};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -30,8 +32,8 @@ use crate::state::AppState;
 use super::admission_journal::GapReason;
 use super::history_retention::{Resolution, past_retention, raw_retention, retention_tiers};
 use super::{
-    CapabilityId, CapabilityKind, CapabilityService, ConstraintRevision, FixedPointBounds,
-    HistoryAdmissionRate,
+    CapabilityAccuracy, CapabilityId, CapabilityKind, CapabilityService, ConstraintRevision,
+    FixedPointBounds, HistoryAdmissionRate,
 };
 
 const ARCHIVE_VERSION: u32 = 1;
@@ -895,27 +897,237 @@ fn decrypt(bytes: &[u8], key: &BackupKey) -> Result<Vec<u8>, BackupError> {
 }
 
 fn attach_constraint_revisions(snapshot: &mut HistorySnapshot, service: &CapabilityService) {
-    for capability in snapshot.capabilities.clone() {
+    let mut memory = Vec::new();
+    for capability in &snapshot.capabilities {
         let Some(revisions) = service.constraint_revisions(CapabilityId::from_uuid(capability.id))
         else {
             continue;
         };
         for revision in revisions {
-            let revision_id = revision.revision_id.clone();
-            if snapshot.constraint_revisions.iter().any(|existing| {
-                existing.capability_id == capability.id
-                    && existing.revision.revision_id == revision_id
-            }) {
-                continue;
-            }
-            snapshot
-                .constraint_revisions
-                .push(ArchivedConstraintRevision {
-                    capability_id: capability.id,
-                    revision,
-                });
+            memory.push(ArchivedConstraintRevision {
+                capability_id: capability.id,
+                revision,
+            });
         }
     }
+    snapshot.constraint_revisions = revisions_for_export(&snapshot.constraint_revisions, &memory);
+}
+
+pub(super) fn constraint_revision_upsert_sql() -> &'static str {
+    "INSERT INTO capability_constraint_revisions (
+        capability_id, revision_id, declared_at, effective_at, scale,
+        bound_minimum, bound_maximum, resolution, freshness_ms,
+        admission_maximum_observations, admission_interval_ms,
+        accuracy_absolute_maximum_error, accuracy_relative_maximum_error_ppm
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+    ON CONFLICT (capability_id, revision_id) DO UPDATE SET
+        declared_at = EXCLUDED.declared_at,
+        effective_at = EXCLUDED.effective_at,
+        scale = EXCLUDED.scale,
+        bound_minimum = EXCLUDED.bound_minimum,
+        bound_maximum = EXCLUDED.bound_maximum,
+        resolution = EXCLUDED.resolution,
+        freshness_ms = EXCLUDED.freshness_ms,
+        admission_maximum_observations = EXCLUDED.admission_maximum_observations,
+        admission_interval_ms = EXCLUDED.admission_interval_ms,
+        accuracy_absolute_maximum_error = EXCLUDED.accuracy_absolute_maximum_error,
+        accuracy_relative_maximum_error_ppm = EXCLUDED.accuracy_relative_maximum_error_ppm"
+}
+
+pub(super) fn constraint_revision_restore_sql() -> &'static str {
+    "INSERT INTO capability_constraint_revisions (
+        capability_id, revision_id, declared_at, effective_at, scale,
+        bound_minimum, bound_maximum, resolution, freshness_ms,
+        admission_maximum_observations, admission_interval_ms,
+        accuracy_absolute_maximum_error, accuracy_relative_maximum_error_ppm
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+    ON CONFLICT (capability_id, revision_id) DO NOTHING"
+}
+
+pub(super) fn constraint_revision_select_sql() -> &'static str {
+    "SELECT capability_id, revision_id, declared_at, effective_at, scale,
+            bound_minimum, bound_maximum, resolution, freshness_ms,
+            admission_maximum_observations, admission_interval_ms,
+            accuracy_absolute_maximum_error, accuracy_relative_maximum_error_ppm
+     FROM capability_constraint_revisions
+     ORDER BY capability_id, effective_at, revision_id"
+}
+
+struct RevisionColumns {
+    capability_id: Uuid,
+    revision_id: String,
+    declared_at: DateTime<Utc>,
+    effective_at: DateTime<Utc>,
+    scale: i16,
+    bound_minimum: i64,
+    bound_maximum: i64,
+    resolution: i64,
+    freshness_ms: i64,
+    admission_maximum_observations: i64,
+    admission_interval_ms: i64,
+    accuracy_absolute_maximum_error: Option<i64>,
+    accuracy_relative_maximum_error_ppm: Option<i32>,
+}
+
+fn columns_from_revision(capability_id: Uuid, revision: &ConstraintRevision) -> RevisionColumns {
+    let (absolute, relative) = match &revision.accuracy {
+        None => (None, None),
+        Some(CapabilityAccuracy::Absolute { maximum_error }) => (Some(*maximum_error), None),
+        Some(CapabilityAccuracy::Relative { maximum_error_ppm }) => {
+            (None, i32::try_from(*maximum_error_ppm).ok())
+        }
+        Some(CapabilityAccuracy::AbsoluteAndRelative {
+            absolute_maximum_error,
+            relative_maximum_error_ppm,
+        }) => (
+            Some(*absolute_maximum_error),
+            i32::try_from(*relative_maximum_error_ppm).ok(),
+        ),
+    };
+    RevisionColumns {
+        capability_id,
+        revision_id: revision.revision_id.clone(),
+        declared_at: revision.declared_at,
+        effective_at: revision.effective_at,
+        scale: i16::from(revision.scale),
+        bound_minimum: revision.bounds.minimum,
+        bound_maximum: revision.bounds.maximum,
+        resolution: revision.resolution,
+        freshness_ms: i64::try_from(revision.freshness_ms).unwrap_or(i64::MAX),
+        admission_maximum_observations: i64::from(revision.history_admission.maximum_observations),
+        admission_interval_ms: i64::try_from(revision.history_admission.interval_ms)
+            .unwrap_or(i64::MAX),
+        accuracy_absolute_maximum_error: absolute,
+        accuracy_relative_maximum_error_ppm: relative,
+    }
+}
+
+fn revision_from_columns(columns: &RevisionColumns) -> ConstraintRevision {
+    let accuracy = match (
+        columns.accuracy_absolute_maximum_error,
+        columns.accuracy_relative_maximum_error_ppm,
+    ) {
+        (Some(absolute_maximum_error), Some(relative)) => {
+            Some(CapabilityAccuracy::AbsoluteAndRelative {
+                absolute_maximum_error,
+                relative_maximum_error_ppm: u32::try_from(relative).unwrap_or(0),
+            })
+        }
+        (Some(maximum_error), None) => Some(CapabilityAccuracy::Absolute { maximum_error }),
+        (None, Some(relative)) => Some(CapabilityAccuracy::Relative {
+            maximum_error_ppm: u32::try_from(relative).unwrap_or(0),
+        }),
+        (None, None) => None,
+    };
+    ConstraintRevision {
+        revision_id: columns.revision_id.clone(),
+        declared_at: columns.declared_at,
+        effective_at: columns.effective_at,
+        scale: u8::try_from(columns.scale).unwrap_or(0),
+        bounds: FixedPointBounds {
+            minimum: columns.bound_minimum,
+            maximum: columns.bound_maximum,
+        },
+        resolution: columns.resolution,
+        freshness_ms: u64::try_from(columns.freshness_ms).unwrap_or(0),
+        history_admission: HistoryAdmissionRate {
+            maximum_observations: u32::try_from(columns.admission_maximum_observations).unwrap_or(0),
+            interval_ms: u64::try_from(columns.admission_interval_ms).unwrap_or(0),
+        },
+        accuracy,
+    }
+}
+
+pub(super) fn remember_revision(
+    rows: &mut Vec<ArchivedConstraintRevision>,
+    capability_id: Uuid,
+    revision: &ConstraintRevision,
+) {
+    let stored = revision_from_columns(&columns_from_revision(capability_id, revision));
+    if let Some(existing) = rows.iter_mut().find(|row| {
+        row.capability_id == capability_id && row.revision.revision_id == stored.revision_id
+    }) {
+        existing.revision = stored;
+        return;
+    }
+    rows.push(ArchivedConstraintRevision {
+        capability_id,
+        revision: stored,
+    });
+}
+
+pub(super) fn restore_revision(
+    rows: &mut Vec<ArchivedConstraintRevision>,
+    revision: &ArchivedConstraintRevision,
+) {
+    if rows.iter().any(|existing| {
+        existing.capability_id == revision.capability_id
+            && existing.revision.revision_id == revision.revision.revision_id
+    }) {
+        return;
+    }
+    rows.push(revision.clone());
+}
+
+pub(super) fn revisions_for_export(
+    stored: &[ArchivedConstraintRevision],
+    memory: &[ArchivedConstraintRevision],
+) -> Vec<ArchivedConstraintRevision> {
+    let mut revisions = stored.to_vec();
+    for revision in memory {
+        restore_revision(&mut revisions, revision);
+    }
+    revisions
+}
+
+pub(super) fn upsert_constraint_revision(
+    conn: &mut PgConnection,
+    capability_id: Uuid,
+    revision: &ConstraintRevision,
+) -> Result<(), diesel::result::Error> {
+    execute_revision(
+        conn,
+        constraint_revision_upsert_sql(),
+        capability_id,
+        revision,
+    )
+}
+
+fn restore_constraint_revision(
+    conn: &mut PgConnection,
+    revision: &ArchivedConstraintRevision,
+) -> Result<(), diesel::result::Error> {
+    execute_revision(
+        conn,
+        constraint_revision_restore_sql(),
+        revision.capability_id,
+        &revision.revision,
+    )
+}
+
+fn execute_revision(
+    conn: &mut PgConnection,
+    sql: &str,
+    capability_id: Uuid,
+    revision: &ConstraintRevision,
+) -> Result<(), diesel::result::Error> {
+    let columns = columns_from_revision(capability_id, revision);
+    diesel::sql_query(sql)
+        .bind::<SqlUuid, _>(columns.capability_id)
+        .bind::<Text, _>(&columns.revision_id)
+        .bind::<Timestamptz, _>(columns.declared_at)
+        .bind::<Timestamptz, _>(columns.effective_at)
+        .bind::<SmallInt, _>(columns.scale)
+        .bind::<BigInt, _>(columns.bound_minimum)
+        .bind::<BigInt, _>(columns.bound_maximum)
+        .bind::<BigInt, _>(columns.resolution)
+        .bind::<BigInt, _>(columns.freshness_ms)
+        .bind::<BigInt, _>(columns.admission_maximum_observations)
+        .bind::<BigInt, _>(columns.admission_interval_ms)
+        .bind::<Nullable<BigInt>, _>(columns.accuracy_absolute_maximum_error)
+        .bind::<Nullable<Integer>, _>(columns.accuracy_relative_maximum_error_ppm)
+        .execute(conn)?;
+    Ok(())
 }
 
 pub async fn export_for_client(
@@ -1018,7 +1230,7 @@ fn load_history_snapshot(
         gaps: load_gaps(conn)?,
         recording_bounds: load_recording_bounds(conn)?,
         meter_epochs: load_meter_epochs(conn)?,
-        constraint_revisions: Vec::new(),
+        constraint_revisions: load_constraint_revisions(conn)?,
         timezone_periods: load_timezone_periods(conn)?,
         designation_periods: load_designations(conn)?,
         budget: load_budget(conn)?,
@@ -1058,6 +1270,9 @@ fn apply_history_restore(
         }
         for epoch in &snapshot.meter_epochs {
             insert_meter_epoch(conn, epoch)?;
+        }
+        for revision in &snapshot.constraint_revisions {
+            restore_constraint_revision(conn, revision)?;
         }
         for period in &snapshot.timezone_periods {
             insert_timezone_period(conn, period)?;
@@ -1675,6 +1890,64 @@ struct GapSqlRow {
     onset: DateTime<Utc>,
     #[diesel(sql_type = Nullable<Timestamptz>)]
     until: Option<DateTime<Utc>>,
+}
+
+#[derive(QueryableByName)]
+struct ConstraintRevisionSqlRow {
+    #[diesel(sql_type = SqlUuid)]
+    capability_id: Uuid,
+    #[diesel(sql_type = Text)]
+    revision_id: String,
+    #[diesel(sql_type = Timestamptz)]
+    declared_at: DateTime<Utc>,
+    #[diesel(sql_type = Timestamptz)]
+    effective_at: DateTime<Utc>,
+    #[diesel(sql_type = SmallInt)]
+    scale: i16,
+    #[diesel(sql_type = BigInt)]
+    bound_minimum: i64,
+    #[diesel(sql_type = BigInt)]
+    bound_maximum: i64,
+    #[diesel(sql_type = BigInt)]
+    resolution: i64,
+    #[diesel(sql_type = BigInt)]
+    freshness_ms: i64,
+    #[diesel(sql_type = BigInt)]
+    admission_maximum_observations: i64,
+    #[diesel(sql_type = BigInt)]
+    admission_interval_ms: i64,
+    #[diesel(sql_type = Nullable<BigInt>)]
+    accuracy_absolute_maximum_error: Option<i64>,
+    #[diesel(sql_type = Nullable<Integer>)]
+    accuracy_relative_maximum_error_ppm: Option<i32>,
+}
+
+fn load_constraint_revisions(
+    conn: &mut PgConnection,
+) -> Result<Vec<ArchivedConstraintRevision>, diesel::result::Error> {
+    let rows = diesel::sql_query(constraint_revision_select_sql())
+        .load::<ConstraintRevisionSqlRow>(conn)?;
+    Ok(rows
+        .into_iter()
+        .map(|row| ArchivedConstraintRevision {
+            capability_id: row.capability_id,
+            revision: revision_from_columns(&RevisionColumns {
+                capability_id: row.capability_id,
+                revision_id: row.revision_id,
+                declared_at: row.declared_at,
+                effective_at: row.effective_at,
+                scale: row.scale,
+                bound_minimum: row.bound_minimum,
+                bound_maximum: row.bound_maximum,
+                resolution: row.resolution,
+                freshness_ms: row.freshness_ms,
+                admission_maximum_observations: row.admission_maximum_observations,
+                admission_interval_ms: row.admission_interval_ms,
+                accuracy_absolute_maximum_error: row.accuracy_absolute_maximum_error,
+                accuracy_relative_maximum_error_ppm: row.accuracy_relative_maximum_error_ppm,
+            }),
+        })
+        .collect())
 }
 
 fn load_gaps(conn: &mut PgConnection) -> Result<Vec<ArchivedGap>, diesel::result::Error> {
@@ -2647,5 +2920,57 @@ mod tests {
             ),
             Err(BackupError::Forbidden)
         ));
+    }
+
+    #[test]
+    fn constraint_revisions_round_trip_through_a_relational_table() {
+        let migration = include_str!(
+            "../../migrations/2026-10-19-000009-0000_capability_constraint_revisions/up.sql"
+        );
+        assert!(migration.contains("CREATE TABLE capability_constraint_revisions"));
+        assert!(migration.contains("PRIMARY KEY (capability_id, revision_id)"));
+        assert!(migration.contains("REFERENCES capability_identities"));
+        assert!(!migration.to_lowercase().contains("jsonb"));
+        let schema = include_str!("../db/schema.rs");
+        assert!(schema.contains("capability_constraint_revisions ("));
+        assert!(schema.contains(
+            "capability_constraint_revisions -> capability_identities (capability_id)"
+        ));
+        assert!(schema.contains("capability_constraint_revisions,"));
+        assert!(constraint_revision_upsert_sql().contains("ON CONFLICT (capability_id, revision_id)"));
+        assert!(constraint_revision_upsert_sql().contains("DO UPDATE"));
+        assert!(
+            constraint_revision_restore_sql().contains("ON CONFLICT (capability_id, revision_id)")
+        );
+        assert!(constraint_revision_restore_sql().contains("DO NOTHING"));
+        assert!(constraint_revision_select_sql().contains("FROM capability_constraint_revisions"));
+
+        let capability_id = Uuid::from_u128(4);
+        let at = at_backup();
+        let mut revision = revision(capability_id, at).revision;
+        revision.accuracy = Some(super::super::CapabilityAccuracy::AbsoluteAndRelative {
+            absolute_maximum_error: 5,
+            relative_maximum_error_ppm: 250,
+        });
+        let mut stored = Vec::new();
+        remember_revision(&mut stored, capability_id, &revision);
+        revision.bounds.maximum = 42;
+        remember_revision(&mut stored, capability_id, &revision);
+        assert_eq!(stored.len(), 1);
+        assert_eq!(stored[0].revision.bounds.maximum, 42);
+        assert_eq!(
+            stored[0].revision.accuracy,
+            Some(super::super::CapabilityAccuracy::AbsoluteAndRelative {
+                absolute_maximum_error: 5,
+                relative_maximum_error_ppm: 250,
+            })
+        );
+
+        let exported = revisions_for_export(&stored, &[]);
+        assert_eq!(exported, stored);
+        let mut restored = Vec::new();
+        restore_revision(&mut restored, &exported[0]);
+        restore_revision(&mut restored, &exported[0]);
+        assert_eq!(restored, exported);
     }
 }

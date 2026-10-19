@@ -24,3 +24,11 @@ pub use current_state::CurrentState;
 pub use persistence::{CapabilityRepository, CapabilityStoreError};
 pub use service::{CapabilityService, CapabilityServiceError};
 pub use types::*;
+
+pub(crate) async fn sweep_history_budget(
+    pool: &crate::state::DbPool,
+    now: chrono::DateTime<chrono::Utc>,
+    already_running: bool,
+) -> Result<bool, String> {
+    history_retention::sweep_budget(pool, now, already_running).await
+}

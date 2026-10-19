@@ -110,6 +110,10 @@ fn reconcile_sync(
                 .returning(capability_identities::id)
                 .get_result::<Uuid>(conn)?;
 
+            for revision in &declaration.constraint_revisions {
+                super::history_backup::upsert_constraint_revision(conn, id, revision)?;
+            }
+
             registered.push(RegisteredCapability {
                 id: CapabilityId::from(id),
                 declaration,

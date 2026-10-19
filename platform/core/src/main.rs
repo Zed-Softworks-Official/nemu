@@ -82,6 +82,10 @@ async fn main() {
         info!("database migrations applied; pool ready");
     }
 
+    if let Err(error) = capabilities::history_budget::resolve_data_directory(&pool).await {
+        warn!(%error, "postgres data directory was not resolved");
+    }
+
     let identity = load_or_create_identity(&pool, &config.controller_name)
         .await
         .expect("failed to load controller identity");
