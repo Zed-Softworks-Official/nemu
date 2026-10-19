@@ -11,6 +11,7 @@ use crate::db::schema::{
 };
 use crate::state::DbPool;
 
+use super::admission_journal::{self, AdmissionJournal, FinalizedGap, GapReason, GapScope};
 use super::{
     CanonicalUnit, CapabilityId, CapabilityKind, CapabilityReading, CapabilityReport,
     HistoryAdmissionOutcome, HistoryRejection, IngestResult, RegisteredCapability, TimeTrust,
@@ -68,6 +69,23 @@ pub(super) struct HistoryGate {
     order: VecDeque<CapabilityId>,
     queued: usize,
     disk_floor_breached: Arc<dyn Fn() -> bool + Send + Sync>,
+    pressure_since: Option<DateTime<Utc>>,
+    storage_since: Option<DateTime<Utc>>,
+    untrusted_since: Option<DateTime<Utc>>,
+    pending_finalizations: Vec<PendingFinalization>,
+}
+
+struct PendingFinalization {
+    reason: GapReason,
+    scope: GapScope,
+    onset: DateTime<Utc>,
+    until: DateTime<Utc>,
+}
+
+struct JournalSignals {
+    finalizations: Vec<PendingFinalization>,
+    open_queue_pressure: Option<DateTime<Utc>>,
+    open_untrusted: Option<DateTime<Utc>>,
 }
 
 /// Raw retention is the correction window. Older observations stay out of History.
@@ -97,6 +115,10 @@ impl HistoryGate {
             order: VecDeque::new(),
             queued: 0,
             disk_floor_breached: default_disk_floor(),
+            pressure_since: None,
+            storage_since: None,
+            untrusted_since: None,
+            pending_finalizations: Vec::new(),
         }
     }
 
@@ -141,6 +163,16 @@ impl HistoryGate {
                 continue;
             };
             self.note_recording(outcome.capability_id, received_at);
+            if matches!(
+                outcome.history,
+                HistoryAdmissionOutcome::Rejected(HistoryRejection::UntrustworthyTime)
+            ) {
+                self.untrusted_since.get_or_insert(received_at);
+            } else if outcome.history == HistoryAdmissionOutcome::Eligible {
+                if let Some(onset) = self.untrusted_since.take() {
+                    self.note_loss(GapReason::UntrustedTime, GapScope::Home, onset, received_at);
+                }
+            }
             if outcome.history != HistoryAdmissionOutcome::Eligible {
                 continue;
             }
@@ -203,8 +235,16 @@ impl HistoryGate {
                     HistoryAdmissionOutcome::Rejected(HistoryRejection::AdmissionRate);
                 continue;
             }
-            if self.queued + self.inflight.len() >= self.capacity {
+            if self.at_capacity() {
                 outcome.history = HistoryAdmissionOutcome::Rejected(HistoryRejection::QueueFull);
+                // Record the drop in memory. The flush loop journals it so admission does not fsync.
+                self.note_loss(
+                    GapReason::QueueLoss,
+                    GapScope::Capability(outcome.capability_id),
+                    received_at,
+                    received_at,
+                );
+                self.pressure_since.get_or_insert(received_at);
                 continue;
             }
             self.note_receipt(outcome.capability_id, received_at);
@@ -221,7 +261,11 @@ impl HistoryGate {
                 received_at,
                 reset: observation.reset,
             });
+            if self.at_capacity() {
+                self.pressure_since.get_or_insert(received_at);
+            }
         }
+        self.publish_queue();
     }
 
     fn note_recording(&mut self, id: CapabilityId, received_at: DateTime<Utc>) {
@@ -291,10 +335,12 @@ impl HistoryGate {
             }
             observations.push(row);
         }
-        HistoryBatch {
+        let batch = HistoryBatch {
             bounds,
             observations,
-        }
+        };
+        self.publish_queue();
+        batch
     }
 
     fn acknowledge(&mut self, batch: &HistoryBatch) {
@@ -302,6 +348,7 @@ impl HistoryGate {
             self.inflight
                 .remove(&(row.observation_id.clone(), row.capability_id));
         }
+        self.publish_queue();
     }
 
     fn requeue(&mut self, batch: HistoryBatch) {
@@ -320,6 +367,55 @@ impl HistoryGate {
                 self.order.push_front(id);
             }
         }
+        self.publish_queue();
+    }
+
+    fn at_capacity(&self) -> bool {
+        self.queued + self.inflight.len() >= self.capacity
+    }
+
+    fn below_capacity(&self) -> bool {
+        !self.at_capacity()
+    }
+
+    fn note_loss(
+        &mut self,
+        reason: GapReason,
+        scope: GapScope,
+        onset: DateTime<Utc>,
+        until: DateTime<Utc>,
+    ) {
+        self.pending_finalizations.push(PendingFinalization {
+            reason,
+            scope,
+            onset,
+            until,
+        });
+    }
+
+    fn take_journal_signals(&mut self) -> JournalSignals {
+        JournalSignals {
+            finalizations: std::mem::take(&mut self.pending_finalizations),
+            open_queue_pressure: self.pressure_since,
+            open_untrusted: self.untrusted_since,
+        }
+    }
+
+    fn note_storage(&mut self, at: DateTime<Utc>) -> DateTime<Utc> {
+        *self.storage_since.get_or_insert(at)
+    }
+
+    fn clear_storage(&mut self) {
+        self.storage_since = None;
+    }
+
+    fn publish_queue(&self) {
+        admission_journal::publish_queue(admission_journal::QueueSnapshot {
+            queued: self.queued,
+            inflight: self.inflight.len(),
+            capacity: self.capacity,
+            pressured: self.at_capacity(),
+        });
     }
 }
 
@@ -339,6 +435,20 @@ impl HistoryRepository {
         }
         let conn = self.pool.get().await?;
         conn.interact(move |conn| commit_sync(conn, &batch)).await?
+    }
+
+    async fn upsert_finalized(&self, gaps: Vec<FinalizedGap>) -> Result<(), HistoryStoreError> {
+        if gaps.is_empty() {
+            return Ok(());
+        }
+        let conn = self.pool.get().await?;
+        conn.interact(move |conn| {
+            for gap in &gaps {
+                admission_journal::upsert_history_gap(conn, gap)?;
+            }
+            Ok(())
+        })
+        .await?
     }
 }
 
@@ -411,29 +521,129 @@ impl From<std::num::TryFromIntError> for HistoryStoreError {
 
 pub(super) fn spawn_loop(gate: Arc<Mutex<HistoryGate>>, store: HistoryRepository) {
     tokio::spawn(async move {
+        let opened =
+            AdmissionJournal::open(&admission_journal::journal_path()).unwrap_or_else(|error| {
+                tracing::warn!(%error, "history admission journal unavailable");
+                AdmissionJournal::unpersisted_uncertain()
+            });
+        let journal = Arc::new(Mutex::new(opened));
+        admission_journal::install(Arc::clone(&journal));
+        reconcile_journal(&journal, &store).await;
+
         let mut interval = tokio::time::interval(StdDuration::from_millis(200));
         loop {
             interval.tick().await;
-            let batch = gate
-                .lock()
-                .expect("history gate poisoned")
-                .drain(HISTORY_FLUSH_BATCH);
+            let (batch, signals) = {
+                let mut gate = gate.lock().expect("history gate poisoned");
+                let signals = gate.take_journal_signals();
+                let batch = gate.drain(HISTORY_FLUSH_BATCH);
+                (batch, signals)
+            };
+            apply_journal_signals(&journal, signals);
             if batch.is_empty() {
+                let below_capacity = gate.lock().expect("history gate poisoned").below_capacity();
+                if below_capacity {
+                    if let Err(error) = journal
+                        .lock()
+                        .expect("admission journal poisoned")
+                        .dismiss_provisional(GapReason::QueueLoss)
+                    {
+                        tracing::warn!(%error, "history queue-loss provisional clear failed");
+                    }
+                }
+                reconcile_journal(&journal, &store).await;
                 continue;
             }
             match store.commit(batch.clone()).await {
                 Ok(()) => {
-                    gate.lock()
-                        .expect("history gate poisoned")
-                        .acknowledge(&batch);
+                    let (signals, below_capacity) = {
+                        let mut gate = gate.lock().expect("history gate poisoned");
+                        gate.acknowledge(&batch);
+                        gate.clear_storage();
+                        let below_capacity = gate.below_capacity();
+                        if below_capacity {
+                            gate.pressure_since = None;
+                        }
+                        (gate.take_journal_signals(), below_capacity)
+                    };
+                    apply_journal_signals(&journal, signals);
+                    let result = {
+                        let mut journal = journal.lock().expect("admission journal poisoned");
+                        if below_capacity {
+                            journal.clear_provisional()
+                        } else {
+                            journal.dismiss_provisional(GapReason::StorageFailure)
+                        }
+                    };
+                    if let Err(error) = result {
+                        tracing::warn!(%error, "history provisional clear failed");
+                    }
                 }
                 Err(error) => {
                     tracing::warn!(%error, "capability history flush failed");
-                    gate.lock().expect("history gate poisoned").requeue(batch);
+                    let onset = {
+                        let mut gate = gate.lock().expect("history gate poisoned");
+                        gate.requeue(batch);
+                        gate.note_storage(Utc::now())
+                    };
+                    if let Err(error) = journal
+                        .lock()
+                        .expect("admission journal poisoned")
+                        .open_provisional(GapReason::StorageFailure, GapScope::Home, onset)
+                    {
+                        tracing::warn!(%error, "history storage-failure journal failed");
+                    }
                 }
             }
+            reconcile_journal(&journal, &store).await;
         }
     });
+}
+
+fn apply_journal_signals(journal: &Mutex<AdmissionJournal>, signals: JournalSignals) {
+    let mut journal = journal.lock().expect("admission journal poisoned");
+    for gap in signals.finalizations {
+        if let Err(error) = journal.finalize(gap.reason, gap.scope, gap.onset, gap.until) {
+            tracing::warn!(%error, "history gap finalize failed");
+        }
+    }
+    if let Some(onset) = signals.open_queue_pressure {
+        if let Err(error) = journal.open_provisional(GapReason::QueueLoss, GapScope::Home, onset) {
+            tracing::warn!(%error, "history queue-loss journal failed");
+        }
+    }
+    if let Some(onset) = signals.open_untrusted {
+        if let Err(error) =
+            journal.open_provisional(GapReason::UntrustedTime, GapScope::Home, onset)
+        {
+            tracing::warn!(%error, "history untrusted-time journal failed");
+        }
+    }
+    if let Err(error) = journal.persist_disk_floor() {
+        tracing::warn!(%error, "history disk-floor journal failed");
+    }
+}
+
+async fn reconcile_journal(journal: &Mutex<AdmissionJournal>, store: &HistoryRepository) {
+    let gaps = journal
+        .lock()
+        .expect("admission journal poisoned")
+        .finalized();
+    if gaps.is_empty() {
+        return;
+    }
+    match store.upsert_finalized(gaps.clone()).await {
+        Ok(()) => {
+            if let Err(error) = journal
+                .lock()
+                .expect("admission journal poisoned")
+                .forget_reconciled(&gaps)
+            {
+                tracing::warn!(%error, "history gap journal update failed");
+            }
+        }
+        Err(error) => tracing::warn!(%error, "history gap reconcile failed"),
+    }
 }
 
 #[cfg(test)]
@@ -688,6 +898,46 @@ mod tests {
     }
 
     #[test]
+    fn queue_full_records_scope_loss_without_journaling_inline() {
+        let power = CapabilityId::from_uuid(Uuid::from_u128(3));
+        let energy = CapabilityId::from_uuid(Uuid::from_u128(4));
+        let power_capability = capability(power, CapabilityKind::Power, 2);
+        let energy_capability = capability(energy, CapabilityKind::ImportedEnergy, 2);
+        let device = power_capability.declaration.identity.device.clone();
+        let state = CurrentState::new(StateEpoch::from_uuid(Uuid::from_u128(9)));
+        state.reconcile_manifest(&device, vec![power_capability, energy_capability], at(0));
+        let mut gate = HistoryGate::new(1);
+        admit(
+            &mut gate,
+            &state,
+            report("power-1", 10, power, CapabilityKind::Power, 100, None),
+            at(10),
+        );
+        let rejected = admit(
+            &mut gate,
+            &state,
+            report(
+                "energy-1",
+                10,
+                energy,
+                CapabilityKind::ImportedEnergy,
+                50,
+                None,
+            ),
+            at(10),
+        );
+        assert_eq!(
+            rejected.outcomes[0].history,
+            HistoryAdmissionOutcome::Rejected(HistoryRejection::QueueFull)
+        );
+        let signals = gate.take_journal_signals();
+        assert_eq!(signals.finalizations.len(), 1);
+        assert_eq!(signals.finalizations[0].reason, GapReason::QueueLoss);
+        assert_eq!(signals.finalizations[0].scope, GapScope::Capability(energy));
+        assert_eq!(signals.open_queue_pressure, Some(at(10)));
+    }
+
+    #[test]
     fn ineligible_reading_is_not_queued() {
         let id = CapabilityId::from_uuid(Uuid::from_u128(5));
         let registered = capability(id, CapabilityKind::Power, 60);
@@ -709,6 +959,36 @@ mod tests {
         assert_eq!(gate.queued, 0);
         assert_eq!(gate.recording_since[&id], at(12));
         assert!(gate.drain(8).observations.is_empty());
+    }
+
+    #[test]
+    fn untrustworthy_time_records_a_home_interval_without_journaling_inline() {
+        let id = CapabilityId::from_uuid(Uuid::from_u128(5));
+        let registered = capability(id, CapabilityKind::Power, 60);
+        let state = CurrentState::new(StateEpoch::from_uuid(Uuid::from_u128(9)));
+        let device = registered.declaration.identity.device.clone();
+        state.reconcile_manifest(&device, vec![registered], at(0));
+        let mut reading = report("obs-1", 10, id, CapabilityKind::Power, 80, None);
+        reading.time_trust = TimeTrust::Untrustworthy;
+        let mut gate = HistoryGate::new(8);
+        admit(&mut gate, &state, reading, at(12));
+        let signals = gate.take_journal_signals();
+        assert_eq!(signals.open_untrusted, Some(at(12)));
+        assert!(signals.finalizations.is_empty());
+
+        admit(
+            &mut gate,
+            &state,
+            report("obs-2", 20, id, CapabilityKind::Power, 90, None),
+            at(20),
+        );
+        let signals = gate.take_journal_signals();
+        assert!(signals.open_untrusted.is_none());
+        assert_eq!(signals.finalizations.len(), 1);
+        assert_eq!(signals.finalizations[0].reason, GapReason::UntrustedTime);
+        assert_eq!(signals.finalizations[0].scope, GapScope::Home);
+        assert_eq!(signals.finalizations[0].onset, at(12));
+        assert_eq!(signals.finalizations[0].until, at(20));
     }
 
     #[test]

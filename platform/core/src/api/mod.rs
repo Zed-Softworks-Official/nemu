@@ -4,6 +4,7 @@ pub mod devices;
 pub mod error;
 pub mod health;
 pub mod history_budget;
+pub mod history_health;
 pub mod identify;
 pub mod landing;
 pub mod matter;

@@ -1,5 +1,5 @@
 mod adapter;
-mod admission_journal;
+pub mod admission_journal;
 mod current_state;
 mod history;
 pub mod history_budget;
