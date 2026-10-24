@@ -23,7 +23,10 @@ pub trait UpdaterControl: Send + Sync {
 }
 
 /// The Updater installed under a Controller directory. Status reads Home data
-/// from that directory and does not record an audit entry.
+/// from that directory and does not record an audit entry. This caller has no
+/// published channel manifest and does not use the Controller identity key as
+/// the release key, so no Release is available until a manifest host and the
+/// release public key are supplied to `updater::status`.
 #[derive(Clone)]
 pub struct DirectoryUpdater {
     controller_dir: PathBuf,
@@ -39,7 +42,9 @@ impl DirectoryUpdater {
 
 impl UpdaterControl for DirectoryUpdater {
     fn status(&self) -> Result<ReleaseStatus, String> {
-        let installed = updater::status(&self.controller_dir).map_err(|error| error.to_string())?;
+        let manifests = updater::MissingManifestHost;
+        let installed = updater::status(&self.controller_dir, &manifests, None)
+            .map_err(|error| error.to_string())?;
         Ok(ReleaseStatus {
             platform_version: installed.platform_version,
             channel: installed.channel.as_str().to_string(),
@@ -100,6 +105,28 @@ mod tests {
 
         let pending = forward_release_status("owner", "pending", &updater);
         assert_eq!(pending, Err(ForwardError::Refused));
+        assert_eq!(updater.calls.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn an_owner_is_forwarded_a_newer_release_and_a_member_is_refused() {
+        let updater = FakeUpdater {
+            status: ReleaseStatus {
+                platform_version: "0.4.9".to_string(),
+                channel: "stable".to_string(),
+                newer_release_available: true,
+            },
+            calls: AtomicU32::new(0),
+        };
+
+        let forwarded = forward_release_status("owner", "active", &updater).expect("owner");
+        assert_eq!(forwarded.platform_version, "0.4.9");
+        assert_eq!(forwarded.channel, "stable");
+        assert!(forwarded.newer_release_available);
+        assert_eq!(updater.calls.load(Ordering::SeqCst), 1);
+
+        let member = forward_release_status("member", "active", &updater);
+        assert_eq!(member, Err(ForwardError::Refused));
         assert_eq!(updater.calls.load(Ordering::SeqCst), 1);
     }
 }

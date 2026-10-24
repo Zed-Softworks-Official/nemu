@@ -692,6 +692,7 @@ export default function SettingsPage() {
 
 function releaseChannelLabel(channel: string | null): string {
     if (channel === 'stable') return 'Stable'
+    if (channel === 'canary') return 'Canary'
     if (!channel) return '—'
     return channel
 }
