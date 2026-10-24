@@ -49,7 +49,7 @@ jobs:
       - name: Build and push
         uses: useblacksmith/build-push-action@v2
         with:
-          context: platform/core
+          context: .
           file: platform/core/Dockerfile
           push: true
           platforms: ${{ matrix.platform }}

@@ -1,5 +1,9 @@
 import { z } from 'zod'
-import { clientTokenSchema, householdMemberSchema } from './api.ts'
+import {
+    clientTokenSchema,
+    householdMemberSchema,
+    updateStatusResponseSchema,
+} from './api.ts'
 import {
     capabilityChangeEventSchema,
     capabilitySnapshotEventSchema,
@@ -73,6 +77,7 @@ const authenticatedRelayMessageSchema = z.union([
     getHomeMeterDesignationMessageSchema,
     exportHistoryBackupMessageSchema,
     importHistoryBackupMessageSchema,
+    z.object({ type: z.literal('releaseStatus') }),
 ])
 
 export const relayToControllerEnvelopeSchema = z.union([
@@ -125,6 +130,9 @@ export const relayToClientEnvelopeSchema = z.object({
         homeMeterDesignationResultSchema,
         historyBackupResultSchema,
         historyBackupRestoredSchema,
+        updateStatusResponseSchema.extend({
+            type: z.literal('releaseStatus'),
+        }),
     ]),
 })
 export type RelayToClientEnvelope = z.infer<typeof relayToClientEnvelopeSchema>

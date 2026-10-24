@@ -43,6 +43,8 @@ import {
     type SaveMatterWifiRequest,
     saveMatterWifiRequestSchema,
     tokensResponseSchema,
+    type UpdateStatusResponse,
+    updateStatusResponseSchema,
 } from '@nemu/protocol'
 import type { AxiosInstance } from 'axios'
 import { createControllerHttp, type GetToken } from '../http'
@@ -268,6 +270,11 @@ export class LanTransport implements ControllerTransport {
     async getMembers(): Promise<HouseholdMember[]> {
         const { data } = await this.http.get('/api/members')
         return membersResponseSchema.parse(data).members
+    }
+
+    async getReleaseStatus(): Promise<UpdateStatusResponse> {
+        const { data } = await this.http.get('/api/updates')
+        return updateStatusResponseSchema.parse(data)
     }
 
     async inviteMember(email: string): Promise<HouseholdMember> {

@@ -24,6 +24,7 @@ import {
     type Room,
     type SaveMatterWifiRequest,
     statusFromMode,
+    type UpdateStatusResponse,
 } from '@nemu/protocol'
 import type { ConvexReactClient } from 'convex/react'
 import {
@@ -326,6 +327,16 @@ export class ControllerConnection {
     ): Promise<HomeMeterDesignation> {
         const transport = this.requireConnectedTransport('Home meter')
         return await transport.designateHomeMeter(selection)
+    }
+
+    async getReleaseStatus(): Promise<UpdateStatusResponse> {
+        const transport = this.requireConnectedTransport('Installed Release')
+        if (!transport.getReleaseStatus) {
+            throw new Error(
+                'Installed Release is not supported by this controller'
+            )
+        }
+        return await transport.getReleaseStatus()
     }
 
     async getMembers(): Promise<HouseholdMember[]> {

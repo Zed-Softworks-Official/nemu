@@ -182,10 +182,9 @@ export const sessionMintResultSchema = z.object({
 export type SessionMintResult = z.infer<typeof sessionMintResultSchema>
 
 export const updateStatusResponseSchema = z.object({
-    currentVersion: z.string(),
-    updateAvailable: z.boolean(),
-    image: z.string().optional(),
-    images: z.array(z.string()).optional(),
+    platformVersion: z.string(),
+    channel: z.literal('stable'),
+    newerReleaseAvailable: z.boolean(),
 })
 export type UpdateStatusResponse = z.infer<typeof updateStatusResponseSchema>
 

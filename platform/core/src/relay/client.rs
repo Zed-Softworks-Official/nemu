@@ -116,6 +116,8 @@ enum ToControllerMessage {
     ExportHistoryBackup,
     #[serde(rename = "importHistoryBackup")]
     ImportHistoryBackup { archive: String },
+    #[serde(rename = "releaseStatus")]
+    ReleaseStatus,
 }
 
 #[derive(Serialize)]
@@ -560,6 +562,25 @@ async fn handle_message(
                 ),
                 Err(error) => {
                     build_error_response(state, &message.request_id, error.code(), error.message())
+                }
+            }
+        }
+        ToControllerMessage::ReleaseStatus => {
+            match crate::api::updates::read_release_status(state, &auth).await {
+                Ok(status) => match serde_json::to_value(&status) {
+                    Ok(mut body) => {
+                        body["type"] = json!("releaseStatus");
+                        build_typed_response(state, &message.request_id, body)
+                    }
+                    Err(_) => build_error_response(
+                        state,
+                        &message.request_id,
+                        "updater_unavailable",
+                        "Could not read the installed Release",
+                    ),
+                },
+                Err(error) => {
+                    build_error_response(state, &message.request_id, &error.code, &error.message)
                 }
             }
         }

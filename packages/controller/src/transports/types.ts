@@ -20,6 +20,7 @@ import type {
     PermitJoinResponse,
     Room,
     SaveMatterWifiRequest,
+    UpdateStatusResponse,
 } from '@nemu/protocol'
 
 export interface ControllerTransport {
@@ -70,6 +71,7 @@ export interface ControllerTransport {
     revokeToken?(tokenId: string): Promise<void>
     revokeCurrentToken?(): Promise<void>
     bootstrapOwner?(request: BootstrapOwnerRequest): Promise<HouseholdMember>
+    getReleaseStatus?(): Promise<UpdateStatusResponse>
 }
 
 export interface ControllerTransport {

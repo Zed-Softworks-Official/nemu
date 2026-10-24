@@ -27,6 +27,7 @@ import {
     type Room,
     type SaveMatterWifiRequest,
     statusFromMode,
+    type UpdateStatusResponse,
 } from '@nemu/protocol'
 import type { ConvexReactClient } from 'convex/react'
 import {
@@ -83,6 +84,7 @@ type ControllerContextValue = {
     revokeToken: (tokenId: string) => Promise<void>
     revokeCurrentToken: () => Promise<void>
     bootstrapOwner: (request: BootstrapOwnerRequest) => Promise<HouseholdMember>
+    getReleaseStatus: () => Promise<UpdateStatusResponse>
 }
 
 const ControllerContext = createContext<ControllerContextValue | null>(null)
@@ -235,6 +237,10 @@ export function ControllerProvider({
         (request: BootstrapOwnerRequest) => connection.bootstrapOwner(request),
         [connection]
     )
+    const getReleaseStatus = useCallback(
+        () => connection.getReleaseStatus(),
+        [connection]
+    )
 
     const value = useMemo(
         () => ({
@@ -265,6 +271,7 @@ export function ControllerProvider({
             revokeToken,
             revokeCurrentToken,
             bootstrapOwner,
+            getReleaseStatus,
         }),
         [
             connection,
@@ -294,6 +301,7 @@ export function ControllerProvider({
             revokeToken,
             revokeCurrentToken,
             bootstrapOwner,
+            getReleaseStatus,
         ]
     )
 

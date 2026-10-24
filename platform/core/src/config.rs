@@ -1,4 +1,5 @@
 use std::env;
+use std::path::PathBuf;
 
 fn env_truthy(name: &str, default: bool) -> bool {
     match env::var(name) {
@@ -64,6 +65,9 @@ pub struct Config {
     pub tls_extra_sans: Vec<String>,
     pub watchtower_url: Option<String>,
     pub watchtower_token: Option<String>,
+    /// Controller directory. The Updater stores the Release channel and
+    /// Platform version here, outside stack files a Release replaces.
+    pub home_dir: PathBuf,
 }
 
 impl Config {
@@ -112,6 +116,11 @@ impl Config {
             watchtower_token: env::var("WATCHTOWER_HTTP_API_TOKEN")
                 .ok()
                 .filter(|s| !s.is_empty()),
+            home_dir: env::var("NEMU_HOME_DIR")
+                .ok()
+                .filter(|value| !value.is_empty())
+                .map(PathBuf::from)
+                .unwrap_or_else(|| PathBuf::from("/opt/nemu")),
         }
     }
 }

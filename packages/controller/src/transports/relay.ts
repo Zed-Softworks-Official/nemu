@@ -17,6 +17,8 @@ import {
     parseDeviceList,
     relayToClientEnvelopeSchema,
     relayToControllerEnvelopeSchema,
+    type UpdateStatusResponse,
+    updateStatusResponseSchema,
 } from '@nemu/protocol'
 import type { ConvexReactClient } from 'convex/react'
 import type { FunctionReference } from 'convex/server'
@@ -220,6 +222,15 @@ export class RelayTransport implements ControllerTransport {
             }
         }
         throw new Error('Unexpected relay response for command')
+    }
+
+    async getReleaseStatus(): Promise<UpdateStatusResponse> {
+        const parsed = await this.request({ type: 'releaseStatus' })
+        if (parsed.message.type === 'releaseStatus') {
+            return updateStatusResponseSchema.parse(parsed.message)
+        }
+        this.throwIfCommandError(parsed, 'read the installed Release')
+        throw new Error('Unexpected relay response for releaseStatus')
     }
 
     async getMembers(): Promise<HouseholdMember[]> {

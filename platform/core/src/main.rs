@@ -30,6 +30,7 @@ mod retention;
 mod state;
 mod tls;
 mod tls_sync;
+mod updater_control;
 mod watchtower;
 
 use capabilities::CapabilityService;
@@ -42,6 +43,7 @@ use pairing::tokens::count_client_tokens;
 use registration::register_with_retry;
 use relay::client::spawn_relay_loop;
 use state::{AppState, HealthFlags};
+use updater_control::DirectoryUpdater;
 use watchtower::WatchtowerClient;
 
 #[tokio::main]
@@ -185,6 +187,7 @@ async fn main() {
             )),
             _ => None,
         },
+        updater: Arc::new(DirectoryUpdater::new(config.home_dir.clone())),
     };
 
     spawn_mqtt_loop(state.clone(), eventloop);
