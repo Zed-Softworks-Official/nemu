@@ -16,7 +16,13 @@ import {
     deviceEventSchema,
     deviceSchema,
     devicesResponseSchema,
+    type HistoryQuery,
+    type HistoryQueryRead,
+    type HomeMeterDesignation,
+    type HomeMeterDesignationSelection,
     type HouseholdMember,
+    historyQueryReadSchema,
+    homeMeterDesignationResultSchema,
     householdMemberSchema,
     inviteMemberRequestSchema,
     type MatterWifiResponse,
@@ -73,6 +79,18 @@ type PendingCommand = {
     timer: ReturnType<typeof setTimeout>
 }
 
+type PendingHistory = {
+    resolve: (result: HistoryQueryRead) => void
+    reject: (err: Error) => void
+    timer: ReturnType<typeof setTimeout>
+}
+
+type PendingDesignation = {
+    resolve: (result: HomeMeterDesignation | null) => void
+    reject: (err: Error) => void
+    timer: ReturnType<typeof setTimeout>
+}
+
 export type LanTransportOptions = {
     baseUrl: string
     getToken: GetToken
@@ -95,7 +113,11 @@ export class LanTransport implements ControllerTransport {
     private reconnectAttempt = 0
     private reconnectTimer: ReturnType<typeof setTimeout> | null = null
     private readonly listeners = new Set<(event: DeviceEvent) => void>()
+    private readonly reopenListeners = new Set<() => void>()
+    private socketGeneration = 0
     private readonly pending = new Map<string, PendingCommand>()
+    private readonly historyPending = new Map<string, PendingHistory>()
+    private readonly designationPending = new Map<string, PendingDesignation>()
 
     constructor(options: LanTransportOptions) {
         this.baseUrl = options.baseUrl.replace(/\/$/, '')
@@ -132,6 +154,16 @@ export class LanTransport implements ControllerTransport {
             pending.reject(new Error('LAN transport disconnected'))
         }
         this.pending.clear()
+        for (const [, pending] of this.historyPending) {
+            clearTimeout(pending.timer)
+            pending.reject(new Error('LAN transport disconnected'))
+        }
+        this.historyPending.clear()
+        for (const [, pending] of this.designationPending) {
+            clearTimeout(pending.timer)
+            pending.reject(new Error('LAN transport disconnected'))
+        }
+        this.designationPending.clear()
     }
 
     async getDevices(): Promise<Device[]> {
@@ -269,6 +301,49 @@ export class LanTransport implements ControllerTransport {
         return householdMemberSchema.parse(data)
     }
 
+    /**
+     * Holds the response only until this promise settles. Nothing is written
+     * to localStorage, IndexedDB, or a service worker.
+     */
+    async getHomeMeterDesignation(): Promise<HomeMeterDesignation | null> {
+        return await this.requestDesignation({
+            type: 'getHomeMeterDesignation',
+        })
+    }
+
+    async designateHomeMeter(
+        selection: HomeMeterDesignationSelection
+    ): Promise<HomeMeterDesignation> {
+        const designation = await this.requestDesignation({
+            type: 'designateHomeMeter',
+            ...selection,
+        })
+        if (!designation) {
+            throw new Error('Home meter designation was not saved')
+        }
+        return designation
+    }
+
+    async queryHistory(query: HistoryQuery): Promise<HistoryQueryRead> {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+            throw new Error('WebSocket not connected')
+        }
+        const requestId = crypto.randomUUID()
+        const message = clientWsMessageSchema.parse({
+            type: 'historyQuery',
+            requestId,
+            ...query,
+        })
+        return await new Promise<HistoryQueryRead>((resolve, reject) => {
+            const timer = setTimeout(() => {
+                this.historyPending.delete(requestId)
+                reject(new Error('History query timed out'))
+            }, this.commandTimeoutMs)
+            this.historyPending.set(requestId, { resolve, reject, timer })
+            this.ws?.send(JSON.stringify(message))
+        })
+    }
+
     async sendCommand(cmd: DeviceCommand): Promise<CommandResult> {
         const requestId = crypto.randomUUID()
 
@@ -277,8 +352,13 @@ export class LanTransport implements ControllerTransport {
             return await this.sendViaWs(requestId, cmd)
         }
 
-        await this.http.post(`/api/devices/${cmd.deviceId}/set`, cmd.payload)
-        return { requestId, ok: true }
+        const { data } = await this.http.post<{
+            ok: boolean
+            outcome?: string
+        }>(`/api/devices/${cmd.deviceId}/set`, cmd.payload, {
+            headers: { 'x-command-id': requestId },
+        })
+        return { requestId, ok: data.ok, outcome: data.outcome }
     }
 
     subscribeEvents(cb: (event: DeviceEvent) => void): () => void {
@@ -286,6 +366,44 @@ export class LanTransport implements ControllerTransport {
         return () => {
             this.listeners.delete(cb)
         }
+    }
+
+    onSocketReopen(cb: () => void): () => void {
+        this.reopenListeners.add(cb)
+        return () => {
+            this.reopenListeners.delete(cb)
+        }
+    }
+
+    requestCapabilitySnapshot(): void {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+            throw new Error('WebSocket not connected')
+        }
+        this.ws.send(JSON.stringify({ type: 'requestCapabilitySnapshot' }))
+    }
+
+    private requestDesignation(message: {
+        type: 'getHomeMeterDesignation' | 'designateHomeMeter'
+        powerCapabilityId?: string | null
+        importedEnergyCapabilityId?: string | null
+        exportedEnergyCapabilityId?: string | null
+    }): Promise<HomeMeterDesignation | null> {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+            throw new Error('WebSocket not connected')
+        }
+        const requestId = crypto.randomUUID()
+        const payload = clientWsMessageSchema.parse({
+            ...message,
+            requestId,
+        })
+        return new Promise<HomeMeterDesignation | null>((resolve, reject) => {
+            const timer = setTimeout(() => {
+                this.designationPending.delete(requestId)
+                reject(new Error('Home meter designation timed out'))
+            }, this.commandTimeoutMs)
+            this.designationPending.set(requestId, { resolve, reject, timer })
+            this.ws?.send(JSON.stringify(payload))
+        })
     }
 
     private async sendViaWs(
@@ -331,8 +449,15 @@ export class LanTransport implements ControllerTransport {
             this.ws = ws
 
             const onOpen = () => {
+                const reopened = this.socketGeneration > 0
+                this.socketGeneration += 1
                 this.reconnectAttempt = 0
                 cleanup()
+                if (reopened) {
+                    for (const listener of this.reopenListeners) {
+                        listener()
+                    }
+                }
                 resolve()
             }
             const onError = () => {
@@ -359,6 +484,30 @@ export class LanTransport implements ControllerTransport {
             return
         }
 
+        const history = historyQueryReadSchema.safeParse(raw)
+        if (history.success) {
+            const pending = this.historyPending.get(history.data.requestId)
+            if (pending) {
+                clearTimeout(pending.timer)
+                this.historyPending.delete(history.data.requestId)
+                pending.resolve(history.data)
+            }
+            return
+        }
+
+        const designation = homeMeterDesignationResultSchema.safeParse(raw)
+        if (designation.success) {
+            const pending = this.designationPending.get(
+                designation.data.requestId
+            )
+            if (pending) {
+                clearTimeout(pending.timer)
+                this.designationPending.delete(designation.data.requestId)
+                pending.resolve(designation.data.designation)
+            }
+            return
+        }
+
         const parsed = deviceEventSchema.safeParse(raw)
         if (!parsed.success) {
             return
@@ -366,6 +515,28 @@ export class LanTransport implements ControllerTransport {
 
         const event = parsed.data
         if (event.type === 'commandResult') {
+            const designationPending = this.designationPending.get(
+                event.requestId
+            )
+            if (designationPending && !event.ok) {
+                clearTimeout(designationPending.timer)
+                this.designationPending.delete(event.requestId)
+                designationPending.reject(
+                    new Error(
+                        event.error?.message ?? 'Home meter designation failed'
+                    )
+                )
+                return
+            }
+            const historyPending = this.historyPending.get(event.requestId)
+            if (historyPending && !event.ok) {
+                clearTimeout(historyPending.timer)
+                this.historyPending.delete(event.requestId)
+                historyPending.reject(
+                    new Error(event.error?.message ?? 'History query failed')
+                )
+                return
+            }
             const pending = this.pending.get(event.requestId)
             if (pending) {
                 clearTimeout(pending.timer)
@@ -373,6 +544,7 @@ export class LanTransport implements ControllerTransport {
                 pending.resolve({
                     requestId: event.requestId,
                     ok: event.ok,
+                    outcome: event.outcome,
                     error: event.error,
                 })
             }

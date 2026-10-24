@@ -1,6 +1,23 @@
 import { z } from 'zod'
-import { clientTokenSchema, householdMemberSchema } from './api'
-import { deviceStateSchema } from './device'
+import { clientTokenSchema, householdMemberSchema } from './api.ts'
+import {
+    capabilityChangeEventSchema,
+    capabilitySnapshotEventSchema,
+} from './capability.ts'
+import { deviceStateSchema } from './device.ts'
+import {
+    designateHomeMeterMessageSchema,
+    exportHistoryBackupMessageSchema,
+    getHomeMeterDesignationMessageSchema,
+    historyBackupRestoredSchema,
+    historyBackupResultSchema,
+    historyCursorMessageSchema,
+    historyQueryMessageSchema,
+    historyQueryRestartSchema,
+    historyQueryResultSchema,
+    homeMeterDesignationResultSchema,
+    importHistoryBackupMessageSchema,
+} from './history.ts'
 
 const relayCommandMessageSchema = z.object({
     type: z.literal('command'),
@@ -11,6 +28,7 @@ const relayCommandMessageSchema = z.object({
 const relayCommandResultMessageSchema = z.object({
     type: z.literal('commandResult'),
     ok: z.boolean(),
+    outcome: z.string().optional(),
     error: z
         .object({
             code: z.string(),
@@ -47,6 +65,14 @@ const authenticatedRelayMessageSchema = z.union([
         email: z.string(),
         displayName: z.string().optional(),
     }),
+    z.object({ type: z.literal('getCapabilitySnapshot') }),
+    z.object({ type: z.literal('watchCapabilityChanges') }),
+    historyQueryMessageSchema,
+    historyCursorMessageSchema,
+    designateHomeMeterMessageSchema,
+    getHomeMeterDesignationMessageSchema,
+    exportHistoryBackupMessageSchema,
+    importHistoryBackupMessageSchema,
 ])
 
 export const relayToControllerEnvelopeSchema = z.union([
@@ -91,6 +117,14 @@ export const relayToClientEnvelopeSchema = z.object({
             type: z.literal('tokens'),
             tokens: z.array(clientTokenSchema),
         }),
+        capabilitySnapshotEventSchema,
+        capabilityChangeEventSchema,
+        z.object({ type: z.literal('capabilityWatchAck') }),
+        historyQueryResultSchema,
+        historyQueryRestartSchema,
+        homeMeterDesignationResultSchema,
+        historyBackupResultSchema,
+        historyBackupRestoredSchema,
     ]),
 })
 export type RelayToClientEnvelope = z.infer<typeof relayToClientEnvelopeSchema>

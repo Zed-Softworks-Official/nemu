@@ -1,5 +1,7 @@
 import {
     type BootstrapOwnerRequest,
+    CapabilitySession,
+    type CapabilityView,
     type ClientToken,
     type CommandResult,
     type CommissionRequest,
@@ -9,6 +11,10 @@ import {
     type Device,
     type DeviceCommand,
     type DeviceEvent,
+    type HistoryQuery,
+    type HistoryQueryRead,
+    type HomeMeterDesignation,
+    type HomeMeterDesignationSelection,
     type HouseholdMember,
     type MatterWifiResponse,
     type PatchDeviceRequest,
@@ -46,6 +52,11 @@ export type ControllerConnectionOptions = {
     reprobeIntervalMs?: number
     /** Manual controller id when identify isn't available yet. */
     controllerId?: string | null
+    /**
+     * When set, relay is skipped until this returns true. The local socket
+     * still connects. Callers use it so `relay:send` waits for Convex auth.
+     */
+    relayAllowed?: () => boolean
 }
 
 type StatusListener = (status: ConnectionStatus) => void
@@ -60,9 +71,11 @@ export class ControllerConnection {
     private readonly statusListeners = new Set<StatusListener>()
     private readonly eventListeners = new Set<(event: DeviceEvent) => void>()
     private eventUnsub: (() => void) | null = null
+    private reopenUnsub: (() => void) | null = null
     private reprobeTimer: ReturnType<typeof setInterval> | null = null
     private readonly options: ControllerConnectionOptions
     private started = false
+    private readonly capabilitySession = new CapabilitySession()
 
     constructor(options: ControllerConnectionOptions = {}) {
         this.options = options
@@ -85,6 +98,16 @@ export class ControllerConnection {
         return () => {
             this.eventListeners.delete(cb)
         }
+    }
+
+    getCapabilityView(): CapabilityView | null {
+        return this.capabilitySession.view()
+    }
+
+    subscribeCapabilityView(
+        cb: (view: CapabilityView | null) => void
+    ): () => void {
+        return this.capabilitySession.subscribe(cb)
     }
 
     async start(): Promise<void> {
@@ -284,6 +307,27 @@ export class ControllerConnection {
         await transport.forgetDevice(deviceId)
     }
 
+    /**
+     * Returns the active History view. The connection does not retain the
+     * series after this promise settles.
+     */
+    async queryHistory(query: HistoryQuery): Promise<HistoryQueryRead> {
+        const transport = this.requireConnectedTransport('Energy History')
+        return await transport.queryHistory(query)
+    }
+
+    async getHomeMeterDesignation(): Promise<HomeMeterDesignation | null> {
+        const transport = this.requireConnectedTransport('Home meter')
+        return await transport.getHomeMeterDesignation()
+    }
+
+    async designateHomeMeter(
+        selection: HomeMeterDesignationSelection
+    ): Promise<HomeMeterDesignation> {
+        const transport = this.requireConnectedTransport('Home meter')
+        return await transport.designateHomeMeter(selection)
+    }
+
     async getMembers(): Promise<HouseholdMember[]> {
         const transport = this.requireConnectedTransport('Household members')
         if (!transport.getMembers) {
@@ -434,6 +478,10 @@ export class ControllerConnection {
             this.options.controllerId ?? getRememberedControllerId()
         const token = getClientToken()
 
+        if (this.options.relayAllowed && !this.options.relayAllowed()) {
+            return false
+        }
+
         if (!convex || !relayApi || !controllerId || !token) {
             return false
         }
@@ -469,18 +517,32 @@ export class ControllerConnection {
         this.teardownTransport()
         this.transport = transport
         this.eventUnsub = transport.subscribeEvents((event) => {
+            this.capabilitySession.deliver(event, () =>
+                this.requestCapabilitySnapshot()
+            )
             for (const listener of this.eventListeners) {
                 listener(event)
             }
-            if (event.type === 'resync' || event.type === 'deviceLeft') {
-                // UI hooks refetch; nothing else required here
-            }
         })
+        this.reopenUnsub =
+            transport.onSocketReopen?.(() => {
+                this.capabilitySession.connect(() =>
+                    this.requestCapabilitySnapshot()
+                )
+            }) ?? null
+        this.capabilitySession.connect(() => this.requestCapabilitySnapshot())
+    }
+
+    private requestCapabilitySnapshot(): void | Promise<void> {
+        return this.transport?.requestCapabilitySnapshot?.()
     }
 
     private teardownTransport(): void {
         this.eventUnsub?.()
         this.eventUnsub = null
+        this.reopenUnsub?.()
+        this.reopenUnsub = null
+        this.capabilitySession.disconnect()
         this.transport?.disconnect()
         this.transport = null
     }

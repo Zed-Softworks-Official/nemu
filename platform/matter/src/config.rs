@@ -48,6 +48,10 @@ impl Config {
     pub fn adopted_path(&self) -> PathBuf {
         self.data_dir.join("adopted-nodes.json")
     }
+
+    pub fn meter_identities_path(&self) -> PathBuf {
+        self.data_dir.join("meter-observations.json")
+    }
 }
 
 fn env_flag(name: &str) -> bool {

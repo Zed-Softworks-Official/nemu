@@ -13,6 +13,7 @@
         "start": "next start",
         "check-types": "tsc --noEmit",
         "typecheck": "tsc --noEmit",
+        "test": "node --experimental-strip-types --test src/lib/energy-presentation.test.ts",
         "with-env": "dotenv -e ../../.env --"
     },
     "dependencies": {

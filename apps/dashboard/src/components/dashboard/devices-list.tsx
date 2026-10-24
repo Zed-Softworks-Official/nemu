@@ -1,6 +1,6 @@
 'use client'
 
-import { useController, useDevices } from '@nemu/controller'
+import { useCapabilityState, useController, useDevices } from '@nemu/controller'
 import { Badge } from '@nemu/ui/components/badge'
 import { Button } from '@nemu/ui/components/button'
 import { Card, CardContent } from '@nemu/ui/components/card'
@@ -49,6 +49,7 @@ const categories: DeviceCategory[] = ['light', 'climate', 'sensor', 'outlet']
 
 export function DevicesList() {
     const { devices, error, refresh, status } = useDevices()
+    const { view } = useCapabilityState()
     const { reprobe } = useController()
     const [query, setQuery] = useState('')
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
@@ -56,8 +57,9 @@ export function DevicesList() {
     const deferredQuery = useDeferredValue(query)
 
     const presentedDevices = useMemo(
-        () => devices?.map(presentDevice),
-        [devices]
+        () =>
+            devices?.map((device) => presentDevice(device, view?.capabilities)),
+        [devices, view]
     )
     const filteredDevices = useMemo(() => {
         const normalizedQuery = deferredQuery.trim().toLowerCase()

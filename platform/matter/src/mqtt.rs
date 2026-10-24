@@ -26,6 +26,10 @@ pub enum IncomingMessage {
     SubscribeEnded {
         node_id: u64,
     },
+    CapabilityIds {
+        device_id: String,
+        payload: Value,
+    },
     AttributeChange {
         node_id: u64,
         endpoint: u16,
@@ -119,7 +123,11 @@ pub fn start(config: &Config) -> (MqttBus, mpsc::UnboundedReceiver<IncomingMessa
             match eventloop.poll().await {
                 Ok(Event::Incoming(Incoming::ConnAck(_))) => {
                     info!("mqtt connected");
-                    let filters = [format!("{base}/bridge/request/#"), format!("{base}/+/set")];
+                    let filters = [
+                        format!("{base}/bridge/request/#"),
+                        format!("{base}/+/set"),
+                        format!("{base}/+/capability-ids"),
+                    ];
                     for filter in filters {
                         if let Err(error) = client.subscribe(filter, QoS::AtLeastOnce).await {
                             error!(error = %error, "failed to subscribe");
@@ -127,7 +135,15 @@ pub fn start(config: &Config) -> (MqttBus, mpsc::UnboundedReceiver<IncomingMessa
                     }
                 }
                 Ok(Event::Incoming(Incoming::Publish(publish))) => {
-                    if let Some(message) = parse_incoming(&base, &publish.topic, &publish.payload) {
+                    if publish.topic == format!("{base}/bridge/request/health/check") {
+                        // Answer on this task with try_publish. Awaiting publish
+                        // here would deadlock the event loop, and the service
+                        // loop may be inside a wildcard read for longer than
+                        // the controller waits.
+                        reply_health(&client, &base, &publish.payload);
+                    } else if let Some(message) =
+                        parse_incoming(&base, &publish.topic, &publish.payload)
+                    {
                         let _ = tx.send(message);
                     }
                 }
@@ -161,6 +177,14 @@ fn parse_incoming(base: &str, topic: &str, payload: &[u8]) -> Option<IncomingMes
     if rest == "bridge/request/device/rename" {
         return Some(IncomingMessage::Rename { payload: value });
     }
+    if let Some(device_id) = rest.strip_suffix("/capability-ids")
+        && !device_id.contains('/')
+    {
+        return Some(IncomingMessage::CapabilityIds {
+            device_id: device_id.to_string(),
+            payload: value,
+        });
+    }
     if let Some(device_id) = rest.strip_suffix("/set")
         && !device_id.contains('/')
     {
@@ -174,4 +198,17 @@ fn parse_incoming(base: &str, topic: &str, payload: &[u8]) -> Option<IncomingMes
 
 pub fn transaction_of(payload: &Value) -> Option<&str> {
     payload.get("transaction").and_then(Value::as_str)
+}
+
+fn reply_health(client: &AsyncClient, base: &str, payload: &[u8]) {
+    let body = String::from_utf8_lossy(payload);
+    let value: Value = serde_json::from_str(&body).unwrap_or(Value::Null);
+    let mut response = json!({ "status": "ok" });
+    if let Some(transaction) = transaction_of(&value) {
+        response["transaction"] = json!(transaction);
+    }
+    let topic = format!("{base}/bridge/response/health/check");
+    if let Err(error) = client.try_publish(topic, QoS::AtLeastOnce, false, response.to_string()) {
+        warn!(error = %error, "health response publish failed");
+    }
 }

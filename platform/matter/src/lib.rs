@@ -2,6 +2,7 @@ pub mod adopt;
 pub mod codec;
 pub mod config;
 pub mod mapping;
+pub mod meters;
 pub mod mqtt;
 pub mod names;
 pub mod pairing;

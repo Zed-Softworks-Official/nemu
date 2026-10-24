@@ -132,36 +132,75 @@ pub(crate) fn unique_front(ids: impl IntoIterator<Item = u64>) -> Vec<u64> {
 }
 
 /// Operational mDNS instance names are `{compressedFabric}-{nodeId}` as 16-digit hex.
-/// Prefer ids listed after `none matching:` — those are live on the LAN, not the
-/// id we guessed and failed to find.
+/// Prefer ids listed after `none matching:` when they share the fabric we looked
+/// up. A record from another fabric is a different controller's device.
 pub fn node_ids_from_mdns_error(raw: &str) -> Vec<u64> {
-    if let Some(rest) = raw.split("none matching:").nth(1) {
-        let seen = operational_node_ids(rest);
-        if !seen.is_empty() {
-            return seen;
-        }
-    }
-    Vec::new()
-}
-
-fn operational_node_ids(raw: &str) -> Vec<u64> {
+    let Some(rest) = raw.split("none matching:").nth(1) else {
+        return Vec::new();
+    };
+    let queried = queried_fabric(raw);
     unique_front(
-        raw.split(|c: char| !(c.is_ascii_hexdigit() || c == '-'))
-            .filter_map(|token| {
-                let (fabric, node) = token.split_once('-')?;
-                if fabric.len() != 16 || node.len() != 16 {
-                    return None;
-                }
-                if !fabric.chars().all(|c| c.is_ascii_hexdigit())
-                    || !node.chars().all(|c| c.is_ascii_hexdigit())
-                {
-                    return None;
-                }
-                u64::from_str_radix(node, 16)
-                    .ok()
-                    .filter(|&id| id >= FIRST_DEVICE_NODE_ID)
+        operational_records(rest)
+            .into_iter()
+            .filter_map(|(fabric, id)| {
+                queried
+                    .as_deref()
+                    .is_none_or(|ours| ours.eq_ignore_ascii_case(&fabric))
+                    .then_some(id)
             }),
     )
+}
+
+/// The only devices mDNS returned belong to a different fabric than the one
+/// this controller asked for.
+pub fn foreign_fabric_only(raw: &str) -> bool {
+    let Some(ours) = queried_fabric(raw) else {
+        return false;
+    };
+    let Some(rest) = raw.split("none matching:").nth(1) else {
+        return false;
+    };
+    let seen = operational_records(rest);
+    !seen.is_empty()
+        && seen
+            .iter()
+            .all(|(fabric, _)| !fabric.eq_ignore_ascii_case(&ours))
+}
+
+fn queried_fabric(raw: &str) -> Option<String> {
+    let start = raw.find("operational node ")? + "operational node ".len();
+    operational_records(&raw[start..])
+        .into_iter()
+        .next()
+        .map(|(fabric, _)| fabric)
+}
+
+fn operational_records(raw: &str) -> Vec<(String, u64)> {
+    let mut seen = HashSet::new();
+    let mut out = Vec::new();
+    for token in raw.split(|c: char| !(c.is_ascii_hexdigit() || c == '-')) {
+        let Some((fabric, node)) = token.split_once('-') else {
+            continue;
+        };
+        if fabric.len() != 16 || node.len() != 16 {
+            continue;
+        }
+        if !fabric.chars().all(|c| c.is_ascii_hexdigit())
+            || !node.chars().all(|c| c.is_ascii_hexdigit())
+        {
+            continue;
+        }
+        let Some(id) = u64::from_str_radix(node, 16)
+            .ok()
+            .filter(|&id| id >= FIRST_DEVICE_NODE_ID)
+        else {
+            continue;
+        };
+        if seen.insert((fabric.to_ascii_lowercase(), id)) {
+            out.push((fabric.to_string(), id));
+        }
+    }
+    out
 }
 
 #[cfg(test)]
@@ -198,6 +237,15 @@ mod tests {
         let raw = "operational node 23eb1b69ccf1eaf6-0000000000000006 not found via mDNS \
              (saw 1 operational mDNS record(s), none matching: 23eb1b69ccf1eaf6-0000000000000005)";
         assert_eq!(node_ids_from_mdns_error(raw), vec![5]);
+        assert!(!foreign_fabric_only(raw));
+    }
+
+    #[test]
+    fn foreign_fabric_record_is_not_our_node() {
+        let raw = "operational node 23EB1B69CCF1EAF6-0000000000000002 not found via mDNS \
+             (saw 1 operational mDNS record(s), none matching: 7ba9abb2fb7c58fd-0000000000000002)";
+        assert!(node_ids_from_mdns_error(raw).is_empty());
+        assert!(foreign_fabric_only(raw));
     }
 
     #[test]

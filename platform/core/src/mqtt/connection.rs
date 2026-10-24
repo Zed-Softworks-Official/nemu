@@ -3,26 +3,37 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
+use chrono::Utc;
 use rumqttc::{AsyncClient, Event, Incoming, MqttOptions, QoS, Transport};
 use serde_json::{Value as JsonValue, json};
 use tokio::sync::{Mutex, oneshot};
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
+use crate::capabilities::{
+    AdapterCapabilityManifest, AdapterObservationReport, DeviceIdentity, UnavailableReason,
+    registration_message,
+};
 use crate::config::{BridgeConfig, Config, Protocol};
 use crate::db::models::Device;
-use crate::devices::registry::log_event;
+use crate::diagnostics::{self, DiagnosticKind, DiagnosticWrite};
 use crate::events::{DeviceEvent, InterviewStatus};
+use crate::identity::{read_setting, write_setting};
+
+const ZIGBEE_METER_JOURNAL: &str = "zigbee_meter_journal";
+use crate::mqtt::meters::{ZigbeeJournal, translate_zigbee};
 use crate::mqtt::z2m::{
-    self, IncomingTopic, commission_cancel_topic, commission_topic, get_state_payload, get_topic,
-    health_check_topic, parse_availability, parse_bridge_event, parse_bridge_response,
-    parse_bridge_state, parse_devices_payload, parse_topic, permit_join_payload, permit_join_topic,
-    remove_payload, remove_topic, rename_payload, rename_topic, set_topic,
+    self, IncomingTopic, bridge_response_wakes_request, commission_cancel_topic, commission_topic,
+    get_state_payload, get_topic, health_check_topic, matter_online_needs_probe,
+    parse_availability, parse_bridge_event, parse_bridge_response, parse_bridge_state,
+    parse_devices_payload, parse_topic, permit_join_payload, permit_join_topic, remove_payload,
+    remove_topic, rename_payload, rename_topic, set_topic, zigbee_remove_needs_force,
 };
 use crate::state::AppState;
 
 const STATE_REFRESH_GAP: Duration = Duration::from_millis(75);
 const BRIDGE_RESPONSE_TIMEOUT: Duration = Duration::from_secs(15);
+const MATTER_HEALTH_TIMEOUT: Duration = Duration::from_secs(2);
 
 type PendingResponse = oneshot::Sender<Result<JsonValue, String>>;
 
@@ -82,6 +93,13 @@ impl MqttHandle {
             .map_err(|e| e.to_string())
     }
 
+    pub async fn publish_retained(&self, topic: String, payload: String) -> Result<(), String> {
+        self.client
+            .publish(topic, QoS::AtLeastOnce, true, payload)
+            .await
+            .map_err(|e| e.to_string())
+    }
+
     pub async fn permit_join(&self, seconds: u32) -> Result<(), String> {
         let topic = permit_join_topic(self.base_topic(Protocol::Zigbee)?);
         let body = permit_join_payload(seconds);
@@ -106,20 +124,65 @@ impl MqttHandle {
     }
 
     pub async fn remove_device(&self, protocol: Protocol, external_id: &str) -> Result<(), String> {
+        if protocol == Protocol::Matter {
+            self.ensure_matter_running().await?;
+        }
         let topic = remove_topic(self.base_topic(protocol)?);
+        match self.request_remove(&topic, external_id, false).await {
+            Ok(()) => Ok(()),
+            Err(error) if protocol == Protocol::Zigbee && zigbee_remove_needs_force(&error) => self
+                .request_remove(&topic, external_id, true)
+                .await
+                .map_err(|error| Self::map_remove_error(protocol, error)),
+            Err(error) => Err(Self::map_remove_error(protocol, error)),
+        }
+    }
+
+    async fn request_remove(
+        &self,
+        topic: &str,
+        external_id: &str,
+        force: bool,
+    ) -> Result<(), String> {
         let transaction = Uuid::new_v4().to_string();
-        let body = remove_payload(external_id, &transaction);
-        self.request_with_transaction(topic, body, transaction)
+        let body = remove_payload(external_id, &transaction, force);
+        self.request_with_transaction(
+            topic.to_string(),
+            body,
+            transaction,
+            BRIDGE_RESPONSE_TIMEOUT,
+        )
+        .await
+        .map(|_| ())
+    }
+
+    fn map_remove_error(protocol: Protocol, error: String) -> String {
+        match protocol {
+            Protocol::Zigbee if error == TIMEOUT_MARKER => {
+                "device removal timed out; wake the device and try again".into()
+            }
+            Protocol::Matter if error == TIMEOUT_MARKER => {
+                "unpairing timed out; check that the Matter service is running".into()
+            }
+            _ => error,
+        }
+    }
+
+    /// The Matter process answers this from its MQTT task, even while a node
+    /// read is still running. A missing answer means the process is gone.
+    async fn ensure_matter_running(&self) -> Result<(), String> {
+        let topic = health_check_topic(self.base_topic(Protocol::Matter)?);
+        let transaction = Uuid::new_v4().to_string();
+        let body = json!({ "transaction": transaction }).to_string();
+        self.request_with_transaction(topic, body, transaction, MATTER_HEALTH_TIMEOUT)
             .await
             .map(|_| ())
-            .map_err(|error| match protocol {
-                Protocol::Zigbee if error == TIMEOUT_MARKER => {
-                    "device removal timed out; wake the device and try again".into()
+            .map_err(|error| {
+                if error == TIMEOUT_MARKER {
+                    "the Matter service is not running".into()
+                } else {
+                    error
                 }
-                Protocol::Matter if error == TIMEOUT_MARKER => {
-                    "unpairing timed out; check that the Matter service is running".into()
-                }
-                _ => error,
             })
     }
 
@@ -130,15 +193,20 @@ impl MqttHandle {
         let transaction = Uuid::new_v4().to_string();
         let mut body = payload;
         body["transaction"] = JsonValue::String(transaction.clone());
-        self.request_with_transaction(topic, body.to_string(), transaction)
-            .await
-            .map_err(|error| {
-                if error == TIMEOUT_MARKER {
-                    "the Matter service did not respond; check that it is running".into()
-                } else {
-                    error
-                }
-            })
+        self.request_with_transaction(
+            topic,
+            body.to_string(),
+            transaction,
+            BRIDGE_RESPONSE_TIMEOUT,
+        )
+        .await
+        .map_err(|error| {
+            if error == TIMEOUT_MARKER {
+                "the Matter service did not respond; check that it is running".into()
+            } else {
+                error
+            }
+        })
     }
 
     /// Ask the matter bridge to abort an in-flight commission.
@@ -149,7 +217,7 @@ impl MqttHandle {
         };
         let transaction = Uuid::new_v4().to_string();
         let body = json!({ "transaction": transaction }).to_string();
-        self.request_with_transaction(topic, body, transaction)
+        self.request_with_transaction(topic, body, transaction, BRIDGE_RESPONSE_TIMEOUT)
             .await
             .map_err(|error| {
                 if error == TIMEOUT_MARKER {
@@ -165,6 +233,7 @@ impl MqttHandle {
         topic: String,
         body: String,
         transaction: String,
+        timeout: Duration,
     ) -> Result<JsonValue, String> {
         let (sender, receiver) = oneshot::channel();
         self.pending_responses
@@ -181,7 +250,7 @@ impl MqttHandle {
             return Err(error.to_string());
         }
 
-        match tokio::time::timeout(BRIDGE_RESPONSE_TIMEOUT, receiver).await {
+        match tokio::time::timeout(timeout, receiver).await {
             Ok(Ok(result)) => result,
             Ok(Err(_)) => Err("bridge response channel closed".into()),
             Err(_) => {
@@ -319,10 +388,44 @@ fn health_event(state: &AppState) -> DeviceEvent {
     }
 }
 
+async fn confirm_matter_bridge(state: &AppState) {
+    match state.mqtt.ensure_matter_running().await {
+        Ok(()) => {
+            if !state.health.matter() {
+                state.health.set_bridge(Protocol::Matter, true);
+                state.emit(health_event(state));
+                state.emit(DeviceEvent::Resync);
+            }
+        }
+        Err(error) => {
+            warn!(%error, "matter bridge did not answer health check");
+            if state.health.matter() {
+                state.health.set_bridge(Protocol::Matter, false);
+                state.capabilities.mark_protocol_unavailable(
+                    Protocol::Matter.as_str(),
+                    UnavailableReason::AdapterDisconnected,
+                    Utc::now(),
+                );
+                state.emit(health_event(state));
+            }
+        }
+    }
+}
+
 pub fn spawn_mqtt_loop(state: AppState, mut eventloop: rumqttc::EventLoop) {
     tokio::spawn(async move {
         let mut backoff_ms: u64 = 500;
         let mut was_online = BridgeOnlineFlags::default();
+        let mut zigbee_journal = match read_setting(&state.db, ZIGBEE_METER_JOURNAL).await {
+            Ok(Some(raw)) => ZigbeeJournal::parse(&raw),
+            Ok(None) => ZigbeeJournal::default(),
+            Err(error) => {
+                warn!(error = %error, "zigbee meter journal unavailable");
+                ZigbeeJournal::default()
+            }
+        };
+        let mut adapter_manifests: HashMap<String, AdapterCapabilityManifest> = HashMap::new();
+        let mut adapter_reports: HashMap<String, AdapterObservationReport> = HashMap::new();
 
         loop {
             match eventloop.poll().await {
@@ -342,7 +445,17 @@ pub fn spawn_mqtt_loop(state: AppState, mut eventloop: rumqttc::EventLoop) {
                 Ok(Event::Incoming(Incoming::Publish(publish))) => {
                     let topic = publish.topic.clone();
                     let payload = String::from_utf8_lossy(&publish.payload).to_string();
-                    if let Err(e) = handle_publish(&state, &topic, &payload, &mut was_online).await
+                    if let Err(e) = handle_publish(
+                        &state,
+                        &topic,
+                        &payload,
+                        publish.retain,
+                        &mut was_online,
+                        &mut zigbee_journal,
+                        &mut adapter_manifests,
+                        &mut adapter_reports,
+                    )
+                    .await
                     {
                         if state
                             .mqtt
@@ -358,6 +471,9 @@ pub fn spawn_mqtt_loop(state: AppState, mut eventloop: rumqttc::EventLoop) {
                 Ok(Event::Incoming(Incoming::Disconnect)) => {
                     warn!("mqtt broker disconnected");
                     state.health.set_mqtt(false);
+                    state
+                        .capabilities
+                        .mark_all_unavailable(UnavailableReason::AdapterDisconnected, Utc::now());
                     state.emit(health_event(&state));
                 }
                 Ok(_) => {}
@@ -366,6 +482,9 @@ pub fn spawn_mqtt_loop(state: AppState, mut eventloop: rumqttc::EventLoop) {
                     state.health.set_mqtt(false);
                     state.health.set_bridge(Protocol::Zigbee, false);
                     state.health.set_bridge(Protocol::Matter, false);
+                    state
+                        .capabilities
+                        .mark_all_unavailable(UnavailableReason::AdapterDisconnected, Utc::now());
                     state.emit(health_event(&state));
                     tokio::time::sleep(Duration::from_millis(backoff_ms)).await;
                     backoff_ms = (backoff_ms.saturating_mul(2)).min(30_000);
@@ -392,7 +511,11 @@ async fn handle_publish(
     state: &AppState,
     topic: &str,
     payload: &str,
+    retained: bool,
     was_online: &mut BridgeOnlineFlags,
+    zigbee_journal: &mut ZigbeeJournal,
+    adapter_manifests: &mut HashMap<String, AdapterCapabilityManifest>,
+    adapter_reports: &mut HashMap<String, AdapterObservationReport>,
 ) -> Result<(), String> {
     let Some(bridge) = state.mqtt.bridge_for_topic(topic).cloned() else {
         return Ok(());
@@ -402,9 +525,24 @@ async fn handle_publish(
     match parse_topic(&bridge.base_topic, topic) {
         IncomingTopic::BridgeState => {
             let online = parse_bridge_state(payload).map_err(|e| e.to_string())?;
+            if protocol == Protocol::Matter && matter_online_needs_probe(retained, online) {
+                let state = state.clone();
+                tokio::spawn(async move {
+                    confirm_matter_bridge(&state).await;
+                });
+                return Ok(());
+            }
             let previously = was_online.get(protocol);
             state.health.set_bridge(protocol, online);
             was_online.set(protocol, online);
+
+            if !online {
+                state.capabilities.mark_protocol_unavailable(
+                    protocol.as_str(),
+                    UnavailableReason::AdapterDisconnected,
+                    Utc::now(),
+                );
+            }
 
             state.emit(health_event(state));
 
@@ -448,7 +586,37 @@ async fn handle_publish(
         }
         IncomingTopic::BridgeEvent => handle_bridge_event(state, protocol, payload).await,
         IncomingTopic::DeviceState { friendly_name } => {
-            handle_device_state(state, protocol, &friendly_name, payload).await
+            handle_device_state(
+                state,
+                protocol,
+                &friendly_name,
+                payload,
+                retained,
+                zigbee_journal,
+            )
+            .await
+        }
+        IncomingTopic::DeviceCapabilities { friendly_name } => {
+            handle_capability_manifest(
+                state,
+                protocol,
+                &friendly_name,
+                payload,
+                adapter_manifests,
+                adapter_reports,
+            )
+            .await
+        }
+        IncomingTopic::DeviceObservations { friendly_name } => {
+            handle_capability_observations(
+                state,
+                protocol,
+                &friendly_name,
+                payload,
+                adapter_manifests,
+                adapter_reports,
+            )
+            .await
         }
         IncomingTopic::DeviceAvailability { friendly_name } => {
             let online = parse_availability(payload).map_err(|e| e.to_string())?;
@@ -456,15 +624,23 @@ async fn handle_publish(
                 state.state_cache.set_online(device.id, online);
                 if online {
                     state.registry.touch_last_seen(&state.db, device.id).await;
+                    crate::commands::resume_pending(state, &device).await;
+                } else {
+                    let capability_device = DeviceIdentity {
+                        protocol: protocol.as_str().into(),
+                        external_id: device.external_id.clone(),
+                    };
+                    state.capabilities.mark_device_unavailable(
+                        &capability_device,
+                        UnavailableReason::Explicit,
+                        Utc::now(),
+                    );
                 }
             }
             Ok(())
         }
         IncomingTopic::BridgeResponse { endpoint } => {
-            if endpoint == "device/remove"
-                || endpoint == "commission"
-                || endpoint == "commission/cancel"
-            {
+            if bridge_response_wakes_request(&endpoint) {
                 state.mqtt.resolve_bridge_response(payload).await
             } else {
                 Ok(())
@@ -583,6 +759,8 @@ async fn handle_device_state(
     protocol: Protocol,
     topic_segment: &str,
     payload: &str,
+    retained: bool,
+    zigbee_journal: &mut ZigbeeJournal,
 ) -> Result<(), String> {
     let value: JsonValue =
         serde_json::from_str(payload).map_err(|e| format!("invalid device state json: {e}"))?;
@@ -596,21 +774,246 @@ async fn handle_device_state(
         return Ok(());
     };
 
-    state.state_cache.set_state(device.id, value.clone());
+    let published = without_meter_report(value.clone());
+    state.state_cache.set_state(device.id, published.clone());
     state.state_cache.set_online(device.id, true);
     state.registry.touch_last_seen(&state.db, device.id).await;
 
-    let _ = log_event(
+    if let Err(error) = diagnostics::record(
         &state.db,
-        Some(device.id),
-        "state",
-        json!({ "state": value }),
+        DiagnosticWrite {
+            kind: DiagnosticKind::AdapterEvent,
+            device_id: Some(device.id),
+            payload: json!({ "state": published }),
+            received_at: Utc::now(),
+        },
     )
-    .await;
+    .await
+    {
+        warn!(%error, "failed to record adapter diagnostic");
+    }
+    if !retained {
+        crate::commands::confirm_device(state, device.id).await;
+    }
+    crate::commands::resume_pending(state, &device).await;
 
     state.emit(DeviceEvent::DeviceState {
         device_id: device.id.to_string(),
-        state: value,
+        state: published,
     });
+
+    if protocol == Protocol::Zigbee {
+        let received_at = Utc::now();
+        let external_id = device.external_id.clone();
+        let previous = zigbee_journal.cursor(&external_id).cloned();
+        let assigned = zigbee_journal.assigned(&external_id);
+        if let Some(meter) = translate_zigbee(
+            &external_id,
+            &value,
+            previous.as_ref(),
+            received_at,
+            retained,
+            &assigned,
+        ) {
+            match state
+                .capabilities
+                .admit_adapter(meter.manifest, meter.report, received_at)
+                .await
+            {
+                Ok(admission) => {
+                    zigbee_journal.remember_ids(&external_id, &admission.registered);
+                }
+                Err(error) => {
+                    warn!(
+                        external_id = %external_id,
+                        error = %error,
+                        "zigbee meter admission failed"
+                    );
+                }
+            }
+            zigbee_journal.remember_cursor(&external_id, meter.cursor);
+            if let Err(error) =
+                write_setting(&state.db, ZIGBEE_METER_JOURNAL, &zigbee_journal.export()).await
+            {
+                warn!(error = %error, "failed to persist zigbee meter journal");
+            }
+        }
+    }
     Ok(())
+}
+
+async fn handle_capability_manifest(
+    state: &AppState,
+    protocol: Protocol,
+    topic_segment: &str,
+    payload: &str,
+    adapter_manifests: &mut HashMap<String, AdapterCapabilityManifest>,
+    adapter_reports: &mut HashMap<String, AdapterObservationReport>,
+) -> Result<(), String> {
+    let Some(device) = resolve_topic_device(state, protocol, topic_segment).await else {
+        return Ok(());
+    };
+    let key = format!("{}:{}", protocol.as_str(), device.external_id);
+    if payload.trim().is_empty() {
+        adapter_manifests.remove(&key);
+        adapter_reports.remove(&key);
+        let identity = DeviceIdentity {
+            protocol: protocol.as_str().into(),
+            external_id: device.external_id,
+        };
+        if let Err(error) = state
+            .capabilities
+            .tombstone_device(&identity, Utc::now())
+            .await
+        {
+            warn!(error = %error, "failed to tombstone cleared Capability manifest");
+        }
+        return Ok(());
+    }
+
+    let manifest: AdapterCapabilityManifest = serde_json::from_str(payload)
+        .map_err(|error| format!("invalid Capability manifest: {error}"))?;
+    if manifest.device.external_id != device.external_id
+        || manifest.device.protocol != protocol.as_str()
+    {
+        return Err("Capability manifest device does not match the topic".into());
+    }
+    // Matter republishes this manifest when it receives capability IDs.
+    // Publishing IDs again for an unchanged manifest loops forever and
+    // starves device commands.
+    if !should_publish_capability_ids(adapter_manifests.get(&key), &manifest) {
+        return Ok(());
+    }
+    let received_at = Utc::now();
+    let registered = state
+        .capabilities
+        .register_adapter_manifest(manifest.clone(), received_at)
+        .await
+        .map_err(|error| error.to_string())?;
+    let message = registration_message(&manifest.device, &registered);
+    let topic = format!(
+        "{}/{topic_segment}/capability-ids",
+        state.mqtt.base_topic(protocol)?
+    );
+    if let Err(error) = state
+        .mqtt
+        .publish_retained(topic, message.to_string())
+        .await
+    {
+        warn!(error = %error, "failed to publish Capability IDs");
+    }
+    adapter_manifests.insert(key.clone(), manifest.clone());
+    if let Some(report) = adapter_reports.get(&key).cloned()
+        && let Err(error) =
+            state
+                .capabilities
+                .ingest_registered_report(&manifest.device, &report, received_at)
+    {
+        warn!(error = %error, "failed to ingest queued Capability observations");
+    }
+    Ok(())
+}
+
+async fn handle_capability_observations(
+    state: &AppState,
+    protocol: Protocol,
+    topic_segment: &str,
+    payload: &str,
+    adapter_manifests: &mut HashMap<String, AdapterCapabilityManifest>,
+    adapter_reports: &mut HashMap<String, AdapterObservationReport>,
+) -> Result<(), String> {
+    if payload.trim().is_empty() {
+        return Ok(());
+    }
+    let Some(device) = resolve_topic_device(state, protocol, topic_segment).await else {
+        return Ok(());
+    };
+    let report: AdapterObservationReport = serde_json::from_str(payload)
+        .map_err(|error| format!("invalid Capability observations: {error}"))?;
+    let identity = DeviceIdentity {
+        protocol: protocol.as_str().into(),
+        external_id: device.external_id.clone(),
+    };
+    let key = format!("{}:{}", protocol.as_str(), device.external_id);
+    adapter_reports.insert(key.clone(), report.clone());
+    if adapter_manifests.contains_key(&key) {
+        if let Err(error) =
+            state
+                .capabilities
+                .ingest_registered_report(&identity, &report, Utc::now())
+        {
+            warn!(error = %error, "failed to ingest Capability observations");
+        }
+    }
+    Ok(())
+}
+
+fn should_publish_capability_ids(
+    cached: Option<&AdapterCapabilityManifest>,
+    next: &AdapterCapabilityManifest,
+) -> bool {
+    cached != Some(next)
+}
+
+fn without_meter_report(mut value: JsonValue) -> JsonValue {
+    strip_meter_fields(&mut value);
+    value
+}
+
+fn strip_meter_fields(value: &mut JsonValue) {
+    let Some(object) = value.as_object_mut() else {
+        return;
+    };
+    for key in ["power", "energy", "voltage", "current"] {
+        object.remove(key);
+    }
+    if let Some(outlets) = object.get_mut("outlets").and_then(JsonValue::as_array_mut) {
+        for outlet in outlets {
+            strip_meter_fields(outlet);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::{should_publish_capability_ids, without_meter_report};
+    use crate::capabilities::AdapterCapabilityManifest;
+
+    #[test]
+    fn unchanged_capability_manifest_is_not_published_again() {
+        let manifest = AdapterCapabilityManifest {
+            schema_version: 1,
+            supported_observation_envelope_versions: vec![1],
+            device: crate::capabilities::DeviceIdentity {
+                protocol: "matter".into(),
+                external_id: "2".into(),
+            },
+            capabilities: Vec::new(),
+        };
+        assert!(should_publish_capability_ids(None, &manifest));
+        assert!(!should_publish_capability_ids(Some(&manifest), &manifest));
+    }
+
+    #[test]
+    fn device_state_report_omits_meter_readings() {
+        let published = without_meter_report(json!({
+            "state": "ON",
+            "brightness": 100,
+            "power": 42.5,
+            "voltage": 120.0,
+            "current": 0.3,
+            "energy": 15.0,
+            "outlets": [{ "id": "1", "state": "ON", "power": 4.0, "energy": 1.0 }]
+        }));
+        assert_eq!(
+            published,
+            json!({
+                "state": "ON",
+                "brightness": 100,
+                "outlets": [{ "id": "1", "state": "ON" }]
+            })
+        );
+    }
 }

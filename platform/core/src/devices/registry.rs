@@ -9,8 +9,9 @@ use tracing::{info, warn};
 use uuid::Uuid;
 
 use crate::config::Protocol;
-use crate::db::models::{Device, NewDevice, NewDeviceEvent, UpdateDevice};
-use crate::db::schema::{device_events, devices};
+use crate::db::models::{Device, NewDevice, UpdateDevice};
+use crate::db::schema::devices;
+use crate::diagnostics::{self, DiagnosticKind, DiagnosticWrite};
 use crate::events::{DeviceEvent, DeviceResource};
 use crate::mqtt::z2m::Z2mDeviceDescriptor;
 use crate::state::{AppState, DbPool};
@@ -227,6 +228,15 @@ impl DeviceRegistry {
 
                 self.remove_id(id).await;
                 state.state_cache.remove(id);
+                let capability_device = crate::capabilities::DeviceIdentity {
+                    protocol: protocol.as_str().into(),
+                    external_id: device.external_id.clone(),
+                };
+                state.capabilities.mark_device_unavailable(
+                    &capability_device,
+                    crate::capabilities::UnavailableReason::MissingInventory,
+                    now,
+                );
                 state.emit(DeviceEvent::DeviceLeft {
                     device_id: id.to_string(),
                 });
@@ -282,13 +292,23 @@ impl DeviceRegistry {
 
         self.put(device.clone()).await;
 
-        let _ = log_event(
+        if let Err(error) = diagnostics::record(
             pool,
-            Some(device.id),
-            "joined",
-            json!({ "protocol": protocol.as_str(), "external_id": external_id }),
+            DiagnosticWrite {
+                kind: DiagnosticKind::AdapterEvent,
+                device_id: Some(device.id),
+                payload: json!({
+                    "event": "joined",
+                    "protocol": protocol.as_str(),
+                    "externalId": external_id,
+                }),
+                received_at: now,
+            },
         )
-        .await;
+        .await
+        {
+            warn!(%error, "failed to record device join diagnostic");
+        }
 
         Ok(device)
     }
@@ -313,16 +333,37 @@ impl DeviceRegistry {
 
         let removed = self.remove_id(id).await;
         state.state_cache.remove(id);
+        let capability_device = crate::capabilities::DeviceIdentity {
+            protocol: protocol.as_str().into(),
+            external_id: external_id.into(),
+        };
+        if let Err(error) = state
+            .capabilities
+            .tombstone_device(&capability_device, Utc::now())
+            .await
+        {
+            warn!(%protocol, %external_id, %error, "failed to tombstone Device Capabilities");
+        }
         state.emit(DeviceEvent::DeviceLeft {
             device_id: id.to_string(),
         });
-        let _ = log_event(
+        if let Err(error) = diagnostics::record(
             pool,
-            Some(id),
-            "left",
-            json!({ "protocol": protocol.as_str(), "external_id": external_id }),
+            DiagnosticWrite {
+                kind: DiagnosticKind::AdapterEvent,
+                device_id: Some(id),
+                payload: json!({
+                    "event": "left",
+                    "protocol": protocol.as_str(),
+                    "externalId": external_id,
+                }),
+                received_at: Utc::now(),
+            },
         )
-        .await;
+        .await
+        {
+            warn!(%error, "failed to record device leave diagnostic");
+        }
         removed
     }
 
@@ -431,29 +472,6 @@ fn infer_device_type(desc: &Z2mDeviceDescriptor) -> String {
         }
     }
     desc.device_type.to_lowercase()
-}
-
-pub async fn log_event(
-    pool: &DbPool,
-    device_id: Option<Uuid>,
-    kind: &str,
-    payload: serde_json::Value,
-) -> Result<(), String> {
-    let kind = kind.to_string();
-    let conn = pool.get().await.map_err(|e| e.to_string())?;
-    conn.interact(move |conn| {
-        diesel::insert_into(device_events::table)
-            .values(NewDeviceEvent {
-                device_id,
-                kind,
-                payload,
-            })
-            .execute(conn)
-    })
-    .await
-    .map_err(|e| e.to_string())?
-    .map_err(|e| e.to_string())?;
-    Ok(())
 }
 
 /// Diff helpers used by unit tests.

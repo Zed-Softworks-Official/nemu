@@ -1,5 +1,17 @@
 import { z } from 'zod'
-import { type DeviceState, deviceSchema, deviceStateSchema } from './device'
+import {
+    capabilityChangeEventSchema,
+    capabilitySnapshotEventSchema,
+} from './capability.ts'
+import { type DeviceState, deviceSchema, deviceStateSchema } from './device.ts'
+import {
+    designateHomeMeterMessageSchema,
+    exportHistoryBackupMessageSchema,
+    getHomeMeterDesignationMessageSchema,
+    historyCursorMessageSchema,
+    historyQueryFields,
+    importHistoryBackupMessageSchema,
+} from './history.ts'
 
 export const deviceEventSchema = z.discriminatedUnion('type', [
     z.object({
@@ -44,6 +56,7 @@ export const deviceEventSchema = z.discriminatedUnion('type', [
         type: z.literal('commandResult'),
         requestId: z.string(),
         ok: z.boolean(),
+        outcome: z.string().optional(),
         error: z
             .object({
                 code: z.string(),
@@ -51,13 +64,40 @@ export const deviceEventSchema = z.discriminatedUnion('type', [
             })
             .optional(),
     }),
+    capabilitySnapshotEventSchema,
+    capabilityChangeEventSchema,
 ])
 export type DeviceEvent = z.infer<typeof deviceEventSchema>
 
-export const clientWsMessageSchema = z.object({
-    type: z.literal('command'),
-    requestId: z.string(),
-    deviceId: z.string(),
-    payload: deviceStateSchema,
-})
+export const clientWsMessageSchema = z.union([
+    z.object({
+        type: z.literal('command'),
+        requestId: z.string(),
+        deviceId: z.string(),
+        payload: deviceStateSchema,
+    }),
+    z.object({
+        type: z.literal('requestCapabilitySnapshot'),
+    }),
+    z.object({
+        type: z.literal('historyQuery'),
+        requestId: z.string(),
+        ...historyQueryFields,
+    }),
+    historyCursorMessageSchema.extend({
+        requestId: z.string(),
+    }),
+    designateHomeMeterMessageSchema.extend({
+        requestId: z.string(),
+    }),
+    getHomeMeterDesignationMessageSchema.extend({
+        requestId: z.string(),
+    }),
+    exportHistoryBackupMessageSchema.extend({
+        requestId: z.string(),
+    }),
+    importHistoryBackupMessageSchema.extend({
+        requestId: z.string(),
+    }),
+])
 export type ClientWsMessage = z.infer<typeof clientWsMessageSchema>

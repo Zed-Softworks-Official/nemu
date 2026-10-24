@@ -1,6 +1,7 @@
 use diesel::prelude::*;
 use uuid::Uuid;
 
+use crate::audit::{self, AuditWrite};
 use crate::db::models::{Member, NewMember};
 use crate::db::schema::members;
 use crate::state::DbPool;
@@ -103,6 +104,7 @@ pub async fn insert_member(
     display_name: Option<&str>,
     role: &str,
     status: &str,
+    audit: Option<AuditWrite>,
 ) -> Result<Member, String> {
     let conn = pool
         .get()
@@ -114,16 +116,22 @@ pub async fn insert_member(
     let role = role.to_string();
     let status = status.to_string();
     conn.interact(move |conn| {
-        diesel::insert_into(members::table)
-            .values(NewMember {
-                user_id: user_id.as_deref(),
-                email: &email,
-                display_name: display_name.as_deref(),
-                role: &role,
-                status: &status,
-            })
-            .get_result::<Member>(conn)
-            .map_err(|e| format!("failed to insert member: {e}"))
+        conn.transaction(|conn| -> Result<Member, anyhow::Error> {
+            let member = diesel::insert_into(members::table)
+                .values(NewMember {
+                    user_id: user_id.as_deref(),
+                    email: &email,
+                    display_name: display_name.as_deref(),
+                    role: &role,
+                    status: &status,
+                })
+                .get_result::<Member>(conn)?;
+            if let Some(audit) = &audit {
+                audit::insert_on(conn, audit)?;
+            }
+            Ok(member)
+        })
+        .map_err(|error| error.to_string())
     })
     .await
     .map_err(|e| format!("db interact error: {e}"))?
@@ -134,6 +142,7 @@ pub async fn activate_member(
     id: Uuid,
     user_id: &str,
     display_name: Option<&str>,
+    audit: Option<AuditWrite>,
 ) -> Result<Member, String> {
     let conn = pool
         .get()
@@ -142,29 +151,45 @@ pub async fn activate_member(
     let user_id = user_id.to_string();
     let display_name = display_name.map(str::to_string);
     conn.interact(move |conn| {
-        diesel::update(members::table.find(id))
-            .set((
-                members::user_id.eq(Some(user_id)),
-                members::status.eq("active"),
-                members::display_name.eq(display_name),
-            ))
-            .get_result::<Member>(conn)
-            .map_err(|e| format!("failed to activate member: {e}"))
+        conn.transaction(|conn| -> Result<Member, anyhow::Error> {
+            let member = diesel::update(members::table.find(id))
+                .set((
+                    members::user_id.eq(Some(user_id)),
+                    members::status.eq("active"),
+                    members::display_name.eq(display_name),
+                ))
+                .get_result::<Member>(conn)?;
+            if let Some(audit) = &audit {
+                audit::insert_on(conn, audit)?;
+            }
+            Ok(member)
+        })
+        .map_err(|error| error.to_string())
     })
     .await
     .map_err(|e| format!("db interact error: {e}"))?
 }
 
-pub async fn delete_member(pool: &DbPool, id: Uuid) -> Result<bool, String> {
+pub async fn delete_member(
+    pool: &DbPool,
+    id: Uuid,
+    audit: Option<AuditWrite>,
+) -> Result<bool, String> {
     let conn = pool
         .get()
         .await
         .map_err(|e| format!("db pool error: {e}"))?;
     conn.interact(move |conn| {
-        let deleted = diesel::delete(members::table.find(id))
-            .execute(conn)
-            .map_err(|e| format!("member delete failed: {e}"))?;
-        Ok(deleted > 0)
+        conn.transaction(|conn| -> Result<bool, anyhow::Error> {
+            let deleted = diesel::delete(members::table.find(id)).execute(conn)?;
+            if deleted > 0
+                && let Some(audit) = &audit
+            {
+                audit::insert_on(conn, audit)?;
+            }
+            Ok(deleted > 0)
+        })
+        .map_err(|error| error.to_string())
     })
     .await
     .map_err(|e| format!("db interact error: {e}"))?

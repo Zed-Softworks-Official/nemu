@@ -112,6 +112,53 @@ fn struct_field<'a>(value: &'a Value, field_id: u32, names: &[&str]) -> Option<&
     None
 }
 
+const ATTR_ACTIVE_POWER: u32 = 8;
+const ATTR_RMS_POWER: u32 = 13;
+
+/// ActivePower is the primary reading. An exact zero is unverified when RMSPower
+/// shows a load, which is the failure that presented a live plug as 0 W.
+pub fn verified_power_milliwatts(attributes: &Attributes, endpoint: u16) -> Option<i64> {
+    let active = integer_attribute(
+        attributes,
+        endpoint,
+        CLUSTER_ELECTRICAL_POWER,
+        ATTR_ACTIVE_POWER,
+    );
+    let rms = integer_attribute(
+        attributes,
+        endpoint,
+        CLUSTER_ELECTRICAL_POWER,
+        ATTR_RMS_POWER,
+    );
+    match (active, rms) {
+        (Some(0), Some(load)) if load != 0 => Some(load),
+        // ActivePower stuck at 0, with no RMS reading, is not a measured idle.
+        (Some(0), None) => None,
+        (Some(value), _) => Some(value),
+        (None, Some(load)) => Some(load),
+        (None, None) => None,
+    }
+}
+
+fn integer_attribute(
+    attributes: &Attributes,
+    endpoint: u16,
+    cluster: u16,
+    attribute: u32,
+) -> Option<i64> {
+    decode_i64(attr(attributes, endpoint, cluster, attribute)?)
+}
+
+fn decode_i64(value: &Value) -> Option<i64> {
+    match value {
+        Value::Number(number) => number.as_i64(),
+        Value::Object(fields) => ["value", "0"]
+            .into_iter()
+            .find_map(|key| fields.get(key).and_then(decode_i64)),
+        _ => None,
+    }
+}
+
 fn as_number(value: &Value) -> Option<f64> {
     match value {
         Value::Number(n) => n.as_f64(),
@@ -513,14 +560,6 @@ pub fn device_descriptor(device: &EndpointDevice, friendly_name: &str) -> Value 
     })
 }
 
-fn round2(value: f64) -> f64 {
-    (value * 100.0).round() / 100.0
-}
-
-fn round3(value: f64) -> f64 {
-    (value * 1000.0).round() / 1000.0
-}
-
 fn round4(value: f64) -> f64 {
     (value * 10_000.0).round() / 10_000.0
 }
@@ -557,31 +596,6 @@ pub fn state_for_endpoint(attributes: &Attributes, endpoint: u16) -> Map<String,
             "color".into(),
             json!({ "x": round4(x / 65536.0), "y": round4(y / 65536.0) }),
         );
-    }
-
-    if let Some(active_power) =
-        attr(attributes, endpoint, CLUSTER_ELECTRICAL_POWER, 8).and_then(as_number)
-    {
-        state.insert("power".into(), json!(round2(active_power / 1000.0)));
-    }
-    if let Some(voltage) = attr(attributes, endpoint, CLUSTER_ELECTRICAL_POWER, 4)
-        .or_else(|| attr(attributes, endpoint, CLUSTER_ELECTRICAL_POWER, 11))
-        .and_then(as_number)
-    {
-        state.insert("voltage".into(), json!(round2(voltage / 1000.0)));
-    }
-    if let Some(current) = attr(attributes, endpoint, CLUSTER_ELECTRICAL_POWER, 5)
-        .or_else(|| attr(attributes, endpoint, CLUSTER_ELECTRICAL_POWER, 12))
-        .and_then(as_number)
-    {
-        state.insert("current".into(), json!(round3(current / 1000.0)));
-    }
-
-    if let Some(energy_mwh) = attr(attributes, endpoint, CLUSTER_ELECTRICAL_ENERGY, 1)
-        .and_then(|imported| struct_field(imported, 0, &["energy"]))
-        .and_then(as_number)
-    {
-        state.insert("energy".into(), json!(round3(energy_mwh / 1_000_000.0)));
     }
 
     state
@@ -919,6 +933,40 @@ mod tests {
     }
 
     #[test]
+    fn unverified_zero_active_power_does_not_hide_a_load() {
+        let attributes = attrs(&[("1/144/8", json!(0)), ("1/144/13", json!(60_000))]);
+        assert_eq!(verified_power_milliwatts(&attributes, 1), Some(60_000));
+        assert!(state_for_endpoint(&attributes, 1).get("power").is_none());
+    }
+
+    #[test]
+    fn lone_zero_active_power_is_not_a_reading() {
+        let attributes = attrs(&[("1/144/8", json!(0))]);
+        assert_eq!(verified_power_milliwatts(&attributes, 1), None);
+        assert!(state_for_endpoint(&attributes, 1).get("power").is_none());
+    }
+
+    #[test]
+    fn corroborated_zero_stays_idle() {
+        let attributes = attrs(&[("1/144/8", json!(0)), ("1/144/13", json!(0))]);
+        assert_eq!(verified_power_milliwatts(&attributes, 1), Some(0));
+        assert!(state_for_endpoint(&attributes, 1).get("power").is_none());
+    }
+
+    #[test]
+    fn missing_power_attribute_is_not_a_zero() {
+        let attributes = attrs(&[("1/6/0", json!(true))]);
+        assert!(state_for_endpoint(&attributes, 1).get("power").is_none());
+    }
+
+    #[test]
+    fn null_active_power_uses_rms_load() {
+        let attributes = attrs(&[("1/144/8", Value::Null), ("1/144/13", json!(40_000))]);
+        assert_eq!(verified_power_milliwatts(&attributes, 1), Some(40_000));
+        assert!(state_for_endpoint(&attributes, 1).get("power").is_none());
+    }
+
+    #[test]
     fn folds_energy_onto_single_plug() {
         let attributes = attrs(&[
             ("0/29/0", device_types(&[DEVICE_TYPE_ROOT_NODE])),
@@ -934,7 +982,7 @@ mod tests {
         assert_eq!(devices[0].energy_endpoint_id, Some(1));
         assert_eq!(
             state_for_device(&devices[0], &attributes),
-            json!({ "state": "ON", "power": 8.0 })
+            json!({ "state": "ON" })
         );
     }
 
@@ -1000,11 +1048,7 @@ mod tests {
                     { "id": "2", "name": "Outlet 1", "state": "ON" },
                     { "id": "3", "name": "Outlet 2", "state": "OFF" },
                     { "id": "4", "name": "Outlet 3", "state": "OFF" }
-                ],
-                "power": 12.5,
-                "voltage": 230.1,
-                "current": 0.054,
-                "energy": 1.234
+                ]
             })
         );
     }

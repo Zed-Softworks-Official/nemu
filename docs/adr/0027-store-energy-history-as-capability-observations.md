@@ -1,0 +1,3 @@
+# Store energy History as Capability observations
+
+Core stores Controller-local energy History as normalized fixed-point Capability observations, not raw adapter events or dashboard aggregates, and keeps each rollup variant in separate relational tables. Stable adapter identities, idempotent processing, a bounded queue, and an external gap journal make retries and storage failures explicit without blocking current state or control. Only a validated Home-meter designation defines Home totals; Nemu neither adds child or overlapping meters nor merges Imported, Exported, Measured, and Estimated energy.

@@ -1,10 +1,11 @@
 use std::collections::{BTreeMap, HashSet};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use convex::{AuthenticationToken, ConvexClient, FunctionResult, Value};
 use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value as JsonValue, json};
+use tokio::sync::broadcast::error::RecvError;
 use tracing::{debug, info, warn};
 use uuid::Uuid;
 
@@ -15,14 +16,16 @@ use crate::api::members::{
 };
 use crate::api::pairing::{list_household_tokens, revoke_current_token, revoke_household_token};
 use crate::commands::execute_set;
+use crate::events::DeviceEvent;
 use crate::pairing::tokens::verify_client_token;
 use crate::registration::{convex_cloud_url, fetch_controller_session, register_with_convex};
-use crate::state::AppState;
+use crate::state::{AppState, CapabilityWatch};
 
 /// HTTP fallback poll interval when the WebSocket client is unavailable.
 const FALLBACK_POLL_INTERVAL_MS: u64 = 15_000;
 const IDLE_BACKOFF_MS: u64 = 5_000;
 const FALLBACK_ROUNDS_BEFORE_RETRY: u32 = 4;
+const CAPABILITY_WATCH_TTL: Duration = Duration::from_secs(45);
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -93,6 +96,26 @@ enum ToControllerMessage {
         #[serde(rename = "displayName")]
         display_name: Option<String>,
     },
+    #[serde(rename = "getCapabilitySnapshot")]
+    GetCapabilitySnapshot,
+    #[serde(rename = "watchCapabilityChanges")]
+    WatchCapabilityChanges,
+    #[serde(rename = "historyQuery")]
+    HistoryQuery {
+        #[serde(flatten)]
+        query: crate::capabilities::history_query::HistoryQueryRequest,
+    },
+    #[serde(rename = "designateHomeMeter")]
+    DesignateHomeMeter {
+        #[serde(flatten)]
+        selection: crate::capabilities::home_meter::DesignationSelection,
+    },
+    #[serde(rename = "getHomeMeterDesignation")]
+    GetHomeMeterDesignation,
+    #[serde(rename = "exportHistoryBackup")]
+    ExportHistoryBackup,
+    #[serde(rename = "importHistoryBackup")]
+    ImportHistoryBackup { archive: String },
 }
 
 #[derive(Serialize)]
@@ -124,6 +147,7 @@ async fn run_relay_loop(state: AppState) {
     let cloud_url = convex_cloud_url(&site_url);
 
     info!(%cloud_url, "relay client started");
+    spawn_capability_watch_pushes(state.clone(), site_url.clone());
 
     loop {
         match run_subscription_relay(&state, &site_url, &cloud_url).await {
@@ -362,15 +386,22 @@ async fn handle_message(
             ref payload,
         } => {
             let result = match Uuid::parse_str(device_id) {
-                Ok(id) => execute_set(state, id, payload.clone()).await,
+                Ok(id) => execute_set(state, &message.request_id, id, payload.clone()).await,
                 Err(_) => Err(crate::commands::CommandError::DeviceNotFound),
             };
             match result {
-                Ok(()) => build_command_result(state, &message.request_id, true, None),
+                Ok(outcome) => build_command_result(
+                    state,
+                    &message.request_id,
+                    true,
+                    Some(outcome.as_str()),
+                    None,
+                ),
                 Err(err) => build_command_result(
                     state,
                     &message.request_id,
                     false,
+                    None,
                     Some((err.code(), err.to_string())),
                 ),
             }
@@ -395,7 +426,7 @@ async fn handle_message(
         },
         ToControllerMessage::RemoveMember { member_id } => {
             match remove_member(state, &auth, &member_id).await {
-                Ok(()) => build_command_result(state, &message.request_id, true, None),
+                Ok(()) => build_command_result(state, &message.request_id, true, None, None),
                 Err(err) => {
                     build_error_response(state, &message.request_id, &err.code, &err.message)
                 }
@@ -411,14 +442,14 @@ async fn handle_message(
         },
         ToControllerMessage::RevokeToken { token_id } => {
             match revoke_household_token(state, &auth, &token_id).await {
-                Ok(()) => build_command_result(state, &message.request_id, true, None),
+                Ok(()) => build_command_result(state, &message.request_id, true, None, None),
                 Err(err) => {
                     build_error_response(state, &message.request_id, &err.code, &err.message)
                 }
             }
         }
         ToControllerMessage::RevokeCurrent => match revoke_current_token(state, &auth).await {
-            Ok(()) => build_command_result(state, &message.request_id, true, None),
+            Ok(()) => build_command_result(state, &message.request_id, true, None, None),
             Err(err) => build_error_response(state, &message.request_id, &err.code, &err.message),
         },
         ToControllerMessage::BootstrapOwner {
@@ -433,6 +464,105 @@ async fn handle_message(
             ),
             Err(err) => build_error_response(state, &message.request_id, &err.code, &err.message),
         },
+        ToControllerMessage::GetCapabilitySnapshot => {
+            let event = DeviceEvent::from_capability_snapshot(state.capabilities.snapshot());
+            let message_body = serde_json::to_value(&event).unwrap_or(JsonValue::Null);
+            build_typed_response(state, &message.request_id, message_body)
+        }
+        ToControllerMessage::WatchCapabilityChanges => {
+            register_capability_watch(state, auth.token_id, &message.request_id);
+            build_typed_response(
+                state,
+                &message.request_id,
+                json!({ "type": "capabilityWatchAck" }),
+            )
+        }
+        ToControllerMessage::HistoryQuery { query } => {
+            match crate::capabilities::history_query::query_for_client(state, &auth, query).await {
+                Ok(outcome) => match serde_json::to_value(&outcome) {
+                    Ok(mut body) => {
+                        body["requestId"] = json!(message.request_id);
+                        build_typed_response(state, &message.request_id, body)
+                    }
+                    Err(_) => build_error_response(
+                        state,
+                        &message.request_id,
+                        "history_unavailable",
+                        "History query failed",
+                    ),
+                },
+                Err(error) => {
+                    build_error_response(state, &message.request_id, error.code(), error.message())
+                }
+            }
+        }
+        ToControllerMessage::GetHomeMeterDesignation => {
+            match crate::capabilities::home_meter::read_designation_for_client(state, &auth).await {
+                Ok(designation) => build_typed_response(
+                    state,
+                    &message.request_id,
+                    json!({
+                        "type": "homeMeterDesignation",
+                        "requestId": message.request_id,
+                        "designation": designation,
+                    }),
+                ),
+                Err(error) => {
+                    build_error_response(state, &message.request_id, error.code(), &error.message())
+                }
+            }
+        }
+        ToControllerMessage::DesignateHomeMeter { selection } => {
+            match crate::capabilities::home_meter::designate_for_client(state, &auth, selection)
+                .await
+            {
+                Ok(designation) => build_typed_response(
+                    state,
+                    &message.request_id,
+                    json!({
+                        "type": "homeMeterDesignation",
+                        "requestId": message.request_id,
+                        "designation": designation,
+                    }),
+                ),
+                Err(error) => {
+                    build_error_response(state, &message.request_id, error.code(), &error.message())
+                }
+            }
+        }
+        ToControllerMessage::ExportHistoryBackup => {
+            match crate::capabilities::history_backup::export_for_client(state, &auth).await {
+                Ok(archive) => build_typed_response(
+                    state,
+                    &message.request_id,
+                    json!({
+                        "type": "historyBackup",
+                        "requestId": message.request_id,
+                        "archive": archive,
+                    }),
+                ),
+                Err(error) => {
+                    build_error_response(state, &message.request_id, error.code(), error.message())
+                }
+            }
+        }
+        ToControllerMessage::ImportHistoryBackup { archive } => {
+            match crate::capabilities::history_backup::import_for_client(state, &auth, &archive)
+                .await
+            {
+                Ok(()) => build_typed_response(
+                    state,
+                    &message.request_id,
+                    json!({
+                        "type": "historyBackupRestored",
+                        "requestId": message.request_id,
+                    }),
+                ),
+                Err(error) => {
+                    build_error_response(state, &message.request_id, error.code(), error.message())
+                }
+            }
+        }
     };
 
     respond(state, respond_via, &message.request_id, response_payload).await
@@ -555,12 +685,16 @@ fn build_command_result(
     state: &AppState,
     request_id: &str,
     ok: bool,
+    outcome: Option<&str>,
     error: Option<(&str, String)>,
 ) -> String {
     let mut message = json!({
         "type": "commandResult",
         "ok": ok,
     });
+    if let Some(outcome) = outcome {
+        message["outcome"] = json!(outcome);
+    }
     if let Some((code, msg)) = error {
         message["error"] = json!({ "code": code, "message": msg });
     }
@@ -573,7 +707,13 @@ fn build_command_result(
 }
 
 fn build_error_response(state: &AppState, request_id: &str, code: &str, message: &str) -> String {
-    build_command_result(state, request_id, false, Some((code, message.to_string())))
+    build_command_result(
+        state,
+        request_id,
+        false,
+        None,
+        Some((code, message.to_string())),
+    )
 }
 
 fn sign_envelope(state: &AppState, mut envelope: JsonValue) -> String {
@@ -583,4 +723,75 @@ fn sign_envelope(state: &AppState, mut envelope: JsonValue) -> String {
     let signature = state.identity.keypair.sign_b64(&bytes);
     envelope["signature"] = json!(signature);
     envelope.to_string()
+}
+
+fn spawn_capability_watch_pushes(state: AppState, site_url: String) {
+    tokio::spawn(async move {
+        let mut changes = state.capabilities.subscribe();
+        loop {
+            let message = match changes.recv().await {
+                Ok(change) => {
+                    serde_json::to_value(DeviceEvent::from_capability_change(change)).ok()
+                }
+                Err(RecvError::Lagged(skipped)) => {
+                    warn!(
+                        skipped,
+                        "capability relay consumer lagged; pushing a snapshot"
+                    );
+                    serde_json::to_value(DeviceEvent::from_capability_snapshot(
+                        state.capabilities.snapshot(),
+                    ))
+                    .ok()
+                }
+                Err(RecvError::Closed) => break,
+            };
+            if let Some(message) = message {
+                push_capability_message(&state, &site_url, message).await;
+            }
+        }
+    });
+}
+
+async fn push_capability_message(state: &AppState, site_url: &str, message: JsonValue) {
+    for watch in live_capability_watches(state) {
+        let payload = build_typed_response(state, &watch.request_id, message.clone());
+        if let Err(error) = respond(
+            state,
+            &mut RespondVia::Http { site_url },
+            &watch.request_id,
+            payload,
+        )
+        .await
+        {
+            warn!(
+                request_id = %watch.request_id,
+                error = %error,
+                "failed to push Capability message"
+            );
+        }
+    }
+}
+
+fn register_capability_watch(state: &AppState, token_id: Uuid, request_id: &str) {
+    let mut watches = state
+        .capability_watches
+        .lock()
+        .expect("capability watch lock");
+    let now = Instant::now();
+    watches.retain(|watch| watch.token_id != token_id && watch.expires_at > now);
+    watches.push(CapabilityWatch {
+        request_id: request_id.to_string(),
+        token_id,
+        expires_at: now + CAPABILITY_WATCH_TTL,
+    });
+}
+
+fn live_capability_watches(state: &AppState) -> Vec<CapabilityWatch> {
+    let mut watches = state
+        .capability_watches
+        .lock()
+        .expect("capability watch lock");
+    let now = Instant::now();
+    watches.retain(|watch| watch.expires_at > now);
+    watches.clone()
 }

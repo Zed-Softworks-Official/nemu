@@ -1,3 +1,4 @@
+export type { CapabilityView } from '@nemu/protocol'
 export type { ControllerConnectionOptions } from './connection'
 export { ControllerConnection } from './connection'
 export type { ProbeResult } from './discovery'
@@ -25,8 +26,8 @@ export type {
 } from './pairing'
 export { mintSessionViaRelay, pairWithController } from './pairing'
 export type {
-    ControllerProviderProps,
     CommissionProgress,
+    ControllerProviderProps,
     DevicePairingPhase,
     MatterPairingStep,
     PairingInterview,
@@ -34,6 +35,7 @@ export type {
 } from './provider'
 export {
     ControllerProvider,
+    useCapabilityState,
     useController,
     useDevicePairing,
     useDevices,

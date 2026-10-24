@@ -10,23 +10,29 @@ use tracing_subscriber::EnvFilter;
 const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
 
 mod api;
+mod audit;
+pub mod capabilities;
 mod commands;
 mod config;
 mod crypto;
 mod db;
 mod devices;
+pub mod diagnostics;
 mod events;
 mod identity;
+mod ledger;
 mod listen;
 mod mqtt;
 mod pairing;
 mod registration;
 mod relay;
+mod retention;
 mod state;
 mod tls;
 mod tls_sync;
 mod watchtower;
 
+use capabilities::CapabilityService;
 use config::Config;
 use devices::{DeviceRegistry, StateCache};
 use identity::load_or_create_identity;
@@ -74,6 +80,10 @@ async fn main() {
         .expect("db interact failed")
         .expect("db migrate/ping failed");
         info!("database migrations applied; pool ready");
+    }
+
+    if let Err(error) = capabilities::history_budget::resolve_data_directory(&pool).await {
+        warn!(%error, "postgres data directory was not resolved");
     }
 
     let identity = load_or_create_identity(&pool, &config.controller_name)
@@ -125,10 +135,34 @@ async fn main() {
     let (mqtt_handle, eventloop) = create_client(&config);
     let (events, _) = broadcast::channel(512);
 
+    let history_manager = Manager::new(config.database_url.clone(), Runtime::Tokio1);
+    let history_pool = Pool::builder(history_manager)
+        .max_size(2)
+        .build()
+        .expect("failed to create history database pool");
+    // Query reads do not share the control pool or the admission pool above.
+    let history_query_manager = Manager::new(config.database_url.clone(), Runtime::Tokio1);
+    let history_query_pool = Pool::builder(history_query_manager)
+        .max_size(capabilities::history_query::HISTORY_QUERY_POOL_SIZE)
+        .build()
+        .expect("failed to create history query pool");
+    let capabilities = Arc::new(CapabilityService::new(pool.clone(), history_pool));
+    capabilities.spawn_freshness_loop();
+    capabilities.spawn_history_loop();
+    retention::spawn(pool.clone());
+
     let state = AppState {
         db: pool,
+        history_query_pool,
+        history_query_slots: std::sync::Arc::new(tokio::sync::Semaphore::new(
+            capabilities::history_query::HISTORY_QUERY_CONCURRENCY,
+        )),
+        history_cursors: std::sync::Arc::new(std::sync::Mutex::new(
+            capabilities::history_query::HistoryCursorStore::default(),
+        )),
         registry,
         state_cache: Arc::new(StateCache::new()),
+        capabilities,
         mqtt: mqtt_handle,
         events,
         health: Arc::new(HealthFlags::default()),
@@ -136,6 +170,7 @@ async fn main() {
         convex_site_url: config.convex_site_url.clone(),
         registration_secret: config.registration_secret.clone(),
         lan_ip: lan_ip.clone(),
+        capability_watches: Arc::new(std::sync::Mutex::new(Vec::new())),
         watchtower: match (
             config.watchtower_url.clone(),
             config.watchtower_token.clone(),
@@ -143,7 +178,10 @@ async fn main() {
             (Some(url), Some(token)) => Some(WatchtowerClient::new(
                 url,
                 token,
-                config.watchtower_image.clone(),
+                crate::watchtower::RELEASE_BUNDLE
+                    .into_iter()
+                    .map(str::to_string)
+                    .collect(),
             )),
             _ => None,
         },

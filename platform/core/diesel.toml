@@ -1,5 +1,21 @@
 [print_schema]
 file = "src/db/schema.rs"
+filter = { except_tables = [
+    "capability_observations_default",
+    "capability_observations_y2024",
+    "capability_observations_y2025",
+    "capability_observations_y2026",
+    "capability_observations_y2027",
+    "capability_observations_y2028",
+    "capability_observations_y2029",
+    "capability_observations_y2030",
+    "capability_observations_y2031",
+    "capability_observations_y2032",
+    "capability_observations_y2033",
+    "capability_observations_y2034",
+    "capability_observations_y2035",
+    "capability_observations_y2036",
+] }
 
 [migrations_directory]
 dir = "migrations"

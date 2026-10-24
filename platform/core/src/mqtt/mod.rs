@@ -1,4 +1,5 @@
 pub mod connection;
+pub mod meters;
 pub mod z2m;
 
 pub use connection::{

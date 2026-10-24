@@ -64,7 +64,6 @@ pub struct Config {
     pub tls_extra_sans: Vec<String>,
     pub watchtower_url: Option<String>,
     pub watchtower_token: Option<String>,
-    pub watchtower_image: String,
 }
 
 impl Config {
@@ -113,8 +112,6 @@ impl Config {
             watchtower_token: env::var("WATCHTOWER_HTTP_API_TOKEN")
                 .ok()
                 .filter(|s| !s.is_empty()),
-            watchtower_image: env::var("WATCHTOWER_IMAGE")
-                .unwrap_or_else(|_| "ghcr.io/zed-softworks-official/nemu-core".to_string()),
         }
     }
 }

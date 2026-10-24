@@ -6,7 +6,8 @@ use tower_http::cors::{AllowOrigin, CorsLayer};
 
 use crate::api::middleware::require_client_token;
 use crate::api::{
-    devices, health, identify, landing, matter, members, pairing, rooms, updates, ws, zigbee,
+    audit, devices, health, history_budget, history_health, identify, landing, matter, members,
+    pairing, rooms, updates, ws, zigbee,
 };
 use crate::state::AppState;
 
@@ -93,6 +94,12 @@ pub fn router(state: AppState) -> Router {
             post(members::bootstrap_owner_handler),
         )
         .route("/api/members/{id}", delete(members::delete_member_handler))
+        .route("/api/audit", get(audit::list_audit))
+        .route(
+            "/api/history/budget",
+            get(history_budget::show).put(history_budget::update),
+        )
+        .route("/api/history/health", get(history_health::history_health))
         .route("/api/updates", get(updates::status))
         .route("/api/updates/apply", post(updates::apply))
         .route("/ws", get(ws::ws_handler))

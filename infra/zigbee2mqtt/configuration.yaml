@@ -31,6 +31,4 @@ advanced:
     - 101
     - 140
 version: 5
-devices:
-  '0xc890a81ee94a0000':
-    friendly_name: Light
+devices: {}

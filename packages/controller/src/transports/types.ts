@@ -8,6 +8,10 @@ import type {
     Device,
     DeviceCommand,
     DeviceEvent,
+    HistoryQuery,
+    HistoryQueryRead,
+    HomeMeterDesignation,
+    HomeMeterDesignationSelection,
     HouseholdMember,
     MatterWifiResponse,
     PatchDeviceRequest,
@@ -24,7 +28,23 @@ export interface ControllerTransport {
     disconnect(): void
     getDevices(): Promise<Device[]>
     sendCommand(cmd: DeviceCommand): Promise<CommandResult>
+    /**
+     * Returns the active view only. Callers keep the result in memory;
+     * this transport does not store the series.
+     */
+    queryHistory(query: HistoryQuery): Promise<HistoryQueryRead>
+    /**
+     * The current designation stays on the Controller. Callers hold only
+     * the response for the active view.
+     */
+    getHomeMeterDesignation(): Promise<HomeMeterDesignation | null>
+    designateHomeMeter(
+        selection: HomeMeterDesignationSelection
+    ): Promise<HomeMeterDesignation>
     subscribeEvents(cb: (event: DeviceEvent) => void): () => void
+    requestCapabilitySnapshot?(): void | Promise<void>
+    /** Fires after a dropped LAN socket opens again. */
+    onSocketReopen?(cb: () => void): () => void
     permitJoin?(seconds: number): Promise<PermitJoinResponse>
     /** Matter commissioning. LAN transport only, same policy as permitJoin. */
     commissionMatter?(request: CommissionRequest): Promise<CommissionResponse>

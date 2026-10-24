@@ -5,6 +5,7 @@ use serde::Serialize;
 use crate::api::auth::AuthenticatedClient;
 use crate::api::error::{ApiError, ApiResult};
 use crate::api::members::require_owner;
+use crate::audit::{self, AuditKind, AuditWrite};
 use crate::state::AppState;
 use crate::watchtower::unavailable_message;
 
@@ -13,8 +14,7 @@ use crate::watchtower::unavailable_message;
 pub struct UpdateStatusResponse {
     pub current_version: String,
     pub update_available: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub image: Option<String>,
+    pub images: Vec<String>,
 }
 
 #[derive(Serialize)]
@@ -34,13 +34,18 @@ pub async fn status(
 
     let update_available = client.check().await.map_err(|error| {
         tracing::warn!(error = %error, "watchtower check failed");
-        ApiError::service_unavailable("watchtower_unavailable", unavailable_message())
+        let message = if error.contains("release bundle") {
+            error
+        } else {
+            unavailable_message().to_string()
+        };
+        ApiError::service_unavailable("watchtower_unavailable", message)
     })?;
 
     Ok(Json(UpdateStatusResponse {
         current_version: env!("CARGO_PKG_VERSION").to_string(),
         update_available,
-        image: Some(client.image.clone()),
+        images: client.images.clone(),
     }))
 }
 
@@ -53,6 +58,20 @@ pub async fn apply(
         ApiError::service_unavailable("watchtower_unavailable", unavailable_message())
     })?;
 
+    audit::record(
+        &state.db,
+        AuditWrite {
+            kind: AuditKind::Update,
+            actor_user_id: auth.user_id.clone(),
+            summary: format!("started update from {}", env!("CARGO_PKG_VERSION")),
+            detail: serde_json::json!({
+                "action": "apply",
+                "version": env!("CARGO_PKG_VERSION"),
+            }),
+        },
+    )
+    .await
+    .map_err(ApiError::internal)?;
     client.apply().await.map_err(|error| {
         tracing::warn!(error = %error, "watchtower apply failed");
         ApiError::service_unavailable("watchtower_unavailable", unavailable_message())

@@ -48,6 +48,8 @@ services:
     volumes:
       - matter-controller-data:/data
       - /run/dbus:/run/dbus:ro
+    labels:
+      com.centurylinklabs.watchtower.enable: "true"
 
   postgres:
     image: postgres:16-alpine
@@ -88,7 +90,6 @@ services:
       NEMU_TLS_SAN: ${NEMU_TLS_SAN:-}
       WATCHTOWER_URL: ${WATCHTOWER_URL:-http://watchtower:8080}
       WATCHTOWER_HTTP_API_TOKEN: ${WATCHTOWER_HTTP_API_TOKEN:-}
-      WATCHTOWER_IMAGE: ${WATCHTOWER_IMAGE:-ghcr.io/zed-softworks-official/nemu-core}
     ports:
       - "6368:6368"
     labels:

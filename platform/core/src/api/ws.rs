@@ -6,17 +6,25 @@ use tokio::sync::broadcast::error::RecvError;
 use tracing::{debug, warn};
 use uuid::Uuid;
 
+use crate::api::auth::AuthenticatedClient;
+use crate::capabilities::history_query::{self, HistoryQueryError};
+use crate::capabilities::home_meter::{self, DesignationClientError};
 use crate::commands::execute_set;
 use crate::events::{ClientWsMessage, DeviceEvent};
 use crate::state::AppState;
 
-pub async fn ws_handler(ws: WebSocketUpgrade, State(state): State<AppState>) -> impl IntoResponse {
-    ws.on_upgrade(move |socket| handle_socket(socket, state))
+pub async fn ws_handler(
+    ws: WebSocketUpgrade,
+    State(state): State<AppState>,
+    auth: AuthenticatedClient,
+) -> impl IntoResponse {
+    ws.on_upgrade(move |socket| handle_socket(socket, state, auth))
 }
 
-async fn handle_socket(socket: WebSocket, state: AppState) {
+async fn handle_socket(socket: WebSocket, state: AppState, auth: AuthenticatedClient) {
     let (mut sender, mut receiver) = socket.split();
     let mut events = state.events.subscribe();
+    let mut capability_events = state.capabilities.subscribe();
 
     // Prompt client to refetch full device list.
     if let Ok(payload) = serde_json::to_string(&DeviceEvent::Resync) {
@@ -33,6 +41,13 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
         db: true,
     };
     if let Ok(payload) = serde_json::to_string(&health) {
+        if sender.send(Message::Text(payload.into())).await.is_err() {
+            return;
+        }
+    }
+
+    let snapshot = DeviceEvent::from_capability_snapshot(state.capabilities.snapshot());
+    if let Ok(payload) = serde_json::to_string(&snapshot) {
         if sender.send(Message::Text(payload.into())).await.is_err() {
             return;
         }
@@ -63,10 +78,37 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                     Err(RecvError::Closed) => break,
                 }
             }
+            change = capability_events.recv() => {
+                match change {
+                    Ok(change) => {
+                        let event = DeviceEvent::from_capability_change(change);
+                        match serde_json::to_string(&event) {
+                            Ok(payload) => {
+                                if sender.send(Message::Text(payload.into())).await.is_err() {
+                                    break;
+                                }
+                            }
+                            Err(e) => warn!(error = %e, "failed to serialize capability change"),
+                        }
+                    }
+                    Err(RecvError::Lagged(skipped)) => {
+                        debug!(skipped, "capability ws consumer lagged; sending snapshot");
+                        let snapshot = DeviceEvent::from_capability_snapshot(
+                            state.capabilities.snapshot(),
+                        );
+                        if let Ok(payload) = serde_json::to_string(&snapshot) {
+                            if sender.send(Message::Text(payload.into())).await.is_err() {
+                                break;
+                            }
+                        }
+                    }
+                    Err(RecvError::Closed) => break,
+                }
+            }
             msg = receiver.next() => {
                 match msg {
                     Some(Ok(Message::Text(text))) => {
-                        if let Err(e) = handle_client_text(&state, &mut sender, &text).await {
+                        if let Err(e) = handle_client_text(&state, &auth, &mut sender, &text).await {
                             debug!(error = %e, "ws client message error");
                         }
                     }
@@ -89,6 +131,7 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
 
 async fn handle_client_text(
     state: &AppState,
+    auth: &AuthenticatedClient,
     sender: &mut futures_util::stream::SplitSink<WebSocket, Message>,
     text: &str,
 ) -> Result<(), String> {
@@ -102,19 +145,21 @@ async fn handle_client_text(
             payload,
         } => {
             let result = match Uuid::parse_str(&device_id) {
-                Ok(id) => execute_set(state, id, payload).await,
+                Ok(id) => execute_set(state, &request_id, id, payload).await,
                 Err(_) => Err(crate::commands::CommandError::DeviceNotFound),
             };
 
             let event = match result {
-                Ok(()) => DeviceEvent::CommandResult {
+                Ok(outcome) => DeviceEvent::CommandResult {
                     request_id,
                     ok: true,
+                    outcome: Some(outcome.as_str().to_string()),
                     error: None,
                 },
                 Err(err) => DeviceEvent::CommandResult {
                     request_id,
                     ok: false,
+                    outcome: None,
                     error: Some(err.to_error_body()),
                 },
             };
@@ -125,7 +170,127 @@ async fn handle_client_text(
                 .await
                 .map_err(|e| e.to_string())?;
         }
+        ClientWsMessage::RequestCapabilitySnapshot => {
+            let snapshot = DeviceEvent::from_capability_snapshot(state.capabilities.snapshot());
+            let payload = serde_json::to_string(&snapshot).map_err(|e| e.to_string())?;
+            sender
+                .send(Message::Text(payload.into()))
+                .await
+                .map_err(|e| e.to_string())?;
+        }
+        ClientWsMessage::HistoryQuery { request_id, query } => {
+            let payload = match history_query::query_for_client(state, auth, query).await {
+                Ok(outcome) => {
+                    let mut body = serde_json::to_value(&outcome).map_err(|e| e.to_string())?;
+                    body["requestId"] = serde_json::json!(request_id);
+                    body
+                }
+                Err(error) => history_query_error(&request_id, &error),
+            };
+            let text = serde_json::to_string(&payload).map_err(|e| e.to_string())?;
+            sender
+                .send(Message::Text(text.into()))
+                .await
+                .map_err(|e| e.to_string())?;
+        }
+        ClientWsMessage::GetHomeMeterDesignation { request_id } => {
+            let payload = match home_meter::read_designation_for_client(state, auth).await {
+                Ok(designation) => designation_body(&request_id, designation),
+                Err(error) => designation_error(&request_id, &error),
+            };
+            send_json(sender, payload).await?;
+        }
+        ClientWsMessage::DesignateHomeMeter {
+            request_id,
+            selection,
+        } => {
+            let payload = match home_meter::designate_for_client(state, auth, selection).await {
+                Ok(designation) => designation_body(&request_id, Some(designation)),
+                Err(error) => designation_error(&request_id, &error),
+            };
+            send_json(sender, payload).await?;
+        }
+        ClientWsMessage::ExportHistoryBackup { request_id } => {
+            let payload =
+                match crate::capabilities::history_backup::export_for_client(state, auth).await {
+                    Ok(archive) => serde_json::json!({
+                        "type": "historyBackup",
+                        "requestId": request_id,
+                        "archive": archive,
+                    }),
+                    Err(error) => history_backup_error(&request_id, &error),
+                };
+            send_json(sender, payload).await?;
+        }
+        ClientWsMessage::ImportHistoryBackup {
+            request_id,
+            archive,
+        } => {
+            let payload =
+                match crate::capabilities::history_backup::import_for_client(state, auth, &archive)
+                    .await
+                {
+                    Ok(()) => serde_json::json!({
+                        "type": "historyBackupRestored",
+                        "requestId": request_id,
+                    }),
+                    Err(error) => history_backup_error(&request_id, &error),
+                };
+            send_json(sender, payload).await?;
+        }
     }
 
     Ok(())
+}
+
+fn history_query_error(request_id: &str, error: &HistoryQueryError) -> serde_json::Value {
+    serde_json::json!({
+        "type": "commandResult",
+        "requestId": request_id,
+        "ok": false,
+        "error": { "code": error.code(), "message": error.message() }
+    })
+}
+
+fn designation_body(
+    request_id: &str,
+    designation: Option<crate::capabilities::home_meter::DesignationPeriod>,
+) -> serde_json::Value {
+    serde_json::json!({
+        "type": "homeMeterDesignation",
+        "requestId": request_id,
+        "designation": designation,
+    })
+}
+
+fn history_backup_error(
+    request_id: &str,
+    error: &crate::capabilities::history_backup::BackupClientError,
+) -> serde_json::Value {
+    serde_json::json!({
+        "type": "commandResult",
+        "requestId": request_id,
+        "ok": false,
+        "error": { "code": error.code(), "message": error.message() }
+    })
+}
+
+fn designation_error(request_id: &str, error: &DesignationClientError) -> serde_json::Value {
+    serde_json::json!({
+        "type": "commandResult",
+        "requestId": request_id,
+        "ok": false,
+        "error": { "code": error.code(), "message": error.message() }
+    })
+}
+
+async fn send_json(
+    sender: &mut futures_util::stream::SplitSink<WebSocket, Message>,
+    payload: serde_json::Value,
+) -> Result<(), String> {
+    let text = serde_json::to_string(&payload).map_err(|error| error.to_string())?;
+    sender
+        .send(Message::Text(text.into()))
+        .await
+        .map_err(|error| error.to_string())
 }

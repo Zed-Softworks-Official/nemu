@@ -2,6 +2,7 @@
 
 import {
     type BootstrapOwnerRequest,
+    type CapabilityView,
     type ClientToken,
     type CommandResult,
     type CommissionRequest,
@@ -12,6 +13,11 @@ import {
     type DeviceCommand,
     type DeviceEvent,
     type DeviceProtocol,
+    deviceEventRefreshesInventory,
+    type HistoryQuery,
+    type HistoryQueryRead,
+    type HomeMeterDesignation,
+    type HomeMeterDesignationSelection,
     type HouseholdMember,
     type MatterWifiResponse,
     type PatchDeviceRequest,
@@ -41,6 +47,11 @@ type ControllerContextValue = {
     status: ConnectionStatus
     reprobe: () => Promise<void>
     getDevices: () => Promise<Device[]>
+    queryHistory: (query: HistoryQuery) => Promise<HistoryQueryRead>
+    getHomeMeterDesignation: () => Promise<HomeMeterDesignation | null>
+    designateHomeMeter: (
+        selection: HomeMeterDesignationSelection
+    ) => Promise<HomeMeterDesignation>
     sendCommand: (cmd: DeviceCommand) => Promise<CommandResult>
     permitJoin: (seconds: number) => Promise<PermitJoinResponse>
     commissionMatter: (
@@ -84,6 +95,8 @@ export type ControllerProviderProps = {
     controllerId?: string | null
     /** Auto-start connection manager (default true). */
     autoStart?: boolean
+    /** False until Convex has a user token. Local discovery still runs. */
+    relayAllowed?: boolean
 }
 
 export function ControllerProvider({
@@ -93,7 +106,11 @@ export function ControllerProvider({
     lanCandidates,
     controllerId,
     autoStart = true,
+    relayAllowed = true,
 }: ControllerProviderProps) {
+    const relayAllowedRef = useRef(relayAllowed)
+    const relayWasAllowed = useRef(relayAllowed)
+    relayAllowedRef.current = relayAllowed
     const connection = useMemo(
         () =>
             new ControllerConnection({
@@ -101,6 +118,7 @@ export function ControllerProvider({
                 relayApi,
                 lanCandidates,
                 controllerId,
+                relayAllowed: () => relayAllowedRef.current,
             }),
         [convex, relayApi, lanCandidates, controllerId]
     )
@@ -120,8 +138,29 @@ export function ControllerProvider({
         }
     }, [connection, autoStart])
 
+    useEffect(() => {
+        const becameAllowed = relayAllowed && !relayWasAllowed.current
+        relayWasAllowed.current = relayAllowed
+        if (!autoStart || !becameAllowed) return
+        if (connection.getStatus().mode !== 'offline') return
+        void connection.reprobe()
+    }, [connection, autoStart, relayAllowed])
+
     const reprobe = useCallback(() => connection.reprobe(), [connection])
     const getDevices = useCallback(() => connection.getDevices(), [connection])
+    const queryHistory = useCallback(
+        (query: HistoryQuery) => connection.queryHistory(query),
+        [connection]
+    )
+    const getHomeMeterDesignation = useCallback(
+        () => connection.getHomeMeterDesignation(),
+        [connection]
+    )
+    const designateHomeMeter = useCallback(
+        (selection: HomeMeterDesignationSelection) =>
+            connection.designateHomeMeter(selection),
+        [connection]
+    )
     const sendCommand = useCallback(
         (cmd: DeviceCommand) => connection.sendCommand(cmd),
         [connection]
@@ -203,6 +242,9 @@ export function ControllerProvider({
             status,
             reprobe,
             getDevices,
+            queryHistory,
+            getHomeMeterDesignation,
+            designateHomeMeter,
             sendCommand,
             permitJoin,
             commissionMatter,
@@ -229,6 +271,9 @@ export function ControllerProvider({
             status,
             reprobe,
             getDevices,
+            queryHistory,
+            getHomeMeterDesignation,
+            designateHomeMeter,
             sendCommand,
             permitJoin,
             commissionMatter,
@@ -297,18 +342,27 @@ export function useDevices(): {
 
     useEffect(() => {
         return connection.subscribeEvents((event: DeviceEvent) => {
-            if (
-                event.type === 'resync' ||
-                event.type === 'deviceJoined' ||
-                event.type === 'deviceLeft' ||
-                event.type === 'deviceState'
-            ) {
+            if (deviceEventRefreshesInventory(event)) {
                 void refresh()
             }
         })
     }, [connection, refresh])
 
     return { devices, error, refresh, status }
+}
+
+export function useCapabilityState(): {
+    view: CapabilityView | null
+    status: ConnectionStatus
+} {
+    const { connection, status } = useController()
+    const [view, setView] = useState<CapabilityView | null>(
+        connection.getCapabilityView()
+    )
+
+    useEffect(() => connection.subscribeCapabilityView(setView), [connection])
+
+    return { view, status }
 }
 
 export type DevicePairingPhase =
