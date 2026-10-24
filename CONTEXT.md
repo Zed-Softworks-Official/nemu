@@ -188,7 +188,43 @@ A bounded Controller-local record of raw protocol payloads used for troubleshoot
 The short-lived cloud path used when the dashboard cannot reach a Controller over the home network. Relay envelopes are encrypted end to end and contain no durable home model or history.
 
 **Release channel**:
-The update stream assigned to a Home. Stable is the default; an Owner can move a Home to Canary.
+The stream of Releases assigned to a Home. Stable is the default; an Owner can move a Home to Canary, and the Home installs that channel's Release only when it is newer than the installed Release.
+
+**Release**:
+A publication of the whole Controller platform on one Release channel, identified by one Platform version. It selects the version of every service the Home runs, together with the stack files for that version.
+_Avoid_: Platform image, update bundle
+
+**Platform version**:
+The identity of one Release, shared by every service and stack file in it. A Release channel is not part of that identity.
+_Avoid_: Crate version, image tag
+
+**Release manifest**:
+The published description of one Release on a Release channel.
+_Avoid_: Compose tarball, image tag
+
+**Nemu-owned setting**:
+A service setting that belongs to the Controller platform and that a Release may change. Device identity and protocol network state remain Home data.
+_Avoid_: Default, config key
+
+**Stack file**:
+A Controller file that defines how the platform runs and that a Release may replace.
+_Avoid_: Config file, compose file
+
+**Home data**:
+Secrets, protocol network state, and stored Home state that belong to the Home and survive a Release.
+_Avoid_: Volume, local config
+
+**Updater**:
+The part of a Controller installation that installs Releases for that Home.
+_Avoid_: Watchtower, update service
+
+**Maintenance mode**:
+A short Controller state in which the Home stops admitting Commands and quiesces adapters. It covers a consistent snapshot and lasts until the installed Release passes its health gate.
+_Avoid_: Downtime, update window
+
+**Rollback snapshot**:
+The restorable copy of Home data taken before the Release now installed. It remains until the next Release replaces it.
+_Avoid_: Home backup, checkpoint
 
 **Product analytics**:
 Optional, cloud-bound usage and error reporting. Product analytics are disabled by default and require an explicit choice during setup.
