@@ -66,6 +66,7 @@ export default function SettingsPage() {
         bootstrapOwner,
         getReleaseStatus,
         installRelease,
+        rollbackRelease,
     } = useController()
     const { isAuthenticated } = useConvexAuth()
     const controllers = useQuery(
@@ -104,6 +105,11 @@ export default function SettingsPage() {
     })
     const [busyInstall, setBusyInstall] = useState(false)
     const [installError, setInstallError] = useState<string | null>(null)
+    const [rollbackSnapshotAvailable, setRollbackSnapshotAvailable] =
+        useState(false)
+    const [rollbackStuck, setRollbackStuck] = useState(false)
+    const [busyRollback, setBusyRollback] = useState(false)
+    const [rollbackError, setRollbackError] = useState<string | null>(null)
     const updateStateRef = useRef(updateState)
     updateStateRef.current = updateState
 
@@ -169,6 +175,8 @@ export default function SettingsPage() {
             const report = await getReleaseStatus()
             setPlatformVersion(report.platformVersion)
             setReleaseChannel(report.channel)
+            setRollbackSnapshotAvailable(report.rollbackSnapshotAvailable)
+            setRollbackStuck(report.rollbackStuck)
             setUpdateState(
                 report.newerReleaseAvailable
                     ? { kind: 'newer' }
@@ -177,6 +185,8 @@ export default function SettingsPage() {
         } catch (err) {
             setPlatformVersion(null)
             setReleaseChannel(null)
+            setRollbackSnapshotAvailable(false)
+            setRollbackStuck(false)
             setUpdateState({
                 kind: 'error',
                 message:
@@ -205,6 +215,23 @@ export default function SettingsPage() {
             )
         } finally {
             setBusyInstall(false)
+        }
+    }
+
+    async function handleRollback() {
+        setBusyRollback(true)
+        setRollbackError(null)
+        try {
+            await rollbackRelease()
+            await readRelease()
+        } catch (err) {
+            setRollbackError(
+                err instanceof Error
+                    ? err.message
+                    : 'Could not roll back the Release'
+            )
+        } finally {
+            setBusyRollback(false)
         }
     }
 
@@ -427,17 +454,28 @@ export default function SettingsPage() {
                                     <Separator />
                                     <CoreUpdatesBlock
                                         busyInstall={busyInstall}
+                                        busyRollback={busyRollback}
                                         canInstall={
-                                            updateState.kind === 'newer' ||
-                                            busyInstall
+                                            (updateState.kind === 'newer' ||
+                                                busyInstall) &&
+                                            !rollbackStuck
                                         }
                                         canRefresh={
                                             updateState.kind !== 'checking' &&
+                                            !busyInstall &&
+                                            !busyRollback
+                                        }
+                                        canRollback={
+                                            (rollbackSnapshotAvailable ||
+                                                rollbackStuck) &&
                                             !busyInstall
                                         }
                                         installError={installError}
                                         onInstall={() => void handleInstall()}
                                         onRefresh={() => void readRelease()}
+                                        onRollback={() => void handleRollback()}
+                                        rollbackError={rollbackError}
+                                        rollbackStuck={rollbackStuck}
                                         state={updateState}
                                     />
                                 </>
@@ -747,6 +785,11 @@ function CoreUpdatesBlock({
     busyInstall,
     installError,
     onInstall,
+    canRollback,
+    busyRollback,
+    rollbackError,
+    rollbackStuck,
+    onRollback,
 }: {
     state: ReleaseReadState
     canRefresh: boolean
@@ -755,8 +798,20 @@ function CoreUpdatesBlock({
     busyInstall: boolean
     installError: string | null
     onInstall: () => void
+    canRollback: boolean
+    busyRollback: boolean
+    rollbackError: string | null
+    rollbackStuck: boolean
+    onRollback: () => void
 }) {
-    const destructive = state.kind === 'error' || installError !== null
+    const destructive =
+        state.kind === 'error' ||
+        installError !== null ||
+        rollbackError !== null ||
+        rollbackStuck
+    const statusCopy = rollbackStuck
+        ? 'Rollback is stuck. The previous Release stays in maintenance until it is healthy.'
+        : (installError ?? rollbackError ?? updateStatusCopy(state))
     return (
         <div className="space-y-3">
             <div className="flex items-start justify-between gap-3">
@@ -769,10 +824,31 @@ function CoreUpdatesBlock({
                                 : 'text-muted-foreground text-xs'
                         }
                     >
-                        {installError ?? updateStatusCopy(state)}
+                        {statusCopy}
                     </p>
+                    {rollbackStuck && rollbackError ? (
+                        <p className="text-destructive text-xs">
+                            {rollbackError}
+                        </p>
+                    ) : null}
                 </div>
                 <div className="flex shrink-0 gap-2">
+                    {canRollback ? (
+                        <Button
+                            disabled={busyRollback}
+                            onClick={onRollback}
+                            size="sm"
+                            variant="outline"
+                        >
+                            {busyRollback
+                                ? rollbackStuck
+                                    ? 'Retrying…'
+                                    : 'Rolling back…'
+                                : rollbackStuck
+                                  ? 'Retry rollback'
+                                  : 'Roll back'}
+                        </Button>
+                    ) : null}
                     {canInstall ? (
                         <Button
                             disabled={busyInstall}

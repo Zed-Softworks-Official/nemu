@@ -80,6 +80,7 @@ const authenticatedRelayMessageSchema = z.union([
     importHistoryBackupMessageSchema,
     z.object({ type: z.literal('releaseStatus') }),
     z.object({ type: z.literal('installRelease') }),
+    z.object({ type: z.literal('rollbackRelease') }),
 ])
 
 export const relayToControllerEnvelopeSchema = z.union([
@@ -137,6 +138,9 @@ export const relayToClientEnvelopeSchema = z.object({
         }),
         applyUpdateResponseSchema.extend({
             type: z.literal('installRelease'),
+        }),
+        applyUpdateResponseSchema.extend({
+            type: z.literal('rollbackRelease'),
         }),
     ]),
 })

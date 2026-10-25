@@ -12,6 +12,7 @@ pub struct ReleaseStatus {
     pub newer_release_available: bool,
     pub maintenance_mode: bool,
     pub rollback_snapshot_available: bool,
+    pub rollback_stuck: bool,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -23,6 +24,7 @@ pub enum ForwardError {
 pub trait UpdaterControl: Send + Sync {
     fn status(&self) -> Result<ReleaseStatus, String>;
     fn install(&self) -> Result<(), String>;
+    fn rollback(&self) -> Result<(), String>;
     fn maintenance_mode(&self) -> bool;
 }
 
@@ -56,11 +58,16 @@ impl UpdaterControl for DirectoryUpdater {
             newer_release_available: installed.newer_release_available,
             maintenance_mode: installed.maintenance_mode,
             rollback_snapshot_available: installed.rollback_snapshot_available,
+            rollback_stuck: installed.rollback_stuck,
         })
     }
 
     fn install(&self) -> Result<(), String> {
         updater::run_install(&self.controller_dir).map_err(|error| error.to_string())
+    }
+
+    fn rollback(&self) -> Result<(), String> {
+        updater::run_rollback(&self.controller_dir).map_err(|error| error.to_string())
     }
 
     fn maintenance_mode(&self) -> bool {
@@ -89,6 +96,16 @@ pub fn forward_install(
     updater.install().map_err(ForwardError::Unavailable)
 }
 
+/// Forwards a rollback to the Updater for an active Owner. A Member is refused.
+pub fn forward_rollback(
+    role: &str,
+    member_status: &str,
+    updater: &dyn UpdaterControl,
+) -> Result<(), ForwardError> {
+    audit::authorize_read(role, member_status).map_err(|_| ForwardError::Refused)?;
+    updater.rollback().map_err(ForwardError::Unavailable)
+}
+
 /// The Audit record for an Owner install. The kind is the existing update kind.
 pub fn install_audit(actor_user_id: Option<String>) -> audit::AuditWrite {
     audit::AuditWrite {
@@ -99,19 +116,30 @@ pub fn install_audit(actor_user_id: Option<String>) -> audit::AuditWrite {
     }
 }
 
+/// The Audit record for an Owner rollback. The kind is the existing update kind.
+pub fn rollback_audit(actor_user_id: Option<String>) -> audit::AuditWrite {
+    audit::AuditWrite {
+        kind: audit::AuditKind::Update,
+        actor_user_id,
+        summary: "started rollback of the last Release".to_string(),
+        detail: serde_json::json!({ "action": "rollback" }),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::atomic::{AtomicU32, Ordering};
 
     use super::{
         ForwardError, ReleaseStatus, UpdaterControl, forward_install, forward_release_status,
-        install_audit,
+        forward_rollback, install_audit, rollback_audit,
     };
 
     struct FakeUpdater {
         status: ReleaseStatus,
         calls: AtomicU32,
         installs: AtomicU32,
+        rollbacks: AtomicU32,
     }
 
     impl UpdaterControl for FakeUpdater {
@@ -122,6 +150,11 @@ mod tests {
 
         fn install(&self) -> Result<(), String> {
             self.installs.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }
+
+        fn rollback(&self) -> Result<(), String> {
+            self.rollbacks.fetch_add(1, Ordering::SeqCst);
             Ok(())
         }
 
@@ -139,9 +172,11 @@ mod tests {
                 newer_release_available: false,
                 maintenance_mode: false,
                 rollback_snapshot_available: false,
+                rollback_stuck: false,
             },
             calls: AtomicU32::new(0),
             installs: AtomicU32::new(0),
+            rollbacks: AtomicU32::new(0),
         };
 
         let forwarded = forward_release_status("owner", "active", &updater).expect("owner");
@@ -168,9 +203,11 @@ mod tests {
                 newer_release_available: true,
                 maintenance_mode: true,
                 rollback_snapshot_available: true,
+                rollback_stuck: true,
             },
             calls: AtomicU32::new(0),
             installs: AtomicU32::new(0),
+            rollbacks: AtomicU32::new(0),
         };
 
         let forwarded = forward_release_status("owner", "active", &updater).expect("owner");
@@ -179,6 +216,7 @@ mod tests {
         assert!(forwarded.newer_release_available);
         assert!(forwarded.maintenance_mode);
         assert!(forwarded.rollback_snapshot_available);
+        assert!(forwarded.rollback_stuck);
         assert_eq!(updater.calls.load(Ordering::SeqCst), 1);
 
         let member = forward_release_status("member", "active", &updater);
@@ -195,9 +233,11 @@ mod tests {
                 newer_release_available: true,
                 maintenance_mode: false,
                 rollback_snapshot_available: false,
+                rollback_stuck: false,
             },
             calls: AtomicU32::new(0),
             installs: AtomicU32::new(0),
+            rollbacks: AtomicU32::new(0),
         };
 
         let member = forward_install("member", "active", &updater);
@@ -214,6 +254,40 @@ mod tests {
         let audit = install_audit(Some("owner-1".to_string()));
         assert_eq!(audit.kind, crate::audit::AuditKind::Update);
         assert_eq!(audit.detail["action"], "install");
+        assert_eq!(audit.actor_user_id.as_deref(), Some("owner-1"));
+    }
+
+    #[test]
+    fn an_owner_rollback_is_forwarded_and_audited_and_a_member_is_refused() {
+        let updater = FakeUpdater {
+            status: ReleaseStatus {
+                platform_version: "0.4.10".to_string(),
+                channel: "stable".to_string(),
+                newer_release_available: false,
+                maintenance_mode: false,
+                rollback_snapshot_available: true,
+                rollback_stuck: false,
+            },
+            calls: AtomicU32::new(0),
+            installs: AtomicU32::new(0),
+            rollbacks: AtomicU32::new(0),
+        };
+
+        let member = forward_rollback("member", "active", &updater);
+        assert_eq!(member, Err(ForwardError::Refused));
+        assert_eq!(updater.rollbacks.load(Ordering::SeqCst), 0);
+
+        let pending = forward_rollback("owner", "pending", &updater);
+        assert_eq!(pending, Err(ForwardError::Refused));
+        assert_eq!(updater.rollbacks.load(Ordering::SeqCst), 0);
+
+        forward_rollback("owner", "active", &updater).expect("owner rollback");
+        assert_eq!(updater.rollbacks.load(Ordering::SeqCst), 1);
+        assert_eq!(updater.installs.load(Ordering::SeqCst), 0);
+
+        let audit = rollback_audit(Some("owner-1".to_string()));
+        assert_eq!(audit.kind, crate::audit::AuditKind::Update);
+        assert_eq!(audit.detail["action"], "rollback");
         assert_eq!(audit.actor_user_id.as_deref(), Some("owner-1"));
     }
 }

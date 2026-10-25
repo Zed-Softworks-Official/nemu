@@ -87,6 +87,7 @@ type ControllerContextValue = {
     bootstrapOwner: (request: BootstrapOwnerRequest) => Promise<HouseholdMember>
     getReleaseStatus: () => Promise<UpdateStatusResponse>
     installRelease: () => Promise<ApplyUpdateResponse>
+    rollbackRelease: () => Promise<ApplyUpdateResponse>
 }
 
 const ControllerContext = createContext<ControllerContextValue | null>(null)
@@ -247,6 +248,10 @@ export function ControllerProvider({
         () => connection.installRelease(),
         [connection]
     )
+    const rollbackRelease = useCallback(
+        () => connection.rollbackRelease(),
+        [connection]
+    )
 
     const value = useMemo(
         () => ({
@@ -279,6 +284,7 @@ export function ControllerProvider({
             bootstrapOwner,
             getReleaseStatus,
             installRelease,
+            rollbackRelease,
         }),
         [
             connection,
@@ -310,6 +316,7 @@ export function ControllerProvider({
             bootstrapOwner,
             getReleaseStatus,
             installRelease,
+            rollbackRelease,
         ]
     )
 

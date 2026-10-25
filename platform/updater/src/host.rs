@@ -69,6 +69,28 @@ pub fn load_release_key(controller_dir: &Path) -> Option<VerifyingKey> {
     VerifyingKey::from_bytes(&key).ok()
 }
 
+/// Roll back using the host adapters. The library call is still in-process.
+pub fn run_rollback(controller_dir: &Path) -> Result<(), crate::rollback::RollbackError> {
+    let manifests = DirectoryManifestHost::new(controller_dir);
+    let release_key = load_release_key(controller_dir);
+    let runtime = DockerComposeRuntime::new(controller_dir);
+    let health = HttpCoreHealth::from_env();
+    let space = PosixFreeSpace::new(controller_dir);
+    let clock = SystemClock;
+    crate::rollback::rollback(
+        controller_dir,
+        &InstallEnv {
+            manifests: &manifests,
+            release_key: release_key.as_ref(),
+            runtime: &runtime,
+            health: &health,
+            space: &space,
+            clock: &clock,
+            arch: UpdaterArch::from_host(),
+        },
+    )
+}
+
 /// Install using the host adapters. The library call is still in-process.
 pub fn run_install(controller_dir: &Path) -> Result<(), InstallError> {
     let manifests = DirectoryManifestHost::new(controller_dir);

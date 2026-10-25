@@ -187,6 +187,7 @@ export const updateStatusResponseSchema = z.object({
     newerReleaseAvailable: z.boolean(),
     maintenanceMode: z.boolean(),
     rollbackSnapshotAvailable: z.boolean(),
+    rollbackStuck: z.boolean(),
 })
 export type UpdateStatusResponse = z.infer<typeof updateStatusResponseSchema>
 

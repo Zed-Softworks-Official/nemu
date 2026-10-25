@@ -7,8 +7,9 @@ mod host;
 mod install;
 mod manifest;
 mod publish;
+mod rollback;
 
-pub use host::{DirectoryManifestHost, load_release_key, run_install};
+pub use host::{DirectoryManifestHost, load_release_key, run_install, run_rollback};
 pub use install::{hourly_check, maintenance_mode};
 
 pub use manifest::{
@@ -48,11 +49,14 @@ pub struct ReleaseStatus {
     pub platform_version: String,
     pub channel: ReleaseChannel,
     pub newer_release_available: bool,
-    /// True while an install holds maintenance, including a health-gate failure
-    /// that has not been rolled back.
+    /// True while an install or rollback holds maintenance.
     pub maintenance_mode: bool,
-    /// True when a Rollback snapshot is on disk. Rollback itself is a later step.
+    /// True when a Rollback snapshot is on disk. It stays until the next Release
+    /// replaces it.
     pub rollback_snapshot_available: bool,
+    /// True when a rollback could not finish. Maintenance stays until a later
+    /// rollback retry, and the failed Release is not applied again.
+    pub rollback_stuck: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -146,6 +150,7 @@ pub fn status(
         newer_release_available,
         maintenance_mode: install::maintenance_mode(controller_dir),
         rollback_snapshot_available: install::snapshot_kept(controller_dir),
+        rollback_stuck: rollback::rollback_stuck(controller_dir),
     })
 }
 

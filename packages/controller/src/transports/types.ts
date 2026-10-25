@@ -74,6 +74,7 @@ export interface ControllerTransport {
     bootstrapOwner?(request: BootstrapOwnerRequest): Promise<HouseholdMember>
     getReleaseStatus?(): Promise<UpdateStatusResponse>
     installRelease?(): Promise<ApplyUpdateResponse>
+    rollbackRelease?(): Promise<ApplyUpdateResponse>
 }
 
 export interface ControllerTransport {
