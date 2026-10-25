@@ -114,23 +114,25 @@ cd /opt/nemu && sudo docker compose pull && sudo docker compose up -d
 
 Disable Watchtower by removing the `watchtower` service from compose, or clear the `com.centurylinklabs.watchtower.enable` label on `nemu-core`.
 
-## Publishing images (maintainers)
+## Publishing a Release (maintainers)
 
-Tag a release to build multi-arch images on Blacksmith and push to GHCR:
+A push to `canary` publishes the next patch Release. The workflow builds the Nemu images, freezes every service image at a digest, signs the Canary manifest, tags those Nemu images with the Platform version and `:canary`, and tags the commit `v0.MINOR.PATCH`. The first Platform version is `0.1.0`.
 
-```bash
-# Core
-git tag core-v0.1.0
-git push origin core-v0.1.0
-# Approve pending deployment → Environment "core-release"
+A minor bump is explicit. Add this line to the commit message, or run **Publish Release** on `canary` with the minor-bump input. It is not the default:
 
-# Matter
-git tag matter-v0.1.0
-git push origin matter-v0.1.0
-# Approve pending deployment → Environment "matter-release"
+```text
+Bump-Platform-Minor: true
 ```
 
-See [`.github/workflows/publish-core.yml`](../../.github/workflows/publish-core.yml) and [`.github/workflows/publish-matter.yml`](../../.github/workflows/publish-matter.yml). Required reviewer for both environments: `@kzolt`.
+An explicit Stable release publishes `master`. Run **Publish Release** on `master` with channel `stable`. That points the Stable manifest at a Platform version already cut and moves `:latest`. It does not allocate a second version. A `master` commit that has not been published is cut as the next Platform version and merged back to `canary`.
+
+Postgres, Mosquitto, and Zigbee2MQTT are pinned by digest. They do not receive `:canary` or `:latest`. Homes install the signed manifest.
+
+`core-v*` and `matter-v*` do not publish a platform Release.
+
+The private release-signing key is the `NEMU_RELEASE_SIGNING_KEY` repository secret.
+
+See [`.github/workflows/publish-release.yml`](../../.github/workflows/publish-release.yml).
 
 Security controls: [github-release-protections.md](github-release-protections.md).
 

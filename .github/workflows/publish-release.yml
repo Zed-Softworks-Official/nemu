@@ -1,0 +1,400 @@
+# Publishes one platform Release.
+#
+# A push to canary cuts the next patch, builds the Nemu images, freezes every
+# service image at a digest, signs the Canary manifest, tags those Nemu images
+# with the Platform version and :canary, and tags the commit v0.MINOR.PATCH.
+# A minor bump is an explicit input: the workflow_dispatch checkbox, or a
+# commit message line `Bump-Platform-Minor: true`. It is not the default.
+# The first Platform version is 0.1.0.
+#
+# An explicit Stable release runs this workflow on master. It points the
+# Stable manifest at a Platform version already cut and moves :latest. A
+# master commit that has not been published is cut as the next Platform
+# version and merged back to canary.
+#
+# Third-party images are digest-pinned and are not tagged. Homes install the
+# signed manifest. :canary and :latest are not a Release.
+#
+# The private release-signing key is the NEMU_RELEASE_SIGNING_KEY secret
+# (base64 of the 32-byte ed25519 seed). This workflow does not print it and
+# does not upload installed-version or channel telemetry.
+
+name: Publish Release
+
+on:
+  push:
+    branches:
+      - canary
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: Release channel to publish
+        required: true
+        type: choice
+        options:
+          - canary
+          - stable
+        default: canary
+      minor_bump:
+        description: When cutting a new Platform version, allocate the next minor instead of the next patch
+        required: true
+        type: boolean
+        default: false
+
+concurrency:
+  group: publish-release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  packages: write
+
+env:
+  CORE_IMAGE: ghcr.io/zed-softworks-official/nemu-core
+  MATTER_IMAGE: ghcr.io/zed-softworks-official/nemu-matter
+
+jobs:
+  prepare:
+    runs-on: blacksmith
+    outputs:
+      source: ${{ steps.vars.outputs.source }}
+      minor_bump: ${{ steps.vars.outputs.minor_bump }}
+      already_cut: ${{ steps.vars.outputs.already_cut }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Choose the publish
+        id: vars
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_CHANNEL: ${{ inputs.channel }}
+          INPUT_MINOR: ${{ inputs.minor_bump }}
+        run: |
+          set -euo pipefail
+          source="canary"
+          minor="false"
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            source="$INPUT_CHANNEL"
+            minor="$INPUT_MINOR"
+          fi
+          if git log -1 --format='%B' | grep -Eq '^Bump-Platform-Minor: true$'; then
+            minor="true"
+          fi
+          if [ "$source" = "stable" ] && [ "$GITHUB_REF" != "refs/heads/master" ]; then
+            echo "An explicit Stable release publishes master." >&2
+            exit 1
+          fi
+          if [ "$source" = "canary" ] && [ "$GITHUB_REF" != "refs/heads/canary" ]; then
+            echo "A Canary publish runs on the canary branch." >&2
+            exit 1
+          fi
+          git fetch origin --tags --force
+          already="false"
+          if git tag --points-at HEAD | grep -Eq '^v0\.[0-9]+\.[0-9]+$'; then
+            already="true"
+          fi
+          echo "source=$source" >> "$GITHUB_OUTPUT"
+          echo "minor_bump=$minor" >> "$GITHUB_OUTPUT"
+          echo "already_cut=$already" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: prepare
+    if: needs.prepare.outputs.already_cut != 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: blacksmith-8vcpu-ubuntu-2204
+            platform: linux/amd64
+            arch: amd64
+          - runner: blacksmith-8vcpu-ubuntu-2204-arm
+            platform: linux/arm64
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Docker Builder
+        uses: useblacksmith/setup-docker-builder@v2
+        with:
+          cache-key: publish-release-${{ matrix.arch }}
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build nemu-core
+        uses: useblacksmith/build-push-action@v2
+        with:
+          context: .
+          file: platform/core/Dockerfile
+          push: true
+          platforms: ${{ matrix.platform }}
+          tags: ${{ env.CORE_IMAGE }}:${{ github.sha }}-${{ matrix.arch }}
+
+      - name: Build nemu-matter
+        uses: useblacksmith/build-push-action@v2
+        with:
+          context: ./platform/matter
+          file: platform/matter/Dockerfile
+          push: true
+          platforms: ${{ matrix.platform }}
+          tags: ${{ env.MATTER_IMAGE }}:${{ github.sha }}-${{ matrix.arch }}
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99.1
+
+      - name: Build the Updater binary
+        working-directory: platform/updater
+        run: cargo build --release --locked --bin updater
+
+      - name: Upload the Updater binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: updater-${{ matrix.arch }}
+          path: platform/updater/target/release/updater
+          if-no-files-found: error
+
+  merge-images:
+    needs: [prepare, build]
+    if: needs.prepare.outputs.already_cut != 'true'
+    runs-on: blacksmith
+    outputs:
+      core_digest: ${{ steps.digest.outputs.core }}
+      matter_digest: ${{ steps.digest.outputs.matter }}
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create multi-arch image manifests
+        id: digest
+        env:
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          docker buildx imagetools create \
+            -t "${CORE_IMAGE}:${SHA}" \
+            "${CORE_IMAGE}:${SHA}-amd64" \
+            "${CORE_IMAGE}:${SHA}-arm64"
+          docker buildx imagetools create \
+            -t "${MATTER_IMAGE}:${SHA}" \
+            "${MATTER_IMAGE}:${SHA}-amd64" \
+            "${MATTER_IMAGE}:${SHA}-arm64"
+          core=$(docker buildx imagetools inspect "${CORE_IMAGE}:${SHA}" | awk '/^Digest:/ { print $2; exit }')
+          matter=$(docker buildx imagetools inspect "${MATTER_IMAGE}:${SHA}" | awk '/^Digest:/ { print $2; exit }')
+          for digest in "$core" "$matter"; do
+            if ! [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+              echo "Nemu image digest was not resolved" >&2
+              exit 1
+            fi
+          done
+          echo "core=$core" >> "$GITHUB_OUTPUT"
+          echo "matter=$matter" >> "$GITHUB_OUTPUT"
+
+  publish:
+    needs: [prepare, build, merge-images]
+    if: >-
+      always() &&
+      needs.prepare.result == 'success' &&
+      (needs.build.result == 'success' || needs.build.result == 'skipped') &&
+      (needs.merge-images.result == 'success' || needs.merge-images.result == 'skipped')
+    runs-on: blacksmith
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download Updater binaries
+        if: needs.prepare.outputs.already_cut != 'true'
+        uses: actions/download-artifact@v4
+        with:
+          pattern: updater-*
+          path: updater-bins
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99.1
+
+      - name: Plan and publish the Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NEMU_RELEASE_SIGNING_KEY: ${{ secrets.NEMU_RELEASE_SIGNING_KEY }}
+          SOURCE: ${{ needs.prepare.outputs.source }}
+          MINOR_BUMP: ${{ needs.prepare.outputs.minor_bump }}
+          ALREADY_CUT: ${{ needs.prepare.outputs.already_cut }}
+          CORE_DIGEST: ${{ needs.merge-images.outputs.core_digest }}
+          MATTER_DIGEST: ${{ needs.merge-images.outputs.matter_digest }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NEMU_RELEASE_SIGNING_KEY}" ]; then
+            echo "NEMU_RELEASE_SIGNING_KEY is not set" >&2
+            exit 1
+          fi
+          git fetch origin --tags --force
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          cuts='[]'
+          while IFS= read -r tag; do
+            [ -n "$tag" ] || continue
+            if ! [[ "$tag" =~ ^v0\.[0-9]+\.[0-9]+$ ]]; then
+              continue
+            fi
+            commit=$(git rev-parse "${tag}^{commit}")
+            dir="$RUNNER_TEMP/cuts/$tag"
+            mkdir -p "$dir"
+            if ! gh release download "$tag" --pattern release-manifest.json --dir "$dir"; then
+              echo "Platform version ${tag} has no signed manifest" >&2
+              exit 1
+            fi
+            cuts=$(jq -n \
+              --argjson cuts "$cuts" \
+              --arg version "${tag#v}" \
+              --arg commit "$commit" \
+              --slurpfile signed "$dir/release-manifest.json" \
+              '$cuts + [{platformVersion: $version, commit: $commit, manifest: $signed[0].manifest}]')
+          done < <(git tag -l 'v0.*')
+
+          if [ "$ALREADY_CUT" = "true" ]; then
+            this_cut=$(jq -e --arg commit "$GITHUB_SHA" '[.[] | select(.commit == $commit)][0]' <<<"$cuts")
+            amd64=$(jq -er '.manifest.updater.amd64' <<<"$this_cut")
+            arm64=$(jq -er '.manifest.updater.arm64' <<<"$this_cut")
+            resolved=$(jq -c '.manifest.services' <<<"$this_cut")
+          else
+            resolve() {
+              local digest
+              digest=$(docker buildx imagetools inspect "$1" | awk '/^Digest:/ { print $2; exit }')
+              if ! [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+                echo "could not freeze a digest for $1" >&2
+                exit 1
+              fi
+              printf '%s' "$digest"
+            }
+            mosquitto=$(resolve eclipse-mosquitto:2)
+            zigbee=$(resolve koenkk/zigbee2mqtt)
+            postgres=$(resolve postgres:16-alpine)
+            amd64=$(base64 -w0 updater-bins/updater-amd64/updater)
+            arm64=$(base64 -w0 updater-bins/updater-arm64/updater)
+            resolved=$(jq -n \
+              --arg mosquitto "$mosquitto" \
+              --arg zigbee "$zigbee" \
+              --arg matter "$MATTER_DIGEST" \
+              --arg postgres "$postgres" \
+              --arg core "$CORE_DIGEST" \
+              '[
+                {service: "mosquitto", image: "eclipse-mosquitto:2", digest: $mosquitto},
+                {service: "zigbee2mqtt", image: "koenkk/zigbee2mqtt", digest: $zigbee},
+                {service: "nemu-matter", image: "ghcr.io/zed-softworks-official/nemu-matter", digest: $matter},
+                {service: "postgres", image: "postgres:16-alpine", digest: $postgres},
+                {service: "nemu-core", image: "ghcr.io/zed-softworks-official/nemu-core", digest: $core}
+              ]')
+          fi
+
+          jq -n \
+            --arg source "$SOURCE" \
+            --argjson minorBump "$MINOR_BUMP" \
+            --arg commit "$GITHUB_SHA" \
+            --argjson cutReleases "$cuts" \
+            --argjson resolved "$resolved" \
+            --rawfile compose infra/prod/docker-compose.yml \
+            --rawfile mosquitto infra/prod/mosquitto/mosquitto.conf \
+            --arg amd64 "$amd64" \
+            --arg arm64 "$arm64" \
+            '{
+              source: $source,
+              minorBump: $minorBump,
+              commit: $commit,
+              cutReleases: $cutReleases,
+              resolved: $resolved,
+              stackFiles: [
+                {path: "docker-compose.yml", contents: $compose},
+                {path: "mosquitto/mosquitto.conf", contents: $mosquitto}
+              ],
+              migrations: [],
+              updater: {amd64: $amd64, arm64: $arm64}
+            }' > "$RUNNER_TEMP/request.json"
+
+          cargo build --release --locked --bin publish-release --manifest-path platform/updater/Cargo.toml
+          ./platform/updater/target/release/publish-release \
+            < "$RUNNER_TEMP/request.json" > "$RUNNER_TEMP/plan.json"
+          unset NEMU_RELEASE_SIGNING_KEY
+
+          jq -r '.signedManifest' "$RUNNER_TEMP/plan.json" | base64 -d > "$RUNNER_TEMP/release-manifest.json"
+          jq -e '.manifest.platformVersion' "$RUNNER_TEMP/release-manifest.json" >/dev/null
+          version=$(jq -r '.platformVersion' "$RUNNER_TEMP/plan.json")
+          channel=$(jq -r '.channel' "$RUNNER_TEMP/plan.json")
+
+          jq -c '.imageTags[]' "$RUNNER_TEMP/plan.json" | while IFS= read -r row; do
+            image=$(jq -r '.image' <<<"$row")
+            tag=$(jq -r '.tag' <<<"$row")
+            digest=$(jq -r '.digest' <<<"$row")
+            docker buildx imagetools create -t "${image}:${tag}" "${image}@${digest}"
+          done
+
+          git_tag=$(jq -r '.gitTag // empty' "$RUNNER_TEMP/plan.json")
+          if [ -n "$git_tag" ]; then
+            if git rev-parse -q --verify "refs/tags/${git_tag}" >/dev/null; then
+              existing=$(git rev-parse "${git_tag}^{commit}")
+              if [ "$existing" != "$GITHUB_SHA" ]; then
+                echo "${git_tag} already points at another commit" >&2
+                exit 1
+              fi
+            else
+              git tag "$git_tag" "$GITHUB_SHA"
+              git push origin "refs/tags/${git_tag}"
+            fi
+            if gh release view "$git_tag" >/dev/null 2>&1; then
+              gh release upload "$git_tag" "$RUNNER_TEMP/release-manifest.json#release-manifest.json" --clobber
+            else
+              gh release create "$git_tag" \
+                "$RUNNER_TEMP/release-manifest.json#release-manifest.json" \
+                --target "$GITHUB_SHA" \
+                --title "$git_tag" \
+                --notes "Platform version ${version}."
+            fi
+          fi
+
+          cp "$RUNNER_TEMP/release-manifest.json" "$RUNNER_TEMP/${channel}.json"
+          if gh release view release-manifests >/dev/null 2>&1; then
+            gh release upload release-manifests "$RUNNER_TEMP/${channel}.json#${channel}.json" --clobber
+          else
+            gh release create release-manifests \
+              "$RUNNER_TEMP/${channel}.json#${channel}.json" \
+              --target "$GITHUB_SHA" \
+              --title "Release manifests" \
+              --notes "Signed Canary and Stable manifests. A Home installs the manifest for its Release channel."
+          fi
+
+          # A retry can observe the version tag before the merge. Merge master
+          # back when this commit is still absent from canary.
+          if [ "$SOURCE" = "stable" ]; then
+            git fetch origin canary
+            if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/canary; then
+              git checkout -B canary origin/canary
+              git merge "$GITHUB_SHA" --no-edit
+              git push origin canary
+            fi
+          fi
