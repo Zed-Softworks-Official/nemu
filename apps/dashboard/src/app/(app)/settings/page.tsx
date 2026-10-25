@@ -65,6 +65,7 @@ export default function SettingsPage() {
         revokeCurrentToken,
         bootstrapOwner,
         getReleaseStatus,
+        installRelease,
     } = useController()
     const { isAuthenticated } = useConvexAuth()
     const controllers = useQuery(
@@ -101,6 +102,8 @@ export default function SettingsPage() {
     const [updateState, setUpdateState] = useState<ReleaseReadState>({
         kind: 'idle',
     })
+    const [busyInstall, setBusyInstall] = useState(false)
+    const [installError, setInstallError] = useState<string | null>(null)
     const updateStateRef = useRef(updateState)
     updateStateRef.current = updateState
 
@@ -187,6 +190,23 @@ export default function SettingsPage() {
     useEffect(() => {
         void readRelease()
     }, [readRelease])
+
+    async function handleInstall() {
+        setBusyInstall(true)
+        setInstallError(null)
+        try {
+            await installRelease()
+            await readRelease()
+        } catch (err) {
+            setInstallError(
+                err instanceof Error
+                    ? err.message
+                    : 'Could not install the Release'
+            )
+        } finally {
+            setBusyInstall(false)
+        }
+    }
 
     const inviteSteps = useMemo(() => {
         if (!inviteEmail.trim()) return ''
@@ -406,9 +426,17 @@ export default function SettingsPage() {
                                 <>
                                     <Separator />
                                     <CoreUpdatesBlock
-                                        canRefresh={
-                                            updateState.kind !== 'checking'
+                                        busyInstall={busyInstall}
+                                        canInstall={
+                                            updateState.kind === 'newer' ||
+                                            busyInstall
                                         }
+                                        canRefresh={
+                                            updateState.kind !== 'checking' &&
+                                            !busyInstall
+                                        }
+                                        installError={installError}
+                                        onInstall={() => void handleInstall()}
                                         onRefresh={() => void readRelease()}
                                         state={updateState}
                                     />
@@ -715,12 +743,20 @@ function CoreUpdatesBlock({
     state,
     canRefresh,
     onRefresh,
+    canInstall,
+    busyInstall,
+    installError,
+    onInstall,
 }: {
     state: ReleaseReadState
     canRefresh: boolean
     onRefresh: () => void
+    canInstall: boolean
+    busyInstall: boolean
+    installError: string | null
+    onInstall: () => void
 }) {
-    const destructive = state.kind === 'error'
+    const destructive = state.kind === 'error' || installError !== null
     return (
         <div className="space-y-3">
             <div className="flex items-start justify-between gap-3">
@@ -733,15 +769,26 @@ function CoreUpdatesBlock({
                                 : 'text-muted-foreground text-xs'
                         }
                     >
-                        {updateStatusCopy(state)}
+                        {installError ?? updateStatusCopy(state)}
                     </p>
                 </div>
-                {canRefresh ? (
-                    <Button onClick={onRefresh} size="sm" variant="outline">
-                        <RotateCwIcon data-icon="inline-start" />
-                        Check
-                    </Button>
-                ) : null}
+                <div className="flex shrink-0 gap-2">
+                    {canInstall ? (
+                        <Button
+                            disabled={busyInstall}
+                            onClick={onInstall}
+                            size="sm"
+                        >
+                            {busyInstall ? 'Installing…' : 'Install'}
+                        </Button>
+                    ) : null}
+                    {canRefresh ? (
+                        <Button onClick={onRefresh} size="sm" variant="outline">
+                            <RotateCwIcon data-icon="inline-start" />
+                            Check
+                        </Button>
+                    ) : null}
+                </div>
             </div>
         </div>
     )
