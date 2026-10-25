@@ -27,6 +27,8 @@ pub enum CommandError {
     InvalidId,
     #[error("command ledger failed: {0}")]
     Store(String),
+    #[error("the home is in maintenance")]
+    Maintenance,
 }
 
 impl CommandError {
@@ -44,6 +46,7 @@ impl CommandError {
             Self::Mqtt(_) => "mqtt_error",
             Self::InvalidId => "invalid_command",
             Self::Store(_) => "internal_error",
+            Self::Maintenance => "maintenance",
         }
     }
 
@@ -93,6 +96,19 @@ fn stored_result(row: CommandRow) -> Result<CommandOutcome, CommandError> {
 ///
 /// The Command id is admitted to the ledger before MQTT publication. A retry
 /// returns the stored outcome and does not publish again.
+/// New Commands are not admitted while the Updater holds maintenance.
+/// A Command still inside its retention window is a retry, not a new admission.
+pub fn admit_new_command(
+    maintenance_mode: bool,
+    retained_command: bool,
+) -> Result<(), CommandError> {
+    if maintenance_mode && !retained_command {
+        Err(CommandError::Maintenance)
+    } else {
+        Ok(())
+    }
+}
+
 pub async fn execute_set(
     state: &AppState,
     command_id: &str,
@@ -101,6 +117,15 @@ pub async fn execute_set(
 ) -> Result<CommandOutcome, CommandError> {
     if !ledger::valid_command_id(command_id) {
         return Err(CommandError::InvalidId);
+    }
+    if state.updater.maintenance_mode() {
+        let now = Utc::now();
+        let retained = match ledger::get(&state.db, command_id.trim()).await {
+            Ok(Some(row)) => row.retain_until > now,
+            Ok(None) => false,
+            Err(error) => return Err(CommandError::Store(error)),
+        };
+        admit_new_command(true, retained)?;
     }
     let now = Utc::now();
     let device = state.registry.get(device_id).await;
@@ -216,6 +241,12 @@ mod tests {
             require_command_id(Some(" request-1 ")).unwrap(),
             "request-1"
         );
+        assert!(admit_new_command(false, false).is_ok());
+        assert_eq!(
+            admit_new_command(true, false).unwrap_err().code(),
+            "maintenance"
+        );
+        assert!(admit_new_command(true, true).is_ok());
         let pending = CommandRow {
             outcome: CommandOutcome::PendingDispatch.as_str().into(),
             ..sample_row()

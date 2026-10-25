@@ -1,4 +1,6 @@
 import {
+    type ApplyUpdateResponse,
+    applyUpdateResponseSchema,
     type BootstrapOwnerRequest,
     bootstrapOwnerRequestSchema,
     type ClientToken,
@@ -275,6 +277,11 @@ export class LanTransport implements ControllerTransport {
     async getReleaseStatus(): Promise<UpdateStatusResponse> {
         const { data } = await this.http.get('/api/updates')
         return updateStatusResponseSchema.parse(data)
+    }
+
+    async installRelease(): Promise<ApplyUpdateResponse> {
+        const { data } = await this.http.post('/api/updates/apply')
+        return applyUpdateResponseSchema.parse(data)
     }
 
     async inviteMember(email: string): Promise<HouseholdMember> {

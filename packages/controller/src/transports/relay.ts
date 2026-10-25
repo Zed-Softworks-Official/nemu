@@ -1,4 +1,6 @@
 import {
+    type ApplyUpdateResponse,
+    applyUpdateResponseSchema,
     type BootstrapOwnerRequest,
     type ClientToken,
     type CommandResult,
@@ -231,6 +233,15 @@ export class RelayTransport implements ControllerTransport {
         }
         this.throwIfCommandError(parsed, 'read the installed Release')
         throw new Error('Unexpected relay response for releaseStatus')
+    }
+
+    async installRelease(): Promise<ApplyUpdateResponse> {
+        const parsed = await this.request({ type: 'installRelease' })
+        if (parsed.message.type === 'installRelease') {
+            return applyUpdateResponseSchema.parse(parsed.message)
+        }
+        this.throwIfCommandError(parsed, 'install the Release')
+        throw new Error('Unexpected relay response for installRelease')
     }
 
     async getMembers(): Promise<HouseholdMember[]> {
