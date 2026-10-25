@@ -4,11 +4,17 @@ use ed25519_dalek::VerifyingKey;
 use serde::{Deserialize, Serialize};
 
 mod manifest;
+mod publish;
 
 pub use manifest::{
     ManifestError, ManifestHost, ManifestHostError, MissingManifestHost, RELEASE_SERVICES,
     ReleaseManifest, ServiceImage, SettingMigration, SignedReleaseManifest, StackFile,
     UpdaterBinaries, manifest_signing_bytes, sign_manifest, verify_manifest,
+};
+
+pub use publish::{
+    CutRelease, ImageTag, PublishError, PublishPlan, PublishRequest, PublishSource,
+    ResolvedService, plan_publish, signing_key_from_base64,
 };
 
 /// Home data file under the Controller directory. A Release may replace stack
@@ -149,7 +155,7 @@ fn platform_version_is_newer(candidate: &str, installed: &str) -> bool {
     }
 }
 
-fn parse_platform_version(version: &str) -> Option<(u64, u64, u64)> {
+pub(crate) fn parse_platform_version(version: &str) -> Option<(u64, u64, u64)> {
     let mut parts = version.split('.');
     let major = parts.next()?.parse().ok()?;
     let minor = parts.next()?.parse().ok()?;
