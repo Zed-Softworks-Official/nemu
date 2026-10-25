@@ -181,9 +181,12 @@ export const sessionMintResultSchema = z.object({
 })
 export type SessionMintResult = z.infer<typeof sessionMintResultSchema>
 
+export const releaseChannelSchema = z.enum(['stable', 'canary'])
+export type ReleaseChannel = z.infer<typeof releaseChannelSchema>
+
 export const updateStatusResponseSchema = z.object({
     platformVersion: z.string(),
-    channel: z.enum(['stable', 'canary']),
+    channel: releaseChannelSchema,
     newerReleaseAvailable: z.boolean(),
     maintenanceMode: z.boolean(),
     rollbackSnapshotAvailable: z.boolean(),
@@ -195,3 +198,18 @@ export const applyUpdateResponseSchema = z.object({
     started: z.boolean(),
 })
 export type ApplyUpdateResponse = z.infer<typeof applyUpdateResponseSchema>
+
+export const switchReleaseChannelRequestSchema = z.object({
+    channel: releaseChannelSchema,
+})
+export type SwitchReleaseChannelRequest = z.infer<
+    typeof switchReleaseChannelRequestSchema
+>
+
+export const switchReleaseChannelResponseSchema = z.object({
+    channel: releaseChannelSchema,
+    installed: z.boolean(),
+})
+export type SwitchReleaseChannelResponse = z.infer<
+    typeof switchReleaseChannelResponseSchema
+>

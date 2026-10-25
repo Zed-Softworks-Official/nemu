@@ -103,6 +103,7 @@ pub fn router(state: AppState) -> Router {
         .route("/api/updates", get(updates::status))
         .route("/api/updates/apply", post(updates::apply))
         .route("/api/updates/rollback", post(updates::rollback))
+        .route("/api/updates/channel", post(updates::switch_channel))
         .route("/ws", get(ws::ws_handler))
         .route_layer(middleware::from_fn_with_state(
             state.clone(),

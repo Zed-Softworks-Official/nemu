@@ -25,8 +25,10 @@ import {
     type PatchOutletRequest,
     type PatchRoomRequest,
     type PermitJoinResponse,
+    type ReleaseChannel,
     type Room,
     type SaveMatterWifiRequest,
+    type SwitchReleaseChannelResponse,
     statusFromMode,
     type UpdateStatusResponse,
 } from '@nemu/protocol'
@@ -88,6 +90,9 @@ type ControllerContextValue = {
     getReleaseStatus: () => Promise<UpdateStatusResponse>
     installRelease: () => Promise<ApplyUpdateResponse>
     rollbackRelease: () => Promise<ApplyUpdateResponse>
+    switchReleaseChannel: (
+        channel: ReleaseChannel
+    ) => Promise<SwitchReleaseChannelResponse>
 }
 
 const ControllerContext = createContext<ControllerContextValue | null>(null)
@@ -252,6 +257,10 @@ export function ControllerProvider({
         () => connection.rollbackRelease(),
         [connection]
     )
+    const switchReleaseChannel = useCallback(
+        (channel: ReleaseChannel) => connection.switchReleaseChannel(channel),
+        [connection]
+    )
 
     const value = useMemo(
         () => ({
@@ -285,6 +294,7 @@ export function ControllerProvider({
             getReleaseStatus,
             installRelease,
             rollbackRelease,
+            switchReleaseChannel,
         }),
         [
             connection,
@@ -317,6 +327,7 @@ export function ControllerProvider({
             getReleaseStatus,
             installRelease,
             rollbackRelease,
+            switchReleaseChannel,
         ]
     )
 

@@ -17,6 +17,7 @@ import {
     type HouseholdMember,
     type PairingCodeResponse,
     pairingCodeResponseSchema,
+    type ReleaseChannel,
 } from '@nemu/protocol'
 import { Badge } from '@nemu/ui/components/badge'
 import { Button } from '@nemu/ui/components/button'
@@ -67,6 +68,7 @@ export default function SettingsPage() {
         getReleaseStatus,
         installRelease,
         rollbackRelease,
+        switchReleaseChannel,
     } = useController()
     const { isAuthenticated } = useConvexAuth()
     const controllers = useQuery(
@@ -110,6 +112,8 @@ export default function SettingsPage() {
     const [rollbackStuck, setRollbackStuck] = useState(false)
     const [busyRollback, setBusyRollback] = useState(false)
     const [rollbackError, setRollbackError] = useState<string | null>(null)
+    const [busyChannel, setBusyChannel] = useState(false)
+    const [channelError, setChannelError] = useState<string | null>(null)
     const updateStateRef = useRef(updateState)
     updateStateRef.current = updateState
 
@@ -232,6 +236,23 @@ export default function SettingsPage() {
             )
         } finally {
             setBusyRollback(false)
+        }
+    }
+
+    async function handleSwitchChannel(channel: ReleaseChannel) {
+        setBusyChannel(true)
+        setChannelError(null)
+        try {
+            await switchReleaseChannel(channel)
+            await readRelease()
+        } catch (err) {
+            setChannelError(
+                err instanceof Error
+                    ? err.message
+                    : 'Could not switch the Release channel'
+            )
+        } finally {
+            setBusyChannel(false)
         }
     }
 
@@ -453,6 +474,7 @@ export default function SettingsPage() {
                                 <>
                                     <Separator />
                                     <CoreUpdatesBlock
+                                        busyChannel={busyChannel}
                                         busyInstall={busyInstall}
                                         busyRollback={busyRollback}
                                         canInstall={
@@ -463,17 +485,24 @@ export default function SettingsPage() {
                                         canRefresh={
                                             updateState.kind !== 'checking' &&
                                             !busyInstall &&
-                                            !busyRollback
+                                            !busyRollback &&
+                                            !busyChannel
                                         }
                                         canRollback={
                                             (rollbackSnapshotAvailable ||
                                                 rollbackStuck) &&
-                                            !busyInstall
+                                            !busyInstall &&
+                                            !busyChannel
                                         }
+                                        channel={releaseChannel}
+                                        channelError={channelError}
                                         installError={installError}
                                         onInstall={() => void handleInstall()}
                                         onRefresh={() => void readRelease()}
                                         onRollback={() => void handleRollback()}
+                                        onSwitchChannel={(channel) =>
+                                            void handleSwitchChannel(channel)
+                                        }
                                         rollbackError={rollbackError}
                                         rollbackStuck={rollbackStuck}
                                         state={updateState}
@@ -790,6 +819,10 @@ function CoreUpdatesBlock({
     rollbackError,
     rollbackStuck,
     onRollback,
+    channel,
+    busyChannel,
+    channelError,
+    onSwitchChannel,
 }: {
     state: ReleaseReadState
     canRefresh: boolean
@@ -803,15 +836,24 @@ function CoreUpdatesBlock({
     rollbackError: string | null
     rollbackStuck: boolean
     onRollback: () => void
+    channel: string | null
+    busyChannel: boolean
+    channelError: string | null
+    onSwitchChannel: (channel: ReleaseChannel) => void
 }) {
+    const busy = busyInstall || busyRollback || busyChannel
     const destructive =
         state.kind === 'error' ||
         installError !== null ||
         rollbackError !== null ||
+        channelError !== null ||
         rollbackStuck
     const statusCopy = rollbackStuck
         ? 'Rollback is stuck. The previous Release stays in maintenance until it is healthy.'
-        : (installError ?? rollbackError ?? updateStatusCopy(state))
+        : (channelError ??
+          rollbackError ??
+          installError ??
+          updateStatusCopy(state))
     return (
         <div className="space-y-3">
             <div className="flex items-start justify-between gap-3">
@@ -832,10 +874,28 @@ function CoreUpdatesBlock({
                         </p>
                     ) : null}
                 </div>
-                <div className="flex shrink-0 gap-2">
+                <div className="flex shrink-0 flex-wrap justify-end gap-2">
+                    <Button
+                        aria-pressed={channel === 'stable'}
+                        disabled={busy || channel !== 'canary'}
+                        onClick={() => onSwitchChannel('stable')}
+                        size="sm"
+                        variant={channel === 'stable' ? 'secondary' : 'outline'}
+                    >
+                        Stable
+                    </Button>
+                    <Button
+                        aria-pressed={channel === 'canary'}
+                        disabled={busy || channel !== 'stable'}
+                        onClick={() => onSwitchChannel('canary')}
+                        size="sm"
+                        variant={channel === 'canary' ? 'secondary' : 'outline'}
+                    >
+                        Canary
+                    </Button>
                     {canRollback ? (
                         <Button
-                            disabled={busyRollback}
+                            disabled={busyRollback || busyChannel}
                             onClick={onRollback}
                             size="sm"
                             variant="outline"
@@ -850,11 +910,7 @@ function CoreUpdatesBlock({
                         </Button>
                     ) : null}
                     {canInstall ? (
-                        <Button
-                            disabled={busyInstall}
-                            onClick={onInstall}
-                            size="sm"
-                        >
+                        <Button disabled={busy} onClick={onInstall} size="sm">
                             {busyInstall ? 'Installing…' : 'Install'}
                         </Button>
                     ) : null}

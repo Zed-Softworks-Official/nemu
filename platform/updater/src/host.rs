@@ -11,8 +11,6 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use base64::Engine;
-use base64::engine::general_purpose::STANDARD as BASE64;
 use ed25519_dalek::VerifyingKey;
 
 use crate::ReleaseChannel;
@@ -22,7 +20,6 @@ use crate::install::{
 };
 use crate::manifest::{ManifestHost, ManifestHostError};
 
-const RELEASE_KEY_FILE: &str = "updater/release-public-key";
 const MANIFEST_DIR: &str = "updater/manifests";
 
 /// Channel manifests read from `updater/manifests/{channel}.json`.
@@ -56,61 +53,50 @@ impl ManifestHost for DirectoryManifestHost {
     }
 }
 
-/// The release-signing public key, when the Controller directory has one.
+/// The release-signing public key the wrapper pins, when the Home has one.
 pub fn load_release_key(controller_dir: &Path) -> Option<VerifyingKey> {
-    let bytes = std::fs::read(controller_dir.join(RELEASE_KEY_FILE)).ok()?;
-    let key = if bytes.len() == 32 {
-        bytes
-    } else {
-        let text = String::from_utf8(bytes).ok()?;
-        BASE64.decode(text.trim()).ok()?
-    };
-    let key: [u8; 32] = key.try_into().ok()?;
-    VerifyingKey::from_bytes(&key).ok()
+    crate::wrapper::load_pin(controller_dir)
 }
 
 /// Roll back using the host adapters. The library call is still in-process.
 pub fn run_rollback(controller_dir: &Path) -> Result<(), crate::rollback::RollbackError> {
-    let manifests = DirectoryManifestHost::new(controller_dir);
-    let release_key = load_release_key(controller_dir);
-    let runtime = DockerComposeRuntime::new(controller_dir);
-    let health = HttpCoreHealth::from_env();
-    let space = PosixFreeSpace::new(controller_dir);
-    let clock = SystemClock;
-    crate::rollback::rollback(
-        controller_dir,
-        &InstallEnv {
-            manifests: &manifests,
-            release_key: release_key.as_ref(),
-            runtime: &runtime,
-            health: &health,
-            space: &space,
-            clock: &clock,
-            arch: UpdaterArch::from_host(),
-        },
-    )
+    with_host_env(controller_dir, |env| {
+        crate::rollback::rollback(controller_dir, env)
+    })
 }
 
 /// Install using the host adapters. The library call is still in-process.
 pub fn run_install(controller_dir: &Path) -> Result<(), InstallError> {
+    with_host_env(controller_dir, |env| install(controller_dir, env))
+}
+
+/// Switch channel using the host adapters. A newer Release is installed by
+/// `install`; an older one is only saved.
+pub fn run_switch_channel(
+    controller_dir: &Path,
+    channel: ReleaseChannel,
+) -> Result<crate::ChannelSwitch, crate::ChannelError> {
+    with_host_env(controller_dir, |env| {
+        crate::switch_channel(controller_dir, channel, env)
+    })
+}
+
+fn with_host_env<T>(controller_dir: &Path, use_env: impl FnOnce(&InstallEnv<'_>) -> T) -> T {
     let manifests = DirectoryManifestHost::new(controller_dir);
     let release_key = load_release_key(controller_dir);
     let runtime = DockerComposeRuntime::new(controller_dir);
     let health = HttpCoreHealth::from_env();
     let space = PosixFreeSpace::new(controller_dir);
     let clock = SystemClock;
-    install(
-        controller_dir,
-        &InstallEnv {
-            manifests: &manifests,
-            release_key: release_key.as_ref(),
-            runtime: &runtime,
-            health: &health,
-            space: &space,
-            clock: &clock,
-            arch: UpdaterArch::from_host(),
-        },
-    )
+    use_env(&InstallEnv {
+        manifests: &manifests,
+        release_key: release_key.as_ref(),
+        runtime: &runtime,
+        health: &health,
+        space: &space,
+        clock: &clock,
+        arch: UpdaterArch::from_host(),
+    })
 }
 
 struct SystemClock;

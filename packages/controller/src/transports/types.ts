@@ -19,8 +19,10 @@ import type {
     PatchOutletRequest,
     PatchRoomRequest,
     PermitJoinResponse,
+    ReleaseChannel,
     Room,
     SaveMatterWifiRequest,
+    SwitchReleaseChannelResponse,
     UpdateStatusResponse,
 } from '@nemu/protocol'
 
@@ -75,6 +77,9 @@ export interface ControllerTransport {
     getReleaseStatus?(): Promise<UpdateStatusResponse>
     installRelease?(): Promise<ApplyUpdateResponse>
     rollbackRelease?(): Promise<ApplyUpdateResponse>
+    switchReleaseChannel?(
+        channel: ReleaseChannel
+    ): Promise<SwitchReleaseChannelResponse>
 }
 
 export interface ControllerTransport {

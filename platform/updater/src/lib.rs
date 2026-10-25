@@ -3,13 +3,18 @@ use std::path::{Path, PathBuf};
 use ed25519_dalek::VerifyingKey;
 use serde::{Deserialize, Serialize};
 
+mod channel;
 mod host;
 mod install;
 mod manifest;
 mod publish;
 mod rollback;
+mod wrapper;
 
-pub use host::{DirectoryManifestHost, load_release_key, run_install, run_rollback};
+pub use channel::{ChannelError, ChannelSwitch, switch_channel};
+pub use host::{
+    DirectoryManifestHost, load_release_key, run_install, run_rollback, run_switch_channel,
+};
 pub use install::{hourly_check, maintenance_mode};
 
 pub use manifest::{
@@ -308,6 +313,7 @@ mod tests {
                 amd64: BASE64.encode(b"amd64"),
                 arm64: BASE64.encode(b"arm64"),
             },
+            next_pin: None,
         }
     }
 

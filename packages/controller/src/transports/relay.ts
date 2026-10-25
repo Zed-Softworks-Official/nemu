@@ -17,8 +17,11 @@ import {
     homeMeterDesignationResultSchema,
     householdMemberSchema,
     parseDeviceList,
+    type ReleaseChannel,
     relayToClientEnvelopeSchema,
     relayToControllerEnvelopeSchema,
+    type SwitchReleaseChannelResponse,
+    switchReleaseChannelResponseSchema,
     type UpdateStatusResponse,
     updateStatusResponseSchema,
 } from '@nemu/protocol'
@@ -251,6 +254,20 @@ export class RelayTransport implements ControllerTransport {
         }
         this.throwIfCommandError(parsed, 'roll back the Release')
         throw new Error('Unexpected relay response for rollbackRelease')
+    }
+
+    async switchReleaseChannel(
+        channel: ReleaseChannel
+    ): Promise<SwitchReleaseChannelResponse> {
+        const parsed = await this.request({
+            type: 'switchReleaseChannel',
+            channel,
+        })
+        if (parsed.message.type === 'switchReleaseChannel') {
+            return switchReleaseChannelResponseSchema.parse(parsed.message)
+        }
+        this.throwIfCommandError(parsed, 'switch the Release channel')
+        throw new Error('Unexpected relay response for switchReleaseChannel')
     }
 
     async getMembers(): Promise<HouseholdMember[]> {

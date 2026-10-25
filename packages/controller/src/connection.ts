@@ -22,8 +22,10 @@ import {
     type PatchOutletRequest,
     type PatchRoomRequest,
     type PermitJoinResponse,
+    type ReleaseChannel,
     type Room,
     type SaveMatterWifiRequest,
+    type SwitchReleaseChannelResponse,
     statusFromMode,
     type UpdateStatusResponse,
 } from '@nemu/protocol'
@@ -354,6 +356,18 @@ export class ControllerConnection {
             throw new Error('Rollback is not supported by this controller')
         }
         return await transport.rollbackRelease()
+    }
+
+    async switchReleaseChannel(
+        channel: ReleaseChannel
+    ): Promise<SwitchReleaseChannelResponse> {
+        const transport = this.requireConnectedTransport('Release channel')
+        if (!transport.switchReleaseChannel) {
+            throw new Error(
+                'Release channel is not supported by this controller'
+            )
+        }
+        return await transport.switchReleaseChannel(channel)
     }
 
     async getMembers(): Promise<HouseholdMember[]> {
