@@ -149,9 +149,10 @@ pub enum InstallError {
 /// Installs the newer Release on the stored channel.
 ///
 /// The process that enters this function is the previous Updater: the binary
-/// the wrapper would start is replaced only after the health gate. A failed
-/// gate leaves the snapshot and maintenance in place and does not record the
-/// Release. Restoring that snapshot is a later step.
+/// the wrapper would start, and a new wrapper pin, are replaced only after
+/// the health gate. A failed gate leaves the snapshot and maintenance in
+/// place and does not record the Release. Restoring that snapshot is a later
+/// step.
 pub fn install(controller_dir: &Path, env: &InstallEnv<'_>) -> Result<(), InstallError> {
     if maintenance_mode(controller_dir) {
         return Err(InstallError::InMaintenance);
@@ -165,6 +166,7 @@ pub fn install(controller_dir: &Path, env: &InstallEnv<'_>) -> Result<(), Instal
         return Err(InstallError::MigrationRefused);
     }
     let binary = decode_binary(&manifest, env.arch)?;
+    let next_pin = decode_next_pin(&manifest)?;
     let space = env.space.report().map_err(InstallError::Unavailable)?;
     let snapshot_bytes = snapshot_size(controller_dir);
     let room = space
@@ -203,6 +205,10 @@ pub fn install(controller_dir: &Path, env: &InstallEnv<'_>) -> Result<(), Instal
     }
 
     commit_binary(controller_dir, &binary)?;
+    if let Some(next_pin) = next_pin {
+        crate::wrapper::commit_pin(controller_dir, &next_pin)
+            .map_err(|error| InstallError::Unavailable(error.to_string()))?;
+    }
     record_installed(controller_dir, &manifest)?;
     set_maintenance(controller_dir, false)?;
     Ok(())
@@ -258,7 +264,8 @@ fn verified_newer_manifest(
         .platform_version
         .filter(|version| !version.trim().is_empty())
         .ok_or(InstallError::PlatformVersionMissing)?;
-    let Some(release_key) = env.release_key else {
+    let release_key = crate::wrapper::load_pin(controller_dir).or(env.release_key.copied());
+    let Some(release_key) = release_key else {
         return Err(InstallError::NotEligible);
     };
     let Some(bytes) = env
@@ -268,12 +275,21 @@ fn verified_newer_manifest(
     else {
         return Err(InstallError::NotEligible);
     };
-    let manifest = crate::manifest::verify_manifest(&bytes, release_key)
+    let manifest = crate::manifest::verify_manifest(&bytes, &release_key)
         .map_err(|_| InstallError::Rejected)?;
     if !platform_version_is_newer(&manifest.platform_version, &installed) {
         return Err(InstallError::NotEligible);
     }
     Ok(manifest)
+}
+
+fn decode_next_pin(manifest: &ReleaseManifest) -> Result<Option<VerifyingKey>, InstallError> {
+    match &manifest.next_pin {
+        None => Ok(None),
+        Some(pin) => crate::manifest::parse_next_pin(pin)
+            .map(Some)
+            .map_err(|_| InstallError::Rejected),
+    }
 }
 
 fn decode_binary(manifest: &ReleaseManifest, arch: UpdaterArch) -> Result<Vec<u8>, InstallError> {
@@ -657,9 +673,13 @@ mod tests {
         ManifestHost, ManifestHostError, ReleaseManifest, ServiceImage, SettingMigration,
         StackFile, UpdaterBinaries, sign_manifest,
     };
-    use crate::{RELEASE_SERVICES, ReleaseChannel, installed_release_path, status};
+    use crate::{
+        RELEASE_SERVICES, ReleaseChannel, installed_release_path, load_release_key, status,
+    };
 
     const PREVIOUS_UPDATER: &[u8] = b"previous-updater";
+    const CURRENT_PIN: &str = "updater/release-public-key";
+    const PREVIOUS_WRAPPER: &str = "updater/previous-wrapper";
     const AMD64_UPDATER: &[u8] = b"amd64-generation-2";
     const ARM64_UPDATER: &[u8] = b"arm64-generation-2";
     const GIB: u64 = 1024 * 1024 * 1024;
@@ -854,6 +874,20 @@ mod tests {
         SigningKey::from_bytes(&[0x22; 32])
     }
 
+    fn next_signing_key() -> SigningKey {
+        SigningKey::from_bytes(&[0x33; 32])
+    }
+
+    fn place_first_wrapper(home: &Path, key: &SigningKey) {
+        let path = home.join(CURRENT_PIN);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(&path, key.verifying_key().to_bytes()).unwrap();
+    }
+
+    fn encoded_pin(key: &SigningKey) -> String {
+        BASE64.encode(key.verifying_key().to_bytes())
+    }
+
     fn pinned_services(matter: u8) -> Vec<ServiceImage> {
         RELEASE_SERVICES
             .iter()
@@ -959,6 +993,7 @@ devices:
                 amd64: BASE64.encode(AMD64_UPDATER),
                 arm64: BASE64.encode(ARM64_UPDATER),
             },
+            next_pin: None,
         }
     }
 
@@ -1024,7 +1059,15 @@ devices:
     }
 
     fn run_install(home: &Path, world: &World, host: &FakeHost) -> Result<(), InstallError> {
-        let key = release_signing_key();
+        run_install_with(home, world, host, &release_signing_key())
+    }
+
+    fn run_install_with(
+        home: &Path,
+        world: &World,
+        host: &FakeHost,
+        key: &SigningKey,
+    ) -> Result<(), InstallError> {
         let public = key.verifying_key();
         install(
             home,
@@ -1540,5 +1583,182 @@ devices:
 
         run_install(home.path(), &world, &host).expect("matter only");
         assert_eq!(world.recreated_services(), vec!["nemu-matter".to_string()]);
+    }
+
+    #[test]
+    fn a_failed_health_gate_does_not_replace_the_wrapper() {
+        let home = TempHome::new();
+        seed_home(home.path());
+        let current = release_signing_key();
+        place_first_wrapper(home.path(), &current);
+        let placed = fs::read(home.path().join(CURRENT_PIN)).unwrap();
+        let world = World::new(home.path());
+        world
+            .horizon
+            .store(HEALTH_GATE_LIMIT_SECS + 50, Ordering::SeqCst);
+        *world.services.lock().unwrap() = running_like_release(3);
+        let mut down = healthy();
+        down.postgres_ok = false;
+        down.mosquitto_ok = false;
+        *world.during.lock().unwrap() = vec![(0, down)];
+        let mut manifest = release_manifest(pinned_services(9), false);
+        manifest.next_pin = Some(encoded_pin(&next_signing_key()));
+        let host = host_for(signed_with(&manifest, &current));
+
+        let error = run_install_with(home.path(), &world, &host, &current).expect_err("gate");
+
+        assert_eq!(error, InstallError::HealthGate);
+        assert_eq!(fs::read(home.path().join(CURRENT_PIN)).unwrap(), placed);
+        assert!(!home.path().join(PREVIOUS_WRAPPER).exists());
+        assert_eq!(generation(home.path()), "1");
+        assert!(!home.path().join(BINARY_DIR).join("2").exists());
+    }
+
+    #[test]
+    fn the_home_installs_the_next_wrapper_pin_after_the_gate_and_keeps_the_previous() {
+        let home = TempHome::new();
+        seed_home(home.path());
+        let current = release_signing_key();
+        let next = next_signing_key();
+        place_first_wrapper(home.path(), &current);
+        let placed = fs::read(home.path().join(CURRENT_PIN)).unwrap();
+        let world = World::new(home.path());
+        *world.services.lock().unwrap() = running_like_release(3);
+        let mut manifest = release_manifest(pinned_services(9), false);
+        manifest.next_pin = Some(encoded_pin(&next));
+        let host = host_for(signed_with(&manifest, &current));
+
+        run_install_with(home.path(), &world, &host, &current).expect("rotate");
+
+        assert_eq!(load_release_key(home.path()), Some(next.verifying_key()));
+        assert_eq!(
+            fs::read(home.path().join(PREVIOUS_WRAPPER)).unwrap(),
+            placed
+        );
+        assert_eq!(generation(home.path()), "2");
+        assert!(!home.path().join(MAINTENANCE_FILE).is_file());
+
+        let mut later = release_manifest(pinned_services(8), false);
+        later.platform_version = "0.4.11".to_string();
+        let later_host = host_for(signed_with(&later, &next));
+        run_install_with(home.path(), &world, &later_host, &current).expect("new key");
+        assert_eq!(
+            read_stored(home.path()).platform_version.as_deref(),
+            Some("0.4.11")
+        );
+        let compose = fs::read(home.path().join("docker-compose.yml")).unwrap();
+        let snapshot = fs::read(
+            home.path()
+                .join(SNAPSHOT_DIR)
+                .join("identity/controller-id"),
+        )
+        .unwrap();
+
+        let mut rejected = release_manifest(pinned_services(7), false);
+        rejected.platform_version = "0.4.12".to_string();
+        rejected.stack_files[0].contents = "name: replaced\n".to_string();
+        let rejected_host = host_for(signed_with(&rejected, &current));
+        let error =
+            run_install_with(home.path(), &world, &rejected_host, &current).expect_err("old key");
+        assert_eq!(error, InstallError::Rejected);
+        assert_eq!(
+            fs::read(home.path().join("docker-compose.yml")).unwrap(),
+            compose
+        );
+        assert_eq!(
+            fs::read(
+                home.path()
+                    .join(SNAPSHOT_DIR)
+                    .join("identity/controller-id")
+            )
+            .unwrap(),
+            snapshot
+        );
+        assert_eq!(
+            read_stored(home.path()).platform_version.as_deref(),
+            Some("0.4.11")
+        );
+        assert_eq!(load_release_key(home.path()), Some(next.verifying_key()));
+    }
+
+    #[test]
+    fn a_manifest_signed_only_by_a_key_the_wrapper_does_not_pin_is_rejected_before_any_change() {
+        let home = TempHome::new();
+        seed_home(home.path());
+        place_first_wrapper(home.path(), &release_signing_key());
+        let pin_before = fs::read(home.path().join(CURRENT_PIN)).unwrap();
+        let compose_before = fs::read(home.path().join("docker-compose.yml")).unwrap();
+        let world = World::new(home.path());
+        *world.services.lock().unwrap() = running_like_release(3);
+        let host = host_for(signed_with(
+            &release_manifest(pinned_services(9), false),
+            &other_signing_key(),
+        ));
+
+        let error = run_install_with(home.path(), &world, &host, &other_signing_key())
+            .expect_err("unpinned key");
+
+        assert_eq!(error, InstallError::Rejected);
+        assert!(!home.path().join(SNAPSHOT_DIR).exists());
+        assert!(!home.path().join(MAINTENANCE_FILE).is_file());
+        assert_eq!(
+            fs::read(home.path().join("docker-compose.yml")).unwrap(),
+            compose_before
+        );
+        assert_eq!(fs::read(home.path().join(CURRENT_PIN)).unwrap(), pin_before);
+        assert!(!home.path().join(PREVIOUS_WRAPPER).exists());
+        assert_eq!(generation(home.path()), "1");
+        assert_eq!(
+            read_stored(home.path()).platform_version.as_deref(),
+            Some("0.4.9")
+        );
+        assert!(world.recreated_services().is_empty());
+    }
+
+    #[test]
+    fn the_first_wrapper_is_trusted_because_the_home_already_has_its_pin() {
+        let home = TempHome::new();
+        seed_home(home.path());
+        let first = release_signing_key();
+        place_first_wrapper(home.path(), &first);
+        let placed = fs::read(home.path().join(CURRENT_PIN)).unwrap();
+        assert!(!home.path().join(PREVIOUS_WRAPPER).exists());
+        let world = World::new(home.path());
+        *world.services.lock().unwrap() = running_like_release(3);
+        let host = host_for(signed_with(
+            &release_manifest(pinned_services(9), false),
+            &first,
+        ));
+
+        run_install_with(home.path(), &world, &host, &other_signing_key()).expect("placed pin");
+
+        assert_eq!(fs::read(home.path().join(CURRENT_PIN)).unwrap(), placed);
+        assert!(!home.path().join(PREVIOUS_WRAPPER).exists());
+        assert_eq!(
+            read_stored(home.path()).platform_version.as_deref(),
+            Some("0.4.10")
+        );
+        assert_eq!(load_release_key(home.path()), Some(first.verifying_key()));
+    }
+
+    #[test]
+    fn a_release_does_not_mint_the_first_wrapper() {
+        let home = TempHome::new();
+        seed_home(home.path());
+        assert!(!home.path().join(CURRENT_PIN).exists());
+        let mut manifest = release_manifest(pinned_services(9), false);
+        manifest.next_pin = Some(encoded_pin(&next_signing_key()));
+        let world = World::new(home.path());
+        *world.services.lock().unwrap() = running_like_release(3);
+        let host = host_for(signed_with(&manifest, &release_signing_key()));
+
+        run_install(home.path(), &world, &host).expect("install without a wrapper");
+
+        assert!(!home.path().join(CURRENT_PIN).exists());
+        assert!(!home.path().join(PREVIOUS_WRAPPER).exists());
+        assert_eq!(
+            read_stored(home.path()).platform_version.as_deref(),
+            Some("0.4.10")
+        );
     }
 }

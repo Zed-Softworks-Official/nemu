@@ -71,6 +71,11 @@ pub struct ReleaseManifest {
     pub stack_files: Vec<StackFile>,
     pub migrations: Vec<SettingMigration>,
     pub updater: UpdaterBinaries,
+    /// Next wrapper pin: base64 of the 32-byte ed25519 release-signing public
+    /// key. Omitted when this Release does not rotate that key. The signature
+    /// covers the field when it is present.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub next_pin: Option<String>,
 }
 
 /// A Release manifest and the ed25519 signature over its canonical JSON.
@@ -93,6 +98,8 @@ pub enum ManifestError {
     Unpinned,
     #[error("the release manifest does not name the stack files and updater binaries")]
     Incomplete,
+    #[error("the next wrapper pin is not a release-signing public key")]
+    Pin,
 }
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
@@ -151,6 +158,9 @@ pub fn verify_manifest(
     release_key
         .verify(&message, &signature)
         .map_err(|_| ManifestError::Signature)?;
+    if let Some(pin) = &signed.manifest.next_pin {
+        parse_next_pin(pin)?;
+    }
     if !pins_every_service(&signed.manifest) {
         return Err(ManifestError::Unpinned);
     }
@@ -158,6 +168,14 @@ pub fn verify_manifest(
         return Err(ManifestError::Incomplete);
     }
     Ok(signed.manifest)
+}
+
+pub(crate) fn parse_next_pin(encoded: &str) -> Result<VerifyingKey, ManifestError> {
+    let decoded = BASE64
+        .decode(encoded.trim())
+        .map_err(|_| ManifestError::Pin)?;
+    let bytes: [u8; 32] = decoded.try_into().map_err(|_| ManifestError::Pin)?;
+    VerifyingKey::from_bytes(&bytes).map_err(|_| ManifestError::Pin)
 }
 
 fn pins_every_service(manifest: &ReleaseManifest) -> bool {
