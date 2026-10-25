@@ -120,6 +120,8 @@ enum ToControllerMessage {
     ReleaseStatus,
     #[serde(rename = "installRelease")]
     InstallRelease,
+    #[serde(rename = "switchReleaseChannel")]
+    SwitchReleaseChannel { channel: String },
 }
 
 #[derive(Serialize)]
@@ -564,6 +566,22 @@ async fn handle_message(
                 ),
                 Err(error) => {
                     build_error_response(state, &message.request_id, error.code(), error.message())
+                }
+            }
+        }
+        ToControllerMessage::SwitchReleaseChannel { channel } => {
+            match crate::api::updates::switch_release_channel(state, &auth, &channel).await {
+                Ok(switched) => build_typed_response(
+                    state,
+                    &message.request_id,
+                    json!({
+                        "type": "switchReleaseChannel",
+                        "channel": switched.channel,
+                        "installed": switched.installed,
+                    }),
+                ),
+                Err(error) => {
+                    build_error_response(state, &message.request_id, &error.code, &error.message)
                 }
             }
         }

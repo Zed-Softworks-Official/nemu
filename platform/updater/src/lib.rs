@@ -3,13 +3,15 @@ use std::path::{Path, PathBuf};
 use ed25519_dalek::VerifyingKey;
 use serde::{Deserialize, Serialize};
 
+mod channel;
 mod host;
 mod install;
 mod manifest;
 mod publish;
 mod wrapper;
 
-pub use host::{DirectoryManifestHost, load_release_key, run_install};
+pub use channel::{ChannelError, ChannelSwitch, switch_channel};
+pub use host::{DirectoryManifestHost, load_release_key, run_install, run_switch_channel};
 pub use install::{hourly_check, maintenance_mode};
 
 pub use manifest::{
