@@ -3,7 +3,12 @@ use std::path::{Path, PathBuf};
 use ed25519_dalek::VerifyingKey;
 use serde::{Deserialize, Serialize};
 
+mod host;
+mod install;
 mod manifest;
+
+pub use host::{DirectoryManifestHost, load_release_key, run_install};
+pub use install::{hourly_check, maintenance_mode};
 
 pub use manifest::{
     ManifestError, ManifestHost, ManifestHostError, MissingManifestHost, RELEASE_SERVICES,
@@ -37,6 +42,11 @@ pub struct ReleaseStatus {
     pub platform_version: String,
     pub channel: ReleaseChannel,
     pub newer_release_available: bool,
+    /// True while an install holds maintenance, including a health-gate failure
+    /// that has not been rolled back.
+    pub maintenance_mode: bool,
+    /// True when a Rollback snapshot is on disk. Rollback itself is a later step.
+    pub rollback_snapshot_available: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -46,6 +56,15 @@ pub struct StoredRelease {
     pub channel: Option<ReleaseChannel>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub platform_version: Option<String>,
+    /// Home data. A Release does not overwrite this. Missing means one hour.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hourly_check_seconds: Option<u64>,
+    /// Unix seconds of the last hourly check. Missing means the check is due.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_hourly_check: Option<u64>,
+    /// Digests of the Release that was committed. A failed gate does not write these.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub services: Vec<crate::manifest::ServiceImage>,
 }
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
@@ -64,7 +83,9 @@ pub fn installed_release_path(controller_dir: &Path) -> PathBuf {
     controller_dir.join(INSTALLED_RELEASE_FILE)
 }
 
-fn read_stored_release(controller_dir: &Path) -> Result<Option<StoredRelease>, StatusError> {
+pub(crate) fn read_stored_release(
+    controller_dir: &Path,
+) -> Result<Option<StoredRelease>, StatusError> {
     let path = installed_release_path(controller_dir);
     if !path.exists() {
         return Ok(None);
@@ -73,7 +94,10 @@ fn read_stored_release(controller_dir: &Path) -> Result<Option<StoredRelease>, S
     serde_json::from_slice(&bytes).map_err(|error| StatusError::Read(error.to_string()))
 }
 
-fn write_stored_release(controller_dir: &Path, stored: &StoredRelease) -> Result<(), StatusError> {
+pub(crate) fn write_stored_release(
+    controller_dir: &Path,
+    stored: &StoredRelease,
+) -> Result<(), StatusError> {
     let path = installed_release_path(controller_dir);
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|error| StatusError::Write(error.to_string()))?;
@@ -114,6 +138,8 @@ pub fn status(
         platform_version,
         channel,
         newer_release_available,
+        maintenance_mode: install::maintenance_mode(controller_dir),
+        rollback_snapshot_available: install::snapshot_kept(controller_dir),
     })
 }
 
@@ -139,7 +165,7 @@ fn newer_manifest_on_channel(
 }
 
 /// Platform versions are `0.MINOR.PATCH`. The channel is not part of the version.
-fn platform_version_is_newer(candidate: &str, installed: &str) -> bool {
+pub(crate) fn platform_version_is_newer(candidate: &str, installed: &str) -> bool {
     match (
         parse_platform_version(candidate),
         parse_platform_version(installed),
