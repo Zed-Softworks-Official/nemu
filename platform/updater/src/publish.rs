@@ -67,6 +67,10 @@ pub struct PublishRequest {
     pub stack_files: Vec<StackFile>,
     pub migrations: Vec<SettingMigration>,
     pub updater: UpdaterBinaries,
+    /// Next wrapper pin to put in a newly cut manifest. Reusing a cut keeps
+    /// the pin that cut was signed with.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub next_pin: Option<String>,
 }
 
 /// A tag the workflow applies to one digest. Third-party images never appear.
@@ -109,6 +113,8 @@ pub enum PublishError {
     Migration,
     #[error("the release-signing key is not a base64 ed25519 seed")]
     SigningKey,
+    #[error("the next wrapper pin is not a release-signing public key")]
+    Pin,
 }
 
 /// Plans one Canary or Stable publish.
@@ -182,6 +188,7 @@ fn new_manifest(request: &PublishRequest) -> Result<ReleaseManifest, PublishErro
         stack_files,
         migrations: request.migrations.clone(),
         updater: request.updater.clone(),
+        next_pin: request.next_pin.clone(),
     })
 }
 
@@ -371,6 +378,7 @@ fn publish_error(error: ManifestError) -> PublishError {
         ManifestError::Unpinned => PublishError::Unpinned,
         ManifestError::Signature => PublishError::SigningKey,
         ManifestError::Unreadable | ManifestError::Incomplete => PublishError::Incomplete,
+        ManifestError::Pin => PublishError::Pin,
     }
 }
 
@@ -473,6 +481,7 @@ mod tests {
                 amd64: BASE64.encode(b"updater-amd64"),
                 arm64: BASE64.encode(b"updater-arm64"),
             },
+            next_pin: None,
         }
     }
 
@@ -852,6 +861,85 @@ mod tests {
     }
 
     #[test]
+    fn a_publish_can_put_the_next_wrapper_pin_in_the_signed_manifest() {
+        let signing_key = key();
+        let next = SigningKey::from_bytes(&[0x33; 32]);
+        let pin = BASE64.encode(next.verifying_key().to_bytes());
+        let mut rotating = request(
+            PublishSource::Canary,
+            "commit-rotate",
+            false,
+            Vec::new(),
+            resolved(1),
+        );
+        rotating.next_pin = Some(pin.clone());
+
+        let plan = plan_publish(&rotating, &signing_key).expect("plan");
+        let manifest = verify_manifest(&plan.signed_manifest, &signing_key.verifying_key())
+            .expect("current key");
+        assert_eq!(manifest.next_pin.as_deref(), Some(pin.as_str()));
+        assert!(verify_manifest(&plan.signed_manifest, &next.verifying_key()).is_err());
+        let signed: serde_json::Value =
+            serde_json::from_slice(&plan.signed_manifest).expect("json");
+        assert_eq!(signed["manifest"]["nextPin"].as_str(), Some(pin.as_str()));
+
+        let cut = CutRelease {
+            platform_version: manifest.platform_version.clone(),
+            commit: "commit-rotate".to_string(),
+            manifest: manifest.clone(),
+        };
+        let promoted = plan_publish(
+            &request(
+                PublishSource::Stable,
+                "commit-rotate",
+                false,
+                vec![cut],
+                resolved(9),
+            ),
+            &signing_key,
+        )
+        .expect("promote");
+        let promoted_manifest =
+            verify_manifest(&promoted.signed_manifest, &signing_key.verifying_key())
+                .expect("promoted");
+        assert_eq!(promoted_manifest.next_pin.as_deref(), Some(pin.as_str()));
+        assert!(!promoted.allocated_version);
+
+        let mut invalid = request(
+            PublishSource::Canary,
+            "commit-bad-pin",
+            false,
+            Vec::new(),
+            resolved(2),
+        );
+        invalid.next_pin = Some("not-a-key".to_string());
+        assert_eq!(
+            plan_publish(&invalid, &signing_key).expect_err("pin"),
+            super::PublishError::Pin
+        );
+    }
+
+    #[test]
+    fn a_manifest_that_omits_the_next_pin_still_verifies() {
+        let signing_key = key();
+        let plan = plan_publish(
+            &request(
+                PublishSource::Canary,
+                "commit-omit",
+                false,
+                Vec::new(),
+                resolved(1),
+            ),
+            &signing_key,
+        )
+        .expect("plan");
+        let signed: serde_json::Value =
+            serde_json::from_slice(&plan.signed_manifest).expect("json");
+        assert!(signed["manifest"].get("nextPin").is_none());
+        verify_manifest(&plan.signed_manifest, &signing_key.verifying_key()).expect("verify");
+    }
+
+    #[test]
     fn the_signing_key_error_does_not_include_the_secret() {
         let secret = "this-is-not-a-real-release-key-and-must-not-leak";
         let error = signing_key_from_base64(secret).expect_err("reject");
@@ -905,6 +993,7 @@ mod tests {
                     amd64: BASE64.encode(b"cut-amd64"),
                     arm64: BASE64.encode(b"cut-arm64"),
                 },
+                next_pin: None,
             },
         }
     }

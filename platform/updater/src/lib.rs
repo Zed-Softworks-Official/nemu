@@ -8,6 +8,7 @@ mod host;
 mod install;
 mod manifest;
 mod publish;
+mod wrapper;
 
 pub use channel::{ChannelError, ChannelSwitch, switch_channel};
 pub use host::{DirectoryManifestHost, load_release_key, run_install, run_switch_channel};
@@ -305,6 +306,7 @@ mod tests {
                 amd64: BASE64.encode(b"amd64"),
                 arm64: BASE64.encode(b"arm64"),
             },
+            next_pin: None,
         }
     }
 
