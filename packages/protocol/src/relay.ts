@@ -3,6 +3,8 @@ import {
     applyUpdateResponseSchema,
     clientTokenSchema,
     householdMemberSchema,
+    releaseChannelSchema,
+    switchReleaseChannelResponseSchema,
     updateStatusResponseSchema,
 } from './api.ts'
 import {
@@ -80,6 +82,10 @@ const authenticatedRelayMessageSchema = z.union([
     importHistoryBackupMessageSchema,
     z.object({ type: z.literal('releaseStatus') }),
     z.object({ type: z.literal('installRelease') }),
+    z.object({
+        type: z.literal('switchReleaseChannel'),
+        channel: releaseChannelSchema,
+    }),
 ])
 
 export const relayToControllerEnvelopeSchema = z.union([
@@ -137,6 +143,9 @@ export const relayToClientEnvelopeSchema = z.object({
         }),
         applyUpdateResponseSchema.extend({
             type: z.literal('installRelease'),
+        }),
+        switchReleaseChannelResponseSchema.extend({
+            type: z.literal('switchReleaseChannel'),
         }),
     ]),
 })

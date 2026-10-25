@@ -39,11 +39,15 @@ import {
     patchRoomRequestSchema,
     permitJoinRequestSchema,
     permitJoinResponseSchema,
+    type ReleaseChannel,
     type Room,
     roomSchema,
     roomsResponseSchema,
     type SaveMatterWifiRequest,
+    type SwitchReleaseChannelResponse,
     saveMatterWifiRequestSchema,
+    switchReleaseChannelRequestSchema,
+    switchReleaseChannelResponseSchema,
     tokensResponseSchema,
     type UpdateStatusResponse,
     updateStatusResponseSchema,
@@ -282,6 +286,14 @@ export class LanTransport implements ControllerTransport {
     async installRelease(): Promise<ApplyUpdateResponse> {
         const { data } = await this.http.post('/api/updates/apply')
         return applyUpdateResponseSchema.parse(data)
+    }
+
+    async switchReleaseChannel(
+        channel: ReleaseChannel
+    ): Promise<SwitchReleaseChannelResponse> {
+        const body = switchReleaseChannelRequestSchema.parse({ channel })
+        const { data } = await this.http.post('/api/updates/channel', body)
+        return switchReleaseChannelResponseSchema.parse(data)
     }
 
     async inviteMember(email: string): Promise<HouseholdMember> {

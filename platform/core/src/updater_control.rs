@@ -20,9 +20,17 @@ pub enum ForwardError {
     Unavailable(String),
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SwitchChannelOutcome {
+    pub channel: String,
+    pub installed: bool,
+}
+
 pub trait UpdaterControl: Send + Sync {
     fn status(&self) -> Result<ReleaseStatus, String>;
     fn install(&self) -> Result<(), String>;
+    fn switch_channel(&self, channel: &str) -> Result<SwitchChannelOutcome, String>;
     fn maintenance_mode(&self) -> bool;
 }
 
@@ -63,6 +71,20 @@ impl UpdaterControl for DirectoryUpdater {
         updater::run_install(&self.controller_dir).map_err(|error| error.to_string())
     }
 
+    fn switch_channel(&self, channel: &str) -> Result<SwitchChannelOutcome, String> {
+        let channel = match channel {
+            "stable" => updater::ReleaseChannel::Stable,
+            "canary" => updater::ReleaseChannel::Canary,
+            other => return Err(format!("unknown Release channel: {other}")),
+        };
+        let switched = updater::run_switch_channel(&self.controller_dir, channel)
+            .map_err(|error| error.to_string())?;
+        Ok(SwitchChannelOutcome {
+            channel: switched.channel.as_str().to_string(),
+            installed: switched.installed,
+        })
+    }
+
     fn maintenance_mode(&self) -> bool {
         updater::maintenance_mode(&self.controller_dir)
     }
@@ -89,6 +111,33 @@ pub fn forward_install(
     updater.install().map_err(ForwardError::Unavailable)
 }
 
+/// Forwards a channel change to the Updater for an active Owner.
+/// A Member is refused. The caller records the Audit entry.
+pub fn forward_switch_channel(
+    role: &str,
+    member_status: &str,
+    channel: &str,
+    updater: &dyn UpdaterControl,
+) -> Result<SwitchChannelOutcome, ForwardError> {
+    audit::authorize_read(role, member_status).map_err(|_| ForwardError::Refused)?;
+    updater
+        .switch_channel(channel)
+        .map_err(ForwardError::Unavailable)
+}
+
+/// The Audit record for an Owner channel change. The kind is the existing update kind.
+pub fn switch_channel_audit(actor_user_id: Option<String>, channel: &str) -> audit::AuditWrite {
+    audit::AuditWrite {
+        kind: audit::AuditKind::Update,
+        actor_user_id,
+        summary: format!("switched Release channel to {channel}"),
+        detail: serde_json::json!({
+            "action": "switchChannel",
+            "channel": channel,
+        }),
+    }
+}
+
 /// The Audit record for an Owner install. The kind is the existing update kind.
 pub fn install_audit(actor_user_id: Option<String>) -> audit::AuditWrite {
     audit::AuditWrite {
@@ -101,17 +150,19 @@ pub fn install_audit(actor_user_id: Option<String>) -> audit::AuditWrite {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Mutex;
     use std::sync::atomic::{AtomicU32, Ordering};
 
     use super::{
-        ForwardError, ReleaseStatus, UpdaterControl, forward_install, forward_release_status,
-        install_audit,
+        ForwardError, ReleaseStatus, SwitchChannelOutcome, UpdaterControl, forward_install,
+        forward_release_status, forward_switch_channel, install_audit, switch_channel_audit,
     };
 
     struct FakeUpdater {
         status: ReleaseStatus,
         calls: AtomicU32,
         installs: AtomicU32,
+        switches: Mutex<Vec<String>>,
     }
 
     impl UpdaterControl for FakeUpdater {
@@ -125,9 +176,24 @@ mod tests {
             Ok(())
         }
 
+        fn switch_channel(&self, channel: &str) -> Result<SwitchChannelOutcome, String> {
+            self.switches
+                .lock()
+                .expect("switches")
+                .push(channel.to_string());
+            Ok(SwitchChannelOutcome {
+                channel: channel.to_string(),
+                installed: false,
+            })
+        }
+
         fn maintenance_mode(&self) -> bool {
             self.status.maintenance_mode
         }
+    }
+
+    fn no_switches() -> Mutex<Vec<String>> {
+        Mutex::new(Vec::new())
     }
 
     #[test]
@@ -142,6 +208,7 @@ mod tests {
             },
             calls: AtomicU32::new(0),
             installs: AtomicU32::new(0),
+            switches: no_switches(),
         };
 
         let forwarded = forward_release_status("owner", "active", &updater).expect("owner");
@@ -171,6 +238,7 @@ mod tests {
             },
             calls: AtomicU32::new(0),
             installs: AtomicU32::new(0),
+            switches: no_switches(),
         };
 
         let forwarded = forward_release_status("owner", "active", &updater).expect("owner");
@@ -198,6 +266,7 @@ mod tests {
             },
             calls: AtomicU32::new(0),
             installs: AtomicU32::new(0),
+            switches: no_switches(),
         };
 
         let member = forward_install("member", "active", &updater);
@@ -215,5 +284,46 @@ mod tests {
         assert_eq!(audit.kind, crate::audit::AuditKind::Update);
         assert_eq!(audit.detail["action"], "install");
         assert_eq!(audit.actor_user_id.as_deref(), Some("owner-1"));
+    }
+
+    #[test]
+    fn an_owner_channel_switch_is_forwarded_and_audited_and_a_member_is_refused() {
+        let updater = FakeUpdater {
+            status: ReleaseStatus {
+                platform_version: "0.4.10".to_string(),
+                channel: "stable".to_string(),
+                newer_release_available: false,
+                maintenance_mode: false,
+                rollback_snapshot_available: false,
+            },
+            calls: AtomicU32::new(0),
+            installs: AtomicU32::new(0),
+            switches: no_switches(),
+        };
+
+        let member = forward_switch_channel("member", "active", "canary", &updater);
+        assert_eq!(member, Err(ForwardError::Refused));
+        assert!(updater.switches.lock().expect("switches").is_empty());
+
+        let pending = forward_switch_channel("owner", "pending", "stable", &updater);
+        assert_eq!(pending, Err(ForwardError::Refused));
+        assert!(updater.switches.lock().expect("switches").is_empty());
+
+        let canary = forward_switch_channel("owner", "active", "canary", &updater).expect("canary");
+        assert_eq!(canary.channel, "canary");
+
+        let stable = forward_switch_channel("owner", "active", "stable", &updater).expect("stable");
+        assert_eq!(stable.channel, "stable");
+        assert_eq!(
+            updater.switches.lock().expect("switches").as_slice(),
+            ["canary", "stable"]
+        );
+
+        let audit = switch_channel_audit(Some("owner-1".to_string()), "canary");
+        assert_eq!(audit.kind, crate::audit::AuditKind::Update);
+        assert_eq!(audit.detail["action"], "switchChannel");
+        assert_eq!(audit.detail["channel"], "canary");
+        assert_eq!(audit.actor_user_id.as_deref(), Some("owner-1"));
+        assert_eq!(audit.summary, "switched Release channel to canary");
     }
 }

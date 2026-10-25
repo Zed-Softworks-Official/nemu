@@ -17,6 +17,7 @@ import {
     type HouseholdMember,
     type PairingCodeResponse,
     pairingCodeResponseSchema,
+    type ReleaseChannel,
 } from '@nemu/protocol'
 import { Badge } from '@nemu/ui/components/badge'
 import { Button } from '@nemu/ui/components/button'
@@ -66,6 +67,7 @@ export default function SettingsPage() {
         bootstrapOwner,
         getReleaseStatus,
         installRelease,
+        switchReleaseChannel,
     } = useController()
     const { isAuthenticated } = useConvexAuth()
     const controllers = useQuery(
@@ -104,6 +106,8 @@ export default function SettingsPage() {
     })
     const [busyInstall, setBusyInstall] = useState(false)
     const [installError, setInstallError] = useState<string | null>(null)
+    const [busyChannel, setBusyChannel] = useState(false)
+    const [channelError, setChannelError] = useState<string | null>(null)
     const updateStateRef = useRef(updateState)
     updateStateRef.current = updateState
 
@@ -205,6 +209,23 @@ export default function SettingsPage() {
             )
         } finally {
             setBusyInstall(false)
+        }
+    }
+
+    async function handleSwitchChannel(channel: ReleaseChannel) {
+        setBusyChannel(true)
+        setChannelError(null)
+        try {
+            await switchReleaseChannel(channel)
+            await readRelease()
+        } catch (err) {
+            setChannelError(
+                err instanceof Error
+                    ? err.message
+                    : 'Could not switch the Release channel'
+            )
+        } finally {
+            setBusyChannel(false)
         }
     }
 
@@ -426,6 +447,7 @@ export default function SettingsPage() {
                                 <>
                                     <Separator />
                                     <CoreUpdatesBlock
+                                        busyChannel={busyChannel}
                                         busyInstall={busyInstall}
                                         canInstall={
                                             updateState.kind === 'newer' ||
@@ -433,11 +455,17 @@ export default function SettingsPage() {
                                         }
                                         canRefresh={
                                             updateState.kind !== 'checking' &&
-                                            !busyInstall
+                                            !busyInstall &&
+                                            !busyChannel
                                         }
+                                        channel={releaseChannel}
+                                        channelError={channelError}
                                         installError={installError}
                                         onInstall={() => void handleInstall()}
                                         onRefresh={() => void readRelease()}
+                                        onSwitchChannel={(channel) =>
+                                            void handleSwitchChannel(channel)
+                                        }
                                         state={updateState}
                                     />
                                 </>
@@ -747,6 +775,10 @@ function CoreUpdatesBlock({
     busyInstall,
     installError,
     onInstall,
+    channel,
+    busyChannel,
+    channelError,
+    onSwitchChannel,
 }: {
     state: ReleaseReadState
     canRefresh: boolean
@@ -755,8 +787,14 @@ function CoreUpdatesBlock({
     busyInstall: boolean
     installError: string | null
     onInstall: () => void
+    channel: string | null
+    busyChannel: boolean
+    channelError: string | null
+    onSwitchChannel: (channel: ReleaseChannel) => void
 }) {
-    const destructive = state.kind === 'error' || installError !== null
+    const destructive =
+        state.kind === 'error' || installError !== null || channelError !== null
+    const busy = busyInstall || busyChannel
     return (
         <div className="space-y-3">
             <div className="flex items-start justify-between gap-3">
@@ -769,16 +807,32 @@ function CoreUpdatesBlock({
                                 : 'text-muted-foreground text-xs'
                         }
                     >
-                        {installError ?? updateStatusCopy(state)}
+                        {channelError ??
+                            installError ??
+                            updateStatusCopy(state)}
                     </p>
                 </div>
-                <div className="flex shrink-0 gap-2">
+                <div className="flex shrink-0 flex-wrap justify-end gap-2">
+                    <Button
+                        aria-pressed={channel === 'stable'}
+                        disabled={busy || channel !== 'canary'}
+                        onClick={() => onSwitchChannel('stable')}
+                        size="sm"
+                        variant={channel === 'stable' ? 'secondary' : 'outline'}
+                    >
+                        Stable
+                    </Button>
+                    <Button
+                        aria-pressed={channel === 'canary'}
+                        disabled={busy || channel !== 'stable'}
+                        onClick={() => onSwitchChannel('canary')}
+                        size="sm"
+                        variant={channel === 'canary' ? 'secondary' : 'outline'}
+                    >
+                        Canary
+                    </Button>
                     {canInstall ? (
-                        <Button
-                            disabled={busyInstall}
-                            onClick={onInstall}
-                            size="sm"
-                        >
+                        <Button disabled={busy} onClick={onInstall} size="sm">
                             {busyInstall ? 'Installing…' : 'Install'}
                         </Button>
                     ) : null}
