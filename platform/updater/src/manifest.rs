@@ -17,7 +17,7 @@ pub const RELEASE_SERVICES: [&str; 5] = [
     "nemu-core",
 ];
 
-const STACK_FILES: [&str; 2] = ["docker-compose.yml", "mosquitto/mosquitto.conf"];
+pub(crate) const STACK_FILES: [&str; 2] = ["docker-compose.yml", "mosquitto/mosquitto.conf"];
 
 /// One service image, pinned by digest. `image` is the repository without a tag.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -187,7 +187,7 @@ fn names_release_files(manifest: &ReleaseManifest) -> bool {
     stacks && !manifest.updater.amd64.is_empty() && !manifest.updater.arm64.is_empty()
 }
 
-fn is_sha256_digest(digest: &str) -> bool {
+pub(crate) fn is_sha256_digest(digest: &str) -> bool {
     let Some(hex) = digest.strip_prefix("sha256:") else {
         return false;
     };
@@ -201,6 +201,6 @@ fn image_is_repository(image: &str) -> bool {
     !image.is_empty() && !image.contains('@') && !image_names_a_tag(image)
 }
 
-fn image_names_a_tag(image: &str) -> bool {
+pub(crate) fn image_names_a_tag(image: &str) -> bool {
     image.rsplit('/').next().unwrap_or(image).contains(':')
 }
