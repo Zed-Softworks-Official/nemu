@@ -58,6 +58,13 @@ pub fn load_release_key(controller_dir: &Path) -> Option<VerifyingKey> {
     crate::wrapper::load_pin(controller_dir)
 }
 
+/// Roll back using the host adapters. The library call is still in-process.
+pub fn run_rollback(controller_dir: &Path) -> Result<(), crate::rollback::RollbackError> {
+    with_host_env(controller_dir, |env| {
+        crate::rollback::rollback(controller_dir, env)
+    })
+}
+
 /// Install using the host adapters. The library call is still in-process.
 pub fn run_install(controller_dir: &Path) -> Result<(), InstallError> {
     with_host_env(controller_dir, |env| install(controller_dir, env))

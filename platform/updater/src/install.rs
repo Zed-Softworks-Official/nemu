@@ -11,24 +11,23 @@ use crate::{
 };
 
 const MAINTENANCE_FILE: &str = "updater/maintenance";
-const SNAPSHOT_DIR: &str = "updater/rollback-snapshot";
-const GENERATION_FILE: &str = "updater/wrapper-generation";
-const BINARY_DIR: &str = "updater/bin";
+pub(crate) const SNAPSHOT_DIR: &str = "updater/rollback-snapshot";
+pub(crate) const GENERATION_FILE: &str = "updater/wrapper-generation";
+pub(crate) const BINARY_DIR: &str = "updater/bin";
 pub(crate) const HOURLY_CHECK_DEFAULT_SECS: u64 = 60 * 60;
 const HEALTH_GATE_SECS: u64 = 60;
 const HEALTH_GATE_LIMIT_SECS: u64 = 600;
 const GIB: u64 = 1024 * 1024 * 1024;
 
-const STACK_FILES: [&str; 2] = ["docker-compose.yml", "mosquitto/mosquitto.conf"];
-const MATTER_TRUST_ROOT_SCRIPT: &str = "fetch-matter-roots.sh";
+pub(crate) const STACK_FILES: [&str; 2] = ["docker-compose.yml", "mosquitto/mosquitto.conf"];
+pub(crate) const MATTER_TRUST_ROOT_SCRIPT: &str = "fetch-matter-roots.sh";
 const MIGRATION_KEYS: [&str; 4] = ["mqtt", "homeassistant", "frontend", "availability"];
 const ZIGBEE_CONFIGURATION: &str = "zigbee2mqtt/configuration.yaml";
 
 /// Home-data trees copied into the Rollback snapshot, and the directory each
 /// lands in under that snapshot. Stack files and the previous binary are
-/// copied beside them so the snapshot is the restore point; restoring it is
-/// a later step.
-const SNAPSHOT_TREES: &[(&str, &str)] = &[
+/// copied beside them. The next Release replaces this directory outright.
+pub(crate) const SNAPSHOT_TREES: &[(&str, &str)] = &[
     ("volumes/postgres", "postgres"),
     ("identity", "identity"),
     ("tls", "tls"),
@@ -150,9 +149,9 @@ pub enum InstallError {
 ///
 /// The process that enters this function is the previous Updater: the binary
 /// the wrapper would start, and a new wrapper pin, are replaced only after
-/// the health gate. A failed gate leaves the snapshot and maintenance in
-/// place and does not record the Release. Restoring that snapshot is a later
-/// step.
+/// the health gate. A failed gate restores the snapshot, previous stack files,
+/// previous digests, and the previous binary. Maintenance stays only when that
+/// restore cannot finish or the previous Release will not stay healthy.
 pub fn install(controller_dir: &Path, env: &InstallEnv<'_>) -> Result<(), InstallError> {
     if maintenance_mode(controller_dir) {
         return Err(InstallError::InMaintenance);
@@ -188,7 +187,7 @@ pub fn install(controller_dir: &Path, env: &InstallEnv<'_>) -> Result<(), Instal
         set_maintenance(controller_dir, false)?;
         return Err(InstallError::Unavailable(error));
     }
-    if let Err(error) = write_snapshot(controller_dir) {
+    if let Err(error) = write_snapshot(controller_dir, &running, zigbee_required, matter_required) {
         let _ = env.runtime.resume();
         clear_snapshot(controller_dir);
         set_maintenance(controller_dir, false)?;
@@ -201,15 +200,24 @@ pub fn install(controller_dir: &Path, env: &InstallEnv<'_>) -> Result<(), Instal
         return Err(error);
     }
     if let Err(error) = wait_for_health(env, zigbee_required, matter_required) {
+        let _ = crate::rollback::restore_after_failed_gate(controller_dir, env);
         return Err(error);
     }
 
-    commit_binary(controller_dir, &binary)?;
-    if let Some(next_pin) = next_pin {
-        crate::wrapper::commit_pin(controller_dir, &next_pin)
-            .map_err(|error| InstallError::Unavailable(error.to_string()))?;
+    if let Err(error) = commit_binary(controller_dir, &binary) {
+        let _ = crate::rollback::restore_after_failed_gate(controller_dir, env);
+        return Err(error);
     }
-    record_installed(controller_dir, &manifest)?;
+    if let Some(next_pin) = next_pin
+        && let Err(error) = crate::wrapper::commit_pin(controller_dir, &next_pin)
+    {
+        let _ = crate::rollback::restore_after_failed_gate(controller_dir, env);
+        return Err(InstallError::Unavailable(error.to_string()));
+    }
+    if let Err(error) = record_installed(controller_dir, &manifest) {
+        let _ = crate::rollback::restore_after_failed_gate(controller_dir, env);
+        return Err(error);
+    }
     set_maintenance(controller_dir, false)?;
     Ok(())
 }
@@ -217,9 +225,16 @@ pub fn install(controller_dir: &Path, env: &InstallEnv<'_>) -> Result<(), Instal
 /// Installs a newer Release when the stored interval has elapsed.
 ///
 /// The interval is Home data and defaults to one hour. A Release does not
-/// overwrite it. No Owner is required. A Home already in maintenance is left
-/// alone so a failed gate is not installed again.
+/// overwrite it. No Owner is required. A stuck rollback is retried and the
+/// failed Release is not installed again.
 pub fn hourly_check(controller_dir: &Path, env: &InstallEnv<'_>) -> Result<bool, InstallError> {
+    if crate::rollback::rollback_stuck(controller_dir) {
+        let _ = crate::rollback::rollback(controller_dir, env);
+        return Ok(false);
+    }
+    if maintenance_mode(controller_dir) && crate::rollback::snapshot_consumed(controller_dir) {
+        let _ = crate::rollback::rollback(controller_dir, env);
+    }
     if maintenance_mode(controller_dir) {
         return Ok(false);
     }
@@ -244,6 +259,12 @@ pub fn hourly_check(controller_dir: &Path, env: &InstallEnv<'_>) -> Result<bool,
         }
         Err(InstallError::NotEligible) => {
             mark_hourly_check(controller_dir, now)?;
+            Ok(false)
+        }
+        Err(InstallError::HealthGate) => {
+            if !maintenance_mode(controller_dir) {
+                mark_hourly_check(controller_dir, now)?;
+            }
             Ok(false)
         }
         Err(error) => Err(error),
@@ -340,7 +361,7 @@ fn apply_release(
     Ok(())
 }
 
-fn wait_for_health(
+pub(crate) fn wait_for_health(
     env: &InstallEnv<'_>,
     zigbee_required: bool,
     matter_required: bool,
@@ -527,8 +548,16 @@ fn snapshot_size(controller_dir: &Path) -> u64 {
     total
 }
 
-fn write_snapshot(controller_dir: &Path) -> Result<(), InstallError> {
+fn write_snapshot(
+    controller_dir: &Path,
+    running: &[RunningService],
+    zigbee_required: bool,
+    matter_required: bool,
+) -> Result<(), InstallError> {
     let root = controller_dir.join(SNAPSHOT_DIR);
+    if root.exists() {
+        std::fs::remove_dir_all(&root).map_err(|_| InstallError::SnapshotFailed)?;
+    }
     std::fs::create_dir_all(&root).map_err(|_| InstallError::SnapshotFailed)?;
     for (source, dest) in SNAPSHOT_TREES {
         copy_tree(&controller_dir.join(source), &root.join(dest))?;
@@ -536,6 +565,10 @@ fn write_snapshot(controller_dir: &Path) -> Result<(), InstallError> {
     for path in STACK_FILES {
         copy_tree(&controller_dir.join(path), &root.join("stack").join(path))?;
     }
+    copy_tree(
+        &controller_dir.join(MATTER_TRUST_ROOT_SCRIPT),
+        &root.join("stack").join(MATTER_TRUST_ROOT_SCRIPT),
+    )?;
     let generation = current_generation(controller_dir);
     if generation > 0 {
         copy_tree(
@@ -543,6 +576,14 @@ fn write_snapshot(controller_dir: &Path) -> Result<(), InstallError> {
             &root.join("previous-updater"),
         )?;
     }
+    crate::rollback::capture(
+        controller_dir,
+        &root,
+        running,
+        zigbee_required,
+        matter_required,
+        generation,
+    )?;
     Ok(())
 }
 
@@ -550,7 +591,7 @@ fn clear_snapshot(controller_dir: &Path) {
     let _ = std::fs::remove_dir_all(controller_dir.join(SNAPSHOT_DIR));
 }
 
-fn copy_tree(source: &Path, dest: &Path) -> Result<(), InstallError> {
+pub(crate) fn copy_tree(source: &Path, dest: &Path) -> Result<(), InstallError> {
     if !source.exists() {
         return Ok(());
     }
@@ -589,7 +630,7 @@ fn file_size(path: &Path) -> u64 {
     std::fs::metadata(path).map(|meta| meta.len()).unwrap_or(0)
 }
 
-fn current_generation(controller_dir: &Path) -> u64 {
+pub(crate) fn current_generation(controller_dir: &Path) -> u64 {
     std::fs::read_to_string(controller_dir.join(GENERATION_FILE))
         .ok()
         .and_then(|text| text.trim().parse().ok())
@@ -630,7 +671,7 @@ fn mark_hourly_check(controller_dir: &Path, now: u64) -> Result<(), InstallError
         .map_err(|error| InstallError::Unavailable(error.to_string()))
 }
 
-fn set_maintenance(controller_dir: &Path, held: bool) -> Result<(), InstallError> {
+pub(crate) fn set_maintenance(controller_dir: &Path, held: bool) -> Result<(), InstallError> {
     let path = controller_dir.join(MAINTENANCE_FILE);
     if held {
         if let Some(parent) = path.parent() {
@@ -656,8 +697,8 @@ fn history_floor(filesystem_total_bytes: u64) -> u64 {
 mod tests {
     use std::fs;
     use std::path::{Path, PathBuf};
-    use std::sync::Mutex;
     use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+    use std::sync::{Arc, Mutex};
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use base64::Engine;
@@ -724,6 +765,8 @@ mod tests {
         }
     }
 
+    type DuringGateHook = Box<dyn Fn(u64) + Send>;
+
     struct World {
         home: PathBuf,
         now: AtomicU64,
@@ -736,6 +779,7 @@ mod tests {
         log: Mutex<Vec<String>>,
         before: Mutex<HealthView>,
         during: Mutex<Vec<(u64, HealthView)>>,
+        during_hook: Mutex<Option<DuringGateHook>>,
     }
 
     impl World {
@@ -752,6 +796,7 @@ mod tests {
                 log: Mutex::new(Vec::new()),
                 before: Mutex::new(healthy()),
                 during: Mutex::new(vec![(0, healthy())]),
+                during_hook: Mutex::new(None),
             }
         }
 
@@ -815,6 +860,9 @@ mod tests {
 
         fn during_gate(&self, at_seconds: u64) -> HealthView {
             self.note("health");
+            if let Some(hook) = self.during_hook.lock().expect("hook").as_ref() {
+                hook(at_seconds);
+            }
             let during = self.during.lock().expect("during");
             during
                 .iter()
@@ -1421,6 +1469,7 @@ devices:
         .unwrap();
         assert!(report.maintenance_mode);
         assert!(report.rollback_snapshot_available);
+        assert!(report.rollback_stuck);
         assert_eq!(report.platform_version, "0.4.9");
     }
 
@@ -1583,6 +1632,388 @@ devices:
 
         run_install(home.path(), &world, &host).expect("matter only");
         assert_eq!(world.recreated_services(), vec!["nemu-matter".to_string()]);
+    }
+
+    fn matter_digests(world: &World) -> Vec<String> {
+        world
+            .recreated
+            .lock()
+            .expect("recreated")
+            .iter()
+            .filter(|(service, _)| service == "nemu-matter")
+            .map(|(_, digest)| digest.clone())
+            .collect()
+    }
+
+    #[test]
+    fn a_failed_health_gate_restores_the_previous_release_when_it_becomes_healthy() {
+        let home = TempHome::new();
+        seed_home(home.path());
+        let world = World::new(home.path());
+        world
+            .horizon
+            .store(HEALTH_GATE_LIMIT_SECS + 200, Ordering::SeqCst);
+        *world.services.lock().unwrap() = running_like_release(3);
+        let mut down = healthy();
+        down.postgres_ok = false;
+        down.mosquitto_ok = false;
+        *world.during.lock().unwrap() = vec![(0, down), (HEALTH_GATE_LIMIT_SECS + 1, healthy())];
+        let wrote = Arc::new(AtomicBool::new(false));
+        let command = home.path().join("volumes/postgres/command-during-gate");
+        let wrote_hook = Arc::clone(&wrote);
+        let command_hook = command.clone();
+        *world.during_hook.lock().unwrap() = Some(Box::new(move |at| {
+            if at <= HEALTH_GATE_LIMIT_SECS {
+                wrote_hook.store(true, Ordering::SeqCst);
+                let _ = fs::write(&command_hook, b"command-from-the-gate");
+            }
+        }));
+        let host = host_for(signed_with(
+            &release_manifest(pinned_services(9), false),
+            &release_signing_key(),
+        ));
+
+        let error = run_install(home.path(), &world, &host).expect_err("gate");
+        assert_eq!(error, InstallError::HealthGate);
+        assert!(wrote.load(Ordering::SeqCst));
+        assert!(
+            world
+                .log
+                .lock()
+                .unwrap()
+                .iter()
+                .filter(|line| line.starts_with("health"))
+                .all(|line| line.contains("maintenance=true")),
+            "commands are refused while the gate holds maintenance"
+        );
+        assert!(!command.exists(), "a command from the gate is not restored");
+        assert_eq!(
+            fs::read_to_string(home.path().join("docker-compose.yml")).unwrap(),
+            "services: {}\n"
+        );
+        assert_eq!(
+            fs::read_to_string(home.path().join("mosquitto/mosquitto.conf")).unwrap(),
+            "listener 1883\n"
+        );
+        assert_eq!(
+            fs::read(home.path().join("fetch-matter-roots.sh")).unwrap(),
+            b"#!/bin/sh\necho old\n"
+        );
+        assert!(
+            fs::read_to_string(home.path().join("zigbee2mqtt/configuration.yaml"))
+                .unwrap()
+                .contains("mqtt://old:1883")
+        );
+        assert_eq!(generation(home.path()), "1");
+        assert_eq!(
+            fs::read(home.path().join(BINARY_DIR).join("1")).unwrap(),
+            PREVIOUS_UPDATER
+        );
+        assert!(!home.path().join(BINARY_DIR).join("2").exists());
+        assert_eq!(
+            read_stored(home.path()).platform_version.as_deref(),
+            Some("0.4.9")
+        );
+        assert!(read_stored(home.path()).services.is_empty());
+        assert!(!home.path().join(MAINTENANCE_FILE).is_file());
+        assert!(home.path().join(SNAPSHOT_DIR).is_dir());
+        assert_eq!(
+            fs::read(home.path().join("history/energy.json")).unwrap(),
+            b"history-kept"
+        );
+        assert_eq!(
+            fs::read(home.path().join("volumes/postgres/PG_VERSION")).unwrap(),
+            b"16\n"
+        );
+        let matter = matter_digests(&world);
+        assert!(
+            matter.iter().any(|applied| applied == &digest(9)),
+            "{matter:?}"
+        );
+        assert_eq!(matter.last().map(String::as_str), Some(digest(3).as_str()));
+        let report = status(
+            home.path(),
+            &host,
+            Some(&release_signing_key().verifying_key()),
+        )
+        .unwrap();
+        assert!(!report.maintenance_mode);
+        assert!(report.rollback_snapshot_available);
+        assert!(!report.rollback_stuck);
+    }
+
+    #[test]
+    fn an_adapter_that_was_online_and_is_not_online_again_rolls_back() {
+        let home = TempHome::new();
+        seed_home(home.path());
+        let world = World::new(home.path());
+        world
+            .horizon
+            .store(HEALTH_GATE_LIMIT_SECS + 200, Ordering::SeqCst);
+        *world.services.lock().unwrap() = running_like_release(3);
+        let mut down = healthy();
+        down.zigbee_online = false;
+        *world.during.lock().unwrap() = vec![(0, down), (HEALTH_GATE_LIMIT_SECS + 1, healthy())];
+        let host = host_for(signed_with(
+            &release_manifest(pinned_services(9), false),
+            &release_signing_key(),
+        ));
+
+        let error = run_install(home.path(), &world, &host).expect_err("zigbee");
+        assert_eq!(error, InstallError::HealthGate);
+        assert_eq!(
+            fs::read_to_string(home.path().join("docker-compose.yml")).unwrap(),
+            "services: {}\n"
+        );
+        assert_eq!(generation(home.path()), "1");
+        assert!(!home.path().join(MAINTENANCE_FILE).is_file());
+        assert_eq!(
+            read_stored(home.path()).platform_version.as_deref(),
+            Some("0.4.9")
+        );
+        assert_eq!(
+            matter_digests(&world).last().map(String::as_str),
+            Some(digest(3).as_str())
+        );
+    }
+
+    #[test]
+    fn the_next_release_replaces_the_snapshot_instead_of_merging() {
+        let home = TempHome::new();
+        seed_home(home.path());
+        let world = World::new(home.path());
+        *world.services.lock().unwrap() = running_like_release(3);
+        let host = host_for(signed_with(
+            &release_manifest(pinned_services(9), false),
+            &release_signing_key(),
+        ));
+        run_install(home.path(), &world, &host).expect("first release");
+
+        let snapshot = home.path().join(SNAPSHOT_DIR);
+        fs::write(snapshot.join("postgres/stale-marker"), b"old-snapshot").unwrap();
+        fs::remove_file(home.path().join("identity/keypair")).unwrap();
+        fs::write(home.path().join("volumes/postgres/PG_VERSION"), b"17\n").unwrap();
+        fs::write(home.path().join("volumes/postgres/after-release"), b"new").unwrap();
+
+        let mut next = release_manifest(pinned_services(8), false);
+        next.platform_version = "0.4.11".to_string();
+        let host = host_for(signed_with(&next, &release_signing_key()));
+        run_install(home.path(), &world, &host).expect("second release");
+
+        let snapshot = home.path().join(SNAPSHOT_DIR);
+        assert!(
+            !snapshot.join("postgres/stale-marker").exists(),
+            "the previous snapshot is replaced"
+        );
+        assert!(
+            !snapshot.join("identity/keypair").exists(),
+            "a file removed from the Home is not kept in the new snapshot"
+        );
+        assert_eq!(
+            fs::read(snapshot.join("postgres/PG_VERSION")).unwrap(),
+            b"17\n"
+        );
+        assert_eq!(
+            fs::read(snapshot.join("postgres/after-release")).unwrap(),
+            b"new"
+        );
+    }
+
+    fn run_rollback(
+        home: &Path,
+        world: &World,
+        host: &FakeHost,
+    ) -> Result<(), crate::rollback::RollbackError> {
+        let key = release_signing_key();
+        let public = key.verifying_key();
+        crate::rollback::rollback(
+            home,
+            &InstallEnv {
+                manifests: host,
+                release_key: Some(&public),
+                runtime: world,
+                health: world,
+                space: world,
+                clock: world,
+                arch: UpdaterArch::Amd64,
+            },
+        )
+    }
+
+    fn digest_count(world: &World, service: &str, digest: &str) -> usize {
+        world
+            .recreated
+            .lock()
+            .expect("recreated")
+            .iter()
+            .filter(|(name, applied)| name == service && applied == digest)
+            .count()
+    }
+
+    #[test]
+    fn an_owner_rolls_back_one_release_and_a_second_rollback_is_unavailable() {
+        let home = TempHome::new();
+        seed_home(home.path());
+        let world = World::new(home.path());
+        *world.services.lock().unwrap() = running_like_release(3);
+        let host = host_for(signed_with(
+            &release_manifest(pinned_services(9), false),
+            &release_signing_key(),
+        ));
+        run_install(home.path(), &world, &host).expect("install");
+        assert_eq!(generation(home.path()), "2");
+
+        run_rollback(home.path(), &world, &host).expect("rollback");
+
+        assert_eq!(generation(home.path()), "1");
+        assert_eq!(
+            fs::read(home.path().join(BINARY_DIR).join("1")).unwrap(),
+            PREVIOUS_UPDATER
+        );
+        assert_eq!(
+            fs::read_to_string(home.path().join("docker-compose.yml")).unwrap(),
+            "services: {}\n"
+        );
+        assert_eq!(
+            fs::read_to_string(home.path().join("mosquitto/mosquitto.conf")).unwrap(),
+            "listener 1883\n"
+        );
+        assert_eq!(
+            fs::read(home.path().join("fetch-matter-roots.sh")).unwrap(),
+            b"#!/bin/sh\necho old\n"
+        );
+        assert!(
+            fs::read_to_string(home.path().join("zigbee2mqtt/configuration.yaml"))
+                .unwrap()
+                .contains("mqtt://old:1883")
+        );
+        let stored = read_stored(home.path());
+        assert_eq!(stored.platform_version.as_deref(), Some("0.4.9"));
+        assert_eq!(stored.channel, Some(ReleaseChannel::Stable));
+        assert_eq!(stored.hourly_check_seconds, Some(7200));
+        assert!(stored.services.is_empty());
+        assert!(!home.path().join(MAINTENANCE_FILE).is_file());
+        assert!(home.path().join(SNAPSHOT_DIR).is_dir());
+        assert_eq!(
+            matter_digests(&world).last().map(String::as_str),
+            Some(digest(3).as_str())
+        );
+        let report = status(
+            home.path(),
+            &host,
+            Some(&release_signing_key().verifying_key()),
+        )
+        .unwrap();
+        assert!(!report.maintenance_mode);
+        assert!(report.rollback_snapshot_available);
+        assert!(!report.rollback_stuck);
+
+        let again = run_rollback(home.path(), &world, &host).expect_err("one step");
+        assert_eq!(again, crate::rollback::RollbackError::AlreadyRolledBack);
+        assert_eq!(generation(home.path()), "1");
+        assert_eq!(
+            read_stored(home.path()).platform_version.as_deref(),
+            Some("0.4.9")
+        );
+        assert!(home.path().join(SNAPSHOT_DIR).is_dir());
+        assert!(!home.path().join(MAINTENANCE_FILE).is_file());
+    }
+
+    #[test]
+    fn a_rollback_that_will_not_stay_healthy_retries_without_reapplying() {
+        let home = TempHome::new();
+        seed_home(home.path());
+        let world = World::new(home.path());
+        *world.services.lock().unwrap() = running_like_release(3);
+        let host = host_for(signed_with(
+            &release_manifest(pinned_services(9), false),
+            &release_signing_key(),
+        ));
+        run_install(home.path(), &world, &host).expect("install");
+        let mut down = healthy();
+        down.answered = false;
+        *world.during.lock().unwrap() = vec![(0, down)];
+        let applied = digest_count(&world, "nemu-matter", &digest(9));
+
+        let error = run_rollback(home.path(), &world, &host).expect_err("unhealthy");
+        assert_eq!(error, crate::rollback::RollbackError::Unhealthy);
+        assert_eq!(generation(home.path()), "1");
+        assert_eq!(
+            fs::read(home.path().join(BINARY_DIR).join("1")).unwrap(),
+            PREVIOUS_UPDATER
+        );
+        assert!(home.path().join(MAINTENANCE_FILE).is_file());
+        assert_eq!(
+            read_stored(home.path()).platform_version.as_deref(),
+            Some("0.4.9")
+        );
+        let report = status(
+            home.path(),
+            &host,
+            Some(&release_signing_key().verifying_key()),
+        )
+        .unwrap();
+        assert!(report.rollback_stuck);
+        assert!(report.maintenance_mode);
+
+        assert!(!run_hourly(home.path(), &world, &host).unwrap());
+        assert_eq!(digest_count(&world, "nemu-matter", &digest(9)), applied);
+        assert_eq!(generation(home.path()), "1");
+        assert!(home.path().join(MAINTENANCE_FILE).is_file());
+        assert_eq!(
+            run_install(home.path(), &world, &host).expect_err("held"),
+            InstallError::InMaintenance
+        );
+        assert!(!home.path().join(BINARY_DIR).join("3").exists());
+    }
+
+    #[test]
+    fn a_rollback_that_cannot_restore_stays_stuck_and_does_not_reapply() {
+        let home = TempHome::new();
+        seed_home(home.path());
+        let world = World::new(home.path());
+        *world.services.lock().unwrap() = running_like_release(3);
+        let host = host_for(signed_with(
+            &release_manifest(pinned_services(9), false),
+            &release_signing_key(),
+        ));
+        run_install(home.path(), &world, &host).expect("install");
+        let applied = world.recreated.lock().unwrap().len();
+        fs::remove_dir_all(home.path().join(SNAPSHOT_DIR)).unwrap();
+
+        let error = run_rollback(home.path(), &world, &host).expect_err("missing snapshot");
+        assert_eq!(error, crate::rollback::RollbackError::RestoreFailed);
+        assert_eq!(generation(home.path()), "2");
+        assert_eq!(
+            fs::read(home.path().join(BINARY_DIR).join("2")).unwrap(),
+            AMD64_UPDATER
+        );
+        assert!(home.path().join(MAINTENANCE_FILE).is_file());
+        assert_eq!(
+            read_stored(home.path()).platform_version.as_deref(),
+            Some("0.4.10")
+        );
+        assert!(
+            status(
+                home.path(),
+                &host,
+                Some(&release_signing_key().verifying_key()),
+            )
+            .unwrap()
+            .rollback_stuck
+        );
+
+        assert!(!run_hourly(home.path(), &world, &host).unwrap());
+        assert_eq!(world.recreated.lock().unwrap().len(), applied);
+        assert_eq!(generation(home.path()), "2");
+        assert_eq!(
+            fs::read_to_string(home.path().join("docker-compose.yml")).unwrap(),
+            release_manifest(pinned_services(9), false).stack_files[0].contents
+        );
+        assert_eq!(
+            run_install(home.path(), &world, &host).expect_err("held"),
+            InstallError::InMaintenance
+        );
     }
 
     #[test]

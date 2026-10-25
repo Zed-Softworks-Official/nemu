@@ -247,6 +247,15 @@ export class RelayTransport implements ControllerTransport {
         throw new Error('Unexpected relay response for installRelease')
     }
 
+    async rollbackRelease(): Promise<ApplyUpdateResponse> {
+        const parsed = await this.request({ type: 'rollbackRelease' })
+        if (parsed.message.type === 'rollbackRelease') {
+            return applyUpdateResponseSchema.parse(parsed.message)
+        }
+        this.throwIfCommandError(parsed, 'roll back the Release')
+        throw new Error('Unexpected relay response for rollbackRelease')
+    }
+
     async switchReleaseChannel(
         channel: ReleaseChannel
     ): Promise<SwitchReleaseChannelResponse> {

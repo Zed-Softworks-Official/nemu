@@ -350,6 +350,14 @@ export class ControllerConnection {
         return await transport.installRelease()
     }
 
+    async rollbackRelease(): Promise<ApplyUpdateResponse> {
+        const transport = this.requireConnectedTransport('Roll back Release')
+        if (!transport.rollbackRelease) {
+            throw new Error('Rollback is not supported by this controller')
+        }
+        return await transport.rollbackRelease()
+    }
+
     async switchReleaseChannel(
         channel: ReleaseChannel
     ): Promise<SwitchReleaseChannelResponse> {

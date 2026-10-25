@@ -67,6 +67,7 @@ export default function SettingsPage() {
         bootstrapOwner,
         getReleaseStatus,
         installRelease,
+        rollbackRelease,
         switchReleaseChannel,
     } = useController()
     const { isAuthenticated } = useConvexAuth()
@@ -106,6 +107,11 @@ export default function SettingsPage() {
     })
     const [busyInstall, setBusyInstall] = useState(false)
     const [installError, setInstallError] = useState<string | null>(null)
+    const [rollbackSnapshotAvailable, setRollbackSnapshotAvailable] =
+        useState(false)
+    const [rollbackStuck, setRollbackStuck] = useState(false)
+    const [busyRollback, setBusyRollback] = useState(false)
+    const [rollbackError, setRollbackError] = useState<string | null>(null)
     const [busyChannel, setBusyChannel] = useState(false)
     const [channelError, setChannelError] = useState<string | null>(null)
     const updateStateRef = useRef(updateState)
@@ -173,6 +179,8 @@ export default function SettingsPage() {
             const report = await getReleaseStatus()
             setPlatformVersion(report.platformVersion)
             setReleaseChannel(report.channel)
+            setRollbackSnapshotAvailable(report.rollbackSnapshotAvailable)
+            setRollbackStuck(report.rollbackStuck)
             setUpdateState(
                 report.newerReleaseAvailable
                     ? { kind: 'newer' }
@@ -181,6 +189,8 @@ export default function SettingsPage() {
         } catch (err) {
             setPlatformVersion(null)
             setReleaseChannel(null)
+            setRollbackSnapshotAvailable(false)
+            setRollbackStuck(false)
             setUpdateState({
                 kind: 'error',
                 message:
@@ -209,6 +219,23 @@ export default function SettingsPage() {
             )
         } finally {
             setBusyInstall(false)
+        }
+    }
+
+    async function handleRollback() {
+        setBusyRollback(true)
+        setRollbackError(null)
+        try {
+            await rollbackRelease()
+            await readRelease()
+        } catch (err) {
+            setRollbackError(
+                err instanceof Error
+                    ? err.message
+                    : 'Could not roll back the Release'
+            )
+        } finally {
+            setBusyRollback(false)
         }
     }
 
@@ -449,12 +476,21 @@ export default function SettingsPage() {
                                     <CoreUpdatesBlock
                                         busyChannel={busyChannel}
                                         busyInstall={busyInstall}
+                                        busyRollback={busyRollback}
                                         canInstall={
-                                            updateState.kind === 'newer' ||
-                                            busyInstall
+                                            (updateState.kind === 'newer' ||
+                                                busyInstall) &&
+                                            !rollbackStuck
                                         }
                                         canRefresh={
                                             updateState.kind !== 'checking' &&
+                                            !busyInstall &&
+                                            !busyRollback &&
+                                            !busyChannel
+                                        }
+                                        canRollback={
+                                            (rollbackSnapshotAvailable ||
+                                                rollbackStuck) &&
                                             !busyInstall &&
                                             !busyChannel
                                         }
@@ -463,9 +499,12 @@ export default function SettingsPage() {
                                         installError={installError}
                                         onInstall={() => void handleInstall()}
                                         onRefresh={() => void readRelease()}
+                                        onRollback={() => void handleRollback()}
                                         onSwitchChannel={(channel) =>
                                             void handleSwitchChannel(channel)
                                         }
+                                        rollbackError={rollbackError}
+                                        rollbackStuck={rollbackStuck}
                                         state={updateState}
                                     />
                                 </>
@@ -775,6 +814,11 @@ function CoreUpdatesBlock({
     busyInstall,
     installError,
     onInstall,
+    canRollback,
+    busyRollback,
+    rollbackError,
+    rollbackStuck,
+    onRollback,
     channel,
     busyChannel,
     channelError,
@@ -787,14 +831,29 @@ function CoreUpdatesBlock({
     busyInstall: boolean
     installError: string | null
     onInstall: () => void
+    canRollback: boolean
+    busyRollback: boolean
+    rollbackError: string | null
+    rollbackStuck: boolean
+    onRollback: () => void
     channel: string | null
     busyChannel: boolean
     channelError: string | null
     onSwitchChannel: (channel: ReleaseChannel) => void
 }) {
+    const busy = busyInstall || busyRollback || busyChannel
     const destructive =
-        state.kind === 'error' || installError !== null || channelError !== null
-    const busy = busyInstall || busyChannel
+        state.kind === 'error' ||
+        installError !== null ||
+        rollbackError !== null ||
+        channelError !== null ||
+        rollbackStuck
+    const statusCopy = rollbackStuck
+        ? 'Rollback is stuck. The previous Release stays in maintenance until it is healthy.'
+        : (channelError ??
+          rollbackError ??
+          installError ??
+          updateStatusCopy(state))
     return (
         <div className="space-y-3">
             <div className="flex items-start justify-between gap-3">
@@ -807,10 +866,13 @@ function CoreUpdatesBlock({
                                 : 'text-muted-foreground text-xs'
                         }
                     >
-                        {channelError ??
-                            installError ??
-                            updateStatusCopy(state)}
+                        {statusCopy}
                     </p>
+                    {rollbackStuck && rollbackError ? (
+                        <p className="text-destructive text-xs">
+                            {rollbackError}
+                        </p>
+                    ) : null}
                 </div>
                 <div className="flex shrink-0 flex-wrap justify-end gap-2">
                     <Button
@@ -831,6 +893,22 @@ function CoreUpdatesBlock({
                     >
                         Canary
                     </Button>
+                    {canRollback ? (
+                        <Button
+                            disabled={busyRollback || busyChannel}
+                            onClick={onRollback}
+                            size="sm"
+                            variant="outline"
+                        >
+                            {busyRollback
+                                ? rollbackStuck
+                                    ? 'Retrying…'
+                                    : 'Rolling back…'
+                                : rollbackStuck
+                                  ? 'Retry rollback'
+                                  : 'Roll back'}
+                        </Button>
+                    ) : null}
                     {canInstall ? (
                         <Button disabled={busy} onClick={onInstall} size="sm">
                             {busyInstall ? 'Installing…' : 'Install'}

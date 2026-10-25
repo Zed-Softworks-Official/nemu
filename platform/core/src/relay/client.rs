@@ -120,6 +120,8 @@ enum ToControllerMessage {
     ReleaseStatus,
     #[serde(rename = "installRelease")]
     InstallRelease,
+    #[serde(rename = "rollbackRelease")]
+    RollbackRelease,
     #[serde(rename = "switchReleaseChannel")]
     SwitchReleaseChannel { channel: String },
 }
@@ -592,6 +594,21 @@ async fn handle_message(
                     &message.request_id,
                     json!({
                         "type": "installRelease",
+                        "started": started.started,
+                    }),
+                ),
+                Err(error) => {
+                    build_error_response(state, &message.request_id, &error.code, &error.message)
+                }
+            }
+        }
+        ToControllerMessage::RollbackRelease => {
+            match crate::api::updates::rollback_release(state, &auth).await {
+                Ok(started) => build_typed_response(
+                    state,
+                    &message.request_id,
+                    json!({
+                        "type": "rollbackRelease",
                         "started": started.started,
                     }),
                 ),

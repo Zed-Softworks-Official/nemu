@@ -89,6 +89,7 @@ type ControllerContextValue = {
     bootstrapOwner: (request: BootstrapOwnerRequest) => Promise<HouseholdMember>
     getReleaseStatus: () => Promise<UpdateStatusResponse>
     installRelease: () => Promise<ApplyUpdateResponse>
+    rollbackRelease: () => Promise<ApplyUpdateResponse>
     switchReleaseChannel: (
         channel: ReleaseChannel
     ) => Promise<SwitchReleaseChannelResponse>
@@ -252,6 +253,10 @@ export function ControllerProvider({
         () => connection.installRelease(),
         [connection]
     )
+    const rollbackRelease = useCallback(
+        () => connection.rollbackRelease(),
+        [connection]
+    )
     const switchReleaseChannel = useCallback(
         (channel: ReleaseChannel) => connection.switchReleaseChannel(channel),
         [connection]
@@ -288,6 +293,7 @@ export function ControllerProvider({
             bootstrapOwner,
             getReleaseStatus,
             installRelease,
+            rollbackRelease,
             switchReleaseChannel,
         }),
         [
@@ -320,6 +326,7 @@ export function ControllerProvider({
             bootstrapOwner,
             getReleaseStatus,
             installRelease,
+            rollbackRelease,
             switchReleaseChannel,
         ]
     )

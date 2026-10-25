@@ -288,6 +288,11 @@ export class LanTransport implements ControllerTransport {
         return applyUpdateResponseSchema.parse(data)
     }
 
+    async rollbackRelease(): Promise<ApplyUpdateResponse> {
+        const { data } = await this.http.post('/api/updates/rollback')
+        return applyUpdateResponseSchema.parse(data)
+    }
+
     async switchReleaseChannel(
         channel: ReleaseChannel
     ): Promise<SwitchReleaseChannelResponse> {

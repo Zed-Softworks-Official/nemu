@@ -63,6 +63,32 @@ pub async fn install_release(
     Ok(ApplyUpdateResponse { started: true })
 }
 
+/// Forwards an Owner rollback to the Updater and records it in the Audit log.
+/// Home network and Relay both use this. A Member is refused. There is no
+/// second confirmation step.
+pub async fn rollback_release(
+    state: &AppState,
+    auth: &AuthenticatedClient,
+) -> ApiResult<ApplyUpdateResponse> {
+    let member = require_owner(state, auth).await?;
+    audit::record(
+        &state.db,
+        updater_control::rollback_audit(auth.user_id.clone()),
+    )
+    .await
+    .map_err(ApiError::internal)?;
+    updater_control::forward_rollback(&member.role, &member.status, state.updater.as_ref())
+        .map_err(forward_error)?;
+    Ok(ApplyUpdateResponse { started: true })
+}
+
+pub async fn rollback(
+    State(state): State<AppState>,
+    auth: AuthenticatedClient,
+) -> ApiResult<Json<ApplyUpdateResponse>> {
+    Ok(Json(rollback_release(&state, &auth).await?))
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct SwitchChannelRequest {
