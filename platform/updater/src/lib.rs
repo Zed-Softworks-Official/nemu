@@ -7,6 +7,7 @@ mod host;
 mod install;
 mod manifest;
 mod publish;
+mod wrapper;
 
 pub use host::{DirectoryManifestHost, load_release_key, run_install};
 pub use install::{hourly_check, maintenance_mode};
@@ -303,6 +304,7 @@ mod tests {
                 amd64: BASE64.encode(b"amd64"),
                 arm64: BASE64.encode(b"arm64"),
             },
+            next_pin: None,
         }
     }
 

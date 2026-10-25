@@ -11,8 +11,6 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use base64::Engine;
-use base64::engine::general_purpose::STANDARD as BASE64;
 use ed25519_dalek::VerifyingKey;
 
 use crate::ReleaseChannel;
@@ -22,7 +20,6 @@ use crate::install::{
 };
 use crate::manifest::{ManifestHost, ManifestHostError};
 
-const RELEASE_KEY_FILE: &str = "updater/release-public-key";
 const MANIFEST_DIR: &str = "updater/manifests";
 
 /// Channel manifests read from `updater/manifests/{channel}.json`.
@@ -56,17 +53,9 @@ impl ManifestHost for DirectoryManifestHost {
     }
 }
 
-/// The release-signing public key, when the Controller directory has one.
+/// The release-signing public key the wrapper pins, when the Home has one.
 pub fn load_release_key(controller_dir: &Path) -> Option<VerifyingKey> {
-    let bytes = std::fs::read(controller_dir.join(RELEASE_KEY_FILE)).ok()?;
-    let key = if bytes.len() == 32 {
-        bytes
-    } else {
-        let text = String::from_utf8(bytes).ok()?;
-        BASE64.decode(text.trim()).ok()?
-    };
-    let key: [u8; 32] = key.try_into().ok()?;
-    VerifyingKey::from_bytes(&key).ok()
+    crate::wrapper::load_pin(controller_dir)
 }
 
 /// Install using the host adapters. The library call is still in-process.
