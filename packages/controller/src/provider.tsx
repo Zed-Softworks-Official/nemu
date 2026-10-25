@@ -1,6 +1,7 @@
 'use client'
 
 import {
+    type ApplyUpdateResponse,
     type BootstrapOwnerRequest,
     type CapabilityView,
     type ClientToken,
@@ -85,6 +86,7 @@ type ControllerContextValue = {
     revokeCurrentToken: () => Promise<void>
     bootstrapOwner: (request: BootstrapOwnerRequest) => Promise<HouseholdMember>
     getReleaseStatus: () => Promise<UpdateStatusResponse>
+    installRelease: () => Promise<ApplyUpdateResponse>
 }
 
 const ControllerContext = createContext<ControllerContextValue | null>(null)
@@ -241,6 +243,10 @@ export function ControllerProvider({
         () => connection.getReleaseStatus(),
         [connection]
     )
+    const installRelease = useCallback(
+        () => connection.installRelease(),
+        [connection]
+    )
 
     const value = useMemo(
         () => ({
@@ -272,6 +278,7 @@ export function ControllerProvider({
             revokeCurrentToken,
             bootstrapOwner,
             getReleaseStatus,
+            installRelease,
         }),
         [
             connection,
@@ -302,6 +309,7 @@ export function ControllerProvider({
             revokeCurrentToken,
             bootstrapOwner,
             getReleaseStatus,
+            installRelease,
         ]
     )
 

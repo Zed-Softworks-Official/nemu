@@ -1,4 +1,5 @@
 import {
+    type ApplyUpdateResponse,
     type BootstrapOwnerRequest,
     CapabilitySession,
     type CapabilityView,
@@ -337,6 +338,14 @@ export class ControllerConnection {
             )
         }
         return await transport.getReleaseStatus()
+    }
+
+    async installRelease(): Promise<ApplyUpdateResponse> {
+        const transport = this.requireConnectedTransport('Install Release')
+        if (!transport.installRelease) {
+            throw new Error('Install is not supported by this controller')
+        }
+        return await transport.installRelease()
     }
 
     async getMembers(): Promise<HouseholdMember[]> {

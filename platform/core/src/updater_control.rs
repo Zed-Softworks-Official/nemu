@@ -10,6 +10,8 @@ pub struct ReleaseStatus {
     pub platform_version: String,
     pub channel: String,
     pub newer_release_available: bool,
+    pub maintenance_mode: bool,
+    pub rollback_snapshot_available: bool,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -20,13 +22,15 @@ pub enum ForwardError {
 
 pub trait UpdaterControl: Send + Sync {
     fn status(&self) -> Result<ReleaseStatus, String>;
+    fn install(&self) -> Result<(), String>;
+    fn maintenance_mode(&self) -> bool;
 }
 
 /// The Updater installed under a Controller directory. Status reads Home data
-/// from that directory and does not record an audit entry. This caller has no
-/// published channel manifest and does not use the Controller identity key as
-/// the release key, so no Release is available until a manifest host and the
-/// release public key are supplied to `updater::status`.
+/// from that directory and does not record an audit entry. A release key and
+/// channel manifest are read from that directory when they have been supplied.
+/// A missing key still reports no newer Release and does not use the Controller
+/// identity key.
 #[derive(Clone)]
 pub struct DirectoryUpdater {
     controller_dir: PathBuf,
@@ -42,14 +46,25 @@ impl DirectoryUpdater {
 
 impl UpdaterControl for DirectoryUpdater {
     fn status(&self) -> Result<ReleaseStatus, String> {
-        let manifests = updater::MissingManifestHost;
-        let installed = updater::status(&self.controller_dir, &manifests, None)
+        let manifests = updater::DirectoryManifestHost::new(&self.controller_dir);
+        let release_key = updater::load_release_key(&self.controller_dir);
+        let installed = updater::status(&self.controller_dir, &manifests, release_key.as_ref())
             .map_err(|error| error.to_string())?;
         Ok(ReleaseStatus {
             platform_version: installed.platform_version,
             channel: installed.channel.as_str().to_string(),
             newer_release_available: installed.newer_release_available,
+            maintenance_mode: installed.maintenance_mode,
+            rollback_snapshot_available: installed.rollback_snapshot_available,
         })
+    }
+
+    fn install(&self) -> Result<(), String> {
+        updater::run_install(&self.controller_dir).map_err(|error| error.to_string())
+    }
+
+    fn maintenance_mode(&self) -> bool {
+        updater::maintenance_mode(&self.controller_dir)
     }
 }
 
@@ -64,21 +79,54 @@ pub fn forward_release_status(
     updater.status().map_err(ForwardError::Unavailable)
 }
 
+/// Forwards an install to the Updater for an active Owner. A Member is refused.
+pub fn forward_install(
+    role: &str,
+    member_status: &str,
+    updater: &dyn UpdaterControl,
+) -> Result<(), ForwardError> {
+    audit::authorize_read(role, member_status).map_err(|_| ForwardError::Refused)?;
+    updater.install().map_err(ForwardError::Unavailable)
+}
+
+/// The Audit record for an Owner install. The kind is the existing update kind.
+pub fn install_audit(actor_user_id: Option<String>) -> audit::AuditWrite {
+    audit::AuditWrite {
+        kind: audit::AuditKind::Update,
+        actor_user_id,
+        summary: "started install of the current Release".to_string(),
+        detail: serde_json::json!({ "action": "install" }),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::atomic::{AtomicU32, Ordering};
 
-    use super::{ForwardError, ReleaseStatus, UpdaterControl, forward_release_status};
+    use super::{
+        ForwardError, ReleaseStatus, UpdaterControl, forward_install, forward_release_status,
+        install_audit,
+    };
 
     struct FakeUpdater {
         status: ReleaseStatus,
         calls: AtomicU32,
+        installs: AtomicU32,
     }
 
     impl UpdaterControl for FakeUpdater {
         fn status(&self) -> Result<ReleaseStatus, String> {
             self.calls.fetch_add(1, Ordering::SeqCst);
             Ok(self.status.clone())
+        }
+
+        fn install(&self) -> Result<(), String> {
+            self.installs.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }
+
+        fn maintenance_mode(&self) -> bool {
+            self.status.maintenance_mode
         }
     }
 
@@ -89,8 +137,11 @@ mod tests {
                 platform_version: "0.4.2".to_string(),
                 channel: "stable".to_string(),
                 newer_release_available: false,
+                maintenance_mode: false,
+                rollback_snapshot_available: false,
             },
             calls: AtomicU32::new(0),
+            installs: AtomicU32::new(0),
         };
 
         let forwarded = forward_release_status("owner", "active", &updater).expect("owner");
@@ -115,18 +166,54 @@ mod tests {
                 platform_version: "0.4.9".to_string(),
                 channel: "stable".to_string(),
                 newer_release_available: true,
+                maintenance_mode: true,
+                rollback_snapshot_available: true,
             },
             calls: AtomicU32::new(0),
+            installs: AtomicU32::new(0),
         };
 
         let forwarded = forward_release_status("owner", "active", &updater).expect("owner");
         assert_eq!(forwarded.platform_version, "0.4.9");
         assert_eq!(forwarded.channel, "stable");
         assert!(forwarded.newer_release_available);
+        assert!(forwarded.maintenance_mode);
+        assert!(forwarded.rollback_snapshot_available);
         assert_eq!(updater.calls.load(Ordering::SeqCst), 1);
 
         let member = forward_release_status("member", "active", &updater);
         assert_eq!(member, Err(ForwardError::Refused));
         assert_eq!(updater.calls.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn an_owner_install_is_forwarded_and_audited_and_a_member_is_refused() {
+        let updater = FakeUpdater {
+            status: ReleaseStatus {
+                platform_version: "0.4.10".to_string(),
+                channel: "stable".to_string(),
+                newer_release_available: true,
+                maintenance_mode: false,
+                rollback_snapshot_available: false,
+            },
+            calls: AtomicU32::new(0),
+            installs: AtomicU32::new(0),
+        };
+
+        let member = forward_install("member", "active", &updater);
+        assert_eq!(member, Err(ForwardError::Refused));
+        assert_eq!(updater.installs.load(Ordering::SeqCst), 0);
+
+        let pending = forward_install("owner", "pending", &updater);
+        assert_eq!(pending, Err(ForwardError::Refused));
+        assert_eq!(updater.installs.load(Ordering::SeqCst), 0);
+
+        forward_install("owner", "active", &updater).expect("owner install");
+        assert_eq!(updater.installs.load(Ordering::SeqCst), 1);
+
+        let audit = install_audit(Some("owner-1".to_string()));
+        assert_eq!(audit.kind, crate::audit::AuditKind::Update);
+        assert_eq!(audit.detail["action"], "install");
+        assert_eq!(audit.actor_user_id.as_deref(), Some("owner-1"));
     }
 }

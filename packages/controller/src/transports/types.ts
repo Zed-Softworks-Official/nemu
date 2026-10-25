@@ -1,4 +1,5 @@
 import type {
+    ApplyUpdateResponse,
     BootstrapOwnerRequest,
     ClientToken,
     CommandResult,
@@ -72,6 +73,7 @@ export interface ControllerTransport {
     revokeCurrentToken?(): Promise<void>
     bootstrapOwner?(request: BootstrapOwnerRequest): Promise<HouseholdMember>
     getReleaseStatus?(): Promise<UpdateStatusResponse>
+    installRelease?(): Promise<ApplyUpdateResponse>
 }
 
 export interface ControllerTransport {

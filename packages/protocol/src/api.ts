@@ -185,6 +185,8 @@ export const updateStatusResponseSchema = z.object({
     platformVersion: z.string(),
     channel: z.enum(['stable', 'canary']),
     newerReleaseAvailable: z.boolean(),
+    maintenanceMode: z.boolean(),
+    rollbackSnapshotAvailable: z.boolean(),
 })
 export type UpdateStatusResponse = z.infer<typeof updateStatusResponseSchema>
 

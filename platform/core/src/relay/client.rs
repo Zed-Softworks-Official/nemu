@@ -118,6 +118,8 @@ enum ToControllerMessage {
     ImportHistoryBackup { archive: String },
     #[serde(rename = "releaseStatus")]
     ReleaseStatus,
+    #[serde(rename = "installRelease")]
+    InstallRelease,
 }
 
 #[derive(Serialize)]
@@ -562,6 +564,21 @@ async fn handle_message(
                 ),
                 Err(error) => {
                     build_error_response(state, &message.request_id, error.code(), error.message())
+                }
+            }
+        }
+        ToControllerMessage::InstallRelease => {
+            match crate::api::updates::install_release(state, &auth).await {
+                Ok(started) => build_typed_response(
+                    state,
+                    &message.request_id,
+                    json!({
+                        "type": "installRelease",
+                        "started": started.started,
+                    }),
+                ),
+                Err(error) => {
+                    build_error_response(state, &message.request_id, &error.code, &error.message)
                 }
             }
         }

@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import {
+    applyUpdateResponseSchema,
     clientTokenSchema,
     householdMemberSchema,
     updateStatusResponseSchema,
@@ -78,6 +79,7 @@ const authenticatedRelayMessageSchema = z.union([
     exportHistoryBackupMessageSchema,
     importHistoryBackupMessageSchema,
     z.object({ type: z.literal('releaseStatus') }),
+    z.object({ type: z.literal('installRelease') }),
 ])
 
 export const relayToControllerEnvelopeSchema = z.union([
@@ -132,6 +134,9 @@ export const relayToClientEnvelopeSchema = z.object({
         historyBackupRestoredSchema,
         updateStatusResponseSchema.extend({
             type: z.literal('releaseStatus'),
+        }),
+        applyUpdateResponseSchema.extend({
+            type: z.literal('installRelease'),
         }),
     ]),
 })
