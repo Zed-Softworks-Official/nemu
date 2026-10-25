@@ -291,6 +291,7 @@ mod tests {
                 amd64: BASE64.encode(b"amd64-next"),
                 arm64: BASE64.encode(b"arm64-next"),
             },
+            next_pin: None,
         }
     }
 
