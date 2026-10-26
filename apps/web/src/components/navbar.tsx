@@ -35,22 +35,22 @@ const navSubMenu: NavLink[] = [
     {
         title: 'Why Nemu?',
         href: '#why',
-        description: 'Learn why Nemu is the best way to control your home.',
+        description: 'Privacy, local control, and open source.',
     },
     {
         title: 'How it works',
         href: '#how-it-works',
-        description: 'Learn how Nemu works.',
+        description: 'A controller at home, and a relay when you leave.',
     },
     {
         title: 'Features',
         href: '#features',
-        description: 'Learn about the features of Nemu.',
+        description: 'Matter, Zigbee, rooms, and the people you invite.',
     },
     {
         title: 'Waitlist',
         href: '#waitlist',
-        description: 'Join the waitlist for Nemu.',
+        description: 'Join the waitlist for early access.',
     },
 ]
 
