@@ -131,9 +131,6 @@ function Pillars() {
                             src={pillar.sticker}
                             width={160}
                         />
-                        <p className="font-medium text-primary text-xs uppercase tracking-widest">
-                            {String(index + 1).padStart(2, '0')}
-                        </p>
                         <h3
                             className="mt-2 font-bold font-heading text-2xl text-foreground tracking-tight"
                             id={pillar.id}
