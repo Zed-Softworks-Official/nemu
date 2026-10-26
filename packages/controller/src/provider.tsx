@@ -1,6 +1,7 @@
 'use client'
 
 import {
+    type ApplyUpdateResponse,
     type BootstrapOwnerRequest,
     type CapabilityView,
     type ClientToken,
@@ -24,9 +25,12 @@ import {
     type PatchOutletRequest,
     type PatchRoomRequest,
     type PermitJoinResponse,
+    type ReleaseChannel,
     type Room,
     type SaveMatterWifiRequest,
+    type SwitchReleaseChannelResponse,
     statusFromMode,
+    type UpdateStatusResponse,
 } from '@nemu/protocol'
 import type { ConvexReactClient } from 'convex/react'
 import {
@@ -83,6 +87,12 @@ type ControllerContextValue = {
     revokeToken: (tokenId: string) => Promise<void>
     revokeCurrentToken: () => Promise<void>
     bootstrapOwner: (request: BootstrapOwnerRequest) => Promise<HouseholdMember>
+    getReleaseStatus: () => Promise<UpdateStatusResponse>
+    installRelease: () => Promise<ApplyUpdateResponse>
+    rollbackRelease: () => Promise<ApplyUpdateResponse>
+    switchReleaseChannel: (
+        channel: ReleaseChannel
+    ) => Promise<SwitchReleaseChannelResponse>
 }
 
 const ControllerContext = createContext<ControllerContextValue | null>(null)
@@ -235,6 +245,22 @@ export function ControllerProvider({
         (request: BootstrapOwnerRequest) => connection.bootstrapOwner(request),
         [connection]
     )
+    const getReleaseStatus = useCallback(
+        () => connection.getReleaseStatus(),
+        [connection]
+    )
+    const installRelease = useCallback(
+        () => connection.installRelease(),
+        [connection]
+    )
+    const rollbackRelease = useCallback(
+        () => connection.rollbackRelease(),
+        [connection]
+    )
+    const switchReleaseChannel = useCallback(
+        (channel: ReleaseChannel) => connection.switchReleaseChannel(channel),
+        [connection]
+    )
 
     const value = useMemo(
         () => ({
@@ -265,6 +291,10 @@ export function ControllerProvider({
             revokeToken,
             revokeCurrentToken,
             bootstrapOwner,
+            getReleaseStatus,
+            installRelease,
+            rollbackRelease,
+            switchReleaseChannel,
         }),
         [
             connection,
@@ -294,6 +324,10 @@ export function ControllerProvider({
             revokeToken,
             revokeCurrentToken,
             bootstrapOwner,
+            getReleaseStatus,
+            installRelease,
+            rollbackRelease,
+            switchReleaseChannel,
         ]
     )
 

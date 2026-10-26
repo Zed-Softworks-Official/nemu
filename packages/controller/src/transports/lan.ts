@@ -1,4 +1,6 @@
 import {
+    type ApplyUpdateResponse,
+    applyUpdateResponseSchema,
     type BootstrapOwnerRequest,
     bootstrapOwnerRequestSchema,
     type ClientToken,
@@ -37,12 +39,18 @@ import {
     patchRoomRequestSchema,
     permitJoinRequestSchema,
     permitJoinResponseSchema,
+    type ReleaseChannel,
     type Room,
     roomSchema,
     roomsResponseSchema,
     type SaveMatterWifiRequest,
+    type SwitchReleaseChannelResponse,
     saveMatterWifiRequestSchema,
+    switchReleaseChannelRequestSchema,
+    switchReleaseChannelResponseSchema,
     tokensResponseSchema,
+    type UpdateStatusResponse,
+    updateStatusResponseSchema,
 } from '@nemu/protocol'
 import type { AxiosInstance } from 'axios'
 import { createControllerHttp, type GetToken } from '../http'
@@ -268,6 +276,29 @@ export class LanTransport implements ControllerTransport {
     async getMembers(): Promise<HouseholdMember[]> {
         const { data } = await this.http.get('/api/members')
         return membersResponseSchema.parse(data).members
+    }
+
+    async getReleaseStatus(): Promise<UpdateStatusResponse> {
+        const { data } = await this.http.get('/api/updates')
+        return updateStatusResponseSchema.parse(data)
+    }
+
+    async installRelease(): Promise<ApplyUpdateResponse> {
+        const { data } = await this.http.post('/api/updates/apply')
+        return applyUpdateResponseSchema.parse(data)
+    }
+
+    async rollbackRelease(): Promise<ApplyUpdateResponse> {
+        const { data } = await this.http.post('/api/updates/rollback')
+        return applyUpdateResponseSchema.parse(data)
+    }
+
+    async switchReleaseChannel(
+        channel: ReleaseChannel
+    ): Promise<SwitchReleaseChannelResponse> {
+        const body = switchReleaseChannelRequestSchema.parse({ channel })
+        const { data } = await this.http.post('/api/updates/channel', body)
+        return switchReleaseChannelResponseSchema.parse(data)
     }
 
     async inviteMember(email: string): Promise<HouseholdMember> {

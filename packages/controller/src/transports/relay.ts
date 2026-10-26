@@ -1,4 +1,6 @@
 import {
+    type ApplyUpdateResponse,
+    applyUpdateResponseSchema,
     type BootstrapOwnerRequest,
     type ClientToken,
     type CommandResult,
@@ -15,8 +17,13 @@ import {
     homeMeterDesignationResultSchema,
     householdMemberSchema,
     parseDeviceList,
+    type ReleaseChannel,
     relayToClientEnvelopeSchema,
     relayToControllerEnvelopeSchema,
+    type SwitchReleaseChannelResponse,
+    switchReleaseChannelResponseSchema,
+    type UpdateStatusResponse,
+    updateStatusResponseSchema,
 } from '@nemu/protocol'
 import type { ConvexReactClient } from 'convex/react'
 import type { FunctionReference } from 'convex/server'
@@ -220,6 +227,47 @@ export class RelayTransport implements ControllerTransport {
             }
         }
         throw new Error('Unexpected relay response for command')
+    }
+
+    async getReleaseStatus(): Promise<UpdateStatusResponse> {
+        const parsed = await this.request({ type: 'releaseStatus' })
+        if (parsed.message.type === 'releaseStatus') {
+            return updateStatusResponseSchema.parse(parsed.message)
+        }
+        this.throwIfCommandError(parsed, 'read the installed Release')
+        throw new Error('Unexpected relay response for releaseStatus')
+    }
+
+    async installRelease(): Promise<ApplyUpdateResponse> {
+        const parsed = await this.request({ type: 'installRelease' })
+        if (parsed.message.type === 'installRelease') {
+            return applyUpdateResponseSchema.parse(parsed.message)
+        }
+        this.throwIfCommandError(parsed, 'install the Release')
+        throw new Error('Unexpected relay response for installRelease')
+    }
+
+    async rollbackRelease(): Promise<ApplyUpdateResponse> {
+        const parsed = await this.request({ type: 'rollbackRelease' })
+        if (parsed.message.type === 'rollbackRelease') {
+            return applyUpdateResponseSchema.parse(parsed.message)
+        }
+        this.throwIfCommandError(parsed, 'roll back the Release')
+        throw new Error('Unexpected relay response for rollbackRelease')
+    }
+
+    async switchReleaseChannel(
+        channel: ReleaseChannel
+    ): Promise<SwitchReleaseChannelResponse> {
+        const parsed = await this.request({
+            type: 'switchReleaseChannel',
+            channel,
+        })
+        if (parsed.message.type === 'switchReleaseChannel') {
+            return switchReleaseChannelResponseSchema.parse(parsed.message)
+        }
+        this.throwIfCommandError(parsed, 'switch the Release channel')
+        throw new Error('Unexpected relay response for switchReleaseChannel')
     }
 
     async getMembers(): Promise<HouseholdMember[]> {

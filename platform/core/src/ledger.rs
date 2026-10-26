@@ -424,7 +424,6 @@ pub async fn sweep(pool: &DbPool, now: DateTime<Utc>) -> Result<(), String> {
     .map_err(|error| error.to_string())
 }
 
-#[cfg(test)]
 pub async fn get(pool: &DbPool, command_id: &str) -> Result<Option<CommandRow>, String> {
     let command_id = command_id.to_string();
     let conn = pool.get().await.map_err(|error| error.to_string())?;

@@ -2,6 +2,8 @@ use std::time::Duration;
 
 use serde::Deserialize;
 
+// Owner install no longer calls Watchtower. NEM-46 removes the client.
+#[allow(dead_code)]
 const WATCHTOWER_UNAVAILABLE: &str = "Watchtower is not configured or unreachable. Re-run the installer with force to enable on-demand updates.";
 
 pub const RELEASE_BUNDLE: [&str; 2] = [
@@ -102,6 +104,7 @@ impl WatchtowerClient {
     }
 }
 
+#[allow(dead_code)]
 pub fn unavailable_message() -> &'static str {
     WATCHTOWER_UNAVAILABLE
 }

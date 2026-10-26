@@ -116,6 +116,14 @@ enum ToControllerMessage {
     ExportHistoryBackup,
     #[serde(rename = "importHistoryBackup")]
     ImportHistoryBackup { archive: String },
+    #[serde(rename = "releaseStatus")]
+    ReleaseStatus,
+    #[serde(rename = "installRelease")]
+    InstallRelease,
+    #[serde(rename = "rollbackRelease")]
+    RollbackRelease,
+    #[serde(rename = "switchReleaseChannel")]
+    SwitchReleaseChannel { channel: String },
 }
 
 #[derive(Serialize)]
@@ -560,6 +568,71 @@ async fn handle_message(
                 ),
                 Err(error) => {
                     build_error_response(state, &message.request_id, error.code(), error.message())
+                }
+            }
+        }
+        ToControllerMessage::SwitchReleaseChannel { channel } => {
+            match crate::api::updates::switch_release_channel(state, &auth, &channel).await {
+                Ok(switched) => build_typed_response(
+                    state,
+                    &message.request_id,
+                    json!({
+                        "type": "switchReleaseChannel",
+                        "channel": switched.channel,
+                        "installed": switched.installed,
+                    }),
+                ),
+                Err(error) => {
+                    build_error_response(state, &message.request_id, &error.code, &error.message)
+                }
+            }
+        }
+        ToControllerMessage::InstallRelease => {
+            match crate::api::updates::install_release(state, &auth).await {
+                Ok(started) => build_typed_response(
+                    state,
+                    &message.request_id,
+                    json!({
+                        "type": "installRelease",
+                        "started": started.started,
+                    }),
+                ),
+                Err(error) => {
+                    build_error_response(state, &message.request_id, &error.code, &error.message)
+                }
+            }
+        }
+        ToControllerMessage::RollbackRelease => {
+            match crate::api::updates::rollback_release(state, &auth).await {
+                Ok(started) => build_typed_response(
+                    state,
+                    &message.request_id,
+                    json!({
+                        "type": "rollbackRelease",
+                        "started": started.started,
+                    }),
+                ),
+                Err(error) => {
+                    build_error_response(state, &message.request_id, &error.code, &error.message)
+                }
+            }
+        }
+        ToControllerMessage::ReleaseStatus => {
+            match crate::api::updates::read_release_status(state, &auth).await {
+                Ok(status) => match serde_json::to_value(&status) {
+                    Ok(mut body) => {
+                        body["type"] = json!("releaseStatus");
+                        build_typed_response(state, &message.request_id, body)
+                    }
+                    Err(_) => build_error_response(
+                        state,
+                        &message.request_id,
+                        "updater_unavailable",
+                        "Could not read the installed Release",
+                    ),
+                },
+                Err(error) => {
+                    build_error_response(state, &message.request_id, &error.code, &error.message)
                 }
             }
         }

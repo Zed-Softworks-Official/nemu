@@ -1,4 +1,5 @@
 import {
+    type ApplyUpdateResponse,
     type BootstrapOwnerRequest,
     CapabilitySession,
     type CapabilityView,
@@ -21,9 +22,12 @@ import {
     type PatchOutletRequest,
     type PatchRoomRequest,
     type PermitJoinResponse,
+    type ReleaseChannel,
     type Room,
     type SaveMatterWifiRequest,
+    type SwitchReleaseChannelResponse,
     statusFromMode,
+    type UpdateStatusResponse,
 } from '@nemu/protocol'
 import type { ConvexReactClient } from 'convex/react'
 import {
@@ -326,6 +330,44 @@ export class ControllerConnection {
     ): Promise<HomeMeterDesignation> {
         const transport = this.requireConnectedTransport('Home meter')
         return await transport.designateHomeMeter(selection)
+    }
+
+    async getReleaseStatus(): Promise<UpdateStatusResponse> {
+        const transport = this.requireConnectedTransport('Installed Release')
+        if (!transport.getReleaseStatus) {
+            throw new Error(
+                'Installed Release is not supported by this controller'
+            )
+        }
+        return await transport.getReleaseStatus()
+    }
+
+    async installRelease(): Promise<ApplyUpdateResponse> {
+        const transport = this.requireConnectedTransport('Install Release')
+        if (!transport.installRelease) {
+            throw new Error('Install is not supported by this controller')
+        }
+        return await transport.installRelease()
+    }
+
+    async rollbackRelease(): Promise<ApplyUpdateResponse> {
+        const transport = this.requireConnectedTransport('Roll back Release')
+        if (!transport.rollbackRelease) {
+            throw new Error('Rollback is not supported by this controller')
+        }
+        return await transport.rollbackRelease()
+    }
+
+    async switchReleaseChannel(
+        channel: ReleaseChannel
+    ): Promise<SwitchReleaseChannelResponse> {
+        const transport = this.requireConnectedTransport('Release channel')
+        if (!transport.switchReleaseChannel) {
+            throw new Error(
+                'Release channel is not supported by this controller'
+            )
+        }
+        return await transport.switchReleaseChannel(channel)
     }
 
     async getMembers(): Promise<HouseholdMember[]> {

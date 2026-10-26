@@ -1,5 +1,12 @@
 import { z } from 'zod'
-import { clientTokenSchema, householdMemberSchema } from './api.ts'
+import {
+    applyUpdateResponseSchema,
+    clientTokenSchema,
+    householdMemberSchema,
+    releaseChannelSchema,
+    releaseStatusSchema,
+    switchReleaseChannelResponseSchema,
+} from './api.ts'
 import {
     capabilityChangeEventSchema,
     capabilitySnapshotEventSchema,
@@ -73,6 +80,13 @@ const authenticatedRelayMessageSchema = z.union([
     getHomeMeterDesignationMessageSchema,
     exportHistoryBackupMessageSchema,
     importHistoryBackupMessageSchema,
+    z.object({ type: z.literal('releaseStatus') }),
+    z.object({ type: z.literal('installRelease') }),
+    z.object({ type: z.literal('rollbackRelease') }),
+    z.object({
+        type: z.literal('switchReleaseChannel'),
+        channel: releaseChannelSchema,
+    }),
 ])
 
 export const relayToControllerEnvelopeSchema = z.union([
@@ -125,6 +139,18 @@ export const relayToClientEnvelopeSchema = z.object({
         homeMeterDesignationResultSchema,
         historyBackupResultSchema,
         historyBackupRestoredSchema,
+        releaseStatusSchema.extend({
+            type: z.literal('releaseStatus'),
+        }),
+        applyUpdateResponseSchema.extend({
+            type: z.literal('installRelease'),
+        }),
+        applyUpdateResponseSchema.extend({
+            type: z.literal('rollbackRelease'),
+        }),
+        switchReleaseChannelResponseSchema.extend({
+            type: z.literal('switchReleaseChannel'),
+        }),
     ]),
 })
 export type RelayToClientEnvelope = z.infer<typeof relayToClientEnvelopeSchema>

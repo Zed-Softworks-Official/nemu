@@ -1,48 +1,46 @@
-# GitHub protections for image releases
+# GitHub protections for platform Releases
 
-Image publishes are triggered by version tags:
+A platform Release is published by [`.github/workflows/publish-release.yml`](../../.github/workflows/publish-release.yml):
 
-- `core-v*` → [`.github/workflows/publish-core.yml`](../../.github/workflows/publish-core.yml)
-- `matter-v*` → [`.github/workflows/publish-matter.yml`](../../.github/workflows/publish-matter.yml)
+- A push to `canary` cuts the next patch, signs the Canary manifest, and tags the commit `v0.MINOR.PATCH`.
+- An explicit **Publish Release** run on `master` with channel `stable` points Stable at a Platform version already cut and moves `:latest`.
+- `core-v*` and `matter-v*` do not publish a platform Release.
+
+The private release-signing key is the `NEMU_RELEASE_SIGNING_KEY` repository secret. It stays in the publisher.
 
 ## Controls
 
-### nemu-core
+### CODEOWNERS
+
+[`.github/CODEOWNERS`](../../.github/CODEOWNERS) marks release and install paths for `@kzolt` (enforce via branch ruleset “require code owner review” when enabled).
+
+### Historical image tags
+
+These rulesets still protect tags that were created before platform Releases. They do not publish a Release.
 
 1. **Tag ruleset** — `Protect core-v release tags`  
    Blocks create/update/delete/force-push of `core-v*` tags for everyone except `@kzolt` (bypass).
 
 2. **Environment** — `core-release`  
-   The publish workflow jobs require this environment. Required reviewers: `@kzolt`. Deployment branches/tags limited to `core-v*`.
+   Required reviewers: `@kzolt`. Deployment branches/tags limited to `core-v*`.
 
-### nemu-matter
-
-1. **Tag ruleset** — `Protect matter-v release tags`  
+3. **Tag ruleset** — `Protect matter-v release tags`  
    Blocks create/update/delete/force-push of `matter-v*` tags for everyone except `@kzolt` (bypass).
 
-2. **Environment** — `matter-release`  
-   The publish workflow jobs require this environment. Required reviewers: `@kzolt`. Deployment branches/tags limited to `matter-v*`.
-
-### Shared
-
-3. **CODEOWNERS** — [`.github/CODEOWNERS`](../../.github/CODEOWNERS)  
-   Release/install paths owned by `@kzolt` (enforce via branch ruleset “require code owner review” when enabled).
+4. **Environment** — `matter-release`  
+   Required reviewers: `@kzolt`. Deployment branches/tags limited to `matter-v*`.
 
 ## Publish flow
 
 ```bash
-# Core
-git tag core-v0.1.0
-git push origin core-v0.1.0
-# Then approve the pending deployment in GitHub Actions → Environment "core-release"
+# Canary: push the canary branch. The first Platform version is 0.1.0.
+# A minor bump is a commit message line, not the default:
+#   Bump-Platform-Minor: true
 
-# Matter
-git tag matter-v0.1.0
-git push origin matter-v0.1.0
-# Then approve the pending deployment in GitHub Actions → Environment "matter-release"
+# Stable: Actions → Publish Release → branch master → channel stable.
 ```
 
-## Apply / refresh rulesets from this repo
+## Create historical rulesets from this repo
 
 ```bash
 gh api repos/Zed-Softworks-Official/nemu/rulesets \

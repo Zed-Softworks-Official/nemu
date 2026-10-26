@@ -42,4 +42,4 @@ Sources of truth: [`scripts/install.sh`](../../scripts/install.sh), [`infra/prod
 - [ ] Clerk allowed origins / redirect URLs include `https://app.nemu.sh`
 - [ ] Convex production deployment wired; `NEMU_CONVEX_SITE_URL` documented for installs
 - [ ] GHCR package `ghcr.io/zed-softworks-official/nemu-core` is public (Watchtower pulls without auth)
-- [ ] Tag `core-v*` publish workflow succeeds on Blacksmith runners
+- [ ] Canary publish workflow succeeds on Blacksmith runners

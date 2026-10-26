@@ -608,6 +608,8 @@ importers:
 
   platform/matter: {}
 
+  platform/updater: {}
+
   tooling/biome-config: {}
 
   tooling/typescript-config: {}

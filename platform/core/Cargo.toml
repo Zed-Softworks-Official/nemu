@@ -38,6 +38,7 @@ tower = { version = "0.5", features = ["util"] }
 tower-http = { version = "0.7.0", features = ["cors"] }
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+updater = { path = "../updater" }
 uuid = { version = "1.23.4", features = ["v4", "serde"] }
 
 [dev-dependencies]

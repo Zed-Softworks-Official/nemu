@@ -1,7 +1,6 @@
 # Release / install surfaces — only @kzolt as required reviewer when CODEOWNERS is enforced.
 .github/ @kzolt
-.github/workflows/publish-core.yml @kzolt
-.github/workflows/publish-matter.yml @kzolt
+.github/workflows/publish-release.yml @kzolt
 scripts/install.sh @kzolt
 infra/prod/ @kzolt
 platform/core/Dockerfile @kzolt

@@ -10,17 +10,14 @@ import {
     getClientToken,
     getRememberedBaseUrl,
     getRememberedControllerId,
-    identifyController,
     useController,
 } from '@nemu/controller'
 import {
-    ApiError,
-    applyUpdateResponseSchema,
     type ClientToken,
     type HouseholdMember,
     type PairingCodeResponse,
     pairingCodeResponseSchema,
-    updateStatusResponseSchema,
+    type ReleaseChannel,
 } from '@nemu/protocol'
 import { Badge } from '@nemu/ui/components/badge'
 import { Button } from '@nemu/ui/components/button'
@@ -37,7 +34,6 @@ import { Input } from '@nemu/ui/components/input'
 import { Separator } from '@nemu/ui/components/separator'
 import {
     CopyIcon,
-    DownloadIcon,
     LaptopIcon,
     RadioTowerIcon,
     RotateCwIcon,
@@ -49,14 +45,11 @@ import { PageHeader } from '~/components/dashboard/page-header'
 import { FixInsecureLanButton } from '~/components/header/fix-insecure-lan'
 import { env } from '~/env'
 
-type CoreUpdateState =
+type ReleaseReadState =
     | { kind: 'idle' }
     | { kind: 'checking' }
-    | { kind: 'upToDate' }
-    | { kind: 'available' }
-    | { kind: 'applying' }
-    | { kind: 'restarting' }
-    | { kind: 'unavailable'; message: string }
+    | { kind: 'current' }
+    | { kind: 'newer' }
     | { kind: 'error'; message: string }
 
 export default function SettingsPage() {
@@ -72,6 +65,10 @@ export default function SettingsPage() {
         revokeToken,
         revokeCurrentToken,
         bootstrapOwner,
+        getReleaseStatus,
+        installRelease,
+        rollbackRelease,
+        switchReleaseChannel,
     } = useController()
     const { isAuthenticated } = useConvexAuth()
     const controllers = useQuery(
@@ -98,15 +95,25 @@ export default function SettingsPage() {
     const [busyInvite, setBusyInvite] = useState(false)
     const [busyUnpair, setBusyUnpair] = useState(false)
     const [copied, setCopied] = useState(false)
-    const [coreVersion, setCoreVersion] = useState<string | null>(null)
+    const [platformVersion, setPlatformVersion] = useState<string | null>(null)
+    const [releaseChannel, setReleaseChannel] = useState<string | null>(null)
     const [inviteCode, setInviteCode] = useState<PairingCodeResponse | null>(
         null
     )
     const [busyCode, setBusyCode] = useState(false)
     const [codeError, setCodeError] = useState<string | null>(null)
-    const [updateState, setUpdateState] = useState<CoreUpdateState>({
+    const [updateState, setUpdateState] = useState<ReleaseReadState>({
         kind: 'idle',
     })
+    const [busyInstall, setBusyInstall] = useState(false)
+    const [installError, setInstallError] = useState<string | null>(null)
+    const [rollbackSnapshotAvailable, setRollbackSnapshotAvailable] =
+        useState(false)
+    const [rollbackStuck, setRollbackStuck] = useState(false)
+    const [busyRollback, setBusyRollback] = useState(false)
+    const [rollbackError, setRollbackError] = useState<string | null>(null)
+    const [busyChannel, setBusyChannel] = useState(false)
+    const [channelError, setChannelError] = useState<string | null>(null)
     const updateStateRef = useRef(updateState)
     updateStateRef.current = updateState
 
@@ -116,26 +123,6 @@ export default function SettingsPage() {
             member.userId === user?.id || member.email.toLowerCase() === myEmail
     )
     const isOwner = me?.role === 'owner'
-    const canManageUpdates = Boolean(
-        isOwner && status.mode === 'lan' && baseUrl
-    )
-    const showUpdates =
-        canManageUpdates ||
-        updateState.kind === 'applying' ||
-        updateState.kind === 'restarting'
-
-    const loadIdentity = useCallback(async () => {
-        if (!baseUrl || status.mode !== 'lan') {
-            setCoreVersion(null)
-            return
-        }
-        try {
-            const identity = await identifyController(baseUrl)
-            setCoreVersion(identity.version ?? null)
-        } catch {
-            setCoreVersion(null)
-        }
-    }, [baseUrl, status.mode])
 
     const loadHousehold = useCallback(async () => {
         if (!connected) {
@@ -184,78 +171,88 @@ export default function SettingsPage() {
         void loadHousehold()
     }, [loadHousehold])
 
-    useEffect(() => {
-        void loadIdentity()
-    }, [loadIdentity])
-
-    const checkUpdates = useCallback(async () => {
-        if (!baseUrl || status.mode !== 'lan') return
-        if (
-            updateStateRef.current.kind === 'applying' ||
-            updateStateRef.current.kind === 'restarting'
-        ) {
-            return
-        }
+    const readRelease = useCallback(async () => {
+        if (!isOwner || !connected) return
+        if (updateStateRef.current.kind === 'checking') return
         setUpdateState({ kind: 'checking' })
         try {
-            const http = createControllerHttp(baseUrl, getClientToken, 30_000)
-            const { data } = await http.get('/api/updates')
-            const parsed = updateStatusResponseSchema.parse(data)
-            setCoreVersion(parsed.currentVersion)
+            const report = await getReleaseStatus()
+            setPlatformVersion(report.platformVersion)
+            setReleaseChannel(report.channel)
+            setRollbackSnapshotAvailable(report.rollbackSnapshotAvailable)
+            setRollbackStuck(report.rollbackStuck)
             setUpdateState(
-                parsed.updateAvailable
-                    ? { kind: 'available' }
-                    : { kind: 'upToDate' }
+                report.newerReleaseAvailable
+                    ? { kind: 'newer' }
+                    : { kind: 'current' }
             )
         } catch (err) {
-            if (
-                err instanceof ApiError &&
-                err.code === 'watchtower_unavailable'
-            ) {
-                setUpdateState({
-                    kind: 'unavailable',
-                    message: err.message,
-                })
-                return
-            }
+            setPlatformVersion(null)
+            setReleaseChannel(null)
+            setRollbackSnapshotAvailable(false)
+            setRollbackStuck(false)
             setUpdateState({
                 kind: 'error',
                 message:
                     err instanceof Error
                         ? err.message
-                        : 'Failed to check for updates',
+                        : 'Failed to read the installed Release',
             })
         }
-    }, [baseUrl, status.mode])
+    }, [connected, getReleaseStatus, isOwner])
 
     useEffect(() => {
-        if (!canManageUpdates) return
-        void checkUpdates()
-    }, [canManageUpdates, checkUpdates])
+        void readRelease()
+    }, [readRelease])
 
-    async function handleApplyUpdate() {
-        if (!baseUrl) return
-        if (
-            !window.confirm('The controller will restart for about a minute.')
-        ) {
-            return
-        }
-        setUpdateState({ kind: 'applying' })
+    async function handleInstall() {
+        setBusyInstall(true)
+        setInstallError(null)
         try {
-            const http = createControllerHttp(baseUrl, getClientToken, 15_000)
-            const { data } = await http.post('/api/updates/apply')
-            const parsed = applyUpdateResponseSchema.parse(data)
-            if (parsed.started) {
-                setUpdateState({ kind: 'restarting' })
-            }
+            await installRelease()
+            await readRelease()
         } catch (err) {
-            setUpdateState({
-                kind: 'error',
-                message:
-                    err instanceof Error
-                        ? err.message
-                        : 'Failed to start update',
-            })
+            setInstallError(
+                err instanceof Error
+                    ? err.message
+                    : 'Could not install the Release'
+            )
+        } finally {
+            setBusyInstall(false)
+        }
+    }
+
+    async function handleRollback() {
+        setBusyRollback(true)
+        setRollbackError(null)
+        try {
+            await rollbackRelease()
+            await readRelease()
+        } catch (err) {
+            setRollbackError(
+                err instanceof Error
+                    ? err.message
+                    : 'Could not roll back the Release'
+            )
+        } finally {
+            setBusyRollback(false)
+        }
+    }
+
+    async function handleSwitchChannel(channel: ReleaseChannel) {
+        setBusyChannel(true)
+        setChannelError(null)
+        try {
+            await switchReleaseChannel(channel)
+            await readRelease()
+        } catch (err) {
+            setChannelError(
+                err instanceof Error
+                    ? err.message
+                    : 'Could not switch the Release channel'
+            )
+        } finally {
+            setBusyChannel(false)
         }
     }
 
@@ -458,25 +455,56 @@ export default function SettingsPage() {
                                 </div>
                                 <div>
                                     <p className="text-muted-foreground text-xs">
-                                        Core version
+                                        Platform version
                                     </p>
                                     <p className="mt-1 font-mono text-sm">
-                                        {coreVersion ?? '—'}
+                                        {platformVersion ?? '—'}
+                                    </p>
+                                </div>
+                                <div>
+                                    <p className="text-muted-foreground text-xs">
+                                        Release channel
+                                    </p>
+                                    <p className="mt-1 text-sm">
+                                        {releaseChannelLabel(releaseChannel)}
                                     </p>
                                 </div>
                             </div>
-                            {showUpdates ? (
+                            {isOwner && connected ? (
                                 <>
                                     <Separator />
                                     <CoreUpdatesBlock
-                                        canRefresh={
-                                            canManageUpdates &&
-                                            updateState.kind !== 'checking' &&
-                                            updateState.kind !== 'applying' &&
-                                            updateState.kind !== 'restarting'
+                                        busyChannel={busyChannel}
+                                        busyInstall={busyInstall}
+                                        busyRollback={busyRollback}
+                                        canInstall={
+                                            (updateState.kind === 'newer' ||
+                                                busyInstall) &&
+                                            !rollbackStuck
                                         }
-                                        onApply={() => void handleApplyUpdate()}
-                                        onRefresh={() => void checkUpdates()}
+                                        canRefresh={
+                                            updateState.kind !== 'checking' &&
+                                            !busyInstall &&
+                                            !busyRollback &&
+                                            !busyChannel
+                                        }
+                                        canRollback={
+                                            (rollbackSnapshotAvailable ||
+                                                rollbackStuck) &&
+                                            !busyInstall &&
+                                            !busyChannel
+                                        }
+                                        channel={releaseChannel}
+                                        channelError={channelError}
+                                        installError={installError}
+                                        onInstall={() => void handleInstall()}
+                                        onRefresh={() => void readRelease()}
+                                        onRollback={() => void handleRollback()}
+                                        onSwitchChannel={(channel) =>
+                                            void handleSwitchChannel(channel)
+                                        }
+                                        rollbackError={rollbackError}
+                                        rollbackStuck={rollbackStuck}
                                         state={updateState}
                                     />
                                 </>
@@ -757,20 +785,22 @@ export default function SettingsPage() {
     )
 }
 
-function updateStatusCopy(state: CoreUpdateState): string {
+function releaseChannelLabel(channel: string | null): string {
+    if (channel === 'stable') return 'Stable'
+    if (channel === 'canary') return 'Canary'
+    if (!channel) return '—'
+    return channel
+}
+
+function updateStatusCopy(state: ReleaseReadState): string {
     switch (state.kind) {
         case 'idle':
         case 'checking':
-            return 'Checking for a controller release…'
-        case 'upToDate':
-            return 'Core and adapters are up to date.'
-        case 'available':
-            return 'A controller release is available. Core and adapters update together.'
-        case 'applying':
-            return 'Starting update…'
-        case 'restarting':
-            return 'Updating… the controller will reconnect shortly.'
-        case 'unavailable':
+            return 'Reading the installed Release…'
+        case 'current':
+            return 'No newer Release is available.'
+        case 'newer':
+            return 'A newer Release is available.'
         case 'error':
             return state.message
     }
@@ -780,19 +810,55 @@ function CoreUpdatesBlock({
     state,
     canRefresh,
     onRefresh,
-    onApply,
+    canInstall,
+    busyInstall,
+    installError,
+    onInstall,
+    canRollback,
+    busyRollback,
+    rollbackError,
+    rollbackStuck,
+    onRollback,
+    channel,
+    busyChannel,
+    channelError,
+    onSwitchChannel,
 }: {
-    state: CoreUpdateState
+    state: ReleaseReadState
     canRefresh: boolean
     onRefresh: () => void
-    onApply: () => void
+    canInstall: boolean
+    busyInstall: boolean
+    installError: string | null
+    onInstall: () => void
+    canRollback: boolean
+    busyRollback: boolean
+    rollbackError: string | null
+    rollbackStuck: boolean
+    onRollback: () => void
+    channel: string | null
+    busyChannel: boolean
+    channelError: string | null
+    onSwitchChannel: (channel: ReleaseChannel) => void
 }) {
-    const destructive = state.kind === 'unavailable' || state.kind === 'error'
+    const busy = busyInstall || busyRollback || busyChannel
+    const destructive =
+        state.kind === 'error' ||
+        installError !== null ||
+        rollbackError !== null ||
+        channelError !== null ||
+        rollbackStuck
+    const statusCopy = rollbackStuck
+        ? 'Rollback is stuck. The previous Release stays in maintenance until it is healthy.'
+        : (channelError ??
+          rollbackError ??
+          installError ??
+          updateStatusCopy(state))
     return (
         <div className="space-y-3">
             <div className="flex items-start justify-between gap-3">
                 <div>
-                    <p className="font-medium text-sm">Updates</p>
+                    <p className="font-medium text-sm">Release</p>
                     <p
                         className={
                             destructive
@@ -800,27 +866,62 @@ function CoreUpdatesBlock({
                                 : 'text-muted-foreground text-xs'
                         }
                     >
-                        {updateStatusCopy(state)}
+                        {statusCopy}
                     </p>
+                    {rollbackStuck && rollbackError ? (
+                        <p className="text-destructive text-xs">
+                            {rollbackError}
+                        </p>
+                    ) : null}
                 </div>
-                {canRefresh ? (
-                    <Button onClick={onRefresh} size="sm" variant="outline">
-                        <RotateCwIcon data-icon="inline-start" />
-                        Check
+                <div className="flex shrink-0 flex-wrap justify-end gap-2">
+                    <Button
+                        aria-pressed={channel === 'stable'}
+                        disabled={busy || channel !== 'canary'}
+                        onClick={() => onSwitchChannel('stable')}
+                        size="sm"
+                        variant={channel === 'stable' ? 'secondary' : 'outline'}
+                    >
+                        Stable
                     </Button>
-                ) : null}
+                    <Button
+                        aria-pressed={channel === 'canary'}
+                        disabled={busy || channel !== 'stable'}
+                        onClick={() => onSwitchChannel('canary')}
+                        size="sm"
+                        variant={channel === 'canary' ? 'secondary' : 'outline'}
+                    >
+                        Canary
+                    </Button>
+                    {canRollback ? (
+                        <Button
+                            disabled={busyRollback || busyChannel}
+                            onClick={onRollback}
+                            size="sm"
+                            variant="outline"
+                        >
+                            {busyRollback
+                                ? rollbackStuck
+                                    ? 'Retrying…'
+                                    : 'Rolling back…'
+                                : rollbackStuck
+                                  ? 'Retry rollback'
+                                  : 'Roll back'}
+                        </Button>
+                    ) : null}
+                    {canInstall ? (
+                        <Button disabled={busy} onClick={onInstall} size="sm">
+                            {busyInstall ? 'Installing…' : 'Install'}
+                        </Button>
+                    ) : null}
+                    {canRefresh ? (
+                        <Button onClick={onRefresh} size="sm" variant="outline">
+                            <RotateCwIcon data-icon="inline-start" />
+                            Check
+                        </Button>
+                    ) : null}
+                </div>
             </div>
-            {state.kind === 'available' ? (
-                <Button onClick={onApply} size="sm">
-                    <DownloadIcon data-icon="inline-start" />
-                    Update now
-                </Button>
-            ) : null}
-            {state.kind === 'applying' ? (
-                <Button disabled size="sm">
-                    Starting update…
-                </Button>
-            ) : null}
         </div>
     )
 }

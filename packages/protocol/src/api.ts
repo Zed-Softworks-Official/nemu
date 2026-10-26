@@ -181,15 +181,57 @@ export const sessionMintResultSchema = z.object({
 })
 export type SessionMintResult = z.infer<typeof sessionMintResultSchema>
 
-export const updateStatusResponseSchema = z.object({
-    currentVersion: z.string(),
-    updateAvailable: z.boolean(),
-    image: z.string().optional(),
-    images: z.array(z.string()).optional(),
+export const releaseChannelSchema = z.enum(['stable', 'canary'])
+export type ReleaseChannel = z.infer<typeof releaseChannelSchema>
+
+export const releaseStatusSchema = z.object({
+    platformVersion: z.string(),
+    channel: releaseChannelSchema,
+    newerReleaseAvailable: z.boolean(),
+    maintenanceMode: z.boolean(),
+    rollbackSnapshotAvailable: z.boolean(),
+    rollbackStuck: z.boolean(),
 })
-export type UpdateStatusResponse = z.infer<typeof updateStatusResponseSchema>
+
+const legacyLanUpdateStatusSchema = z
+    .object({
+        currentVersion: z.string(),
+        updateAvailable: z.boolean(),
+        image: z.string().optional(),
+    })
+    .transform(
+        (legacy): z.infer<typeof releaseStatusSchema> => ({
+            platformVersion: legacy.currentVersion,
+            channel: 'stable',
+            newerReleaseAvailable: legacy.updateAvailable,
+            maintenanceMode: false,
+            rollbackSnapshotAvailable: false,
+            rollbackStuck: false,
+        })
+    )
+
+export const updateStatusResponseSchema = z.union([
+    releaseStatusSchema,
+    legacyLanUpdateStatusSchema,
+])
+export type UpdateStatusResponse = z.infer<typeof releaseStatusSchema>
 
 export const applyUpdateResponseSchema = z.object({
     started: z.boolean(),
 })
 export type ApplyUpdateResponse = z.infer<typeof applyUpdateResponseSchema>
+
+export const switchReleaseChannelRequestSchema = z.object({
+    channel: releaseChannelSchema,
+})
+export type SwitchReleaseChannelRequest = z.infer<
+    typeof switchReleaseChannelRequestSchema
+>
+
+export const switchReleaseChannelResponseSchema = z.object({
+    channel: releaseChannelSchema,
+    installed: z.boolean(),
+})
+export type SwitchReleaseChannelResponse = z.infer<
+    typeof switchReleaseChannelResponseSchema
+>

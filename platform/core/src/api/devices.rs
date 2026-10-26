@@ -259,9 +259,10 @@ fn parse_device_id(id: &str) -> ApiResult<Uuid> {
 fn command_to_api(err: CommandError) -> ApiError {
     match err {
         CommandError::DeviceNotFound => ApiError::not_found(err.code(), err.to_string()),
-        CommandError::Unavailable | CommandError::Unconfirmed | CommandError::Failed(_) => {
-            ApiError::conflict(err.code(), err.to_string())
-        }
+        CommandError::Unavailable
+        | CommandError::Unconfirmed
+        | CommandError::Failed(_)
+        | CommandError::Maintenance => ApiError::conflict(err.code(), err.to_string()),
         CommandError::Mqtt(msg) => ApiError::service_unavailable("mqtt_error", msg),
         CommandError::InvalidId => ApiError::bad_request(err.code(), err.to_string()),
         CommandError::Store(msg) => ApiError::internal(msg),

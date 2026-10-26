@@ -6,18 +6,23 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends libpq-dev pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app
+# Core links the Updater crate. The build context is the repo root.
+WORKDIR /src
 
-COPY Cargo.toml Cargo.lock ./
-COPY migrations ./migrations
-COPY diesel.toml ./
-COPY src ./src
+COPY platform/updater/Cargo.toml platform/updater/Cargo.lock platform/updater/
+COPY platform/updater/src platform/updater/src
+COPY platform/core/Cargo.toml platform/core/Cargo.lock platform/core/
+COPY platform/core/diesel.toml platform/core/
+COPY platform/core/migrations platform/core/migrations
+COPY platform/core/src platform/core/src
+
+WORKDIR /src/platform/core
 
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
-    --mount=type=cache,target=/app/target \
+    --mount=type=cache,target=/src/platform/core/target \
     cargo build --release \
-    && cp /app/target/release/nemu /usr/local/bin/nemu-core
+    && cp /src/platform/core/target/release/nemu /usr/local/bin/nemu-core
 
 FROM debian:bookworm-slim AS runtime
 

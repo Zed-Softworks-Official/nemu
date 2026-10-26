@@ -11,6 +11,7 @@ use crate::devices::{DeviceRegistry, StateCache};
 use crate::events::DeviceEvent;
 use crate::identity::ControllerIdentity;
 use crate::mqtt::MqttHandle;
+use crate::updater_control::UpdaterControl;
 use crate::watchtower::WatchtowerClient;
 
 pub type DbPool = Pool;
@@ -35,6 +36,7 @@ pub struct AppState {
     pub registration_secret: Option<String>,
     pub lan_ip: Option<String>,
     pub watchtower: Option<WatchtowerClient>,
+    pub updater: Arc<dyn UpdaterControl>,
     pub capability_watches: Arc<Mutex<Vec<CapabilityWatch>>>,
 }
 

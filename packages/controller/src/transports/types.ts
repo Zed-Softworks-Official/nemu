@@ -1,4 +1,5 @@
 import type {
+    ApplyUpdateResponse,
     BootstrapOwnerRequest,
     ClientToken,
     CommandResult,
@@ -18,8 +19,11 @@ import type {
     PatchOutletRequest,
     PatchRoomRequest,
     PermitJoinResponse,
+    ReleaseChannel,
     Room,
     SaveMatterWifiRequest,
+    SwitchReleaseChannelResponse,
+    UpdateStatusResponse,
 } from '@nemu/protocol'
 
 export interface ControllerTransport {
@@ -70,6 +74,12 @@ export interface ControllerTransport {
     revokeToken?(tokenId: string): Promise<void>
     revokeCurrentToken?(): Promise<void>
     bootstrapOwner?(request: BootstrapOwnerRequest): Promise<HouseholdMember>
+    getReleaseStatus?(): Promise<UpdateStatusResponse>
+    installRelease?(): Promise<ApplyUpdateResponse>
+    rollbackRelease?(): Promise<ApplyUpdateResponse>
+    switchReleaseChannel?(
+        channel: ReleaseChannel
+    ): Promise<SwitchReleaseChannelResponse>
 }
 
 export interface ControllerTransport {
