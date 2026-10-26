@@ -1,10 +1,14 @@
+import dizzy from '@nemu/assets/emotes/dizzy.png'
+import noteTake from '@nemu/assets/emotes/note-take.png'
 import portrait from '@nemu/assets/emotes/portrait.png'
+import thisIsFine from '@nemu/assets/emotes/this-is-fine.png'
 import logoType from '@nemu/assets/logos/logo-type.svg'
 import { Button } from '@nemu/ui/components/button'
 import Image from 'next/image'
 import Link from 'next/link'
 import { GitHubIcon } from '~/components/landing/github-icon'
-import { RevealOnMount } from '~/components/landing/motion'
+import { LandingSection } from '~/components/landing/landing-section'
+import { Reveal, RevealOnMount } from '~/components/landing/motion'
 import { Navbar } from '~/components/navbar'
 
 export default function HomePage() {
@@ -13,16 +17,7 @@ export default function HomePage() {
             <Navbar />
             <main>
                 <Hero />
-                {/* 
-                <Hero />
                 <Pillars />
-                <HowItWorks />
-                <ComparisonSection />
-                <FeaturesGrid />
-                <OpenSourceSection />
-                <CtaBand />
-                <WaitlistSection />
-                */}
             </main>
         </section>
     )
@@ -85,5 +80,72 @@ function Hero() {
                 />
             </RevealOnMount>
         </section>
+    )
+}
+
+const pillars = [
+    {
+        id: 'privacy',
+        title: 'Privacy by design',
+        body: 'Your controller keeps devices, state, automations, and history. The cloud can coordinate who reaches it, but it never holds a readable copy of your home.',
+        sticker: thisIsFine,
+        stickerAlt: 'Nemu looking calm while your home stays on the controller',
+    },
+    {
+        id: 'local',
+        title: 'Local-first, cloud when needed',
+        body: 'On your network, control stays local and keeps working if the internet drops. If that path is down, a paired app falls back to an end-to-end encrypted relay, then returns to the LAN as soon as it can.',
+        sticker: dizzy,
+        stickerAlt: 'Nemu spinning happily on your own network',
+    },
+    {
+        id: 'open',
+        title: 'Open source, inspectable',
+        body: 'Read the code, fork it, and run the controller yourself. Nemu is Apache-2.0, so you can see what runs inside your home.',
+        sticker: noteTake,
+        stickerAlt: 'Nemu taking notes on the open-source code',
+    },
+] as const
+
+function Pillars() {
+    return (
+        <LandingSection id="why">
+            <Reveal>
+                <h2 className="font-semibold text-4xl text-foreground leading-tight tracking-tight">
+                    Smart home.{' '}
+                    <span className="text-primary">Private Life.</span>
+                </h2>
+            </Reveal>
+
+            <div className="flex flex-col gap-12 pt-24 lg:flex-row lg:items-stretch lg:gap-0">
+                {pillars.map((pillar, index) => (
+                    <Reveal
+                        className="flex flex-1 flex-col lg:px-8 last:lg:pr-0 first:lg:pl-0"
+                        delay={index * 0.1}
+                        key={pillar.id}
+                    >
+                        <Image
+                            alt={pillar.stickerAlt}
+                            className="mb-5 h-auto w-28 drop-shadow-md sm:w-32"
+                            height={160}
+                            src={pillar.sticker}
+                            width={160}
+                        />
+                        <p className="font-medium text-primary text-xs uppercase tracking-widest">
+                            {String(index + 1).padStart(2, '0')}
+                        </p>
+                        <h3
+                            className="mt-2 font-bold font-heading text-2xl text-foreground tracking-tight"
+                            id={pillar.id}
+                        >
+                            {pillar.title}
+                        </h3>
+                        <p className="mt-4 max-w-sm text-base text-muted-foreground leading-relaxed">
+                            {pillar.body}
+                        </p>
+                    </Reveal>
+                ))}
+            </div>
+        </LandingSection>
     )
 }

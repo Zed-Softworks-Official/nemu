@@ -43,7 +43,7 @@ const navSubMenu: NavLink[] = [
 
 export function Navbar() {
     return (
-        <header className="fixed inset-x-0 top-0 z-50 backdrop-blur-md">
+        <header className="fixed inset-x-0 top-0 z-50 bg-background backdrop-blur-md">
             <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-5 sm:px-8">
                 <Link className="flex items-center gap-2.5" href="/">
                     <Logo />
