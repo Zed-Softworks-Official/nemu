@@ -41,11 +41,17 @@ const jwks = { keys: [jwk] }
 writeFileSync(jwksPath, `${JSON.stringify(jwks, null, 4)}\n`)
 
 console.log(`Wrote public JWKS to ${jwksPath}`)
-console.log('Commit that file, then set the private key on Convex (stdin avoids shell history):')
+console.log(
+    'Commit that file, then set the private key on Convex (stdin avoids shell history):'
+)
 console.log('')
 console.log('  # save the PEM from below to /tmp/controller.jwt.pem, then:')
-console.log('  cd packages/cloud && cat /tmp/controller.jwt.pem | npx convex env set CONTROLLER_JWT_PRIVATE_KEY')
-console.log('  # also: npx convex env set CONTROLLER_JWT_PRIVATE_KEY --prod < ...  for production')
+console.log(
+    '  cd packages/cloud && cat /tmp/controller.jwt.pem | npx convex env set CONTROLLER_JWT_PRIVATE_KEY'
+)
+console.log(
+    '  # also: npx convex env set CONTROLLER_JWT_PRIVATE_KEY --prod < ...  for production'
+)
 console.log('')
 console.log('Private key PEM:')
 console.log(privatePem)

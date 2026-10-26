@@ -3,10 +3,6 @@
 @source "../../../packages/ui/src/components/**/*.{ts,tsx}";
 
 @layer utilities {
-    .landing-glow-text {
-        text-shadow: 0 0 40px oklch(0.78 0.14 220 / 35%);
-    }
-
     .landing-grid-bg {
         background-image: radial-gradient(
             oklch(1 0 0 / 6%) 1px,

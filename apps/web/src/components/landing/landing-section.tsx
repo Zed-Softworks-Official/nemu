@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react'
 import { cn } from '@nemu/ui/lib/utils'
+import type { ReactNode } from 'react'
 
 type LandingSectionProps = {
     children: ReactNode
@@ -19,7 +19,7 @@ export function LandingSection({
     return (
         <section
             className={cn(
-                'relative scroll-mt-20 overflow-hidden border-border border-t bg-background',
+                'relative scroll-mt-20 overflow-hidden bg-background',
                 className
             )}
             id={id}
