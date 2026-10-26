@@ -7,7 +7,7 @@ import favicon from '@nemu/assets/icons/favicon.ico'
 import { ThemeProvider } from '@nemu/ui/components/theme-provider'
 import { cn } from '@nemu/ui/lib/utils'
 import type { Metadata } from 'next'
-import { Nunito } from 'next/font/google'
+import { Geist_Mono, Instrument_Sans } from 'next/font/google'
 import { env } from '~/env'
 
 export const metadata: Metadata = {
@@ -17,10 +17,14 @@ export const metadata: Metadata = {
     icons: [{ rel: 'icon', url: favicon.src }],
 }
 
-const nunito = Nunito({
+const instrumentSans = Instrument_Sans({
     subsets: ['latin'],
-    weight: ['400', '500', '600', '700', '800'],
-    variable: '--font-nunito',
+    variable: '--font-instrument-sans',
+})
+
+const geistMono = Geist_Mono({
+    subsets: ['latin'],
+    variable: '--font-geist-mono',
 })
 
 export default function RootLayout({
@@ -34,8 +38,10 @@ export default function RootLayout({
         >
             <html
                 className={cn(
-                    nunito.variable,
-                    nunito.className,
+                    instrumentSans.variable,
+                    instrumentSans.className,
+                    geistMono.variable,
+                    geistMono.className,
                     'dark antialiased'
                 )}
                 lang="en"
