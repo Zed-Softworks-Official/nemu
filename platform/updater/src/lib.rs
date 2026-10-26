@@ -80,6 +80,10 @@ pub struct StoredRelease {
     /// Digests of the Release that was committed. A failed gate does not write these.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub services: Vec<crate::manifest::ServiceImage>,
+    /// Platform version left by a rollback. The snapshot copy of this file does
+    /// not carry it; rollback writes it again after that copy is restored.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub declined_platform_version: Option<String>,
 }
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
@@ -127,7 +131,8 @@ pub(crate) fn write_stored_release(
 /// A Home with no stored channel is recorded as Stable. The Platform version
 /// is whatever Home data already holds; this does not invent one. A newer
 /// Release is a verified manifest on that channel whose Platform version is
-/// greater. The `release_key` is the release-signing public key, not the
+/// greater than both the installed version and a previously declined version.
+/// The `release_key` is the release-signing public key, not the
 /// Controller identity key. `:canary` and `:latest` are not consulted.
 /// Verification failure leaves Home data and stack files unchanged.
 pub fn status(
@@ -147,8 +152,14 @@ pub fn status(
     else {
         return Err(StatusError::PlatformVersionMissing);
     };
-    let newer_release_available =
-        newer_manifest_on_channel(manifests, channel, &platform_version, release_key)?;
+    let declined = stored.declined_platform_version.clone();
+    let newer_release_available = newer_manifest_on_channel(
+        manifests,
+        channel,
+        &platform_version,
+        declined.as_deref(),
+        release_key,
+    )?;
     Ok(ReleaseStatus {
         platform_version,
         channel,
@@ -163,6 +174,7 @@ fn newer_manifest_on_channel(
     manifests: &dyn ManifestHost,
     channel: ReleaseChannel,
     installed: &str,
+    declined: Option<&str>,
     release_key: Option<&VerifyingKey>,
 ) -> Result<bool, StatusError> {
     let Some(release_key) = release_key else {
@@ -175,9 +187,22 @@ fn newer_manifest_on_channel(
         return Ok(false);
     };
     Ok(match verify_manifest(&bytes, release_key) {
-        Ok(manifest) => platform_version_is_newer(&manifest.platform_version, installed),
+        Ok(manifest) => {
+            platform_version_is_eligible(&manifest.platform_version, installed, declined)
+        }
         Err(_) => false,
     })
+}
+
+/// A manifest is eligible when its Platform version is newer than the
+/// installed version and newer than a version the Home has already declined.
+pub(crate) fn platform_version_is_eligible(
+    candidate: &str,
+    installed: &str,
+    declined: Option<&str>,
+) -> bool {
+    platform_version_is_newer(candidate, installed)
+        && declined.is_none_or(|declined| platform_version_is_newer(candidate, declined))
 }
 
 /// Platform versions are `0.MINOR.PATCH`. The channel is not part of the version.

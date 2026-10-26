@@ -339,7 +339,7 @@ impl ContainerRuntime for DockerComposeRuntime {
             "--no-deps",
             "--force-recreate",
             "--pull",
-            "always",
+            "missing",
             service,
         ])
     }

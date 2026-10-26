@@ -6,7 +6,7 @@ use ed25519_dalek::VerifyingKey;
 
 use crate::manifest::{ManifestHost, ReleaseManifest, SettingMigration};
 use crate::{
-    ReleaseChannel, StatusError, platform_version_is_newer, read_stored_release,
+    ReleaseChannel, StatusError, platform_version_is_eligible, read_stored_release,
     write_stored_release,
 };
 
@@ -149,9 +149,10 @@ pub enum InstallError {
 ///
 /// The process that enters this function is the previous Updater: the binary
 /// the wrapper would start, and a new wrapper pin, are replaced only after
-/// the health gate. A failed gate restores the snapshot, previous stack files,
-/// previous digests, and the previous binary. Maintenance stays only when that
-/// restore cannot finish or the previous Release will not stay healthy.
+/// the health gate. A failed resume, a failed apply, or a failed gate restores
+/// the snapshot, previous stack files, previous digests, and the previous
+/// binary. Maintenance stays only when that restore cannot finish or the
+/// previous Release will not stay healthy.
 pub fn install(controller_dir: &Path, env: &InstallEnv<'_>) -> Result<(), InstallError> {
     if maintenance_mode(controller_dir) {
         return Err(InstallError::InMaintenance);
@@ -194,9 +195,11 @@ pub fn install(controller_dir: &Path, env: &InstallEnv<'_>) -> Result<(), Instal
         return Err(error);
     }
     if let Err(error) = env.runtime.resume() {
+        let _ = crate::rollback::restore_after_failed_gate(controller_dir, env);
         return Err(InstallError::Unavailable(error));
     }
     if let Err(error) = apply_release(controller_dir, &manifest, &running, &changed_stacks, env) {
+        let _ = crate::rollback::restore_after_failed_gate(controller_dir, env);
         return Err(error);
     }
     if let Err(error) = wait_for_health(env, zigbee_required, matter_required) {
@@ -298,7 +301,11 @@ fn verified_newer_manifest(
     };
     let manifest = crate::manifest::verify_manifest(&bytes, &release_key)
         .map_err(|_| InstallError::Rejected)?;
-    if !platform_version_is_newer(&manifest.platform_version, &installed) {
+    if !platform_version_is_eligible(
+        &manifest.platform_version,
+        &installed,
+        stored.declined_platform_version.as_deref(),
+    ) {
         return Err(InstallError::NotEligible);
     }
     Ok(manifest)
@@ -775,6 +782,8 @@ mod tests {
         free: AtomicU64,
         services: Mutex<Vec<RunningService>>,
         recreated: Mutex<Vec<(String, String)>>,
+        resume_failures: AtomicU64,
+        recreate_failures: AtomicU64,
         reran_trust_roots: AtomicBool,
         log: Mutex<Vec<String>>,
         before: Mutex<HealthView>,
@@ -792,6 +801,8 @@ mod tests {
                 free: AtomicU64::new(80 * GIB),
                 services: Mutex::new(Vec::new()),
                 recreated: Mutex::new(Vec::new()),
+                resume_failures: AtomicU64::new(0),
+                recreate_failures: AtomicU64::new(0),
                 reran_trust_roots: AtomicBool::new(false),
                 log: Mutex::new(Vec::new()),
                 before: Mutex::new(healthy()),
@@ -834,11 +845,19 @@ mod tests {
 
         fn resume(&self) -> Result<(), String> {
             self.note("resume");
+            if self.resume_failures.load(Ordering::SeqCst) > 0 {
+                self.resume_failures.fetch_sub(1, Ordering::SeqCst);
+                return Err("resume failed".to_string());
+            }
             Ok(())
         }
 
         fn recreate(&self, service: &str, digest: &str) -> Result<(), String> {
             self.note(&format!("recreate {service}"));
+            if self.recreate_failures.load(Ordering::SeqCst) > 0 {
+                self.recreate_failures.fetch_sub(1, Ordering::SeqCst);
+                return Err("recreate failed".to_string());
+            }
             self.recreated
                 .lock()
                 .expect("recreated")
@@ -1907,6 +1926,31 @@ devices:
         assert!(!report.maintenance_mode);
         assert!(report.rollback_snapshot_available);
         assert!(!report.rollback_stuck);
+        assert!(!report.newer_release_available);
+        assert_eq!(
+            read_stored(home.path())
+                .declined_platform_version
+                .as_deref(),
+            Some("0.4.10")
+        );
+        let snapshot_release = fs::read_to_string(
+            home.path()
+                .join(SNAPSHOT_DIR)
+                .join("installed-release.json"),
+        )
+        .unwrap();
+        assert!(
+            !snapshot_release.contains("declinedPlatformVersion"),
+            "{snapshot_release}"
+        );
+        assert_eq!(
+            fs::read_to_string(home.path().join("updater/declined-platform-version")).unwrap(),
+            "0.4.10\n"
+        );
+        assert_eq!(
+            run_install(home.path(), &world, &host).expect_err("declined"),
+            InstallError::NotEligible
+        );
 
         let again = run_rollback(home.path(), &world, &host).expect_err("one step");
         assert_eq!(again, crate::rollback::RollbackError::AlreadyRolledBack);
@@ -1968,7 +2012,7 @@ devices:
     }
 
     #[test]
-    fn a_rollback_that_cannot_restore_stays_stuck_and_does_not_reapply() {
+    fn a_rollback_without_a_snapshot_returns_restore_failed_and_leaves_the_release() {
         let home = TempHome::new();
         seed_home(home.path());
         let world = World::new(home.path());
@@ -1988,20 +2032,19 @@ devices:
             fs::read(home.path().join(BINARY_DIR).join("2")).unwrap(),
             AMD64_UPDATER
         );
-        assert!(home.path().join(MAINTENANCE_FILE).is_file());
+        assert!(!home.path().join(MAINTENANCE_FILE).is_file());
         assert_eq!(
             read_stored(home.path()).platform_version.as_deref(),
             Some("0.4.10")
         );
-        assert!(
-            status(
-                home.path(),
-                &host,
-                Some(&release_signing_key().verifying_key()),
-            )
-            .unwrap()
-            .rollback_stuck
-        );
+        let report = status(
+            home.path(),
+            &host,
+            Some(&release_signing_key().verifying_key()),
+        )
+        .unwrap();
+        assert!(!report.rollback_stuck);
+        assert!(!report.maintenance_mode);
 
         assert!(!run_hourly(home.path(), &world, &host).unwrap());
         assert_eq!(world.recreated.lock().unwrap().len(), applied);
@@ -2011,8 +2054,96 @@ devices:
             release_manifest(pinned_services(9), false).stack_files[0].contents
         );
         assert_eq!(
-            run_install(home.path(), &world, &host).expect_err("held"),
-            InstallError::InMaintenance
+            run_install(home.path(), &world, &host).expect_err("already installed"),
+            InstallError::NotEligible
+        );
+    }
+
+    #[test]
+    fn restoring_the_snapshot_again_keeps_the_declined_platform_version() {
+        let home = TempHome::new();
+        seed_home(home.path());
+        let world = World::new(home.path());
+        *world.services.lock().unwrap() = running_like_release(3);
+        let host = host_for(signed_with(
+            &release_manifest(pinned_services(9), false),
+            &release_signing_key(),
+        ));
+        run_install(home.path(), &world, &host).expect("install");
+        run_rollback(home.path(), &world, &host).expect("rollback");
+        fs::copy(
+            home.path()
+                .join(SNAPSHOT_DIR)
+                .join("installed-release.json"),
+            installed_release_path(home.path()),
+        )
+        .unwrap();
+        fs::write(home.path().join("updater/rollback-stuck"), b"1\n").unwrap();
+
+        run_rollback(home.path(), &world, &host).expect("restore again");
+
+        let stored = read_stored(home.path());
+        assert_eq!(stored.platform_version.as_deref(), Some("0.4.9"));
+        assert_eq!(stored.declined_platform_version.as_deref(), Some("0.4.10"));
+        assert!(!home.path().join(MAINTENANCE_FILE).is_file());
+    }
+
+    #[test]
+    fn a_failed_resume_after_the_snapshot_restores_the_previous_release() {
+        let home = TempHome::new();
+        seed_home(home.path());
+        let world = World::new(home.path());
+        world.resume_failures.store(1, Ordering::SeqCst);
+        *world.services.lock().unwrap() = running_like_release(3);
+        let host = host_for(signed_with(
+            &release_manifest(pinned_services(9), false),
+            &release_signing_key(),
+        ));
+
+        let error = run_install(home.path(), &world, &host).expect_err("resume");
+        assert_eq!(
+            error,
+            InstallError::Unavailable("resume failed".to_string())
+        );
+        assert!(!home.path().join(MAINTENANCE_FILE).is_file());
+        assert_eq!(generation(home.path()), "1");
+        assert_eq!(
+            fs::read_to_string(home.path().join("docker-compose.yml")).unwrap(),
+            "services: {}\n"
+        );
+        assert_eq!(
+            read_stored(home.path()).platform_version.as_deref(),
+            Some("0.4.9")
+        );
+    }
+
+    #[test]
+    fn a_failed_apply_restores_the_previous_release() {
+        let home = TempHome::new();
+        seed_home(home.path());
+        let world = World::new(home.path());
+        world.recreate_failures.store(1, Ordering::SeqCst);
+        *world.services.lock().unwrap() = running_like_release(3);
+        let host = host_for(signed_with(
+            &release_manifest(pinned_services(9), false),
+            &release_signing_key(),
+        ));
+
+        let error = run_install(home.path(), &world, &host).expect_err("apply");
+        assert_eq!(
+            error,
+            InstallError::Unavailable("recreate failed".to_string())
+        );
+        assert!(!home.path().join(MAINTENANCE_FILE).is_file());
+        assert_eq!(generation(home.path()), "1");
+        assert!(!home.path().join(BINARY_DIR).join("2").exists());
+        assert_eq!(
+            fs::read_to_string(home.path().join("docker-compose.yml")).unwrap(),
+            "services: {}\n"
+        );
+        assert_eq!(
+            read_stored(home.path()).platform_version.as_deref(),
+            Some("0.4.9")
         );
     }
 

@@ -116,6 +116,8 @@ Disable Watchtower by removing the `watchtower` service from compose, or clear t
 
 ## Publishing a Release (maintainers)
 
+Installed Homes still update through Watchtower. This Release flow is not their update path until the installer and compose stack migrate to the host Updater.
+
 A push to `canary` publishes the next patch Release. The workflow builds the Nemu images, freezes every service image at a digest, signs the Canary manifest, tags those Nemu images with the Platform version and `:canary`, and tags the commit `v0.MINOR.PATCH`. The first Platform version is `0.1.0`.
 
 A minor bump is explicit. Add this line to the commit message, or run **Publish Release** on `canary` with the minor-bump input. It is not the default:

@@ -2,7 +2,7 @@ use std::path::Path;
 
 use crate::install::InstallEnv;
 use crate::{
-    ReleaseChannel, maintenance_mode, platform_version_is_newer, read_stored_release,
+    ReleaseChannel, maintenance_mode, platform_version_is_eligible, read_stored_release,
     verify_manifest, write_stored_release,
 };
 
@@ -51,7 +51,8 @@ pub fn switch_channel(
         .clone()
         .filter(|version| !version.trim().is_empty())
         .ok_or(ChannelError::PlatformVersionMissing)?;
-    let newer = chosen_release_is_newer(env, channel, &installed)?;
+    let declined = stored.declined_platform_version.clone();
+    let newer = chosen_release_is_newer(env, channel, &installed, declined.as_deref())?;
     stored.channel = Some(channel);
     write_stored_release(controller_dir, &stored)
         .map_err(|error| ChannelError::Unavailable(error.to_string()))?;
@@ -71,6 +72,7 @@ fn chosen_release_is_newer(
     env: &InstallEnv<'_>,
     channel: ReleaseChannel,
     installed: &str,
+    declined: Option<&str>,
 ) -> Result<bool, ChannelError> {
     let Some(release_key) = env.release_key else {
         return Ok(false);
@@ -83,9 +85,10 @@ fn chosen_release_is_newer(
         return Ok(false);
     };
     let manifest = verify_manifest(&bytes, release_key).map_err(|_| ChannelError::Rejected)?;
-    Ok(platform_version_is_newer(
+    Ok(platform_version_is_eligible(
         &manifest.platform_version,
         installed,
+        declined,
     ))
 }
 

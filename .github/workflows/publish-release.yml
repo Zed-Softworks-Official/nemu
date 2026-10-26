@@ -46,8 +46,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write
-  packages: write
+  contents: read
 
 env:
   CORE_IMAGE: ghcr.io/zed-softworks-official/nemu-core
@@ -65,6 +64,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Choose the publish
         id: vars
@@ -91,7 +91,7 @@ jobs:
             echo "A Canary publish runs on the canary branch." >&2
             exit 1
           fi
-          git fetch origin --tags --force
+          git -c "http.extraheader=AUTHORIZATION: bearer ${GITHUB_TOKEN}" fetch origin --tags --force
           already="false"
           if git tag --points-at HEAD | grep -Eq '^v0\.[0-9]+\.[0-9]+$'; then
             already="true"
@@ -103,6 +103,9 @@ jobs:
   build:
     needs: prepare
     if: needs.prepare.outputs.already_cut != 'true'
+    permissions:
+      contents: read
+      packages: write
     strategy:
       fail-fast: false
       matrix:
@@ -117,6 +120,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       - name: Setup Docker Builder
         uses: useblacksmith/setup-docker-builder@v2
@@ -167,6 +172,8 @@ jobs:
   merge-images:
     needs: [prepare, build]
     if: needs.prepare.outputs.already_cut != 'true'
+    permissions:
+      packages: write
     runs-on: blacksmith
     outputs:
       core_digest: ${{ steps.digest.outputs.core }}
@@ -211,6 +218,9 @@ jobs:
       needs.prepare.result == 'success' &&
       (needs.build.result == 'success' || needs.build.result == 'skipped') &&
       (needs.merge-images.result == 'success' || needs.merge-images.result == 'skipped')
+    permissions:
+      contents: write
+      packages: write
     runs-on: blacksmith
     steps:
       - name: Checkout
@@ -238,10 +248,13 @@ jobs:
         with:
           toolchain: 1.99.1
 
+      - name: Build publish-release
+        run: cargo build --release --locked --bin publish-release --manifest-path platform/updater/Cargo.toml
+
       - name: Plan and publish the Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NEMU_RELEASE_SIGNING_KEY: ${{ secrets.NEMU_RELEASE_SIGNING_KEY }}
+          RELEASE_SIGNING_KEY: ${{ secrets.NEMU_RELEASE_SIGNING_KEY }}
           SOURCE: ${{ needs.prepare.outputs.source }}
           MINOR_BUMP: ${{ needs.prepare.outputs.minor_bump }}
           ALREADY_CUT: ${{ needs.prepare.outputs.already_cut }}
@@ -249,10 +262,8 @@ jobs:
           MATTER_DIGEST: ${{ needs.merge-images.outputs.matter_digest }}
         run: |
           set -euo pipefail
-          if [ -z "${NEMU_RELEASE_SIGNING_KEY}" ]; then
-            echo "NEMU_RELEASE_SIGNING_KEY is not set" >&2
-            exit 1
-          fi
+          signing_key=${RELEASE_SIGNING_KEY:-}
+          unset RELEASE_SIGNING_KEY
           git fetch origin --tags --force
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -337,10 +348,14 @@ jobs:
               updater: {amd64: $amd64, arm64: $arm64}
             }' > "$RUNNER_TEMP/request.json"
 
-          cargo build --release --locked --bin publish-release --manifest-path platform/updater/Cargo.toml
-          ./platform/updater/target/release/publish-release \
+          if [ -z "${signing_key}" ]; then
+            echo "NEMU_RELEASE_SIGNING_KEY is not set" >&2
+            exit 1
+          fi
+          NEMU_RELEASE_SIGNING_KEY="$signing_key" \
+            ./platform/updater/target/release/publish-release \
             < "$RUNNER_TEMP/request.json" > "$RUNNER_TEMP/plan.json"
-          unset NEMU_RELEASE_SIGNING_KEY
+          unset signing_key
 
           jq -r '.signedManifest' "$RUNNER_TEMP/plan.json" | base64 -d > "$RUNNER_TEMP/release-manifest.json"
           jq -e '.manifest.platformVersion' "$RUNNER_TEMP/release-manifest.json" >/dev/null
@@ -362,18 +377,33 @@ jobs:
                 echo "${git_tag} already points at another commit" >&2
                 exit 1
               fi
-            else
-              git tag "$git_tag" "$GITHUB_SHA"
-              git push origin "refs/tags/${git_tag}"
             fi
+            # Attach the manifest before the version tag exists. A draft
+            # release does not publish the tag; publishing the release does.
             if gh release view "$git_tag" >/dev/null 2>&1; then
               gh release upload "$git_tag" "$RUNNER_TEMP/release-manifest.json#release-manifest.json" --clobber
             else
               gh release create "$git_tag" \
                 "$RUNNER_TEMP/release-manifest.json#release-manifest.json" \
+                --draft \
                 --target "$GITHUB_SHA" \
                 --title "$git_tag" \
                 --notes "Platform version ${version}."
+            fi
+            if [ "$(gh release view "$git_tag" --json isDraft --jq .isDraft)" = "true" ]; then
+              gh release edit "$git_tag" --draft=false
+            fi
+            # Publishing the draft creates the tag. Push only when that did
+            # not happen, and only after the manifest is attached.
+            if git fetch --force origin "tag ${git_tag}"; then
+              existing=$(git rev-parse "${git_tag}^{commit}")
+              if [ "$existing" != "$GITHUB_SHA" ]; then
+                echo "${git_tag} already points at another commit" >&2
+                exit 1
+              fi
+            else
+              git tag "$git_tag" "$GITHUB_SHA"
+              git push origin "refs/tags/${git_tag}"
             fi
           fi
 

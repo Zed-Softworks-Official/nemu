@@ -40,7 +40,7 @@ These rulesets still protect tags that were created before platform Releases. Th
 # Stable: Actions → Publish Release → branch master → channel stable.
 ```
 
-## Apply / refresh historical rulesets from this repo
+## Create historical rulesets from this repo
 
 ```bash
 gh api repos/Zed-Softworks-Official/nemu/rulesets \

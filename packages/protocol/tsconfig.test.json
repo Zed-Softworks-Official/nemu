@@ -18,6 +18,9 @@
         "src/capability-transport.test.ts",
         "src/history.ts",
         "src/history.test.ts",
+        "src/api.ts",
+        "src/api.test.ts",
+        "src/device.ts",
         "src/events.ts",
         "src/relay.ts"
     ]

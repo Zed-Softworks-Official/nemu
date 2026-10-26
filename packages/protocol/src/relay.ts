@@ -4,8 +4,8 @@ import {
     clientTokenSchema,
     householdMemberSchema,
     releaseChannelSchema,
+    releaseStatusSchema,
     switchReleaseChannelResponseSchema,
-    updateStatusResponseSchema,
 } from './api.ts'
 import {
     capabilityChangeEventSchema,
@@ -139,7 +139,7 @@ export const relayToClientEnvelopeSchema = z.object({
         homeMeterDesignationResultSchema,
         historyBackupResultSchema,
         historyBackupRestoredSchema,
-        updateStatusResponseSchema.extend({
+        releaseStatusSchema.extend({
             type: z.literal('releaseStatus'),
         }),
         applyUpdateResponseSchema.extend({
