@@ -2,5 +2,5 @@
     "$schema": "https://openapi.vercel.sh/vercel.json",
     "framework": "nextjs",
     "installCommand": "cd ../.. && pnpm install",
-    "buildCommand": "cd ../.. && turbo run build --filter=@nemu/dashboard"
+    "buildCommand": "cd ../.. && bash scripts/vercel-build-dashboard.sh"
 }

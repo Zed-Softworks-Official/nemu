@@ -14,7 +14,9 @@ cp "$ROOT/infra/prod/mosquitto/mosquitto.conf" "$PUBLIC_DIR/mosquitto/mosquitto.
 cp "$ROOT/infra/prod/zigbee2mqtt/configuration.yaml" "$PUBLIC_DIR/zigbee2mqtt/configuration.yaml"
 chmod +x "$PUBLIC_DIR/install.sh"
 
-if [ "${VERCEL_ENV:-}" = "production" ]; then
+# Production publishes the production Convex deployment. Canary publishes the
+# preview deployment named for that branch. Other previews keep the shared URL.
+if [ -n "${CONVEX_DEPLOY_KEY:-}" ] && { [ "${VERCEL_ENV:-}" = "production" ] || [ "${VERCEL_TARGET_ENV:-}" = "canary" ]; }; then
     pnpm --filter @nemu/cloud exec convex deploy \
         --cmd-url-env-var-name NEXT_PUBLIC_CONVEX_URL \
         --cmd "cd \"$ROOT\" && turbo run build --filter=@nemu/web"
