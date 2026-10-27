@@ -52,6 +52,14 @@
             "cache": false,
             "persistent": true
         },
+        "dev:ios": {
+            "cache": false,
+            "persistent": true
+        },
+        "dev:android": {
+            "persistent": true,
+            "cache": false
+        },
         "convex:dev": {
             "cache": false,
             "persistent": true
