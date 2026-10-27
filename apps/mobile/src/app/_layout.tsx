@@ -1,3 +1,5 @@
+import '~/global.css'
+
 import { ClerkProvider } from '@clerk/expo'
 import { tokenCache } from '@clerk/expo/token-cache'
 import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router'
