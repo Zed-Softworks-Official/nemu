@@ -118,7 +118,7 @@ Disable Watchtower by removing the `watchtower` service from compose, or clear t
 
 Installed Homes still update through Watchtower. This Release flow is not their update path until the installer and compose stack migrate to the host Updater.
 
-A push to `canary` publishes the next patch Release. The workflow builds the Nemu images, freezes every service image at a digest, signs the Canary manifest, tags those Nemu images with the Platform version and `:canary`, and tags the commit `v0.MINOR.PATCH`. The first Platform version is `0.1.0`.
+A push to `canary` that changes `platform/` or `infra/prod/` publishes the next patch Release. The workflow builds the Nemu images, freezes every service image at a digest, signs the Canary manifest, tags those Nemu images with the Platform version and `:canary`, and tags the commit `v0.MINOR.PATCH`. The first Platform version is `0.1.0`. A dashboard-only, marketing-only, or Convex-only push skips the publish. Vercel and Convex deploy on their own.
 
 A minor bump is explicit. Add this line to the commit message, or run **Publish Release** on `canary` with the minor-bump input. It is not the default:
 
@@ -126,7 +126,7 @@ A minor bump is explicit. Add this line to the commit message, or run **Publish 
 Bump-Platform-Minor: true
 ```
 
-An explicit Stable release publishes `master`. Run **Publish Release** on `master` with channel `stable`. That points the Stable manifest at a Platform version already cut and moves `:latest`. It does not allocate a second version. A `master` commit that has not been published is cut as the next Platform version and merged back to `canary`.
+An explicit **Publish Release** run ignores the platform-hash skip. On `canary` it cuts a patch even when those trees match (for example a third-party digest refresh). On `master` with channel `stable` it points the Stable manifest at a Platform version already cut and moves `:latest`. When `master` is only ahead by non-platform commits, Stable reuses the newest matching cut and does not allocate or open a sync PR. A `master` commit whose platform tree has never been published is cut as the next Platform version and opens a sync PR into `canary`.
 
 Postgres, Mosquitto, and Zigbee2MQTT are pinned by digest. They do not receive `:canary` or `:latest`. Homes install the signed manifest.
 

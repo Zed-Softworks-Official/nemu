@@ -1,16 +1,23 @@
 # Publishes one platform Release.
 #
-# A push to canary cuts the next patch, builds the Nemu images, freezes every
-# service image at a digest, signs the Canary manifest, tags those Nemu images
-# with the Platform version and :canary, and tags the commit v0.MINOR.PATCH.
-# A minor bump is an explicit input: the workflow_dispatch checkbox, or a
-# commit message line `Bump-Platform-Minor: true`. It is not the default.
-# The first Platform version is 0.1.0.
+# A push to canary cuts the next patch when platform/ or infra/prod/ changed
+# since the newest v0.* tag (or since the previous canary tip when no tag
+# exists yet). It builds the Nemu images, freezes every service image at a
+# digest, signs the Canary manifest, tags those Nemu images with the Platform
+# version and :canary, and tags the commit v0.MINOR.PATCH. A dashboard-only
+# push skips the publish. A minor bump is an explicit input: the
+# workflow_dispatch checkbox, or a commit message line
+# `Bump-Platform-Minor: true`. It is not the default. The first Platform
+# version is 0.1.0.
 #
-# An explicit Stable release runs this workflow on master. It points the
-# Stable manifest at a Platform version already cut and moves :latest. A
-# master commit that has not been published is cut as the next Platform
-# version and merged back to canary.
+# An explicit Publish Release run ignores the platform-hash skip. On canary it
+# cuts a patch even when the trees match (for example a third-party digest
+# refresh). On master with channel stable it points the Stable manifest at a
+# Platform version already cut and moves :latest. When master is only ahead by
+# non-platform commits, Stable reuses the newest matching cut and does not
+# allocate or open a sync PR. A master commit whose platform tree has never
+# been published is cut as the next Platform version and opens a sync PR into
+# canary.
 #
 # Third-party images are digest-pinned and are not tagged. Homes install the
 # signed manifest. :canary and :latest are not a Release.
@@ -59,6 +66,9 @@ jobs:
       source: ${{ steps.vars.outputs.source }}
       minor_bump: ${{ steps.vars.outputs.minor_bump }}
       already_cut: ${{ steps.vars.outputs.already_cut }}
+      should_build: ${{ steps.vars.outputs.should_build }}
+      should_publish: ${{ steps.vars.outputs.should_publish }}
+      plan_commit: ${{ steps.vars.outputs.plan_commit }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -72,6 +82,8 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           INPUT_CHANNEL: ${{ inputs.channel }}
           INPUT_MINOR: ${{ inputs.minor_bump }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PUSH_BEFORE: ${{ github.event.before }}
         run: |
           set -euo pipefail
           source="canary"
@@ -92,17 +104,63 @@ jobs:
             exit 1
           fi
           git -c "http.extraheader=AUTHORIZATION: bearer ${GITHUB_TOKEN}" fetch origin --tags --force
+
           already="false"
           if git tag --points-at HEAD | grep -Eq '^v0\.[0-9]+\.[0-9]+$'; then
             already="true"
           fi
+
+          # Trees a Home installs. Dashboard and Convex changes do not move this.
+          platform_changed="true"
+          newest=""
+          while IFS= read -r tag; do
+            [ -n "$tag" ] || continue
+            if [[ "$tag" =~ ^v0\.[0-9]+\.[0-9]+$ ]]; then
+              newest="$tag"
+              break
+            fi
+          done < <(git tag -l 'v0.*' --sort=-v:refname)
+
+          if [ -n "$newest" ]; then
+            if git diff --quiet "$newest" HEAD -- platform infra/prod; then
+              platform_changed="false"
+            fi
+          elif [ "$EVENT_NAME" = "push" ] \
+            && [ -n "${PUSH_BEFORE:-}" ] \
+            && [ "$PUSH_BEFORE" != "0000000000000000000000000000000000000000" ] \
+            && git rev-parse --verify "$PUSH_BEFORE^{commit}" >/dev/null 2>&1; then
+            if git diff --quiet "$PUSH_BEFORE" HEAD -- platform infra/prod; then
+              platform_changed="false"
+            fi
+          fi
+
+          plan_commit="$GITHUB_SHA"
+          should_build="false"
+          should_publish="false"
+
+          if [ "$already" = "true" ]; then
+            should_publish="true"
+          elif [ "$platform_changed" = "false" ] && [ "$source" = "stable" ] && [ -n "$newest" ]; then
+            # Master is ahead only by non-platform commits. Point Stable at the
+            # newest cut whose platform tree matches and do not allocate.
+            plan_commit=$(git rev-parse "${newest}^{commit}")
+            should_publish="true"
+          elif [ "$EVENT_NAME" = "workflow_dispatch" ] || [ "$platform_changed" = "true" ]; then
+            should_build="true"
+            should_publish="true"
+          fi
+
           echo "source=$source" >> "$GITHUB_OUTPUT"
           echo "minor_bump=$minor" >> "$GITHUB_OUTPUT"
           echo "already_cut=$already" >> "$GITHUB_OUTPUT"
+          echo "should_build=$should_build" >> "$GITHUB_OUTPUT"
+          echo "should_publish=$should_publish" >> "$GITHUB_OUTPUT"
+          echo "plan_commit=$plan_commit" >> "$GITHUB_OUTPUT"
+          echo "platform_changed=$platform_changed newest=${newest:-none} should_build=$should_build should_publish=$should_publish plan_commit=$plan_commit"
 
   build:
     needs: prepare
-    if: needs.prepare.outputs.already_cut != 'true'
+    if: needs.prepare.outputs.should_build == 'true'
     permissions:
       contents: read
       packages: write
@@ -171,7 +229,7 @@ jobs:
 
   merge-images:
     needs: [prepare, build]
-    if: needs.prepare.outputs.already_cut != 'true'
+    if: needs.prepare.outputs.should_build == 'true'
     permissions:
       packages: write
     runs-on: blacksmith
@@ -216,11 +274,13 @@ jobs:
     if: >-
       always() &&
       needs.prepare.result == 'success' &&
+      needs.prepare.outputs.should_publish == 'true' &&
       (needs.build.result == 'success' || needs.build.result == 'skipped') &&
       (needs.merge-images.result == 'success' || needs.merge-images.result == 'skipped')
     permissions:
       contents: write
       packages: write
+      pull-requests: write
     runs-on: blacksmith
     steps:
       - name: Checkout
@@ -237,7 +297,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download Updater binaries
-        if: needs.prepare.outputs.already_cut != 'true'
+        if: needs.prepare.outputs.should_build == 'true'
         uses: actions/download-artifact@v4
         with:
           pattern: updater-*
@@ -257,7 +317,8 @@ jobs:
           RELEASE_SIGNING_KEY: ${{ secrets.NEMU_RELEASE_SIGNING_KEY }}
           SOURCE: ${{ needs.prepare.outputs.source }}
           MINOR_BUMP: ${{ needs.prepare.outputs.minor_bump }}
-          ALREADY_CUT: ${{ needs.prepare.outputs.already_cut }}
+          SHOULD_BUILD: ${{ needs.prepare.outputs.should_build }}
+          PLAN_COMMIT: ${{ needs.prepare.outputs.plan_commit }}
           CORE_DIGEST: ${{ needs.merge-images.outputs.core_digest }}
           MATTER_DIGEST: ${{ needs.merge-images.outputs.matter_digest }}
         run: |
@@ -289,8 +350,8 @@ jobs:
               '$cuts + [{platformVersion: $version, commit: $commit, manifest: $signed[0].manifest}]')
           done < <(git tag -l 'v0.*')
 
-          if [ "$ALREADY_CUT" = "true" ]; then
-            this_cut=$(jq -e --arg commit "$GITHUB_SHA" '[.[] | select(.commit == $commit)][0]' <<<"$cuts")
+          if [ "$SHOULD_BUILD" != "true" ]; then
+            this_cut=$(jq -e --arg commit "$PLAN_COMMIT" '[.[] | select(.commit == $commit)][0]' <<<"$cuts")
             amd64=$(jq -er '.manifest.updater.amd64' <<<"$this_cut")
             arm64=$(jq -er '.manifest.updater.arm64' <<<"$this_cut")
             resolved=$(jq -c '.manifest.services' <<<"$this_cut")
@@ -327,7 +388,7 @@ jobs:
           jq -n \
             --arg source "$SOURCE" \
             --argjson minorBump "$MINOR_BUMP" \
-            --arg commit "$GITHUB_SHA" \
+            --arg commit "$PLAN_COMMIT" \
             --argjson cutReleases "$cuts" \
             --argjson resolved "$resolved" \
             --rawfile compose infra/prod/docker-compose.yml \
@@ -373,7 +434,7 @@ jobs:
           if [ -n "$git_tag" ]; then
             if git rev-parse -q --verify "refs/tags/${git_tag}" >/dev/null; then
               existing=$(git rev-parse "${git_tag}^{commit}")
-              if [ "$existing" != "$GITHUB_SHA" ]; then
+              if [ "$existing" != "$PLAN_COMMIT" ]; then
                 echo "${git_tag} already points at another commit" >&2
                 exit 1
               fi
@@ -386,7 +447,7 @@ jobs:
               gh release create "$git_tag" \
                 "$RUNNER_TEMP/release-manifest.json#release-manifest.json" \
                 --draft \
-                --target "$GITHUB_SHA" \
+                --target "$PLAN_COMMIT" \
                 --title "$git_tag" \
                 --notes "Platform version ${version}."
             fi
@@ -397,12 +458,12 @@ jobs:
             # not happen, and only after the manifest is attached.
             if git fetch --force origin "tag ${git_tag}"; then
               existing=$(git rev-parse "${git_tag}^{commit}")
-              if [ "$existing" != "$GITHUB_SHA" ]; then
+              if [ "$existing" != "$PLAN_COMMIT" ]; then
                 echo "${git_tag} already points at another commit" >&2
                 exit 1
               fi
             else
-              git tag "$git_tag" "$GITHUB_SHA"
+              git tag "$git_tag" "$PLAN_COMMIT"
               git push origin "refs/tags/${git_tag}"
             fi
           fi
@@ -413,18 +474,29 @@ jobs:
           else
             gh release create release-manifests \
               "$RUNNER_TEMP/${channel}.json#${channel}.json" \
-              --target "$GITHUB_SHA" \
+              --target "$PLAN_COMMIT" \
               --title "Release manifests" \
               --notes "Signed Canary and Stable manifests. A Home installs the manifest for its Release channel."
           fi
 
-          # A retry can observe the version tag before the merge. Merge master
-          # back when this commit is still absent from canary.
-          if [ "$SOURCE" = "stable" ]; then
+          # Only sync master back when this publish allocated a new version.
+          # Reusing a cut for Stable leaves canary alone. Canary requires a
+          # pull request (GitHub rejects listing the Actions app as a bypass
+          # actor on this org), so open a PR instead of pushing the branch.
+          if [ "$(jq -r '.mergeBackToCanary' "$RUNNER_TEMP/plan.json")" = "true" ]; then
             git fetch origin canary
-            if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/canary; then
-              git checkout -B canary origin/canary
-              git merge "$GITHUB_SHA" --no-edit
-              git push origin canary
+            if ! git merge-base --is-ancestor "$PLAN_COMMIT" origin/canary; then
+              branch="sync/stable-${version}-to-canary"
+              git push origin "${PLAN_COMMIT}:refs/heads/${branch}"
+              existing=$(gh pr list --base canary --head "$branch" --json number --jq 'length')
+              if [ "$existing" = "0" ]; then
+                gh pr create \
+                  --base canary \
+                  --head "$branch" \
+                  --title "Sync Stable ${version} back to canary" \
+                  --body "Stable allocated Platform version ${version} on master. Merge this into canary so the branches stay aligned."
+              else
+                echo "Sync PR for ${branch} already exists."
+              fi
             fi
           fi
