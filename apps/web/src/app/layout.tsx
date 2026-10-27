@@ -7,7 +7,7 @@ import favicon from '@nemu/assets/icons/favicon.ico'
 import { ThemeProvider } from '@nemu/ui/components/theme-provider'
 import { cn } from '@nemu/ui/lib/utils'
 import type { Metadata } from 'next'
-import { Geist_Mono, Instrument_Sans } from 'next/font/google'
+import { Geist_Mono, Manrope } from 'next/font/google'
 import { env } from '~/env'
 
 export const metadata: Metadata = {
@@ -17,9 +17,9 @@ export const metadata: Metadata = {
     icons: [{ rel: 'icon', url: favicon.src }],
 }
 
-const instrumentSans = Instrument_Sans({
+const manrope = Manrope({
     subsets: ['latin'],
-    variable: '--font-instrument-sans',
+    variable: '--font-manrope',
 })
 
 const geistMono = Geist_Mono({
@@ -38,8 +38,8 @@ export default function RootLayout({
         >
             <html
                 className={cn(
-                    instrumentSans.variable,
-                    instrumentSans.className,
+                    manrope.variable,
+                    manrope.className,
                     geistMono.variable,
                     geistMono.className,
                     'dark antialiased'

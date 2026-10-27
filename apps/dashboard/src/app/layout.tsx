@@ -7,7 +7,7 @@ import favicon from '@nemu/assets/icons/favicon.ico'
 import { ThemeProvider } from '@nemu/ui/components/theme-provider'
 import { cn } from '@nemu/ui/lib/utils'
 import type { Metadata } from 'next'
-import { Nunito } from 'next/font/google'
+import { Manrope } from 'next/font/google'
 import { NemuProvider } from '~/components/nemu-providers'
 import { env } from '~/env'
 
@@ -18,10 +18,10 @@ export const metadata: Metadata = {
     icons: [{ rel: 'icon', url: favicon.src }],
 }
 
-const nunito = Nunito({
+const manrope = Manrope({
     subsets: ['latin'],
     weight: ['400', '500', '600', '700', '800'],
-    variable: '--font-nunito',
+    variable: '--font-manrope',
 })
 
 export default function RootLayout({
@@ -38,8 +38,8 @@ export default function RootLayout({
             <NemuProvider>
                 <html
                     className={cn(
-                        nunito.variable,
-                        nunito.className,
+                        manrope.variable,
+                        manrope.className,
                         'dark antialiased'
                     )}
                     lang="en"
