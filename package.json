@@ -28,6 +28,7 @@
         "db:reset": "pnpm --filter @nemu/core db:reset",
         "db:setup": "pnpm --filter @nemu/core db:setup",
         "ui-add": "turbo run ui-add --filter=@nemu/ui --",
+        "expo-install": "pnpm --filter @nemu/mobile expo-install --",
         "prepare": "husky"
     },
     "devDependencies": {

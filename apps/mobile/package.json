@@ -15,18 +15,27 @@
         "lint": "biome check .",
         "check-types": "tsc --noEmit",
         "typecheck": "tsc --noEmit",
-        "reset-project": "node ./scripts/reset-project.js"
+        "expo-install": "pnpm dlx expo install"
     },
     "dependencies": {
+        "@clerk/expo": "^4.14.1",
         "@expo/ui": "~58.0.23",
+        "@nemu/assets": "workspace:*",
+        "@nemu/cloud": "workspace:*",
+        "@nemu/controller": "workspace:*",
+        "@nemu/protocol": "workspace:*",
+        "@t3-oss/env-core": "^0.13.11",
         "expo": "~58.0.19",
+        "expo-auth-session": "^58.0.14",
         "expo-constants": "~58.0.13",
+        "expo-crypto": "^58.0.7",
         "expo-device": "~58.0.5",
         "expo-font": "~58.0.10",
         "expo-glass-effect": "~58.0.5",
         "expo-image": "~58.0.17",
         "expo-linking": "~58.0.14",
         "expo-router": "~58.0.26",
+        "expo-secure-store": "^58.0.2",
         "expo-splash-screen": "~58.0.11",
         "expo-status-bar": "~58.0.4",
         "expo-symbols": "~58.0.4",
@@ -40,7 +49,8 @@
         "react-native-safe-area-context": "~5.10.1",
         "react-native-screens": "~4.30.0",
         "react-native-web": "~0.21.4",
-        "react-native-worklets": "0.13.0"
+        "react-native-worklets": "0.13.0",
+        "zod": "catalog:"
     },
     "devDependencies": {
         "@biomejs/biome": "2.3.8",
