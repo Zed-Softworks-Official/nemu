@@ -4,7 +4,7 @@
     "license": "Apache-2.0",
     "scripts": {
         "dev": "bash scripts/dev.sh",
-        "dev:web": "bash scripts/kill-dev-ports.sh && turbo run dev --filter=@nemu/web --filter=@nemu/dashboard --filter=@nemu/docs",
+        "dev:web": "bash scripts/kill-dev-ports.sh && turbo run dev --filter=@nemu/web --filter=@nemu/dashboard --filter=@nemu/mobile",
         "dev:dashboard": "bash scripts/kill-dev-ports.sh && turbo run dev --filter=@nemu/dashboard",
         "dev:mobile": "turbo run dev --filter=@nemu/mobile",
         "dev:ios": "bash scripts/kill-dev-ports.sh && turbo run dev:ios --filter=@nemu/mobile",
@@ -28,7 +28,10 @@
         "db:reset": "pnpm --filter @nemu/core db:reset",
         "db:setup": "pnpm --filter @nemu/core db:setup",
         "ui-add": "turbo run ui-add --filter=@nemu/ui --",
-        "expo-install": "pnpm --filter @nemu/mobile expo-install --",
+        "expo:install": "pnpm --filter @nemu/mobile expo:install --",
+        "expo:uninstall": "pnpm --filter @nemu/mobile expo:uninstall --",
+        "expo:update": "pnpm --filter @nemu/mobile expo:update --",
+        "expo:cli": "pnpm --filter @nemu/mobile expo:cli --",
         "prepare": "husky"
     },
     "devDependencies": {

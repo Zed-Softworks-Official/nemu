@@ -1,73 +1,44 @@
-import * as Device from 'expo-device'
-import { Platform, StyleSheet } from 'react-native'
+import { useUser } from '@clerk/expo'
+import { useHostedAuth } from '@clerk/expo/hosted-auth'
+import { ActivityIndicator, Button, StyleSheet } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
-import { AnimatedIcon } from '~/components/animated-icon'
-import { HintRow } from '~/components/hint-row'
 import { ThemedText } from '~/components/themed-text'
 import { ThemedView } from '~/components/themed-view'
-import { WebBadge } from '~/components/web-badge'
 import { BottomTabInset, MaxContentWidth, Spacing } from '~/constants/theme'
 
-function getDevMenuHint() {
-    if (Platform.OS === 'web') {
-        return <ThemedText type="small">use browser devtools</ThemedText>
+export default function HomeScreen() {
+    const { isLoaded, isSignedIn, user } = useUser()
+    const { startHostedAuth } = useHostedAuth()
+
+    const handleSignUp = async () => {
+        try {
+            await startHostedAuth({ mode: 'sign-up' })
+        } catch (error) {
+            console.error(error)
+        }
     }
-    if (Device.isDevice) {
+
+    if (!isLoaded) {
         return (
-            <ThemedText type="small">
-                shake device or press <ThemedText type="code">m</ThemedText> in
-                terminal
-            </ThemedText>
+            <ThemedView style={styles.container}>
+                <ActivityIndicator size={'large'} />
+            </ThemedView>
         )
     }
-    const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d'
-    return (
-        <ThemedText type="small">
-            press <ThemedText type="code">{shortcut}</ThemedText>
-        </ThemedText>
-    )
-}
 
-export default function HomeScreen() {
     return (
         <ThemedView style={styles.container}>
             <SafeAreaView style={styles.safeArea}>
                 <ThemedView style={styles.heroSection}>
-                    <AnimatedIcon />
-                    <ThemedText style={styles.title} type="title">
-                        Welcome to&nbsp;Expo
-                    </ThemedText>
+                    {isSignedIn ? (
+                        <ThemedText style={styles.title} type="title">
+                            Welcome back, {user?.firstName}
+                        </ThemedText>
+                    ) : (
+                        <Button onPress={handleSignUp} title="Sign Up" />
+                    )}
                 </ThemedView>
-
-                <ThemedText style={styles.code} type="code">
-                    get started
-                </ThemedText>
-
-                <ThemedView
-                    style={styles.stepContainer}
-                    type="backgroundElement"
-                >
-                    <HintRow
-                        hint={
-                            <ThemedText type="code">
-                                src/app/index.tsx
-                            </ThemedText>
-                        }
-                        title="Try editing"
-                    />
-                    <HintRow hint={getDevMenuHint()} title="Dev tools" />
-                    <HintRow
-                        hint={
-                            <ThemedText type="code">
-                                npm run reset-project
-                            </ThemedText>
-                        }
-                        title="Fresh start"
-                    />
-                </ThemedView>
-
-                {Platform.OS === 'web' && <WebBadge />}
             </SafeAreaView>
         </ThemedView>
     )

@@ -1,5 +1,11 @@
+import {
+    Manrope_400Regular,
+    Manrope_500Medium,
+    Manrope_600SemiBold,
+    Manrope_700Bold,
+    useFonts,
+} from '@expo-google-fonts/manrope'
 import { Platform, StyleSheet, Text, type TextProps } from 'react-native'
-
 import { Fonts, type ThemeColor } from '~/constants/theme'
 import { useTheme } from '~/hooks/use-theme'
 
@@ -24,10 +30,24 @@ export function ThemedText({
 }: ThemedTextProps) {
     const theme = useTheme()
 
+    const [fontsLoaded] = useFonts({
+        Manrope_400Regular,
+        Manrope_500Medium,
+        Manrope_600SemiBold,
+        Manrope_700Bold,
+    })
+
+    if (!fontsLoaded) {
+        return null
+    }
+
     return (
         <Text
             style={[
-                { color: theme[themeColor ?? 'text'] },
+                {
+                    color: theme[themeColor ?? 'text'],
+                    fontFamily: 'Manrope_400Regular',
+                },
                 styles[type],
                 style,
             ]}

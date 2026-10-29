@@ -9,7 +9,7 @@ Install from the repo root with `pnpm install`. Do not run `npm install` or `yar
 - Dev scripts load the root `.env` the same way web and dashboard do. Expo only inlines `EXPO_PUBLIC_*` into the client. `src/env.ts` validates those variables with `@t3-oss/env-core` when the root layout loads.
 - React, React DOM, `@types/react`, and TypeScript come from the default catalog. The catalog pins React at 19.3.0 because that is the version Expo SDK 58 requires, and Next.js accepts it. TypeScript stays on the workspace catalog (5.9), so `typescript` is listed in `expo.install.exclude`.
 - Lint and format with Biome (`pnpm --filter @nemu/mobile check`). `pnpm check-types` includes this package.
-- Add Expo modules from the repo root with `pnpm expo-install <package>` (same as `pnpm --filter @nemu/mobile expo-install <package>`). That runs `expo install` so the version matches SDK 58.
+- Add Expo modules from the repo root with `pnpm expo:install <package>` (same as `pnpm --filter @nemu/mobile expo:install <package>`). That runs `expo install` so the version matches SDK 58. Remove one with `pnpm expo:uninstall <package>`.
 
 
 ## Expo has changed — do not trust your training data
