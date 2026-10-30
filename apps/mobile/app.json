@@ -6,7 +6,7 @@
         "orientation": "portrait",
         "icon": "./assets/images/icon.png",
         "scheme": "nemu",
-        "userInterfaceStyle": "automatic",
+        "userInterfaceStyle": "dark",
         "ios": {
             "icon": "./assets/expo.icon",
             "bundleIdentifier": "dev.zedsoftworks.nemu"
@@ -22,6 +22,7 @@
             "predictiveBackGestureEnabled": false
         },
         "web": {
+            "bundler": "metro",
             "output": "server",
             "favicon": "./assets/images/favicon.png"
         },

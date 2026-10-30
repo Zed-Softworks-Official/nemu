@@ -1,1 +1,4 @@
-export { useColorScheme } from 'react-native'
+/** Mobile is dark-only. */
+export function useColorScheme(): 'dark' {
+    return 'dark'
+}

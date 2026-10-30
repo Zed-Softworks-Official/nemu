@@ -1,18 +1,45 @@
-@import "tailwindcss/theme.css";
-@import "tailwindcss/preflight.css";
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/preflight.css" layer(base);
 @import "tailwindcss/utilities.css";
 
 @import "nativewind/theme";
+@import "@nemu/ui/tokens.css";
 
+/*
+ * Mobile is dark-only. Override the light `:root` values from tokens.css.
+ */
 :root {
-    --font-display:
-        Spline Sans, Inter, ui-sans-serif, system-ui, sans-serif, Apple Color Emoji, Segoe UI Emoji,
-        Segoe UI Symbol, Noto Color Emoji;
-    --font-mono:
-        ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono,
-        Courier New, monospace;
-    --font-rounded:
-        "SF Pro Rounded", "Hiragino Maru Gothic ProN", Meiryo, "MS PGothic",
-        sans-serif;
-    --font-serif: Georgia, "Times New Roman", serif;
+    --background: oklch(0.2084 0.0025 247.95);
+    --foreground: oklch(0.96 0.005 256.84);
+    --card: oklch(0.23 0.004 247.95);
+    --card-foreground: oklch(0.96 0.005 256.84);
+    --popover: oklch(0.245 0.006 247.95);
+    --popover-foreground: oklch(0.96 0.005 256.84);
+    --primary: oklch(0.6461 0.1825 256.84);
+    --primary-foreground: oklch(0.1 0 0);
+    --secondary: oklch(0.2591 0.0048 248.01);
+    --secondary-foreground: oklch(0.94 0.005 256.84);
+    --muted: oklch(0.2591 0.0048 248.01);
+    --muted-foreground: oklch(0.69 0.012 256.84);
+    --accent: oklch(0.29 0.018 256.84);
+    --accent-foreground: oklch(0.96 0.01 256.84);
+    --destructive: oklch(0.704 0.191 22.216);
+    --warning: oklch(0.82 0.14 80);
+    --warning-foreground: oklch(0.2 0.04 80);
+    --border: oklch(1 0 0 / 8%);
+    --input: oklch(1 0 0 / 10%);
+    --ring: oklch(0.6461 0.1825 256.84);
+    --chart-1: oklch(0.72 0.16 256.84);
+    --chart-2: oklch(0.76 0.13 237);
+    --chart-3: oklch(0.68 0.14 274);
+    --chart-4: oklch(0.8 0.11 215);
+    --chart-5: oklch(0.58 0.12 256.84);
+    --sidebar: oklch(0.18 0.008 247.95);
+    --sidebar-foreground: oklch(0.94 0.008 256.84);
+    --sidebar-primary: oklch(0.6461 0.1825 256.84);
+    --sidebar-primary-foreground: oklch(0.1 0 0);
+    --sidebar-accent: oklch(0.2591 0.0048 248.01);
+    --sidebar-accent-foreground: oklch(0.96 0.01 256.84);
+    --sidebar-border: oklch(1 0 0 / 8%);
+    --sidebar-ring: oklch(0.6461 0.1825 256.84);
 }

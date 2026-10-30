@@ -2,26 +2,42 @@ import '~/global.css'
 
 import { ClerkProvider } from '@clerk/expo'
 import { tokenCache } from '@clerk/expo/token-cache'
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router'
+import {
+    Manrope_400Regular,
+    Manrope_500Medium,
+    Manrope_600SemiBold,
+    Manrope_700Bold,
+    useFonts,
+} from '@expo-google-fonts/manrope'
+import { DarkTheme, ThemeProvider } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
-import { useColorScheme } from 'react-native'
-import AppTabs from '~/components/app-tabs'
-
+import { useEffect } from 'react'
+import { AppRoute } from '~/components/app-route'
 import { env } from '~/env'
 
 SplashScreen.preventAutoHideAsync()
 
-export default function TabLayout() {
-    const colorScheme = useColorScheme()
+export default function RootLayout() {
+    const [fontsLoaded, fontError] = useFonts({
+        Manrope_400Regular,
+        Manrope_500Medium,
+        Manrope_600SemiBold,
+        Manrope_700Bold,
+    })
+
+    useEffect(() => {
+        if (fontsLoaded || fontError) {
+            void SplashScreen.hideAsync()
+        }
+    }, [fontsLoaded, fontError])
+
     return (
         <ClerkProvider
             publishableKey={env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY}
             tokenCache={tokenCache}
         >
-            <ThemeProvider
-                value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}
-            >
-                <AppTabs />
+            <ThemeProvider value={DarkTheme}>
+                <AppRoute />
             </ThemeProvider>
         </ClerkProvider>
     )
