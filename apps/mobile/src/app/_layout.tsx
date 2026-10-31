@@ -14,6 +14,7 @@ import * as SplashScreen from 'expo-splash-screen'
 import { useEffect } from 'react'
 import { AppRoute } from '~/components/app-route'
 import { env } from '~/env'
+import { applyManropeDefaults } from '~/lib/manrope'
 
 SplashScreen.preventAutoHideAsync()
 
@@ -26,10 +27,18 @@ export default function RootLayout() {
     })
 
     useEffect(() => {
+        if (fontsLoaded) {
+            applyManropeDefaults()
+        }
         if (fontsLoaded || fontError) {
             void SplashScreen.hideAsync()
         }
     }, [fontsLoaded, fontError])
+
+    // Keep splash up until fonts are ready so the first paint is Manrope.
+    if (!fontsLoaded && !fontError) {
+        return null
+    }
 
     return (
         <ClerkProvider

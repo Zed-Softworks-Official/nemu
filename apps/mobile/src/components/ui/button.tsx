@@ -1,6 +1,8 @@
 import { cn } from '@nemu/ui/lib/utils'
 import { cva, type VariantProps } from 'class-variance-authority'
-import { Pressable, type PressableProps, Text } from 'react-native'
+import { Pressable, type PressableProps } from 'react-native'
+
+import { Text } from '~/components/ui/text'
 
 const buttonVariants = cva(
     'items-center justify-center rounded-sm border border-transparent px-5',
@@ -28,7 +30,7 @@ const buttonVariants = cva(
     }
 )
 
-const buttonTextVariants = cva('text-center font-medium text-sm', {
+const buttonTextVariants = cva('text-center font-sans-medium text-sm', {
     variants: {
         variant: {
             default: 'text-primary-foreground',

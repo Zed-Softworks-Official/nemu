@@ -1,18 +1,8 @@
 import { NativeTabs } from 'expo-router/native-tabs'
-import { useColorScheme } from 'react-native'
-
-import { Colors } from '~/constants/theme'
 
 export default function TabsLayout() {
-    const scheme = useColorScheme()
-    const colors = Colors[scheme === 'dark' ? 'dark' : 'light']
-
     return (
-        <NativeTabs
-            backgroundColor={colors.background}
-            indicatorColor={colors.backgroundElement}
-            labelStyle={{ selected: { color: colors.text } }}
-        >
+        <NativeTabs>
             <NativeTabs.Trigger name="index">
                 <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
                 <NativeTabs.Trigger.Icon
@@ -31,12 +21,12 @@ export default function TabsLayout() {
                 />
             </NativeTabs.Trigger>
 
-            <NativeTabs.Trigger name="rooms">
-                <NativeTabs.Trigger.Label>Rooms</NativeTabs.Trigger.Label>
+            <NativeTabs.Trigger name="energy">
+                <NativeTabs.Trigger.Label>Energy</NativeTabs.Trigger.Label>
                 <NativeTabs.Trigger.Icon
-                    md="room"
+                    md="energy"
                     renderingMode="template"
-                    sf="door.left.hand.open"
+                    sf="bolt.fill"
                 />
             </NativeTabs.Trigger>
         </NativeTabs>

@@ -6,9 +6,25 @@
 @import "@nemu/ui/tokens.css";
 
 /*
+ * Manrope is loaded via useFonts in the root layout.
+ * RN needs one family name per weight (font-bold alone won't switch files).
+ */
+@theme {
+    --font-sans: "Manrope_400Regular";
+    --font-sans-medium: "Manrope_500Medium";
+    --font-sans-semibold: "Manrope_600SemiBold";
+    --font-sans-bold: "Manrope_700Bold";
+}
+
+/*
  * Mobile is dark-only. Override the light `:root` values from tokens.css.
+ * Also re-assert Manrope after nativewind/theme (it sets System on iOS/Android).
  */
 :root {
+    --font-sans: "Manrope_400Regular";
+    --font-sans-medium: "Manrope_500Medium";
+    --font-sans-semibold: "Manrope_600SemiBold";
+    --font-sans-bold: "Manrope_700Bold";
     --background: oklch(0.2084 0.0025 247.95);
     --foreground: oklch(0.96 0.005 256.84);
     --card: oklch(0.23 0.004 247.95);

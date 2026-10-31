@@ -51,7 +51,7 @@
         "!(.agents)/**/*.{js,jsx,ts,tsx,json,css,html}": "biome check --write --no-errors-on-unmatched --files-ignore-unknown=true",
         "**/Dockerfile*": "bash scripts/hooks/hadolint.sh"
     },
-    "packageManager": "pnpm@12.15.0",
+    "packageManager": "pnpm@12.16.1",
     "engines": {
         "node": ">=18"
     }

@@ -2,10 +2,11 @@ import { useHostedAuth } from '@clerk/expo/hosted-auth'
 import nemuLogo from '@nemu/assets/logos/logo-dark.png'
 import { Image } from 'expo-image'
 import { styled } from 'nativewind'
-import { Text, View } from 'react-native'
+import { View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { Button } from '~/components/ui/button'
+import { Text } from '~/components/ui/text'
 
 const StyledSafeAreaView = styled(SafeAreaView)
 const StyledImage = styled(Image)

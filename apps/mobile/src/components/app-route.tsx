@@ -16,7 +16,7 @@ export function AppRoute() {
     return (
         <Stack screenOptions={{ headerShown: false }}>
             <Stack.Protected guard={!!isSignedIn}>
-                <Stack.Screen name="(tabs)" />
+                <Stack.Screen name="(app)" />
             </Stack.Protected>
 
             <Stack.Protected guard={!isSignedIn}>
