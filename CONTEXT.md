@@ -60,6 +60,7 @@ An encrypted archive containing the local identity, local data including retaine
 
 **Room**:
 A named physical area in a Home. A Device belongs to one Room, and its Components inherit that Room unless assigned to another Room.
+_Avoid_: Group
 
 **Device**:
 An IoT unit that a Home can observe or control through Nemu. A phone, laptop, or other computer used to open the dashboard is not a Device.
@@ -102,6 +103,12 @@ A Controller clock state accurate enough to validate observation times and run s
 
 **Command**:
 A request to set one or more Device Capability values. Canonical Commands express absolute desired values.
+
+**Control surface**:
+The product experience for frequent, live observation and direct control of Devices and Rooms. Both the mobile app and dashboard provide a Control surface; mobile is the primary one.
+
+**Management surface**:
+The product experience for configuration, administration, bulk work, long-form History, diagnostics, and other desktop-shaped workflows. The dashboard is the primary Management surface.
 
 **Command outcome**:
 The result of a Command. `accepted` is transitional, while `confirmed`, `rejected`, `failed`, and `unconfirmed` are final outcomes.
