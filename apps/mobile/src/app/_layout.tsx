@@ -13,6 +13,7 @@ import { DarkTheme, ThemeProvider } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
 import { useEffect } from 'react'
 import { AppRoute } from '~/components/app-route'
+import { NemuProvider } from '~/components/nemu-provider'
 import { env } from '~/env'
 import { applyManropeDefaults } from '~/lib/manrope'
 
@@ -45,9 +46,11 @@ export default function RootLayout() {
             publishableKey={env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY}
             tokenCache={tokenCache}
         >
-            <ThemeProvider value={DarkTheme}>
-                <AppRoute />
-            </ThemeProvider>
+            <NemuProvider>
+                <ThemeProvider value={DarkTheme}>
+                    <AppRoute />
+                </ThemeProvider>
+            </NemuProvider>
         </ClerkProvider>
     )
 }

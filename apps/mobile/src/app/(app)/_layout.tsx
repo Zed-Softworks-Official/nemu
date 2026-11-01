@@ -33,15 +33,15 @@ export default function AppDrawerLayout() {
                 }}
             />
             <Drawer.Screen
-                name="settings"
-                options={{
-                    drawerLabel: 'Settings',
-                }}
-            />
-            <Drawer.Screen
                 name="account"
                 options={{
                     drawerLabel: 'Account',
+                }}
+            />
+            <Drawer.Screen
+                name="settings"
+                options={{
+                    drawerLabel: 'Settings',
                 }}
             />
         </Drawer>
