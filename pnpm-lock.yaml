@@ -463,6 +463,9 @@ importers:
       '@tailwindcss/postcss':
         specifier: 'catalog:'
         version: 4.3.2
+      '@types/node':
+        specifier: 'catalog:'
+        version: 22.20.0
       '@types/react':
         specifier: 'catalog:'
         version: 19.3.0
