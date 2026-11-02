@@ -1,5 +1,14 @@
 export type { CapabilityView } from '@nemu/protocol'
 export type {
+    AccessClientPairing,
+    AccessClientPairingOptions,
+    AccessClientPairingState,
+    PairingFailureReason,
+    PairingHome,
+    PairingMethod,
+} from './access-client-pairing.ts'
+export { createAccessClientPairing } from './access-client-pairing.ts'
+export type {
     ControllerConnectionOptions,
     ControllerConnectors,
 } from './connection.ts'
