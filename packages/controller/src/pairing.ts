@@ -1,4 +1,5 @@
 import {
+    ApiError,
     type IdentifyResponse,
     identifyResponseSchema,
     type PairResponse,
@@ -12,9 +13,8 @@ import type { ConvexReactClient } from 'convex/react'
 import type { FunctionReference } from 'convex/server'
 import { createControllerHttp } from './http.ts'
 import {
-    setClientToken,
-    setRememberedBaseUrl,
-    setRememberedControllerId,
+    type ControllerCredentialStore,
+    defaultCredentialStore,
 } from './storage.ts'
 
 export type PairWithControllerResult = {
@@ -29,11 +29,17 @@ export type PairWithControllerInput = {
     userId: string
     email: string
     displayName?: string
+    /** Refuse to pair when the Controller is not this Home. */
+    expectedControllerId?: string
+    credentialStore?: ControllerCredentialStore
 }
+
+/** Error code when a LAN Controller is not the selected Home. */
+export const WRONG_HOME_ERROR_CODE = 'wrong_home'
 
 /**
  * Identify a controller, exchange a pairing code for a client token, and
- * persist credentials in localStorage for the connection manager.
+ * persist the Home's credential for the connection manager.
  */
 export async function pairWithController(
     baseUrl: string,
@@ -44,6 +50,15 @@ export async function pairWithController(
 
     const identifyRes = await http.get('/api/identify')
     const identity = identifyResponseSchema.parse(identifyRes.data)
+    if (
+        input.expectedControllerId &&
+        identity.controllerId !== input.expectedControllerId
+    ) {
+        throw new ApiError(
+            WRONG_HOME_ERROR_CODE,
+            'This Controller belongs to a different Home'
+        )
+    }
 
     const body = pairRequestSchema.parse({
         code: input.code,
@@ -55,9 +70,11 @@ export async function pairWithController(
     const pairRes = await http.post('/api/pair', body)
     const pair = pairResponseSchema.parse(pairRes.data)
 
-    setClientToken(pair.clientToken)
-    setRememberedBaseUrl(normalized)
-    setRememberedControllerId(pair.controllerId || identity.controllerId)
+    const store = input.credentialStore ?? defaultCredentialStore
+    store.set(pair.controllerId || identity.controllerId, {
+        clientToken: pair.clientToken,
+        baseUrl: normalized,
+    })
 
     return { baseUrl: normalized, identity, pair }
 }
@@ -98,6 +115,7 @@ export async function mintSessionViaRelay(options: {
     displayName?: string
     timeoutMs?: number
     pollIntervalMs?: number
+    credentialStore?: ControllerCredentialStore
 }): Promise<SessionMintResult> {
     const requestId = crypto.randomUUID()
     const timeoutMs = options.timeoutMs ?? 25_000
@@ -140,8 +158,13 @@ export async function mintSessionViaRelay(options: {
                 clientToken: parsed.data.message.clientToken,
                 controllerId: parsed.data.message.controllerId,
             })
-            setClientToken(result.clientToken)
-            setRememberedControllerId(result.controllerId)
+            if (result.controllerId !== options.controllerId) {
+                throw new Error('The session was minted for a different Home')
+            }
+            const store = options.credentialStore ?? defaultCredentialStore
+            store.set(result.controllerId, {
+                clientToken: result.clientToken,
+            })
             return result
         }
         await new Promise((resolve) => setTimeout(resolve, pollIntervalMs))

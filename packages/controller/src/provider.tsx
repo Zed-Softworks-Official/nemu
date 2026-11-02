@@ -43,7 +43,11 @@ import {
     useRef,
     useState,
 } from 'react'
-import { ControllerConnection } from './connection.ts'
+import {
+    ControllerConnection,
+    type ControllerConnectors,
+} from './connection.ts'
+import type { ControllerCredentialStore } from './storage.ts'
 import type { RelayApi } from './transports/relay.ts'
 
 type ControllerContextValue = {
@@ -102,7 +106,14 @@ export type ControllerProviderProps = {
     convex?: ConvexReactClient
     relayApi?: RelayApi
     lanCandidates?: string[]
+    /** The selected Home. Scopes LAN discovery, Relay, and credentials. */
     controllerId?: string | null
+    /** Per-Home Access Client credentials (default: localStorage). */
+    credentialStore?: ControllerCredentialStore
+    /** Replace network access, e.g. with `fakeControllerConnectors`. */
+    connectors?: Partial<ControllerConnectors>
+    /** Use a prebuilt connection instead of building one from props. */
+    connection?: ControllerConnection
     /** Auto-start connection manager (default true). */
     autoStart?: boolean
     /** False until Convex has a user token. Local discovery still runs. */
@@ -115,6 +126,9 @@ export function ControllerProvider({
     relayApi,
     lanCandidates,
     controllerId,
+    credentialStore,
+    connectors,
+    connection: providedConnection,
     autoStart = true,
     relayAllowed = true,
 }: ControllerProviderProps) {
@@ -123,14 +137,25 @@ export function ControllerProvider({
     relayAllowedRef.current = relayAllowed
     const connection = useMemo(
         () =>
+            providedConnection ??
             new ControllerConnection({
                 convex,
                 relayApi,
                 lanCandidates,
                 controllerId,
+                credentialStore,
+                connectors,
                 relayAllowed: () => relayAllowedRef.current,
             }),
-        [convex, relayApi, lanCandidates, controllerId]
+        [
+            providedConnection,
+            convex,
+            relayApi,
+            lanCandidates,
+            controllerId,
+            credentialStore,
+            connectors,
+        ]
     )
 
     const [status, setStatus] = useState<ConnectionStatus>(

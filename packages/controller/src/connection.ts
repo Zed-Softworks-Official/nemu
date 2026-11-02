@@ -17,6 +17,7 @@ import {
     type HomeMeterDesignation,
     type HomeMeterDesignationSelection,
     type HouseholdMember,
+    type IdentifyResponse,
     type MatterWifiResponse,
     type PatchDeviceRequest,
     type PatchOutletRequest,
@@ -37,8 +38,11 @@ import {
     isLoopbackControllerUrl,
     type ProbeResult,
 } from './discovery.ts'
+import type { GetToken } from './http.ts'
 import {
-    getClientToken,
+    type ControllerCredentialStore,
+    defaultCredentialStore,
+    getRememberedBaseUrl,
     getRememberedControllerId,
     setRememberedBaseUrl,
     setRememberedControllerId,
@@ -47,6 +51,28 @@ import { LanTransport } from './transports/lan.ts'
 import { type RelayApi, RelayTransport } from './transports/relay.ts'
 import type { ControllerTransport } from './transports/types.ts'
 
+/**
+ * How the connection reaches Controllers. Defaults use real HTTP,
+ * WebSocket, and Convex Relay; tests pass a fake Controller here
+ * (see `@nemu/controller/testing`).
+ */
+export type ControllerConnectors = {
+    discover: (
+        candidates: string[] | undefined,
+        rememberedBaseUrl: string | null
+    ) => Promise<ProbeResult | null>
+    identify: (baseUrl: string) => Promise<IdentifyResponse>
+    createLanTransport: (options: {
+        baseUrl: string
+        getToken: GetToken
+    }) => ControllerTransport
+    /** Returns null when Relay is not configured. */
+    createRelayTransport: (options: {
+        controllerId: string
+        getToken: GetToken
+    }) => ControllerTransport | null
+}
+
 export type ControllerConnectionOptions = {
     convex?: ConvexReactClient
     relayApi?: RelayApi
@@ -54,13 +80,21 @@ export type ControllerConnectionOptions = {
     lanCandidates?: string[]
     /** How often to reprobe LAN while on relay. */
     reprobeIntervalMs?: number
-    /** Manual controller id when identify isn't available yet. */
+    /**
+     * The selected Home. When set, the connection only attaches to a LAN
+     * Controller that identifies as this Home and only uses this Home's
+     * credential. Without it the connection adopts whichever Controller
+     * answers (dashboard single-Home behavior).
+     */
     controllerId?: string | null
+    /** Per-Home Access Client credentials. Defaults to localStorage. */
+    credentialStore?: ControllerCredentialStore
     /**
      * When set, relay is skipped until this returns true. The local socket
      * still connects. Callers use it so `relay:send` waits for Convex auth.
      */
     relayAllowed?: () => boolean
+    connectors?: Partial<ControllerConnectors>
 }
 
 type StatusListener = (status: ConnectionStatus) => void
@@ -80,9 +114,55 @@ export class ControllerConnection {
     private readonly options: ControllerConnectionOptions
     private started = false
     private readonly capabilitySession = new CapabilitySession()
+    private readonly credentialStore: ControllerCredentialStore
+    private readonly connectors: ControllerConnectors
+    /** Controller adopted from LAN identify when no Home is selected. */
+    private identifiedControllerId: string | null = null
 
     constructor(options: ControllerConnectionOptions = {}) {
         this.options = options
+        this.credentialStore = options.credentialStore ?? defaultCredentialStore
+        this.connectors = {
+            discover: (candidates, rememberedBaseUrl) =>
+                discoverController(candidates, rememberedBaseUrl),
+            identify: (baseUrl) => identifyController(baseUrl),
+            createLanTransport: (lan) => new LanTransport(lan),
+            createRelayTransport: ({ controllerId, getToken }) => {
+                const { convex, relayApi } = this.options
+                if (!convex || !relayApi) return null
+                return new RelayTransport({
+                    convex,
+                    api: relayApi,
+                    controllerId,
+                    getToken,
+                })
+            },
+            ...options.connectors,
+        }
+    }
+
+    private get selectedControllerId(): string | null {
+        return this.options.controllerId ?? null
+    }
+
+    private activeControllerId(): string | null {
+        return (
+            this.selectedControllerId ??
+            this.identifiedControllerId ??
+            getRememberedControllerId()
+        )
+    }
+
+    private readonly getToken: GetToken = () => {
+        const controllerId = this.activeControllerId()
+        if (!controllerId) return null
+        return this.credentialStore.get(controllerId)?.clientToken ?? null
+    }
+
+    private rememberedBaseUrl(): string | null {
+        const selected = this.selectedControllerId
+        if (!selected) return getRememberedBaseUrl()
+        return this.credentialStore.get(selected)?.baseUrl ?? null
     }
 
     getStatus(): ConnectionStatus {
@@ -134,7 +214,7 @@ export class ControllerConnection {
     async reprobe(): Promise<void> {
         this.setStatus(statusFromMode('probing'))
 
-        const probe = await discoverController(this.options.lanCandidates)
+        const probe = await this.discover()
         if (probe) {
             const ok = await this.tryLan(probe)
             if (ok) return
@@ -461,24 +541,40 @@ export class ControllerConnection {
         return this.transport
     }
 
+    private discover(): Promise<ProbeResult | null> {
+        return this.connectors.discover(
+            this.options.lanCandidates,
+            this.rememberedBaseUrl()
+        )
+    }
+
     private async tryLan(probe: ProbeResult): Promise<boolean> {
-        const token = getClientToken()
         // Without a token we can still probe health, but authenticated APIs will fail.
         // Prefer LAN when reachable; token acceptance is validated on first real call.
         try {
-            let controllerId =
-                this.options.controllerId ?? getRememberedControllerId()
+            const selected = this.selectedControllerId
+            let controllerId = this.activeControllerId()
             try {
-                const identity = await identifyController(probe.baseUrl)
+                const identity = await this.connectors.identify(probe.baseUrl)
+                // Never send the selected Home's credential to another Home.
+                if (selected && identity.controllerId !== selected) {
+                    return false
+                }
                 controllerId = identity.controllerId
-                setRememberedControllerId(identity.controllerId)
+                if (!selected) {
+                    this.identifiedControllerId = identity.controllerId
+                    setRememberedControllerId(identity.controllerId)
+                }
             } catch {
+                // A selected Home must prove its identity before LAN use.
+                if (selected) return false
                 // identify may not exist yet on core
             }
+            const token = this.getToken()
 
-            const lan = new LanTransport({
+            const lan = this.connectors.createLanTransport({
                 baseUrl: probe.baseUrl,
-                getToken: getClientToken,
+                getToken: this.getToken,
             })
 
             // WS may fail if /ws isn't implemented yet — still allow REST-only LAN.
@@ -489,7 +585,7 @@ export class ControllerConnection {
             }
 
             this.attachTransport(lan)
-            setRememberedBaseUrl(probe.baseUrl)
+            this.rememberLanAddress(controllerId, probe.baseUrl)
             this.setStatus({
                 ...statusFromMode('lan'),
                 baseUrl: probe.baseUrl,
@@ -514,27 +610,38 @@ export class ControllerConnection {
         }
     }
 
+    private rememberLanAddress(
+        controllerId: string | null,
+        baseUrl: string
+    ): void {
+        if (!this.selectedControllerId) {
+            setRememberedBaseUrl(baseUrl)
+            return
+        }
+        if (!controllerId) return
+        const credential = this.credentialStore.get(controllerId)
+        if (!credential || credential.baseUrl === baseUrl) return
+        this.credentialStore.set(controllerId, { ...credential, baseUrl })
+    }
+
     private async tryRelay(): Promise<boolean> {
-        const { convex, relayApi } = this.options
-        const controllerId =
-            this.options.controllerId ?? getRememberedControllerId()
-        const token = getClientToken()
+        const controllerId = this.activeControllerId()
+        const token = this.getToken()
 
         if (this.options.relayAllowed && !this.options.relayAllowed()) {
             return false
         }
 
-        if (!convex || !relayApi || !controllerId || !token) {
+        if (!controllerId || !token) {
             return false
         }
 
         try {
-            const relay = new RelayTransport({
-                convex,
-                api: relayApi,
+            const relay = this.connectors.createRelayTransport({
                 controllerId,
-                getToken: getClientToken,
+                getToken: this.getToken,
             })
+            if (!relay) return false
             await relay.connect()
             this.attachTransport(relay)
             this.setStatus({
@@ -609,7 +716,7 @@ export class ControllerConnection {
     }
 
     private async upgradeToLanIfPossible(): Promise<void> {
-        const probe = await discoverController(this.options.lanCandidates)
+        const probe = await this.discover()
         if (!probe) return
         const previous = this.transport
         const ok = await this.tryLan(probe)

@@ -199,11 +199,11 @@ export async function identifyController(
  * Returns the first reachable base URL, or null if none respond.
  */
 export async function discoverController(
-    candidates?: string[]
+    candidates?: string[],
+    remembered: string | null = getRememberedBaseUrl()
 ): Promise<ProbeResult | null> {
     const ordered: string[] = []
     const extras = candidates ?? lanDiscoveryCandidates()
-    const remembered = getRememberedBaseUrl()
     const skipRemembered =
         (Boolean(remembered) &&
             isSecureDocument() &&

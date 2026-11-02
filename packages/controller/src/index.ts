@@ -1,5 +1,8 @@
 export type { CapabilityView } from '@nemu/protocol'
-export type { ControllerConnectionOptions } from './connection.ts'
+export type {
+    ControllerConnectionOptions,
+    ControllerConnectors,
+} from './connection.ts'
 export { ControllerConnection } from './connection.ts'
 export type { ProbeResult } from './discovery.ts'
 export {
@@ -24,7 +27,11 @@ export type {
     PairWithControllerInput,
     PairWithControllerResult,
 } from './pairing.ts'
-export { mintSessionViaRelay, pairWithController } from './pairing.ts'
+export {
+    mintSessionViaRelay,
+    pairWithController,
+    WRONG_HOME_ERROR_CODE,
+} from './pairing.ts'
 export type {
     CommissionProgress,
     ControllerProviderProps,
@@ -40,13 +47,22 @@ export {
     useDevicePairing,
     useDevices,
 } from './provider.tsx'
+export type {
+    AccessClientCredential,
+    ControllerCredentialStore,
+} from './storage.ts'
 export {
     clearClientToken,
     clearRememberedBaseUrl,
     clearRememberedControllerId,
+    createLocalStorageCredentialStore,
+    createMemoryCredentialStore,
+    defaultCredentialStore,
     getClientToken,
     getRememberedBaseUrl,
     getRememberedControllerId,
+    parseCredential,
+    serializeCredential,
     setClientToken,
     setRememberedBaseUrl,
     setRememberedControllerId,
