@@ -4,13 +4,13 @@ import {
     type IdentifyResponse,
     identifyResponseSchema,
 } from '@nemu/protocol'
-import { createControllerHttp } from './http'
+import { createControllerHttp } from './http.ts'
 import {
     isLoopbackHostname,
     isMixedContentUrl,
     isSecureDocument,
-} from './mixedContent'
-import { getRememberedBaseUrl } from './storage'
+} from './mixedContent.ts'
+import { getRememberedBaseUrl } from './storage.ts'
 
 export const DEFAULT_LAN_CANDIDATES = [
     'http://nemu.local:6368',
@@ -116,8 +116,10 @@ export function isSelfSignedLanUrl(url: string): boolean {
 
 /** True when this tab is the local dashboard (`localhost:3001`), not app.nemu.sh. */
 export function isLocalDevDashboard(): boolean {
-    if (typeof globalThis.window === 'undefined') return false
-    return isLoopbackHostname(window.location.hostname)
+    // React Native defines `window` without `location`.
+    const hostname = globalThis.window?.location?.hostname
+    if (typeof hostname !== 'string') return false
+    return isLoopbackHostname(hostname)
 }
 
 export function isLoopbackControllerUrl(url: string): boolean {

@@ -10,12 +10,12 @@ import {
 } from '@nemu/protocol'
 import type { ConvexReactClient } from 'convex/react'
 import type { FunctionReference } from 'convex/server'
-import { createControllerHttp } from './http'
+import { createControllerHttp } from './http.ts'
 import {
     setClientToken,
     setRememberedBaseUrl,
     setRememberedControllerId,
-} from './storage'
+} from './storage.ts'
 
 export type PairWithControllerResult = {
     baseUrl: string

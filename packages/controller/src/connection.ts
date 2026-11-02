@@ -36,16 +36,16 @@ import {
     isLocalDevDashboard,
     isLoopbackControllerUrl,
     type ProbeResult,
-} from './discovery'
+} from './discovery.ts'
 import {
     getClientToken,
     getRememberedControllerId,
     setRememberedBaseUrl,
     setRememberedControllerId,
-} from './storage'
-import { LanTransport } from './transports/lan'
-import { type RelayApi, RelayTransport } from './transports/relay'
-import type { ControllerTransport } from './transports/types'
+} from './storage.ts'
+import { LanTransport } from './transports/lan.ts'
+import { type RelayApi, RelayTransport } from './transports/relay.ts'
+import type { ControllerTransport } from './transports/types.ts'
 
 export type ControllerConnectionOptions = {
     convex?: ConvexReactClient

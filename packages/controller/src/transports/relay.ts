@@ -27,8 +27,8 @@ import {
 } from '@nemu/protocol'
 import type { ConvexReactClient } from 'convex/react'
 import type { FunctionReference } from 'convex/server'
-import type { GetToken } from '../http'
-import type { ControllerTransport } from './types'
+import type { GetToken } from '../http.ts'
+import type { ControllerTransport } from './types.ts'
 
 type RelaySendArgs = {
     controllerId: string

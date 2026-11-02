@@ -36,6 +36,9 @@
         "check-types": {
             "dependsOn": ["^check-types"]
         },
+        "test": {
+            "outputs": []
+        },
         "fmt:rust": {
             "inputs": ["$TURBO_DEFAULT$"],
             "outputs": []

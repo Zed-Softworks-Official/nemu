@@ -1,7 +1,7 @@
 export type { CapabilityView } from '@nemu/protocol'
-export type { ControllerConnectionOptions } from './connection'
-export { ControllerConnection } from './connection'
-export type { ProbeResult } from './discovery'
+export type { ControllerConnectionOptions } from './connection.ts'
+export { ControllerConnection } from './connection.ts'
+export type { ProbeResult } from './discovery.ts'
 export {
     buildTlsTrustUrl,
     DEFAULT_HTTPS_LAN_CANDIDATES,
@@ -18,13 +18,13 @@ export {
     TLS_TRUST_URL,
     TLS_TRUSTED_MESSAGE,
     upgradeToHttps,
-} from './discovery'
-export { createControllerHttp, toApiError } from './http'
+} from './discovery.ts'
+export { createControllerHttp, toApiError } from './http.ts'
 export type {
     PairWithControllerInput,
     PairWithControllerResult,
-} from './pairing'
-export { mintSessionViaRelay, pairWithController } from './pairing'
+} from './pairing.ts'
+export { mintSessionViaRelay, pairWithController } from './pairing.ts'
 export type {
     CommissionProgress,
     ControllerProviderProps,
@@ -32,14 +32,14 @@ export type {
     MatterPairingStep,
     PairingInterview,
     PairingKind,
-} from './provider'
+} from './provider.tsx'
 export {
     ControllerProvider,
     useCapabilityState,
     useController,
     useDevicePairing,
     useDevices,
-} from './provider'
+} from './provider.tsx'
 export {
     clearClientToken,
     clearRememberedBaseUrl,
@@ -50,8 +50,8 @@ export {
     setClientToken,
     setRememberedBaseUrl,
     setRememberedControllerId,
-} from './storage'
-export { LanTransport } from './transports/lan'
-export type { RelayApi, RelayTransportOptions } from './transports/relay'
-export { RelayTransport } from './transports/relay'
-export type { ControllerTransport } from './transports/types'
+} from './storage.ts'
+export { LanTransport } from './transports/lan.ts'
+export type { RelayApi, RelayTransportOptions } from './transports/relay.ts'
+export { RelayTransport } from './transports/relay.ts'
+export type { ControllerTransport } from './transports/types.ts'

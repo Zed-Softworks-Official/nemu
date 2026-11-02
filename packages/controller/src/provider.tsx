@@ -43,8 +43,8 @@ import {
     useRef,
     useState,
 } from 'react'
-import { ControllerConnection } from './connection'
-import type { RelayApi } from './transports/relay'
+import { ControllerConnection } from './connection.ts'
+import type { RelayApi } from './transports/relay.ts'
 
 type ControllerContextValue = {
     connection: ControllerConnection

@@ -19,6 +19,7 @@
         "lint": "turbo run lint",
         "format": "biome format --write .",
         "check-types": "turbo run check-types",
+        "test": "turbo run test",
         "infra": "bash scripts/infra.sh",
         "infra:full": "bash scripts/infra.sh --full",
         "infra:down": "docker compose -f docker-compose.dev.yml --profile matter down",

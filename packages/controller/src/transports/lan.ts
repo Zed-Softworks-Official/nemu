@@ -53,9 +53,9 @@ import {
     updateStatusResponseSchema,
 } from '@nemu/protocol'
 import type { AxiosInstance } from 'axios'
-import { createControllerHttp, type GetToken } from '../http'
-import { isLoopbackHostname, isMixedContentUrl } from '../mixedContent'
-import type { ControllerTransport } from './types'
+import { createControllerHttp, type GetToken } from '../http.ts'
+import { isLoopbackHostname, isMixedContentUrl } from '../mixedContent.ts'
+import type { ControllerTransport } from './types.ts'
 
 function toWsUrl(baseUrl: string): string {
     const url = new URL(baseUrl)
