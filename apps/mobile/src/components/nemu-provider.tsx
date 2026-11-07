@@ -115,6 +115,10 @@ function AccountHomes(props: { accountId: string; children: React.ReactNode }) {
                 })
             },
             mintOverRelay: async (home, staging) => {
+                // Convex would hold the request until reconnect.
+                if (!convex.connectionState().isWebSocketConnected) {
+                    throw new Error('Timed out: not connected to the Relay')
+                }
                 await mintSessionViaRelay({
                     convex,
                     api: sessionMintApi,
@@ -125,7 +129,11 @@ function AccountHomes(props: { accountId: string; children: React.ReactNode }) {
                 })
             },
             recordMembership: async (controllerId) => {
-                await convex.mutation(api.pairings.create, { controllerId })
+                // Selectable Homes already have this record. LAN pairing must
+                // finish with no internet, so do not wait for the cloud.
+                void convex
+                    .mutation(api.pairings.create, { controllerId })
+                    .catch(() => {})
             },
         }),
         [accountId]

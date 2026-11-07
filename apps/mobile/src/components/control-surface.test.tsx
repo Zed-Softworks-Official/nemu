@@ -200,6 +200,13 @@ describe('connection status', () => {
         await screen.findByText('Reading Lamp')
     })
 
+    it('does not call Devices unassigned when Relay has no Room names', async () => {
+        await renderSurface(home({ lanReachable: false }))
+        await screen.findByText('Reading Lamp')
+        expect(screen.getByText(/Room names appear/)).toBeTruthy()
+        expect(screen.queryByText('Not in a Room')).toBeNull()
+    })
+
     it('says when it is still connecting', async () => {
         const controller = home()
         const connectors = fakeControllerConnectors(controller)

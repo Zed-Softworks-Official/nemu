@@ -21,6 +21,7 @@ import {
 } from '~/components/home-session'
 import { PairHomeScreen } from '~/components/pair-home-screen'
 import { SelectHomeScreen } from '~/components/select-home-screen'
+import { Button } from '~/components/ui/button'
 
 const LAKE: MobileHome = {
     controllerId: 'lake',
@@ -30,15 +31,18 @@ const LAKE: MobileHome = {
 const CITY: MobileHome = { controllerId: 'city', name: 'City Flat' }
 
 function Session() {
-    const { route, activeHome } = useHomeSession()
+    const { route, activeHome, forgetPairing } = useHomeSession()
     const { status } = useController()
     if (route === 'select-home') return <SelectHomeScreen />
     if (route === 'pair') return <PairHomeScreen />
     if (route === 'loading') return <Text>Loading Homes</Text>
     return (
-        <Text>
-            Controlling {activeHome?.name} via {status.mode}
-        </Text>
+        <>
+            <Text>
+                Controlling {activeHome?.name} via {status.mode}
+            </Text>
+            <Button onPress={forgetPairing} title="Pair this phone again" />
+        </>
     )
 }
 
@@ -233,6 +237,30 @@ describe('Access Client pairing', () => {
 })
 
 describe('Returning to a paired Home', () => {
+    it('can pair again after the credential stops working', async () => {
+        const controller = new FakeController({
+            controllerId: 'lake',
+            baseUrl: 'http://lake.local:6368',
+            acceptedTokens: ['saved'],
+        })
+        const { tree, credentialStore } = setup({
+            controller,
+            selected: 'lake',
+        })
+        credentialStore.set('lake', { clientToken: 'saved' })
+        await render(tree([LAKE]))
+        await screen.findByText('Controlling Lake House via lan')
+
+        await fireEvent.press(
+            screen.getByRole('button', { name: 'Pair this phone again' })
+        )
+
+        expect(credentialStore.get('lake')).toBeNull()
+        expect(
+            screen.getByRole('button', { name: 'Pair this phone' })
+        ).toBeTruthy()
+    })
+
     it('connects without asking to pair again', async () => {
         const controller = new FakeController({
             controllerId: 'lake',

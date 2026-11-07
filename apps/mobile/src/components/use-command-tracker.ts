@@ -66,6 +66,7 @@ export function useCommandTracker(options: {
     const liveRef = useRef(live)
     liveRef.current = live
     const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>())
+    const attempts = useRef(new Map<string, number>())
 
     const clearTimer = useCallback((key: string) => {
         const timer = timers.current.get(key)
@@ -173,7 +174,21 @@ export function useCommandTracker(options: {
                 return
             }
             clearTimer(key)
+            const attempt = (attempts.current.get(key) ?? 0) + 1
+            attempts.current.set(key, attempt)
             update(key, { phase: 'sending', desired })
+            // A send with no answer must not hold the control forever.
+            timers.current.set(
+                key,
+                setTimeout(() => {
+                    attempts.current.set(key, attempt + 1)
+                    timers.current.delete(key)
+                    update(key, {
+                        ...answerFromError(null),
+                        desired,
+                    } as TrackedCommand)
+                }, confirmationWindowMs)
+            )
             const payload =
                 control.kind === 'toggle'
                     ? control.payload(desired as boolean)
@@ -186,9 +201,13 @@ export function useCommandTracker(options: {
             } catch (error) {
                 answer = answerFromError(error)
             }
-            if (mounted.current) applyAnswer(key, desired, answer)
+            if (!mounted.current || attempts.current.get(key) !== attempt) {
+                return
+            }
+            clearTimer(key)
+            applyAnswer(key, desired, answer)
         },
-        [applyAnswer, clearTimer, sendCommand, update]
+        [applyAnswer, clearTimer, confirmationWindowMs, sendCommand, update]
     )
 
     const commandFor = useCallback(

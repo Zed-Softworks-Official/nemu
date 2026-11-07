@@ -67,6 +67,11 @@ type HomeSessionValue = {
     createPairing: (home: MobileHome) => AccessClientPairing
     /** Called after the person acknowledges a successful pairing. */
     completePairing: () => void
+    /**
+     * Drop this phone's stored credential for the active Home so it can pair
+     * again, e.g. after an Owner revoked it. Does not revoke on the Controller.
+     */
+    forgetPairing: () => void
 }
 
 const HomeSessionContext = createContext<HomeSessionValue | null>(null)
@@ -101,8 +106,11 @@ export function HomeSessionProvider({
 }: HomeSessionProviderProps) {
     const { credentialStore, activeHomeStore, connectors } = services
     const [selectedId, setSelectedId] = useState(() => activeHomeStore.get())
-    // Bumped when this installation's credential for a Home changes.
-    const [credentialVersion, setCredentialVersion] = useState(0)
+    // This session's own pairing change, which outranks the stored read.
+    const [pairingChange, setPairingChange] = useState<{
+        controllerId: string
+        paired: boolean
+    } | null>(null)
 
     // Keep one object per Home value. The Home list reloads when pairing
     // records its Membership, and a new object would restart that pairing.
@@ -121,13 +129,16 @@ export function HomeSessionProvider({
         [selectedId, foundName, foundLanHostname]
     )
 
-    const paired = useMemo(
+    const storedCredential = useMemo(
         () =>
-            activeHome
-                ? credentialStore.get(activeHome.controllerId) !== null
-                : false,
-        [activeHome, credentialStore, credentialVersion]
+            activeHome ? credentialStore.get(activeHome.controllerId) : null,
+        [activeHome, credentialStore]
     )
+    const paired =
+        activeHome !== null &&
+        pairingChange?.controllerId === activeHome.controllerId
+            ? pairingChange.paired
+            : storedCredential !== null
 
     const route: HomeRoute =
         homes === undefined
@@ -152,8 +163,15 @@ export function HomeSessionProvider({
     }, [activeHomeStore])
 
     const completePairing = useCallback(() => {
-        setCredentialVersion((version) => version + 1)
-    }, [])
+        if (!selectedId) return
+        setPairingChange({ controllerId: selectedId, paired: true })
+    }, [selectedId])
+
+    const forgetPairing = useCallback(() => {
+        if (!selectedId) return
+        credentialStore.clear(selectedId)
+        setPairingChange({ controllerId: selectedId, paired: false })
+    }, [credentialStore, selectedId])
 
     const createPairing = useCallback(
         (home: MobileHome) =>
@@ -194,6 +212,7 @@ export function HomeSessionProvider({
             switchHome,
             createPairing,
             completePairing,
+            forgetPairing,
         }),
         [
             homes,
@@ -204,6 +223,7 @@ export function HomeSessionProvider({
             switchHome,
             createPairing,
             completePairing,
+            forgetPairing,
         ]
     )
 

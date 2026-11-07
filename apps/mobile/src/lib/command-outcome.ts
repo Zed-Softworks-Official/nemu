@@ -23,6 +23,7 @@ const REJECTED_DEFAULT =
 const FAILED_MESSAGES: Record<string, string> = {
     dispatch_expired: 'The Controller could not send this in time.',
     mqtt_error: 'The Controller could not reach the Device’s network.',
+    relay_disconnected: 'This phone lost the Relay, so this was not sent.',
 }
 const FAILED_DEFAULT = 'The Device or its network reported an error.'
 
@@ -30,6 +31,14 @@ export const UNCONFIRMED_MESSAGE =
     'The Device did not report the change in time. Check it before trying again.'
 const CONNECTION_LOST_MESSAGE =
     'The connection dropped before the Controller answered, so this may or may not have happened.'
+
+/** No Controller answer: the Command may have been admitted. */
+const UNKNOWN_FATE_CODES = new Set([
+    'network_error',
+    'timeout',
+    'http_error',
+    'unknown',
+])
 
 const REJECTED_CODES = new Set([
     ...Object.keys(REJECTED_MESSAGES),
@@ -83,7 +92,7 @@ export function answerFromError(error: unknown): CommandAnswer {
         typeof error === 'object' && error !== null && 'code' in error
             ? (error as { code?: unknown }).code
             : undefined
-    if (typeof code === 'string' && code !== 'network_error') {
+    if (typeof code === 'string' && !UNKNOWN_FATE_CODES.has(code)) {
         return fromCode(code)
     }
     return { phase: 'unconfirmed', message: CONNECTION_LOST_MESSAGE }

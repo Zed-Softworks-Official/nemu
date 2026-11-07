@@ -10,7 +10,7 @@ import { Text } from '~/components/ui/text'
 const StyledSafeAreaView = styled(SafeAreaView)
 
 export default function SettingsScreen() {
-    const { activeHome, switchHome } = useHomeSession()
+    const { activeHome, switchHome, forgetPairing } = useHomeSession()
 
     return (
         <View className="flex-1 bg-background">
@@ -25,6 +25,13 @@ export default function SettingsScreen() {
                             onPress={switchHome}
                             title="Choose a different Home"
                             variant="outline"
+                        />
+                    </View>
+                    <View className="flex-row">
+                        <Button
+                            onPress={forgetPairing}
+                            title="Pair this phone again"
+                            variant="ghost"
                         />
                     </View>
                 </View>

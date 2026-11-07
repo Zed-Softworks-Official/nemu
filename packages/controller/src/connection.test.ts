@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { afterEach, describe, it } from 'node:test'
+import { ApiError } from '@nemu/protocol'
 import { ControllerConnection } from './connection.ts'
 import {
     createMemoryCredentialStore,
@@ -154,5 +155,104 @@ describe('ControllerConnection for a selected Home', () => {
         allowed = true
         await connection.reprobe()
         assert.equal(connection.getStatus().mode, 'relay')
+    })
+
+    function lanSession(home: FakeController, reprobeIntervalMs?: number) {
+        const connection = connect({
+            controllerId: home.controllerId,
+            credentialStore: createMemoryCredentialStore({
+                [home.controllerId]: { clientToken: 'token-a' },
+            }),
+            lanCandidates: [home.baseUrl],
+            connectors: fakeControllerConnectors(home),
+            reprobeIntervalMs,
+        })
+        return connection
+    }
+
+    it('keeps the connection when the Controller refuses a Command', async () => {
+        const home = new FakeController({
+            controllerId: 'home-a',
+            acceptedTokens: ['token-a'],
+        })
+        home.commandResult = () => {
+            throw new ApiError('unavailable', 'device is unavailable', 409)
+        }
+        const connection = lanSession(home)
+        await connection.start()
+
+        await assert.rejects(
+            connection.sendCommand({ deviceId: 'lamp', payload: {} })
+        )
+
+        assert.equal(connection.getStatus().mode, 'lan')
+    })
+
+    it('drops LAN when a Command fails to reach the Controller', async () => {
+        const home = new FakeController({
+            controllerId: 'home-a',
+            acceptedTokens: ['token-a'],
+        })
+        home.commandResult = () => {
+            throw new ApiError('network_error', 'Network Error')
+        }
+        const connection = lanSession(home)
+        await connection.start()
+
+        await assert.rejects(
+            connection.sendCommand({ deviceId: 'lamp', payload: {} })
+        )
+
+        assert.equal(connection.getStatus().mode, 'relay')
+    })
+
+    it('returns to Relay when a LAN upgrade fails its check', async () => {
+        const home = new FakeController({
+            controllerId: 'home-a',
+            lanReachable: false,
+            acceptedTokens: ['token-a'],
+        })
+        const connection = lanSession(home, 5)
+        await connection.start()
+        assert.equal(connection.getStatus().mode, 'relay')
+
+        // Discovery answers, but the Device check will be refused.
+        home.lanReachable = true
+        home.revokeToken('token-a')
+        await new Promise((resolve) => setTimeout(resolve, 30))
+        home.lanReachable = false
+
+        assert.notEqual(connection.getStatus().mode, 'lan')
+    })
+
+    it('notices Relay coming back while offline', async () => {
+        const home = new FakeController({
+            controllerId: 'home-a',
+            lanReachable: false,
+            relayReachable: false,
+            acceptedTokens: ['token-a'],
+        })
+        const connection = lanSession(home, 5)
+        await connection.start()
+        assert.equal(connection.getStatus().mode, 'offline')
+
+        home.relayReachable = true
+        await new Promise((resolve) => setTimeout(resolve, 30))
+
+        assert.equal(connection.getStatus().mode, 'relay')
+    })
+
+    it('leaves nothing running when stopped during the first probe', async () => {
+        const home = new FakeController({
+            controllerId: 'home-a',
+            acceptedTokens: ['token-a'],
+        })
+        const connection = lanSession(home, 5)
+
+        const starting = connection.start()
+        connection.stop()
+        await starting
+
+        assert.equal(home.connectedTransports().length, 0)
     })
 })

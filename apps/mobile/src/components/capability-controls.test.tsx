@@ -247,6 +247,24 @@ describe('final outcomes', () => {
         expect(screen.getByText(/did not report the change/)).toBeTruthy()
     })
 
+    it('treats a timed out send as unknown, not failed', async () => {
+        await setup({ commandResult: throwing('timeout', 'slow') })
+        await turnOn()
+        await screen.findByText('Not confirmed: on')
+        expect(screen.getByText(/may or may not have happened/)).toBeTruthy()
+    })
+
+    it('releases the control when a send never answers', async () => {
+        await setup({
+            confirmationWindowMs: 20,
+            commandResult: () =>
+                new Promise(() => {}) as unknown as CommandResult,
+        })
+        await turnOn()
+        await screen.findByText('Not confirmed: on')
+        expect(power().props.disabled).toBe(false)
+    })
+
     it('does not claim a Command failed when the connection dropped', async () => {
         await setup({
             commandResult: () => {
@@ -324,7 +342,9 @@ describe('when a Command cannot be sent', () => {
         await act(() => reprobe())
         await screen.findByText('Can’t reach the Controller')
 
-        await fireEvent.press(screen.getByRole('button', { name: 'Try again' }))
+        // The first is the connection banner's; the second retries the Command.
+        const retry = screen.getAllByRole('button', { name: 'Try again' })[1]
+        await fireEvent.press(retry as never)
         expect(controller.commands).toHaveLength(1)
         expect(screen.getByText('Rejected: on')).toBeTruthy()
     })

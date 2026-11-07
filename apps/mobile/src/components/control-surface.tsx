@@ -128,10 +128,27 @@ export function groupDevicesByRoom(
 
 /** The Home's Devices in their Rooms, the only control grouping. */
 export function RoomsView() {
-    const { devices, rooms } = useHomeControl()
+    const { devices, rooms, status } = useHomeControl()
+    // Room names only come over LAN. Without them a Device with a Room must
+    // not be presented as having none.
+    if (rooms === undefined) {
+        return (
+            <SurfaceBody>
+                {status.mode === 'relay' ? (
+                    <Text className="text-muted-foreground text-sm">
+                        Room names appear once this phone has been on the Home
+                        network.
+                    </Text>
+                ) : null}
+                {(devices ?? []).map((device) => (
+                    <DeviceCard device={device} key={device.id} />
+                ))}
+            </SurfaceBody>
+        )
+    }
     return (
         <SurfaceBody>
-            {groupDevicesByRoom(devices ?? [], rooms ?? []).map((section) => (
+            {groupDevicesByRoom(devices ?? [], rooms).map((section) => (
                 <View className="gap-3" key={section.id}>
                     <Text
                         accessibilityRole="header"

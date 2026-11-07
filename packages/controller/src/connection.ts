@@ -1,4 +1,5 @@
 import {
+    ApiError,
     type ApplyUpdateResponse,
     type BootstrapOwnerRequest,
     CapabilitySession,
@@ -198,6 +199,11 @@ export class ControllerConnection {
         if (this.started) return
         this.started = true
         await this.reprobe()
+        // Stopped while probing, e.g. the person switched Homes or signed out.
+        if (!this.started) {
+            this.teardownTransport()
+            return
+        }
         this.startReprobeLoop()
     }
 
@@ -253,6 +259,9 @@ export class ControllerConnection {
         try {
             return await this.transport.sendCommand(cmd)
         } catch (err) {
+            // The Controller answered, so this path works. A refused Command
+            // for one Device must not take down control of the whole Home.
+            if (err instanceof ApiError && err.status !== undefined) throw err
             if (this.status.mode === 'lan') {
                 await this.fallbackToRelayOrOffline()
             } else if (this.status.mode === 'relay') {
@@ -717,11 +726,19 @@ export class ControllerConnection {
 
     private async upgradeToLanIfPossible(): Promise<void> {
         const probe = await this.discover()
-        if (!probe) return
+        if (!this.started) return
+        if (!probe) {
+            // LAN is the only path this loop upgrades to, but an offline
+            // client must also notice when Relay comes back.
+            if (this.status.mode === 'offline') await this.tryRelay()
+            return
+        }
         const previous = this.transport
         const ok = await this.tryLan(probe)
         if (ok && previous && previous !== this.transport) {
             previous.disconnect()
         }
+        // A failed LAN check has already dropped the previous transport.
+        if (!ok && !this.transport) await this.fallbackToRelayOrOffline()
     }
 }

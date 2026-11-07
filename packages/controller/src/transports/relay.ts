@@ -1,4 +1,5 @@
 import {
+    ApiError,
     type ApplyUpdateResponse,
     applyUpdateResponseSchema,
     type BootstrapOwnerRequest,
@@ -213,6 +214,14 @@ export class RelayTransport implements ControllerTransport {
     }
 
     async sendCommand(cmd: DeviceCommand): Promise<CommandResult> {
+        // Convex holds mutations while disconnected and sends them on
+        // reconnect. A one-time Command must not fire later (ADR-0015).
+        if (!this.convex.connectionState().isWebSocketConnected) {
+            throw new ApiError(
+                'relay_disconnected',
+                'Not connected to the Relay'
+            )
+        }
         const parsed = await this.request({
             type: 'command',
             deviceId: cmd.deviceId,
