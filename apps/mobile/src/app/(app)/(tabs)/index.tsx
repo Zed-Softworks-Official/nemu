@@ -3,13 +3,16 @@ import { useMemo } from 'react'
 import { View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
+import { RoomsView } from '~/components/control-surface'
 import { DrawerMenuButton } from '~/components/drawer-menu-button'
+import { useHomeSession } from '~/components/home-session'
 import { Text } from '~/components/ui/text'
 import { getGreeting, getToday } from '~/lib/greeting'
 
 const StyledSafeAreaView = styled(SafeAreaView)
 
 export default function HomeScreen() {
+    const { activeHome } = useHomeSession()
     const greeting = useMemo(() => getGreeting(), [])
     const today = useMemo(() => getToday(), [])
 
@@ -25,10 +28,13 @@ export default function HomeScreen() {
                             {greeting}
                         </Text>
                         <Text className="text-muted-foreground text-sm leading-relaxed">
-                            Locally controlled smart home devices
+                            {activeHome?.name}
                         </Text>
                     </View>
                     <DrawerMenuButton />
+                </View>
+                <View className="min-h-0 flex-1">
+                    <RoomsView />
                 </View>
             </StyledSafeAreaView>
         </View>

@@ -2,6 +2,7 @@ import { styled } from 'nativewind'
 import { View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
+import { DevicesView } from '~/components/control-surface'
 import { DrawerMenuButton } from '~/components/drawer-menu-button'
 import { Text } from '~/components/ui/text'
 
@@ -16,6 +17,9 @@ export default function DevicesScreen() {
                         Devices
                     </Text>
                     <DrawerMenuButton />
+                </View>
+                <View className="min-h-0 flex-1">
+                    <DevicesView />
                 </View>
             </StyledSafeAreaView>
         </View>

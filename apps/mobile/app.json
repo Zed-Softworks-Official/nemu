@@ -9,7 +9,10 @@
         "userInterfaceStyle": "dark",
         "ios": {
             "icon": "./assets/expo.icon",
-            "bundleIdentifier": "dev.zedsoftworks.nemu"
+            "bundleIdentifier": "dev.zedsoftworks.nemu",
+            "infoPlist": {
+                "NSLocalNetworkUsageDescription": "Nemu connects directly to your Home's Controller on this network."
+            }
         },
         "android": {
             "package": "dev.zedsoftworks.nemu",

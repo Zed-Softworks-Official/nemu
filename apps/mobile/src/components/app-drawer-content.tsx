@@ -26,7 +26,7 @@ const links: DrawerLink[] = [
     {
         name: 'rooms',
         label: 'Rooms',
-        description: 'Organize by space',
+        description: 'Devices by Room',
         icon: LayoutGrid,
     },
     {
