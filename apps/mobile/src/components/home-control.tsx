@@ -18,6 +18,13 @@ import {
 } from 'react'
 import { AppState } from 'react-native'
 
+import {
+    CONFIRMATION_WINDOW_MS,
+    type TrackedCommand,
+    useCommandTracker,
+} from '~/components/use-command-tracker'
+import type { DeviceControl } from '~/lib/device-control'
+
 const NO_CAPABILITIES: readonly CapabilityCurrentState[] = []
 
 type HomeControlValue = {
@@ -33,6 +40,16 @@ type HomeControlValue = {
     capabilitiesCurrent: boolean
     loadFailed: boolean
     reconnect: () => void
+    commandFor: (
+        deviceId: string,
+        controlKey: string
+    ) => TrackedCommand | undefined
+    sendControl: (
+        deviceId: string,
+        control: DeviceControl,
+        desired: boolean | number
+    ) => void
+    dismissCommand: (deviceId: string, controlKey: string) => void
 }
 
 const HomeControlContext = createContext<HomeControlValue | null>(null)
@@ -42,8 +59,15 @@ const HomeControlContext = createContext<HomeControlValue | null>(null)
  * only. Everything comes from the shared Controller provider; nothing here
  * chooses a transport or is written to disk.
  */
-export function HomeControlProvider({ children }: { children: ReactNode }) {
-    const { connection, getRooms, reprobe } = useController()
+export function HomeControlProvider({
+    children,
+    confirmationWindowMs = CONFIRMATION_WINDOW_MS,
+}: {
+    children: ReactNode
+    /** How long an accepted Command may wait for confirming Device state. */
+    confirmationWindowMs?: number
+}) {
+    const { connection, getRooms, reprobe, sendCommand } = useController()
     const { devices, error, status } = useDevices()
     const { view } = useCapabilityState()
     const [rooms, setRooms] = useState<Room[] | undefined>(undefined)
@@ -92,6 +116,13 @@ export function HomeControlProvider({ children }: { children: ReactNode }) {
         return () => subscription.remove()
     }, [connection, reprobe])
 
+    const { commandFor, send, dismiss } = useCommandTracker({
+        devices,
+        live,
+        sendCommand,
+        confirmationWindowMs,
+    })
+
     const value = useMemo<HomeControlValue>(
         () => ({
             status,
@@ -103,8 +134,25 @@ export function HomeControlProvider({ children }: { children: ReactNode }) {
             capabilitiesCurrent: live && view !== null,
             loadFailed: live && devices === undefined && error !== null,
             reconnect,
+            commandFor,
+            sendControl: (deviceId, control, desired) => {
+                void send(deviceId, control, desired)
+            },
+            dismissCommand: dismiss,
         }),
-        [status, live, devices, rooms, shownView, view, error, reconnect]
+        [
+            status,
+            live,
+            devices,
+            rooms,
+            shownView,
+            view,
+            error,
+            reconnect,
+            commandFor,
+            send,
+            dismiss,
+        ]
     )
 
     return (
