@@ -1,4 +1,5 @@
 import '~/global.css'
+import '~/lib/crypto-polyfill'
 
 import { ClerkProvider } from '@clerk/expo'
 import { tokenCache } from '@clerk/expo/token-cache'
