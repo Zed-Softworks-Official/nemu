@@ -17,10 +17,10 @@ const buttonVariants = cva(
                 destructive: 'bg-destructive/10 active:bg-destructive/20',
             },
             size: {
-                default: 'h-9 flex-1',
-                sm: 'h-8 flex-1',
-                lg: 'h-10 flex-1',
-                xl: 'h-11 flex-1',
+                default: 'h-9',
+                sm: 'h-8',
+                lg: 'h-10',
+                xl: 'h-11',
             },
         },
         defaultVariants: {

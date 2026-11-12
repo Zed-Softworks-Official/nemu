@@ -44,7 +44,8 @@
             "expo-font",
             "expo-image",
             "expo-web-browser",
-            "@clerk/expo-native-components"
+            "@clerk/expo-native-components",
+            "expo-status-bar"
         ],
         "experiments": {
             "typedRoutes": true,
