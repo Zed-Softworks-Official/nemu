@@ -19,6 +19,7 @@ import {
     householdMemberSchema,
     parseDeviceList,
     type ReleaseChannel,
+    type Room,
     relayToClientEnvelopeSchema,
     relayToControllerEnvelopeSchema,
     type SwitchReleaseChannelResponse,
@@ -162,6 +163,15 @@ export class RelayTransport implements ControllerTransport {
         }
 
         throw new Error('Unexpected relay response for getDevices')
+    }
+
+    async getRooms(): Promise<Room[]> {
+        const parsed = await this.request({ type: 'getRooms' })
+        if (parsed.message.type === 'rooms') {
+            return parsed.message.rooms
+        }
+        this.throwIfCommandError(parsed, 'load Rooms')
+        throw new Error('Unexpected relay response for getRooms')
     }
 
     /**

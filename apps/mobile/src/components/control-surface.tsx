@@ -128,16 +128,15 @@ export function groupDevicesByRoom(
 
 /** The Home's Devices in their Rooms, the only control grouping. */
 export function RoomsView() {
-    const { devices, rooms, status } = useHomeControl()
-    // Room names only come over LAN. Without them a Device with a Room must
-    // not be presented as having none.
+    const { devices, live, rooms, roomsFailed } = useHomeControl()
+    // Without Room names a Device with a Room must not be presented as
+    // having none. An older Controller does not answer Rooms over Relay.
     if (rooms === undefined) {
         return (
             <SurfaceBody>
-                {status.mode === 'relay' ? (
+                {live && roomsFailed ? (
                     <Text className="text-muted-foreground text-sm">
-                        Room names appear once this phone has been on the Home
-                        network.
+                        Rooms couldn’t be loaded from the Controller.
                     </Text>
                 ) : null}
                 {(devices ?? []).map((device) => (

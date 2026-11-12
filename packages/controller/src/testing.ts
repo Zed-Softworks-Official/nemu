@@ -51,6 +51,8 @@ export class FakeController {
     pairingCode: string
     devices: Device[]
     rooms: Room[]
+    /** Set false to act as a Controller that cannot answer a Rooms request. */
+    roomsAvailable = true
     /** Override to script Command outcomes. */
     commandResult: (command: DeviceCommand) => CommandResult = () => ({
         requestId: `request-${this.commands.length}`,
@@ -210,6 +212,9 @@ export class FakeTransport implements ControllerTransport {
 
     async getRooms(): Promise<Room[]> {
         this.authorize()
+        if (!this.controller.roomsAvailable) {
+            throw new Error('Relay command timed out')
+        }
         return structuredClone(this.controller.rooms)
     }
 

@@ -200,10 +200,20 @@ describe('connection status', () => {
         await screen.findByText('Reading Lamp')
     })
 
-    it('does not call Devices unassigned when Relay has no Room names', async () => {
+    it('lists Devices in their Rooms over Relay', async () => {
         await renderSurface(home({ lanReachable: false }))
+        await screen.findByText('Away from home')
+        await screen.findByText('Living Room')
+        expect(screen.getByText('Bedroom')).toBeTruthy()
+        expect(screen.queryByText(/Rooms couldn’t be loaded/)).toBeNull()
+    })
+
+    it('does not call Devices unassigned when the Controller returns no Rooms', async () => {
+        const controller = home({ lanReachable: false })
+        controller.roomsAvailable = false
+        await renderSurface(controller)
         await screen.findByText('Reading Lamp')
-        expect(screen.getByText(/Room names appear/)).toBeTruthy()
+        await screen.findByText(/Rooms couldn’t be loaded/)
         expect(screen.queryByText('Not in a Room')).toBeNull()
     })
 

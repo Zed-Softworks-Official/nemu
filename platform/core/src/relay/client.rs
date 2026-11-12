@@ -15,6 +15,7 @@ use crate::api::members::{
     remove_member,
 };
 use crate::api::pairing::{list_household_tokens, revoke_current_token, revoke_household_token};
+use crate::api::rooms::load_rooms;
 use crate::commands::execute_set;
 use crate::events::DeviceEvent;
 use crate::pairing::tokens::verify_client_token;
@@ -58,6 +59,8 @@ enum ToControllerMessage {
         device_id: String,
         payload: JsonValue,
     },
+    #[serde(rename = "getRooms")]
+    GetRooms,
     #[serde(rename = "getDevices")]
     GetDevices,
     #[serde(rename = "sessionMint")]
@@ -389,6 +392,14 @@ async fn handle_message(
             }
             build_devices_response(state, &message.request_id, resources)
         }
+        ToControllerMessage::GetRooms => match load_rooms(state).await {
+            Ok(rooms) => build_typed_response(
+                state,
+                &message.request_id,
+                json!({ "type": "rooms", "rooms": rooms }),
+            ),
+            Err(err) => build_error_response(state, &message.request_id, &err.code, &err.message),
+        },
         ToControllerMessage::Command {
             ref device_id,
             ref payload,

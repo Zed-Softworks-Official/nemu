@@ -30,6 +30,13 @@ pub struct PatchRoomBody {
 }
 
 pub async fn list_rooms(State(state): State<AppState>) -> ApiResult<Json<RoomsResponse>> {
+    Ok(Json(RoomsResponse {
+        rooms: load_rooms(&state).await?,
+    }))
+}
+
+/// The Home's Rooms in display order, for LAN and Relay alike.
+pub async fn load_rooms(state: &AppState) -> ApiResult<Vec<RoomResource>> {
     let conn = state
         .db
         .get()
@@ -46,9 +53,7 @@ pub async fn list_rooms(State(state): State<AppState>) -> ApiResult<Json<RoomsRe
         .map_err(|e| ApiError::internal(e.to_string()))?
         .map_err(|e| ApiError::internal(e.to_string()))?;
 
-    Ok(Json(RoomsResponse {
-        rooms: rows.iter().map(RoomResource::from).collect(),
-    }))
+    Ok(rows.iter().map(RoomResource::from).collect())
 }
 
 pub async fn create_room(

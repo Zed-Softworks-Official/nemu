@@ -11,7 +11,7 @@ import {
     capabilityChangeEventSchema,
     capabilitySnapshotEventSchema,
 } from './capability.ts'
-import { deviceStateSchema } from './device.ts'
+import { deviceStateSchema, roomSchema } from './device.ts'
 import {
     designateHomeMeterMessageSchema,
     exportHistoryBackupMessageSchema,
@@ -60,6 +60,7 @@ const sessionMintMessageSchema = z.object({
 const authenticatedRelayMessageSchema = z.union([
     relayCommandMessageSchema,
     z.object({ type: z.literal('getDevices') }),
+    z.object({ type: z.literal('getRooms') }),
     z.object({ type: z.literal('listMembers') }),
     z.object({ type: z.literal('inviteMember'), email: z.string() }),
     z.object({ type: z.literal('removeMember'), memberId: z.string() }),
@@ -113,6 +114,10 @@ export const relayToClientEnvelopeSchema = z.object({
         z.object({
             type: z.literal('devices'),
             devices: z.array(z.unknown()),
+        }),
+        z.object({
+            type: z.literal('rooms'),
+            rooms: z.array(roomSchema),
         }),
         z.object({
             type: z.literal('sessionMintResult'),

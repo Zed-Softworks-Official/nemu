@@ -35,6 +35,8 @@ type HomeControlValue = {
     stale: boolean
     devices: Device[] | undefined
     rooms: Room[] | undefined
+    /** The Controller was reached but did not return its Rooms. */
+    roomsFailed: boolean
     capabilities: readonly CapabilityCurrentState[]
     /** False while `capabilities` is a previous snapshot. */
     capabilitiesCurrent: boolean
@@ -71,6 +73,7 @@ export function HomeControlProvider({
     const { devices, error, status } = useDevices()
     const { view } = useCapabilityState()
     const [rooms, setRooms] = useState<Room[] | undefined>(undefined)
+    const [roomsFailed, setRoomsFailed] = useState(false)
     const live = status.mode === 'lan' || status.mode === 'relay'
 
     // The Controller session clears its view on disconnect; keep the last one.
@@ -81,8 +84,10 @@ export function HomeControlProvider({
     const refreshRooms = useCallback(async () => {
         try {
             setRooms(await getRooms())
+            setRoomsFailed(false)
         } catch {
             // Keep the Rooms already shown; connection status explains why.
+            setRoomsFailed(true)
         }
     }, [getRooms])
 
@@ -130,6 +135,7 @@ export function HomeControlProvider({
             stale: !live && (devices !== undefined || shownView !== null),
             devices,
             rooms,
+            roomsFailed,
             capabilities: shownView?.capabilities ?? NO_CAPABILITIES,
             capabilitiesCurrent: live && view !== null,
             loadFailed: live && devices === undefined && error !== null,
@@ -145,6 +151,7 @@ export function HomeControlProvider({
             live,
             devices,
             rooms,
+            roomsFailed,
             shownView,
             view,
             error,

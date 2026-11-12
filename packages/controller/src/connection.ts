@@ -328,7 +328,7 @@ export class ControllerConnection {
     }
 
     async getRooms(): Promise<Room[]> {
-        const transport = this.requireLanTransport('Room loading')
+        const transport = this.requireConnectedTransport('Room loading')
         if (!transport.getRooms) {
             throw new Error('Rooms are not supported by this controller')
         }
