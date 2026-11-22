@@ -41,7 +41,7 @@ function Session() {
             <Text>
                 Controlling {activeHome?.name} via {status.mode}
             </Text>
-            <Button onPress={forgetPairing} title="Pair this phone again" />
+            <Button onPress={forgetPairing} title="Forget on this phone" />
         </>
     )
 }
@@ -252,7 +252,7 @@ describe('Returning to a paired Home', () => {
         await screen.findByText('Controlling Lake House via lan')
 
         await fireEvent.press(
-            screen.getByRole('button', { name: 'Pair this phone again' })
+            screen.getByRole('button', { name: 'Forget on this phone' })
         )
 
         expect(credentialStore.get('lake')).toBeNull()
