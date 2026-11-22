@@ -13,6 +13,7 @@ import {
     type Device,
     type DeviceCommand,
     type DeviceEvent,
+    type HistoryQuery,
     type HistoryQueryRead,
     type HomeMeterDesignation,
     type IdentifyResponse,
@@ -38,6 +39,8 @@ export type FakeControllerOptions = {
     acceptedTokens?: string[]
     devices?: Device[]
     rooms?: Room[]
+    /** The designated Home meter, or null when none is set. */
+    homeMeter?: HomeMeterDesignation | null
 }
 
 type TransportMode = 'lan' | 'relay'
@@ -51,6 +54,16 @@ export class FakeController {
     pairingCode: string
     devices: Device[]
     rooms: Room[]
+    homeMeter: HomeMeterDesignation | null
+    /** Override to script History. By default History is not scripted. */
+    history: (query: HistoryQuery) => HistoryQueryRead = () => {
+        throw new Error('History is not scripted on FakeController')
+    }
+    /** History queries received, in order, with the transport that carried them. */
+    readonly historyQueries: Array<{
+        query: HistoryQuery
+        via: TransportMode
+    }> = []
     /** Set false to act as a Controller that cannot answer a Rooms request. */
     roomsAvailable = true
     /** Override to script Command outcomes. */
@@ -78,6 +91,7 @@ export class FakeController {
         this.tokens = new Set(options.acceptedTokens ?? [])
         this.devices = options.devices ?? []
         this.rooms = options.rooms ?? []
+        this.homeMeter = options.homeMeter ?? null
     }
 
     identity(): IdentifyResponse {
@@ -224,13 +238,15 @@ export class FakeTransport implements ControllerTransport {
         return this.controller.commandResult(command)
     }
 
-    async queryHistory(): Promise<HistoryQueryRead> {
-        throw new Error('History is not scripted on FakeController')
+    async queryHistory(query: HistoryQuery): Promise<HistoryQueryRead> {
+        this.authorize()
+        this.controller.historyQueries.push({ query, via: this.mode })
+        return structuredClone(this.controller.history(query))
     }
 
     async getHomeMeterDesignation(): Promise<HomeMeterDesignation | null> {
         this.authorize()
-        return null
+        return structuredClone(this.controller.homeMeter)
     }
 
     async designateHomeMeter(): Promise<HomeMeterDesignation> {
