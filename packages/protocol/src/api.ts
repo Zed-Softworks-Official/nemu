@@ -107,6 +107,29 @@ export const patchDeviceRequestSchema = z
     })
 export type PatchDeviceRequest = z.infer<typeof patchDeviceRequestSchema>
 
+export const renameDeviceRequestSchema = z.object({
+    deviceId: z.string().min(1),
+    name: z.string().trim().min(1).max(255),
+})
+export type RenameDeviceRequest = z.infer<typeof renameDeviceRequestSchema>
+
+/**
+ * Assign a Device, or one of its Components, to a Room. `roomId: null`
+ * clears the assignment; a Component then inherits its Device's Room.
+ */
+export const assignRoomRequestSchema = z.object({
+    deviceId: z.string().min(1),
+    componentId: z.string().trim().min(1).max(255).optional(),
+    roomId: z.string().min(1).nullable(),
+})
+export type AssignRoomRequest = z.infer<typeof assignRoomRequestSchema>
+
+export const renameRoomRequestSchema = z.object({
+    roomId: z.string().min(1),
+    name: z.string().trim().min(1).max(255),
+})
+export type RenameRoomRequest = z.infer<typeof renameRoomRequestSchema>
+
 export const patchOutletRequestSchema = z.object({
     name: z.string().trim().min(1),
 })

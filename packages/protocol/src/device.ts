@@ -16,6 +16,8 @@ export const deviceSchema = z.object({
     roomId: z.string().nullable().optional(),
     online: z.boolean(),
     externalId: z.string().optional(),
+    /** Components assigned to a Room other than the Device's, by Component ID. */
+    componentRooms: z.record(z.string(), z.string()).optional(),
     state: deviceStateSchema
         .nullish()
         .transform((value): DeviceState | undefined => value ?? undefined),
