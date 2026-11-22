@@ -3,6 +3,7 @@ import { View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { DrawerMenuButton } from '~/components/drawer-menu-button'
+import { EnergySummaryView } from '~/components/energy-summary'
 import { Text } from '~/components/ui/text'
 
 const StyledSafeAreaView = styled(SafeAreaView)
@@ -16,6 +17,9 @@ export default function EnergyScreen() {
                         Energy
                     </Text>
                     <DrawerMenuButton />
+                </View>
+                <View className="min-h-0 flex-1">
+                    <EnergySummaryView />
                 </View>
             </StyledSafeAreaView>
         </View>
