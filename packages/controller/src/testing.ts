@@ -5,11 +5,14 @@
  * `fakeControllerConnectors(...controllers)` as `connectors` to a
  * `ControllerConnection` (or `ControllerProvider`) and the real LAN-then-Relay
  * selection runs against scripted reachability, credentials, Devices, Rooms,
- * events, and Command results. Nothing touches the network.
+ * events, Command results, and Device and Room setup (with Membership and
+ * unsupported-Controller rejections). Nothing touches the network.
  */
 import {
     ApiError,
+    type AssignRoomRequest,
     type CommandResult,
+    type CreateRoomRequest,
     type Device,
     type DeviceCommand,
     type DeviceEvent,
@@ -17,6 +20,10 @@ import {
     type HomeMeterDesignation,
     type IdentifyResponse,
     type PairResponse,
+    type PatchDeviceRequest,
+    type PatchRoomRequest,
+    type RenameDeviceRequest,
+    type RenameRoomRequest,
     type Room,
     type SessionMintResult,
 } from '@nemu/protocol'
@@ -62,6 +69,15 @@ export class FakeController {
     /** Commands received, in order, with the transport that carried them. */
     readonly commands: Array<{ command: DeviceCommand; via: TransportMode }> =
         []
+    /** Set false to act as a Membership that is no longer active. */
+    membershipActive = true
+    /** Set false to act as a Controller that predates Device and Room setup. */
+    setupSupported = true
+    /** Setup requests that reached this Controller, with their transport. */
+    readonly setupRequests: Array<{ type: string; via: TransportMode }> = []
+    /** Device tombstones kept for removed Devices (ADR-0017). */
+    readonly removedDevices: Device[] = []
+    private createdRooms = 0
     /** Every token any Access Client presented to this Controller. */
     readonly presentedTokens: Array<string | null> = []
     private readonly tokens: Set<string>
@@ -139,6 +155,111 @@ export class FakeController {
     setDevices(devices: Device[]): void {
         this.devices = devices
         this.emit({ type: 'resync' })
+    }
+
+    /**
+     * Apply one setup request with the Controller's rules: active Owners and
+     * Members only, the same outcome over LAN and Relay.
+     * @internal
+     */
+    setup<T>(type: string, via: TransportMode, apply: () => T): T {
+        if (!this.setupSupported) {
+            throw new ApiError(
+                'unsupported_action',
+                `This Controller does not support ${JSON.stringify(type)}. Update the Controller.`
+            )
+        }
+        if (!this.membershipActive) {
+            throw new ApiError(
+                'membership_inactive',
+                'This Membership is not active',
+                403
+            )
+        }
+        this.setupRequests.push({ type, via })
+        return apply()
+    }
+
+    /** @internal */
+    renameDevice({ deviceId, name }: RenameDeviceRequest): Device {
+        const device = this.requireDevice(deviceId)
+        device.name = requireName(name)
+        return structuredClone(device)
+    }
+
+    /** @internal */
+    assignRoom({ deviceId, componentId, roomId }: AssignRoomRequest): Device {
+        const device = this.requireDevice(deviceId)
+        if (roomId !== null) this.requireRoom(roomId)
+        if (componentId === undefined) {
+            device.roomId = roomId
+        } else {
+            const rooms = { ...device.componentRooms }
+            if (roomId === null) delete rooms[componentId]
+            else rooms[componentId] = roomId
+            device.componentRooms =
+                Object.keys(rooms).length > 0 ? rooms : undefined
+        }
+        return structuredClone(device)
+    }
+
+    /** @internal */
+    removeDevice(deviceId: string): void {
+        const device = this.requireDevice(deviceId)
+        this.devices = this.devices.filter((other) => other !== device)
+        this.removedDevices.push(device)
+    }
+
+    /** @internal */
+    createRoom({ name, sortOrder }: CreateRoomRequest): Room {
+        this.createdRooms += 1
+        const room = {
+            id: `room-${this.createdRooms}`,
+            name: requireName(name),
+            sortOrder: sortOrder ?? 0,
+        }
+        this.rooms.push(room)
+        return structuredClone(room)
+    }
+
+    /** @internal */
+    updateRoom(roomId: string, patch: PatchRoomRequest): Room {
+        const room = this.requireRoom(roomId)
+        if (patch.name !== undefined) room.name = requireName(patch.name)
+        if (patch.sortOrder !== undefined) room.sortOrder = patch.sortOrder
+        return structuredClone(room)
+    }
+
+    /** @internal */
+    deleteRoom(roomId: string): void {
+        const room = this.requireRoom(roomId)
+        const occupied = this.devices.some(
+            (device) =>
+                device.roomId === roomId ||
+                Object.values(device.componentRooms ?? {}).includes(roomId)
+        )
+        if (occupied) {
+            throw new ApiError(
+                'room_not_empty',
+                "Move this Room's Devices and Components to another Room first",
+                409
+            )
+        }
+        this.rooms = this.rooms.filter((other) => other !== room)
+    }
+
+    private requireDevice(deviceId: string): Device {
+        const device = this.devices.find((d) => d.id === deviceId)
+        if (!device) {
+            throw new ApiError('device_not_found', 'Device not found', 404)
+        }
+        return device
+    }
+
+    private requireRoom(roomId: string): Room {
+        const room = this.rooms.find((r) => r.id === roomId)
+        if (!room) throw new ApiError('room_not_found', 'Room not found', 404)
+        return room
     }
 
     /** Disconnect live transports, as if the network dropped. */
@@ -224,6 +345,68 @@ export class FakeTransport implements ControllerTransport {
         return this.controller.commandResult(command)
     }
 
+    async renameDevice(request: RenameDeviceRequest): Promise<Device> {
+        return this.setup('renameDevice', () =>
+            this.controller.renameDevice(request)
+        )
+    }
+
+    async assignRoom(request: AssignRoomRequest): Promise<Device> {
+        return this.setup('assignRoom', () =>
+            this.controller.assignRoom(request)
+        )
+    }
+
+    async removeDevice(deviceId: string): Promise<void> {
+        this.setup('removeDevice', () => this.controller.removeDevice(deviceId))
+    }
+
+    async forgetDevice(deviceId: string): Promise<void> {
+        await this.removeDevice(deviceId)
+    }
+
+    async patchDevice(
+        deviceId: string,
+        patch: PatchDeviceRequest
+    ): Promise<Device> {
+        let device: Device | undefined
+        if (patch.name !== undefined) {
+            device = await this.renameDevice({ deviceId, name: patch.name })
+        }
+        if (patch.roomId !== undefined) {
+            device = await this.assignRoom({ deviceId, roomId: patch.roomId })
+        }
+        if (!device) throw new ApiError('empty_patch', 'Nothing to change')
+        return device
+    }
+
+    async createRoom(request: CreateRoomRequest): Promise<Room> {
+        return this.setup('createRoom', () =>
+            this.controller.createRoom(request)
+        )
+    }
+
+    async renameRoom({ roomId, name }: RenameRoomRequest): Promise<Room> {
+        return this.setup('updateRoom', () =>
+            this.controller.updateRoom(roomId, { name })
+        )
+    }
+
+    async patchRoom(roomId: string, patch: PatchRoomRequest): Promise<Room> {
+        return this.setup('updateRoom', () =>
+            this.controller.updateRoom(roomId, patch)
+        )
+    }
+
+    async deleteRoom(roomId: string): Promise<void> {
+        this.setup('deleteRoom', () => this.controller.deleteRoom(roomId))
+    }
+
+    private setup<T>(type: string, apply: () => T): T {
+        this.authorize()
+        return this.controller.setup(type, this.mode, apply)
+    }
+
     async queryHistory(): Promise<HistoryQueryRead> {
         throw new Error('History is not scripted on FakeController')
     }
@@ -260,6 +443,18 @@ export class FakeTransport implements ControllerTransport {
             throw new ApiError('unauthorized', 'Invalid client token', 401)
         }
     }
+}
+
+function requireName(raw: string): string {
+    const name = raw.trim()
+    if (!name || name.length > 255) {
+        throw new ApiError(
+            'invalid_name',
+            'Names must be 1 to 255 characters',
+            400
+        )
+    }
+    return name
 }
 
 /**

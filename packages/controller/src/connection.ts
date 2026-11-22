@@ -1,6 +1,7 @@
 import {
     ApiError,
     type ApplyUpdateResponse,
+    type AssignRoomRequest,
     type BootstrapOwnerRequest,
     CapabilitySession,
     type CapabilityView,
@@ -25,6 +26,8 @@ import {
     type PatchRoomRequest,
     type PermitJoinResponse,
     type ReleaseChannel,
+    type RenameDeviceRequest,
+    type RenameRoomRequest,
     type Room,
     type SaveMatterWifiRequest,
     type SwitchReleaseChannelResponse,
@@ -57,6 +60,13 @@ import type { ControllerTransport } from './transports/types.ts'
  * WebSocket, and Convex Relay; tests pass a fake Controller here
  * (see `@nemu/controller/testing`).
  */
+function unsupported(operation: string): ApiError {
+    return new ApiError(
+        'unsupported_action',
+        `${operation} is not supported by this Controller. Update the Controller.`
+    )
+}
+
 export type ControllerConnectors = {
     discover: (
         candidates: string[] | undefined,
@@ -335,33 +345,49 @@ export class ControllerConnection {
         return await transport.getRooms()
     }
 
+    /** Device and Room setup works the same over LAN and Relay. */
+    async renameDevice(request: RenameDeviceRequest): Promise<Device> {
+        const transport = this.requireSetupTransport()
+        if (!transport.renameDevice) throw unsupported('Renaming Devices')
+        return await transport.renameDevice(request)
+    }
+
+    /** Assign a Device, or one Component with `componentId`, to a Room. */
+    async assignRoom(request: AssignRoomRequest): Promise<Device> {
+        const transport = this.requireSetupTransport()
+        if (!transport.assignRoom) throw unsupported('Assigning Rooms')
+        return await transport.assignRoom(request)
+    }
+
+    /** Remove a Device. The Controller keeps a Device tombstone. */
+    async removeDevice(deviceId: string): Promise<void> {
+        const transport = this.requireSetupTransport()
+        if (!transport.removeDevice) throw unsupported('Removing Devices')
+        await transport.removeDevice(deviceId)
+    }
+
     async createRoom(request: CreateRoomRequest): Promise<Room> {
-        const transport = this.requireLanTransport('Creating rooms')
-        if (!transport.createRoom) {
-            throw new Error(
-                'Creating rooms is not supported by this controller'
-            )
-        }
+        const transport = this.requireSetupTransport()
+        if (!transport.createRoom) throw unsupported('Creating Rooms')
         return await transport.createRoom(request)
     }
 
+    async renameRoom(request: RenameRoomRequest): Promise<Room> {
+        const transport = this.requireSetupTransport()
+        if (!transport.renameRoom) throw unsupported('Renaming Rooms')
+        return await transport.renameRoom(request)
+    }
+
     async patchRoom(roomId: string, patch: PatchRoomRequest): Promise<Room> {
-        const transport = this.requireLanTransport('Updating rooms')
-        if (!transport.patchRoom) {
-            throw new Error(
-                'Updating rooms is not supported by this controller'
-            )
-        }
+        const transport = this.requireSetupTransport()
+        if (!transport.patchRoom) throw unsupported('Updating Rooms')
         return await transport.patchRoom(roomId, patch)
     }
 
+    /** Dashboard only. The Controller refuses while Devices are assigned. */
     async deleteRoom(roomId: string): Promise<void> {
-        const transport = this.requireLanTransport('Deleting rooms')
-        if (!transport.deleteRoom) {
-            throw new Error(
-                'Deleting rooms is not supported by this controller'
-            )
-        }
+        const transport = this.requireSetupTransport()
+        if (!transport.deleteRoom) throw unsupported('Deleting Rooms')
         await transport.deleteRoom(roomId)
     }
 
@@ -369,12 +395,8 @@ export class ControllerConnection {
         deviceId: string,
         patch: PatchDeviceRequest
     ): Promise<Device> {
-        const transport = this.requireLanTransport('Device configuration')
-        if (!transport.patchDevice) {
-            throw new Error(
-                'Device configuration is not supported by this controller'
-            )
-        }
+        const transport = this.requireSetupTransport()
+        if (!transport.patchDevice) throw unsupported('Device configuration')
         return await transport.patchDevice(deviceId, patch)
     }
 
@@ -391,13 +413,7 @@ export class ControllerConnection {
     }
 
     async forgetDevice(deviceId: string): Promise<void> {
-        const transport = this.requireLanTransport('Forgetting devices')
-        if (!transport.forgetDevice) {
-            throw new Error(
-                'Forgetting devices is not supported by this controller'
-            )
-        }
-        await transport.forgetDevice(deviceId)
+        await this.removeDevice(deviceId)
     }
 
     /**
@@ -538,6 +554,11 @@ export class ControllerConnection {
             throw new Error(`${operation} requires a Home connection`)
         }
         return this.transport
+    }
+
+    /** Setup never queues: it needs a live LAN or Relay connection now. */
+    private requireSetupTransport(): ControllerTransport {
+        return this.requireConnectedTransport('Device and Room setup')
     }
 
     private requireConnectedTransport(operation: string): ControllerTransport {

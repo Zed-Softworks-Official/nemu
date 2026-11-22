@@ -1,11 +1,15 @@
 import {
     ApiError,
     type ApplyUpdateResponse,
+    type AssignRoomRequest,
     applyUpdateResponseSchema,
+    assignRoomRequestSchema,
     type BootstrapOwnerRequest,
     type ClientToken,
     type CommandResult,
+    type CreateRoomRequest,
     clientTokenSchema,
+    createRoomRequestSchema,
     type Device,
     type DeviceCommand,
     type DeviceEvent,
@@ -17,11 +21,19 @@ import {
     historyQueryReadSchema,
     homeMeterDesignationResultSchema,
     householdMemberSchema,
+    type PatchDeviceRequest,
+    type PatchRoomRequest,
     parseDeviceList,
+    patchRoomRequestSchema,
+    type RelayToControllerEnvelope,
     type ReleaseChannel,
+    type RenameDeviceRequest,
+    type RenameRoomRequest,
     type Room,
     relayToClientEnvelopeSchema,
     relayToControllerEnvelopeSchema,
+    renameDeviceRequestSchema,
+    renameRoomRequestSchema,
     type SwitchReleaseChannelResponse,
     switchReleaseChannelResponseSchema,
     type UpdateStatusResponse,
@@ -55,6 +67,11 @@ export type RelayApi = {
         RelayResponseDoc[]
     >
 }
+
+type RelayRequestMessage = Extract<
+    RelayToControllerEnvelope,
+    { clientToken: string }
+>['message']
 
 export type RelayTransportOptions = {
     convex: ConvexReactClient
@@ -289,6 +306,109 @@ export class RelayTransport implements ControllerTransport {
         throw new Error('Unexpected relay response for switchReleaseChannel')
     }
 
+    async renameDevice(request: RenameDeviceRequest): Promise<Device> {
+        return this.expectDevice(
+            {
+                type: 'renameDevice',
+                ...renameDeviceRequestSchema.parse(request),
+            },
+            'rename the Device'
+        )
+    }
+
+    async assignRoom(request: AssignRoomRequest): Promise<Device> {
+        return this.expectDevice(
+            { type: 'assignRoom', ...assignRoomRequestSchema.parse(request) },
+            'assign the Room'
+        )
+    }
+
+    async removeDevice(deviceId: string): Promise<void> {
+        await this.expectOk(
+            { type: 'removeDevice', deviceId },
+            'remove the Device'
+        )
+    }
+
+    async forgetDevice(deviceId: string): Promise<void> {
+        await this.removeDevice(deviceId)
+    }
+
+    /** Dashboard shape: rename and Room assignment in one call. */
+    async patchDevice(
+        deviceId: string,
+        patch: PatchDeviceRequest
+    ): Promise<Device> {
+        let device: Device | undefined
+        if (patch.name !== undefined) {
+            device = await this.renameDevice({ deviceId, name: patch.name })
+        }
+        if (patch.roomId !== undefined) {
+            device = await this.assignRoom({ deviceId, roomId: patch.roomId })
+        }
+        if (!device) throw new Error('name or roomId is required')
+        return device
+    }
+
+    async createRoom(request: CreateRoomRequest): Promise<Room> {
+        return this.expectRoom(
+            { type: 'createRoom', ...createRoomRequestSchema.parse(request) },
+            'create the Room'
+        )
+    }
+
+    async renameRoom(request: RenameRoomRequest): Promise<Room> {
+        return this.expectRoom(
+            { type: 'updateRoom', ...renameRoomRequestSchema.parse(request) },
+            'rename the Room'
+        )
+    }
+
+    async patchRoom(roomId: string, patch: PatchRoomRequest): Promise<Room> {
+        return this.expectRoom(
+            {
+                type: 'updateRoom',
+                roomId,
+                ...patchRoomRequestSchema.parse(patch),
+            },
+            'update the Room'
+        )
+    }
+
+    async deleteRoom(roomId: string): Promise<void> {
+        await this.expectOk({ type: 'deleteRoom', roomId }, 'delete the Room')
+    }
+
+    private async expectDevice(
+        message: RelayRequestMessage,
+        action: string
+    ): Promise<Device> {
+        const parsed = await this.request(message)
+        if (parsed.message.type === 'device') return parsed.message.device
+        this.throwIfCommandError(parsed, action)
+        throw new Error(`Unexpected relay response for ${message.type}`)
+    }
+
+    private async expectRoom(
+        message: RelayRequestMessage,
+        action: string
+    ): Promise<Room> {
+        const parsed = await this.request(message)
+        if (parsed.message.type === 'room') return parsed.message.room
+        this.throwIfCommandError(parsed, action)
+        throw new Error(`Unexpected relay response for ${message.type}`)
+    }
+
+    private async expectOk(
+        message: RelayRequestMessage,
+        action: string
+    ): Promise<void> {
+        const parsed = await this.request(message)
+        if (parsed.message.type === 'commandResult' && parsed.message.ok) return
+        this.throwIfCommandError(parsed, action)
+        throw new Error(`Unexpected relay response for ${message.type}`)
+    }
+
     async getMembers(): Promise<HouseholdMember[]> {
         const parsed = await this.request({ type: 'listMembers' })
         if (parsed.message.type === 'members') {
@@ -366,17 +486,15 @@ export class RelayTransport implements ControllerTransport {
         action: string
     ): void {
         if (parsed.message.type === 'commandResult' && !parsed.message.ok) {
-            throw new Error(
+            throw new ApiError(
+                parsed.message.error?.code ?? 'command_failed',
                 parsed.message.error?.message ?? `Failed to ${action}`
             )
         }
     }
 
     private async request(
-        message: Extract<
-            import('@nemu/protocol').RelayToControllerEnvelope,
-            { clientToken: string }
-        >['message']
+        message: RelayRequestMessage
     ): Promise<ReturnType<typeof relayToClientEnvelopeSchema.parse>> {
         const requestId = crypto.randomUUID()
         const token = this.getToken()

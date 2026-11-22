@@ -2,6 +2,7 @@
 
 import {
     type ApplyUpdateResponse,
+    type AssignRoomRequest,
     type BootstrapOwnerRequest,
     type CapabilityView,
     type ClientToken,
@@ -26,6 +27,8 @@ import {
     type PatchRoomRequest,
     type PermitJoinResponse,
     type ReleaseChannel,
+    type RenameDeviceRequest,
+    type RenameRoomRequest,
     type Room,
     type SaveMatterWifiRequest,
     type SwitchReleaseChannelResponse,
@@ -84,6 +87,16 @@ type ControllerContextValue = {
         patch: PatchOutletRequest
     ) => Promise<void>
     forgetDevice: (deviceId: string) => Promise<void>
+    /**
+     * Device and Room setup over LAN or Relay. Each rejects with an
+     * `ApiError` whose `code` comes from the Controller, for example
+     * `membership_inactive`, `room_not_empty`, or `unsupported_action`.
+     * Nothing is queued while the Controller is unreachable.
+     */
+    renameDevice: (request: RenameDeviceRequest) => Promise<Device>
+    assignRoom: (request: AssignRoomRequest) => Promise<Device>
+    removeDevice: (deviceId: string) => Promise<void>
+    renameRoom: (request: RenameRoomRequest) => Promise<Room>
     getMembers: () => Promise<HouseholdMember[]>
     inviteMember: (email: string) => Promise<HouseholdMember>
     removeMember: (memberId: string) => Promise<void>
@@ -248,6 +261,22 @@ export function ControllerProvider({
         (deviceId: string) => connection.forgetDevice(deviceId),
         [connection]
     )
+    const renameDevice = useCallback(
+        (request: RenameDeviceRequest) => connection.renameDevice(request),
+        [connection]
+    )
+    const assignRoom = useCallback(
+        (request: AssignRoomRequest) => connection.assignRoom(request),
+        [connection]
+    )
+    const removeDevice = useCallback(
+        (deviceId: string) => connection.removeDevice(deviceId),
+        [connection]
+    )
+    const renameRoom = useCallback(
+        (request: RenameRoomRequest) => connection.renameRoom(request),
+        [connection]
+    )
     const getMembers = useCallback(() => connection.getMembers(), [connection])
     const inviteMember = useCallback(
         (email: string) => connection.inviteMember(email),
@@ -309,6 +338,10 @@ export function ControllerProvider({
             patchDevice,
             patchOutlet,
             forgetDevice,
+            renameDevice,
+            assignRoom,
+            removeDevice,
+            renameRoom,
             getMembers,
             inviteMember,
             removeMember,
@@ -342,6 +375,10 @@ export function ControllerProvider({
             patchDevice,
             patchOutlet,
             forgetDevice,
+            renameDevice,
+            assignRoom,
+            removeDevice,
+            renameRoom,
             getMembers,
             inviteMember,
             removeMember,

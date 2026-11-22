@@ -1,5 +1,6 @@
 import type {
     ApplyUpdateResponse,
+    AssignRoomRequest,
     BootstrapOwnerRequest,
     ClientToken,
     CommandResult,
@@ -20,6 +21,8 @@ import type {
     PatchRoomRequest,
     PermitJoinResponse,
     ReleaseChannel,
+    RenameDeviceRequest,
+    RenameRoomRequest,
     Room,
     SaveMatterWifiRequest,
     SwitchReleaseChannelResponse,
@@ -67,6 +70,11 @@ export interface ControllerTransport {
         patch: PatchOutletRequest
     ): Promise<void>
     forgetDevice?(deviceId: string): Promise<void>
+    /** Device and Room setup. Same requests and outcomes over LAN and Relay. */
+    renameDevice?(request: RenameDeviceRequest): Promise<Device>
+    assignRoom?(request: AssignRoomRequest): Promise<Device>
+    removeDevice?(deviceId: string): Promise<void>
+    renameRoom?(request: RenameRoomRequest): Promise<Room>
     getMembers?(): Promise<HouseholdMember[]>
     inviteMember?(email: string): Promise<HouseholdMember>
     removeMember?(memberId: string): Promise<void>
