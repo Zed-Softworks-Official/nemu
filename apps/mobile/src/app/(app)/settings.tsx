@@ -2,6 +2,7 @@ import { styled } from 'nativewind'
 import { View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
+import { HomeAccessSettings } from '~/components/home-access-settings'
 import { useHomeSession } from '~/components/home-session'
 import { ScreenHeader } from '~/components/screen-header'
 import { Button } from '~/components/ui/button'
@@ -10,7 +11,7 @@ import { Text } from '~/components/ui/text'
 const StyledSafeAreaView = styled(SafeAreaView)
 
 export default function SettingsScreen() {
-    const { activeHome, switchHome, forgetPairing } = useHomeSession()
+    const { activeHome, switchHome } = useHomeSession()
 
     return (
         <View className="flex-1 bg-background">
@@ -27,14 +28,8 @@ export default function SettingsScreen() {
                             variant="outline"
                         />
                     </View>
-                    <View className="flex-row">
-                        <Button
-                            onPress={forgetPairing}
-                            title="Pair this phone again"
-                            variant="ghost"
-                        />
-                    </View>
                 </View>
+                <HomeAccessSettings />
             </StyledSafeAreaView>
         </View>
     )

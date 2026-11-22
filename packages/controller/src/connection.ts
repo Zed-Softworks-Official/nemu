@@ -525,16 +525,31 @@ export class ControllerConnection {
         await transport.revokeToken(tokenId)
     }
 
+    /** Access Client revocation: only this Access Client loses access. */
     async revokeCurrentToken(): Promise<void> {
         const transport = this.requireConnectedTransport(
-            'Unpairing this dashboard'
+            'Removing this Access Client'
         )
         if (!transport.revokeCurrentToken) {
             throw new Error(
-                'Unpairing this dashboard is not supported by this controller'
+                'Removing this Access Client is not supported by this controller'
             )
         }
         await transport.revokeCurrentToken()
+    }
+
+    /**
+     * Leaving a Home: the Controller ends the caller's Membership and revokes
+     * every Access Client it holds, this one included.
+     */
+    async leaveHome(): Promise<void> {
+        const transport = this.requireConnectedTransport('Leaving the Home')
+        if (!transport.leaveHome) {
+            throw new Error(
+                'Leaving the Home is not supported by this controller'
+            )
+        }
+        await transport.leaveHome()
     }
 
     async bootstrapOwner(

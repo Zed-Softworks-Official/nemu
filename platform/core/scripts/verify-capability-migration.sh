@@ -45,3 +45,4 @@ cargo test --locked \
     -- --ignored --exact
 cargo test --locked -- --ignored command_audit_diagnostic_
 cargo test --locked -- --ignored devices::setup_store::tests::
+cargo test --locked api::access::tests -- --ignored

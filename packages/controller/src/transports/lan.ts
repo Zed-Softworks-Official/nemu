@@ -397,6 +397,10 @@ export class LanTransport implements ControllerTransport {
         await this.http.delete('/api/tokens/current')
     }
 
+    async leaveHome(): Promise<void> {
+        await this.http.post('/api/members/leave')
+    }
+
     async bootstrapOwner(
         request: BootstrapOwnerRequest
     ): Promise<HouseholdMember> {

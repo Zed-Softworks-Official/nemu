@@ -461,8 +461,17 @@ export class RelayTransport implements ControllerTransport {
         if (parsed.message.type === 'commandResult' && parsed.message.ok) {
             return
         }
-        this.throwIfCommandError(parsed, 'unpair this dashboard')
+        this.throwIfCommandError(parsed, 'remove this Access Client')
         throw new Error('Unexpected relay response for revokeCurrent')
+    }
+
+    async leaveHome(): Promise<void> {
+        const parsed = await this.request({ type: 'leaveHome' })
+        if (parsed.message.type === 'commandResult' && parsed.message.ok) {
+            return
+        }
+        this.throwIfCommandError(parsed, 'leave the Home')
+        throw new Error('Unexpected relay response for leaveHome')
     }
 
     async bootstrapOwner(
@@ -486,8 +495,9 @@ export class RelayTransport implements ControllerTransport {
         action: string
     ): void {
         if (parsed.message.type === 'commandResult' && !parsed.message.ok) {
+            // Same error shape as LAN, so callers can act on the code.
             throw new ApiError(
-                parsed.message.error?.code ?? 'command_failed',
+                parsed.message.error?.code ?? 'relay_error',
                 parsed.message.error?.message ?? `Failed to ${action}`
             )
         }

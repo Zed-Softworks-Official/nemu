@@ -68,8 +68,10 @@ type HomeSessionValue = {
     /** Called after the person acknowledges a successful pairing. */
     completePairing: () => void
     /**
-     * Drop this phone's stored credential for the active Home so it can pair
-     * again, e.g. after an Owner revoked it. Does not revoke on the Controller.
+     * Drop this phone's stored credential for the active Home only. Does not
+     * revoke on the Controller: Settings offers it on its own only as
+     * "Forget on this phone" when the Controller is unreachable, and after
+     * the Controller has confirmed a revocation or a Leave.
      */
     forgetPairing: () => void
 }

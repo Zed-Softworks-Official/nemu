@@ -85,7 +85,10 @@ const authenticatedRelayMessageSchema = z.union([
     z.object({ type: z.literal('removeMember'), memberId: z.string() }),
     z.object({ type: z.literal('listTokens') }),
     z.object({ type: z.literal('revokeToken'), tokenId: z.string() }),
+    /** Access Client revocation: only the calling Access Client loses access. */
     z.object({ type: z.literal('revokeCurrent') }),
+    /** Leaving a Home: ends the caller's own Membership. */
+    z.object({ type: z.literal('leaveHome') }),
     z.object({
         type: z.literal('bootstrapOwner'),
         userId: z.string(),

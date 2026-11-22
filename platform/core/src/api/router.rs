@@ -97,6 +97,7 @@ pub fn router(state: AppState) -> Router {
             "/api/members/bootstrap",
             post(members::bootstrap_owner_handler),
         )
+        .route("/api/members/leave", post(members::leave_home_handler))
         .route("/api/members/{id}", delete(members::delete_member_handler))
         .route("/api/audit", get(audit::list_audit))
         .route(
