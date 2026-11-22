@@ -1,4 +1,30 @@
+import {
+    canonicalQuantity,
+    coverageLabel,
+    energyDirectionPlan,
+    formatEnergy,
+    formatPower,
+    type HomeMeterQuantities,
+    historyPointIsKnown,
+} from '@nemu/controller/energy'
 import type { PresentedDevice } from './device-presentation'
+
+export {
+    coverageLabel,
+    type EnergyDirection,
+    type EnergyPlan,
+    type EnergySummary,
+    energyDirectionPlan,
+    formatEnergy,
+    formatPower,
+    type HomeMeterQuantities,
+    homeHistoryQuery,
+    type LivePowerFlow,
+    livePowerFlow,
+    livePowerFlowLabel,
+    presentEnergySummary,
+    todayHistoryWindow,
+} from '@nemu/controller/energy'
 
 type MeterValues =
     | { power: number; energy?: number }
@@ -107,18 +133,6 @@ export function appendPowerSample({
     }
 }
 
-export function formatPower(watts: number): string {
-    return `${new Intl.NumberFormat('en', {
-        maximumFractionDigits: Math.abs(watts) >= 10 ? 0 : 1,
-    }).format(watts)} W`
-}
-
-export function formatEnergy(kwh: number): string {
-    return `${new Intl.NumberFormat('en', {
-        maximumFractionDigits: 3,
-    }).format(kwh)} kWh`
-}
-
 export function formatVoltage(volts: number): string {
     return formatGauge(volts, 'V')
 }
@@ -156,21 +170,6 @@ function formatGauge(value: number, unit: 'A' | 'V'): string {
         maximumFractionDigits: Math.abs(value) >= 10 ? 0 : 2,
     }).format(value)} ${unit}`
 }
-
-/** Readings closer than this display as 0.0 W when no resolution is known. */
-const DISPLAY_IDLE_WATTS = 0.05
-
-export type LivePowerFlow = 'importing' | 'exporting' | 'idle'
-
-export type HomeMeterQuantities = {
-    powerCapabilityId: string | null
-    importedEnergyCapabilityId: string | null
-    exportedEnergyCapabilityId: string | null
-}
-
-export type EnergyPlan = 'measured' | 'estimated' | 'absent'
-
-export type EnergyDirection = 'imported' | 'exported'
 
 export type HistoryRangeId = '24h' | '7d' | '30d' | '12mo'
 
@@ -292,59 +291,6 @@ export type PresentedHistorySeries = {
     points: PresentedHistoryPoint[]
 }
 
-export type EnergySummary = {
-    kind: 'measured' | 'estimated'
-    label: string
-    quantityKwh: number | null
-    unknown: boolean
-    coverageLabel: string
-}
-
-/**
- * Positive power is import and negative power is export, matching the
- * Controller. A zero reading, a value inside the meter's resolution, or a
- * reading that displays as 0.0 W is Idle.
- */
-export function livePowerFlow(
-    watts: number,
-    resolutionWatts = 0
-): LivePowerFlow | undefined {
-    if (!Number.isFinite(watts)) return undefined
-    const resolution =
-        Number.isFinite(resolutionWatts) && resolutionWatts > 0
-            ? resolutionWatts
-            : 0
-    const idle =
-        watts === 0 ||
-        (resolution > 0
-            ? Math.abs(watts) <= resolution
-            : Math.abs(watts) < DISPLAY_IDLE_WATTS)
-    if (idle) return 'idle'
-    return watts > 0 ? 'importing' : 'exporting'
-}
-
-export function livePowerFlowLabel(flow: LivePowerFlow): string {
-    if (flow === 'importing') return 'Importing'
-    if (flow === 'exporting') return 'Exporting'
-    return 'Idle'
-}
-
-export function energyDirectionPlan(designation: HomeMeterQuantities): {
-    imported: EnergyPlan
-    exported: EnergyPlan
-} {
-    return {
-        imported: directionPlan(
-            designation.importedEnergyCapabilityId,
-            designation.powerCapabilityId
-        ),
-        exported: directionPlan(
-            designation.exportedEnergyCapabilityId,
-            designation.powerCapabilityId
-        ),
-    }
-}
-
 export function chartModesForDesignation(
     designation: HomeMeterQuantities
 ): Array<'power' | 'energy'> {
@@ -355,40 +301,6 @@ export function chartModesForDesignation(
         modes.push('energy')
     }
     return modes
-}
-
-export function presentEnergySummary(input: {
-    direction: EnergyDirection
-    plan: EnergyPlan
-    series: {
-        provenance: 'measured' | 'estimated'
-        coverage: Coverage
-        points: HistoryPointInput[]
-    } | null
-}): EnergySummary | null {
-    if (input.plan === 'absent') return null
-    const known =
-        input.series?.points.filter((point) => pointIsKnown(point.coverage)) ??
-        []
-    const quantityKwh =
-        known.length === 0
-            ? null
-            : known.reduce(
-                  (total, point) =>
-                      total +
-                      canonicalQuantity(point.value, point.scale) / 1000,
-                  0
-              )
-    const kind = input.plan
-    return {
-        kind,
-        label: `${kind === 'measured' ? 'Measured' : 'Estimated'} ${input.direction}`,
-        quantityKwh,
-        unknown: quantityKwh === null,
-        coverageLabel: input.series
-            ? coverageLabel(input.series.coverage)
-            : 'Unknown',
-    }
 }
 
 export function historyRangeOptions(): Array<{
@@ -419,47 +331,6 @@ export function historyQueryWindow(
         start: start.toISOString(),
         end: end.toISOString(),
         resolution,
-    }
-}
-
-export function todayHistoryWindow(now: Date): HistoryWindow {
-    const start = new Date(now)
-    start.setHours(0, 0, 0, 0)
-    if (start.getTime() >= now.getTime()) {
-        start.setTime(now.getTime() - 60_000)
-    }
-    return {
-        start: start.toISOString(),
-        end: now.toISOString(),
-        resolution: 'fifteen_minute',
-    }
-}
-
-export function homeHistoryQuery(input: {
-    metric: 'power' | 'importedEnergy' | 'exportedEnergy'
-    start: string
-    end: string
-    resolution: HistoryResolutionName
-    breakdown?: boolean
-}): {
-    scope: { type: 'home' }
-    metric: 'power' | 'importedEnergy' | 'exportedEnergy'
-    start: string
-    end: string
-    resolution: HistoryResolutionName
-    freshnessLimitMs: number
-    maxPoints: number
-    breakdown?: boolean
-} {
-    return {
-        scope: { type: 'home' },
-        metric: input.metric,
-        start: input.start,
-        end: input.end,
-        resolution: input.resolution,
-        freshnessLimitMs: 60_000,
-        maxPoints: 1000,
-        ...(input.breakdown ? { breakdown: true } : {}),
     }
 }
 
@@ -603,7 +474,7 @@ export function presentHistorySeries(
         points: series.points.map((point) => ({
             start: point.start,
             end: point.end,
-            value: pointIsKnown(point.coverage)
+            value: historyPointIsKnown(point.coverage)
                 ? displayQuantity(
                       canonicalQuantity(point.value, point.scale),
                       power
@@ -723,32 +594,8 @@ export function designationSelection(
     return selection
 }
 
-function directionPlan(
-    counterId: string | null,
-    powerId: string | null
-): EnergyPlan {
-    if (counterId) return 'measured'
-    if (powerId) return 'estimated'
-    return 'absent'
-}
-
-function canonicalQuantity(value: number, scale: number): number {
-    return value / 10 ** scale
-}
-
 function displayQuantity(quantity: number, power: boolean): number {
     return power ? quantity : quantity / 1000
-}
-
-function pointIsKnown(coverage: Coverage): boolean {
-    if (coverage.elapsedNs <= 0) return true
-    return coverage.coveredNs > 0
-}
-
-export function coverageLabel(coverage: Coverage): string {
-    if (coverage.elapsedNs <= 0) return 'Unknown'
-    const percent = Math.round((coverage.coveredNs / coverage.elapsedNs) * 100)
-    return `${percent}%`
 }
 
 function seriesIsPower(series: HistorySeriesInput): boolean {
