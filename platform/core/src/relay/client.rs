@@ -20,6 +20,7 @@ use crate::commands::execute_set;
 use crate::events::DeviceEvent;
 use crate::pairing::tokens::verify_client_token;
 use crate::registration::{convex_cloud_url, fetch_controller_session, register_with_convex};
+use crate::setup;
 use crate::state::{AppState, CapabilityWatch};
 
 /// HTTP fallback poll interval when the WebSocket client is unavailable.
@@ -127,6 +128,89 @@ enum ToControllerMessage {
     RollbackRelease,
     #[serde(rename = "switchReleaseChannel")]
     SwitchReleaseChannel { channel: String },
+    #[serde(rename = "renameDevice")]
+    RenameDevice {
+        #[serde(rename = "deviceId")]
+        device_id: String,
+        name: String,
+    },
+    #[serde(rename = "assignRoom")]
+    AssignRoom {
+        #[serde(rename = "deviceId")]
+        device_id: String,
+        #[serde(rename = "componentId", default)]
+        component_id: Option<String>,
+        #[serde(rename = "roomId")]
+        room_id: Option<String>,
+    },
+    #[serde(rename = "removeDevice")]
+    RemoveDevice {
+        #[serde(rename = "deviceId")]
+        device_id: String,
+    },
+    #[serde(rename = "createRoom")]
+    CreateRoom {
+        name: String,
+        #[serde(rename = "sortOrder", default)]
+        sort_order: Option<i32>,
+    },
+    #[serde(rename = "updateRoom")]
+    UpdateRoom {
+        #[serde(rename = "roomId")]
+        room_id: String,
+        #[serde(default)]
+        name: Option<String>,
+        #[serde(rename = "sortOrder", default)]
+        sort_order: Option<i32>,
+    },
+    #[serde(rename = "deleteRoom")]
+    DeleteRoom {
+        #[serde(rename = "roomId")]
+        room_id: String,
+    },
+}
+
+/// Why a Relay envelope could not become a request (ADR-0016).
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum EnvelopeRejection {
+    /// This Controller does not know the requested action.
+    UnsupportedAction { request_id: String, action: String },
+    /// A known action arrived in a shape this Controller cannot read.
+    ProtocolMismatch { request_id: String, detail: String },
+    /// No request ID to answer; the envelope is dropped.
+    Unreadable(String),
+}
+
+fn parse_envelope(payload: &str) -> Result<ToControllerEnvelope, EnvelopeRejection> {
+    let raw: JsonValue = serde_json::from_str(payload)
+        .map_err(|e| EnvelopeRejection::Unreadable(format!("invalid envelope: {e}")))?;
+    let request_id = raw
+        .get("requestId")
+        .and_then(JsonValue::as_str)
+        .map(str::to_string);
+    match serde_json::from_value::<ToControllerEnvelope>(raw.clone()) {
+        Ok(envelope) => Ok(envelope),
+        Err(error) => {
+            let Some(request_id) = request_id else {
+                return Err(EnvelopeRejection::Unreadable(format!(
+                    "invalid envelope: {error}"
+                )));
+            };
+            let action = raw
+                .pointer("/message/type")
+                .and_then(JsonValue::as_str)
+                .unwrap_or_default()
+                .to_string();
+            if error.to_string().starts_with("unknown variant") {
+                Err(EnvelopeRejection::UnsupportedAction { request_id, action })
+            } else {
+                Err(EnvelopeRejection::ProtocolMismatch {
+                    request_id,
+                    detail: error.to_string(),
+                })
+            }
+        }
+    }
 }
 
 #[derive(Serialize)]
@@ -340,8 +424,28 @@ async fn handle_message(
     respond_via: &mut RespondVia<'_>,
     message: &PendingMessage,
 ) -> Result<(), String> {
-    let envelope: ToControllerEnvelope =
-        serde_json::from_str(&message.payload).map_err(|e| format!("invalid envelope: {e}"))?;
+    let envelope = match parse_envelope(&message.payload) {
+        Ok(envelope) => envelope,
+        Err(EnvelopeRejection::Unreadable(error)) => return Err(error),
+        Err(EnvelopeRejection::UnsupportedAction { action, .. }) => {
+            let payload = build_error_response(
+                state,
+                &message.request_id,
+                "unsupported_action",
+                &format!("This Controller does not support {action:?}. Update the Controller."),
+            );
+            return respond(state, respond_via, &message.request_id, payload).await;
+        }
+        Err(EnvelopeRejection::ProtocolMismatch { detail, .. }) => {
+            let payload = build_error_response(
+                state,
+                &message.request_id,
+                "protocol_mismatch",
+                &format!("This Controller cannot read the request: {detail}"),
+            );
+            return respond(state, respond_via, &message.request_id, payload).await;
+        }
+    };
 
     if envelope.request_id != message.request_id {
         debug!(
@@ -628,6 +732,53 @@ async fn handle_message(
                 }
             }
         }
+        ToControllerMessage::RenameDevice { device_id, name } => device_outcome(
+            state,
+            &message.request_id,
+            setup::rename_device(state, &auth, &device_id, &name).await,
+        ),
+        ToControllerMessage::AssignRoom {
+            device_id,
+            component_id,
+            room_id,
+        } => device_outcome(
+            state,
+            &message.request_id,
+            setup::assign_room(
+                state,
+                &auth,
+                setup::RoomAssignment {
+                    device_id,
+                    component_id,
+                    room_id,
+                },
+            )
+            .await,
+        ),
+        ToControllerMessage::RemoveDevice { device_id } => done_outcome(
+            state,
+            &message.request_id,
+            setup::remove_device(state, &auth, &device_id).await,
+        ),
+        ToControllerMessage::CreateRoom { name, sort_order } => room_outcome(
+            state,
+            &message.request_id,
+            setup::create_room(state, &auth, &name, sort_order).await,
+        ),
+        ToControllerMessage::UpdateRoom {
+            room_id,
+            name,
+            sort_order,
+        } => room_outcome(
+            state,
+            &message.request_id,
+            setup::update_room(state, &auth, &room_id, name.as_deref(), sort_order).await,
+        ),
+        ToControllerMessage::DeleteRoom { room_id } => done_outcome(
+            state,
+            &message.request_id,
+            setup::delete_room(state, &auth, &room_id).await,
+        ),
         ToControllerMessage::ReleaseStatus => {
             match crate::api::updates::read_release_status(state, &auth).await {
                 Ok(status) => match serde_json::to_value(&status) {
@@ -790,6 +941,45 @@ fn build_command_result(
     sign_envelope(state, envelope)
 }
 
+fn device_outcome(
+    state: &AppState,
+    request_id: &str,
+    result: Result<crate::events::DeviceResource, setup::SetupError>,
+) -> String {
+    match result {
+        Ok(device) => build_typed_response(
+            state,
+            request_id,
+            json!({ "type": "device", "device": device }),
+        ),
+        Err(error) => build_error_response(state, request_id, error.code(), &error.message()),
+    }
+}
+
+fn room_outcome(
+    state: &AppState,
+    request_id: &str,
+    result: Result<crate::events::RoomResource, setup::SetupError>,
+) -> String {
+    match result {
+        Ok(room) => {
+            build_typed_response(state, request_id, json!({ "type": "room", "room": room }))
+        }
+        Err(error) => build_error_response(state, request_id, error.code(), &error.message()),
+    }
+}
+
+fn done_outcome(
+    state: &AppState,
+    request_id: &str,
+    result: Result<(), setup::SetupError>,
+) -> String {
+    match result {
+        Ok(()) => build_command_result(state, request_id, true, None, None),
+        Err(error) => build_error_response(state, request_id, error.code(), &error.message()),
+    }
+}
+
 fn build_error_response(state: &AppState, request_id: &str, code: &str, message: &str) -> String {
     build_command_result(
         state,
@@ -878,4 +1068,74 @@ fn live_capability_watches(state: &AppState) -> Vec<CapabilityWatch> {
     let now = Instant::now();
     watches.retain(|watch| watch.expires_at > now);
     watches.clone()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn envelope(message: JsonValue) -> String {
+        json!({ "requestId": "r1", "clientToken": "t", "message": message }).to_string()
+    }
+
+    #[test]
+    fn parses_device_and_room_setup_requests() {
+        let parsed = parse_envelope(&envelope(json!({
+            "type": "renameDevice", "deviceId": "d", "name": "Lamp"
+        })))
+        .unwrap();
+        assert!(matches!(
+            parsed.message,
+            ToControllerMessage::RenameDevice { ref device_id, ref name }
+                if device_id == "d" && name == "Lamp"
+        ));
+
+        let parsed = parse_envelope(&envelope(json!({
+            "type": "assignRoom", "deviceId": "d", "componentId": "l2", "roomId": null
+        })))
+        .unwrap();
+        assert!(matches!(
+            parsed.message,
+            ToControllerMessage::AssignRoom { ref component_id, room_id: None, .. }
+                if component_id.as_deref() == Some("l2")
+        ));
+
+        for message in [
+            json!({ "type": "removeDevice", "deviceId": "d" }),
+            json!({ "type": "createRoom", "name": "Den" }),
+            json!({ "type": "updateRoom", "roomId": "r", "name": "Den" }),
+            json!({ "type": "deleteRoom", "roomId": "r" }),
+        ] {
+            assert!(
+                parse_envelope(&envelope(message.clone())).is_ok(),
+                "{message}"
+            );
+        }
+    }
+
+    #[test]
+    fn unknown_request_types_are_unsupported_actions() {
+        let rejection = parse_envelope(&envelope(json!({ "type": "teleportDevice" }))).unwrap_err();
+        assert_eq!(
+            rejection,
+            EnvelopeRejection::UnsupportedAction {
+                request_id: "r1".into(),
+                action: "teleportDevice".into(),
+            }
+        );
+    }
+
+    #[test]
+    fn malformed_known_requests_are_protocol_mismatches() {
+        let rejection = parse_envelope(&envelope(json!({ "type": "renameDevice", "deviceId": 7 })))
+            .unwrap_err();
+        assert!(matches!(
+            rejection,
+            EnvelopeRejection::ProtocolMismatch { ref request_id, .. } if request_id == "r1"
+        ));
+        assert!(matches!(
+            parse_envelope("not json").unwrap_err(),
+            EnvelopeRejection::Unreadable(_)
+        ));
+    }
 }

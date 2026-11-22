@@ -253,10 +253,9 @@ mod tests {
         );
         assert_eq!(tombstone.device_id, device.id);
         assert!(
-            load_component_rooms(&mut conn)
+            !load_component_rooms(&mut conn)
                 .unwrap()
-                .get(&device.id)
-                .is_none(),
+                .contains_key(&device.id),
             "Component assignments end with the active Device"
         );
         assert_eq!(
@@ -279,10 +278,9 @@ mod tests {
         );
         set_component_room(&mut conn, device.id, "outlet-1", None).unwrap();
         assert!(
-            load_component_rooms(&mut conn)
+            !load_component_rooms(&mut conn)
                 .unwrap()
-                .get(&device.id)
-                .is_none()
+                .contains_key(&device.id)
         );
         assert!(room_exists(&mut conn, room).unwrap());
         assert!(!room_exists(&mut conn, Uuid::new_v4()).unwrap());

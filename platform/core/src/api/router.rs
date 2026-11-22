@@ -1,7 +1,7 @@
 use axum::Router;
 use axum::http::{HeaderValue, Method};
 use axum::middleware;
-use axum::routing::{delete, get, patch, post};
+use axum::routing::{delete, get, patch, post, put};
 use tower_http::cors::{AllowOrigin, CorsLayer};
 
 use crate::api::middleware::require_client_token;
@@ -63,6 +63,10 @@ pub fn router(state: AppState) -> Router {
                 .delete(devices::delete_device),
         )
         .route("/api/devices/{id}/set", post(devices::set_device))
+        .route(
+            "/api/devices/{id}/components/{component_id}/room",
+            put(devices::put_component_room),
+        )
         .route(
             "/api/devices/{id}/outlets/{outlet_id}",
             patch(devices::patch_outlet),

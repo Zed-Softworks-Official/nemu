@@ -2,7 +2,7 @@ use chrono::Utc;
 use diesel::prelude::*;
 use diesel::upsert::excluded;
 use serde_json::json;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{info, warn};
@@ -11,6 +11,7 @@ use uuid::Uuid;
 use crate::config::Protocol;
 use crate::db::models::{Device, NewDevice, UpdateDevice};
 use crate::db::schema::devices;
+use crate::devices::setup_store;
 use crate::diagnostics::{self, DiagnosticKind, DiagnosticWrite};
 use crate::events::{DeviceEvent, DeviceResource};
 use crate::mqtt::z2m::Z2mDeviceDescriptor;
@@ -31,6 +32,8 @@ pub struct DeviceRegistry {
     by_external: RwLock<HashMap<BridgeKey, Uuid>>,
     by_name: RwLock<HashMap<BridgeKey, Uuid>>,
     by_id: RwLock<HashMap<Uuid, Device>>,
+    /// Component Room assignments that differ from the Device's Room.
+    component_rooms: RwLock<HashMap<Uuid, BTreeMap<String, Uuid>>>,
 }
 
 impl DeviceRegistry {
@@ -40,11 +43,13 @@ impl DeviceRegistry {
 
     pub async fn load_from_db(&self, pool: &DbPool) -> Result<(), String> {
         let conn = pool.get().await.map_err(|e| e.to_string())?;
-        let rows = conn
+        let (rows, component_rooms) = conn
             .interact(|conn| {
-                devices::table
+                let rows = devices::table
                     .select(Device::as_select())
-                    .load::<Device>(conn)
+                    .load::<Device>(conn)?;
+                let component_rooms = setup_store::load_component_rooms(conn)?;
+                Ok::<_, diesel::result::Error>((rows, component_rooms))
             })
             .await
             .map_err(|e| e.to_string())?
@@ -62,6 +67,44 @@ impl DeviceRegistry {
         *self.by_external.write().await = by_external;
         *self.by_name.write().await = by_name;
         *self.by_id.write().await = by_id;
+        *self.component_rooms.write().await = component_rooms.into_iter().collect();
+        Ok(())
+    }
+
+    /// Assign a Component to a Room, or clear it to inherit the Device's Room.
+    pub async fn set_component_room(
+        &self,
+        pool: &DbPool,
+        device_id: Uuid,
+        component_id: String,
+        room_id: Option<Uuid>,
+    ) -> Result<(), String> {
+        let conn = pool.get().await.map_err(|e| e.to_string())?;
+        let stored_id = component_id.clone();
+        conn.interact(move |conn| {
+            setup_store::set_component_room(conn, device_id, &stored_id, room_id)
+        })
+        .await
+        .map_err(|e| e.to_string())?
+        .map_err(|e| e.to_string())?;
+
+        let mut cache = self.component_rooms.write().await;
+        match room_id {
+            Some(room_id) => {
+                cache
+                    .entry(device_id)
+                    .or_default()
+                    .insert(component_id, room_id);
+            }
+            None => {
+                if let Some(rooms) = cache.get_mut(&device_id) {
+                    rooms.remove(&component_id);
+                    if rooms.is_empty() {
+                        cache.remove(&device_id);
+                    }
+                }
+            }
+        }
         Ok(())
     }
 
@@ -227,6 +270,7 @@ impl DeviceRegistry {
                 .map_err(|e| e.to_string())?;
 
                 self.remove_id(id).await;
+                self.component_rooms.write().await.remove(&id);
                 state.state_cache.remove(id);
                 let capability_device = crate::capabilities::DeviceIdentity {
                     protocol: protocol.as_str().into(),
@@ -323,15 +367,23 @@ impl DeviceRegistry {
         let id = device.id;
         let pool = &state.db;
 
+        // Keep a Device tombstone (ADR-0017) while ending the active identity.
         if let Ok(conn) = pool.get().await {
-            let _ = conn
+            let removed_at = Utc::now();
+            match conn
                 .interact(move |conn| {
-                    diesel::delete(devices::table.filter(devices::id.eq(id))).execute(conn)
+                    setup_store::tombstone_and_delete_device(conn, id, removed_at)
                 })
-                .await;
+                .await
+            {
+                Ok(Ok(_)) => {}
+                Ok(Err(error)) => warn!(%id, %error, "failed to tombstone Device"),
+                Err(error) => warn!(%id, %error, "failed to tombstone Device"),
+            }
         }
 
         let removed = self.remove_id(id).await;
+        self.component_rooms.write().await.remove(&id);
         state.state_cache.remove(id);
         let capability_device = crate::capabilities::DeviceIdentity {
             protocol: protocol.as_str().into(),
@@ -417,7 +469,14 @@ impl DeviceRegistry {
             }),
         };
         let cached = state.state_cache.get_state(device.id);
-        DeviceResource::from_device(device, online, cached)
+        let mut resource = DeviceResource::from_device(device, online, cached);
+        if let Some(rooms) = self.component_rooms.read().await.get(&device.id) {
+            resource.component_rooms = rooms
+                .iter()
+                .map(|(component_id, room_id)| (component_id.clone(), room_id.to_string()))
+                .collect();
+        }
+        resource
     }
 }
 

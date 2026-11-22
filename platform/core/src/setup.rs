@@ -5,10 +5,19 @@
 //! (ADR-0023). Owners and Members may perform every operation here (ADR-0006).
 
 use axum::http::StatusCode;
-
+use diesel::pg::PgConnection;
+use diesel::prelude::*;
 use uuid::Uuid;
 
+use crate::api::auth::AuthenticatedClient;
 use crate::api::error::ApiError;
+use crate::audit::{self, AuditKind, AuditWrite};
+use crate::db::models::{NewRoom, Room, UpdateDevice, UpdateRoom};
+use crate::db::schema::rooms;
+use crate::devices::setup_store::{self, RoomDeletion};
+use crate::events::{DeviceResource, RoomResource};
+use crate::pairing::members::find_member_by_user_id;
+use crate::state::AppState;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SetupError {
@@ -133,6 +142,260 @@ pub fn authorize_setup(role: &str, status: &str) -> Result<(), SetupError> {
     }
 }
 
+/// One Device or Component Room assignment. `component_id` targets a
+/// Component; `room_id: None` clears the assignment.
+#[derive(Debug, Clone)]
+pub struct RoomAssignment {
+    pub device_id: String,
+    pub component_id: Option<String>,
+    pub room_id: Option<String>,
+}
+
+/// Rename a Device. The adapter learns the new name before Core stores it.
+pub async fn rename_device(
+    state: &AppState,
+    auth: &AuthenticatedClient,
+    device_id: &str,
+    name: &str,
+) -> Result<DeviceResource, SetupError> {
+    authorize_caller(state, auth).await?;
+    let device_id = parse_id(device_id)?;
+    let name = parse_name(name)?;
+    let existing = state
+        .registry
+        .get(device_id)
+        .await
+        .ok_or(SetupError::DeviceNotFound)?;
+    if name == existing.friendly_name {
+        return Ok(state.registry.to_resource(state, &existing).await);
+    }
+    state
+        .mqtt
+        .rename_device(
+            crate::mqtt::device_protocol(&existing),
+            &existing.external_id,
+            &name,
+        )
+        .await
+        .map_err(SetupError::AdapterUnavailable)?;
+    let device = state
+        .registry
+        .update_device(
+            &state.db,
+            device_id,
+            UpdateDevice {
+                friendly_name: Some(name),
+                ..UpdateDevice::default()
+            },
+        )
+        .await
+        .map_err(SetupError::Internal)?;
+    Ok(state.registry.to_resource(state, &device).await)
+}
+
+/// Assign a Device, or one of its Components, to a Room.
+pub async fn assign_room(
+    state: &AppState,
+    auth: &AuthenticatedClient,
+    assignment: RoomAssignment,
+) -> Result<DeviceResource, SetupError> {
+    authorize_caller(state, auth).await?;
+    let device_id = parse_id(&assignment.device_id)?;
+    let component_id = assignment
+        .component_id
+        .as_deref()
+        .map(parse_component_id)
+        .transpose()?;
+    let room_id = parse_room_target(assignment.room_id.as_deref())?;
+    if state.registry.get(device_id).await.is_none() {
+        return Err(SetupError::DeviceNotFound);
+    }
+    if let Some(room_id) = room_id
+        && !with_conn(state, move |conn| setup_store::room_exists(conn, room_id)).await?
+    {
+        return Err(SetupError::RoomNotFound);
+    }
+    match component_id {
+        Some(component_id) => {
+            state
+                .registry
+                .set_component_room(&state.db, device_id, component_id, room_id)
+                .await
+                .map_err(SetupError::Internal)?;
+        }
+        None => {
+            state
+                .registry
+                .update_device(
+                    &state.db,
+                    device_id,
+                    UpdateDevice {
+                        room_id: Some(room_id),
+                        ..UpdateDevice::default()
+                    },
+                )
+                .await
+                .map_err(SetupError::Internal)?;
+        }
+    }
+    let device = state
+        .registry
+        .get(device_id)
+        .await
+        .ok_or(SetupError::DeviceNotFound)?;
+    Ok(state.registry.to_resource(state, &device).await)
+}
+
+/// Remove a Device from its adapter and keep a Device tombstone (ADR-0017).
+pub async fn remove_device(
+    state: &AppState,
+    auth: &AuthenticatedClient,
+    device_id: &str,
+) -> Result<(), SetupError> {
+    authorize_caller(state, auth).await?;
+    let device_id = parse_id(device_id)?;
+    let existing = state
+        .registry
+        .get(device_id)
+        .await
+        .ok_or(SetupError::DeviceNotFound)?;
+    let protocol = crate::mqtt::device_protocol(&existing);
+    audit::record(
+        &state.db,
+        AuditWrite {
+            kind: AuditKind::DeviceRemoval,
+            actor_user_id: auth.user_id.clone(),
+            summary: format!("removed device {device_id}"),
+            detail: serde_json::json!({
+                "deviceId": device_id,
+                "protocol": protocol.as_str(),
+            }),
+        },
+    )
+    .await
+    .map_err(SetupError::Internal)?;
+    if let Err(error) = state
+        .mqtt
+        .remove_device(protocol, &existing.external_id)
+        .await
+        && !remove_already_gone(&error)
+    {
+        return Err(SetupError::RemoveFailed(error));
+    }
+    state
+        .registry
+        .mark_left(state, protocol, &existing.external_id)
+        .await;
+    Ok(())
+}
+
+pub async fn create_room(
+    state: &AppState,
+    auth: &AuthenticatedClient,
+    name: &str,
+    sort_order: Option<i32>,
+) -> Result<RoomResource, SetupError> {
+    authorize_caller(state, auth).await?;
+    let name = parse_name(name)?;
+    let sort_order = sort_order.unwrap_or(0);
+    let room = with_conn(state, move |conn| {
+        diesel::insert_into(rooms::table)
+            .values(NewRoom {
+                name: &name,
+                sort_order,
+            })
+            .returning(Room::as_returning())
+            .get_result::<Room>(conn)
+    })
+    .await?;
+    Ok(RoomResource::from(&room))
+}
+
+/// Rename a Room or change its display order.
+pub async fn update_room(
+    state: &AppState,
+    auth: &AuthenticatedClient,
+    room_id: &str,
+    name: Option<&str>,
+    sort_order: Option<i32>,
+) -> Result<RoomResource, SetupError> {
+    authorize_caller(state, auth).await?;
+    let room_id = parse_id(room_id)?;
+    let update = UpdateRoom {
+        name: name.map(parse_name).transpose()?,
+        sort_order,
+    };
+    if update.name.is_none() && update.sort_order.is_none() {
+        return Err(SetupError::EmptyPatch);
+    }
+    let room = with_conn(state, move |conn| {
+        diesel::update(rooms::table.filter(rooms::id.eq(room_id)))
+            .set(update)
+            .returning(Room::as_returning())
+            .get_result::<Room>(conn)
+            .optional()
+    })
+    .await?
+    .ok_or(SetupError::RoomNotFound)?;
+    Ok(RoomResource::from(&room))
+}
+
+/// Delete a Room after its Devices and Components have moved elsewhere.
+pub async fn delete_room(
+    state: &AppState,
+    auth: &AuthenticatedClient,
+    room_id: &str,
+) -> Result<(), SetupError> {
+    authorize_caller(state, auth).await?;
+    let room_id = parse_id(room_id)?;
+    match with_conn(state, move |conn| {
+        setup_store::delete_room_if_empty(conn, room_id)
+    })
+    .await?
+    {
+        RoomDeletion::Deleted => Ok(()),
+        RoomDeletion::NotFound => Err(SetupError::RoomNotFound),
+        RoomDeletion::NotEmpty => Err(SetupError::RoomNotEmpty),
+    }
+}
+
+async fn authorize_caller(state: &AppState, auth: &AuthenticatedClient) -> Result<(), SetupError> {
+    let Some(user_id) = auth.user_id.as_deref() else {
+        return Err(SetupError::Unauthenticated);
+    };
+    let member = find_member_by_user_id(&state.db, user_id)
+        .await
+        .map_err(SetupError::Internal)?
+        .ok_or(SetupError::Unauthenticated)?;
+    authorize_setup(&member.role, &member.status)
+}
+
+async fn with_conn<T, F>(state: &AppState, work: F) -> Result<T, SetupError>
+where
+    T: Send + 'static,
+    F: FnOnce(&mut PgConnection) -> QueryResult<T> + Send + 'static,
+{
+    let conn = state
+        .db
+        .get()
+        .await
+        .map_err(|error| SetupError::Internal(error.to_string()))?;
+    conn.interact(work)
+        .await
+        .map_err(|error| SetupError::Internal(error.to_string()))?
+        .map_err(|error| SetupError::Internal(error.to_string()))
+}
+
+/// The adapter already finished removing this Device.
+pub fn remove_already_gone(error: &str) -> bool {
+    let lower = error.to_ascii_lowercase();
+    lower.contains("not found")
+        || lower.contains("already removed")
+        || lower.contains("already gone")
+        || lower.contains("no such device")
+        || lower.contains("does not exist")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -184,6 +447,14 @@ mod tests {
         let forbidden = ApiError::from(SetupError::Forbidden);
         assert_eq!(forbidden.status, StatusCode::FORBIDDEN);
         assert_eq!(forbidden.code, "membership_inactive");
+    }
+
+    #[test]
+    fn already_gone_matches_completed_removal_only() {
+        assert!(remove_already_gone("Device not found"));
+        assert!(remove_already_gone("already removed"));
+        assert!(!remove_already_gone("removal already in progress"));
+        assert!(!remove_already_gone("the device is already joining"));
     }
 
     #[test]

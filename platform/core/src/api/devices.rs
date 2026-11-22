@@ -7,10 +7,9 @@ use uuid::Uuid;
 
 use crate::api::auth::AuthenticatedClient;
 use crate::api::error::{ApiError, ApiResult};
-use crate::audit::{self, AuditKind, AuditWrite};
 use crate::commands::{COMMAND_ID_HEADER, CommandError, execute_set, require_command_id};
-use crate::db::models::UpdateDevice;
 use crate::events::DeviceResource;
+use crate::setup::{self, RoomAssignment};
 use crate::state::AppState;
 
 #[derive(Serialize)]
@@ -27,7 +26,22 @@ pub struct ListDevicesQuery {
 #[serde(rename_all = "camelCase")]
 pub struct PatchDeviceBody {
     pub name: Option<String>,
+    /// Absent leaves the Room alone; `null` clears it.
+    #[serde(default, deserialize_with = "present")]
     pub room_id: Option<Option<String>>,
+}
+
+fn present<'de, D>(deserializer: D) -> Result<Option<Option<String>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    Option::<String>::deserialize(deserializer).map(Some)
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ComponentRoomBody {
+    pub room_id: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -71,69 +85,41 @@ pub async fn get_device(
 
 pub async fn patch_device(
     State(state): State<AppState>,
+    auth: AuthenticatedClient,
     Path(id): Path<String>,
     Json(body): Json<PatchDeviceBody>,
 ) -> ApiResult<Json<DeviceResource>> {
-    let device_id = parse_device_id(&id)?;
-    let existing = state
-        .registry
-        .get(device_id)
-        .await
-        .ok_or_else(|| ApiError::not_found("device_not_found", "device not found"))?;
-
-    let mut update = UpdateDevice::default();
-    let mut rename_to: Option<String> = None;
-
+    let mut resource = None;
     if let Some(name) = body.name {
-        let name = name.trim().to_string();
-        if name.is_empty() {
-            return Err(ApiError::bad_request(
-                "invalid_name",
-                "name must not be empty",
-            ));
-        }
-        if name != existing.friendly_name {
-            rename_to = Some(name.clone());
-            update.friendly_name = Some(name);
-        }
+        resource = Some(setup::rename_device(&state, &auth, &id, &name).await?);
     }
-
-    if let Some(room_opt) = body.room_id {
-        let room_id = match room_opt {
-            None => None,
-            Some(s) if s.is_empty() => None,
-            Some(s) => Some(
-                Uuid::parse_str(&s)
-                    .map_err(|_| ApiError::bad_request("invalid_room", "roomId must be a UUID"))?,
-            ),
+    if let Some(room_id) = body.room_id {
+        let assignment = RoomAssignment {
+            device_id: id.clone(),
+            component_id: None,
+            room_id,
         };
-        update.room_id = Some(room_id);
+        resource = Some(setup::assign_room(&state, &auth, assignment).await?);
     }
-
-    if update.friendly_name.is_none() && update.room_id.is_none() {
-        return Ok(Json(state.registry.to_resource(&state, &existing).await));
+    match resource {
+        Some(resource) => Ok(Json(resource)),
+        None => get_device(State(state), Path(id)).await,
     }
+}
 
-    if let Some(ref new_name) = rename_to {
-        // Prefer the external id (ieee / matter node id) as the stable bridge identity.
-        state
-            .mqtt
-            .rename_device(
-                crate::mqtt::device_protocol(&existing),
-                &existing.external_id,
-                new_name,
-            )
-            .await
-            .map_err(|e| ApiError::service_unavailable("mqtt_error", e))?;
-    }
-
-    let device = state
-        .registry
-        .update_device(&state.db, device_id, update)
-        .await
-        .map_err(|e| ApiError::internal(e))?;
-
-    Ok(Json(state.registry.to_resource(&state, &device).await))
+/// Assign one Component to a Room, or clear it with `roomId: null`.
+pub async fn put_component_room(
+    State(state): State<AppState>,
+    auth: AuthenticatedClient,
+    Path((id, component_id)): Path<(String, String)>,
+    Json(body): Json<ComponentRoomBody>,
+) -> ApiResult<Json<DeviceResource>> {
+    let assignment = RoomAssignment {
+        device_id: id,
+        component_id: Some(component_id),
+        room_id: body.room_id,
+    };
+    Ok(Json(setup::assign_room(&state, &auth, assignment).await?))
 }
 
 pub async fn delete_device(
@@ -141,43 +127,7 @@ pub async fn delete_device(
     auth: AuthenticatedClient,
     Path(id): Path<String>,
 ) -> ApiResult<axum::http::StatusCode> {
-    let device_id = parse_device_id(&id)?;
-    let existing = state
-        .registry
-        .get(device_id)
-        .await
-        .ok_or_else(|| ApiError::not_found("device_not_found", "device not found"))?;
-
-    let protocol = crate::mqtt::device_protocol(&existing);
-    audit::record(
-        &state.db,
-        AuditWrite {
-            kind: AuditKind::DeviceRemoval,
-            actor_user_id: auth.user_id,
-            summary: format!("removed device {device_id}"),
-            detail: serde_json::json!({
-                "deviceId": device_id,
-                "protocol": protocol.as_str(),
-            }),
-        },
-    )
-    .await
-    .map_err(ApiError::internal)?;
-    if let Err(error) = state
-        .mqtt
-        .remove_device(protocol, &existing.external_id)
-        .await
-    {
-        if !remove_already_gone(&error) {
-            return Err(ApiError::service_unavailable("device_remove_failed", error));
-        }
-    }
-
-    let _ = state
-        .registry
-        .mark_left(&state, protocol, &existing.external_id)
-        .await;
-
+    setup::remove_device(&state, &auth, &id).await?;
     Ok(axum::http::StatusCode::NO_CONTENT)
 }
 
@@ -269,24 +219,17 @@ fn command_to_api(err: CommandError) -> ApiError {
     }
 }
 
-fn remove_already_gone(error: &str) -> bool {
-    let lower = error.to_ascii_lowercase();
-    lower.contains("not found")
-        || lower.contains("already removed")
-        || lower.contains("already gone")
-        || lower.contains("no such device")
-        || lower.contains("does not exist")
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn already_gone_matches_completed_removal_only() {
-        assert!(remove_already_gone("Device not found"));
-        assert!(remove_already_gone("already removed"));
-        assert!(!remove_already_gone("removal already in progress"));
-        assert!(!remove_already_gone("the device is already joining"));
+    fn null_room_clears_the_assignment_and_absence_leaves_it() {
+        let cleared: PatchDeviceBody = serde_json::from_str(r#"{"roomId":null}"#).unwrap();
+        assert_eq!(cleared.room_id, Some(None));
+        let untouched: PatchDeviceBody = serde_json::from_str(r#"{"name":"Lamp"}"#).unwrap();
+        assert_eq!(untouched.room_id, None);
+        let assigned: PatchDeviceBody = serde_json::from_str(r#"{"roomId":"r"}"#).unwrap();
+        assert_eq!(assigned.room_id, Some(Some("r".into())));
     }
 }
