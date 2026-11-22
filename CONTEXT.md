@@ -192,7 +192,7 @@ A collection of aligned meter results whose physical scopes are known not to ove
 A bounded Controller-local record of raw protocol payloads used for troubleshooting. It is not History or Product analytics.
 
 **Relay**:
-The short-lived cloud path used when the dashboard cannot reach a Controller over the home network. Relay envelopes are encrypted end to end and contain no durable home model or history.
+The short-lived cloud path used when an Access Client cannot reach a Controller over the home network. Relay envelopes are encrypted end to end and contain no durable home model or history.
 
 **Release channel**:
 The stream of Releases assigned to a Home. Stable is the default; an Owner can move a Home to Canary, and the Home installs that channel's Release only when it is newer than the installed Release.

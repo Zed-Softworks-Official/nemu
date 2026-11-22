@@ -1,0 +1,3 @@
+# Shape surface overviews around their roles
+
+The dashboard Home page is a Management overview: Controller health, alerts, Release status, recent Audit activity, and an Energy summary. Direct Device and Room control remains on the dashboard Devices and Rooms pages, so the dashboard stays a secondary Control surface without leading with control. The mobile Energy tab is a focused summary of current Home power and today's Imported and Exported energy from the Home meter, with incomplete History coverage flagged. It offers no drill-down, range selection, or Contributor breakdown; detailed History and energy analysis stay on the dashboard, as ADR-0029 requires. If no Home meter is designated, mobile says so and directs the Owner to the dashboard.

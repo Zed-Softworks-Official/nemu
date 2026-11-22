@@ -18,16 +18,16 @@ catalog:
   react: 19.3.0
   react-dom: 19.3.0
   tailwindcss: ^4.1.12
-  "@tailwindcss/postcss": ^4.1.12  
+  "@tailwindcss/postcss": ^4.1.12
   postcss: ^8.5.3
   "@types/react": ~19.3.0
   "@types/react-dom": ~19.3.0
   "@types/node": ^22.13.10
   typescript: ^5.9.2
-  next: ^16.4.3
+  next: ^16.4.6
   "@clerk/nextjs": ^7.5.18
   "@clerk/ui": ^1.25.2
-  convex: ^1.48.0
+  convex: ^1.51.0
   axios: ^1.18.1
 
 overrides:
@@ -35,7 +35,7 @@ overrides:
   utf-8-validate: 5.0.10
 
 minimumReleaseAgeExclude:
-  - convex@1.43.0
+  - convex@1.51.0
   - "@next/env@16.3.2 || 16.4.3"
   - "@next/swc-darwin-arm64@16.3.2 || 16.4.3"
   - "@next/swc-darwin-x64@16.3.2 || 16.4.3"
