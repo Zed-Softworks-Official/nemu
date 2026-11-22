@@ -38,13 +38,20 @@ The relationship between one Account and one Home. A Membership has the Owner or
 The Membership role that can manage Devices, access, networking, updates, backups, and Relay configuration for a Home. All Owners are peers, and a Home must retain at least one Owner.
 
 **Member**:
-The Membership role that can commission, control, and remove Devices but cannot administer the Home or its access. A Member can revoke their own Access Clients or leave the Home.
+The Membership role that can commission, control, and remove Devices and manage Rooms but cannot administer the Home or its access. A Member can revoke their own Access Clients or leave the Home.
 
 **Access Client**:
 An authorized browser profile or native app installation that belongs to one Membership. Each Access Client is authorized and revoked separately.
 
 **Access Client tombstone**:
 The retained identity and public keys of a revoked Access Client. A tombstone prevents the old identity from receiving a new authorization.
+
+**Access Client revocation**:
+The Controller ending one Access Client's authorization. Clearing an Access Client's stored credentials on the phone or browser alone does not revoke it.
+_Avoid_: Unpair, forget
+
+**Leaving a Home**:
+An Account ending its own Membership in a Home. Every Access Client of that Membership loses access, and the last Owner cannot leave.
 
 **Access grant**:
 A Controller-signed authorization that binds an Access Client's public keys to one Membership. The grant remains valid until the Controller revokes it.
