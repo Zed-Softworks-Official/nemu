@@ -27,6 +27,7 @@ mod pairing;
 mod registration;
 mod relay;
 mod retention;
+mod setup;
 mod state;
 mod tls;
 mod tls_sync;

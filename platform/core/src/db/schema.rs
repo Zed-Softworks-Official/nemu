@@ -123,6 +123,15 @@ diesel::table! {
 }
 
 diesel::table! {
+    component_rooms (device_id, component_id) {
+        device_id -> Uuid,
+        #[max_length = 255]
+        component_id -> Varchar,
+        room_id -> Uuid,
+    }
+}
+
+diesel::table! {
     device_events (id) {
         id -> Int8,
         device_id -> Nullable<Uuid>,
@@ -130,6 +139,25 @@ diesel::table! {
         kind -> Varchar,
         payload -> Jsonb,
         created_at -> Timestamptz,
+    }
+}
+
+diesel::table! {
+    device_tombstones (device_id) {
+        device_id -> Uuid,
+        #[max_length = 16]
+        protocol -> Varchar,
+        #[max_length = 64]
+        external_id -> Varchar,
+        #[max_length = 255]
+        friendly_name -> Varchar,
+        #[max_length = 50]
+        device_type -> Varchar,
+        #[max_length = 255]
+        model -> Nullable<Varchar>,
+        room_id -> Nullable<Uuid>,
+        component_rooms -> Jsonb,
+        removed_at -> Timestamptz,
     }
 }
 
@@ -349,6 +377,8 @@ diesel::joinable!(capability_observations -> capability_identities (capability_i
 diesel::joinable!(capability_constraint_revisions -> capability_identities (capability_id));
 diesel::joinable!(capability_recording_bounds -> capability_identities (capability_id));
 diesel::joinable!(command_outcomes -> devices (device_id));
+diesel::joinable!(component_rooms -> devices (device_id));
+diesel::joinable!(component_rooms -> rooms (room_id));
 diesel::joinable!(device_events -> devices (device_id));
 diesel::joinable!(devices -> rooms (room_id));
 diesel::joinable!(energy_counter_rollups -> capability_identities (capability_id));
@@ -368,7 +398,9 @@ diesel::allow_tables_to_appear_in_same_query!(
     capability_recording_bounds,
     client_tokens,
     command_outcomes,
+    component_rooms,
     device_events,
+    device_tombstones,
     devices,
     diagnostic_events,
     gauge_rollups,
