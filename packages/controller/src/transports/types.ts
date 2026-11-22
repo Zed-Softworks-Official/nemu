@@ -72,7 +72,10 @@ export interface ControllerTransport {
     removeMember?(memberId: string): Promise<void>
     getTokens?(): Promise<ClientToken[]>
     revokeToken?(tokenId: string): Promise<void>
+    /** Access Client revocation for the calling Access Client only. */
     revokeCurrentToken?(): Promise<void>
+    /** Leaving a Home: ends the caller's Membership and all its Access Clients. */
+    leaveHome?(): Promise<void>
     bootstrapOwner?(request: BootstrapOwnerRequest): Promise<HouseholdMember>
     getReleaseStatus?(): Promise<UpdateStatusResponse>
     installRelease?(): Promise<ApplyUpdateResponse>

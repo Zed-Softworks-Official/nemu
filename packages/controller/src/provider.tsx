@@ -90,6 +90,7 @@ type ControllerContextValue = {
     getTokens: () => Promise<ClientToken[]>
     revokeToken: (tokenId: string) => Promise<void>
     revokeCurrentToken: () => Promise<void>
+    leaveHome: () => Promise<void>
     bootstrapOwner: (request: BootstrapOwnerRequest) => Promise<HouseholdMember>
     getReleaseStatus: () => Promise<UpdateStatusResponse>
     installRelease: () => Promise<ApplyUpdateResponse>
@@ -266,6 +267,7 @@ export function ControllerProvider({
         () => connection.revokeCurrentToken(),
         [connection]
     )
+    const leaveHome = useCallback(() => connection.leaveHome(), [connection])
     const bootstrapOwner = useCallback(
         (request: BootstrapOwnerRequest) => connection.bootstrapOwner(request),
         [connection]
@@ -315,6 +317,7 @@ export function ControllerProvider({
             getTokens,
             revokeToken,
             revokeCurrentToken,
+            leaveHome,
             bootstrapOwner,
             getReleaseStatus,
             installRelease,
@@ -348,6 +351,7 @@ export function ControllerProvider({
             getTokens,
             revokeToken,
             revokeCurrentToken,
+            leaveHome,
             bootstrapOwner,
             getReleaseStatus,
             installRelease,

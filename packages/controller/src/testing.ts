@@ -34,8 +34,10 @@ export type FakeControllerOptions = {
     relayReachable?: boolean
     /** Six-digit code accepted by `pair`. */
     pairingCode?: string
-    /** Tokens already issued to Access Clients. */
+    /** Tokens already issued to this Membership's Access Clients. */
     acceptedTokens?: string[]
+    /** Tokens held by other Memberships; leaving never revokes these. */
+    otherMembershipTokens?: string[]
     devices?: Device[]
     rooms?: Room[]
 }
@@ -64,7 +66,14 @@ export class FakeController {
         []
     /** Every token any Access Client presented to this Controller. */
     readonly presentedTokens: Array<string | null> = []
+    /** Set true to act as the Home's last Owner, who cannot leave. */
+    lastOwner = false
+    /** Transports that carried a successful `leaveHome`. */
+    readonly leftVia: TransportMode[] = []
+    /** Transports that carried a successful `revokeCurrent`. */
+    readonly revokedVia: TransportMode[] = []
     private readonly tokens: Set<string>
+    private readonly otherMembershipTokens: Set<string>
     private readonly transports = new Set<FakeTransport>()
     private issued = 0
 
@@ -75,7 +84,13 @@ export class FakeController {
         this.lanReachable = options.lanReachable ?? true
         this.relayReachable = options.relayReachable ?? true
         this.pairingCode = options.pairingCode ?? '123456'
-        this.tokens = new Set(options.acceptedTokens ?? [])
+        this.otherMembershipTokens = new Set(
+            options.otherMembershipTokens ?? []
+        )
+        this.tokens = new Set([
+            ...(options.acceptedTokens ?? []),
+            ...this.otherMembershipTokens,
+        ])
         this.devices = options.devices ?? []
         this.rooms = options.rooms ?? []
     }
@@ -97,6 +112,29 @@ export class FakeController {
 
     revokeToken(token: string): void {
         this.tokens.delete(token)
+    }
+
+    /** `leaveHome`: ends this Membership and revokes all of its tokens. */
+    leaveHome(via: TransportMode): void {
+        if (this.lastOwner) {
+            throw new ApiError(
+                'last_owner',
+                'The last Owner cannot leave the Home',
+                403
+            )
+        }
+        for (const token of [...this.tokens]) {
+            if (!this.otherMembershipTokens.has(token)) {
+                this.tokens.delete(token)
+            }
+        }
+        this.leftVia.push(via)
+    }
+
+    /** `revokeCurrent`: revokes only the presenting Access Client. */
+    revokeCurrent(token: string, via: TransportMode): void {
+        this.tokens.delete(token)
+        this.revokedVia.push(via)
     }
 
     /** LAN code pairing, as `POST /api/pair` would answer. */
@@ -222,6 +260,16 @@ export class FakeTransport implements ControllerTransport {
         this.authorize()
         this.controller.commands.push({ command, via: this.mode })
         return this.controller.commandResult(command)
+    }
+
+    async revokeCurrentToken(): Promise<void> {
+        this.authorize()
+        this.controller.revokeCurrent(this.getToken() ?? '', this.mode)
+    }
+
+    async leaveHome(): Promise<void> {
+        this.authorize()
+        this.controller.leaveHome(this.mode)
     }
 
     async queryHistory(): Promise<HistoryQueryRead> {

@@ -256,3 +256,66 @@ describe('ControllerConnection for a selected Home', () => {
         assert.equal(home.connectedTransports().length, 0)
     })
 })
+
+describe('Leaving a Home and Access Client revocation', () => {
+    for (const mode of ['lan', 'relay'] as const) {
+        function session(home: FakeController) {
+            return connect({
+                controllerId: home.controllerId,
+                credentialStore: createMemoryCredentialStore({
+                    [home.controllerId]: { clientToken: 'phone' },
+                }),
+                lanCandidates: [home.baseUrl],
+                connectors: fakeControllerConnectors(home),
+            })
+        }
+
+        function home(): FakeController {
+            return new FakeController({
+                controllerId: 'home-a',
+                lanReachable: mode === 'lan',
+                // This Membership's phone and browser, and another Member.
+                acceptedTokens: ['phone', 'browser'],
+                otherMembershipTokens: ['someone-else'],
+            })
+        }
+
+        it(`revokes only this Access Client over ${mode}`, async () => {
+            const controller = home()
+            const connection = session(controller)
+            await connection.start()
+            assert.equal(connection.getStatus().mode, mode)
+
+            await connection.revokeCurrentToken()
+
+            assert.equal(controller.acceptsToken('phone'), false)
+            assert.equal(controller.acceptsToken('browser'), true)
+            assert.equal(controller.acceptsToken('someone-else'), true)
+        })
+
+        it(`leaves the Home and revokes every Access Client of the Membership over ${mode}`, async () => {
+            const controller = home()
+            const connection = session(controller)
+            await connection.start()
+
+            await connection.leaveHome()
+
+            assert.equal(controller.acceptsToken('phone'), false)
+            assert.equal(controller.acceptsToken('browser'), false)
+            assert.equal(controller.acceptsToken('someone-else'), true)
+            assert.deepEqual(controller.leftVia, [mode])
+        })
+
+        it(`surfaces last_owner over ${mode}`, async () => {
+            const controller = home()
+            controller.lastOwner = true
+            const connection = session(controller)
+            await connection.start()
+
+            await assert.rejects(connection.leaveHome(), {
+                code: 'last_owner',
+            })
+            assert.equal(controller.acceptsToken('phone'), true)
+        })
+    }
+})

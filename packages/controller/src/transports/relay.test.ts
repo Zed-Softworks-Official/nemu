@@ -74,3 +74,67 @@ describe('RelayTransport Rooms', () => {
         }
     })
 })
+
+describe('RelayTransport leaving and revocation', () => {
+    function relayAnswering(message: unknown) {
+        const sent: Array<{ requestId: string; payload: string }> = []
+        const convex = {
+            mutation: async (_ref: unknown, args: (typeof sent)[number]) => {
+                sent.push(args)
+            },
+            query: async () =>
+                sent.map(({ requestId }) => ({
+                    requestId,
+                    direction: 'toClient',
+                    payload: JSON.stringify({
+                        requestId,
+                        signature: 'sig',
+                        message,
+                    }),
+                })),
+        } as unknown as ConvexReactClient
+        const relay = new RelayTransport({
+            convex,
+            api: {} as RelayApi,
+            controllerId: 'home-a',
+            getToken: () => 'token-a',
+        })
+        return { relay, sent }
+    }
+
+    it('leaves the Home with no arguments', async () => {
+        const { relay, sent } = relayAnswering({
+            type: 'commandResult',
+            ok: true,
+        })
+        await relay.connect()
+        try {
+            await relay.leaveHome()
+            assert.deepEqual(JSON.parse(sent.at(-1)?.payload ?? '{}').message, {
+                type: 'leaveHome',
+            })
+        } finally {
+            relay.disconnect()
+        }
+    })
+
+    it('surfaces the Controller’s error code, as on LAN', async () => {
+        const { relay } = relayAnswering({
+            type: 'commandResult',
+            ok: false,
+            error: {
+                code: 'last_owner',
+                message: 'The last Owner cannot leave the Home',
+            },
+        })
+        await relay.connect()
+        try {
+            await assert.rejects(relay.leaveHome(), { code: 'last_owner' })
+            await assert.rejects(relay.revokeCurrentToken(), {
+                code: 'last_owner',
+            })
+        } finally {
+            relay.disconnect()
+        }
+    })
+})
