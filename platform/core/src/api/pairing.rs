@@ -211,23 +211,8 @@ pub async fn delete_current_token(
     State(state): State<AppState>,
     auth: AuthenticatedClient,
 ) -> ApiResult<StatusCode> {
-    revoke_current_token(&state, &auth).await?;
+    crate::api::access::revoke_current(&state.db, &auth).await?;
     Ok(StatusCode::NO_CONTENT)
-}
-
-pub async fn revoke_current_token(state: &AppState, auth: &AuthenticatedClient) -> ApiResult<()> {
-    let deleted = revoke_client_token(
-        &state.db,
-        auth.token_id,
-        Some(revocation_audit(auth, auth.token_id, &auth.label)),
-    )
-    .await
-    .map_err(ApiError::internal)?;
-    if deleted {
-        Ok(())
-    } else {
-        Err(ApiError::not_found("not_found", "Token not found"))
-    }
 }
 
 pub async fn revoke_household_token(

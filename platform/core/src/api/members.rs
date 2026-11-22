@@ -101,6 +101,15 @@ pub async fn delete_member_handler(
     Ok(StatusCode::NO_CONTENT)
 }
 
+/// Leaving a Home: ends the caller's own Membership.
+pub async fn leave_home_handler(
+    State(state): State<AppState>,
+    auth: AuthenticatedClient,
+) -> ApiResult<StatusCode> {
+    crate::api::access::leave_home(&state.db, &auth).await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
 pub async fn bootstrap_owner_handler(
     State(state): State<AppState>,
     auth: AuthenticatedClient,

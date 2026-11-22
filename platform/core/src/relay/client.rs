@@ -9,12 +9,13 @@ use tokio::sync::broadcast::error::RecvError;
 use tracing::{debug, info, warn};
 use uuid::Uuid;
 
+use crate::api::access::{leave_home, revoke_current};
 use crate::api::auth::AuthenticatedClient;
 use crate::api::members::{
     SessionMintInput, bootstrap_owner, invite_member, list_household_members, mint_session,
     remove_member,
 };
-use crate::api::pairing::{list_household_tokens, revoke_current_token, revoke_household_token};
+use crate::api::pairing::{list_household_tokens, revoke_household_token};
 use crate::api::rooms::load_rooms;
 use crate::commands::execute_set;
 use crate::events::DeviceEvent;
@@ -91,6 +92,8 @@ enum ToControllerMessage {
     },
     #[serde(rename = "revokeCurrent")]
     RevokeCurrent,
+    #[serde(rename = "leaveHome")]
+    LeaveHome,
     #[serde(rename = "bootstrapOwner")]
     BootstrapOwner {
         #[serde(rename = "userId")]
@@ -467,7 +470,11 @@ async fn handle_message(
                 }
             }
         }
-        ToControllerMessage::RevokeCurrent => match revoke_current_token(state, &auth).await {
+        ToControllerMessage::RevokeCurrent => match revoke_current(&state.db, &auth).await {
+            Ok(()) => build_command_result(state, &message.request_id, true, None, None),
+            Err(err) => build_error_response(state, &message.request_id, &err.code, &err.message),
+        },
+        ToControllerMessage::LeaveHome => match leave_home(&state.db, &auth).await {
             Ok(()) => build_command_result(state, &message.request_id, true, None, None),
             Err(err) => build_error_response(state, &message.request_id, &err.code, &err.message),
         },
@@ -878,4 +885,23 @@ fn live_capability_watches(state: &AppState) -> Vec<CapabilityWatch> {
     let now = Instant::now();
     watches.retain(|watch| watch.expires_at > now);
     watches.clone()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn leave_home_and_revoke_current_take_no_arguments() {
+        let leave: ToControllerEnvelope = serde_json::from_str(
+            r#"{"requestId":"r1","clientToken":"t","message":{"type":"leaveHome"}}"#,
+        )
+        .unwrap();
+        assert!(matches!(leave.message, ToControllerMessage::LeaveHome));
+        let revoke: ToControllerEnvelope = serde_json::from_str(
+            r#"{"requestId":"r2","clientToken":"t","message":{"type":"revokeCurrent"}}"#,
+        )
+        .unwrap();
+        assert!(matches!(revoke.message, ToControllerMessage::RevokeCurrent));
+    }
 }
