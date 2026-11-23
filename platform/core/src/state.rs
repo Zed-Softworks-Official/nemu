@@ -50,6 +50,8 @@ pub struct HealthFlags {
     pub mqtt_connected: AtomicBool,
     pub zigbee_online: AtomicBool,
     pub matter_online: AtomicBool,
+    /// The Relay subscription is live (NEM-88).
+    pub relay_connected: AtomicBool,
 }
 
 impl HealthFlags {
@@ -74,6 +76,14 @@ impl HealthFlags {
 
     pub fn matter(&self) -> bool {
         self.matter_online.load(Ordering::Relaxed)
+    }
+
+    pub fn set_relay(&self, connected: bool) {
+        self.relay_connected.store(connected, Ordering::Relaxed);
+    }
+
+    pub fn relay(&self) -> bool {
+        self.relay_connected.load(Ordering::Relaxed)
     }
 }
 

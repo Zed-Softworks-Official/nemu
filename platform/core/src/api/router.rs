@@ -105,6 +105,7 @@ pub fn router(state: AppState) -> Router {
             get(history_budget::show).put(history_budget::update),
         )
         .route("/api/history/health", get(history_health::history_health))
+        .route("/api/health/summary", get(health::health_summary))
         .route("/api/updates", get(updates::status))
         .route("/api/updates/apply", post(updates::apply))
         .route("/api/updates/rollback", post(updates::rollback))
