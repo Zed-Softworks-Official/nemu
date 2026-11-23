@@ -3,7 +3,7 @@ import { NativeTabs } from 'expo-router/native-tabs'
 export default function TabsLayout() {
     return (
         <NativeTabs>
-            <NativeTabs.Trigger name="index">
+            <NativeTabs.Trigger name="(home)">
                 <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
                 <NativeTabs.Trigger.Icon
                     md="home"
@@ -12,7 +12,7 @@ export default function TabsLayout() {
                 />
             </NativeTabs.Trigger>
 
-            <NativeTabs.Trigger name="devices">
+            <NativeTabs.Trigger name="(devices)">
                 <NativeTabs.Trigger.Label>Devices</NativeTabs.Trigger.Label>
                 <NativeTabs.Trigger.Icon
                     md="devices"
@@ -21,7 +21,7 @@ export default function TabsLayout() {
                 />
             </NativeTabs.Trigger>
 
-            <NativeTabs.Trigger name="energy">
+            <NativeTabs.Trigger name="(energy)">
                 <NativeTabs.Trigger.Label>Energy</NativeTabs.Trigger.Label>
                 <NativeTabs.Trigger.Icon
                     md="energy"
