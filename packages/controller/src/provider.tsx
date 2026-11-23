@@ -16,6 +16,7 @@ import {
     type DeviceEvent,
     type DeviceProtocol,
     deviceEventRefreshesInventory,
+    type HealthSummary,
     type HistoryQuery,
     type HistoryQueryRead,
     type HomeMeterDesignation,
@@ -31,6 +32,7 @@ import {
     type RenameRoomRequest,
     type Room,
     type SaveMatterWifiRequest,
+    type SessionResponse,
     type SwitchReleaseChannelResponse,
     statusFromMode,
     type UpdateStatusResponse,
@@ -111,6 +113,9 @@ type ControllerContextValue = {
     leaveHome: () => Promise<void>
     bootstrapOwner: (request: BootstrapOwnerRequest) => Promise<HouseholdMember>
     getReleaseStatus: () => Promise<UpdateStatusResponse>
+    /** NEM-86: the caller's Membership role, only for deciding what to show. */
+    getSession: () => Promise<SessionResponse>
+    getHealthSummary: () => Promise<HealthSummary>
     installRelease: () => Promise<ApplyUpdateResponse>
     rollbackRelease: () => Promise<ApplyUpdateResponse>
     switchReleaseChannel: (
@@ -307,8 +312,13 @@ export function ControllerProvider({
         (request: BootstrapOwnerRequest) => connection.bootstrapOwner(request),
         [connection]
     )
+    const getSession = useCallback(() => connection.getSession(), [connection])
     const getReleaseStatus = useCallback(
         () => connection.getReleaseStatus(),
+        [connection]
+    )
+    const getHealthSummary = useCallback(
+        () => connection.getHealthSummary(),
         [connection]
     )
     const installRelease = useCallback(
@@ -358,7 +368,9 @@ export function ControllerProvider({
             revokeCurrentToken,
             leaveHome,
             bootstrapOwner,
+            getSession,
             getReleaseStatus,
+            getHealthSummary,
             installRelease,
             rollbackRelease,
             switchReleaseChannel,
@@ -396,7 +408,9 @@ export function ControllerProvider({
             revokeCurrentToken,
             leaveHome,
             bootstrapOwner,
+            getSession,
             getReleaseStatus,
+            getHealthSummary,
             installRelease,
             rollbackRelease,
             switchReleaseChannel,

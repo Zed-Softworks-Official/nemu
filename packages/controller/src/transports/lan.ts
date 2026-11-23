@@ -22,11 +22,13 @@ import {
     deviceEventSchema,
     deviceSchema,
     devicesResponseSchema,
+    type HealthSummary,
     type HistoryQuery,
     type HistoryQueryRead,
     type HomeMeterDesignation,
     type HomeMeterDesignationSelection,
     type HouseholdMember,
+    healthSummarySchema,
     historyQueryReadSchema,
     homeMeterDesignationResultSchema,
     householdMemberSchema,
@@ -52,8 +54,10 @@ import {
     roomSchema,
     roomsResponseSchema,
     type SaveMatterWifiRequest,
+    type SessionResponse,
     type SwitchReleaseChannelResponse,
     saveMatterWifiRequestSchema,
+    sessionResponseSchema,
     switchReleaseChannelRequestSchema,
     switchReleaseChannelResponseSchema,
     tokensResponseSchema,
@@ -357,9 +361,22 @@ export class LanTransport implements ControllerTransport {
         return membersResponseSchema.parse(data).members
     }
 
+    // --- NEM-86: session role ---
+    async getSession(): Promise<SessionResponse> {
+        const { data } = await this.http.get('/api/session')
+        return sessionResponseSchema.parse(data)
+    }
+    // --- end NEM-86 ---
+
     async getReleaseStatus(): Promise<UpdateStatusResponse> {
         const { data } = await this.http.get('/api/updates')
         return updateStatusResponseSchema.parse(data)
+    }
+
+    // NEM-88: Controller health summary.
+    async getHealthSummary(): Promise<HealthSummary> {
+        const { data } = await this.http.get('/api/health/summary')
+        return healthSummarySchema.parse(data)
     }
 
     async installRelease(): Promise<ApplyUpdateResponse> {

@@ -12,6 +12,7 @@
 import {
     ApiError,
     type AssignRoomRequest,
+    type ClientToken,
     type CommandResult,
     type CommissionRequest,
     type CommissionResponse,
@@ -19,9 +20,11 @@ import {
     type Device,
     type DeviceCommand,
     type DeviceEvent,
+    type HealthSummary,
     type HistoryQuery,
     type HistoryQueryRead,
     type HomeMeterDesignation,
+    type HouseholdMember,
     type IdentifyResponse,
     type MatterWifiResponse,
     type PairResponse,
@@ -32,6 +35,9 @@ import {
     type RenameRoomRequest,
     type Room,
     type SessionMintResult,
+    type SessionResponse,
+    type SessionRole,
+    type UpdateStatusResponse,
 } from '@nemu/protocol'
 import type { ControllerConnectors } from './connection.ts'
 import type { ProbeResult } from './discovery.ts'
@@ -55,9 +61,20 @@ export type FakeControllerOptions = {
     rooms?: Room[]
     /** The designated Home meter, or null when none is set. */
     homeMeter?: HomeMeterDesignation | null
+    /** NEM-86: this Membership's role. Defaults to `member`. */
+    role?: SessionRole
 }
 
 type TransportMode = 'lan' | 'relay'
+
+/** NEM-88: readings behind the fake Controller health summary. */
+export type FakeHealthReadings = {
+    mqtt: boolean
+    zigbee: boolean
+    matter: boolean
+    database: boolean
+    relayConnected: boolean
+}
 
 export class FakeController {
     readonly controllerId: string
@@ -117,6 +134,31 @@ export class FakeController {
         type: string
         via: TransportMode
     }> = []
+    // --- Household and Release reads (NEM-89) ---
+    /** Household members the Controller lists. */
+    members: HouseholdMember[] = []
+    /** Access Clients the Controller lists. */
+    accessClients: ClientToken[] = []
+    /** Installed Release status, or null when the Controller cannot read it. */
+    releaseStatus: UpdateStatusResponse | null = null
+    // --- end Household and Release reads ---
+
+    // --- NEM-86: session role ---
+    /** This Membership's role, reported by `getSession` over LAN and Relay. */
+    role: SessionRole
+    // --- end NEM-86 ---
+    // --- NEM-88: Controller health summary ---------------------------------
+    /** Scripted service and Controller readings for the health summary. */
+    health: FakeHealthReadings = {
+        mqtt: true,
+        zigbee: true,
+        matter: true,
+        database: true,
+        relayConnected: true,
+    }
+    /** Transports that carried a health summary request. */
+    readonly healthRequests: TransportMode[] = []
+    // --- end NEM-88 ---------------------------------------------------------
     private readonly tokens: Set<string>
     private readonly otherMembershipTokens: Set<string>
     private readonly transports = new Set<FakeTransport>()
@@ -139,7 +181,22 @@ export class FakeController {
         this.devices = options.devices ?? []
         this.rooms = options.rooms ?? []
         this.homeMeter = options.homeMeter ?? null
+        this.role = options.role ?? 'member'
     }
+
+    // --- NEM-86: session role ---
+    /** The session's Membership role; an inactive Membership is refused. */
+    session(): SessionResponse {
+        if (!this.membershipActive) {
+            throw new ApiError(
+                'inactive_membership',
+                'This Membership is not active',
+                403
+            )
+        }
+        return { role: this.role }
+    }
+    // --- end NEM-86 ---
 
     identity(): IdentifyResponse {
         return { controllerId: this.controllerId, name: this.name }
@@ -253,6 +310,40 @@ export class FakeController {
         this.commissioningRequests.push({ type, via })
         return apply()
     }
+
+    // --- NEM-88: Controller health summary ---------------------------------
+    /**
+     * The summary Core would return for this caller: Owners get Controller
+     * details, Members only service and Device availability (ADR-0006).
+     * @internal
+     */
+    healthSummary(via: TransportMode): HealthSummary {
+        if (!this.membershipActive) {
+            throw new ApiError(
+                'inactive_membership',
+                'This Membership is not active',
+                403
+            )
+        }
+        this.healthRequests.push(via)
+        const { mqtt, zigbee, matter, database, relayConnected } = this.health
+        const common = {
+            status: database ? (mqtt ? 'ok' : 'degraded') : 'error',
+            services: { mqtt, zigbee, matter },
+            devices: {
+                online: this.devices.filter((device) => device.online).length,
+                total: this.devices.length,
+            },
+        } as const
+        return this.role === 'owner'
+            ? {
+                  view: 'owner',
+                  ...common,
+                  controller: { database, relayConnected },
+              }
+            : { view: 'member', ...common }
+    }
+    // --- end NEM-88 ---------------------------------------------------------
 
     /** Replace Devices and tell clients to refetch inventory. */
     setDevices(devices: Device[]): void {
@@ -590,6 +681,13 @@ export class FakeTransport implements ControllerTransport {
         return this.controller.setup(type, this.mode, apply)
     }
 
+    // --- NEM-86: session role ---
+    async getSession(): Promise<SessionResponse> {
+        this.authorize()
+        return this.controller.session()
+    }
+    // --- end NEM-86 ---
+
     async revokeCurrentToken(): Promise<void> {
         this.authorize()
         this.controller.revokeCurrent(this.getToken() ?? '', this.mode)
@@ -611,9 +709,40 @@ export class FakeTransport implements ControllerTransport {
         return structuredClone(this.controller.homeMeter)
     }
 
+    // --- NEM-88: Controller health summary ---------------------------------
+    async getHealthSummary(): Promise<HealthSummary> {
+        this.authorize()
+        return this.controller.healthSummary(this.mode)
+    }
+    // --- end NEM-88 ---------------------------------------------------------
+
     async designateHomeMeter(): Promise<HomeMeterDesignation> {
         throw new Error('Home meter is not scripted on FakeController')
     }
+
+    // --- Household and Release reads (NEM-89) ---
+    async getMembers(): Promise<HouseholdMember[]> {
+        this.authorize()
+        return structuredClone(this.controller.members)
+    }
+
+    async getTokens(): Promise<ClientToken[]> {
+        this.authorize()
+        return structuredClone(this.controller.accessClients)
+    }
+
+    async getReleaseStatus(): Promise<UpdateStatusResponse> {
+        this.authorize()
+        if (!this.controller.releaseStatus) {
+            throw new ApiError(
+                'updater_unavailable',
+                'The Updater is unavailable',
+                503
+            )
+        }
+        return structuredClone(this.controller.releaseStatus)
+    }
+    // --- end Household and Release reads ---
 
     subscribeEvents(cb: (event: DeviceEvent) => void): () => void {
         this.listeners.add(cb)
