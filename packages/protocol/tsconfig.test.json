@@ -22,6 +22,8 @@
         "src/api.test.ts",
         "src/device.ts",
         "src/events.ts",
-        "src/relay.ts"
+        "src/relay.ts",
+        "src/setup.test.ts",
+        "src/relay.test.ts"
     ]
 }

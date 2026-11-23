@@ -1,17 +1,20 @@
 import { z } from 'zod'
 import {
     applyUpdateResponseSchema,
+    assignRoomRequestSchema,
     clientTokenSchema,
+    createRoomRequestSchema,
     householdMemberSchema,
     releaseChannelSchema,
     releaseStatusSchema,
+    renameDeviceRequestSchema,
     switchReleaseChannelResponseSchema,
 } from './api.ts'
 import {
     capabilityChangeEventSchema,
     capabilitySnapshotEventSchema,
 } from './capability.ts'
-import { deviceStateSchema } from './device.ts'
+import { deviceSchema, deviceStateSchema, roomSchema } from './device.ts'
 import {
     designateHomeMeterMessageSchema,
     exportHistoryBackupMessageSchema,
@@ -40,6 +43,7 @@ const relayCommandResultMessageSchema = z.object({
         .object({
             code: z.string(),
             message: z.string(),
+            details: z.unknown().optional(),
         })
         .optional(),
 })
@@ -57,15 +61,35 @@ const sessionMintMessageSchema = z.object({
     displayName: z.string().optional(),
 })
 
+/** Device and Room setup. Same requests and outcomes as LAN (ADR-0023). */
+const setupRelayMessageSchemas = [
+    renameDeviceRequestSchema.extend({ type: z.literal('renameDevice') }),
+    assignRoomRequestSchema.extend({ type: z.literal('assignRoom') }),
+    z.object({ type: z.literal('removeDevice'), deviceId: z.string().min(1) }),
+    createRoomRequestSchema.extend({ type: z.literal('createRoom') }),
+    z.object({
+        type: z.literal('updateRoom'),
+        roomId: z.string().min(1),
+        name: z.string().trim().min(1).max(255).optional(),
+        sortOrder: z.number().int().optional(),
+    }),
+    z.object({ type: z.literal('deleteRoom'), roomId: z.string().min(1) }),
+] as const
+
 const authenticatedRelayMessageSchema = z.union([
+    ...setupRelayMessageSchemas,
     relayCommandMessageSchema,
     z.object({ type: z.literal('getDevices') }),
+    z.object({ type: z.literal('getRooms') }),
     z.object({ type: z.literal('listMembers') }),
     z.object({ type: z.literal('inviteMember'), email: z.string() }),
     z.object({ type: z.literal('removeMember'), memberId: z.string() }),
     z.object({ type: z.literal('listTokens') }),
     z.object({ type: z.literal('revokeToken'), tokenId: z.string() }),
+    /** Access Client revocation: only the calling Access Client loses access. */
     z.object({ type: z.literal('revokeCurrent') }),
+    /** Leaving a Home: ends the caller's own Membership. */
+    z.object({ type: z.literal('leaveHome') }),
     z.object({
         type: z.literal('bootstrapOwner'),
         userId: z.string(),
@@ -114,6 +138,12 @@ export const relayToClientEnvelopeSchema = z.object({
             type: z.literal('devices'),
             devices: z.array(z.unknown()),
         }),
+        z.object({
+            type: z.literal('rooms'),
+            rooms: z.array(roomSchema),
+        }),
+        z.object({ type: z.literal('device'), device: deviceSchema }),
+        z.object({ type: z.literal('room'), room: roomSchema }),
         z.object({
             type: z.literal('sessionMintResult'),
             clientToken: z.string(),

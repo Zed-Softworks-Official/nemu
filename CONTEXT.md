@@ -38,13 +38,20 @@ The relationship between one Account and one Home. A Membership has the Owner or
 The Membership role that can manage Devices, access, networking, updates, backups, and Relay configuration for a Home. All Owners are peers, and a Home must retain at least one Owner.
 
 **Member**:
-The Membership role that can commission, control, and remove Devices but cannot administer the Home or its access. A Member can revoke their own Access Clients or leave the Home.
+The Membership role that can commission, control, and remove Devices and manage Rooms but cannot administer the Home or its access. A Member can revoke their own Access Clients or leave the Home.
 
 **Access Client**:
 An authorized browser profile or native app installation that belongs to one Membership. Each Access Client is authorized and revoked separately.
 
 **Access Client tombstone**:
 The retained identity and public keys of a revoked Access Client. A tombstone prevents the old identity from receiving a new authorization.
+
+**Access Client revocation**:
+The Controller ending one Access Client's authorization. Clearing an Access Client's stored credentials on the phone or browser alone does not revoke it.
+_Avoid_: Unpair, forget
+
+**Leaving a Home**:
+An Account ending its own Membership in a Home. Every Access Client of that Membership loses access, and the last Owner cannot leave.
 
 **Access grant**:
 A Controller-signed authorization that binds an Access Client's public keys to one Membership. The grant remains valid until the Controller revokes it.
@@ -60,6 +67,7 @@ An encrypted archive containing the local identity, local data including retaine
 
 **Room**:
 A named physical area in a Home. A Device belongs to one Room, and its Components inherit that Room unless assigned to another Room.
+_Avoid_: Group
 
 **Device**:
 An IoT unit that a Home can observe or control through Nemu. A phone, laptop, or other computer used to open the dashboard is not a Device.
@@ -102,6 +110,12 @@ A Controller clock state accurate enough to validate observation times and run s
 
 **Command**:
 A request to set one or more Device Capability values. Canonical Commands express absolute desired values.
+
+**Control surface**:
+The product experience for frequent, live observation and direct control of Devices and Rooms. Both the mobile app and dashboard provide a Control surface; mobile is the primary one.
+
+**Management surface**:
+The product experience for configuration, administration, bulk work, long-form History, diagnostics, and other desktop-shaped workflows. The dashboard is the primary Management surface.
 
 **Command outcome**:
 The result of a Command. `accepted` is transitional, while `confirmed`, `rejected`, `failed`, and `unconfirmed` are final outcomes.
@@ -185,7 +199,7 @@ A collection of aligned meter results whose physical scopes are known not to ove
 A bounded Controller-local record of raw protocol payloads used for troubleshooting. It is not History or Product analytics.
 
 **Relay**:
-The short-lived cloud path used when the dashboard cannot reach a Controller over the home network. Relay envelopes are encrypted end to end and contain no durable home model or history.
+The short-lived cloud path used when an Access Client cannot reach a Controller over the home network. Relay envelopes are encrypted end to end and contain no durable home model or history.
 
 **Release channel**:
 The stream of Releases assigned to a Home. Stable is the default; an Owner can move a Home to Canary, and the Home installs that channel's Release only when it is newer than the installed Release.

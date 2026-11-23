@@ -746,8 +746,10 @@ async fn handle_bridge_event(
             .get("ieee_address")
             .or_else(|| event.data.pointer("/device/ieee_address"))
             .and_then(|v| v.as_str());
-        if let Some(external_id) = external_id {
-            let _ = state.registry.mark_left(state, protocol, external_id).await;
+        if let Some(external_id) = external_id
+            && let Err(error) = state.registry.mark_left(state, protocol, external_id).await
+        {
+            warn!(%protocol, %external_id, %error, "failed to remove Device that left");
         }
     }
 

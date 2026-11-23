@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 
@@ -96,6 +98,8 @@ pub enum InterviewStatus {
 pub struct ErrorBody {
     pub code: String,
     pub message: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub details: Option<JsonValue>,
 }
 
 /// Device resource matching `@nemu/protocol` `deviceSchema`.
@@ -116,6 +120,9 @@ pub struct DeviceResource {
     pub external_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub state: Option<JsonValue>,
+    /// Components assigned to a Room other than the Device's, by Component ID.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub component_rooms: BTreeMap<String, String>,
 }
 
 impl DeviceResource {
@@ -134,6 +141,7 @@ impl DeviceResource {
             online,
             external_id: device.external_id.clone(),
             state,
+            component_rooms: BTreeMap::new(),
         }
     }
 }

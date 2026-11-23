@@ -43,7 +43,8 @@ export function toApiError(err: unknown): ApiError {
             return new ApiError(
                 parsed.data.error.code,
                 parsed.data.error.message,
-                status
+                status,
+                parsed.data.error.details
             )
         }
         if (err.code === 'ECONNABORTED') {

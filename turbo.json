@@ -1,5 +1,5 @@
 {
-    "$schema": "https://v2-11-10.turborepo.dev/schema.json",
+    "$schema": "https://v2-11-13.turborepo.dev/schema.json",
     "ui": "tui",
     "globalEnv": ["NODE_ENV"],
     "globalPassThroughEnv": [
@@ -36,6 +36,9 @@
         "check-types": {
             "dependsOn": ["^check-types"]
         },
+        "test": {
+            "outputs": []
+        },
         "fmt:rust": {
             "inputs": ["$TURBO_DEFAULT$"],
             "outputs": []
@@ -51,6 +54,14 @@
         "dev:web": {
             "cache": false,
             "persistent": true
+        },
+        "dev:ios": {
+            "cache": false,
+            "persistent": true
+        },
+        "dev:android": {
+            "persistent": true,
+            "cache": false
         },
         "convex:dev": {
             "cache": false,

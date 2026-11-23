@@ -1,13 +1,28 @@
-declare module '*.png' {
-    import type { StaticImageData } from 'next/image'
+/**
+ * Portable asset module shape.
+ * - Expo/Metro: numeric asset registry id
+ * - Next.js: StaticImageData-compatible object
+ */
+type NemuAssetModule =
+    | number
+    | {
+          src: string
+          height: number
+          width: number
+          blurDataURL?: string
+      }
 
-    const content: StaticImageData
+declare module '*.png' {
+    const content: NemuAssetModule
     export default content
 }
 
 declare module '*.ico' {
-    import type { StaticImageData } from 'next/image'
+    const content: NemuAssetModule
+    export default content
+}
 
-    const content: StaticImageData
+declare module '*.svg' {
+    const content: NemuAssetModule
     export default content
 }

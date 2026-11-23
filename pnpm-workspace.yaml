@@ -5,24 +5,29 @@ packages:
   - "tooling/*"
 
 allowBuilds:
+  browser-tabs-lock: true
   bufferutil: true
   core-js: true
   esbuild: true
   sharp: true
   utf-8-validate: true
+  "@parcel/watcher": false
 
 catalog:
   zod: ^4.3.6
-  react: ^19.0.0
-  react-dom: ^19.0.0
-  "@types/react": ^19.0.10
-  "@types/react-dom": ^19.0.10
+  react: 19.3.0
+  react-dom: 19.3.0
+  tailwindcss: ^4.1.12
+  "@tailwindcss/postcss": ^4.1.12
+  postcss: ^8.5.3
+  "@types/react": ~19.3.0
+  "@types/react-dom": ~19.3.0
   "@types/node": ^22.13.10
   typescript: ^5.9.2
-  next: ^16.4.3
+  next: ^16.4.6
   "@clerk/nextjs": ^7.5.18
   "@clerk/ui": ^1.25.2
-  convex: ^1.48.0
+  convex: ^1.51.0
   axios: ^1.18.1
 
 overrides:
@@ -30,7 +35,7 @@ overrides:
   utf-8-validate: 5.0.10
 
 minimumReleaseAgeExclude:
-  - convex@1.43.0
+  - convex@1.51.0
   - "@next/env@16.3.2 || 16.4.3"
   - "@next/swc-darwin-arm64@16.3.2 || 16.4.3"
   - "@next/swc-darwin-x64@16.3.2 || 16.4.3"
@@ -41,3 +46,38 @@ minimumReleaseAgeExclude:
   - "@next/swc-win32-arm64-msvc@16.3.2 || 16.4.3"
   - "@next/swc-win32-x64-msvc@16.3.2 || 16.4.3"
   - next@16.4.3
+  - "@expo/cli@58.1.20"
+  - "@expo/config-plugins@58.0.13"
+  - "@expo/config@58.0.12"
+  - "@expo/env@2.6.0"
+  - "@expo/fingerprint@0.21.10"
+  - "@expo/image-utils@0.12.7"
+  - "@expo/inline-modules@0.2.10"
+  - "@expo/local-build-cache-provider@58.0.12"
+  - "@expo/metro-config@58.0.22"
+  - "@expo/metro-file-map@58.0.6"
+  - "@expo/plist@0.10.2"
+  - "@expo/prebuild-config@58.0.20"
+  - "@expo/require-utils@58.0.6"
+  - "@expo/router-server@58.0.22"
+  - babel-preset-expo@58.0.25
+  - expo-asset@58.0.21
+  - expo-constants@58.0.16
+  - expo-font@58.0.12
+  - expo-keep-awake@58.0.4
+  - expo-modules-autolinking@58.1.0
+  - expo-modules-cli@0.5.0
+  - expo-modules-core@58.1.0
+  - expo-modules-jsi@58.0.23
+  - expo-server@58.1.0
+  - expo@58.0.24
+  - "@expo/ui@58.0.28"
+  - expo-auth-session@58.0.18
+  - expo-crypto@58.0.8
+  - expo-linking@58.0.17
+  - expo-router@58.0.31
+  - expo-secure-store@58.0.3
+  - expo-splash-screen@58.0.14
+  - expo-status-bar@58.0.5
+  - expo-symbols@58.0.5
+  - expo-web-browser@58.0.8

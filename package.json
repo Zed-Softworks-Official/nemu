@@ -4,8 +4,11 @@
     "license": "Apache-2.0",
     "scripts": {
         "dev": "bash scripts/dev.sh",
-        "dev:web": "bash scripts/kill-dev-ports.sh && turbo run dev --filter=@nemu/web --filter=@nemu/dashboard --filter=@nemu/docs",
+        "dev:web": "bash scripts/kill-dev-ports.sh && turbo run dev --filter=@nemu/web --filter=@nemu/dashboard --filter=@nemu/mobile",
         "dev:dashboard": "bash scripts/kill-dev-ports.sh && turbo run dev --filter=@nemu/dashboard",
+        "dev:mobile": "turbo run dev --filter=@nemu/mobile",
+        "dev:ios": "bash scripts/kill-dev-ports.sh && turbo run dev:ios --filter=@nemu/mobile",
+        "dev:android": "bash scripts/kill-dev-ports.sh && turbo run dev:android --filter=@nemu/mobile",
         "convex:dev": "turbo run convex:dev",
         "build": "turbo run build --filter=@nemu/web --filter=@nemu/dashboard",
         "build:web": "pnpm --filter @nemu/cloud exec convex deploy --cmd-url-env-var-name NEXT_PUBLIC_CONVEX_URL --cmd 'cd ../.. && turbo run build --filter=@nemu/web'",
@@ -16,6 +19,7 @@
         "lint": "turbo run lint",
         "format": "biome format --write .",
         "check-types": "turbo run check-types",
+        "test": "turbo run test",
         "infra": "bash scripts/infra.sh",
         "infra:full": "bash scripts/infra.sh --full",
         "infra:down": "docker compose -f docker-compose.dev.yml --profile matter down",
@@ -25,6 +29,10 @@
         "db:reset": "pnpm --filter @nemu/core db:reset",
         "db:setup": "pnpm --filter @nemu/core db:setup",
         "ui-add": "turbo run ui-add --filter=@nemu/ui --",
+        "expo:install": "pnpm --filter @nemu/mobile expo:install --",
+        "expo:uninstall": "pnpm --filter @nemu/mobile expo:uninstall --",
+        "expo:update": "pnpm --filter @nemu/mobile expo:update --",
+        "expo:cli": "pnpm --filter @nemu/mobile expo:cli --",
         "prepare": "husky"
     },
     "devDependencies": {
@@ -36,7 +44,7 @@
         "husky": "^9.1.7",
         "lint-staged": "^16.4.0",
         "prettier": "^3.6.2",
-        "turbo": "^2.11.10",
+        "turbo": "^2.11.13",
         "typescript": "5.9.2"
     },
     "lint-staged": {
@@ -44,7 +52,7 @@
         "!(.agents)/**/*.{js,jsx,ts,tsx,json,css,html}": "biome check --write --no-errors-on-unmatched --files-ignore-unknown=true",
         "**/Dockerfile*": "bash scripts/hooks/hadolint.sh"
     },
-    "packageManager": "pnpm@12.15.0",
+    "packageManager": "pnpm@12.21.0",
     "engines": {
         "node": ">=18"
     }

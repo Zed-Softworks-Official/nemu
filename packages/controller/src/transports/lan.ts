@@ -1,6 +1,9 @@
 import {
+    ApiError,
     type ApplyUpdateResponse,
+    type AssignRoomRequest,
     applyUpdateResponseSchema,
+    assignRoomRequestSchema,
     type BootstrapOwnerRequest,
     bootstrapOwnerRequestSchema,
     type ClientToken,
@@ -40,7 +43,11 @@ import {
     permitJoinRequestSchema,
     permitJoinResponseSchema,
     type ReleaseChannel,
+    type RenameDeviceRequest,
+    type RenameRoomRequest,
     type Room,
+    renameDeviceRequestSchema,
+    renameRoomRequestSchema,
     roomSchema,
     roomsResponseSchema,
     type SaveMatterWifiRequest,
@@ -53,9 +60,32 @@ import {
     updateStatusResponseSchema,
 } from '@nemu/protocol'
 import type { AxiosInstance } from 'axios'
-import { createControllerHttp, type GetToken } from '../http'
-import { isLoopbackHostname, isMixedContentUrl } from '../mixedContent'
-import type { ControllerTransport } from './types'
+import { createControllerHttp, type GetToken } from '../http.ts'
+import { isLoopbackHostname, isMixedContentUrl } from '../mixedContent.ts'
+import type { ControllerTransport } from './types.ts'
+
+/**
+ * A Controller that predates a setup route answers 404 or 405 without an
+ * error body. Report that as `unsupported_action` (ADR-0016).
+ */
+async function setupRequest<T>(request: Promise<T>): Promise<T> {
+    try {
+        return await request
+    } catch (error) {
+        if (
+            error instanceof ApiError &&
+            error.code === 'http_error' &&
+            (error.status === 404 || error.status === 405)
+        ) {
+            throw new ApiError(
+                'unsupported_action',
+                'This Controller does not support that action. Update the Controller.',
+                error.status
+            )
+        }
+        throw error
+    }
+}
 
 function toWsUrl(baseUrl: string): string {
     const url = new URL(baseUrl)
@@ -273,6 +303,49 @@ export class LanTransport implements ControllerTransport {
         })
     }
 
+    async renameDevice(request: RenameDeviceRequest): Promise<Device> {
+        const { deviceId, name } = renameDeviceRequestSchema.parse(request)
+        const { data } = await setupRequest(
+            this.http.patch(`/api/devices/${encodeURIComponent(deviceId)}`, {
+                name,
+            })
+        )
+        return deviceSchema.parse(data)
+    }
+
+    async assignRoom(request: AssignRoomRequest): Promise<Device> {
+        const { deviceId, componentId, roomId } =
+            assignRoomRequestSchema.parse(request)
+        const device = encodeURIComponent(deviceId)
+        const { data } = await setupRequest(
+            componentId === undefined
+                ? this.http.patch(`/api/devices/${device}`, { roomId })
+                : this.http.put(
+                      `/api/devices/${device}/components/${encodeURIComponent(componentId)}/room`,
+                      { roomId }
+                  )
+        )
+        return deviceSchema.parse(data)
+    }
+
+    async removeDevice(deviceId: string): Promise<void> {
+        await setupRequest(
+            this.http.delete(`/api/devices/${encodeURIComponent(deviceId)}`, {
+                timeout: 20_000,
+            })
+        )
+    }
+
+    async renameRoom(request: RenameRoomRequest): Promise<Room> {
+        const { roomId, name } = renameRoomRequestSchema.parse(request)
+        const { data } = await setupRequest(
+            this.http.patch(`/api/rooms/${encodeURIComponent(roomId)}`, {
+                name,
+            })
+        )
+        return roomSchema.parse(data)
+    }
+
     async getMembers(): Promise<HouseholdMember[]> {
         const { data } = await this.http.get('/api/members')
         return membersResponseSchema.parse(data).members
@@ -322,6 +395,10 @@ export class LanTransport implements ControllerTransport {
 
     async revokeCurrentToken(): Promise<void> {
         await this.http.delete('/api/tokens/current')
+    }
+
+    async leaveHome(): Promise<void> {
+        await this.http.post('/api/members/leave')
     }
 
     async bootstrapOwner(

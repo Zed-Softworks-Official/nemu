@@ -4,10 +4,13 @@
     "private": true,
     "type": "module",
     "exports": {
-        ".": "./src/index.ts"
+        ".": "./src/index.ts",
+        "./energy": "./src/energy.ts",
+        "./testing": "./src/testing.ts"
     },
     "scripts": {
-        "check-types": "tsc --noEmit"
+        "check-types": "tsc --noEmit",
+        "test": "node --experimental-strip-types --test \"src/**/*.test.ts\""
     },
     "dependencies": {
         "@nemu/protocol": "workspace:*",

@@ -9,16 +9,19 @@ use tokio::sync::broadcast::error::RecvError;
 use tracing::{debug, info, warn};
 use uuid::Uuid;
 
+use crate::api::access::{leave_home, revoke_current};
 use crate::api::auth::AuthenticatedClient;
 use crate::api::members::{
     SessionMintInput, bootstrap_owner, invite_member, list_household_members, mint_session,
     remove_member,
 };
-use crate::api::pairing::{list_household_tokens, revoke_current_token, revoke_household_token};
+use crate::api::pairing::{list_household_tokens, revoke_household_token};
+use crate::api::rooms::load_rooms;
 use crate::commands::execute_set;
 use crate::events::DeviceEvent;
 use crate::pairing::tokens::verify_client_token;
 use crate::registration::{convex_cloud_url, fetch_controller_session, register_with_convex};
+use crate::setup;
 use crate::state::{AppState, CapabilityWatch};
 
 /// HTTP fallback poll interval when the WebSocket client is unavailable.
@@ -58,6 +61,8 @@ enum ToControllerMessage {
         device_id: String,
         payload: JsonValue,
     },
+    #[serde(rename = "getRooms")]
+    GetRooms,
     #[serde(rename = "getDevices")]
     GetDevices,
     #[serde(rename = "sessionMint")]
@@ -88,6 +93,8 @@ enum ToControllerMessage {
     },
     #[serde(rename = "revokeCurrent")]
     RevokeCurrent,
+    #[serde(rename = "leaveHome")]
+    LeaveHome,
     #[serde(rename = "bootstrapOwner")]
     BootstrapOwner {
         #[serde(rename = "userId")]
@@ -124,6 +131,138 @@ enum ToControllerMessage {
     RollbackRelease,
     #[serde(rename = "switchReleaseChannel")]
     SwitchReleaseChannel { channel: String },
+    #[serde(rename = "renameDevice")]
+    RenameDevice {
+        #[serde(rename = "deviceId")]
+        device_id: String,
+        name: String,
+    },
+    #[serde(rename = "assignRoom")]
+    AssignRoom {
+        #[serde(rename = "deviceId")]
+        device_id: String,
+        #[serde(rename = "componentId", default)]
+        component_id: Option<String>,
+        /// Required; `null` clears the Room.
+        #[serde(
+            rename = "roomId",
+            deserialize_with = "crate::api::devices::required_nullable"
+        )]
+        room_id: Option<String>,
+    },
+    #[serde(rename = "removeDevice")]
+    RemoveDevice {
+        #[serde(rename = "deviceId")]
+        device_id: String,
+    },
+    #[serde(rename = "createRoom")]
+    CreateRoom {
+        name: String,
+        #[serde(rename = "sortOrder", default)]
+        sort_order: Option<i32>,
+    },
+    #[serde(rename = "updateRoom")]
+    UpdateRoom {
+        #[serde(rename = "roomId")]
+        room_id: String,
+        #[serde(default)]
+        name: Option<String>,
+        #[serde(rename = "sortOrder", default)]
+        sort_order: Option<i32>,
+    },
+    #[serde(rename = "deleteRoom")]
+    DeleteRoom {
+        #[serde(rename = "roomId")]
+        room_id: String,
+    },
+}
+
+/// Why a Relay envelope could not become a request (ADR-0016).
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum EnvelopeRejection {
+    /// This Controller does not know the requested action.
+    UnsupportedAction { request_id: String, action: String },
+    /// A LAN-only action such as commissioning arrived over Relay (ADR-0030).
+    LanOnly { request_id: String, action: String },
+    /// A known action arrived in a shape this Controller cannot read.
+    ProtocolMismatch { request_id: String, detail: String },
+    /// No request ID to answer; the envelope is dropped.
+    Unreadable(String),
+}
+
+/// Actions that only run over LAN (ADR-0030). Commissioning carries pairing
+/// codes and Wi-Fi credentials and needs the phone next to the Device, so the
+/// Relay answers these with an explicit rejection instead of the request
+/// waiting for a reply that never comes.
+const LAN_ONLY_ACTIONS: &[&str] = &[
+    "permitJoin",
+    "commissionMatter",
+    "cancelMatterCommission",
+    "getMatterWifi",
+    "saveMatterWifi",
+];
+
+fn parse_envelope(payload: &str) -> Result<ToControllerEnvelope, EnvelopeRejection> {
+    let raw: JsonValue = serde_json::from_str(payload)
+        .map_err(|e| EnvelopeRejection::Unreadable(format!("invalid envelope: {e}")))?;
+    let request_id = raw
+        .get("requestId")
+        .and_then(JsonValue::as_str)
+        .map(str::to_string);
+    let requested = raw.pointer("/message/type").and_then(JsonValue::as_str);
+    if let (Some(request_id), Some(action)) = (request_id.as_ref(), requested)
+        && LAN_ONLY_ACTIONS.contains(&action)
+    {
+        return Err(EnvelopeRejection::LanOnly {
+            request_id: request_id.clone(),
+            action: action.to_string(),
+        });
+    }
+    match serde_json::from_value::<ToControllerEnvelope>(raw.clone()) {
+        Ok(envelope) => Ok(envelope),
+        Err(error) => {
+            let Some(request_id) = request_id else {
+                return Err(EnvelopeRejection::Unreadable(format!(
+                    "invalid envelope: {error}"
+                )));
+            };
+            let action = raw
+                .pointer("/message/type")
+                .and_then(JsonValue::as_str)
+                .unwrap_or_default()
+                .to_string();
+            if error.to_string().starts_with("unknown variant") {
+                Err(EnvelopeRejection::UnsupportedAction { request_id, action })
+            } else {
+                Err(EnvelopeRejection::ProtocolMismatch {
+                    request_id,
+                    detail: error.to_string(),
+                })
+            }
+        }
+    }
+}
+
+/// The error code and message answering a rejected envelope, or `None` when
+/// there is no request ID to answer.
+fn rejection_reply(rejection: &EnvelopeRejection) -> Option<(&'static str, String)> {
+    match rejection {
+        EnvelopeRejection::UnsupportedAction { action, .. } => Some((
+            "unsupported_action",
+            format!("This Controller does not support {action:?}. Update the Controller."),
+        )),
+        EnvelopeRejection::LanOnly { action, .. } => Some((
+            "unsupported_action",
+            format!(
+                "{action:?} is not available over Relay. Adding a Device needs this phone on the Home network."
+            ),
+        )),
+        EnvelopeRejection::ProtocolMismatch { detail, .. } => Some((
+            "protocol_mismatch",
+            format!("This Controller cannot read the request: {detail}"),
+        )),
+        EnvelopeRejection::Unreadable(_) => None,
+    }
 }
 
 #[derive(Serialize)]
@@ -337,8 +476,19 @@ async fn handle_message(
     respond_via: &mut RespondVia<'_>,
     message: &PendingMessage,
 ) -> Result<(), String> {
-    let envelope: ToControllerEnvelope =
-        serde_json::from_str(&message.payload).map_err(|e| format!("invalid envelope: {e}"))?;
+    let envelope = match parse_envelope(&message.payload) {
+        Ok(envelope) => envelope,
+        Err(rejection) => {
+            let Some((code, text)) = rejection_reply(&rejection) else {
+                return Err(match rejection {
+                    EnvelopeRejection::Unreadable(error) => error,
+                    _ => "unanswerable relay envelope".to_string(),
+                });
+            };
+            let payload = build_error_response(state, &message.request_id, code, &text);
+            return respond(state, respond_via, &message.request_id, payload).await;
+        }
+    };
 
     if envelope.request_id != message.request_id {
         debug!(
@@ -389,6 +539,14 @@ async fn handle_message(
             }
             build_devices_response(state, &message.request_id, resources)
         }
+        ToControllerMessage::GetRooms => match load_rooms(state).await {
+            Ok(rooms) => build_typed_response(
+                state,
+                &message.request_id,
+                json!({ "type": "rooms", "rooms": rooms }),
+            ),
+            Err(err) => build_error_response(state, &message.request_id, &err.code, &err.message),
+        },
         ToControllerMessage::Command {
             ref device_id,
             ref payload,
@@ -456,7 +614,11 @@ async fn handle_message(
                 }
             }
         }
-        ToControllerMessage::RevokeCurrent => match revoke_current_token(state, &auth).await {
+        ToControllerMessage::RevokeCurrent => match revoke_current(&state.db, &auth).await {
+            Ok(()) => build_command_result(state, &message.request_id, true, None, None),
+            Err(err) => build_error_response(state, &message.request_id, &err.code, &err.message),
+        },
+        ToControllerMessage::LeaveHome => match leave_home(&state.db, &auth).await {
             Ok(()) => build_command_result(state, &message.request_id, true, None, None),
             Err(err) => build_error_response(state, &message.request_id, &err.code, &err.message),
         },
@@ -617,6 +779,53 @@ async fn handle_message(
                 }
             }
         }
+        ToControllerMessage::RenameDevice { device_id, name } => device_outcome(
+            state,
+            &message.request_id,
+            setup::rename_device(state, &auth, &device_id, &name).await,
+        ),
+        ToControllerMessage::AssignRoom {
+            device_id,
+            component_id,
+            room_id,
+        } => device_outcome(
+            state,
+            &message.request_id,
+            setup::assign_room(
+                state,
+                &auth,
+                setup::RoomAssignment {
+                    device_id,
+                    component_id,
+                    room_id,
+                },
+            )
+            .await,
+        ),
+        ToControllerMessage::RemoveDevice { device_id } => done_outcome(
+            state,
+            &message.request_id,
+            setup::remove_device(state, &auth, &device_id).await,
+        ),
+        ToControllerMessage::CreateRoom { name, sort_order } => room_outcome(
+            state,
+            &message.request_id,
+            setup::create_room(state, &auth, &name, sort_order).await,
+        ),
+        ToControllerMessage::UpdateRoom {
+            room_id,
+            name,
+            sort_order,
+        } => room_outcome(
+            state,
+            &message.request_id,
+            setup::update_room(state, &auth, &room_id, name.as_deref(), sort_order).await,
+        ),
+        ToControllerMessage::DeleteRoom { room_id } => done_outcome(
+            state,
+            &message.request_id,
+            setup::delete_room(state, &auth, &room_id).await,
+        ),
         ToControllerMessage::ReleaseStatus => {
             match crate::api::updates::read_release_status(state, &auth).await {
                 Ok(status) => match serde_json::to_value(&status) {
@@ -779,6 +988,64 @@ fn build_command_result(
     sign_envelope(state, envelope)
 }
 
+fn device_outcome(
+    state: &AppState,
+    request_id: &str,
+    result: Result<crate::events::DeviceResource, setup::SetupError>,
+) -> String {
+    match result {
+        Ok(device) => build_typed_response(
+            state,
+            request_id,
+            json!({ "type": "device", "device": device }),
+        ),
+        Err(error) => build_setup_error_response(state, request_id, &error),
+    }
+}
+
+fn room_outcome(
+    state: &AppState,
+    request_id: &str,
+    result: Result<crate::events::RoomResource, setup::SetupError>,
+) -> String {
+    match result {
+        Ok(room) => {
+            build_typed_response(state, request_id, json!({ "type": "room", "room": room }))
+        }
+        Err(error) => build_setup_error_response(state, request_id, &error),
+    }
+}
+
+fn done_outcome(
+    state: &AppState,
+    request_id: &str,
+    result: Result<(), setup::SetupError>,
+) -> String {
+    match result {
+        Ok(()) => build_command_result(state, request_id, true, None, None),
+        Err(error) => build_setup_error_response(state, request_id, &error),
+    }
+}
+
+/// A setup error over Relay carries the same code, message, and details as
+/// on LAN.
+fn build_setup_error_response(
+    state: &AppState,
+    request_id: &str,
+    error: &setup::SetupError,
+) -> String {
+    let mut body = json!({ "code": error.code(), "message": error.message() });
+    if let Some(details) = error.details() {
+        body["details"] = details;
+    }
+    let envelope = json!({
+        "requestId": request_id,
+        "signature": "",
+        "message": { "type": "commandResult", "ok": false, "error": body },
+    });
+    sign_envelope(state, envelope)
+}
+
 fn build_error_response(state: &AppState, request_id: &str, code: &str, message: &str) -> String {
     build_command_result(
         state,
@@ -867,4 +1134,129 @@ fn live_capability_watches(state: &AppState) -> Vec<CapabilityWatch> {
     let now = Instant::now();
     watches.retain(|watch| watch.expires_at > now);
     watches.clone()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn envelope(message: JsonValue) -> String {
+        json!({ "requestId": "r1", "clientToken": "t", "message": message }).to_string()
+    }
+
+    #[test]
+    fn parses_device_and_room_setup_requests() {
+        let parsed = parse_envelope(&envelope(json!({
+            "type": "renameDevice", "deviceId": "d", "name": "Lamp"
+        })))
+        .unwrap();
+        assert!(matches!(
+            parsed.message,
+            ToControllerMessage::RenameDevice { ref device_id, ref name }
+                if device_id == "d" && name == "Lamp"
+        ));
+
+        let parsed = parse_envelope(&envelope(json!({
+            "type": "assignRoom", "deviceId": "d", "componentId": "l2", "roomId": null
+        })))
+        .unwrap();
+        assert!(matches!(
+            parsed.message,
+            ToControllerMessage::AssignRoom { ref component_id, room_id: None, .. }
+                if component_id.as_deref() == Some("l2")
+        ));
+        // A missing roomId is a request error, not a clear.
+        assert!(
+            parse_envelope(&envelope(json!({
+                "type": "assignRoom", "deviceId": "d", "componentId": "l2"
+            })))
+            .is_err()
+        );
+
+        for message in [
+            json!({ "type": "removeDevice", "deviceId": "d" }),
+            json!({ "type": "createRoom", "name": "Den" }),
+            json!({ "type": "updateRoom", "roomId": "r", "name": "Den" }),
+            json!({ "type": "deleteRoom", "roomId": "r" }),
+        ] {
+            assert!(
+                parse_envelope(&envelope(message.clone())).is_ok(),
+                "{message}"
+            );
+        }
+    }
+
+    #[test]
+    fn unknown_request_types_are_unsupported_actions() {
+        let rejection = parse_envelope(&envelope(json!({ "type": "teleportDevice" }))).unwrap_err();
+        assert_eq!(
+            rejection,
+            EnvelopeRejection::UnsupportedAction {
+                request_id: "r1".into(),
+                action: "teleportDevice".into(),
+            }
+        );
+    }
+
+    #[test]
+    fn commissioning_requests_are_rejected_as_lan_only() {
+        for message in [
+            json!({ "type": "commissionMatter", "code": "34970112332" }),
+            json!({ "type": "cancelMatterCommission" }),
+            json!({ "type": "permitJoin", "seconds": 180 }),
+            json!({ "type": "getMatterWifi" }),
+            json!({ "type": "saveMatterWifi", "wifiSsid": "home", "wifiPassword": "pw" }),
+        ] {
+            let action = message["type"].as_str().unwrap().to_string();
+            let rejection = parse_envelope(&envelope(message)).unwrap_err();
+            assert_eq!(
+                rejection,
+                EnvelopeRejection::LanOnly {
+                    request_id: "r1".into(),
+                    action: action.clone(),
+                },
+                "{action}"
+            );
+            let (code, text) = rejection_reply(&rejection).unwrap();
+            assert_eq!(code, "unsupported_action");
+            assert!(text.contains("Home network"), "{text}");
+        }
+    }
+
+    #[test]
+    fn unknown_actions_reply_with_unsupported_action() {
+        let rejection = parse_envelope(&envelope(json!({ "type": "teleportDevice" }))).unwrap_err();
+        let (code, text) = rejection_reply(&rejection).unwrap();
+        assert_eq!(code, "unsupported_action");
+        assert!(text.contains("teleportDevice"), "{text}");
+        assert!(rejection_reply(&EnvelopeRejection::Unreadable("x".into())).is_none());
+    }
+
+    #[test]
+    fn malformed_known_requests_are_protocol_mismatches() {
+        let rejection = parse_envelope(&envelope(json!({ "type": "renameDevice", "deviceId": 7 })))
+            .unwrap_err();
+        assert!(matches!(
+            rejection,
+            EnvelopeRejection::ProtocolMismatch { ref request_id, .. } if request_id == "r1"
+        ));
+        assert!(matches!(
+            parse_envelope("not json").unwrap_err(),
+            EnvelopeRejection::Unreadable(_)
+        ));
+    }
+
+    #[test]
+    fn leave_home_and_revoke_current_take_no_arguments() {
+        let leave: ToControllerEnvelope = serde_json::from_str(
+            r#"{"requestId":"r1","clientToken":"t","message":{"type":"leaveHome"}}"#,
+        )
+        .unwrap();
+        assert!(matches!(leave.message, ToControllerMessage::LeaveHome));
+        let revoke: ToControllerEnvelope = serde_json::from_str(
+            r#"{"requestId":"r2","clientToken":"t","message":{"type":"revokeCurrent"}}"#,
+        )
+        .unwrap();
+        assert!(matches!(revoke.message, ToControllerMessage::RevokeCurrent));
+    }
 }

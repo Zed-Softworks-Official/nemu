@@ -213,7 +213,7 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.99.1
+          toolchain: 1.100.0
 
       - name: Build the Updater binary
         working-directory: platform/updater
@@ -305,7 +305,7 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.99.1
+          toolchain: 1.100.0
 
       - name: Build publish-release
         run: cargo build --release --locked --bin publish-release --manifest-path platform/updater/Cargo.toml

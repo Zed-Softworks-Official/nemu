@@ -2,6 +2,7 @@
 
 import {
     type ApplyUpdateResponse,
+    type AssignRoomRequest,
     type BootstrapOwnerRequest,
     type CapabilityView,
     type ClientToken,
@@ -26,6 +27,8 @@ import {
     type PatchRoomRequest,
     type PermitJoinResponse,
     type ReleaseChannel,
+    type RenameDeviceRequest,
+    type RenameRoomRequest,
     type Room,
     type SaveMatterWifiRequest,
     type SwitchReleaseChannelResponse,
@@ -43,8 +46,12 @@ import {
     useRef,
     useState,
 } from 'react'
-import { ControllerConnection } from './connection'
-import type { RelayApi } from './transports/relay'
+import {
+    ControllerConnection,
+    type ControllerConnectors,
+} from './connection.ts'
+import type { ControllerCredentialStore } from './storage.ts'
+import type { RelayApi } from './transports/relay.ts'
 
 type ControllerContextValue = {
     connection: ControllerConnection
@@ -80,12 +87,23 @@ type ControllerContextValue = {
         patch: PatchOutletRequest
     ) => Promise<void>
     forgetDevice: (deviceId: string) => Promise<void>
+    /**
+     * Device and Room setup over LAN or Relay. Each rejects with an
+     * `ApiError` whose `code` comes from the Controller, for example
+     * `inactive_membership`, `room_not_empty`, or `unsupported_action`.
+     * Nothing is queued while the Controller is unreachable.
+     */
+    renameDevice: (request: RenameDeviceRequest) => Promise<Device>
+    assignRoom: (request: AssignRoomRequest) => Promise<Device>
+    removeDevice: (deviceId: string) => Promise<void>
+    renameRoom: (request: RenameRoomRequest) => Promise<Room>
     getMembers: () => Promise<HouseholdMember[]>
     inviteMember: (email: string) => Promise<HouseholdMember>
     removeMember: (memberId: string) => Promise<void>
     getTokens: () => Promise<ClientToken[]>
     revokeToken: (tokenId: string) => Promise<void>
     revokeCurrentToken: () => Promise<void>
+    leaveHome: () => Promise<void>
     bootstrapOwner: (request: BootstrapOwnerRequest) => Promise<HouseholdMember>
     getReleaseStatus: () => Promise<UpdateStatusResponse>
     installRelease: () => Promise<ApplyUpdateResponse>
@@ -102,7 +120,14 @@ export type ControllerProviderProps = {
     convex?: ConvexReactClient
     relayApi?: RelayApi
     lanCandidates?: string[]
+    /** The selected Home. Scopes LAN discovery, Relay, and credentials. */
     controllerId?: string | null
+    /** Per-Home Access Client credentials (default: localStorage). */
+    credentialStore?: ControllerCredentialStore
+    /** Replace network access, e.g. with `fakeControllerConnectors`. */
+    connectors?: Partial<ControllerConnectors>
+    /** Use a prebuilt connection instead of building one from props. */
+    connection?: ControllerConnection
     /** Auto-start connection manager (default true). */
     autoStart?: boolean
     /** False until Convex has a user token. Local discovery still runs. */
@@ -115,6 +140,9 @@ export function ControllerProvider({
     relayApi,
     lanCandidates,
     controllerId,
+    credentialStore,
+    connectors,
+    connection: providedConnection,
     autoStart = true,
     relayAllowed = true,
 }: ControllerProviderProps) {
@@ -123,14 +151,25 @@ export function ControllerProvider({
     relayAllowedRef.current = relayAllowed
     const connection = useMemo(
         () =>
+            providedConnection ??
             new ControllerConnection({
                 convex,
                 relayApi,
                 lanCandidates,
                 controllerId,
+                credentialStore,
+                connectors,
                 relayAllowed: () => relayAllowedRef.current,
             }),
-        [convex, relayApi, lanCandidates, controllerId]
+        [
+            providedConnection,
+            convex,
+            relayApi,
+            lanCandidates,
+            controllerId,
+            credentialStore,
+            connectors,
+        ]
     )
 
     const [status, setStatus] = useState<ConnectionStatus>(
@@ -223,6 +262,22 @@ export function ControllerProvider({
         (deviceId: string) => connection.forgetDevice(deviceId),
         [connection]
     )
+    const renameDevice = useCallback(
+        (request: RenameDeviceRequest) => connection.renameDevice(request),
+        [connection]
+    )
+    const assignRoom = useCallback(
+        (request: AssignRoomRequest) => connection.assignRoom(request),
+        [connection]
+    )
+    const removeDevice = useCallback(
+        (deviceId: string) => connection.removeDevice(deviceId),
+        [connection]
+    )
+    const renameRoom = useCallback(
+        (request: RenameRoomRequest) => connection.renameRoom(request),
+        [connection]
+    )
     const getMembers = useCallback(() => connection.getMembers(), [connection])
     const inviteMember = useCallback(
         (email: string) => connection.inviteMember(email),
@@ -241,6 +296,7 @@ export function ControllerProvider({
         () => connection.revokeCurrentToken(),
         [connection]
     )
+    const leaveHome = useCallback(() => connection.leaveHome(), [connection])
     const bootstrapOwner = useCallback(
         (request: BootstrapOwnerRequest) => connection.bootstrapOwner(request),
         [connection]
@@ -284,12 +340,17 @@ export function ControllerProvider({
             patchDevice,
             patchOutlet,
             forgetDevice,
+            renameDevice,
+            assignRoom,
+            removeDevice,
+            renameRoom,
             getMembers,
             inviteMember,
             removeMember,
             getTokens,
             revokeToken,
             revokeCurrentToken,
+            leaveHome,
             bootstrapOwner,
             getReleaseStatus,
             installRelease,
@@ -317,12 +378,17 @@ export function ControllerProvider({
             patchDevice,
             patchOutlet,
             forgetDevice,
+            renameDevice,
+            assignRoom,
+            removeDevice,
+            renameRoom,
             getMembers,
             inviteMember,
             removeMember,
             getTokens,
             revokeToken,
             revokeCurrentToken,
+            leaveHome,
             bootstrapOwner,
             getReleaseStatus,
             installRelease,

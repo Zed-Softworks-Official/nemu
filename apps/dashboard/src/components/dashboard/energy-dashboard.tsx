@@ -2,14 +2,17 @@
 
 import { useUser } from '@clerk/nextjs'
 import { useCapabilityState, useController, useDevices } from '@nemu/controller'
+import {
+    collectHistory,
+    liveDesignatedPower,
+    loadTodayEnergy,
+} from '@nemu/controller/energy'
 import type {
     CapabilityCurrentState,
     HistoryQuery,
     HistoryQueryRead,
-    HistoryQueryResult,
     HomeMeterDesignation,
 } from '@nemu/protocol'
-import { canonicalQuantity } from '@nemu/protocol'
 import { Badge } from '@nemu/ui/components/badge'
 import { Button } from '@nemu/ui/components/button'
 import {
@@ -60,17 +63,14 @@ import {
     historyQueryWindow,
     historyRangeOptions,
     homeHistoryQuery,
-    livePowerFlow,
     livePowerFlowLabel,
     type MeterReading,
     type MeterScope,
     type PresentedContributorBreakdown,
     type PresentedHistorySeries,
     presentContributorBreakdown,
-    presentEnergySummary,
     presentHistorySeries,
     selectableMeterScopes,
-    todayHistoryWindow,
 } from '~/lib/energy-presentation'
 import { DeviceIcon } from './device-icon'
 import { PageHeader } from './page-header'
@@ -317,39 +317,15 @@ function HomeEnergy({
     useEffect(() => {
         let cancelled = false
         setHistoryError(null)
-        const queryWindow = todayHistoryWindow(new Date())
         void (async () => {
             try {
-                const [imported, exported] = await Promise.all([
-                    plan.imported === 'absent'
-                        ? Promise.resolve([])
-                        : readMetric(
-                              queryHistory,
-                              'importedEnergy',
-                              queryWindow
-                          ),
-                    plan.exported === 'absent'
-                        ? Promise.resolve([])
-                        : readMetric(
-                              queryHistory,
-                              'exportedEnergy',
-                              queryWindow
-                          ),
-                ])
-                if (cancelled) return
-                setToday({
-                    designationId: designation.id,
-                    imported: summarizeDirection(
-                        'imported',
-                        plan.imported,
-                        imported
-                    ),
-                    exported: summarizeDirection(
-                        'exported',
-                        plan.exported,
-                        exported
-                    ),
+                const { imported, exported } = await loadTodayEnergy({
+                    designation,
+                    queryHistory,
+                    now: new Date(),
                 })
+                if (cancelled) return
+                setToday({ designationId: designation.id, imported, exported })
             } catch (err) {
                 if (cancelled) return
                 setHistoryError(
@@ -362,7 +338,7 @@ function HomeEnergy({
         return () => {
             cancelled = true
         }
-    }, [attempt, designation.id, plan.exported, plan.imported, queryHistory])
+    }, [attempt, designation, queryHistory])
 
     useEffect(() => {
         if (modes.length === 0) return
@@ -1311,147 +1287,6 @@ function EnergySkeleton() {
             <Skeleton className="h-[26rem]" />
         </div>
     )
-}
-
-function liveDesignatedPower(
-    capabilities: readonly CapabilityCurrentState[] | undefined,
-    capabilityId: string | null
-): {
-    watts: number
-    flow: NonNullable<ReturnType<typeof livePowerFlow>>
-} | null {
-    if (!capabilityId) return null
-    const capability = capabilities?.find(
-        (item) => item.capabilityId === capabilityId
-    )
-    if (
-        capability?.availability.status !== 'available' ||
-        capability.value === undefined
-    ) {
-        return null
-    }
-    const watts = canonicalQuantity(capability.value)
-    const flow = livePowerFlow(watts)
-    if (flow === undefined) return null
-    return { watts, flow }
-}
-
-async function readMetric(
-    queryHistory: (query: HistoryQuery) => Promise<HistoryQueryRead>,
-    metric: 'power' | 'importedEnergy' | 'exportedEnergy',
-    queryWindow: {
-        start: string
-        end: string
-        resolution: HistoryRangeResolution
-    }
-): Promise<HistoryQueryResult['series']> {
-    const result = await collectHistory(
-        queryHistory,
-        homeHistoryQuery({
-            metric,
-            start: queryWindow.start,
-            end: queryWindow.end,
-            resolution: queryWindow.resolution,
-        })
-    )
-    return result.series
-}
-
-type HistoryRangeResolution = ReturnType<
-    typeof historyQueryWindow
->['resolution']
-
-function summarizeDirection(
-    direction: 'imported' | 'exported',
-    plan: 'measured' | 'estimated' | 'absent',
-    series: HistoryQueryResult['series']
-): EnergySummary | null {
-    if (plan === 'absent') return null
-    if (series.length === 0) {
-        return presentEnergySummary({ direction, plan, series: null })
-    }
-    const elapsedNs = series[0]?.coverage.elapsedNs ?? 0
-    const coveredNs = Math.min(
-        elapsedNs,
-        series.reduce((total, item) => total + item.coverage.coveredNs, 0)
-    )
-    return presentEnergySummary({
-        direction,
-        plan,
-        series: {
-            provenance: plan === 'estimated' ? 'estimated' : 'measured',
-            coverage: { coveredNs, elapsedNs },
-            points: series.flatMap((item) => item.points),
-        },
-    })
-}
-
-async function collectHistory(
-    queryHistory: (query: HistoryQuery) => Promise<HistoryQueryRead>,
-    query: HistoryQuery
-): Promise<HistoryQueryResult> {
-    let cursor: string | undefined
-    let merged: HistoryQueryResult | null = null
-    let restarts = 0
-    for (let page = 0; page < 20; page += 1) {
-        const read = await queryHistory(
-            cursor === undefined ? query : { ...query, cursor }
-        )
-        if (read.type === 'historyQueryRestart') {
-            restarts += 1
-            if (restarts > 1) {
-                throw new Error(
-                    'This History view expired. Refresh to load it again.'
-                )
-            }
-            cursor = undefined
-            merged = null
-            continue
-        }
-        merged = merged === null ? read : mergeHistory(merged, read)
-        if (read.nextCursor === undefined) {
-            if (read.incomplete) {
-                throw new Error('The History response was incomplete.')
-            }
-            return merged
-        }
-        cursor = read.nextCursor
-    }
-    throw new Error('The History response was incomplete.')
-}
-
-function mergeHistory(
-    current: HistoryQueryResult,
-    page: HistoryQueryResult
-): HistoryQueryResult {
-    const series = current.series.map((item) => ({
-        ...item,
-        points: [...item.points],
-        gaps: [...item.gaps],
-        missing: [...item.missing],
-    }))
-    for (const next of page.series) {
-        const existing = series.find(
-            (item) =>
-                item.capabilityId === next.capabilityId &&
-                item.label === next.label
-        )
-        if (!existing) {
-            series.push(next)
-            continue
-        }
-        const seen = new Set(existing.points.map((point) => point.start))
-        existing.points.push(
-            ...next.points.filter((point) => !seen.has(point.start))
-        )
-        existing.gaps.push(...next.gaps)
-        existing.missing.push(...next.missing)
-    }
-    return {
-        ...page,
-        series,
-        breakdown: page.breakdown ?? current.breakdown,
-    }
 }
 
 function chartRows(
