@@ -38,9 +38,22 @@ where
     Option::<String>::deserialize(deserializer).map(Some)
 }
 
+/// A field that must be present but may be `null`.
+///
+/// Serde treats a missing `Option` field as `None`; with `deserialize_with`
+/// and no `default`, a missing field is an error instead.
+pub(crate) fn required_nullable<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    Option::<String>::deserialize(deserializer)
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ComponentRoomBody {
+    /// Required; `null` clears the Component's Room.
+    #[serde(deserialize_with = "required_nullable")]
     pub room_id: Option<String>,
 }
 
@@ -231,5 +244,14 @@ mod tests {
         assert_eq!(untouched.room_id, None);
         let assigned: PatchDeviceBody = serde_json::from_str(r#"{"roomId":"r"}"#).unwrap();
         assert_eq!(assigned.room_id, Some(Some("r".into())));
+    }
+
+    #[test]
+    fn component_room_must_be_present_but_may_be_null() {
+        let cleared: ComponentRoomBody = serde_json::from_str(r#"{"roomId":null}"#).unwrap();
+        assert_eq!(cleared.room_id, None);
+        let assigned: ComponentRoomBody = serde_json::from_str(r#"{"roomId":"r"}"#).unwrap();
+        assert_eq!(assigned.room_id.as_deref(), Some("r"));
+        assert!(serde_json::from_str::<ComponentRoomBody>("{}").is_err());
     }
 }

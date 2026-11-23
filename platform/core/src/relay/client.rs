@@ -143,7 +143,11 @@ enum ToControllerMessage {
         device_id: String,
         #[serde(rename = "componentId", default)]
         component_id: Option<String>,
-        #[serde(rename = "roomId")]
+        /// Required; `null` clears the Room.
+        #[serde(
+            rename = "roomId",
+            deserialize_with = "crate::api::devices::required_nullable"
+        )]
         room_id: Option<String>,
     },
     #[serde(rename = "removeDevice")]
@@ -1142,6 +1146,13 @@ mod tests {
             ToControllerMessage::AssignRoom { ref component_id, room_id: None, .. }
                 if component_id.as_deref() == Some("l2")
         ));
+        // A missing roomId is a request error, not a clear.
+        assert!(
+            parse_envelope(&envelope(json!({
+                "type": "assignRoom", "deviceId": "d", "componentId": "l2"
+            })))
+            .is_err()
+        );
 
         for message in [
             json!({ "type": "removeDevice", "deviceId": "d" }),
