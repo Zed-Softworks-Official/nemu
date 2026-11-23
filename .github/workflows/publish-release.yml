@@ -257,14 +257,22 @@ jobs:
             -t "${MATTER_IMAGE}:${SHA}" \
             "${MATTER_IMAGE}:${SHA}-amd64" \
             "${MATTER_IMAGE}:${SHA}-arm64"
-          core=$(docker buildx imagetools inspect "${CORE_IMAGE}:${SHA}" --format '{{.Manifest.Digest}}')
-          matter=$(docker buildx imagetools inspect "${MATTER_IMAGE}:${SHA}" --format '{{.Manifest.Digest}}')
-          for digest in "$core" "$matter"; do
+          # Capture the whole inspect output before parsing. Piping docker into
+          # an early-exiting reader fails under pipefail, and the --format
+          # template differs across buildx versions.
+          digest_of() {
+            local out digest
+            out=$(docker buildx imagetools inspect "$1")
+            digest=$(awk '/^Digest:/ { print $2; exit }' <<<"$out")
             if ! [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
-              echo "Nemu image digest was not resolved" >&2
+              echo "Nemu image digest was not resolved for $1:" >&2
+              printf '%s\n' "$out" | head -n 5 >&2
               exit 1
             fi
-          done
+            printf '%s' "$digest"
+          }
+          core=$(digest_of "${CORE_IMAGE}:${SHA}")
+          matter=$(digest_of "${MATTER_IMAGE}:${SHA}")
           echo "core=$core" >> "$GITHUB_OUTPUT"
           echo "matter=$matter" >> "$GITHUB_OUTPUT"
 
@@ -356,8 +364,9 @@ jobs:
             resolved=$(jq -c '.manifest.services' <<<"$this_cut")
           else
             resolve() {
-              local digest
-              digest=$(docker buildx imagetools inspect "$1" --format '{{.Manifest.Digest}}')
+              local out digest
+              out=$(docker buildx imagetools inspect "$1")
+              digest=$(awk '/^Digest:/ { print $2; exit }' <<<"$out")
               if ! [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
                 echo "could not freeze a digest for $1" >&2
                 exit 1
