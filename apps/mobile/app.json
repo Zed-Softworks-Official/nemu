@@ -45,7 +45,15 @@
             "expo-image",
             "expo-web-browser",
             "@clerk/expo-native-components",
-            "expo-status-bar"
+            "expo-status-bar",
+            [
+                "expo-camera",
+                {
+                    "cameraPermission": "Nemu uses the camera to scan a Device's Matter QR code so your Controller can add it to your Home.",
+                    "microphonePermission": false,
+                    "recordAudioAndroid": false
+                }
+            ]
         ],
         "experiments": {
             "typedRoutes": true,
