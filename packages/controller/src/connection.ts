@@ -564,7 +564,17 @@ export class ControllerConnection {
         return await transport.bootstrapOwner(request)
     }
 
+    /**
+     * Commissioning is LAN-only (ADR-0030). Over Relay it is rejected here,
+     * as the Controller would reject it, without sending anything.
+     */
     private requireLanTransport(operation: string): ControllerTransport {
+        if (this.status.mode === 'relay') {
+            throw new ApiError(
+                'unsupported_action',
+                `${operation} is not available over Relay. Adding a Device needs this phone on the Home network.`
+            )
+        }
         if (this.status.mode !== 'lan' || !this.transport) {
             throw new Error(`${operation} requires a Home connection`)
         }

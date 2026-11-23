@@ -5,13 +5,16 @@
  * `fakeControllerConnectors(...controllers)` as `connectors` to a
  * `ControllerConnection` (or `ControllerProvider`) and the real LAN-then-Relay
  * selection runs against scripted reachability, credentials, Devices, Rooms,
- * events, Command results, and Device and Room setup (with Membership and
- * unsupported-Controller rejections). Nothing touches the network.
+ * events, Command results, Device and Room setup (with Membership and
+ * unsupported-Controller rejections), and LAN-only commissioning with
+ * progress events. Nothing touches the network.
  */
 import {
     ApiError,
     type AssignRoomRequest,
     type CommandResult,
+    type CommissionRequest,
+    type CommissionResponse,
     type CreateRoomRequest,
     type Device,
     type DeviceCommand,
@@ -20,9 +23,11 @@ import {
     type HistoryQueryRead,
     type HomeMeterDesignation,
     type IdentifyResponse,
+    type MatterWifiResponse,
     type PairResponse,
     type PatchDeviceRequest,
     type PatchRoomRequest,
+    type PermitJoinResponse,
     type RenameDeviceRequest,
     type RenameRoomRequest,
     type Room,
@@ -101,6 +106,17 @@ export class FakeController {
     readonly leftVia: TransportMode[] = []
     /** Transports that carried a successful `revokeCurrent`. */
     readonly revokedVia: TransportMode[] = []
+    /** Seconds Zigbee permit-join was last opened for; 0 when closed. */
+    zigbeeJoinOpenFor = 0
+    /** The Matter commissioning in progress on this Controller, if any. */
+    matterCommissioning: CommissionRequest | null = null
+    /** Wi-Fi the Controller has saved for Matter commissioning. */
+    matterWifi: MatterWifiResponse = { configured: false }
+    /** Commissioning requests that reached this Controller (LAN only). */
+    readonly commissioningRequests: Array<{
+        type: string
+        via: TransportMode
+    }> = []
     private readonly tokens: Set<string>
     private readonly otherMembershipTokens: Set<string>
     private readonly transports = new Set<FakeTransport>()
@@ -201,6 +217,34 @@ export class FakeController {
     /** Deliver an event to every connected transport. */
     emit(event: DeviceEvent): void {
         for (const transport of this.transports) transport.deliver(event)
+    }
+
+    /** Report Matter commissioning progress, as the Controller does. */
+    commissionProgress(stage: string, message?: string): void {
+        this.emit({ type: 'commissionProgress', stage, message })
+    }
+
+    /** A new Device joins the Home, ending any commissioning in progress. */
+    joinDevice(device: Device): void {
+        this.devices = [...this.devices, structuredClone(device)]
+        this.matterCommissioning = null
+        this.emit({ type: 'deviceJoined', device: structuredClone(device) })
+    }
+
+    /**
+     * Apply one commissioning request. LAN-only (ADR-0030): over Relay the
+     * Controller answers `unsupported_action`.
+     * @internal
+     */
+    commission<T>(type: string, via: TransportMode, apply: () => T): T {
+        if (via === 'relay') {
+            throw new ApiError(
+                'unsupported_action',
+                `${JSON.stringify(type)} is not available over Relay. Adding a Device needs this phone on the Home network.`
+            )
+        }
+        this.commissioningRequests.push({ type, via })
+        return apply()
     }
 
     /** Replace Devices and tell clients to refetch inventory. */
@@ -452,6 +496,43 @@ export class FakeTransport implements ControllerTransport {
 
     async deleteRoom(roomId: string): Promise<void> {
         this.setup('deleteRoom', () => this.controller.deleteRoom(roomId))
+    }
+
+    async permitJoin(seconds: number): Promise<PermitJoinResponse> {
+        return this.commission('permitJoin', () => {
+            this.controller.zigbeeJoinOpenFor = seconds
+            return { ok: true, seconds }
+        })
+    }
+
+    async commissionMatter(
+        request: CommissionRequest
+    ): Promise<CommissionResponse> {
+        return this.commission('commissionMatter', () => {
+            this.controller.matterCommissioning = structuredClone(request)
+            return { ok: true }
+        })
+    }
+
+    async cancelMatterCommission(): Promise<CommissionResponse> {
+        return this.commission('cancelMatterCommission', () => {
+            this.controller.matterCommissioning = null
+            return { ok: true }
+        })
+    }
+
+    /** Reading saved Wi-Fi is LAN-only too, but not a commissioning step. */
+    async getMatterWifi(): Promise<MatterWifiResponse> {
+        this.authorize()
+        if (this.mode === 'relay') {
+            this.controller.commission('getMatterWifi', 'relay', () => null)
+        }
+        return structuredClone(this.controller.matterWifi)
+    }
+
+    private commission<T>(type: string, apply: () => T): T {
+        this.authorize()
+        return this.controller.commission(type, this.mode, apply)
     }
 
     private setup<T>(type: string, apply: () => T): T {
