@@ -174,6 +174,12 @@ enum ToControllerMessage {
     DeleteRoom {
         #[serde(rename = "roomId")]
         room_id: String,
+        /// Required; `null` moves the Room's contents to No Room.
+        #[serde(
+            rename = "destinationRoomId",
+            deserialize_with = "crate::api::devices::required_nullable"
+        )]
+        destination_room_id: Option<String>,
     },
 }
 
@@ -821,10 +827,13 @@ async fn handle_message(
             &message.request_id,
             setup::update_room(state, &auth, &room_id, name.as_deref(), sort_order).await,
         ),
-        ToControllerMessage::DeleteRoom { room_id } => done_outcome(
+        ToControllerMessage::DeleteRoom {
+            room_id,
+            destination_room_id,
+        } => done_outcome(
             state,
             &message.request_id,
-            setup::delete_room(state, &auth, &room_id).await,
+            setup::delete_room(state, &auth, &room_id, destination_room_id.as_deref()).await,
         ),
         ToControllerMessage::ReleaseStatus => {
             match crate::api::updates::read_release_status(state, &auth).await {
@@ -1177,13 +1186,41 @@ mod tests {
             json!({ "type": "removeDevice", "deviceId": "d" }),
             json!({ "type": "createRoom", "name": "Den" }),
             json!({ "type": "updateRoom", "roomId": "r", "name": "Den" }),
-            json!({ "type": "deleteRoom", "roomId": "r" }),
         ] {
             assert!(
                 parse_envelope(&envelope(message.clone())).is_ok(),
                 "{message}"
             );
         }
+    }
+
+    #[test]
+    fn delete_room_requires_a_destination_or_no_room() {
+        let parsed = parse_envelope(&envelope(json!({
+            "type": "deleteRoom", "roomId": "r", "destinationRoomId": "d"
+        })))
+        .unwrap();
+        assert!(matches!(
+            parsed.message,
+            ToControllerMessage::DeleteRoom { ref room_id, ref destination_room_id }
+                if room_id == "r" && destination_room_id.as_deref() == Some("d")
+        ));
+        let parsed = parse_envelope(&envelope(json!({
+            "type": "deleteRoom", "roomId": "r", "destinationRoomId": null
+        })))
+        .unwrap();
+        assert!(matches!(
+            parsed.message,
+            ToControllerMessage::DeleteRoom {
+                destination_room_id: None,
+                ..
+            }
+        ));
+        // A missing destination is a request error, not No Room.
+        assert!(matches!(
+            parse_envelope(&envelope(json!({ "type": "deleteRoom", "roomId": "r" }))),
+            Err(EnvelopeRejection::ProtocolMismatch { .. })
+        ));
     }
 
     #[test]
