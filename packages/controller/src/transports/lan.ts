@@ -21,11 +21,13 @@ import {
     deviceEventSchema,
     deviceSchema,
     devicesResponseSchema,
+    type HealthSummary,
     type HistoryQuery,
     type HistoryQueryRead,
     type HomeMeterDesignation,
     type HomeMeterDesignationSelection,
     type HouseholdMember,
+    healthSummarySchema,
     historyQueryReadSchema,
     homeMeterDesignationResultSchema,
     householdMemberSchema,
@@ -363,6 +365,12 @@ export class LanTransport implements ControllerTransport {
     async getReleaseStatus(): Promise<UpdateStatusResponse> {
         const { data } = await this.http.get('/api/updates')
         return updateStatusResponseSchema.parse(data)
+    }
+
+    // NEM-88: Controller health summary.
+    async getHealthSummary(): Promise<HealthSummary> {
+        const { data } = await this.http.get('/api/health/summary')
+        return healthSummarySchema.parse(data)
     }
 
     async installRelease(): Promise<ApplyUpdateResponse> {

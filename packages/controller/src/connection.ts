@@ -14,6 +14,7 @@ import {
     type Device,
     type DeviceCommand,
     type DeviceEvent,
+    type HealthSummary,
     type HistoryQuery,
     type HistoryQueryRead,
     type HomeMeterDesignation,
@@ -463,6 +464,22 @@ export class ControllerConnection {
             )
         }
         return await transport.getReleaseStatus()
+    }
+
+    // NEM-88: Controller health summary.
+    /**
+     * The role-aware Controller health summary, the same over LAN and Relay.
+     * Owners see Controller details; Members see service and Device
+     * availability only (ADR-0006).
+     */
+    async getHealthSummary(): Promise<HealthSummary> {
+        const transport = this.requireConnectedTransport('Controller health')
+        if (!transport.getHealthSummary) {
+            throw new Error(
+                'Controller health is not supported by this controller'
+            )
+        }
+        return await transport.getHealthSummary()
     }
 
     async installRelease(): Promise<ApplyUpdateResponse> {

@@ -36,6 +36,39 @@ export const healthResponseSchema = z.object({
 })
 export type HealthResponse = z.infer<typeof healthResponseSchema>
 
+// NEM-88: role-aware Controller health summary. LAN `GET /api/health/summary`
+// and Relay `getHealthSummary` return this same shape. Members see only
+// service and Device availability (ADR-0006).
+const healthSummaryCommonShape = {
+    status: z.enum(['ok', 'degraded', 'error']),
+    services: z.object({
+        mqtt: z.boolean(),
+        zigbee: z.boolean(),
+        matter: z.boolean(),
+    }),
+    devices: z.object({
+        online: z.number().int().nonnegative(),
+        total: z.number().int().nonnegative(),
+    }),
+}
+export const ownerHealthSummarySchema = z.object({
+    view: z.literal('owner'),
+    ...healthSummaryCommonShape,
+    controller: z.object({
+        database: z.boolean(),
+        relayConnected: z.boolean(),
+    }),
+})
+export const memberHealthSummarySchema = z.object({
+    view: z.literal('member'),
+    ...healthSummaryCommonShape,
+})
+export const healthSummarySchema = z.discriminatedUnion('view', [
+    ownerHealthSummarySchema,
+    memberHealthSummarySchema,
+])
+export type HealthSummary = z.infer<typeof healthSummarySchema>
+
 export const identifyResponseSchema = z.object({
     controllerId: z.string(),
     name: z.string(),

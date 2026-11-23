@@ -16,6 +16,7 @@ import {
     type DeviceEvent,
     type DeviceProtocol,
     deviceEventRefreshesInventory,
+    type HealthSummary,
     type HistoryQuery,
     type HistoryQueryRead,
     type HomeMeterDesignation,
@@ -109,6 +110,7 @@ type ControllerContextValue = {
     getReleaseStatus: () => Promise<UpdateStatusResponse>
     /** NEM-86: the caller's Membership role, only for deciding what to show. */
     getSession: () => Promise<SessionResponse>
+    getHealthSummary: () => Promise<HealthSummary>
     installRelease: () => Promise<ApplyUpdateResponse>
     rollbackRelease: () => Promise<ApplyUpdateResponse>
     switchReleaseChannel: (
@@ -309,6 +311,10 @@ export function ControllerProvider({
         () => connection.getReleaseStatus(),
         [connection]
     )
+    const getHealthSummary = useCallback(
+        () => connection.getHealthSummary(),
+        [connection]
+    )
     const installRelease = useCallback(
         () => connection.installRelease(),
         [connection]
@@ -358,6 +364,7 @@ export function ControllerProvider({
             bootstrapOwner,
             getSession,
             getReleaseStatus,
+            getHealthSummary,
             installRelease,
             rollbackRelease,
             switchReleaseChannel,
@@ -397,6 +404,7 @@ export function ControllerProvider({
             bootstrapOwner,
             getSession,
             getReleaseStatus,
+            getHealthSummary,
             installRelease,
             rollbackRelease,
             switchReleaseChannel,

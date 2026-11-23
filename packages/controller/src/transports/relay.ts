@@ -13,11 +13,13 @@ import {
     type Device,
     type DeviceCommand,
     type DeviceEvent,
+    type HealthSummary,
     type HistoryQuery,
     type HistoryQueryRead,
     type HomeMeterDesignation,
     type HomeMeterDesignationSelection,
     type HouseholdMember,
+    healthSummarySchema,
     historyQueryReadSchema,
     homeMeterDesignationResultSchema,
     householdMemberSchema,
@@ -285,6 +287,17 @@ export class RelayTransport implements ControllerTransport {
         }
         this.throwIfCommandError(parsed, 'read the installed Release')
         throw new Error('Unexpected relay response for releaseStatus')
+    }
+
+    // NEM-88: Controller health summary.
+    async getHealthSummary(): Promise<HealthSummary> {
+        const parsed = await this.request({ type: 'getHealthSummary' })
+        if (parsed.message.type === 'healthSummary') {
+            const { type: _, ...summary } = parsed.message
+            return healthSummarySchema.parse(summary)
+        }
+        this.throwIfCommandError(parsed, 'read Controller health')
+        throw new Error('Unexpected relay response for getHealthSummary')
     }
 
     async installRelease(): Promise<ApplyUpdateResponse> {

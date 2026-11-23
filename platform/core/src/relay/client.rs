@@ -179,6 +179,9 @@ enum ToControllerMessage {
     #[serde(rename = "getSession")]
     GetSession,
     // --- end NEM-86 ---
+    // NEM-88: Controller health summary.
+    #[serde(rename = "getHealthSummary")]
+    GetHealthSummary,
 }
 
 /// Why a Relay envelope could not become a request (ADR-0016).
@@ -369,6 +372,17 @@ async fn run_subscription_relay(
         .map_err(|e| format!("subscribe pendingForMe failed: {e}"))?;
 
     info!("relay subscription active");
+    state.health.set_relay(true);
+    let outcome = relay_pending_messages(state, &mut client, &mut sub).await;
+    state.health.set_relay(false);
+    outcome
+}
+
+async fn relay_pending_messages(
+    state: &AppState,
+    client: &mut ConvexClient,
+    sub: &mut convex::QuerySubscription,
+) -> Result<(), String> {
     let mut in_flight: HashSet<String> = HashSet::new();
     let mut mut_client = client.clone();
 
@@ -405,7 +419,9 @@ async fn run_subscription_relay(
 async fn run_http_fallback(state: &AppState, site_url: &str) {
     let mut consecutive_failures: u32 = 0;
     for _ in 0..FALLBACK_ROUNDS_BEFORE_RETRY {
-        match poll_and_process_http(state, site_url).await {
+        let polled = poll_and_process_http(state, site_url).await;
+        state.health.set_relay(polled.is_ok());
+        match polled {
             Ok(processed) => {
                 consecutive_failures = 0;
                 if processed == 0 {
@@ -844,6 +860,27 @@ async fn handle_message(
             }
         }
         // --- end NEM-86 ---
+        // NEM-88: Controller health summary.
+        ToControllerMessage::GetHealthSummary => {
+            match crate::api::health::read_health_summary(state, &auth).await {
+                Ok(summary) => match serde_json::to_value(&summary) {
+                    Ok(mut body) => {
+                        body["type"] = json!("healthSummary");
+                        build_typed_response(state, &message.request_id, body)
+                    }
+                    Err(error) => build_error_response(
+                        state,
+                        &message.request_id,
+                        "internal_error",
+                        &error.to_string(),
+                    ),
+                },
+                Err(error) => {
+                    let error = crate::api::error::ApiError::from(error);
+                    build_error_response(state, &message.request_id, &error.code, &error.message)
+                }
+            }
+        }
         ToControllerMessage::ReleaseStatus => {
             match crate::api::updates::read_release_status(state, &auth).await {
                 Ok(status) => match serde_json::to_value(&status) {
@@ -1160,6 +1197,16 @@ mod tests {
 
     fn envelope(message: JsonValue) -> String {
         json!({ "requestId": "r1", "clientToken": "t", "message": message }).to_string()
+    }
+
+    // NEM-88: Controller health summary.
+    #[test]
+    fn parses_the_health_summary_request() {
+        let parsed = parse_envelope(&envelope(json!({ "type": "getHealthSummary" }))).unwrap();
+        assert!(matches!(
+            parsed.message,
+            ToControllerMessage::GetHealthSummary
+        ));
     }
 
     #[test]
