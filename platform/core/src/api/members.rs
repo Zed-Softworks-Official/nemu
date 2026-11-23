@@ -352,6 +352,26 @@ pub async fn pair_member_session(
     })
 }
 
+/// The caller's Membership, which must be active. Owners and Members both pass.
+pub async fn require_active_member(
+    state: &AppState,
+    auth: &AuthenticatedClient,
+) -> ApiResult<Member> {
+    let member = member_for_client(state, auth).await?.ok_or_else(|| {
+        ApiError::forbidden(
+            "bootstrap_required",
+            "Link this dashboard to a household account first",
+        )
+    })?;
+    if member.status != "active" {
+        return Err(ApiError::forbidden(
+            "inactive_membership",
+            "This Membership is not active",
+        ));
+    }
+    Ok(member)
+}
+
 pub async fn require_owner(state: &AppState, auth: &AuthenticatedClient) -> ApiResult<Member> {
     let member = member_for_client(state, auth).await?.ok_or_else(|| {
         ApiError::forbidden(
