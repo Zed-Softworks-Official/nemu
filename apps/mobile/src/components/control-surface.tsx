@@ -1,6 +1,7 @@
 import type { Device, Room } from '@nemu/protocol'
 import { cn } from '@nemu/ui/lib/utils'
 import { Minus, Plus } from 'lucide-react-native'
+import { useState } from 'react'
 import {
     ActivityIndicator,
     Pressable,
@@ -9,6 +10,11 @@ import {
     View,
 } from 'react-native'
 
+import {
+    DeviceSetupPanel,
+    NewRoomForm,
+    RoomRenameForm,
+} from '~/components/device-setup'
 import { useHomeControl } from '~/components/home-control'
 import { Button } from '~/components/ui/button'
 import { Text } from '~/components/ui/text'
@@ -95,7 +101,13 @@ function Banner({ title, detail }: { title: string; detail: string }) {
     )
 }
 
-type Section = { id: string; title: string; devices: Device[] }
+type Section = {
+    id: string
+    title: string
+    devices: Device[]
+    /** The Room itself, absent for Devices not in a Room. */
+    room?: Room
+}
 
 export function groupDevicesByRoom(
     devices: readonly Device[],
@@ -111,6 +123,7 @@ export function groupDevicesByRoom(
     const sections: Section[] = sorted.map((room) => ({
         id: room.id,
         title: room.name,
+        room,
         devices: devices.filter((device) => device.roomId === room.id),
     }))
     const unassigned = devices.filter(
@@ -147,26 +160,57 @@ export function RoomsView() {
     }
     return (
         <SurfaceBody>
+            <NewRoomForm />
             {groupDevicesByRoom(devices ?? [], rooms).map((section) => (
-                <View className="gap-3" key={section.id}>
-                    <Text
-                        accessibilityRole="header"
-                        className="font-semibold text-foreground text-lg"
-                    >
-                        {section.title}
-                    </Text>
-                    {section.devices.length === 0 ? (
-                        <Text className="text-muted-foreground text-sm">
-                            No Devices in this Room.
-                        </Text>
-                    ) : (
-                        section.devices.map((device) => (
-                            <DeviceCard device={device} key={device.id} />
-                        ))
-                    )}
-                </View>
+                <RoomSection key={section.id} section={section} />
             ))}
         </SurfaceBody>
+    )
+}
+
+function RoomSection({ section }: { section: Section }) {
+    const { live } = useHomeControl()
+    const [renaming, setRenaming] = useState(false)
+    const { room } = section
+    return (
+        <View
+            accessibilityLabel={`Devices in ${section.title}`}
+            className="gap-3"
+        >
+            <View className="flex-row items-center justify-between gap-3">
+                <Text
+                    accessibilityRole="header"
+                    className="min-w-0 flex-1 font-semibold text-foreground text-lg"
+                >
+                    {section.title}
+                </Text>
+                {room && !renaming ? (
+                    <Button
+                        accessibilityLabel={`Rename ${room.name}`}
+                        disabled={!live}
+                        onPress={() => setRenaming(true)}
+                        size="sm"
+                        title="Rename"
+                        variant="ghost"
+                    />
+                ) : null}
+            </View>
+            {room && renaming ? (
+                <RoomRenameForm
+                    onClose={() => setRenaming(false)}
+                    room={room}
+                />
+            ) : null}
+            {section.devices.length === 0 ? (
+                <Text className="text-muted-foreground text-sm">
+                    No Devices in this Room.
+                </Text>
+            ) : (
+                section.devices.map((device) => (
+                    <DeviceCard device={device} key={device.id} />
+                ))
+            )}
+        </View>
     )
 }
 
@@ -182,10 +226,30 @@ export function DevicesView() {
 }
 
 function SurfaceBody({ children }: { children: React.ReactNode }) {
-    const { devices, live, loadFailed, status } = useHomeControl()
+    const { devices, live, loadFailed, notice, dismissNotice, status } =
+        useHomeControl()
     return (
-        <ScrollView contentContainerClassName="gap-6 pb-8">
+        <ScrollView
+            contentContainerClassName="gap-6 pb-8"
+            keyboardShouldPersistTaps="handled"
+        >
             <ConnectionBanner />
+            {notice ? (
+                <View
+                    accessibilityLiveRegion="polite"
+                    className="flex-row items-center justify-between gap-3 rounded-sm border border-border p-3"
+                >
+                    <Text className="min-w-0 flex-1 text-foreground text-sm">
+                        {notice}
+                    </Text>
+                    <Button
+                        onPress={dismissNotice}
+                        size="sm"
+                        title="Dismiss"
+                        variant="ghost"
+                    />
+                </View>
+            ) : null}
             {loadFailed ? (
                 <Text
                     accessibilityRole="alert"
@@ -210,7 +274,15 @@ function SurfaceBody({ children }: { children: React.ReactNode }) {
 }
 
 export function DeviceCard({ device }: { device: Device }) {
-    const { capabilities, capabilitiesCurrent, stale } = useHomeControl()
+    const {
+        capabilities,
+        capabilitiesCurrent,
+        stale,
+        deviceSetupOpen,
+        setDeviceSetupOpen,
+        setSetupState,
+    } = useHomeControl()
+    const settingUp = deviceSetupOpen === device.id
     const controls = controlsForDevice(device)
     const presented = capabilitiesForDevice(device, capabilities)
 
@@ -233,7 +305,23 @@ export function DeviceCard({ device }: { device: Device }) {
                           ? 'Online'
                           : 'Device offline'}
                 </Text>
+                <Button
+                    accessibilityLabel={
+                        settingUp
+                            ? `Close setup for ${device.name}`
+                            : `Set up ${device.name}`
+                    }
+                    onPress={() => {
+                        setSetupState(`device:${device.id}`, { phase: 'idle' })
+                        setSetupState(`remove:${device.id}`, { phase: 'idle' })
+                        setDeviceSetupOpen(settingUp ? null : device.id)
+                    }}
+                    size="sm"
+                    title={settingUp ? 'Close' : 'Set up'}
+                    variant="ghost"
+                />
             </View>
+            {settingUp ? <DeviceSetupPanel device={device} /> : null}
             {controls.map((control) => (
                 <ControlRow
                     control={control}

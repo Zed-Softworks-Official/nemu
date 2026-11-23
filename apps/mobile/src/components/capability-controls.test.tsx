@@ -144,7 +144,12 @@ describe('issuing a Command', () => {
         await setup({ devices: [LAMP, SENSOR] })
         const sensor = screen.getByLabelText('Sensor')
         expect(within(sensor).queryByRole('switch')).toBeNull()
-        expect(within(sensor).queryByRole('button')).toBeNull()
+        // Only Device setup, no Capability control.
+        expect(
+            within(sensor)
+                .queryAllByRole('button')
+                .map((button) => button.props.accessibilityLabel)
+        ).toEqual(['Set up Sensor'])
     })
 
     it('uses the same operation over Relay', async () => {
