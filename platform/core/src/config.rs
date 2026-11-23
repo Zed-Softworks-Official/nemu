@@ -63,11 +63,8 @@ pub struct Config {
     pub tls_cert_path: Option<String>,
     pub tls_key_path: Option<String>,
     pub tls_extra_sans: Vec<String>,
-    pub watchtower_url: Option<String>,
-    pub watchtower_token: Option<String>,
-    /// Controller directory. The Updater stores the Release channel and
-    /// Platform version here, outside stack files a Release replaces.
-    pub home_dir: PathBuf,
+    /// The host Updater's control socket (ADR-0033).
+    pub updater_socket: PathBuf,
 }
 
 impl Config {
@@ -112,15 +109,11 @@ impl Config {
             tls_cert_path,
             tls_key_path,
             tls_extra_sans,
-            watchtower_url: env::var("WATCHTOWER_URL").ok().filter(|s| !s.is_empty()),
-            watchtower_token: env::var("WATCHTOWER_HTTP_API_TOKEN")
-                .ok()
-                .filter(|s| !s.is_empty()),
-            home_dir: env::var("NEMU_HOME_DIR")
+            updater_socket: env::var("NEMU_UPDATER_SOCKET")
                 .ok()
                 .filter(|value| !value.is_empty())
                 .map(PathBuf::from)
-                .unwrap_or_else(|| PathBuf::from("/opt/nemu")),
+                .unwrap_or_else(|| PathBuf::from(crate::updater_control::DEFAULT_UPDATER_SOCKET)),
         }
     }
 }

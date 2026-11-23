@@ -320,7 +320,10 @@ fn decode_next_pin(manifest: &ReleaseManifest) -> Result<Option<VerifyingKey>, I
     }
 }
 
-fn decode_binary(manifest: &ReleaseManifest, arch: UpdaterArch) -> Result<Vec<u8>, InstallError> {
+pub(crate) fn decode_binary(
+    manifest: &ReleaseManifest,
+    arch: UpdaterArch,
+) -> Result<Vec<u8>, InstallError> {
     let encoded = match arch {
         UpdaterArch::Amd64 => &manifest.updater.amd64,
         UpdaterArch::Arm64 => &manifest.updater.arm64,
@@ -417,7 +420,7 @@ fn allowed_stack_path(path: &str) -> bool {
     !path.contains("..") && (STACK_FILES.contains(&path) || path == MATTER_TRUST_ROOT_SCRIPT)
 }
 
-fn write_stack_files(
+pub(crate) fn write_stack_files(
     controller_dir: &Path,
     manifest: &ReleaseManifest,
 ) -> Result<(), InstallError> {
@@ -436,7 +439,10 @@ fn write_stack_files(
     Ok(())
 }
 
-fn migrate_zigbee(controller_dir: &Path, manifest: &ReleaseManifest) -> Result<(), InstallError> {
+pub(crate) fn migrate_zigbee(
+    controller_dir: &Path,
+    manifest: &ReleaseManifest,
+) -> Result<(), InstallError> {
     if manifest.migrations.is_empty() {
         return Ok(());
     }
@@ -644,7 +650,7 @@ pub(crate) fn current_generation(controller_dir: &Path) -> u64 {
         .unwrap_or(0)
 }
 
-fn commit_binary(controller_dir: &Path, bytes: &[u8]) -> Result<(), InstallError> {
+pub(crate) fn commit_binary(controller_dir: &Path, bytes: &[u8]) -> Result<(), InstallError> {
     let next = current_generation(controller_dir).saturating_add(1);
     let path = controller_dir.join(BINARY_DIR).join(next.to_string());
     if let Some(parent) = path.parent() {

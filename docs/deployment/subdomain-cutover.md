@@ -30,9 +30,10 @@ Controller CORS allowlist includes `https://app.nemu.sh` (and legacy `https://da
 Built into the marketing deploy via [`scripts/vercel-build-web.sh`](../../scripts/vercel-build-web.sh):
 
 - `https://get.nemu.sh` → `install.sh`
-- `https://get.nemu.sh/docker-compose.yml`
-- `https://get.nemu.sh/mosquitto/mosquitto.conf`
-- `https://get.nemu.sh/zigbee2mqtt/configuration.yaml`
+- `https://get.nemu.sh/zigbee2mqtt/configuration.yaml` (seeded on a new Home)
+- `https://get.nemu.sh/fetch-matter-roots.sh` and `matter-roots.sha256`
+
+Stack files (`docker-compose.yml`, `mosquitto.conf`) are not served on their own. They ship inside the signed Release manifests at `https://get.nemu.sh/releases/{stable,canary}.json`, which `vercel.json` rewrites to the `nemu-release-channels` Blob store.
 
 Sources of truth: [`scripts/install.sh`](../../scripts/install.sh), [`infra/prod/`](../../infra/prod/).
 
@@ -41,5 +42,5 @@ Sources of truth: [`scripts/install.sh`](../../scripts/install.sh), [`infra/prod
 - [ ] Domains attached in Vercel (marketing + dashboard + `get.nemu.sh`)
 - [ ] Clerk allowed origins / redirect URLs include `https://app.nemu.sh`
 - [ ] Convex production deployment wired; `NEMU_CONVEX_SITE_URL` documented for installs
-- [ ] GHCR package `ghcr.io/zed-softworks-official/nemu-core` is public (Watchtower pulls without auth)
+- [ ] GHCR package `ghcr.io/zed-softworks-official/nemu-core` is public (Homes pull Release images without auth)
 - [ ] Canary publish workflow succeeds on Blacksmith runners

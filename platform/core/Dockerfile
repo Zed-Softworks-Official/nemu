@@ -6,11 +6,9 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends libpq-dev pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
-# Core links the Updater crate. The build context is the repo root.
+# The build context is the repo root.
 WORKDIR /src
 
-COPY platform/updater/Cargo.toml platform/updater/Cargo.lock platform/updater/
-COPY platform/updater/src platform/updater/src
 COPY platform/core/Cargo.toml platform/core/Cargo.lock platform/core/
 COPY platform/core/diesel.toml platform/core/
 COPY platform/core/migrations platform/core/migrations

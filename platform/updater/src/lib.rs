@@ -3,19 +3,30 @@ use std::path::{Path, PathBuf};
 use ed25519_dalek::VerifyingKey;
 use serde::{Deserialize, Serialize};
 
+mod bootstrap;
 mod channel;
+mod daemon;
 mod host;
 mod install;
 mod manifest;
 mod publish;
 mod rollback;
+mod supervise;
 mod wrapper;
 
-pub use channel::{ChannelError, ChannelSwitch, switch_channel};
-pub use host::{
-    DirectoryManifestHost, load_release_key, run_install, run_rollback, run_switch_channel,
+pub use bootstrap::{BootstrapError, BootstrapOutcome, bootstrap};
+pub use channel::{ChannelError, ChannelSwitch, save_channel, switch_channel};
+pub use daemon::{
+    DEFAULT_CLIENT_UID, EXIT_RESTART_FOR_BINARY, HostOps, Request, Response, SOCKET_PATH,
+    SwitchOutcome, UpdaterOps, bind as bind_control_socket, handle_line,
+    serve as serve_control_socket,
 };
-pub use install::{hourly_check, maintenance_mode};
+pub use host::{
+    DEFAULT_RELEASE_BASE_URL, DirectoryManifestHost, RemoteManifestHost, load_release_key,
+    run_install, run_rollback, run_switch_channel, with_host_env,
+};
+pub use install::{UpdaterArch, hourly_check, maintenance_mode};
+pub use supervise::{VERSION_BANNER, run as run_wrapper};
 
 pub use manifest::{
     ManifestError, ManifestHost, ManifestHostError, MissingManifestHost, RELEASE_SERVICES,
