@@ -302,7 +302,8 @@ pub async fn remove_device(
     state
         .registry
         .mark_left(state, protocol, &existing.external_id)
-        .await;
+        .await
+        .map_err(SetupError::Internal)?;
     Ok(())
 }
 

@@ -262,12 +262,11 @@ impl DeviceRegistry {
             if !seen_external.contains(&device.external_id) {
                 let id = device.id;
                 let conn = pool.get().await.map_err(|e| e.to_string())?;
-                conn.interact(move |conn| {
-                    diesel::delete(devices::table.filter(devices::id.eq(id))).execute(conn)
-                })
-                .await
-                .map_err(|e| e.to_string())?
-                .map_err(|e| e.to_string())?;
+                // Keep a Device tombstone (ADR-0017) while ending the active identity.
+                conn.interact(move |conn| setup_store::tombstone_and_delete_device(conn, id, now))
+                    .await
+                    .map_err(|e| e.to_string())?
+                    .map_err(|e| e.to_string())?;
 
                 self.remove_id(id).await;
                 self.component_rooms.write().await.remove(&id);
@@ -362,25 +361,24 @@ impl DeviceRegistry {
         state: &AppState,
         protocol: Protocol,
         external_id: &str,
-    ) -> Option<Device> {
-        let device = self.get_by_external(protocol, external_id).await?;
+    ) -> Result<Option<Device>, String> {
+        let Some(device) = self.get_by_external(protocol, external_id).await else {
+            return Ok(None);
+        };
         let id = device.id;
         let pool = &state.db;
 
         // Keep a Device tombstone (ADR-0017) while ending the active identity.
-        if let Ok(conn) = pool.get().await {
-            let removed_at = Utc::now();
-            match conn
-                .interact(move |conn| {
-                    setup_store::tombstone_and_delete_device(conn, id, removed_at)
-                })
-                .await
-            {
-                Ok(Ok(_)) => {}
-                Ok(Err(error)) => warn!(%id, %error, "failed to tombstone Device"),
-                Err(error) => warn!(%id, %error, "failed to tombstone Device"),
-            }
-        }
+        // If that fails the Device is still stored, so it stays in the
+        // registry and the caller learns of the failure.
+        let removed_at = Utc::now();
+        pool.get()
+            .await
+            .map_err(|error| format!("failed to tombstone Device {id}: {error}"))?
+            .interact(move |conn| setup_store::tombstone_and_delete_device(conn, id, removed_at))
+            .await
+            .map_err(|error| format!("failed to tombstone Device {id}: {error}"))?
+            .map_err(|error| format!("failed to tombstone Device {id}: {error}"))?;
 
         let removed = self.remove_id(id).await;
         self.component_rooms.write().await.remove(&id);
@@ -416,7 +414,7 @@ impl DeviceRegistry {
         {
             warn!(%error, "failed to record device leave diagnostic");
         }
-        removed
+        Ok(removed)
     }
 
     pub async fn update_device(
