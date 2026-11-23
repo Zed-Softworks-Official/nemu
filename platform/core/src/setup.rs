@@ -519,8 +519,8 @@ mod tests {
             error.message
         );
         assert_eq!(
-            error.details,
-            Some(serde_json::json!({
+            error.details.as_deref(),
+            Some(&serde_json::json!({
                 "devices": [{ "id": device_id, "name": "Desk lamp" }],
                 "components": [{
                     "deviceId": device_id,
@@ -536,7 +536,7 @@ mod tests {
         use crate::capabilities::{DeviceIdentity, PhysicalScope};
         let strip = DeviceIdentity::new("matter", "strip-1").unwrap();
         let other = DeviceIdentity::new("matter", "strip-2").unwrap();
-        let scopes = vec![
+        let scopes = [
             (strip.clone(), PhysicalScope::Device),
             (
                 strip.clone(),

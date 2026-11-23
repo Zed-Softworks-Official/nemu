@@ -12,7 +12,8 @@ pub struct ApiError {
     pub message: String,
     /// Structured context a client can act on, such as the Devices that
     /// keep a Room from being deleted.
-    pub details: Option<serde_json::Value>,
+    /// Boxed so `ApiResult` stays small.
+    pub details: Option<Box<serde_json::Value>>,
 }
 
 impl ApiError {
@@ -26,7 +27,7 @@ impl ApiError {
     }
 
     pub fn with_details(mut self, details: Option<serde_json::Value>) -> Self {
-        self.details = details;
+        self.details = details.map(Box::new);
         self
     }
 
@@ -66,7 +67,7 @@ impl IntoResponse for ApiError {
             error: ErrorBody {
                 code: self.code,
                 message: self.message,
-                details: self.details,
+                details: self.details.map(|details| *details),
             },
         });
         (self.status, body).into_response()
