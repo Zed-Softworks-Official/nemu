@@ -14,7 +14,6 @@ use crate::api::error::{ApiError, ApiResult};
 use crate::audit::{self, AuditKind, AuditWrite};
 use crate::db::models::Member;
 use crate::db::schema::{client_tokens, members};
-use crate::pairing::members::find_member_by_user_id;
 use crate::pairing::tokens::revoke_client_token;
 use crate::state::DbPool;
 
@@ -63,13 +62,6 @@ pub fn authorize_leave_home(
         return Err(AccessExitError::LastOwner);
     }
     Ok(())
-}
-
-/// Any active Membership may revoke its own Access Client.
-pub fn authorize_revoke_current(
-    caller: Option<CallerMembership<'_>>,
-) -> Result<(), AccessExitError> {
-    require_active(caller).map(|_| ())
 }
 
 fn require_active(
@@ -156,19 +148,11 @@ pub async fn leave_home(pool: &DbPool, caller: &AuthenticatedClient) -> ApiResul
 
 /// Revokes only the caller's own Access Client. The Membership and its other
 /// Access Clients are unaffected.
+///
+/// Any authenticated Access Client may revoke itself, whatever its Membership
+/// state (none, pending, or inactive): revoking yourself only reduces access,
+/// and a phone that was removed must still be able to clear itself.
 pub async fn revoke_current(pool: &DbPool, caller: &AuthenticatedClient) -> ApiResult<()> {
-    let member = match caller.user_id.as_deref() {
-        Some(user_id) => find_member_by_user_id(pool, user_id)
-            .await
-            .map_err(ApiError::internal)?,
-        None => None,
-    };
-    let view = member.as_ref().map(|member| CallerMembership {
-        role: &member.role,
-        status: &member.status,
-    });
-    authorize_revoke_current(view).map_err(AccessExitError::into_api_error)?;
-
     let deleted = revoke_client_token(
         pool,
         caller.token_id,
@@ -226,24 +210,6 @@ mod tests {
         );
         assert_eq!(
             authorize_leave_home(None, 1),
-            Err(AccessExitError::Unauthenticated)
-        );
-    }
-
-    #[test]
-    fn owners_and_members_may_revoke_their_own_access_client() {
-        assert_eq!(authorize_revoke_current(caller("owner", "active")), Ok(()));
-        assert_eq!(authorize_revoke_current(caller("member", "active")), Ok(()));
-    }
-
-    #[test]
-    fn inactive_and_unauthenticated_callers_cannot_revoke() {
-        assert_eq!(
-            authorize_revoke_current(caller("member", "pending")),
-            Err(AccessExitError::Inactive)
-        );
-        assert_eq!(
-            authorize_revoke_current(None),
             Err(AccessExitError::Unauthenticated)
         );
     }
@@ -425,23 +391,24 @@ mod tests {
 
     #[tokio::test]
     #[ignore = "requires the isolated PostgreSQL database created by the verification script"]
-    async fn revoke_current_rejects_inactive_and_unlinked_callers() {
+    async fn revoke_current_accepts_any_authenticated_access_client() {
+        // Revoking yourself only reduces access, so the Membership state
+        // does not matter: pending, inactive, and unlinked callers may all
+        // revoke their own Access Client.
         let _home = HOME.lock().await;
         let pool = empty_home().await;
-        membership(&pool, "member-1", "member", "pending").await;
+        let pending_member = membership(&pool, "member-1", "member", "pending").await;
+        membership(&pool, "member-2", "member", "inactive").await;
         let pending = access_client(&pool, Some("member-1"), "phone").await;
+        let inactive = access_client(&pool, Some("member-2"), "tablet").await;
         let orphan = access_client(&pool, None, "orphan").await;
+        let bystander = access_client(&pool, Some("member-2"), "browser").await;
 
-        assert_eq!(
-            revoke_current(&pool, &pending).await.unwrap_err().code,
-            "inactive_membership"
-        );
-        assert_eq!(
-            revoke_current(&pool, &orphan).await.unwrap_err().code,
-            "unauthorized"
-        );
-        let mut expected = vec![pending.token_id, orphan.token_id];
-        expected.sort();
-        assert_eq!(token_ids(&pool).await, expected);
+        revoke_current(&pool, &pending).await.unwrap();
+        revoke_current(&pool, &inactive).await.unwrap();
+        revoke_current(&pool, &orphan).await.unwrap();
+
+        assert_eq!(token_ids(&pool).await, vec![bystander.token_id]);
+        assert!(get_member(&pool, pending_member).await.unwrap().is_some());
     }
 }
