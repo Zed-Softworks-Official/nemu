@@ -386,11 +386,17 @@ export class ControllerConnection {
         return await transport.patchRoom(roomId, patch)
     }
 
-    /** Dashboard only. The Controller refuses while Devices are assigned. */
-    async deleteRoom(roomId: string): Promise<void> {
+    /**
+     * Delete a Room and move its Devices and Components to
+     * `destinationRoomId`, or to No Room when it is `null`, in one step.
+     */
+    async deleteRoom(
+        roomId: string,
+        destinationRoomId: string | null
+    ): Promise<void> {
         const transport = this.requireSetupTransport()
         if (!transport.deleteRoom) throw unsupported('Deleting Rooms')
-        await transport.deleteRoom(roomId)
+        await transport.deleteRoom(roomId, destinationRoomId)
     }
 
     async patchDevice(

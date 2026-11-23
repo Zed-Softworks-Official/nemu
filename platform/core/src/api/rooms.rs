@@ -29,6 +29,14 @@ pub struct PatchRoomBody {
     pub sort_order: Option<i32>,
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeleteRoomBody {
+    /// Required; `null` moves the Room's contents to No Room.
+    #[serde(deserialize_with = "crate::api::devices::required_nullable")]
+    pub destination_room_id: Option<String>,
+}
+
 pub async fn list_rooms(State(state): State<AppState>) -> ApiResult<Json<RoomsResponse>> {
     Ok(Json(RoomsResponse {
         rooms: load_rooms(&state).await?,
@@ -80,7 +88,8 @@ pub async fn delete_room(
     State(state): State<AppState>,
     auth: AuthenticatedClient,
     Path(id): Path<String>,
+    Json(body): Json<DeleteRoomBody>,
 ) -> ApiResult<axum::http::StatusCode> {
-    setup::delete_room(&state, &auth, &id).await?;
+    setup::delete_room(&state, &auth, &id, body.destination_room_id.as_deref()).await?;
     Ok(axum::http::StatusCode::NO_CONTENT)
 }

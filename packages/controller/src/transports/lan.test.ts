@@ -151,24 +151,36 @@ describe('LanTransport Device and Room setup', () => {
         )
     })
 
-    it('keeps the Devices that block a Room deletion', async () => {
-        const details = {
-            devices: [{ id: 'lamp', name: 'Desk lamp' }],
-            components: [],
-        }
+    it('deletes a Room with its destination, or null for No Room', async () => {
+        reply = () => ({ status: 204 })
+        await lan().deleteRoom('den', 'hall')
+        await lan().deleteRoom('den', null)
+        assert.deepEqual(received, [
+            {
+                method: 'DELETE',
+                path: '/api/rooms/den',
+                body: { destinationRoomId: 'hall' },
+            },
+            {
+                method: 'DELETE',
+                path: '/api/rooms/den',
+                body: { destinationRoomId: null },
+            },
+        ])
+    })
+
+    it('keeps the code of a refused Room deletion', async () => {
         reply = () => ({
-            status: 409,
+            status: 404,
             body: {
                 error: {
-                    code: 'room_not_empty',
-                    message: 'Move these to another Room first: Desk lamp',
-                    details,
+                    code: 'destination_not_found',
+                    message: 'The destination Room no longer exists',
                 },
             },
         })
-        await assert.rejects(lan().deleteRoom('den'), {
-            code: 'room_not_empty',
-            details,
+        await assert.rejects(lan().deleteRoom('den', 'attic'), {
+            code: 'destination_not_found',
         })
     })
 
