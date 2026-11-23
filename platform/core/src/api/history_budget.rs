@@ -45,6 +45,7 @@ impl IntoResponse for UpdateError {
                     error: ErrorBody {
                         code: "confirmation_required".to_string(),
                         message: "Lowering the History budget below current usage deletes retained History. Send confirmDeletion: true to continue.".to_string(),
+                        details: None,
                     },
                     proposed_deletion: true,
                     likely_resolution_loss: required.likely_resolution_loss,

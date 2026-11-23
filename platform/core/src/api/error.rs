@@ -10,6 +10,9 @@ pub struct ApiError {
     pub status: StatusCode,
     pub code: String,
     pub message: String,
+    /// Structured context a client can act on, such as the Devices that
+    /// keep a Room from being deleted.
+    pub details: Option<serde_json::Value>,
 }
 
 impl ApiError {
@@ -18,7 +21,13 @@ impl ApiError {
             status,
             code: code.into(),
             message: message.into(),
+            details: None,
         }
+    }
+
+    pub fn with_details(mut self, details: Option<serde_json::Value>) -> Self {
+        self.details = details;
+        self
     }
 
     pub fn not_found(code: impl Into<String>, message: impl Into<String>) -> Self {
@@ -57,6 +66,7 @@ impl IntoResponse for ApiError {
             error: ErrorBody {
                 code: self.code,
                 message: self.message,
+                details: self.details,
             },
         });
         (self.status, body).into_response()

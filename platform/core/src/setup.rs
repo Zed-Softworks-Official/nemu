@@ -12,15 +12,18 @@ use uuid::Uuid;
 use crate::api::auth::AuthenticatedClient;
 use crate::api::error::ApiError;
 use crate::audit::{self, AuditKind, AuditWrite};
+use crate::capabilities::{DeviceIdentity, PhysicalScope};
 use crate::db::models::{NewRoom, Room, UpdateDevice, UpdateRoom};
 use crate::db::schema::rooms;
-use crate::devices::setup_store::{self, RoomDeletion};
+use crate::devices::setup_store::{self, RoomBlockers, RoomDeletion};
 use crate::events::{DeviceResource, RoomResource};
 use crate::pairing::members::find_member_by_user_id;
 use crate::state::AppState;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SetupError {
+    /// The Device does not expose a Component with this ID.
+    ComponentNotFound,
     Unauthenticated,
     Forbidden,
     InvalidName,
@@ -30,7 +33,7 @@ pub enum SetupError {
     EmptyPatch,
     DeviceNotFound,
     RoomNotFound,
-    RoomNotEmpty,
+    RoomNotEmpty(RoomBlockers),
     AdapterUnavailable(String),
     RemoveFailed(String),
     Internal(String),
@@ -48,7 +51,8 @@ impl SetupError {
             Self::EmptyPatch => "empty_patch",
             Self::DeviceNotFound => "device_not_found",
             Self::RoomNotFound => "room_not_found",
-            Self::RoomNotEmpty => "room_not_empty",
+            Self::RoomNotEmpty(_) => "room_not_empty",
+            Self::ComponentNotFound => "component_not_found",
             Self::AdapterUnavailable(_) => "mqtt_error",
             Self::RemoveFailed(_) => "device_remove_failed",
             Self::Internal(_) => "internal_error",
@@ -68,8 +72,21 @@ impl SetupError {
             Self::EmptyPatch => "Provide name and/or sortOrder".into(),
             Self::DeviceNotFound => "Device not found".into(),
             Self::RoomNotFound => "Room not found".into(),
-            Self::RoomNotEmpty => {
-                "Move this Room's Devices and Components to another Room first".into()
+            Self::ComponentNotFound => "This Device has no Component with that ID".into(),
+            Self::RoomNotEmpty(blockers) => {
+                let names = blockers
+                    .devices
+                    .iter()
+                    .map(|device| device.name.clone())
+                    .chain(blockers.components.iter().map(|component| {
+                        format!("{} ({})", component.device_name, component.component_id)
+                    }))
+                    .collect::<Vec<_>>();
+                if names.is_empty() {
+                    "Move this Room's Devices and Components to another Room first".into()
+                } else {
+                    format!("Move these to another Room first: {}", names.join(", "))
+                }
             }
             Self::AdapterUnavailable(message)
             | Self::RemoveFailed(message)
@@ -86,17 +103,27 @@ impl SetupError {
             | Self::InvalidRoom
             | Self::InvalidComponent
             | Self::EmptyPatch => StatusCode::BAD_REQUEST,
-            Self::DeviceNotFound | Self::RoomNotFound => StatusCode::NOT_FOUND,
-            Self::RoomNotEmpty => StatusCode::CONFLICT,
+            Self::DeviceNotFound | Self::RoomNotFound | Self::ComponentNotFound => {
+                StatusCode::NOT_FOUND
+            }
+            Self::RoomNotEmpty(_) => StatusCode::CONFLICT,
             Self::AdapterUnavailable(_) | Self::RemoveFailed(_) => StatusCode::SERVICE_UNAVAILABLE,
             Self::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+
+    /// Structured context for clients: the blockers of a Room deletion.
+    pub fn details(&self) -> Option<serde_json::Value> {
+        match self {
+            Self::RoomNotEmpty(blockers) => serde_json::to_value(blockers).ok(),
+            _ => None,
         }
     }
 }
 
 impl From<SetupError> for ApiError {
     fn from(error: SetupError) -> Self {
-        ApiError::new(error.status(), error.code(), error.message())
+        ApiError::new(error.status(), error.code(), error.message()).with_details(error.details())
     }
 }
 
@@ -207,12 +234,15 @@ pub async fn assign_room(
         .map(parse_component_id)
         .transpose()?;
     let room_id = parse_room_target(assignment.room_id.as_deref())?;
-    if state.registry.get(device_id).await.is_none() {
-        return Err(SetupError::DeviceNotFound);
-    }
+    let device = state
+        .registry
+        .get(device_id)
+        .await
+        .ok_or(SetupError::DeviceNotFound)?;
     ensure_room_exists(state, room_id).await?;
     match component_id {
         Some(component_id) => {
+            ensure_component_exposed(state, &device, &component_id, room_id).await?;
             state
                 .registry
                 .set_component_room(&state.db, device_id, component_id, room_id)
@@ -252,6 +282,54 @@ pub async fn check_room_target(
 ) -> Result<(), SetupError> {
     authorize_caller(state, auth).await?;
     ensure_room_exists(state, parse_room_target(room_id)?).await
+}
+
+/// A Component Room assignment must name a Component the Device exposes.
+/// Clearing an assignment the Device no longer exposes stays allowed, so a
+/// stale assignment can be cleaned up.
+async fn ensure_component_exposed(
+    state: &AppState,
+    device: &crate::db::models::Device,
+    component_id: &str,
+    room_id: Option<Uuid>,
+) -> Result<(), SetupError> {
+    let identity = DeviceIdentity {
+        protocol: device.protocol.clone(),
+        external_id: device.external_id.clone(),
+    };
+    let snapshot = state.capabilities.snapshot();
+    let exposed = device_exposes_component(
+        snapshot
+            .capabilities
+            .iter()
+            .map(|capability| (&capability.device, &capability.physical_scope)),
+        &identity,
+        component_id,
+    );
+    let clearing_existing = room_id.is_none()
+        && state
+            .registry
+            .to_resource(state, device)
+            .await
+            .component_rooms
+            .contains_key(component_id);
+    if exposed || clearing_existing {
+        Ok(())
+    } else {
+        Err(SetupError::ComponentNotFound)
+    }
+}
+
+/// Whether any Capability of `device` belongs to the Component `component_id`.
+pub fn device_exposes_component<'a>(
+    scopes: impl IntoIterator<Item = (&'a DeviceIdentity, &'a PhysicalScope)>,
+    device: &DeviceIdentity,
+    component_id: &str,
+) -> bool {
+    scopes.into_iter().any(|(owner, scope)| {
+        owner == device
+            && matches!(scope, PhysicalScope::Component { component_id: id } if id == component_id)
+    })
 }
 
 async fn ensure_room_exists(state: &AppState, room_id: Option<Uuid>) -> Result<(), SetupError> {
@@ -373,7 +451,7 @@ pub async fn delete_room(
     {
         RoomDeletion::Deleted => Ok(()),
         RoomDeletion::NotFound => Err(SetupError::RoomNotFound),
-        RoomDeletion::NotEmpty => Err(SetupError::RoomNotEmpty),
+        RoomDeletion::NotEmpty(blockers) => Err(SetupError::RoomNotEmpty(blockers)),
     }
 }
 
@@ -417,6 +495,68 @@ pub fn remove_already_gone(error: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::devices::setup_store::{BlockingComponent, BlockingDevice};
+
+    #[test]
+    fn room_not_empty_names_the_blocking_devices_and_components() {
+        let device_id = Uuid::nil();
+        let error = ApiError::from(SetupError::RoomNotEmpty(RoomBlockers {
+            devices: vec![BlockingDevice {
+                id: device_id,
+                name: "Desk lamp".into(),
+            }],
+            components: vec![BlockingComponent {
+                device_id,
+                device_name: "Power strip".into(),
+                component_id: "l2".into(),
+            }],
+        }));
+        assert_eq!(error.code, "room_not_empty");
+        assert!(error.message.contains("Desk lamp"), "{}", error.message);
+        assert!(
+            error.message.contains("Power strip (l2)"),
+            "{}",
+            error.message
+        );
+        assert_eq!(
+            error.details,
+            Some(serde_json::json!({
+                "devices": [{ "id": device_id, "name": "Desk lamp" }],
+                "components": [{
+                    "deviceId": device_id,
+                    "deviceName": "Power strip",
+                    "componentId": "l2",
+                }],
+            }))
+        );
+    }
+
+    #[test]
+    fn a_component_must_be_exposed_by_its_device() {
+        use crate::capabilities::{DeviceIdentity, PhysicalScope};
+        let strip = DeviceIdentity::new("matter", "strip-1").unwrap();
+        let other = DeviceIdentity::new("matter", "strip-2").unwrap();
+        let scopes = vec![
+            (strip.clone(), PhysicalScope::Device),
+            (
+                strip.clone(),
+                PhysicalScope::Component {
+                    component_id: "l1".into(),
+                },
+            ),
+            (
+                other.clone(),
+                PhysicalScope::Component {
+                    component_id: "l2".into(),
+                },
+            ),
+        ];
+        let exposes =
+            |id: &str| device_exposes_component(scopes.iter().map(|(d, s)| (d, s)), &strip, id);
+        assert!(exposes("l1"));
+        assert!(!exposes("l2"), "another Device's Component");
+        assert!(!exposes("l9"));
+    }
 
     #[test]
     fn active_owners_and_members_may_set_up_devices_and_rooms() {
@@ -540,9 +680,14 @@ mod tests {
                 "room_not_found",
             ),
             (
-                SetupError::RoomNotEmpty,
+                SetupError::RoomNotEmpty(RoomBlockers::default()),
                 StatusCode::CONFLICT,
                 "room_not_empty",
+            ),
+            (
+                SetupError::ComponentNotFound,
+                StatusCode::NOT_FOUND,
+                "component_not_found",
             ),
             (
                 SetupError::AdapterUnavailable("down".into()),

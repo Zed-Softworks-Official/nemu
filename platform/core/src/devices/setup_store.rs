@@ -16,7 +16,30 @@ pub enum RoomDeletion {
     Deleted,
     NotFound,
     /// Devices or Components are still assigned to the Room.
-    NotEmpty,
+    NotEmpty(RoomBlockers),
+}
+
+/// The Devices and Components that keep a Room from being deleted.
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RoomBlockers {
+    pub devices: Vec<BlockingDevice>,
+    pub components: Vec<BlockingComponent>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BlockingDevice {
+    pub id: Uuid,
+    pub name: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BlockingComponent {
+    pub device_id: Uuid,
+    pub device_name: String,
+    pub component_id: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Queryable, Selectable)]
@@ -157,16 +180,36 @@ pub fn delete_room_if_empty(conn: &mut PgConnection, room_id: Uuid) -> QueryResu
         if locked.is_none() {
             return Ok(RoomDeletion::NotFound);
         }
-        let occupied = diesel::select(diesel::dsl::exists(
-            devices::table.filter(devices::room_id.eq(room_id)),
-        ))
-        .get_result::<bool>(conn)?
-            || diesel::select(diesel::dsl::exists(
-                component_rooms::table.filter(component_rooms::room_id.eq(room_id)),
+        let devices = devices::table
+            .filter(devices::room_id.eq(room_id))
+            .select((devices::id, devices::friendly_name))
+            .order((devices::friendly_name, devices::id))
+            .load::<(Uuid, String)>(conn)?
+            .into_iter()
+            .map(|(id, name)| BlockingDevice { id, name })
+            .collect::<Vec<_>>();
+        let components = component_rooms::table
+            .inner_join(devices::table)
+            .filter(component_rooms::room_id.eq(room_id))
+            .select((
+                devices::id,
+                devices::friendly_name,
+                component_rooms::component_id,
             ))
-            .get_result::<bool>(conn)?;
-        if occupied {
-            return Ok(RoomDeletion::NotEmpty);
+            .order((devices::friendly_name, component_rooms::component_id))
+            .load::<(Uuid, String, String)>(conn)?
+            .into_iter()
+            .map(|(device_id, device_name, component_id)| BlockingComponent {
+                device_id,
+                device_name,
+                component_id,
+            })
+            .collect::<Vec<_>>();
+        if !devices.is_empty() || !components.is_empty() {
+            return Ok(RoomDeletion::NotEmpty(RoomBlockers {
+                devices,
+                components,
+            }));
         }
         diesel::delete(rooms::table.filter(rooms::id.eq(room_id))).execute(conn)?;
         Ok(RoomDeletion::Deleted)
@@ -294,7 +337,13 @@ mod tests {
         let device = insert_device(&mut conn, Some(room));
         assert_eq!(
             delete_room_if_empty(&mut conn, room).unwrap(),
-            RoomDeletion::NotEmpty
+            RoomDeletion::NotEmpty(RoomBlockers {
+                devices: vec![BlockingDevice {
+                    id: device.id,
+                    name: "Desk lamp".into(),
+                }],
+                components: vec![],
+            })
         );
 
         diesel::update(devices::table.filter(devices::id.eq(device.id)))
@@ -304,7 +353,14 @@ mod tests {
         set_component_room(&mut conn, device.id, "outlet-2", Some(room)).unwrap();
         assert_eq!(
             delete_room_if_empty(&mut conn, room).unwrap(),
-            RoomDeletion::NotEmpty
+            RoomDeletion::NotEmpty(RoomBlockers {
+                devices: vec![],
+                components: vec![BlockingComponent {
+                    device_id: device.id,
+                    device_name: "Desk lamp".into(),
+                    component_id: "outlet-2".into(),
+                }],
+            })
         );
 
         set_component_room(&mut conn, device.id, "outlet-2", None).unwrap();

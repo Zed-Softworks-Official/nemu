@@ -508,7 +508,9 @@ export class RelayTransport implements ControllerTransport {
             // Same error shape as LAN, so callers can act on the code.
             throw new ApiError(
                 parsed.message.error?.code ?? 'relay_error',
-                parsed.message.error?.message ?? `Failed to ${action}`
+                parsed.message.error?.message ?? `Failed to ${action}`,
+                undefined,
+                parsed.message.error?.details
             )
         }
     }

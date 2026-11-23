@@ -42,6 +42,7 @@ import {
     TriangleAlertIcon,
 } from 'lucide-react'
 import { type FormEvent, useCallback, useEffect, useState } from 'react'
+import { roomActionMessage } from '~/lib/room-presentation'
 
 export function RoomsManager() {
     const { status, reprobe, getRooms, createRoom, patchRoom, deleteRoom } =
@@ -254,8 +255,8 @@ export function RoomsManager() {
                 <CardHeader>
                     <CardTitle>Your rooms</CardTitle>
                     <CardDescription>
-                        Rename or remove rooms. Devices in a deleted room become
-                        unassigned.
+                        Rename or remove rooms. Move a room’s devices elsewhere
+                        before removing it.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -264,7 +265,7 @@ export function RoomsManager() {
                             className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-destructive text-sm"
                             role="alert"
                         >
-                            {actionError.message}
+                            {roomActionMessage(actionError)}
                         </div>
                     ) : null}
 

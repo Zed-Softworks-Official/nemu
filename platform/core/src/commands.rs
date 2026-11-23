@@ -54,6 +54,7 @@ impl CommandError {
         crate::events::ErrorBody {
             code: self.code().to_string(),
             message: self.to_string(),
+            details: None,
         }
     }
 }

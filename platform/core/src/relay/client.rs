@@ -999,7 +999,7 @@ fn device_outcome(
             request_id,
             json!({ "type": "device", "device": device }),
         ),
-        Err(error) => build_error_response(state, request_id, error.code(), &error.message()),
+        Err(error) => build_setup_error_response(state, request_id, &error),
     }
 }
 
@@ -1012,7 +1012,7 @@ fn room_outcome(
         Ok(room) => {
             build_typed_response(state, request_id, json!({ "type": "room", "room": room }))
         }
-        Err(error) => build_error_response(state, request_id, error.code(), &error.message()),
+        Err(error) => build_setup_error_response(state, request_id, &error),
     }
 }
 
@@ -1023,8 +1023,27 @@ fn done_outcome(
 ) -> String {
     match result {
         Ok(()) => build_command_result(state, request_id, true, None, None),
-        Err(error) => build_error_response(state, request_id, error.code(), &error.message()),
+        Err(error) => build_setup_error_response(state, request_id, &error),
     }
+}
+
+/// A setup error over Relay carries the same code, message, and details as
+/// on LAN.
+fn build_setup_error_response(
+    state: &AppState,
+    request_id: &str,
+    error: &setup::SetupError,
+) -> String {
+    let mut body = json!({ "code": error.code(), "message": error.message() });
+    if let Some(details) = error.details() {
+        body["details"] = details;
+    }
+    let envelope = json!({
+        "requestId": request_id,
+        "signature": "",
+        "message": { "type": "commandResult", "ok": false, "error": body },
+    });
+    sign_envelope(state, envelope)
 }
 
 fn build_error_response(state: &AppState, request_id: &str, code: &str, message: &str) -> String {

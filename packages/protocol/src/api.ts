@@ -5,6 +5,8 @@ export const apiErrorBodySchema = z.object({
     error: z.object({
         code: z.string(),
         message: z.string(),
+        /** Structured context, such as the blockers of `room_not_empty`. */
+        details: z.unknown().optional(),
     }),
 })
 export type ApiErrorBody = z.infer<typeof apiErrorBodySchema>
@@ -12,12 +14,20 @@ export type ApiErrorBody = z.infer<typeof apiErrorBodySchema>
 export class ApiError extends Error {
     readonly code: string
     readonly status?: number
+    /** Structured context from the Controller, when it sends any. */
+    readonly details?: unknown
 
-    constructor(code: string, message: string, status?: number) {
+    constructor(
+        code: string,
+        message: string,
+        status?: number,
+        details?: unknown
+    ) {
         super(message)
         this.name = 'ApiError'
         this.code = code
         this.status = status
+        if (details !== undefined) this.details = details
     }
 }
 
@@ -123,6 +133,19 @@ export const assignRoomRequestSchema = z.object({
     roomId: z.string().min(1).nullable(),
 })
 export type AssignRoomRequest = z.infer<typeof assignRoomRequestSchema>
+
+/** `details` of a `room_not_empty` error: what still uses the Room. */
+export const roomNotEmptyDetailsSchema = z.object({
+    devices: z.array(z.object({ id: z.string(), name: z.string() })),
+    components: z.array(
+        z.object({
+            deviceId: z.string(),
+            deviceName: z.string(),
+            componentId: z.string(),
+        })
+    ),
+})
+export type RoomNotEmptyDetails = z.infer<typeof roomNotEmptyDetailsSchema>
 
 export const renameRoomRequestSchema = z.object({
     roomId: z.string().min(1),

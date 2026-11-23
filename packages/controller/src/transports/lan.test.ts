@@ -151,6 +151,27 @@ describe('LanTransport Device and Room setup', () => {
         )
     })
 
+    it('keeps the Devices that block a Room deletion', async () => {
+        const details = {
+            devices: [{ id: 'lamp', name: 'Desk lamp' }],
+            components: [],
+        }
+        reply = () => ({
+            status: 409,
+            body: {
+                error: {
+                    code: 'room_not_empty',
+                    message: 'Move these to another Room first: Desk lamp',
+                    details,
+                },
+            },
+        })
+        await assert.rejects(lan().deleteRoom('den'), {
+            code: 'room_not_empty',
+            details,
+        })
+    })
+
     it('reports a Controller without the setup route as unsupported_action', async () => {
         reply = () => ({ status: 405 })
         await assert.rejects(

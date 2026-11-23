@@ -98,6 +98,8 @@ pub enum InterviewStatus {
 pub struct ErrorBody {
     pub code: String,
     pub message: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub details: Option<JsonValue>,
 }
 
 /// Device resource matching `@nemu/protocol` `deviceSchema`.

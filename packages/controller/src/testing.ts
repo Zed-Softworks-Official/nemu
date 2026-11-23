@@ -31,6 +31,7 @@ import {
     type RenameDeviceRequest,
     type RenameRoomRequest,
     type Room,
+    type RoomNotEmptyDetails,
     type SessionMintResult,
 } from '@nemu/protocol'
 import type { ControllerConnectors } from './connection.ts'
@@ -329,16 +330,26 @@ export class FakeController {
     /** @internal */
     deleteRoom(roomId: string): void {
         const room = this.requireRoom(roomId)
-        const occupied = this.devices.some(
-            (device) =>
-                device.roomId === roomId ||
-                Object.values(device.componentRooms ?? {}).includes(roomId)
-        )
-        if (occupied) {
+        const details: RoomNotEmptyDetails = {
+            devices: this.devices
+                .filter((device) => device.roomId === roomId)
+                .map(({ id, name }) => ({ id, name })),
+            components: this.devices.flatMap((device) =>
+                Object.entries(device.componentRooms ?? {})
+                    .filter(([, room]) => room === roomId)
+                    .map(([componentId]) => ({
+                        deviceId: device.id,
+                        deviceName: device.name,
+                        componentId,
+                    }))
+            ),
+        }
+        if (details.devices.length > 0 || details.components.length > 0) {
             throw new ApiError(
                 'room_not_empty',
                 "Move this Room's Devices and Components to another Room first",
-                409
+                409,
+                details
             )
         }
         this.rooms = this.rooms.filter((other) => other !== room)

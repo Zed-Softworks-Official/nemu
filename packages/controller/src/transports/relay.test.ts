@@ -118,6 +118,33 @@ describe('RelayTransport leaving and revocation', () => {
         }
     })
 
+    it('keeps error details, as on LAN', async () => {
+        const details = {
+            devices: [],
+            components: [
+                {
+                    deviceId: 'strip',
+                    deviceName: 'Power strip',
+                    componentId: 'l2',
+                },
+            ],
+        }
+        const { relay } = relayAnswering({
+            type: 'commandResult',
+            ok: false,
+            error: { code: 'room_not_empty', message: 'Not empty', details },
+        })
+        await relay.connect()
+        try {
+            await assert.rejects(relay.deleteRoom('den'), {
+                code: 'room_not_empty',
+                details,
+            })
+        } finally {
+            relay.disconnect()
+        }
+    })
+
     it('surfaces the Controller’s error code, as on LAN', async () => {
         const { relay } = relayAnswering({
             type: 'commandResult',

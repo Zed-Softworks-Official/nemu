@@ -43,6 +43,7 @@ const relayCommandResultMessageSchema = z.object({
         .object({
             code: z.string(),
             message: z.string(),
+            details: z.unknown().optional(),
         })
         .optional(),
 })
