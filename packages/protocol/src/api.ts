@@ -178,24 +178,6 @@ export const deleteRoomRequestSchema = z.object({
 })
 export type DeleteRoomRequest = z.infer<typeof deleteRoomRequestSchema>
 
-/**
- * `details` of a `room_not_empty` error: what still uses the Room.
- *
- * @deprecated The Controller no longer refuses to delete a Room that is in
- * use; deleting a Room moves its contents to a destination instead.
- */
-export const roomNotEmptyDetailsSchema = z.object({
-    devices: z.array(z.object({ id: z.string(), name: z.string() })),
-    components: z.array(
-        z.object({
-            deviceId: z.string(),
-            deviceName: z.string(),
-            componentId: z.string(),
-        })
-    ),
-})
-export type RoomNotEmptyDetails = z.infer<typeof roomNotEmptyDetailsSchema>
-
 export const renameRoomRequestSchema = z.object({
     roomId: z.string().min(1),
     name: z.string().trim().min(1).max(255),
