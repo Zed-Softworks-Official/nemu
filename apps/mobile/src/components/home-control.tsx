@@ -52,7 +52,31 @@ type HomeControlValue = {
         desired: boolean | number
     ) => void
     dismissCommand: (deviceId: string, controlKey: string) => void
+    /** Reload Devices and Rooms, for example after a setup action. */
+    refreshInventory: () => Promise<void>
+    /** Outcome of a setup action whose subject left the screen. */
+    notice: string | null
+    showNotice: (message: string) => void
+    dismissNotice: () => void
+    /**
+     * Setup outcomes by subject, kept here so feedback survives a Device
+     * card moving to another Room section.
+     */
+    setupState: (key: string) => SetupState
+    setSetupState: (key: string, state: SetupState) => void
+    /** The Device whose setup is open, one at a time. */
+    deviceSetupOpen: string | null
+    setDeviceSetupOpen: (deviceId: string | null) => void
 }
+
+/** Outcome of one Device or Room setup action. */
+export type SetupState =
+    | { phase: 'idle' }
+    | { phase: 'saving' }
+    | { phase: 'done'; message: string }
+    | { phase: 'failed'; message: string }
+
+const IDLE: SetupState = { phase: 'idle' }
 
 const HomeControlContext = createContext<HomeControlValue | null>(null)
 
@@ -70,10 +94,22 @@ export function HomeControlProvider({
     confirmationWindowMs?: number
 }) {
     const { connection, getRooms, reprobe, sendCommand } = useController()
-    const { devices, error, status } = useDevices()
+    const { devices, error, refresh: refreshDevices, status } = useDevices()
     const { view } = useCapabilityState()
     const [rooms, setRooms] = useState<Room[] | undefined>(undefined)
     const [roomsFailed, setRoomsFailed] = useState(false)
+    const [notice, setNotice] = useState<string | null>(null)
+    const [setupStates, setSetupStates] = useState<Record<string, SetupState>>(
+        {}
+    )
+    const [deviceSetupOpen, setDeviceSetupOpen] = useState<string | null>(null)
+    const setupState = useCallback(
+        (key: string) => setupStates[key] ?? IDLE,
+        [setupStates]
+    )
+    const setSetupState = useCallback((key: string, state: SetupState) => {
+        setSetupStates((current) => ({ ...current, [key]: state }))
+    }, [])
     const live = status.mode === 'lan' || status.mode === 'relay'
 
     // The Controller session clears its view on disconnect; keep the last one.
@@ -102,6 +138,12 @@ export function HomeControlProvider({
             }),
         [connection, refreshRooms]
     )
+
+    const refreshInventory = useCallback(async () => {
+        await Promise.all([refreshDevices(), refreshRooms()])
+    }, [refreshDevices, refreshRooms])
+
+    const dismissNotice = useCallback(() => setNotice(null), [])
 
     const reconnect = useCallback(() => {
         void reprobe()
@@ -145,6 +187,14 @@ export function HomeControlProvider({
                 void send(deviceId, control, desired)
             },
             dismissCommand: dismiss,
+            refreshInventory,
+            notice,
+            showNotice: setNotice,
+            dismissNotice,
+            setupState,
+            setSetupState,
+            deviceSetupOpen,
+            setDeviceSetupOpen,
         }),
         [
             status,
@@ -159,6 +209,12 @@ export function HomeControlProvider({
             commandFor,
             send,
             dismiss,
+            refreshInventory,
+            notice,
+            dismissNotice,
+            setupState,
+            setSetupState,
+            deviceSetupOpen,
         ]
     )
 
