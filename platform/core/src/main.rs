@@ -32,7 +32,6 @@ mod state;
 mod tls;
 mod tls_sync;
 mod updater_control;
-mod watchtower;
 
 use capabilities::CapabilityService;
 use config::Config;
@@ -44,8 +43,7 @@ use pairing::tokens::count_client_tokens;
 use registration::register_with_retry;
 use relay::client::spawn_relay_loop;
 use state::{AppState, HealthFlags};
-use updater_control::DirectoryUpdater;
-use watchtower::WatchtowerClient;
+use updater_control::SocketUpdater;
 
 #[tokio::main]
 async fn main() {
@@ -174,21 +172,7 @@ async fn main() {
         registration_secret: config.registration_secret.clone(),
         lan_ip: lan_ip.clone(),
         capability_watches: Arc::new(std::sync::Mutex::new(Vec::new())),
-        watchtower: match (
-            config.watchtower_url.clone(),
-            config.watchtower_token.clone(),
-        ) {
-            (Some(url), Some(token)) => Some(WatchtowerClient::new(
-                url,
-                token,
-                crate::watchtower::RELEASE_BUNDLE
-                    .into_iter()
-                    .map(str::to_string)
-                    .collect(),
-            )),
-            _ => None,
-        },
-        updater: Arc::new(DirectoryUpdater::new(config.home_dir.clone())),
+        updater: Arc::new(SocketUpdater::new(config.updater_socket.clone())),
     };
 
     spawn_mqtt_loop(state.clone(), eventloop);

@@ -40,6 +40,22 @@ pub fn switch_channel(
     channel: ReleaseChannel,
     env: &InstallEnv<'_>,
 ) -> Result<ChannelSwitch, ChannelError> {
+    let chosen = save_channel(controller_dir, channel, env)?;
+    if chosen.installed {
+        crate::install::install(controller_dir, env)?;
+    }
+    Ok(chosen)
+}
+
+/// Saves the Home's Release channel and reports whether that channel has a
+/// newer verified Release. It does not install it. `installed` is true when
+/// the caller should call `install` next; the daemon does that in the
+/// background so an Owner request is answered before the stack restarts.
+pub fn save_channel(
+    controller_dir: &Path,
+    channel: ReleaseChannel,
+    env: &InstallEnv<'_>,
+) -> Result<ChannelSwitch, ChannelError> {
     if maintenance_mode(controller_dir) {
         return Err(ChannelError::InMaintenance);
     }
@@ -56,9 +72,6 @@ pub fn switch_channel(
     stored.channel = Some(channel);
     write_stored_release(controller_dir, &stored)
         .map_err(|error| ChannelError::Unavailable(error.to_string()))?;
-    if newer {
-        crate::install::install(controller_dir, env)?;
-    }
     Ok(ChannelSwitch {
         channel,
         installed: newer,

@@ -843,21 +843,22 @@ mod tests {
             .find(|file| file.path == "docker-compose.yml")
             .expect("compose")
             .contents;
+        let mut images = 0;
         for line in compose.lines() {
             let trimmed = line.trim_start();
-            if !trimmed.starts_with("image:") || trimmed.contains("watchtower") {
+            if !trimmed.starts_with("image:") {
                 continue;
             }
+            images += 1;
             assert!(trimmed.contains("@sha256:"), "{line}");
             assert!(!trimmed.contains(":latest"), "{line}");
             assert!(!trimmed.contains(":canary"), "{line}");
         }
-        assert!(compose.contains("image: nickfedor/watchtower:latest"));
-        assert!(
-            plan.image_tags
-                .iter()
-                .all(|tag| !tag.image.contains("watchtower"))
-        );
+        assert_eq!(images, crate::RELEASE_SERVICES.len());
+        // The Updater replaced Watchtower (ADR-0028); the shipped stack has none.
+        assert!(!compose.contains("watchtower"));
+        // Core reaches the host Updater only through its socket (ADR-0033).
+        assert!(compose.contains("./run:/run/nemu-updater"));
     }
 
     #[test]

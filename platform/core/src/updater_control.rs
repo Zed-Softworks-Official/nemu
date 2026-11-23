@@ -1,6 +1,11 @@
+use std::io::{BufRead, BufReader, Write};
+use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
 
 use serde::Serialize;
+use serde_json::{Value, json};
 
 use crate::audit;
 
@@ -36,64 +41,147 @@ pub trait UpdaterControl: Send + Sync {
     fn maintenance_mode(&self) -> bool;
 }
 
-/// The Updater installed under a Controller directory. Status reads Home data
-/// from that directory and does not record an audit entry. A release key and
-/// channel manifest are read from that directory when they have been supplied.
-/// A missing key still reports no newer Release and does not use the Controller
-/// identity key.
-#[derive(Clone)]
-pub struct DirectoryUpdater {
-    controller_dir: PathBuf,
+/// Default path of the Updater control socket inside the `nemu-core`
+/// container. Compose bind-mounts the host's `/opt/nemu/run` here (ADR-0033).
+pub const DEFAULT_UPDATER_SOCKET: &str = "/run/nemu-updater/updater.sock";
+const UPDATER_UNAVAILABLE: &str =
+    "The Updater is not running on this Home. Re-run the installer to install it.";
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(45);
+const MAINTENANCE_TIMEOUT: Duration = Duration::from_secs(2);
+const MAINTENANCE_CACHE: Duration = Duration::from_secs(2);
+
+/// The host Updater, reached over its Unix socket. Core checks the Owner
+/// role before it forwards anything; the Updater trusts the socket's owner.
+/// Install and rollback are answered once they have started, because they
+/// recreate this container.
+pub struct SocketUpdater {
+    socket: PathBuf,
+    maintenance: Mutex<Option<(Instant, bool)>>,
 }
 
-impl DirectoryUpdater {
-    pub fn new(controller_dir: impl Into<PathBuf>) -> Self {
+impl SocketUpdater {
+    pub fn new(socket: impl Into<PathBuf>) -> Self {
         Self {
-            controller_dir: controller_dir.into(),
+            socket: socket.into(),
+            maintenance: Mutex::new(None),
+        }
+    }
+
+    fn request(&self, body: Value, timeout: Duration) -> Result<Value, String> {
+        let call = || -> Result<Value, String> {
+            let mut stream =
+                UnixStream::connect(&self.socket).map_err(|_| UPDATER_UNAVAILABLE.to_string())?;
+            stream
+                .set_read_timeout(Some(timeout))
+                .and_then(|()| stream.set_write_timeout(Some(timeout)))
+                .map_err(|error| error.to_string())?;
+            let mut line = body.to_string();
+            line.push('\n');
+            stream
+                .write_all(line.as_bytes())
+                .map_err(|_| UPDATER_UNAVAILABLE.to_string())?;
+            let mut reply = String::new();
+            BufReader::new(&stream)
+                .read_line(&mut reply)
+                .map_err(|error| format!("the Updater did not answer: {error}"))?;
+            let value: Value = serde_json::from_str(reply.trim())
+                .map_err(|_| "the Updater sent an unreadable answer".to_string())?;
+            if value.get("ok").and_then(Value::as_bool) == Some(true) {
+                Ok(value)
+            } else {
+                Err(value
+                    .get("error")
+                    .and_then(Value::as_str)
+                    .unwrap_or("the Updater refused the request")
+                    .to_string())
+            }
+        };
+        // Handlers call this from async code. On the multi-threaded runtime,
+        // tell Tokio this worker blocks so other tasks keep running.
+        match tokio::runtime::Handle::try_current() {
+            Ok(handle) if handle.runtime_flavor() == tokio::runtime::RuntimeFlavor::MultiThread => {
+                tokio::task::block_in_place(call)
+            }
+            _ => call(),
         }
     }
 }
 
-impl UpdaterControl for DirectoryUpdater {
+impl UpdaterControl for SocketUpdater {
     fn status(&self) -> Result<ReleaseStatus, String> {
-        let manifests = updater::DirectoryManifestHost::new(&self.controller_dir);
-        let release_key = updater::load_release_key(&self.controller_dir);
-        let installed = updater::status(&self.controller_dir, &manifests, release_key.as_ref())
-            .map_err(|error| error.to_string())?;
+        let value = self.request(json!({ "op": "status" }), REQUEST_TIMEOUT)?;
+        let status = value
+            .get("status")
+            .ok_or_else(|| "the Updater sent no status".to_string())?;
+        let flag = |name: &str| status.get(name).and_then(Value::as_bool).unwrap_or(false);
+        let text = |name: &str| {
+            status
+                .get(name)
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_string()
+        };
         Ok(ReleaseStatus {
-            platform_version: installed.platform_version,
-            channel: installed.channel.as_str().to_string(),
-            newer_release_available: installed.newer_release_available,
-            maintenance_mode: installed.maintenance_mode,
-            rollback_snapshot_available: installed.rollback_snapshot_available,
-            rollback_stuck: installed.rollback_stuck,
+            platform_version: text("platformVersion"),
+            channel: text("channel"),
+            newer_release_available: flag("newerReleaseAvailable"),
+            maintenance_mode: flag("maintenanceMode"),
+            rollback_snapshot_available: flag("rollbackSnapshotAvailable"),
+            rollback_stuck: flag("rollbackStuck"),
         })
     }
 
     fn install(&self) -> Result<(), String> {
-        updater::run_install(&self.controller_dir).map_err(|error| error.to_string())
+        self.request(json!({ "op": "install" }), REQUEST_TIMEOUT)
+            .map(|_| ())
     }
 
     fn rollback(&self) -> Result<(), String> {
-        updater::run_rollback(&self.controller_dir).map_err(|error| error.to_string())
+        self.request(json!({ "op": "rollback" }), REQUEST_TIMEOUT)
+            .map(|_| ())
     }
 
     fn switch_channel(&self, channel: &str) -> Result<SwitchChannelOutcome, String> {
-        let channel = match channel {
-            "stable" => updater::ReleaseChannel::Stable,
-            "canary" => updater::ReleaseChannel::Canary,
-            other => return Err(format!("unknown Release channel: {other}")),
-        };
-        let switched = updater::run_switch_channel(&self.controller_dir, channel)
-            .map_err(|error| error.to_string())?;
+        if channel != "stable" && channel != "canary" {
+            return Err(format!("unknown Release channel: {channel}"));
+        }
+        let value = self.request(
+            json!({ "op": "switchChannel", "channel": channel }),
+            REQUEST_TIMEOUT,
+        )?;
+        let switch = value.get("switch").cloned().unwrap_or_default();
         Ok(SwitchChannelOutcome {
-            channel: switched.channel.as_str().to_string(),
-            installed: switched.installed,
+            channel: switch
+                .get("channel")
+                .and_then(Value::as_str)
+                .unwrap_or(channel)
+                .to_string(),
+            installed: switch
+                .get("installed")
+                .and_then(Value::as_bool)
+                .unwrap_or(false),
         })
     }
 
+    /// Asked before each Command, so the answer is cached briefly. A Home
+    /// whose Updater does not answer is not in maintenance.
     fn maintenance_mode(&self) -> bool {
-        updater::maintenance_mode(&self.controller_dir)
+        let mut cached = self
+            .maintenance
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
+        if let Some((at, held)) = *cached
+            && at.elapsed() < MAINTENANCE_CACHE
+        {
+            return held;
+        }
+        let held = self
+            .request(json!({ "op": "maintenance" }), MAINTENANCE_TIMEOUT)
+            .ok()
+            .and_then(|value| value.get("maintenance").and_then(Value::as_bool))
+            .unwrap_or(false);
+        *cached = Some((Instant::now(), held));
+        held
     }
 }
 
@@ -403,5 +491,87 @@ mod tests {
         assert_eq!(audit.detail["channel"], "canary");
         assert_eq!(audit.actor_user_id.as_deref(), Some("owner-1"));
         assert_eq!(audit.summary, "switched Release channel to canary");
+    }
+
+    fn fake_updater_socket(
+        replies: Vec<&'static str>,
+    ) -> (std::path::PathBuf, std::thread::JoinHandle<Vec<String>>) {
+        use std::io::{BufRead, BufReader, Write};
+        let dir = std::path::PathBuf::from(format!(
+            "/tmp/nemu-core-sock-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let socket = dir.join("updater.sock");
+        let listener = std::os::unix::net::UnixListener::bind(&socket).unwrap();
+        let handle = std::thread::spawn(move || {
+            let mut seen = Vec::new();
+            for reply in replies {
+                let (stream, _) = listener.accept().unwrap();
+                let mut line = String::new();
+                BufReader::new(&stream).read_line(&mut line).unwrap();
+                seen.push(line.trim().to_string());
+                let mut writer = &stream;
+                writer.write_all(format!("{reply}\n").as_bytes()).unwrap();
+            }
+            let _ = std::fs::remove_dir_all(&dir);
+            seen
+        });
+        (socket, handle)
+    }
+
+    #[test]
+    fn the_socket_updater_forwards_each_request_and_reads_the_answer() {
+        let (socket, server) = fake_updater_socket(vec![
+            r#"{"ok":true,"status":{"platformVersion":"0.1.1","channel":"canary","newerReleaseAvailable":true,"maintenanceMode":false,"rollbackSnapshotAvailable":true,"rollbackStuck":false}}"#,
+            r#"{"ok":true,"started":true}"#,
+            r#"{"ok":false,"error":"no Rollback snapshot"}"#,
+            r#"{"ok":true,"switch":{"channel":"stable","installed":true}}"#,
+            r#"{"ok":true,"maintenance":true}"#,
+        ]);
+        let updater = super::SocketUpdater::new(&socket);
+
+        let status = updater.status().expect("status");
+        assert_eq!(status.platform_version, "0.1.1");
+        assert_eq!(status.channel, "canary");
+        assert!(status.newer_release_available);
+        assert!(status.rollback_snapshot_available);
+        updater.install().expect("install");
+        assert_eq!(updater.rollback(), Err("no Rollback snapshot".to_string()));
+        let switched = updater.switch_channel("stable").expect("switch");
+        assert_eq!(switched.channel, "stable");
+        assert!(switched.installed);
+        assert!(updater.maintenance_mode());
+        // Cached: no sixth connection is made.
+        assert!(updater.maintenance_mode());
+
+        let seen = server.join().unwrap();
+        assert_eq!(
+            seen,
+            [
+                r#"{"op":"status"}"#,
+                r#"{"op":"install"}"#,
+                r#"{"op":"rollback"}"#,
+                r#"{"op":"switchChannel","channel":"stable"}"#,
+                r#"{"op":"maintenance"}"#,
+            ]
+        );
+    }
+
+    #[test]
+    fn a_missing_updater_is_unavailable_and_not_in_maintenance() {
+        let updater = super::SocketUpdater::new("/nonexistent/nemu-updater.sock");
+        assert!(
+            updater
+                .status()
+                .unwrap_err()
+                .contains("Re-run the installer")
+        );
+        assert!(!updater.maintenance_mode());
+        assert!(updater.switch_channel("beta").is_err());
     }
 }
