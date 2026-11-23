@@ -10,6 +10,7 @@ import type {
     Device,
     DeviceCommand,
     DeviceEvent,
+    HealthSummary,
     HistoryQuery,
     HistoryQueryRead,
     HomeMeterDesignation,
@@ -91,6 +92,9 @@ export interface ControllerTransport {
     switchReleaseChannel?(
         channel: ReleaseChannel
     ): Promise<SwitchReleaseChannelResponse>
+    // NEM-88: Controller health summary.
+    /** Owners get Controller details; Members get availability only. */
+    getHealthSummary?(): Promise<HealthSummary>
 }
 
 export interface ControllerTransport {

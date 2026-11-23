@@ -16,6 +16,7 @@ import {
     type DeviceEvent,
     type DeviceProtocol,
     deviceEventRefreshesInventory,
+    type HealthSummary,
     type HistoryQuery,
     type HistoryQueryRead,
     type HomeMeterDesignation,
@@ -106,6 +107,7 @@ type ControllerContextValue = {
     leaveHome: () => Promise<void>
     bootstrapOwner: (request: BootstrapOwnerRequest) => Promise<HouseholdMember>
     getReleaseStatus: () => Promise<UpdateStatusResponse>
+    getHealthSummary: () => Promise<HealthSummary>
     installRelease: () => Promise<ApplyUpdateResponse>
     rollbackRelease: () => Promise<ApplyUpdateResponse>
     switchReleaseChannel: (
@@ -305,6 +307,10 @@ export function ControllerProvider({
         () => connection.getReleaseStatus(),
         [connection]
     )
+    const getHealthSummary = useCallback(
+        () => connection.getHealthSummary(),
+        [connection]
+    )
     const installRelease = useCallback(
         () => connection.installRelease(),
         [connection]
@@ -353,6 +359,7 @@ export function ControllerProvider({
             leaveHome,
             bootstrapOwner,
             getReleaseStatus,
+            getHealthSummary,
             installRelease,
             rollbackRelease,
             switchReleaseChannel,
@@ -391,6 +398,7 @@ export function ControllerProvider({
             leaveHome,
             bootstrapOwner,
             getReleaseStatus,
+            getHealthSummary,
             installRelease,
             rollbackRelease,
             switchReleaseChannel,
