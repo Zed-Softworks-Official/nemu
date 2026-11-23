@@ -11,7 +11,13 @@ import type {
     HistoryQueryResult,
     HomeMeterDesignation,
 } from '@nemu/protocol'
-import { act, render, screen, within } from '@testing-library/react-native'
+import {
+    act,
+    render,
+    screen,
+    waitFor,
+    within,
+} from '@testing-library/react-native'
 import { useEffect } from 'react'
 
 import { EnergySummaryView } from '~/components/energy-summary'
@@ -112,7 +118,10 @@ function CaptureReprobe() {
     return null
 }
 
-async function renderEnergy(controller: FakeController) {
+async function renderEnergy(
+    controller: FakeController,
+    refresh?: { everyMs?: number; now?: () => Date }
+) {
     const credentialStore = createMemoryCredentialStore()
     credentialStore.set(controller.controllerId, { clientToken: 'token' })
     await render(
@@ -124,7 +133,10 @@ async function renderEnergy(controller: FakeController) {
         >
             <CaptureReprobe />
             <HomeControlProvider>
-                <EnergySummaryView />
+                <EnergySummaryView
+                    now={refresh?.now}
+                    refreshEveryMs={refresh?.everyMs}
+                />
             </HomeControlProvider>
         </ControllerProvider>
     )
@@ -287,6 +299,55 @@ describe.each([
         const power = screen.getByLabelText('Current Home power')
         expect(within(power).getByText('1,234 W')).toBeTruthy()
         expect(within(power).getByText('Last known')).toBeTruthy()
+    })
+})
+
+describe('refreshing today’s energy while the screen is open', () => {
+    function home() {
+        const controller = new FakeController({
+            controllerId: 'lake',
+            acceptedTokens: ['token'],
+            homeMeter: METER,
+        })
+        controller.history = fullDay
+        return controller
+    }
+    const importedQueries = (controller: FakeController) =>
+        controller.historyQueries.filter(
+            ({ query }) => query.metric === 'importedEnergy'
+        )
+
+    it('reloads today’s figures on an interval', async () => {
+        const controller = home()
+        await renderEnergy(controller, { everyMs: 30 })
+        await screen.findByLabelText('Imported today')
+
+        await waitFor(() =>
+            expect(importedQueries(controller).length).toBeGreaterThan(2)
+        )
+        expect(screen.getByLabelText('Imported today')).toBeTruthy()
+    })
+
+    it('starts a new day when the day rolls over', async () => {
+        const controller = home()
+        // 50 ms before local midnight; the clock then moves on.
+        const midnight = new Date(2026, 10, 23, 0, 0, 0, 0)
+        const clock = midnight.getTime() - 50
+        const startedAt = Date.now()
+        await renderEnergy(controller, {
+            everyMs: 60 * 60_000,
+            now: () => new Date(clock + (Date.now() - startedAt)),
+        })
+        await screen.findByLabelText('Imported today')
+
+        await waitFor(() =>
+            expect(
+                importedQueries(controller).some(
+                    ({ query }) =>
+                        new Date(query.start).getTime() === midnight.getTime()
+                )
+            ).toBe(true)
+        )
     })
 })
 

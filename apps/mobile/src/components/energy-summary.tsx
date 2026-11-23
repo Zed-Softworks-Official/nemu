@@ -20,13 +20,37 @@ import { colors } from '~/constants/colors'
 
 type Loaded<T> = { status: 'loaded'; value: T } | { status: 'failed' }
 
+/** How often today's figures reload while the screen is open. */
+const REFRESH_EVERY_MS = 60_000
+
+const systemNow = () => new Date()
+
+/** Milliseconds from `now` until the next local midnight. */
+function untilNextDay(now: Date): number {
+    const next = new Date(now)
+    next.setHours(24, 0, 0, 0)
+    return next.getTime() - now.getTime()
+}
+
+/** A failed background reload keeps the figures already shown. */
+function keepLoaded<T>(previous: Loaded<T> | undefined): Loaded<T> {
+    return previous?.status === 'loaded' ? previous : { status: 'failed' }
+}
+
 /**
  * A focused summary of Home energy (ADR-0031): current Home power and
  * today's Imported and Exported energy from the Home meter. Detailed History
  * stays on the dashboard. Figures come from the same shared logic as the
  * dashboard and are kept in memory only.
  */
-export function EnergySummaryView() {
+export function EnergySummaryView({
+    refreshEveryMs = REFRESH_EVERY_MS,
+    now = systemNow,
+}: {
+    refreshEveryMs?: number
+    /** The clock; tests pass their own. */
+    now?: () => Date
+} = {}) {
     const { live, capabilities, capabilitiesCurrent } = useHomeControl()
     const { getHomeMeterDesignation, queryHistory } = useController()
     const [meter, setMeter] = useState<
@@ -36,8 +60,30 @@ export function EnergySummaryView() {
         undefined
     )
     const [attempt, setAttempt] = useState(0)
+    // Reload while the screen is open, and start over when the day rolls.
+    const [refresh, setRefresh] = useState(0)
+    const [day, setDay] = useState(0)
 
     useEffect(() => {
+        if (!live) return
+        const timer = setInterval(
+            () => setRefresh((value) => value + 1),
+            refreshEveryMs
+        )
+        return () => clearInterval(timer)
+    }, [live, refreshEveryMs])
+
+    useEffect(() => {
+        if (!live) return
+        const timer = setTimeout(() => {
+            setToday(undefined)
+            setDay((value) => value + 1)
+        }, untilNextDay(now()) + 1)
+        return () => clearTimeout(timer)
+    }, [day, live, now])
+
+    useEffect(() => {
+        // Re-runs on a retry, a refresh tick, or a new day.
         if (!live) return
         let cancelled = false
         void (async () => {
@@ -45,7 +91,7 @@ export function EnergySummaryView() {
             try {
                 designation = await getHomeMeterDesignation()
             } catch {
-                if (!cancelled) setMeter({ status: 'failed' })
+                if (!cancelled) setMeter(keepLoaded)
                 return
             }
             if (cancelled) return
@@ -58,17 +104,25 @@ export function EnergySummaryView() {
                 const value = await loadTodayEnergy({
                     designation,
                     queryHistory,
-                    now: new Date(),
+                    now: now(),
                 })
                 if (!cancelled) setToday({ status: 'loaded', value })
             } catch {
-                if (!cancelled) setToday({ status: 'failed' })
+                if (!cancelled) setToday(keepLoaded)
             }
         })()
         return () => {
             cancelled = true
         }
-    }, [attempt, getHomeMeterDesignation, live, queryHistory])
+    }, [
+        attempt,
+        refresh,
+        day,
+        getHomeMeterDesignation,
+        live,
+        now,
+        queryHistory,
+    ])
 
     const retry = () => setAttempt((value) => value + 1)
     const designation = meter?.status === 'loaded' ? meter.value : undefined
