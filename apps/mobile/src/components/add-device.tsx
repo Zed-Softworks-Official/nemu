@@ -18,18 +18,19 @@ import { readMatterCode } from '~/lib/matter-code'
 export type CodeScanner = ComponentType<{ onCode: (data: string) => void }>
 
 /**
- * The Devices tab: the Device list, and adding a Device when the phone is on
- * the Home network. Commissioning is LAN-only (ADR-0030).
+ * The Devices tab: the Device list, and adding a Device whenever the phone
+ * reaches the Controller. Every Membership may commission over LAN or Relay
+ * (ADR-0034).
  *
- * Adding stays mounted while the connection is re-checked (`probing`), so a
- * brief blip does not cancel commissioning. It stops only when the person
- * cancels or the connection settles on Relay or offline.
+ * Adding stays mounted while the connection is re-checked (`probing`) or
+ * moves between LAN and Relay, so a blip does not cancel commissioning. It
+ * stops only when the person cancels or the connection settles offline.
  */
 export function DevicesTab({ Scanner }: { Scanner?: CodeScanner }) {
-    const { status } = useHomeControl()
+    const { status, live } = useHomeControl()
     const [adding, setAdding] = useState(false)
     const [stopped, setStopped] = useState(false)
-    const settledAway = status.mode === 'relay' || status.mode === 'offline'
+    const settledAway = status.mode === 'offline'
 
     useEffect(() => {
         if (adding && settledAway) {
@@ -44,7 +45,7 @@ export function DevicesTab({ Scanner }: { Scanner?: CodeScanner }) {
             <AddDevice
                 onClose={() => setAdding(false)}
                 Scanner={Scanner}
-                waiting={status.mode !== 'lan'}
+                waiting={!live}
             />
         )
     }
@@ -56,11 +57,11 @@ export function DevicesTab({ Scanner }: { Scanner?: CodeScanner }) {
                     accessibilityRole="alert"
                     className="text-muted-foreground text-sm leading-relaxed"
                 >
-                    Adding a Device stopped because this phone left the Home
-                    network. Nothing new was added.
+                    Adding a Device stopped because this phone lost its
+                    connection to the Home. Nothing new was added.
                 </Text>
             ) : null}
-            {status.mode === 'lan' ? (
+            {live ? (
                 <View className="flex-row">
                     <Button
                         onPress={() => {
@@ -71,10 +72,6 @@ export function DevicesTab({ Scanner }: { Scanner?: CodeScanner }) {
                         variant="outline"
                     />
                 </View>
-            ) : status.mode === 'relay' ? (
-                <Text className="text-muted-foreground text-sm leading-relaxed">
-                    {LAN_ONLY}
-                </Text>
             ) : null}
             <View className="min-h-0 flex-1">
                 <DevicesView />
@@ -82,9 +79,6 @@ export function DevicesTab({ Scanner }: { Scanner?: CodeScanner }) {
         </View>
     )
 }
-
-const LAN_ONLY =
-    'Adding a Device needs this phone on the Home network. Join your Home’s Wi‑Fi, then try again.'
 
 const MATTER_STAGES: Record<string, string> = {
     looking: 'Looking for your Device',
@@ -260,7 +254,7 @@ export function AddDevice({
                     accessibilityLiveRegion="polite"
                     className="text-muted-foreground text-sm"
                 >
-                    Reconnecting to your Home network…
+                    Reconnecting to your Home…
                 </Text>
             ) : null}
             {notice ? (

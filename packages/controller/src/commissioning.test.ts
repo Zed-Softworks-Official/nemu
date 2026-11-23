@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict'
 import { afterEach, describe, it } from 'node:test'
-import { ApiError } from '@nemu/protocol'
 import { ControllerConnection } from './connection.ts'
 import {
     createMemoryCredentialStore,
@@ -37,14 +36,6 @@ function home(lanReachable: boolean) {
     })
 }
 
-function isLanOnlyRejection(error: unknown): boolean {
-    return (
-        error instanceof ApiError &&
-        error.code === 'unsupported_action' &&
-        /Home network/.test(error.message)
-    )
-}
-
 describe('Commissioning over LAN', () => {
     it('opens and closes Zigbee permit-join on the Controller', async () => {
         const controller = home(true)
@@ -79,35 +70,73 @@ describe('Commissioning over LAN', () => {
 })
 
 describe('Commissioning over Relay', () => {
-    it('is rejected at once with unsupported_action and never sent', async () => {
+    it('hands the Matter pairing code to the Controller and audits it once', async () => {
         const controller = home(false)
         const connection = await connectTo(controller)
         assert.equal(connection.getStatus().mode, 'relay')
 
-        await assert.rejects(
-            connection.commissionMatter({ code: '34970112332' }),
-            isLanOnlyRejection
-        )
-        await assert.rejects(connection.permitJoin(180), isLanOnlyRejection)
-        await assert.rejects(
-            connection.cancelMatterCommission(),
-            isLanOnlyRejection
-        )
-        assert.deepEqual(controller.commissioningRequests, [])
+        await connection.commissionMatter({ code: '34970112332' })
+        assert.equal(controller.matterCommissioning?.code, '34970112332')
+        await connection.cancelMatterCommission()
         assert.equal(controller.matterCommissioning, null)
-        assert.equal(controller.zigbeeJoinOpenFor, 0)
+
+        assert.deepEqual(controller.commissioningRequests, [
+            { type: 'commissionMatter', via: 'relay' },
+            { type: 'cancelMatterCommission', via: 'relay' },
+        ])
+        assert.deepEqual(controller.relayCommissioningAudit, [
+            { protocol: 'matter' },
+        ])
     })
 
-    it('is refused by the Controller if a Relay request reaches it', async () => {
+    it('opens Zigbee permit-join and audits only the opening', async () => {
         const controller = home(false)
-        const relay = controller.createTransport('relay', () => 'token')
+        const connection = await connectTo(controller)
 
-        await assert.rejects(
-            relay.commissionMatter({ code: '34970112332' }),
-            isLanOnlyRejection
-        )
-        await assert.rejects(relay.permitJoin(180), isLanOnlyRejection)
-        assert.equal(controller.matterCommissioning, null)
+        const opened = await connection.permitJoin(180)
+        assert.deepEqual(opened, { ok: true, seconds: 180 })
+        assert.equal(controller.zigbeeJoinOpenFor, 180)
+        await connection.permitJoin(0)
         assert.equal(controller.zigbeeJoinOpenFor, 0)
+
+        assert.deepEqual(controller.relayCommissioningAudit, [
+            { protocol: 'zigbee' },
+        ])
+    })
+
+    it('reads and saves the Controller’s Matter Wi-Fi', async () => {
+        const controller = home(false)
+        const connection = await connectTo(controller)
+
+        assert.deepEqual(await connection.getMatterWifi(), {
+            configured: false,
+        })
+        assert.deepEqual(
+            await connection.saveMatterWifi({
+                wifiSsid: 'home',
+                wifiPassword: 'pw',
+            }),
+            { configured: true, networkName: 'home' }
+        )
+        assert.deepEqual(controller.relayCommissioningAudit, [])
+    })
+
+    it('is refused for an inactive Membership on either transport', async () => {
+        for (const lanReachable of [true, false]) {
+            const controller = home(lanReachable)
+            controller.membershipActive = false
+            const connection = await connectTo(controller)
+
+            await assert.rejects(
+                connection.commissionMatter({ code: '34970112332' }),
+                { code: 'inactive_membership' }
+            )
+            await assert.rejects(connection.permitJoin(180), {
+                code: 'inactive_membership',
+            })
+            assert.equal(controller.matterCommissioning, null)
+            assert.equal(controller.zigbeeJoinOpenFor, 0)
+            assert.deepEqual(controller.relayCommissioningAudit, [])
+        }
     })
 })

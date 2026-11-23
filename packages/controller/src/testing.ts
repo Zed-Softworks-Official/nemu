@@ -6,8 +6,8 @@
  * `ControllerConnection` (or `ControllerProvider`) and the real LAN-then-Relay
  * selection runs against scripted reachability, credentials, Devices, Rooms,
  * events, Command results, Device and Room setup (with Membership and
- * unsupported-Controller rejections), and LAN-only commissioning with
- * progress events. Nothing touches the network.
+ * unsupported-Controller rejections), and commissioning over LAN and Relay
+ * with progress events. Nothing touches the network.
  */
 import {
     ApiError,
@@ -34,6 +34,7 @@ import {
     type RenameDeviceRequest,
     type RenameRoomRequest,
     type Room,
+    type SaveMatterWifiRequest,
     type SessionMintResult,
     type SessionResponse,
     type SessionRole,
@@ -129,11 +130,19 @@ export class FakeController {
     matterCommissioning: CommissionRequest | null = null
     /** Wi-Fi the Controller has saved for Matter commissioning. */
     matterWifi: MatterWifiResponse = { configured: false }
-    /** Commissioning requests that reached this Controller (LAN only). */
+    // --- Commissioning over Relay for every Membership (ADR-0034) ---
+    /** Commissioning requests that reached this Controller. */
     readonly commissioningRequests: Array<{
         type: string
         via: TransportMode
     }> = []
+    /**
+     * Audit log entries for commissioning started over Relay, as Core writes
+     * them: the protocol only, never a Device identifier.
+     */
+    readonly relayCommissioningAudit: Array<{ protocol: 'matter' | 'zigbee' }> =
+        []
+    // --- End commissioning ---
     // --- Household and Release reads (NEM-89) ---
     /** Household members the Controller lists. */
     members: HouseholdMember[] = []
@@ -296,19 +305,34 @@ export class FakeController {
     }
 
     /**
-     * Apply one commissioning request. LAN-only (ADR-0030): over Relay the
-     * Controller answers `unsupported_action`.
+     * Apply one commissioning request with the Controller's rules: active
+     * Owners and Members only, the same over LAN and Relay (ADR-0034). A
+     * commissioning started over Relay is audited before it starts.
      * @internal
      */
-    commission<T>(type: string, via: TransportMode, apply: () => T): T {
-        if (via === 'relay') {
-            throw new ApiError(
-                'unsupported_action',
-                `${JSON.stringify(type)} is not available over Relay. Adding a Device needs this phone on the Home network.`
-            )
+    commission<T>(
+        type: string,
+        via: TransportMode,
+        apply: () => T,
+        startsProtocol?: 'matter' | 'zigbee'
+    ): T {
+        this.requireActiveMembership()
+        if (via === 'relay' && startsProtocol) {
+            this.relayCommissioningAudit.push({ protocol: startsProtocol })
         }
         this.commissioningRequests.push({ type, via })
         return apply()
+    }
+
+    /** @internal */
+    requireActiveMembership(): void {
+        if (!this.membershipActive) {
+            throw new ApiError(
+                'inactive_membership',
+                'This Membership is not active',
+                403
+            )
+        }
     }
 
     // --- NEM-88: Controller health summary ---------------------------------
@@ -639,20 +663,30 @@ export class FakeTransport implements ControllerTransport {
         )
     }
 
+    // --- Commissioning over Relay for every Membership (ADR-0034) ---
+
     async permitJoin(seconds: number): Promise<PermitJoinResponse> {
-        return this.commission('permitJoin', () => {
-            this.controller.zigbeeJoinOpenFor = seconds
-            return { ok: true, seconds }
-        })
+        return this.commission(
+            'permitJoin',
+            () => {
+                this.controller.zigbeeJoinOpenFor = seconds
+                return { ok: true, seconds }
+            },
+            seconds > 0 ? 'zigbee' : undefined
+        )
     }
 
     async commissionMatter(
         request: CommissionRequest
     ): Promise<CommissionResponse> {
-        return this.commission('commissionMatter', () => {
-            this.controller.matterCommissioning = structuredClone(request)
-            return { ok: true }
-        })
+        return this.commission(
+            'commissionMatter',
+            () => {
+                this.controller.matterCommissioning = structuredClone(request)
+                return { ok: true }
+            },
+            'matter'
+        )
     }
 
     async cancelMatterCommission(): Promise<CommissionResponse> {
@@ -662,19 +696,40 @@ export class FakeTransport implements ControllerTransport {
         })
     }
 
-    /** Reading saved Wi-Fi is LAN-only too, but not a commissioning step. */
+    /** Reading saved Wi-Fi is not a commissioning step, so it isn't recorded. */
     async getMatterWifi(): Promise<MatterWifiResponse> {
         this.authorize()
-        if (this.mode === 'relay') {
-            this.controller.commission('getMatterWifi', 'relay', () => null)
-        }
+        this.controller.requireActiveMembership()
         return structuredClone(this.controller.matterWifi)
     }
 
-    private commission<T>(type: string, apply: () => T): T {
-        this.authorize()
-        return this.controller.commission(type, this.mode, apply)
+    async saveMatterWifi(
+        request: SaveMatterWifiRequest
+    ): Promise<MatterWifiResponse> {
+        return this.commission('saveMatterWifi', () => {
+            this.controller.matterWifi = {
+                configured: true,
+                networkName: request.wifiSsid.trim(),
+            }
+            return structuredClone(this.controller.matterWifi)
+        })
     }
+
+    private commission<T>(
+        type: string,
+        apply: () => T,
+        startsProtocol?: 'matter' | 'zigbee'
+    ): T {
+        this.authorize()
+        return this.controller.commission(
+            type,
+            this.mode,
+            apply,
+            startsProtocol
+        )
+    }
+
+    // --- End commissioning ---
 
     private setup<T>(type: string, apply: () => T): T {
         this.authorize()

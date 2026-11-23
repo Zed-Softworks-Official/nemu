@@ -7,8 +7,11 @@ import {
     type BootstrapOwnerRequest,
     type ClientToken,
     type CommandResult,
+    type CommissionRequest,
+    type CommissionResponse,
     type CreateRoomRequest,
     clientTokenSchema,
+    commissionRequestSchema,
     createRoomRequestSchema,
     type Device,
     type DeviceCommand,
@@ -23,10 +26,15 @@ import {
     historyQueryReadSchema,
     homeMeterDesignationResultSchema,
     householdMemberSchema,
+    type MatterWifiResponse,
+    matterWifiResponseSchema,
     type PatchDeviceRequest,
     type PatchRoomRequest,
+    type PermitJoinResponse,
     parseDeviceList,
     patchRoomRequestSchema,
+    permitJoinRequestSchema,
+    permitJoinResponseSchema,
     type RelayToControllerEnvelope,
     type ReleaseChannel,
     type RenameDeviceRequest,
@@ -36,8 +44,10 @@ import {
     relayToControllerEnvelopeSchema,
     renameDeviceRequestSchema,
     renameRoomRequestSchema,
+    type SaveMatterWifiRequest,
     type SessionResponse,
     type SwitchReleaseChannelResponse,
+    saveMatterWifiRequestSchema,
     sessionResponseSchema,
     switchReleaseChannelResponseSchema,
     type UpdateStatusResponse,
@@ -420,6 +430,68 @@ export class RelayTransport implements ControllerTransport {
             'delete the Room'
         )
     }
+
+    // --- Commissioning over Relay for every Membership (ADR-0034) ---
+
+    async permitJoin(seconds: number): Promise<PermitJoinResponse> {
+        const parsed = await this.request({
+            type: 'permitJoin',
+            ...permitJoinRequestSchema.parse({ seconds }),
+        })
+        if (parsed.message.type === 'permitJoin') {
+            return permitJoinResponseSchema.parse(parsed.message)
+        }
+        this.throwIfCommandError(parsed, 'open the Zigbee network')
+        throw new Error('Unexpected relay response for permitJoin')
+    }
+
+    async commissionMatter(
+        request: CommissionRequest
+    ): Promise<CommissionResponse> {
+        const parsed = await this.request({
+            type: 'commissionMatter',
+            ...commissionRequestSchema.parse(request),
+        })
+        if (parsed.message.type === 'commissionMatter') {
+            return { ok: parsed.message.ok }
+        }
+        this.throwIfCommandError(parsed, 'start Matter pairing')
+        throw new Error('Unexpected relay response for commissionMatter')
+    }
+
+    async cancelMatterCommission(): Promise<CommissionResponse> {
+        const parsed = await this.request({ type: 'cancelMatterCommission' })
+        if (parsed.message.type === 'cancelMatterCommission') {
+            return { ok: parsed.message.ok }
+        }
+        this.throwIfCommandError(parsed, 'cancel Matter pairing')
+        throw new Error('Unexpected relay response for cancelMatterCommission')
+    }
+
+    async getMatterWifi(): Promise<MatterWifiResponse> {
+        const parsed = await this.request({ type: 'getMatterWifi' })
+        if (parsed.message.type === 'matterWifi') {
+            return matterWifiResponseSchema.parse(parsed.message)
+        }
+        this.throwIfCommandError(parsed, 'read the saved Wi-Fi')
+        throw new Error('Unexpected relay response for getMatterWifi')
+    }
+
+    async saveMatterWifi(
+        request: SaveMatterWifiRequest
+    ): Promise<MatterWifiResponse> {
+        const parsed = await this.request({
+            type: 'saveMatterWifi',
+            ...saveMatterWifiRequestSchema.parse(request),
+        })
+        if (parsed.message.type === 'matterWifi') {
+            return matterWifiResponseSchema.parse(parsed.message)
+        }
+        this.throwIfCommandError(parsed, 'save the Wi-Fi')
+        throw new Error('Unexpected relay response for saveMatterWifi')
+    }
+
+    // --- End commissioning ---
 
     private async expectDevice(
         message: RelayRequestMessage,
