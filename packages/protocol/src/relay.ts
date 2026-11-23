@@ -8,6 +8,7 @@ import {
     releaseChannelSchema,
     releaseStatusSchema,
     renameDeviceRequestSchema,
+    sessionResponseSchema,
     switchReleaseChannelResponseSchema,
 } from './api.ts'
 import {
@@ -111,6 +112,8 @@ const authenticatedRelayMessageSchema = z.union([
         type: z.literal('switchReleaseChannel'),
         channel: releaseChannelSchema,
     }),
+    // NEM-86: session role
+    z.object({ type: z.literal('getSession') }),
 ])
 
 export const relayToControllerEnvelopeSchema = z.union([
@@ -181,6 +184,8 @@ export const relayToClientEnvelopeSchema = z.object({
         switchReleaseChannelResponseSchema.extend({
             type: z.literal('switchReleaseChannel'),
         }),
+        // NEM-86: session role
+        sessionResponseSchema.extend({ type: z.literal('session') }),
     ]),
 })
 export type RelayToClientEnvelope = z.infer<typeof relayToClientEnvelopeSchema>
