@@ -16,11 +16,13 @@ import {
     type Device,
     type DeviceCommand,
     type DeviceEvent,
+    type HealthSummary,
     type HistoryQuery,
     type HistoryQueryRead,
     type HomeMeterDesignation,
     type HomeMeterDesignationSelection,
     type HouseholdMember,
+    healthSummarySchema,
     historyQueryReadSchema,
     homeMeterDesignationResultSchema,
     householdMemberSchema,
@@ -43,8 +45,10 @@ import {
     renameDeviceRequestSchema,
     renameRoomRequestSchema,
     type SaveMatterWifiRequest,
+    type SessionResponse,
     type SwitchReleaseChannelResponse,
     saveMatterWifiRequestSchema,
+    sessionResponseSchema,
     switchReleaseChannelResponseSchema,
     type UpdateStatusResponse,
     updateStatusResponseSchema,
@@ -275,6 +279,17 @@ export class RelayTransport implements ControllerTransport {
         throw new Error('Unexpected relay response for command')
     }
 
+    // --- NEM-86: session role ---
+    async getSession(): Promise<SessionResponse> {
+        const parsed = await this.request({ type: 'getSession' })
+        if (parsed.message.type === 'session') {
+            return sessionResponseSchema.parse({ role: parsed.message.role })
+        }
+        this.throwIfCommandError(parsed, "read this session's role")
+        throw new Error('Unexpected relay response for getSession')
+    }
+    // --- end NEM-86 ---
+
     async getReleaseStatus(): Promise<UpdateStatusResponse> {
         const parsed = await this.request({ type: 'releaseStatus' })
         if (parsed.message.type === 'releaseStatus') {
@@ -282,6 +297,17 @@ export class RelayTransport implements ControllerTransport {
         }
         this.throwIfCommandError(parsed, 'read the installed Release')
         throw new Error('Unexpected relay response for releaseStatus')
+    }
+
+    // NEM-88: Controller health summary.
+    async getHealthSummary(): Promise<HealthSummary> {
+        const parsed = await this.request({ type: 'getHealthSummary' })
+        if (parsed.message.type === 'healthSummary') {
+            const { type: _, ...summary } = parsed.message
+            return healthSummarySchema.parse(summary)
+        }
+        this.throwIfCommandError(parsed, 'read Controller health')
+        throw new Error('Unexpected relay response for getHealthSummary')
     }
 
     async installRelease(): Promise<ApplyUpdateResponse> {
@@ -395,8 +421,14 @@ export class RelayTransport implements ControllerTransport {
         )
     }
 
-    async deleteRoom(roomId: string): Promise<void> {
-        await this.expectOk({ type: 'deleteRoom', roomId }, 'delete the Room')
+    async deleteRoom(
+        roomId: string,
+        destinationRoomId: string | null
+    ): Promise<void> {
+        await this.expectOk(
+            { type: 'deleteRoom', roomId, destinationRoomId },
+            'delete the Room'
+        )
     }
 
     // --- Commissioning over Relay for every Membership (ADR-0034) ---

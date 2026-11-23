@@ -16,6 +16,7 @@ import {
     type DeviceEvent,
     type DeviceProtocol,
     deviceEventRefreshesInventory,
+    type HealthSummary,
     type HistoryQuery,
     type HistoryQueryRead,
     type HomeMeterDesignation,
@@ -31,6 +32,7 @@ import {
     type RenameRoomRequest,
     type Room,
     type SaveMatterWifiRequest,
+    type SessionResponse,
     type SwitchReleaseChannelResponse,
     statusFromMode,
     type UpdateStatusResponse,
@@ -76,7 +78,11 @@ type ControllerContextValue = {
     getRooms: () => Promise<Room[]>
     createRoom: (request: CreateRoomRequest) => Promise<Room>
     patchRoom: (roomId: string, patch: PatchRoomRequest) => Promise<Room>
-    deleteRoom: (roomId: string) => Promise<void>
+    /** `destinationRoomId: null` moves the Room's contents to No Room. */
+    deleteRoom: (
+        roomId: string,
+        destinationRoomId: string | null
+    ) => Promise<void>
     patchDevice: (
         deviceId: string,
         patch: PatchDeviceRequest
@@ -90,7 +96,8 @@ type ControllerContextValue = {
     /**
      * Device and Room setup over LAN or Relay. Each rejects with an
      * `ApiError` whose `code` comes from the Controller, for example
-     * `inactive_membership`, `room_not_empty`, or `unsupported_action`.
+     * `inactive_membership`, `destination_not_found`, or
+     * `unsupported_action`.
      * Nothing is queued while the Controller is unreachable.
      */
     renameDevice: (request: RenameDeviceRequest) => Promise<Device>
@@ -106,6 +113,9 @@ type ControllerContextValue = {
     leaveHome: () => Promise<void>
     bootstrapOwner: (request: BootstrapOwnerRequest) => Promise<HouseholdMember>
     getReleaseStatus: () => Promise<UpdateStatusResponse>
+    /** NEM-86: the caller's Membership role, only for deciding what to show. */
+    getSession: () => Promise<SessionResponse>
+    getHealthSummary: () => Promise<HealthSummary>
     installRelease: () => Promise<ApplyUpdateResponse>
     rollbackRelease: () => Promise<ApplyUpdateResponse>
     switchReleaseChannel: (
@@ -245,7 +255,8 @@ export function ControllerProvider({
         [connection]
     )
     const deleteRoom = useCallback(
-        (roomId: string) => connection.deleteRoom(roomId),
+        (roomId: string, destinationRoomId: string | null) =>
+            connection.deleteRoom(roomId, destinationRoomId),
         [connection]
     )
     const patchDevice = useCallback(
@@ -301,8 +312,13 @@ export function ControllerProvider({
         (request: BootstrapOwnerRequest) => connection.bootstrapOwner(request),
         [connection]
     )
+    const getSession = useCallback(() => connection.getSession(), [connection])
     const getReleaseStatus = useCallback(
         () => connection.getReleaseStatus(),
+        [connection]
+    )
+    const getHealthSummary = useCallback(
+        () => connection.getHealthSummary(),
         [connection]
     )
     const installRelease = useCallback(
@@ -352,7 +368,9 @@ export function ControllerProvider({
             revokeCurrentToken,
             leaveHome,
             bootstrapOwner,
+            getSession,
             getReleaseStatus,
+            getHealthSummary,
             installRelease,
             rollbackRelease,
             switchReleaseChannel,
@@ -390,7 +408,9 @@ export function ControllerProvider({
             revokeCurrentToken,
             leaveHome,
             bootstrapOwner,
+            getSession,
             getReleaseStatus,
+            getHealthSummary,
             installRelease,
             rollbackRelease,
             switchReleaseChannel,

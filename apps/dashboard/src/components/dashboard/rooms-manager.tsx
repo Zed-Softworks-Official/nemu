@@ -126,7 +126,7 @@ export function RoomsManager() {
         setDeletingId(roomId)
         setActionError(null)
         try {
-            await deleteRoom(roomId)
+            await deleteRoom(roomId, null)
             setDeleteOpenId(null)
             await refresh()
         } catch (nextError) {

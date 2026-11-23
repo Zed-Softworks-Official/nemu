@@ -1,5 +1,6 @@
 //! PostgreSQL storage for Device and Room setup: Device tombstones
-//! (ADR-0017), Component Room assignments, and guarded Room deletion.
+//! (ADR-0017), Component Room assignments, and Room deletion that moves the
+//! Room's contents to a destination.
 
 use std::collections::BTreeMap;
 
@@ -8,38 +9,29 @@ use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use uuid::Uuid;
 
+use crate::audit::{self, AuditWrite};
 use crate::db::models::Device;
 use crate::db::schema::{component_rooms, device_tombstones, devices, rooms};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RoomDeletion {
-    Deleted,
+    Deleted(RoomMove),
     NotFound,
-    /// Devices or Components are still assigned to the Room.
-    NotEmpty(RoomBlockers),
+    /// The destination is the Room being deleted.
+    DestinationIsRoom,
+    /// The destination Room does not exist.
+    DestinationNotFound,
 }
 
-/// The Devices and Components that keep a Room from being deleted.
-#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RoomBlockers {
-    pub devices: Vec<BlockingDevice>,
-    pub components: Vec<BlockingComponent>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct BlockingDevice {
-    pub id: Uuid,
-    pub name: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct BlockingComponent {
-    pub device_id: Uuid,
-    pub device_name: String,
-    pub component_id: String,
+/// What a Room deletion moved, and where.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RoomMove {
+    pub room_id: Uuid,
+    pub room_name: String,
+    /// `None` is No Room.
+    pub destination: Option<Uuid>,
+    pub devices_moved: usize,
+    pub components_moved: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Queryable, Selectable)]
@@ -168,51 +160,67 @@ pub fn tombstone_and_delete_device(
     })
 }
 
-/// Deletes a Room only when no Device or Component is assigned to it.
-pub fn delete_room_if_empty(conn: &mut PgConnection, room_id: Uuid) -> QueryResult<RoomDeletion> {
+/// In one transaction: moves every Device in the Room, and every Component
+/// explicitly assigned to it, to `destination` (`None` is No Room), writes the
+/// Audit log entry that `audit` builds, and deletes the Room. Nothing changes
+/// unless every step succeeds.
+///
+/// `component_rooms.room_id` is not nullable, so a Component moving to No Room
+/// loses its explicit assignment and follows its Device's Room again.
+pub fn delete_room_moving_contents(
+    conn: &mut PgConnection,
+    room_id: Uuid,
+    destination: Option<Uuid>,
+    audit: impl FnOnce(&RoomMove) -> AuditWrite,
+) -> QueryResult<RoomDeletion> {
+    if destination == Some(room_id) {
+        return Ok(RoomDeletion::DestinationIsRoom);
+    }
     conn.transaction(|conn| {
-        let locked = rooms::table
+        let Some(room_name) = rooms::table
             .filter(rooms::id.eq(room_id))
-            .select(rooms::id)
+            .select(rooms::name)
             .for_update()
-            .first::<Uuid>(conn)
-            .optional()?;
-        if locked.is_none() {
+            .first::<String>(conn)
+            .optional()?
+        else {
             return Ok(RoomDeletion::NotFound);
+        };
+        if let Some(destination) = destination {
+            // Keep the destination from being deleted while contents move in.
+            let present = rooms::table
+                .filter(rooms::id.eq(destination))
+                .select(rooms::id)
+                .for_share()
+                .first::<Uuid>(conn)
+                .optional()?;
+            if present.is_none() {
+                return Ok(RoomDeletion::DestinationNotFound);
+            }
         }
-        let devices = devices::table
-            .filter(devices::room_id.eq(room_id))
-            .select((devices::id, devices::friendly_name))
-            .order((devices::friendly_name, devices::id))
-            .load::<(Uuid, String)>(conn)?
-            .into_iter()
-            .map(|(id, name)| BlockingDevice { id, name })
-            .collect::<Vec<_>>();
-        let components = component_rooms::table
-            .inner_join(devices::table)
-            .filter(component_rooms::room_id.eq(room_id))
-            .select((
-                devices::id,
-                devices::friendly_name,
-                component_rooms::component_id,
+        let devices_moved = diesel::update(devices::table.filter(devices::room_id.eq(room_id)))
+            .set((
+                devices::room_id.eq(destination),
+                devices::updated_at.eq(Utc::now()),
             ))
-            .order((devices::friendly_name, component_rooms::component_id))
-            .load::<(Uuid, String, String)>(conn)?
-            .into_iter()
-            .map(|(device_id, device_name, component_id)| BlockingComponent {
-                device_id,
-                device_name,
-                component_id,
-            })
-            .collect::<Vec<_>>();
-        if !devices.is_empty() || !components.is_empty() {
-            return Ok(RoomDeletion::NotEmpty(RoomBlockers {
-                devices,
-                components,
-            }));
-        }
+            .execute(conn)?;
+        let assigned = component_rooms::table.filter(component_rooms::room_id.eq(room_id));
+        let components_moved = match destination {
+            Some(destination) => diesel::update(assigned)
+                .set(component_rooms::room_id.eq(destination))
+                .execute(conn)?,
+            None => diesel::delete(assigned).execute(conn)?,
+        };
+        let moved = RoomMove {
+            room_id,
+            room_name,
+            destination,
+            devices_moved,
+            components_moved,
+        };
+        audit::insert_on(conn, &audit(&moved))?;
         diesel::delete(rooms::table.filter(rooms::id.eq(room_id))).execute(conn)?;
-        Ok(RoomDeletion::Deleted)
+        Ok(RoomDeletion::Deleted(moved))
     })
 }
 
@@ -329,47 +337,139 @@ mod tests {
         assert!(!room_exists(&mut conn, Uuid::new_v4()).unwrap());
     }
 
+    fn room_deletion_audits(conn: &mut PgConnection, room_id: Uuid) -> Vec<serde_json::Value> {
+        use crate::db::schema::audit_records;
+        audit_records::table
+            .filter(audit_records::kind.eq(crate::audit::AuditKind::RoomDeletion.as_str()))
+            .select(audit_records::detail)
+            .load::<serde_json::Value>(conn)
+            .unwrap()
+            .into_iter()
+            .filter(|detail| detail["roomId"] == serde_json::json!(room_id))
+            .collect()
+    }
+
+    fn device_room(conn: &mut PgConnection, device_id: Uuid) -> Option<Uuid> {
+        devices::table
+            .filter(devices::id.eq(device_id))
+            .select(devices::room_id)
+            .get_result(conn)
+            .unwrap()
+    }
+
+    fn audit_for(moved: &RoomMove) -> AuditWrite {
+        crate::setup::room_deletion_audit(Some("user-1".into()), moved)
+    }
+
     #[test]
     #[ignore = "requires the isolated PostgreSQL database created by the verification script"]
-    fn rooms_are_deleted_only_after_their_devices_and_components_move() {
+    fn deleting_a_room_moves_its_devices_and_components_to_another_room() {
         let mut conn = connection();
         let room = insert_room(&mut conn, "Garage");
-        let device = insert_device(&mut conn, Some(room));
+        let destination = insert_room(&mut conn, "Hall");
+        let elsewhere = insert_room(&mut conn, "Study");
+        let lamp = insert_device(&mut conn, Some(room));
+        let fan = insert_device(&mut conn, Some(room));
+        let strip = insert_device(&mut conn, Some(elsewhere));
+        set_component_room(&mut conn, strip.id, "l1", Some(room)).unwrap();
+        set_component_room(&mut conn, strip.id, "l2", Some(elsewhere)).unwrap();
+
+        let deletion =
+            delete_room_moving_contents(&mut conn, room, Some(destination), audit_for).unwrap();
+
         assert_eq!(
-            delete_room_if_empty(&mut conn, room).unwrap(),
-            RoomDeletion::NotEmpty(RoomBlockers {
-                devices: vec![BlockingDevice {
-                    id: device.id,
-                    name: "Desk lamp".into(),
-                }],
-                components: vec![],
+            deletion,
+            RoomDeletion::Deleted(RoomMove {
+                room_id: room,
+                room_name: "Garage".into(),
+                destination: Some(destination),
+                devices_moved: 2,
+                components_moved: 1,
             })
         );
-
-        diesel::update(devices::table.filter(devices::id.eq(device.id)))
-            .set(devices::room_id.eq(None::<Uuid>))
-            .execute(&mut conn)
-            .unwrap();
-        set_component_room(&mut conn, device.id, "outlet-2", Some(room)).unwrap();
+        assert!(!room_exists(&mut conn, room).unwrap(), "the Room is gone");
+        assert_eq!(device_room(&mut conn, lamp.id), Some(destination));
+        assert_eq!(device_room(&mut conn, fan.id), Some(destination));
+        assert_eq!(device_room(&mut conn, strip.id), Some(elsewhere));
         assert_eq!(
-            delete_room_if_empty(&mut conn, room).unwrap(),
-            RoomDeletion::NotEmpty(RoomBlockers {
-                devices: vec![],
-                components: vec![BlockingComponent {
-                    device_id: device.id,
-                    device_name: "Desk lamp".into(),
-                    component_id: "outlet-2".into(),
-                }],
+            load_component_rooms(&mut conn).unwrap().get(&strip.id),
+            Some(&BTreeMap::from([
+                ("l1".to_string(), destination),
+                ("l2".to_string(), elsewhere),
+            ]))
+        );
+        let audits = room_deletion_audits(&mut conn, room);
+        assert_eq!(audits.len(), 1, "exactly one Audit log entry");
+        assert_eq!(
+            audits[0]["destinationRoomId"],
+            serde_json::json!(destination)
+        );
+        assert_eq!(audits[0]["devicesMoved"], 2);
+        assert_eq!(audits[0]["componentsMoved"], 1);
+    }
+
+    #[test]
+    #[ignore = "requires the isolated PostgreSQL database created by the verification script"]
+    fn deleting_a_room_to_no_room_unassigns_its_devices_and_components() {
+        let mut conn = connection();
+        let room = insert_room(&mut conn, "Attic");
+        let elsewhere = insert_room(&mut conn, "Porch");
+        let lamp = insert_device(&mut conn, Some(room));
+        let strip = insert_device(&mut conn, Some(elsewhere));
+        set_component_room(&mut conn, strip.id, "l1", Some(room)).unwrap();
+
+        let deletion = delete_room_moving_contents(&mut conn, room, None, audit_for).unwrap();
+
+        assert!(matches!(
+            deletion,
+            RoomDeletion::Deleted(RoomMove {
+                destination: None,
+                devices_moved: 1,
+                components_moved: 1,
+                ..
             })
+        ));
+        assert!(!room_exists(&mut conn, room).unwrap());
+        assert_eq!(device_room(&mut conn, lamp.id), None);
+        assert!(
+            !load_component_rooms(&mut conn)
+                .unwrap()
+                .contains_key(&strip.id),
+            "the Component follows its Device's Room again"
+        );
+        let audits = room_deletion_audits(&mut conn, room);
+        assert_eq!(audits.len(), 1);
+        assert_eq!(audits[0]["destinationRoomId"], serde_json::Value::Null);
+    }
+
+    #[test]
+    #[ignore = "requires the isolated PostgreSQL database created by the verification script"]
+    fn deleting_a_room_to_an_invalid_destination_changes_nothing() {
+        let mut conn = connection();
+        let room = insert_room(&mut conn, "Cellar");
+        let elsewhere = insert_room(&mut conn, "Loft");
+        let lamp = insert_device(&mut conn, Some(room));
+        let strip = insert_device(&mut conn, Some(elsewhere));
+        set_component_room(&mut conn, strip.id, "l1", Some(room)).unwrap();
+
+        assert_eq!(
+            delete_room_moving_contents(&mut conn, room, Some(room), audit_for).unwrap(),
+            RoomDeletion::DestinationIsRoom
+        );
+        assert_eq!(
+            delete_room_moving_contents(&mut conn, room, Some(Uuid::new_v4()), audit_for).unwrap(),
+            RoomDeletion::DestinationNotFound
         );
 
-        set_component_room(&mut conn, device.id, "outlet-2", None).unwrap();
+        assert!(room_exists(&mut conn, room).unwrap(), "the Room remains");
+        assert_eq!(device_room(&mut conn, lamp.id), Some(room));
         assert_eq!(
-            delete_room_if_empty(&mut conn, room).unwrap(),
-            RoomDeletion::Deleted
+            load_component_rooms(&mut conn).unwrap().get(&strip.id),
+            Some(&BTreeMap::from([("l1".to_string(), room)]))
         );
+        assert!(room_deletion_audits(&mut conn, room).is_empty());
         assert_eq!(
-            delete_room_if_empty(&mut conn, room).unwrap(),
+            delete_room_moving_contents(&mut conn, Uuid::new_v4(), None, audit_for).unwrap(),
             RoomDeletion::NotFound
         );
     }

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
-import { describe, it } from 'node:test'
 import { ApiError } from '@nemu/protocol'
+import { describe, it } from 'vitest'
 import { roomActionMessage } from './room-presentation.ts'
 
 describe('roomActionMessage', () => {

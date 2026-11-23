@@ -5,7 +5,7 @@ export const apiErrorBodySchema = z.object({
     error: z.object({
         code: z.string(),
         message: z.string(),
-        /** Structured context, such as the blockers of `room_not_empty`. */
+        /** Structured context about the error, when the Controller sends any. */
         details: z.unknown().optional(),
     }),
 })
@@ -35,6 +35,39 @@ export const healthResponseSchema = z.object({
     status: z.string(),
 })
 export type HealthResponse = z.infer<typeof healthResponseSchema>
+
+// NEM-88: role-aware Controller health summary. LAN `GET /api/health/summary`
+// and Relay `getHealthSummary` return this same shape. Members see only
+// service and Device availability (ADR-0006).
+const healthSummaryCommonShape = {
+    status: z.enum(['ok', 'degraded', 'error']),
+    services: z.object({
+        mqtt: z.boolean(),
+        zigbee: z.boolean(),
+        matter: z.boolean(),
+    }),
+    devices: z.object({
+        online: z.number().int().nonnegative(),
+        total: z.number().int().nonnegative(),
+    }),
+}
+export const ownerHealthSummarySchema = z.object({
+    view: z.literal('owner'),
+    ...healthSummaryCommonShape,
+    controller: z.object({
+        database: z.boolean(),
+        relayConnected: z.boolean(),
+    }),
+})
+export const memberHealthSummarySchema = z.object({
+    view: z.literal('member'),
+    ...healthSummaryCommonShape,
+})
+export const healthSummarySchema = z.discriminatedUnion('view', [
+    ownerHealthSummarySchema,
+    memberHealthSummarySchema,
+])
+export type HealthSummary = z.infer<typeof healthSummarySchema>
 
 export const identifyResponseSchema = z.object({
     controllerId: z.string(),
@@ -134,7 +167,23 @@ export const assignRoomRequestSchema = z.object({
 })
 export type AssignRoomRequest = z.infer<typeof assignRoomRequestSchema>
 
-/** `details` of a `room_not_empty` error: what still uses the Room. */
+/**
+ * Delete a Room and move its Devices, and the Components explicitly assigned
+ * to it, to a destination in one step. `destinationRoomId` is required:
+ * another Room's ID, or `null` for No Room. LAN sends this as the body of
+ * `DELETE /api/rooms/:id`.
+ */
+export const deleteRoomRequestSchema = z.object({
+    destinationRoomId: z.string().min(1).nullable(),
+})
+export type DeleteRoomRequest = z.infer<typeof deleteRoomRequestSchema>
+
+/**
+ * `details` of a `room_not_empty` error: what still uses the Room.
+ *
+ * @deprecated The Controller no longer refuses to delete a Room that is in
+ * use; deleting a Room moves its contents to a destination instead.
+ */
 export const roomNotEmptyDetailsSchema = z.object({
     devices: z.array(z.object({ id: z.string(), name: z.string() })),
     components: z.array(
@@ -226,6 +275,16 @@ export const sessionMintResultSchema = z.object({
     controllerId: z.string(),
 })
 export type SessionMintResult = z.infer<typeof sessionMintResultSchema>
+
+// --- NEM-86: session role ---
+/** The caller's Membership role. Clients use it only to decide what to show. */
+export const sessionRoleSchema = z.enum(['owner', 'member'])
+export type SessionRole = z.infer<typeof sessionRoleSchema>
+
+/** `GET /api/session`, and the body of the Relay `session` reply. */
+export const sessionResponseSchema = z.object({ role: sessionRoleSchema })
+export type SessionResponse = z.infer<typeof sessionResponseSchema>
+// --- end NEM-86 ---
 
 export const releaseChannelSchema = z.enum(['stable', 'canary'])
 export type ReleaseChannel = z.infer<typeof releaseChannelSchema>

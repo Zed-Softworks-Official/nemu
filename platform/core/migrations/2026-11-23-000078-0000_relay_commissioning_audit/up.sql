@@ -11,6 +11,7 @@ ALTER TABLE audit_records ADD CONSTRAINT audit_records_kind_check CHECK (
         'automation_change',
         'history_budget_change',
         'home_meter_designation',
+        'room_deletion',
         'relay_commissioning'
     )
 );

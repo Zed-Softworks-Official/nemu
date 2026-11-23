@@ -14,6 +14,7 @@ import {
     type Device,
     type DeviceCommand,
     type DeviceEvent,
+    type HealthSummary,
     type HistoryQuery,
     type HistoryQueryRead,
     type HomeMeterDesignation,
@@ -30,6 +31,7 @@ import {
     type RenameRoomRequest,
     type Room,
     type SaveMatterWifiRequest,
+    type SessionResponse,
     type SwitchReleaseChannelResponse,
     statusFromMode,
     type UpdateStatusResponse,
@@ -387,11 +389,17 @@ export class ControllerConnection {
         return await transport.patchRoom(roomId, patch)
     }
 
-    /** Dashboard only. The Controller refuses while Devices are assigned. */
-    async deleteRoom(roomId: string): Promise<void> {
+    /**
+     * Delete a Room and move its Devices and Components to
+     * `destinationRoomId`, or to No Room when it is `null`, in one step.
+     */
+    async deleteRoom(
+        roomId: string,
+        destinationRoomId: string | null
+    ): Promise<void> {
         const transport = this.requireSetupTransport()
         if (!transport.deleteRoom) throw unsupported('Deleting Rooms')
-        await transport.deleteRoom(roomId)
+        await transport.deleteRoom(roomId, destinationRoomId)
     }
 
     async patchDevice(
@@ -440,6 +448,23 @@ export class ControllerConnection {
         return await transport.designateHomeMeter(selection)
     }
 
+    // --- NEM-86: session role ---
+    /**
+     * The caller's Membership role for this session, over LAN or Relay.
+     * Use it only to decide what to show; the Controller still enforces
+     * every permission.
+     */
+    async getSession(): Promise<SessionResponse> {
+        const transport = this.requireConnectedTransport('Membership role')
+        if (!transport.getSession) {
+            throw new Error(
+                'Membership role is not supported by this controller'
+            )
+        }
+        return await transport.getSession()
+    }
+    // --- end NEM-86 ---
+
     async getReleaseStatus(): Promise<UpdateStatusResponse> {
         const transport = this.requireConnectedTransport('Installed Release')
         if (!transport.getReleaseStatus) {
@@ -448,6 +473,22 @@ export class ControllerConnection {
             )
         }
         return await transport.getReleaseStatus()
+    }
+
+    // NEM-88: Controller health summary.
+    /**
+     * The role-aware Controller health summary, the same over LAN and Relay.
+     * Owners see Controller details; Members see service and Device
+     * availability only (ADR-0006).
+     */
+    async getHealthSummary(): Promise<HealthSummary> {
+        const transport = this.requireConnectedTransport('Controller health')
+        if (!transport.getHealthSummary) {
+            throw new Error(
+                'Controller health is not supported by this controller'
+            )
+        }
+        return await transport.getHealthSummary()
     }
 
     async installRelease(): Promise<ApplyUpdateResponse> {
