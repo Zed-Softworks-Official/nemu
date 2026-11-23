@@ -2,7 +2,9 @@ use axum::Json;
 use axum::extract::State;
 use serde::{Deserialize, Serialize};
 
-use crate::api::error::{ApiError, ApiResult};
+use crate::api::auth::AuthenticatedClient;
+use crate::api::error::ApiResult;
+use crate::commissioning::{self, Via};
 use crate::state::AppState;
 
 #[derive(Deserialize)]
@@ -18,14 +20,9 @@ pub struct PermitJoinResponse {
 
 pub async fn permit_join(
     State(state): State<AppState>,
+    auth: AuthenticatedClient,
     Json(body): Json<PermitJoinBody>,
 ) -> ApiResult<Json<PermitJoinResponse>> {
-    let seconds = body.seconds.unwrap_or(120).clamp(0, 254);
-    state
-        .mqtt
-        .permit_join(seconds)
-        .await
-        .map_err(|e| ApiError::service_unavailable("mqtt_error", e))?;
-
+    let seconds = commissioning::permit_zigbee_join(&state, &auth, Via::Lan, body.seconds).await?;
     Ok(Json(PermitJoinResponse { ok: true, seconds }))
 }

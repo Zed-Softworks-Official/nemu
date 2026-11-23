@@ -509,6 +509,7 @@ export type CommissionProgress = {
     message?: string
 }
 
+const RELAY_JOIN_POLL_MS = 2_000
 const MATTER_CONNECT_MS = 240_000
 const MATTER_CONNECTED_WAIT_MS = 20_000
 
@@ -725,6 +726,54 @@ export function useDevicePairing(): {
             }
         })
     }, [absorbMatterJoins, connection, phase, protocol])
+
+    // Over Relay the Controller pushes no `deviceJoined` events, so Zigbee
+    // joins are found by polling the Device list against the Devices that
+    // were there when the network opened (ADR-0034).
+    useEffect(() => {
+        if (
+            phase !== 'discovering' ||
+            protocol !== 'zigbee' ||
+            status.mode !== 'relay'
+        ) {
+            return
+        }
+        let known: Set<string> | null = null
+        let cancelled = false
+        const poll = async () => {
+            try {
+                const devices = await getDevices()
+                if (cancelled) return
+                if (known === null) {
+                    known = new Set(devices.map((device) => device.id))
+                    return
+                }
+                const before = known
+                const joined = devices.filter(
+                    (device) =>
+                        !before.has(device.id) && device.protocol !== 'matter'
+                )
+                if (joined.length === 0) return
+                setDiscoveredDevices((current) => {
+                    const seen = new Set(current.map((device) => device.id))
+                    const next = [
+                        ...current,
+                        ...joined.filter((device) => !seen.has(device.id)),
+                    ]
+                    discoveredDevicesRef.current = next
+                    return next
+                })
+            } catch {
+                // A dropped poll is retried on the next tick.
+            }
+        }
+        void poll()
+        const timer = setInterval(() => void poll(), RELAY_JOIN_POLL_MS)
+        return () => {
+            cancelled = true
+            clearInterval(timer)
+        }
+    }, [getDevices, phase, protocol, status.mode])
 
     useEffect(() => {
         if (phase !== 'discovering' || protocol !== 'matter') return

@@ -1,7 +1,7 @@
 'use client'
 
 import { useController } from '@nemu/controller'
-import type { Room } from '@nemu/protocol'
+import type { Device, Room } from '@nemu/protocol'
 import {
     AlertDialog,
     AlertDialogCancel,
@@ -42,12 +42,20 @@ import {
     TriangleAlertIcon,
 } from 'lucide-react'
 import { type FormEvent, useCallback, useEffect, useState } from 'react'
-import { roomActionMessage } from '~/lib/room-presentation'
+import { devicesInRoom, roomDeletionSummary } from '~/lib/room-presentation'
 
 export function RoomsManager() {
-    const { status, reprobe, getRooms, createRoom, patchRoom, deleteRoom } =
-        useController()
+    const {
+        status,
+        reprobe,
+        getRooms,
+        getDevices,
+        createRoom,
+        patchRoom,
+        deleteRoom,
+    } = useController()
     const [rooms, setRooms] = useState<Room[] | undefined>(undefined)
+    const [devices, setDevices] = useState<Device[]>([])
     const [error, setError] = useState<Error | null>(null)
     const [newName, setNewName] = useState('')
     const [creating, setCreating] = useState(false)
@@ -58,6 +66,11 @@ export function RoomsManager() {
     const [deletingId, setDeletingId] = useState<string | null>(null)
     const [actionError, setActionError] = useState<Error | null>(null)
     const [deleteOpenId, setDeleteOpenId] = useState<string | null>(null)
+    /** The chosen destination Room's ID, or `null` for No Room. */
+    const [deleteDestination, setDeleteDestination] = useState<string | null>(
+        null
+    )
+    const [deleteError, setDeleteError] = useState<Error | null>(null)
 
     const refresh = useCallback(async () => {
         if (status.mode !== 'lan') {
@@ -65,8 +78,12 @@ export function RoomsManager() {
             return
         }
         try {
-            const next = await getRooms()
-            setRooms(next)
+            const [nextRooms, nextDevices] = await Promise.all([
+                getRooms(),
+                getDevices(),
+            ])
+            setRooms(nextRooms)
+            setDevices(nextDevices)
             setError(null)
         } catch (nextError) {
             setError(
@@ -75,7 +92,7 @@ export function RoomsManager() {
                     : new Error(String(nextError))
             )
         }
-    }, [getRooms, status.mode])
+    }, [getDevices, getRooms, status.mode])
 
     useEffect(() => {
         void refresh()
@@ -124,13 +141,13 @@ export function RoomsManager() {
 
     async function handleDelete(roomId: string) {
         setDeletingId(roomId)
-        setActionError(null)
+        setDeleteError(null)
         try {
-            await deleteRoom(roomId, null)
+            await deleteRoom(roomId, deleteDestination)
             setDeleteOpenId(null)
             await refresh()
         } catch (nextError) {
-            setActionError(
+            setDeleteError(
                 nextError instanceof Error
                     ? nextError
                     : new Error(String(nextError))
@@ -255,8 +272,8 @@ export function RoomsManager() {
                 <CardHeader>
                     <CardTitle>Your rooms</CardTitle>
                     <CardDescription>
-                        Rename or remove rooms. Move a room’s devices elsewhere
-                        before removing it.
+                        Rename or remove rooms. Removing a room moves its
+                        devices to another room or to no room.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -265,7 +282,7 @@ export function RoomsManager() {
                             className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-destructive text-sm"
                             role="alert"
                         >
-                            {roomActionMessage(actionError)}
+                            {actionError.message}
                         </div>
                     ) : null}
 
@@ -287,10 +304,19 @@ export function RoomsManager() {
                             const isEditing = editingId === room.id
                             const isSaving = savingId === room.id
                             const isDeleting = deletingId === room.id
+                            const otherRooms = rooms.filter(
+                                (other) => other.id !== room.id
+                            )
+                            const deviceCount = devicesInRoom(devices, room.id)
+                            const destinationName =
+                                otherRooms.find(
+                                    (other) => other.id === deleteDestination
+                                )?.name ?? 'No Room'
 
                             return (
                                 <div
                                     className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"
+                                    data-room-row
                                     key={room.id}
                                 >
                                     {isEditing ? (
@@ -367,8 +393,8 @@ export function RoomsManager() {
                                                     setDeleteOpenId(
                                                         open ? room.id : null
                                                     )
-                                                    if (!open)
-                                                        setActionError(null)
+                                                    setDeleteDestination(null)
+                                                    setDeleteError(null)
                                                 }
                                             }}
                                             open={deleteOpenId === room.id}
@@ -392,12 +418,64 @@ export function RoomsManager() {
                                                         Delete {room.name}?
                                                     </AlertDialogTitle>
                                                     <AlertDialogDescription>
-                                                        Devices assigned to this
-                                                        room will become
-                                                        unassigned. You can
-                                                        reassign them later.
+                                                        {roomDeletionSummary(
+                                                            deviceCount,
+                                                            destinationName
+                                                        )}
                                                     </AlertDialogDescription>
                                                 </AlertDialogHeader>
+                                                {deviceCount > 0 ? (
+                                                    <label className="flex flex-col gap-2 text-sm">
+                                                        <span className="font-medium">
+                                                            Move Devices to
+                                                        </span>
+                                                        <select
+                                                            className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-50"
+                                                            disabled={
+                                                                isDeleting
+                                                            }
+                                                            onChange={(event) =>
+                                                                setDeleteDestination(
+                                                                    event.target
+                                                                        .value ||
+                                                                        null
+                                                                )
+                                                            }
+                                                            value={
+                                                                deleteDestination ??
+                                                                ''
+                                                            }
+                                                        >
+                                                            <option value="">
+                                                                No Room
+                                                            </option>
+                                                            {otherRooms.map(
+                                                                (other) => (
+                                                                    <option
+                                                                        key={
+                                                                            other.id
+                                                                        }
+                                                                        value={
+                                                                            other.id
+                                                                        }
+                                                                    >
+                                                                        {
+                                                                            other.name
+                                                                        }
+                                                                    </option>
+                                                                )
+                                                            )}
+                                                        </select>
+                                                    </label>
+                                                ) : null}
+                                                {deleteError ? (
+                                                    <p
+                                                        className="text-destructive text-sm"
+                                                        role="alert"
+                                                    >
+                                                        {deleteError.message}
+                                                    </p>
+                                                ) : null}
                                                 <AlertDialogFooter>
                                                     <AlertDialogCancel
                                                         disabled={isDeleting}
