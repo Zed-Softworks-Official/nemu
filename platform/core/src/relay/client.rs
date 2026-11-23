@@ -175,6 +175,29 @@ enum ToControllerMessage {
         #[serde(rename = "roomId")]
         room_id: String,
     },
+    // --- Commissioning over Relay for every Membership (ADR-0034) ---
+    #[serde(rename = "commissionMatter")]
+    CommissionMatter {
+        #[serde(flatten)]
+        request: crate::commissioning::CommissionRequest,
+    },
+    #[serde(rename = "cancelMatterCommission")]
+    CancelMatterCommission,
+    #[serde(rename = "getMatterWifi")]
+    GetMatterWifi,
+    #[serde(rename = "saveMatterWifi")]
+    SaveMatterWifi {
+        #[serde(rename = "wifiSsid")]
+        wifi_ssid: String,
+        #[serde(rename = "wifiPassword")]
+        wifi_password: String,
+    },
+    #[serde(rename = "permitJoin")]
+    PermitJoin {
+        #[serde(default)]
+        seconds: Option<u32>,
+    },
+    // --- End commissioning ---
 }
 
 /// Why a Relay envelope could not become a request (ADR-0016).
@@ -182,7 +205,7 @@ enum ToControllerMessage {
 enum EnvelopeRejection {
     /// This Controller does not know the requested action.
     UnsupportedAction { request_id: String, action: String },
-    /// A LAN-only action such as commissioning arrived over Relay (ADR-0030).
+    /// An action that needs the Home network arrived over Relay (ADR-0034).
     LanOnly { request_id: String, action: String },
     /// A known action arrived in a shape this Controller cannot read.
     ProtocolMismatch { request_id: String, detail: String },
@@ -190,17 +213,12 @@ enum EnvelopeRejection {
     Unreadable(String),
 }
 
-/// Actions that only run over LAN (ADR-0030). Commissioning carries pairing
-/// codes and Wi-Fi credentials and needs the phone next to the Device, so the
-/// Relay answers these with an explicit rejection instead of the request
-/// waiting for a reply that never comes.
-const LAN_ONLY_ACTIONS: &[&str] = &[
-    "permitJoin",
-    "commissionMatter",
-    "cancelMatterCommission",
-    "getMatterWifi",
-    "saveMatterWifi",
-];
+/// Actions that only run over LAN. Relay matches LAN for every authorized
+/// operation except the Presence checks (ADR-0034), and none of those has a
+/// Relay message, so nothing is listed. A Presence check that gains a Relay
+/// message belongs here, so the Relay answers it with an explicit rejection
+/// instead of the request waiting for a reply that never comes.
+const LAN_ONLY_ACTIONS: &[&str] = &[];
 
 fn parse_envelope(payload: &str) -> Result<ToControllerEnvelope, EnvelopeRejection> {
     let raw: JsonValue = serde_json::from_str(payload)
@@ -254,7 +272,7 @@ fn rejection_reply(rejection: &EnvelopeRejection) -> Option<(&'static str, Strin
         EnvelopeRejection::LanOnly { action, .. } => Some((
             "unsupported_action",
             format!(
-                "{action:?} is not available over Relay. Adding a Device needs this phone on the Home network."
+                "{action:?} is not available over Relay. It needs this phone on the Home network."
             ),
         )),
         EnvelopeRejection::ProtocolMismatch { detail, .. } => Some((
@@ -826,6 +844,71 @@ async fn handle_message(
             &message.request_id,
             setup::delete_room(state, &auth, &room_id).await,
         ),
+        // --- Commissioning over Relay for every Membership (ADR-0034) ---
+        ToControllerMessage::CommissionMatter { request } => {
+            match crate::commissioning::commission_matter(
+                state,
+                &auth,
+                crate::commissioning::Via::Relay,
+                request,
+            )
+            .await
+            {
+                Ok(()) => build_typed_response(
+                    state,
+                    &message.request_id,
+                    json!({ "type": "commissionMatter", "ok": true }),
+                ),
+                Err(err) => {
+                    build_error_response(state, &message.request_id, &err.code, &err.message)
+                }
+            }
+        }
+        ToControllerMessage::CancelMatterCommission => {
+            match crate::commissioning::cancel_matter_commission(state, &auth).await {
+                Ok(()) => build_typed_response(
+                    state,
+                    &message.request_id,
+                    json!({ "type": "cancelMatterCommission", "ok": true }),
+                ),
+                Err(err) => {
+                    build_error_response(state, &message.request_id, &err.code, &err.message)
+                }
+            }
+        }
+        ToControllerMessage::GetMatterWifi => matter_wifi_outcome(
+            state,
+            &message.request_id,
+            crate::commissioning::read_matter_wifi(state, &auth).await,
+        ),
+        ToControllerMessage::SaveMatterWifi {
+            wifi_ssid,
+            wifi_password,
+        } => matter_wifi_outcome(
+            state,
+            &message.request_id,
+            crate::commissioning::save_matter_wifi(state, &auth, &wifi_ssid, &wifi_password).await,
+        ),
+        ToControllerMessage::PermitJoin { seconds } => {
+            match crate::commissioning::permit_zigbee_join(
+                state,
+                &auth,
+                crate::commissioning::Via::Relay,
+                seconds,
+            )
+            .await
+            {
+                Ok(seconds) => build_typed_response(
+                    state,
+                    &message.request_id,
+                    json!({ "type": "permitJoin", "ok": true, "seconds": seconds }),
+                ),
+                Err(err) => {
+                    build_error_response(state, &message.request_id, &err.code, &err.message)
+                }
+            }
+        }
+        // --- End commissioning ---
         ToControllerMessage::ReleaseStatus => {
             match crate::api::updates::read_release_status(state, &auth).await {
                 Ok(status) => match serde_json::to_value(&status) {
@@ -1016,6 +1099,22 @@ fn room_outcome(
     }
 }
 
+/// The Controller's saved Matter Wi-Fi, in the same shape as LAN.
+fn matter_wifi_outcome(
+    state: &AppState,
+    request_id: &str,
+    result: Result<crate::commissioning::MatterWifi, crate::api::error::ApiError>,
+) -> String {
+    match result {
+        Ok(wifi) => {
+            let mut body = serde_json::to_value(&wifi).unwrap_or_else(|_| json!({}));
+            body["type"] = json!("matterWifi");
+            build_typed_response(state, request_id, body)
+        }
+        Err(err) => build_error_response(state, request_id, &err.code, &err.message),
+    }
+}
+
 fn done_outcome(
     state: &AppState,
     request_id: &str,
@@ -1199,28 +1298,50 @@ mod tests {
     }
 
     #[test]
-    fn commissioning_requests_are_rejected_as_lan_only() {
+    fn commissioning_requests_are_accepted_over_relay() {
+        let parsed = parse_envelope(&envelope(json!({
+            "type": "commissionMatter", "code": "34970112332", "wifiSsid": "home"
+        })))
+        .unwrap();
+        assert!(matches!(
+            parsed.message,
+            ToControllerMessage::CommissionMatter { ref request }
+                if request.code == "34970112332"
+                    && request.wifi_ssid.as_deref() == Some("home")
+                    && request.wifi_password.is_none()
+        ));
+
+        let parsed =
+            parse_envelope(&envelope(json!({ "type": "permitJoin", "seconds": 180 }))).unwrap();
+        assert!(matches!(
+            parsed.message,
+            ToControllerMessage::PermitJoin { seconds: Some(180) }
+        ));
+
+        let parsed = parse_envelope(&envelope(json!({
+            "type": "saveMatterWifi", "wifiSsid": "home", "wifiPassword": "pw"
+        })))
+        .unwrap();
+        assert!(matches!(
+            parsed.message,
+            ToControllerMessage::SaveMatterWifi { ref wifi_ssid, ref wifi_password }
+                if wifi_ssid == "home" && wifi_password == "pw"
+        ));
+
         for message in [
-            json!({ "type": "commissionMatter", "code": "34970112332" }),
             json!({ "type": "cancelMatterCommission" }),
-            json!({ "type": "permitJoin", "seconds": 180 }),
             json!({ "type": "getMatterWifi" }),
-            json!({ "type": "saveMatterWifi", "wifiSsid": "home", "wifiPassword": "pw" }),
+            json!({ "type": "permitJoin" }),
         ] {
-            let action = message["type"].as_str().unwrap().to_string();
-            let rejection = parse_envelope(&envelope(message)).unwrap_err();
-            assert_eq!(
-                rejection,
-                EnvelopeRejection::LanOnly {
-                    request_id: "r1".into(),
-                    action: action.clone(),
-                },
-                "{action}"
+            assert!(
+                parse_envelope(&envelope(message.clone())).is_ok(),
+                "{message}"
             );
-            let (code, text) = rejection_reply(&rejection).unwrap();
-            assert_eq!(code, "unsupported_action");
-            assert!(text.contains("Home network"), "{text}");
         }
+        assert!(matches!(
+            parse_envelope(&envelope(json!({ "type": "commissionMatter" }))).unwrap_err(),
+            EnvelopeRejection::ProtocolMismatch { .. }
+        ));
     }
 
     #[test]

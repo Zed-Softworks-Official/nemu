@@ -24,6 +24,8 @@ pub enum AuditKind {
     AutomationChange,
     HistoryBudgetChange,
     HomeMeterDesignation,
+    /// A commissioning started over Relay by any Membership (ADR-0034).
+    RelayCommissioning,
 }
 
 impl AuditKind {
@@ -38,6 +40,7 @@ impl AuditKind {
             Self::AutomationChange => "automation_change",
             Self::HistoryBudgetChange => "history_budget_change",
             Self::HomeMeterDesignation => "home_meter_designation",
+            Self::RelayCommissioning => "relay_commissioning",
         }
     }
 }
