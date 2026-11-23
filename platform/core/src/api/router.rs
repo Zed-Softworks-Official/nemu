@@ -7,7 +7,7 @@ use tower_http::cors::{AllowOrigin, CorsLayer};
 use crate::api::middleware::require_client_token;
 use crate::api::{
     audit, devices, health, history_budget, history_health, identify, landing, matter, members,
-    pairing, rooms, updates, ws, zigbee,
+    pairing, rooms, session, updates, ws, zigbee,
 };
 use crate::state::AppState;
 
@@ -55,6 +55,8 @@ pub fn router(state: AppState) -> Router {
         .route("/api/pairing-code", post(pairing::create_pairing_code));
 
     let protected = Router::new()
+        // NEM-86: the caller's Membership role for this session.
+        .route("/api/session", get(session::show))
         .route("/api/devices", get(devices::list_devices))
         .route(
             "/api/devices/{id}",

@@ -36,7 +36,9 @@ import {
     relayToControllerEnvelopeSchema,
     renameDeviceRequestSchema,
     renameRoomRequestSchema,
+    type SessionResponse,
     type SwitchReleaseChannelResponse,
+    sessionResponseSchema,
     switchReleaseChannelResponseSchema,
     type UpdateStatusResponse,
     updateStatusResponseSchema,
@@ -266,6 +268,17 @@ export class RelayTransport implements ControllerTransport {
         }
         throw new Error('Unexpected relay response for command')
     }
+
+    // --- NEM-86: session role ---
+    async getSession(): Promise<SessionResponse> {
+        const parsed = await this.request({ type: 'getSession' })
+        if (parsed.message.type === 'session') {
+            return sessionResponseSchema.parse({ role: parsed.message.role })
+        }
+        this.throwIfCommandError(parsed, "read this session's role")
+        throw new Error('Unexpected relay response for getSession')
+    }
+    // --- end NEM-86 ---
 
     async getReleaseStatus(): Promise<UpdateStatusResponse> {
         const parsed = await this.request({ type: 'releaseStatus' })

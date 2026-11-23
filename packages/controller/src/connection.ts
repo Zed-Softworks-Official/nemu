@@ -31,6 +31,7 @@ import {
     type RenameRoomRequest,
     type Room,
     type SaveMatterWifiRequest,
+    type SessionResponse,
     type SwitchReleaseChannelResponse,
     statusFromMode,
     type UpdateStatusResponse,
@@ -437,6 +438,23 @@ export class ControllerConnection {
         const transport = this.requireConnectedTransport('Home meter')
         return await transport.designateHomeMeter(selection)
     }
+
+    // --- NEM-86: session role ---
+    /**
+     * The caller's Membership role for this session, over LAN or Relay.
+     * Use it only to decide what to show; the Controller still enforces
+     * every permission.
+     */
+    async getSession(): Promise<SessionResponse> {
+        const transport = this.requireConnectedTransport('Membership role')
+        if (!transport.getSession) {
+            throw new Error(
+                'Membership role is not supported by this controller'
+            )
+        }
+        return await transport.getSession()
+    }
+    // --- end NEM-86 ---
 
     async getReleaseStatus(): Promise<UpdateStatusResponse> {
         const transport = this.requireConnectedTransport('Installed Release')

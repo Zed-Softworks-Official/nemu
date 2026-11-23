@@ -47,6 +47,7 @@ for (const via of ['lan', 'relay'] as const) {
     describe(`Controller health summary over ${via}`, () => {
         it('gives an Owner service, Device, and Controller details', async () => {
             const controller = home()
+            controller.role = 'owner'
             controller.health.relayConnected = false
             const connection = await connected(via, controller)
             assert.deepEqual(await connection.getHealthSummary(), {

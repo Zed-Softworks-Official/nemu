@@ -53,8 +53,10 @@ import {
     roomSchema,
     roomsResponseSchema,
     type SaveMatterWifiRequest,
+    type SessionResponse,
     type SwitchReleaseChannelResponse,
     saveMatterWifiRequestSchema,
+    sessionResponseSchema,
     switchReleaseChannelRequestSchema,
     switchReleaseChannelResponseSchema,
     tokensResponseSchema,
@@ -352,6 +354,13 @@ export class LanTransport implements ControllerTransport {
         const { data } = await this.http.get('/api/members')
         return membersResponseSchema.parse(data).members
     }
+
+    // --- NEM-86: session role ---
+    async getSession(): Promise<SessionResponse> {
+        const { data } = await this.http.get('/api/session')
+        return sessionResponseSchema.parse(data)
+    }
+    // --- end NEM-86 ---
 
     async getReleaseStatus(): Promise<UpdateStatusResponse> {
         const { data } = await this.http.get('/api/updates')

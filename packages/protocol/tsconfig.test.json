@@ -25,6 +25,7 @@
         "src/relay.ts",
         "src/setup.test.ts",
         "src/relay.test.ts",
+        "src/session.test.ts",
         "src/health.test.ts"
     ]
 }

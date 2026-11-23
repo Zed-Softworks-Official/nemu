@@ -175,6 +175,10 @@ enum ToControllerMessage {
         #[serde(rename = "roomId")]
         room_id: String,
     },
+    // --- NEM-86: session role ---
+    #[serde(rename = "getSession")]
+    GetSession,
+    // --- end NEM-86 ---
     // NEM-88: Controller health summary.
     #[serde(rename = "getHealthSummary")]
     GetHealthSummary,
@@ -842,6 +846,20 @@ async fn handle_message(
             &message.request_id,
             setup::delete_room(state, &auth, &room_id).await,
         ),
+        // --- NEM-86: session role ---
+        ToControllerMessage::GetSession => {
+            match crate::api::session::read_session(state, &auth).await {
+                Ok(session) => build_typed_response(
+                    state,
+                    &message.request_id,
+                    json!({ "type": "session", "role": session.role }),
+                ),
+                Err(error) => {
+                    build_error_response(state, &message.request_id, &error.code, &error.message)
+                }
+            }
+        }
+        // --- end NEM-86 ---
         // NEM-88: Controller health summary.
         ToControllerMessage::GetHealthSummary => {
             match crate::api::health::read_health_summary(state, &auth).await {
@@ -1232,6 +1250,14 @@ mod tests {
             );
         }
     }
+
+    // --- NEM-86: session role ---
+    #[test]
+    fn parses_session_requests() {
+        let parsed = parse_envelope(&envelope(json!({ "type": "getSession" }))).unwrap();
+        assert!(matches!(parsed.message, ToControllerMessage::GetSession));
+    }
+    // --- end NEM-86 ---
 
     #[test]
     fn unknown_request_types_are_unsupported_actions() {

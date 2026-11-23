@@ -26,6 +26,7 @@ import type {
     RenameRoomRequest,
     Room,
     SaveMatterWifiRequest,
+    SessionResponse,
     SwitchReleaseChannelResponse,
     UpdateStatusResponse,
 } from '@nemu/protocol'
@@ -87,6 +88,8 @@ export interface ControllerTransport {
     leaveHome?(): Promise<void>
     bootstrapOwner?(request: BootstrapOwnerRequest): Promise<HouseholdMember>
     getReleaseStatus?(): Promise<UpdateStatusResponse>
+    // NEM-86: the caller's Membership role for this session.
+    getSession?(): Promise<SessionResponse>
     installRelease?(): Promise<ApplyUpdateResponse>
     rollbackRelease?(): Promise<ApplyUpdateResponse>
     switchReleaseChannel?(

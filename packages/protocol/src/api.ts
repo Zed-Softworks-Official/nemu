@@ -260,6 +260,16 @@ export const sessionMintResultSchema = z.object({
 })
 export type SessionMintResult = z.infer<typeof sessionMintResultSchema>
 
+// --- NEM-86: session role ---
+/** The caller's Membership role. Clients use it only to decide what to show. */
+export const sessionRoleSchema = z.enum(['owner', 'member'])
+export type SessionRole = z.infer<typeof sessionRoleSchema>
+
+/** `GET /api/session`, and the body of the Relay `session` reply. */
+export const sessionResponseSchema = z.object({ role: sessionRoleSchema })
+export type SessionResponse = z.infer<typeof sessionResponseSchema>
+// --- end NEM-86 ---
+
 export const releaseChannelSchema = z.enum(['stable', 'canary'])
 export type ReleaseChannel = z.infer<typeof releaseChannelSchema>
 
