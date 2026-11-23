@@ -16,8 +16,10 @@ The signed channel manifests (`canary.json`, `stable.json`) are written to the `
 
 `master` is the default branch and the Stable branch. `canary` is the development branch: feature branches are cut from `canary` and their pull requests target `canary`, so changes ship to the Canary test environment first. Once verified there, a `canary` → `master` pull request promotes them to Stable.
 
+Promotion pull requests are rebase-merged, so `master` gets the same commits `canary` has and the two branches never diverge. Don't merge `master` into `canary` to resolve a conflict: a rebase merge can't replay a merge commit. If the branches have diverged, rebase `canary` onto `master` instead.
+
 1. **Branch ruleset** — `Protec`  
-   Protects `master` (an explicit `refs/heads/master` condition rather than `~DEFAULT_BRANCH`, so it stays protected if the default branch ever changes): no deletion, no force-push, required signatures, one approving review, code-owner review, stale-review dismissal, resolved threads, linear history.
+   Protects `master` (an explicit `refs/heads/master` condition rather than `~DEFAULT_BRANCH`, so it stays protected if the default branch ever changes): no deletion, no force-push, required signatures, one approving review, code-owner review, stale-review dismissal, resolved threads, linear history, and rebase as the only allowed merge method.
 
 2. **Branch ruleset** — `Protect canary`  
    Same rules for `canary` as `master` (org-admin and repository-admin bypass). GitHub rejects listing the built-in Actions app as a bypass actor on this org, so a Stable publish that allocates a new version opens a sync PR into `canary` instead of pushing the branch. Human changes still go through pull requests.
@@ -63,7 +65,7 @@ These rulesets still protect tags that were created before platform Releases. Th
 # (for example a third-party digest refresh):
 # Actions → Publish Release → branch canary → channel canary.
 
-# Stable: PR canary into master, then
+# Stable: PR canary into master, rebase-merge it, then
 # Actions → Publish Release → branch master → channel stable.
 ```
 
