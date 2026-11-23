@@ -53,6 +53,95 @@ impl ManifestHost for DirectoryManifestHost {
     }
 }
 
+/// Default install host. Manifests are signed, so this host is not trusted.
+pub const DEFAULT_RELEASE_BASE_URL: &str = "https://get.nemu.sh";
+const MANIFEST_FETCH_SECS: &str = "20";
+
+/// Channel manifests fetched from `{base}/releases/{channel}.json`.
+///
+/// Each fetched manifest is kept at `updater/manifests/{channel}.json`. When
+/// the host cannot be reached, the kept copy is used, so an offline Home still
+/// reports what it last saw. A 404 is not a Release. The download goes through
+/// `curl` on the host, which the installer requires; the Updater links no TLS
+/// stack of its own.
+pub struct RemoteManifestHost {
+    base_url: String,
+    cache: DirectoryManifestHost,
+    controller_dir: PathBuf,
+}
+
+impl RemoteManifestHost {
+    pub fn new(controller_dir: impl Into<PathBuf>, base_url: impl Into<String>) -> Self {
+        let controller_dir = controller_dir.into();
+        Self {
+            base_url: base_url.into().trim_end_matches('/').to_string(),
+            cache: DirectoryManifestHost::new(controller_dir.clone()),
+            controller_dir,
+        }
+    }
+
+    /// `NEMU_RELEASE_BASE_URL`, or the default install host.
+    pub fn from_env(controller_dir: impl Into<PathBuf>) -> Self {
+        let base = std::env::var("NEMU_RELEASE_BASE_URL")
+            .ok()
+            .filter(|url| !url.trim().is_empty())
+            .unwrap_or_else(|| DEFAULT_RELEASE_BASE_URL.to_string());
+        Self::new(controller_dir, base)
+    }
+
+    fn cached_path(&self, channel: ReleaseChannel) -> PathBuf {
+        self.controller_dir
+            .join(MANIFEST_DIR)
+            .join(format!("{}.json", channel.as_str()))
+    }
+}
+
+impl ManifestHost for RemoteManifestHost {
+    fn fetch(&self, channel: ReleaseChannel) -> Result<Option<Vec<u8>>, ManifestHostError> {
+        let url = format!("{}/releases/{}.json", self.base_url, channel.as_str());
+        let cached = self.cached_path(channel);
+        let download = cached.with_extension("json.download");
+        if let Some(parent) = cached.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|error| ManifestHostError::Unavailable(error.to_string()))?;
+        }
+        let output = Command::new("curl")
+            .args(["-sS", "-L", "--max-time", MANIFEST_FETCH_SECS, "-o"])
+            .arg(&download)
+            .args(["-w", "%{http_code}"])
+            .arg(&url)
+            .output();
+        let code = match &output {
+            Ok(output) if output.status.success() => {
+                String::from_utf8_lossy(&output.stdout).trim().to_string()
+            }
+            _ => String::new(),
+        };
+        match code.as_str() {
+            "200" => {
+                std::fs::rename(&download, &cached)
+                    .map_err(|error| ManifestHostError::Unavailable(error.to_string()))?;
+                std::fs::read(&cached)
+                    .map(Some)
+                    .map_err(|error| ManifestHostError::Unavailable(error.to_string()))
+            }
+            "404" => {
+                let _ = std::fs::remove_file(&download);
+                Ok(None)
+            }
+            _ => {
+                let _ = std::fs::remove_file(&download);
+                match self.cache.fetch(channel)? {
+                    Some(bytes) => Ok(Some(bytes)),
+                    None => Err(ManifestHostError::Unavailable(format!(
+                        "could not fetch {url}"
+                    ))),
+                }
+            }
+        }
+    }
+}
+
 /// The release-signing public key the wrapper pins, when the Home has one.
 pub fn load_release_key(controller_dir: &Path) -> Option<VerifyingKey> {
     crate::wrapper::load_pin(controller_dir)
@@ -81,8 +170,10 @@ pub fn run_switch_channel(
     })
 }
 
-fn with_host_env<T>(controller_dir: &Path, use_env: impl FnOnce(&InstallEnv<'_>) -> T) -> T {
-    let manifests = DirectoryManifestHost::new(controller_dir);
+/// Runs `use_env` with the host adapters: manifests from the install host,
+/// the pinned release key, `docker compose`, Core health, and free space.
+pub fn with_host_env<T>(controller_dir: &Path, use_env: impl FnOnce(&InstallEnv<'_>) -> T) -> T {
+    let manifests = RemoteManifestHost::from_env(controller_dir);
     let release_key = load_release_key(controller_dir);
     let runtime = DockerComposeRuntime::new(controller_dir);
     let health = HttpCoreHealth::from_env();

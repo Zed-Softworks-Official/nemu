@@ -4,7 +4,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
-      - mosquitto-data:/mosquitto/data
+      - ./mosquitto/data:/mosquitto/data
     # Host-networked services (nemu-matter) can't reach the compose bridge
     # network, so expose the broker on the host loopback only.
     ports:
@@ -46,10 +46,8 @@ services:
       - NET_ADMIN
       - NET_RAW
     volumes:
-      - matter-controller-data:/data
+      - ./volumes/matter:/data
       - /run/dbus:/run/dbus:ro
-    labels:
-      com.centurylinklabs.watchtower.enable: "true"
 
   postgres:
     image: postgres:16-alpine
@@ -59,7 +57,9 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: ${POSTGRES_DB:-nemu}
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      # Bind mounts under the Controller directory so the Updater can
+      # snapshot Home data before an install (ADR-0028).
+      - ./volumes/postgres:/var/lib/postgresql/data
     networks:
       - nemu
     healthcheck:
@@ -88,35 +88,15 @@ services:
       CONTROLLER_REGISTRATION_SECRET: ${CONTROLLER_REGISTRATION_SECRET:-}
       NEMU_TLS: ${NEMU_TLS:-1}
       NEMU_TLS_SAN: ${NEMU_TLS_SAN:-}
-      WATCHTOWER_URL: ${WATCHTOWER_URL:-http://watchtower:8080}
-      WATCHTOWER_HTTP_API_TOKEN: ${WATCHTOWER_HTTP_API_TOKEN:-}
+      # Host Updater control socket (ADR-0033). Only nemu-core mounts it.
+      NEMU_UPDATER_SOCKET: /run/nemu-updater/updater.sock
     ports:
       - "6368:6368"
-    labels:
-      com.centurylinklabs.watchtower.enable: "true"
-    networks:
-      - nemu
-
-  watchtower:
-    image: nickfedor/watchtower:latest
-    restart: unless-stopped
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    environment:
-      WATCHTOWER_LABEL_ENABLE: "true"
-      WATCHTOWER_CLEANUP: "true"
-      WATCHTOWER_POLL_INTERVAL: ${WATCHTOWER_POLL_INTERVAL:-3600}
-      WATCHTOWER_HTTP_API_ENDPOINTS: check,update
-      WATCHTOWER_HTTP_API_PERIODIC_POLLS: "true"
-      WATCHTOWER_HTTP_API_TOKEN: ${WATCHTOWER_HTTP_API_TOKEN:?set WATCHTOWER_HTTP_API_TOKEN in .env}
+      - ./run:/run/nemu-updater
     networks:
       - nemu
 
 networks:
   nemu:
     driver: bridge
-
-volumes:
-  postgres-data:
-  mosquitto-data:
-  matter-controller-data:

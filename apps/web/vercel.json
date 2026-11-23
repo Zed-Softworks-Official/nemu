@@ -29,28 +29,6 @@
             ]
         },
         {
-            "source": "/docker-compose.yml",
-            "headers": [
-                {
-                    "key": "Content-Type",
-                    "value": "text/yaml; charset=utf-8"
-                },
-                {
-                    "key": "Cache-Control",
-                    "value": "public, max-age=300"
-                }
-            ]
-        },
-        {
-            "source": "/mosquitto/(.*)",
-            "headers": [
-                {
-                    "key": "Content-Type",
-                    "value": "text/plain; charset=utf-8"
-                }
-            ]
-        },
-        {
             "source": "/zigbee2mqtt/(.*)",
             "headers": [
                 {
