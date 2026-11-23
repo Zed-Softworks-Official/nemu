@@ -35,6 +35,8 @@ import {
     type Room,
     type RoomNotEmptyDetails,
     type SessionMintResult,
+    type SessionResponse,
+    type SessionRole,
     type UpdateStatusResponse,
 } from '@nemu/protocol'
 import type { ControllerConnectors } from './connection.ts'
@@ -59,6 +61,8 @@ export type FakeControllerOptions = {
     rooms?: Room[]
     /** The designated Home meter, or null when none is set. */
     homeMeter?: HomeMeterDesignation | null
+    /** NEM-86: this Membership's role. Defaults to `member`. */
+    role?: SessionRole
 }
 
 type TransportMode = 'lan' | 'relay'
@@ -130,6 +134,10 @@ export class FakeController {
     releaseStatus: UpdateStatusResponse | null = null
     // --- end Household and Release reads ---
 
+    // --- NEM-86: session role ---
+    /** This Membership's role, reported by `getSession` over LAN and Relay. */
+    role: SessionRole
+    // --- end NEM-86 ---
     private readonly tokens: Set<string>
     private readonly otherMembershipTokens: Set<string>
     private readonly transports = new Set<FakeTransport>()
@@ -152,7 +160,22 @@ export class FakeController {
         this.devices = options.devices ?? []
         this.rooms = options.rooms ?? []
         this.homeMeter = options.homeMeter ?? null
+        this.role = options.role ?? 'member'
     }
+
+    // --- NEM-86: session role ---
+    /** The session's Membership role; an inactive Membership is refused. */
+    session(): SessionResponse {
+        if (!this.membershipActive) {
+            throw new ApiError(
+                'inactive_membership',
+                'This Membership is not active',
+                403
+            )
+        }
+        return { role: this.role }
+    }
+    // --- end NEM-86 ---
 
     identity(): IdentifyResponse {
         return { controllerId: this.controllerId, name: this.name }
@@ -570,6 +593,13 @@ export class FakeTransport implements ControllerTransport {
         this.authorize()
         return this.controller.setup(type, this.mode, apply)
     }
+
+    // --- NEM-86: session role ---
+    async getSession(): Promise<SessionResponse> {
+        this.authorize()
+        return this.controller.session()
+    }
+    // --- end NEM-86 ---
 
     async revokeCurrentToken(): Promise<void> {
         this.authorize()
