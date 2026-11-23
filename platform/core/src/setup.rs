@@ -40,7 +40,7 @@ impl SetupError {
     pub fn code(&self) -> &'static str {
         match self {
             Self::Unauthenticated => "unauthorized",
-            Self::Forbidden => "membership_inactive",
+            Self::Forbidden => "inactive_membership",
             Self::InvalidName => "invalid_name",
             Self::InvalidId => "invalid_id",
             Self::InvalidRoom => "invalid_room",
@@ -446,7 +446,7 @@ mod tests {
         assert_eq!(unauthenticated.code, "unauthorized");
         let forbidden = ApiError::from(SetupError::Forbidden);
         assert_eq!(forbidden.status, StatusCode::FORBIDDEN);
-        assert_eq!(forbidden.code, "membership_inactive");
+        assert_eq!(forbidden.code, "inactive_membership");
     }
 
     #[test]

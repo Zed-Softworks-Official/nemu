@@ -140,14 +140,14 @@ describe('LanTransport Device and Room setup', () => {
             status: 403,
             body: {
                 error: {
-                    code: 'membership_inactive',
+                    code: 'inactive_membership',
                     message: 'This Membership is not active',
                 },
             },
         })
         await assert.rejects(
             lan().renameDevice({ deviceId: 'lamp', name: 'Lamp' }),
-            { code: 'membership_inactive' }
+            { code: 'inactive_membership' }
         )
     })
 

@@ -267,7 +267,7 @@ export class FakeController {
         }
         if (!this.membershipActive) {
             throw new ApiError(
-                'membership_inactive',
+                'inactive_membership',
                 'This Membership is not active',
                 403
             )

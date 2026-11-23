@@ -90,7 +90,7 @@ type ControllerContextValue = {
     /**
      * Device and Room setup over LAN or Relay. Each rejects with an
      * `ApiError` whose `code` comes from the Controller, for example
-     * `membership_inactive`, `room_not_empty`, or `unsupported_action`.
+     * `inactive_membership`, `room_not_empty`, or `unsupported_action`.
      * Nothing is queued while the Controller is unreachable.
      */
     renameDevice: (request: RenameDeviceRequest) => Promise<Device>

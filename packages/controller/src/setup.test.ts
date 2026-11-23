@@ -136,7 +136,7 @@ for (const via of ['lan', 'relay'] as const) {
             home.membershipActive = false
             await assert.rejects(
                 connection.renameDevice({ deviceId: 'lamp', name: 'X' }),
-                { code: 'membership_inactive' }
+                { code: 'inactive_membership' }
             )
             assert.equal(home.devices[0]?.name, 'Lamp')
         })
