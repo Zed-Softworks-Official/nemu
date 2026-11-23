@@ -206,13 +206,13 @@ fn parse_envelope(payload: &str) -> Result<ToControllerEnvelope, EnvelopeRejecti
         .and_then(JsonValue::as_str)
         .map(str::to_string);
     let requested = raw.pointer("/message/type").and_then(JsonValue::as_str);
-    if let (Some(request_id), Some(action)) = (request_id.as_ref(), requested) {
-        if LAN_ONLY_ACTIONS.contains(&action) {
-            return Err(EnvelopeRejection::LanOnly {
-                request_id: request_id.clone(),
-                action: action.to_string(),
-            });
-        }
+    if let (Some(request_id), Some(action)) = (request_id.as_ref(), requested)
+        && LAN_ONLY_ACTIONS.contains(&action)
+    {
+        return Err(EnvelopeRejection::LanOnly {
+            request_id: request_id.clone(),
+            action: action.to_string(),
+        });
     }
     match serde_json::from_value::<ToControllerEnvelope>(raw.clone()) {
         Ok(envelope) => Ok(envelope),
