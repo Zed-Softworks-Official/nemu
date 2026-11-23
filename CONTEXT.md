@@ -232,6 +232,10 @@ _Avoid_: Volume, local config
 The part of a Controller installation that installs Releases for that Home.
 _Avoid_: Watchtower, update service
 
+**Updater wrapper**:
+The small host supervisor that starts the installed Updater and falls back to the previous Updater binary when the installed one fails. It also holds the pinned release-signing key.
+_Avoid_: Watchdog, launcher
+
 **Maintenance mode**:
 A short Controller state in which the Home stops admitting Commands and quiesces adapters. It covers a consistent snapshot and lasts until the installed Release passes its health gate.
 _Avoid_: Downtime, update window
