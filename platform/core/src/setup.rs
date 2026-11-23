@@ -210,11 +210,7 @@ pub async fn assign_room(
     if state.registry.get(device_id).await.is_none() {
         return Err(SetupError::DeviceNotFound);
     }
-    if let Some(room_id) = room_id
-        && !with_conn(state, move |conn| setup_store::room_exists(conn, room_id)).await?
-    {
-        return Err(SetupError::RoomNotFound);
-    }
+    ensure_room_exists(state, room_id).await?;
     match component_id {
         Some(component_id) => {
             state
@@ -244,6 +240,27 @@ pub async fn assign_room(
         .await
         .ok_or(SetupError::DeviceNotFound)?;
     Ok(state.registry.to_resource(state, &device).await)
+}
+
+/// Check a Room target without changing anything: the caller may set up
+/// Devices, and the Room is `None` or exists. A rename that is paired with a
+/// Room assignment calls this first, so a bad `roomId` changes nothing.
+pub async fn check_room_target(
+    state: &AppState,
+    auth: &AuthenticatedClient,
+    room_id: Option<&str>,
+) -> Result<(), SetupError> {
+    authorize_caller(state, auth).await?;
+    ensure_room_exists(state, parse_room_target(room_id)?).await
+}
+
+async fn ensure_room_exists(state: &AppState, room_id: Option<Uuid>) -> Result<(), SetupError> {
+    if let Some(room_id) = room_id
+        && !with_conn(state, move |conn| setup_store::room_exists(conn, room_id)).await?
+    {
+        return Err(SetupError::RoomNotFound);
+    }
+    Ok(())
 }
 
 /// Remove a Device from its adapter and keep a Device tombstone (ADR-0017).

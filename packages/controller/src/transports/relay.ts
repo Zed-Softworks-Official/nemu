@@ -339,12 +339,22 @@ export class RelayTransport implements ControllerTransport {
         deviceId: string,
         patch: PatchDeviceRequest
     ): Promise<Device> {
+        // Validate both halves first, then move the Device before renaming
+        // it: the Controller checks the Room target, so a bad roomId fails
+        // before anything has changed.
+        const rename =
+            patch.name === undefined
+                ? undefined
+                : renameDeviceRequestSchema.parse({
+                      deviceId,
+                      name: patch.name,
+                  })
         let device: Device | undefined
-        if (patch.name !== undefined) {
-            device = await this.renameDevice({ deviceId, name: patch.name })
-        }
         if (patch.roomId !== undefined) {
             device = await this.assignRoom({ deviceId, roomId: patch.roomId })
+        }
+        if (rename) {
+            device = await this.renameDevice(rename)
         }
         if (!device) throw new Error('name or roomId is required')
         return device

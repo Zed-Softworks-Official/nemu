@@ -254,3 +254,53 @@ describe('RelayTransport Device and Room setup', () => {
         }
     })
 })
+
+describe('RelayTransport Device setup', () => {
+    it('checks the Room before renaming, so a bad roomId changes nothing', async () => {
+        const sent: Array<{ requestId: string; payload: string }> = []
+        const convex = {
+            mutation: async (_ref: unknown, args: (typeof sent)[number]) => {
+                sent.push(args)
+            },
+            query: async () =>
+                sent.map(({ requestId }) => ({
+                    requestId,
+                    direction: 'toClient',
+                    payload: JSON.stringify({
+                        requestId,
+                        signature: 'sig',
+                        message: {
+                            type: 'commandResult',
+                            ok: false,
+                            error: {
+                                code: 'room_not_found',
+                                message: 'Room not found',
+                            },
+                        },
+                    }),
+                })),
+        } as unknown as ConvexReactClient
+        const relay = new RelayTransport({
+            convex,
+            api: {} as RelayApi,
+            controllerId: 'home-a',
+            getToken: () => 'token-a',
+        })
+        await relay.connect()
+        try {
+            await assert.rejects(
+                relay.patchDevice('lamp', {
+                    name: 'Desk lamp',
+                    roomId: 'gone',
+                }),
+                { code: 'room_not_found' }
+            )
+            const types = sent
+                .map(({ payload }) => JSON.parse(payload).message.type)
+                .filter((type) => type !== 'watchCapabilityChanges')
+            assert.deepEqual(types, ['assignRoom'])
+        } finally {
+            relay.disconnect()
+        }
+    })
+})

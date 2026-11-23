@@ -103,6 +103,12 @@ pub async fn patch_device(
     Json(body): Json<PatchDeviceBody>,
 ) -> ApiResult<Json<DeviceResource>> {
     let mut resource = None;
+    // Check the Room before renaming, so a bad roomId changes nothing.
+    if body.name.is_some()
+        && let Some(room_id) = &body.room_id
+    {
+        setup::check_room_target(&state, &auth, room_id.as_deref()).await?;
+    }
     if let Some(name) = body.name {
         resource = Some(setup::rename_device(&state, &auth, &id, &name).await?);
     }

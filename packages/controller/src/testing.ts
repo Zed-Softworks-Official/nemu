@@ -465,12 +465,13 @@ export class FakeTransport implements ControllerTransport {
         deviceId: string,
         patch: PatchDeviceRequest
     ): Promise<Device> {
+        // As on the Controller: the Room is checked before the rename.
         let device: Device | undefined
-        if (patch.name !== undefined) {
-            device = await this.renameDevice({ deviceId, name: patch.name })
-        }
         if (patch.roomId !== undefined) {
             device = await this.assignRoom({ deviceId, roomId: patch.roomId })
+        }
+        if (patch.name !== undefined) {
+            device = await this.renameDevice({ deviceId, name: patch.name })
         }
         if (!device) throw new ApiError('empty_patch', 'Nothing to change')
         return device
