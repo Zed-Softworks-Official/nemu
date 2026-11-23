@@ -1,6 +1,6 @@
 # Allow Owners to commission Devices over Relay
 
-Supersedes ADR-0030.
+Supersedes ADR-0030. Superseded by ADR-0034, which lets every Membership commission over Relay.
 
 An Owner's Access Client may start Device commissioning over Relay, including Matter code entry and Zigbee permit-join. A Member's Access Client still needs to reach the Controller over the Home network, and Relay rejects a Member's commissioning request with `unsupported_action`. Each commissioning started over Relay writes an Audit log entry (ADR-0024) naming the Membership, the Access Client, and the protocol. It carries no Device identifiers. The Controller remains the Matter commissioner and fabric authority (ADR-0007), and any Bluetooth step runs on the Controller's radio, not the phone's.
 
