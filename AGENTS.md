@@ -2,11 +2,11 @@
 
 ## Documentation
 
-Architecture and design live in Superhuman Docs:
+Product direction lives in Superhuman Docs:
 
 **[Nemu](https://docs.superhuman.com/d/_d06TiZ2FvM1)** (`superhuman://docs/06TiZ2FvM1`)
 
-Before changing product code, load **`.cursor/skills/nemu-docs/SKILL.md`**: match a **Skills** row and read its linked pages. Use **Current Architecture** for shipped facts, **Target Architecture** for accepted decisions, and **Beta Roadmap** for sequence. Never describe target behavior as shipped.
+Before changing product code, load the **`nemu-docs`** skill. Use **Current Architecture** for shipped facts, **Target Architecture** for accepted decisions, and **Beta Roadmap** for sequence. Never describe target behavior as shipped. Superhuman no longer maps the repo tree; find code with Graphify (the **`graphify`** skill).
 
 Public deployment docs remain in git:
 
@@ -24,6 +24,8 @@ Readable Home inventory, state, telemetry, Automations, History, and voice data 
 
 ## Agent skills
 
+Skills live in `.agents/skills/`. `.claude/skills/` and `.cursor/skills/` hold symlinks to them, so Claude Code and Cursor load the same set. Upstream skills are pinned in `skills-lock.json`; update them with `npx skills update -p -y`, and restore them on a fresh clone with `npx skills experimental_install -a claude-code`. Don't hand-edit upstream skills, since an update overwrites them. Repo-specific behavior goes in `AGENTS.md`, `docs/agents/`, or a repo-owned skill (`nemu-docs`, `graphify`) that isn't in the lock.
+
 ### Issue tracker
 
 Issues live in Linear (Nemu team), via Linear MCP. See `docs/agents/issue-tracker.md`.
@@ -39,7 +41,7 @@ Single-context: `CONTEXT.md` and `docs/adr/` at the repo root, created lazily. S
 <!-- graphify-rules-start (managed by `graphify init`) -->
 ## Use Graphify before grep
 
-This repository is indexed by Graphify: a code graph over its call, dependency, and test structure, exposed through a connected Graphify MCP server. Before reaching for grep or reading files, use the Graphify tools your MCP client lists (their exact names and descriptions are in the server's tool list) for what the graph knows and a text search does not:
+This repository is indexed by Graphify (`Zed-Softworks-Official/nemu`): a code graph over its call, dependency, and test structure, exposed through a connected Graphify MCP server. Before reaching for grep or reading files, use the Graphify tools your MCP client lists (their exact names and descriptions are in the server's tool list) for what the graph knows and a text search does not:
 
 - find where a symbol, function, or class is defined (instead of grepping for it)
 - understand how something works, or where a behavior is handled
@@ -47,5 +49,5 @@ This repository is indexed by Graphify: a code graph over its call, dependency, 
 - see what a change affects (its blast radius) and which tests cover it
 - map a file's dependencies and dependents
 
-Fall back to grep or file reads only for what the graph does not model: literal string or comment matches, non-indexed files, or reading a file you have already located. If no Graphify tools are listed, check the MCP server connection.
+Fall back to grep or file reads only for what the graph does not model: literal string or comment matches, non-indexed files, or reading a file you have already located. If no Graphify tools are listed, check the MCP server connection. This rule applies inside every skill's explore step and to every sub-agent you spawn: tell sub-agents to use Graphify first. The **`graphify`** skill has the tool table and when to trust a result's `commitSha`.
 <!-- graphify-rules-end -->
