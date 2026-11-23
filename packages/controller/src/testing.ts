@@ -168,6 +168,10 @@ export class FakeController {
     /** Transports that carried a health summary request. */
     readonly healthRequests: TransportMode[] = []
     // --- end NEM-88 ---------------------------------------------------------
+    // --- NEM-95: Release status for every Membership ------------------------
+    /** Transports that carried a Release status read. */
+    readonly releaseStatusRequests: TransportMode[] = []
+    // --- end NEM-95 ---------------------------------------------------------
     private readonly tokens: Set<string>
     private readonly otherMembershipTokens: Set<string>
     private readonly transports = new Set<FakeTransport>()
@@ -336,6 +340,32 @@ export class FakeController {
     }
 
     // --- NEM-88: Controller health summary ---------------------------------
+    // --- NEM-95: Release status for every Membership ------------------------
+    /**
+     * Release status as Core returns it: any active Owner or Member may read
+     * it; installing and rolling back stay Owner-only.
+     * @internal
+     */
+    readRelease(via: TransportMode): UpdateStatusResponse {
+        if (!this.membershipActive) {
+            throw new ApiError(
+                'inactive_membership',
+                'This Membership is not active',
+                403
+            )
+        }
+        if (!this.releaseStatus) {
+            throw new ApiError(
+                'updater_unavailable',
+                'The Updater is unavailable',
+                503
+            )
+        }
+        this.releaseStatusRequests.push(via)
+        return structuredClone(this.releaseStatus)
+    }
+    // --- end NEM-95 ---------------------------------------------------------
+
     /**
      * The summary Core would return for this caller: Owners get Controller
      * details, Members only service and Device availability (ADR-0006).
@@ -788,14 +818,8 @@ export class FakeTransport implements ControllerTransport {
 
     async getReleaseStatus(): Promise<UpdateStatusResponse> {
         this.authorize()
-        if (!this.controller.releaseStatus) {
-            throw new ApiError(
-                'updater_unavailable',
-                'The Updater is unavailable',
-                503
-            )
-        }
-        return structuredClone(this.controller.releaseStatus)
+        // NEM-95: the rule lives on the controller so LAN and Relay agree.
+        return this.controller.readRelease(this.mode)
     }
     // --- end Household and Release reads ---
 

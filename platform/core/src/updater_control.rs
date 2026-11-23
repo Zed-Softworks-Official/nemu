@@ -185,14 +185,23 @@ impl UpdaterControl for SocketUpdater {
     }
 }
 
-/// Forwards a status read to the Updater for an active Owner.
-/// A Member is refused. A status read is not an audited update.
+/// Every active Membership may read Release status (NEM-95). Installing,
+/// rolling back and switching channel stay Owner-only.
+pub fn authorize_release_status_read(role: &str, member_status: &str) -> Result<(), ForwardError> {
+    match role {
+        "owner" | "member" if member_status == "active" => Ok(()),
+        _ => Err(ForwardError::Refused),
+    }
+}
+
+/// Forwards a status read to the Updater for any active Owner or Member.
+/// An inactive Membership is refused. A status read is not an audited update.
 pub fn forward_release_status(
     role: &str,
     member_status: &str,
     updater: &dyn UpdaterControl,
 ) -> Result<ReleaseStatus, ForwardError> {
-    audit::authorize_read(role, member_status).map_err(|_| ForwardError::Refused)?;
+    authorize_release_status_read(role, member_status)?;
     updater.status().map_err(ForwardError::Unavailable)
 }
 
@@ -269,9 +278,9 @@ mod tests {
     use std::sync::atomic::{AtomicU32, Ordering};
 
     use super::{
-        ForwardError, ReleaseStatus, SwitchChannelOutcome, UpdaterControl, forward_install,
-        forward_release_status, forward_rollback, forward_switch_channel, install_audit,
-        rollback_audit, switch_channel_audit,
+        ForwardError, ReleaseStatus, SwitchChannelOutcome, UpdaterControl,
+        authorize_release_status_read, forward_install, forward_release_status, forward_rollback,
+        forward_switch_channel, install_audit, rollback_audit, switch_channel_audit,
     };
 
     struct FakeUpdater {
@@ -319,7 +328,43 @@ mod tests {
     }
 
     #[test]
-    fn owner_release_status_is_forwarded_and_a_member_is_refused() {
+    fn active_owners_and_members_may_read_release_status() {
+        assert_eq!(authorize_release_status_read("owner", "active"), Ok(()));
+        assert_eq!(authorize_release_status_read("member", "active"), Ok(()));
+    }
+
+    #[test]
+    fn inactive_memberships_may_not_read_release_status() {
+        for status in ["pending", "revoked", "removed", ""] {
+            assert_eq!(
+                authorize_release_status_read("owner", status),
+                Err(ForwardError::Refused)
+            );
+            assert_eq!(
+                authorize_release_status_read("member", status),
+                Err(ForwardError::Refused)
+            );
+        }
+    }
+
+    #[test]
+    fn callers_without_a_membership_may_not_read_release_status() {
+        assert_eq!(
+            authorize_release_status_read("", "active"),
+            Err(ForwardError::Refused)
+        );
+    }
+
+    #[test]
+    fn unknown_roles_may_not_read_release_status() {
+        assert_eq!(
+            authorize_release_status_read("guest", "active"),
+            Err(ForwardError::Refused)
+        );
+    }
+
+    #[test]
+    fn release_status_is_forwarded_to_owners_and_members_and_refused_when_inactive() {
         let updater = FakeUpdater {
             status: ReleaseStatus {
                 platform_version: "0.4.2".to_string(),
@@ -341,17 +386,19 @@ mod tests {
         assert!(!forwarded.newer_release_available);
         assert_eq!(updater.calls.load(Ordering::SeqCst), 1);
 
-        let member = forward_release_status("member", "active", &updater);
-        assert_eq!(member, Err(ForwardError::Refused));
-        assert_eq!(updater.calls.load(Ordering::SeqCst), 1);
+        let member = forward_release_status("member", "active", &updater).expect("member");
+        assert_eq!(member, forwarded);
+        assert_eq!(updater.calls.load(Ordering::SeqCst), 2);
 
         let pending = forward_release_status("owner", "pending", &updater);
         assert_eq!(pending, Err(ForwardError::Refused));
-        assert_eq!(updater.calls.load(Ordering::SeqCst), 1);
+        let pending_member = forward_release_status("member", "pending", &updater);
+        assert_eq!(pending_member, Err(ForwardError::Refused));
+        assert_eq!(updater.calls.load(Ordering::SeqCst), 2);
     }
 
     #[test]
-    fn an_owner_is_forwarded_a_newer_release_and_a_member_is_refused() {
+    fn owners_and_members_both_see_a_newer_release() {
         let updater = FakeUpdater {
             status: ReleaseStatus {
                 platform_version: "0.4.9".to_string(),
@@ -367,18 +414,16 @@ mod tests {
             switches: no_switches(),
         };
 
-        let forwarded = forward_release_status("owner", "active", &updater).expect("owner");
-        assert_eq!(forwarded.platform_version, "0.4.9");
-        assert_eq!(forwarded.channel, "stable");
-        assert!(forwarded.newer_release_available);
-        assert!(forwarded.maintenance_mode);
-        assert!(forwarded.rollback_snapshot_available);
-        assert!(forwarded.rollback_stuck);
-        assert_eq!(updater.calls.load(Ordering::SeqCst), 1);
-
-        let member = forward_release_status("member", "active", &updater);
-        assert_eq!(member, Err(ForwardError::Refused));
-        assert_eq!(updater.calls.load(Ordering::SeqCst), 1);
+        for role in ["owner", "member"] {
+            let forwarded = forward_release_status(role, "active", &updater).expect(role);
+            assert_eq!(forwarded.platform_version, "0.4.9");
+            assert_eq!(forwarded.channel, "stable");
+            assert!(forwarded.newer_release_available);
+            assert!(forwarded.maintenance_mode);
+            assert!(forwarded.rollback_snapshot_available);
+            assert!(forwarded.rollback_stuck);
+        }
+        assert_eq!(updater.calls.load(Ordering::SeqCst), 2);
     }
 
     #[test]

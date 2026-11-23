@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::api::auth::AuthenticatedClient;
 use crate::api::error::{ApiError, ApiResult};
-use crate::api::members::require_owner;
+use crate::api::members::{require_active_member, require_owner};
 use crate::audit;
 use crate::state::AppState;
 use crate::updater_control::{self, ForwardError, ReleaseStatus};
@@ -15,15 +15,17 @@ pub struct ApplyUpdateResponse {
     pub started: bool,
 }
 
+/// Reads Release status for any active Owner or Member (NEM-95).
+/// Home network and Relay both use this.
 pub async fn read_release_status(
     state: &AppState,
     auth: &AuthenticatedClient,
 ) -> ApiResult<ReleaseStatus> {
-    let member = require_owner(state, auth).await?;
+    let member = require_active_member(state, auth).await?;
     updater_control::forward_release_status(&member.role, &member.status, state.updater.as_ref())
         .map_err(|error| match error {
             ForwardError::Refused => {
-                ApiError::forbidden("owner_required", "Only the home owner can do that")
+                ApiError::forbidden("inactive_membership", "This Membership is not active")
             }
             ForwardError::Unavailable(message) => {
                 ApiError::service_unavailable("updater_unavailable", message)
