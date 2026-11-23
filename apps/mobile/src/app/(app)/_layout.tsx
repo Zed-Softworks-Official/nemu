@@ -3,6 +3,11 @@ import { Drawer } from 'expo-router/drawer'
 import { AppDrawerContent } from '~/components/app-drawer-content'
 import { HomeControlProvider } from '~/components/home-control'
 
+/**
+ * The drawer holds only the tabs. Rooms, Account and Settings are pushed
+ * onto the active tab's Stack (see `(tabs)/(home,devices,energy)`), so the
+ * native tab bar stays visible on every signed-in screen.
+ */
 export default function AppDrawerLayout() {
     return (
         <HomeControlProvider>
@@ -22,30 +27,7 @@ export default function AppDrawerLayout() {
                     overlayColor: 'rgba(0, 0, 0, 0.45)',
                 }}
             >
-                <Drawer.Screen
-                    name="(tabs)"
-                    options={{
-                        drawerLabel: 'Home',
-                    }}
-                />
-                <Drawer.Screen
-                    name="rooms"
-                    options={{
-                        drawerLabel: 'Rooms',
-                    }}
-                />
-                <Drawer.Screen
-                    name="account"
-                    options={{
-                        drawerLabel: 'Account',
-                    }}
-                />
-                <Drawer.Screen
-                    name="settings"
-                    options={{
-                        drawerLabel: 'Settings',
-                    }}
-                />
+                <Drawer.Screen name="(tabs)" />
             </Drawer>
         </HomeControlProvider>
     )
