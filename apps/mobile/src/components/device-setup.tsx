@@ -146,7 +146,8 @@ export function DeviceNameAndRoom({
     saveTitle = 'Save',
 }: {
     device: Device
-    onSaved?: () => void
+    /** Called with what was saved. */
+    onSaved?: (saved: { name: string; roomId: string | null }) => void
     saveTitle?: string
 }) {
     const { rooms } = useHomeControl()
@@ -168,7 +169,7 @@ export function DeviceNameAndRoom({
                 await assignRoom({ deviceId: device.id, roomId })
             }
         }, 'Saved')
-        if (saved) onSaved?.()
+        if (saved) onSaved?.({ name: trimmed, roomId })
     }
 
     return (
