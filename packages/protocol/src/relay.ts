@@ -5,6 +5,8 @@ import {
     clientTokenSchema,
     createRoomRequestSchema,
     householdMemberSchema,
+    memberHealthSummarySchema,
+    ownerHealthSummarySchema,
     releaseChannelSchema,
     releaseStatusSchema,
     renameDeviceRequestSchema,
@@ -111,6 +113,8 @@ const authenticatedRelayMessageSchema = z.union([
         type: z.literal('switchReleaseChannel'),
         channel: releaseChannelSchema,
     }),
+    // NEM-88: Controller health summary.
+    z.object({ type: z.literal('getHealthSummary') }),
 ])
 
 export const relayToControllerEnvelopeSchema = z.union([
@@ -181,6 +185,9 @@ export const relayToClientEnvelopeSchema = z.object({
         switchReleaseChannelResponseSchema.extend({
             type: z.literal('switchReleaseChannel'),
         }),
+        // NEM-88: Controller health summary, same body as LAN.
+        ownerHealthSummarySchema.extend({ type: z.literal('healthSummary') }),
+        memberHealthSummarySchema.extend({ type: z.literal('healthSummary') }),
     ]),
 })
 export type RelayToClientEnvelope = z.infer<typeof relayToClientEnvelopeSchema>
