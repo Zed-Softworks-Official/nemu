@@ -4,10 +4,14 @@ import {
     assignRoomRequestSchema,
     clientTokenSchema,
     createRoomRequestSchema,
+    deleteRoomRequestSchema,
     householdMemberSchema,
+    memberHealthSummarySchema,
+    ownerHealthSummarySchema,
     releaseChannelSchema,
     releaseStatusSchema,
     renameDeviceRequestSchema,
+    sessionResponseSchema,
     switchReleaseChannelResponseSchema,
 } from './api.ts'
 import {
@@ -73,7 +77,10 @@ const setupRelayMessageSchemas = [
         name: z.string().trim().min(1).max(255).optional(),
         sortOrder: z.number().int().optional(),
     }),
-    z.object({ type: z.literal('deleteRoom'), roomId: z.string().min(1) }),
+    deleteRoomRequestSchema.extend({
+        type: z.literal('deleteRoom'),
+        roomId: z.string().min(1),
+    }),
 ] as const
 
 const authenticatedRelayMessageSchema = z.union([
@@ -111,6 +118,10 @@ const authenticatedRelayMessageSchema = z.union([
         type: z.literal('switchReleaseChannel'),
         channel: releaseChannelSchema,
     }),
+    // NEM-86: session role
+    z.object({ type: z.literal('getSession') }),
+    // NEM-88: Controller health summary.
+    z.object({ type: z.literal('getHealthSummary') }),
 ])
 
 export const relayToControllerEnvelopeSchema = z.union([
@@ -181,6 +192,11 @@ export const relayToClientEnvelopeSchema = z.object({
         switchReleaseChannelResponseSchema.extend({
             type: z.literal('switchReleaseChannel'),
         }),
+        // NEM-86: session role
+        sessionResponseSchema.extend({ type: z.literal('session') }),
+        // NEM-88: Controller health summary, same body as LAN.
+        ownerHealthSummarySchema.extend({ type: z.literal('healthSummary') }),
+        memberHealthSummarySchema.extend({ type: z.literal('healthSummary') }),
     ]),
 })
 export type RelayToClientEnvelope = z.infer<typeof relayToClientEnvelopeSchema>

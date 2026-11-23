@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
-import { assignRoomRequestSchema } from './api.ts'
+import { assignRoomRequestSchema, deleteRoomRequestSchema } from './api.ts'
 import { deviceSchema } from './device.ts'
 import {
     relayToClientEnvelopeSchema,
@@ -31,7 +31,8 @@ describe('Device and Room setup requests over Relay', () => {
         { type: 'removeDevice', deviceId: 'lamp' },
         { type: 'createRoom', name: 'Den' },
         { type: 'updateRoom', roomId: 'den', name: 'Study' },
-        { type: 'deleteRoom', roomId: 'den' },
+        { type: 'deleteRoom', roomId: 'den', destinationRoomId: 'hall' },
+        { type: 'deleteRoom', roomId: 'den', destinationRoomId: null },
     ]) {
         it(`carries ${message.type} unchanged`, () => {
             const envelope = relayToControllerEnvelopeSchema.parse({
@@ -42,6 +43,17 @@ describe('Device and Room setup requests over Relay', () => {
             assert.deepEqual(envelope.message, message)
         })
     }
+
+    it('rejects a Room deletion without a destination', () => {
+        assert.equal(
+            relayToControllerEnvelopeSchema.safeParse({
+                requestId: 'r1',
+                clientToken: 't',
+                message: { type: 'deleteRoom', roomId: 'den' },
+            }).success,
+            false
+        )
+    })
 
     it('rejects a rename without a name', () => {
         assert.equal(
@@ -101,5 +113,19 @@ describe('Device Component Rooms', () => {
             assignRoomRequestSchema.parse({ deviceId: 'lamp', roomId: null }),
             { deviceId: 'lamp', roomId: null }
         )
+    })
+})
+
+describe('Deleting a Room over LAN', () => {
+    it('takes another Room or No Room as the destination', () => {
+        assert.deepEqual(
+            deleteRoomRequestSchema.parse({ destinationRoomId: 'hall' }),
+            { destinationRoomId: 'hall' }
+        )
+        assert.deepEqual(
+            deleteRoomRequestSchema.parse({ destinationRoomId: null }),
+            { destinationRoomId: null }
+        )
+        assert.equal(deleteRoomRequestSchema.safeParse({}).success, false)
     })
 })

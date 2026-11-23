@@ -119,25 +119,20 @@ describe('RelayTransport leaving and revocation', () => {
     })
 
     it('keeps error details, as on LAN', async () => {
-        const details = {
-            devices: [],
-            components: [
-                {
-                    deviceId: 'strip',
-                    deviceName: 'Power strip',
-                    componentId: 'l2',
-                },
-            ],
-        }
+        const details = { roomId: 'attic' }
         const { relay } = relayAnswering({
             type: 'commandResult',
             ok: false,
-            error: { code: 'room_not_empty', message: 'Not empty', details },
+            error: {
+                code: 'destination_not_found',
+                message: 'The destination Room no longer exists',
+                details,
+            },
         })
         await relay.connect()
         try {
-            await assert.rejects(relay.deleteRoom('den'), {
-                code: 'room_not_empty',
+            await assert.rejects(relay.deleteRoom('den', 'attic'), {
+                code: 'destination_not_found',
                 details,
             })
         } finally {
@@ -235,7 +230,8 @@ describe('RelayTransport Device and Room setup', () => {
                 name: 'Den',
             })
             await relay.renameRoom({ roomId: 'den', name: 'Den' })
-            await relay.deleteRoom('den')
+            await relay.deleteRoom('den', 'hall')
+            await relay.deleteRoom('den', null)
             assert.deepEqual(
                 sent().filter((m) => m.type !== 'watchCapabilityChanges'),
                 [
@@ -253,7 +249,16 @@ describe('RelayTransport Device and Room setup', () => {
                     { type: 'removeDevice', deviceId: 'lamp' },
                     { type: 'createRoom', name: 'Den' },
                     { type: 'updateRoom', roomId: 'den', name: 'Den' },
-                    { type: 'deleteRoom', roomId: 'den' },
+                    {
+                        type: 'deleteRoom',
+                        roomId: 'den',
+                        destinationRoomId: 'hall',
+                    },
+                    {
+                        type: 'deleteRoom',
+                        roomId: 'den',
+                        destinationRoomId: null,
+                    },
                 ]
             )
         } finally {

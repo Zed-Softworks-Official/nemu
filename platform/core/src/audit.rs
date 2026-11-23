@@ -24,6 +24,7 @@ pub enum AuditKind {
     AutomationChange,
     HistoryBudgetChange,
     HomeMeterDesignation,
+    RoomDeletion,
 }
 
 impl AuditKind {
@@ -38,6 +39,7 @@ impl AuditKind {
             Self::AutomationChange => "automation_change",
             Self::HistoryBudgetChange => "history_budget_change",
             Self::HomeMeterDesignation => "home_meter_designation",
+            Self::RoomDeletion => "room_deletion",
         }
     }
 }
