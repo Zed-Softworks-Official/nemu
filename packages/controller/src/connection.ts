@@ -282,8 +282,12 @@ export class ControllerConnection {
         }
     }
 
+    /*
+     * Commissioning works over LAN and Relay for every Membership
+     * (ADR-0034). Like setup, it never queues: it needs a live connection.
+     */
     async permitJoin(seconds: number): Promise<PermitJoinResponse> {
-        const transport = this.requireLanTransport('Device pairing')
+        const transport = this.requireConnectedTransport('Device pairing')
         if (!transport.permitJoin) {
             throw new Error(
                 'Device pairing is not supported by this controller'
@@ -295,8 +299,7 @@ export class ControllerConnection {
     async commissionMatter(
         request: CommissionRequest
     ): Promise<CommissionResponse> {
-        // LAN-only like permitJoin: Wi-Fi credentials never traverse the relay.
-        const transport = this.requireLanTransport('Matter pairing')
+        const transport = this.requireConnectedTransport('Matter pairing')
         if (!transport.commissionMatter) {
             throw new Error(
                 'Matter pairing is not supported by this controller'
@@ -306,7 +309,7 @@ export class ControllerConnection {
     }
 
     async cancelMatterCommission(): Promise<CommissionResponse> {
-        const transport = this.requireLanTransport('Matter pairing')
+        const transport = this.requireConnectedTransport('Matter pairing')
         if (!transport.cancelMatterCommission) {
             throw new Error(
                 'Matter pairing is not supported by this controller'
@@ -316,7 +319,7 @@ export class ControllerConnection {
     }
 
     async getMatterWifi(): Promise<MatterWifiResponse> {
-        const transport = this.requireLanTransport('Matter pairing')
+        const transport = this.requireConnectedTransport('Matter pairing')
         if (!transport.getMatterWifi) {
             throw new Error(
                 'Matter pairing is not supported by this controller'
@@ -328,7 +331,7 @@ export class ControllerConnection {
     async saveMatterWifi(
         request: SaveMatterWifiRequest
     ): Promise<MatterWifiResponse> {
-        const transport = this.requireLanTransport('Matter pairing')
+        const transport = this.requireConnectedTransport('Matter pairing')
         if (!transport.saveMatterWifi) {
             throw new Error(
                 'Matter pairing is not supported by this controller'
@@ -562,23 +565,6 @@ export class ControllerConnection {
             )
         }
         return await transport.bootstrapOwner(request)
-    }
-
-    /**
-     * Commissioning is LAN-only (ADR-0030). Over Relay it is rejected here,
-     * as the Controller would reject it, without sending anything.
-     */
-    private requireLanTransport(operation: string): ControllerTransport {
-        if (this.status.mode === 'relay') {
-            throw new ApiError(
-                'unsupported_action',
-                `${operation} is not available over Relay. Adding a Device needs this phone on the Home network.`
-            )
-        }
-        if (this.status.mode !== 'lan' || !this.transport) {
-            throw new Error(`${operation} requires a Home connection`)
-        }
-        return this.transport
     }
 
     /** Setup never queues: it needs a live LAN or Relay connection now. */

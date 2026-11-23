@@ -53,9 +53,9 @@ export interface ControllerTransport {
     /** Fires after a dropped LAN socket opens again. */
     onSocketReopen?(cb: () => void): () => void
     permitJoin?(seconds: number): Promise<PermitJoinResponse>
-    /** Matter commissioning. LAN transport only, same policy as permitJoin. */
+    /** Matter commissioning, over LAN or Relay (ADR-0034). */
     commissionMatter?(request: CommissionRequest): Promise<CommissionResponse>
-    /** Abort in-flight Matter commissioning. LAN transport only. */
+    /** Abort in-flight Matter commissioning. */
     cancelMatterCommission?(): Promise<CommissionResponse>
     getMatterWifi?(): Promise<MatterWifiResponse>
     saveMatterWifi?(request: SaveMatterWifiRequest): Promise<MatterWifiResponse>
