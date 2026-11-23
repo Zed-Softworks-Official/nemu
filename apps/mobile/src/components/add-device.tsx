@@ -1,6 +1,6 @@
 import { useDevicePairing } from '@nemu/controller'
 import type { Device } from '@nemu/protocol'
-import { type ComponentType, useState } from 'react'
+import { type ComponentType, useEffect, useState } from 'react'
 import { ScrollView, TextInput, View } from 'react-native'
 
 import { DevicesView } from '~/components/control-surface'
@@ -20,21 +20,53 @@ export type CodeScanner = ComponentType<{ onCode: (data: string) => void }>
 /**
  * The Devices tab: the Device list, and adding a Device when the phone is on
  * the Home network. Commissioning is LAN-only (ADR-0030).
+ *
+ * Adding stays mounted while the connection is re-checked (`probing`), so a
+ * brief blip does not cancel commissioning. It stops only when the person
+ * cancels or the connection settles on Relay or offline.
  */
 export function DevicesTab({ Scanner }: { Scanner?: CodeScanner }) {
     const { status } = useHomeControl()
     const [adding, setAdding] = useState(false)
+    const [stopped, setStopped] = useState(false)
+    const settledAway = status.mode === 'relay' || status.mode === 'offline'
 
-    if (adding && status.mode === 'lan') {
-        return <AddDevice onClose={() => setAdding(false)} Scanner={Scanner} />
+    useEffect(() => {
+        if (adding && settledAway) {
+            // Unmounting AddDevice stops commissioning on the Controller.
+            setAdding(false)
+            setStopped(true)
+        }
+    }, [adding, settledAway])
+
+    if (adding && !settledAway) {
+        return (
+            <AddDevice
+                onClose={() => setAdding(false)}
+                Scanner={Scanner}
+                waiting={status.mode !== 'lan'}
+            />
+        )
     }
 
     return (
         <View className="min-h-0 flex-1 gap-4">
+            {stopped ? (
+                <Text
+                    accessibilityRole="alert"
+                    className="text-muted-foreground text-sm leading-relaxed"
+                >
+                    Adding a Device stopped because this phone left the Home
+                    network. Nothing new was added.
+                </Text>
+            ) : null}
             {status.mode === 'lan' ? (
                 <View className="flex-row">
                     <Button
-                        onPress={() => setAdding(true)}
+                        onPress={() => {
+                            setStopped(false)
+                            setAdding(true)
+                        }}
                         title="Add a Device"
                         variant="outline"
                     />
@@ -70,9 +102,12 @@ const MATTER_STAGES: Record<string, string> = {
 export function AddDevice({
     Scanner,
     onClose,
+    waiting = false,
 }: {
     Scanner?: CodeScanner
     onClose: () => void
+    /** The connection is being re-checked; the Controller keeps going. */
+    waiting?: boolean
 }) {
     const pairing = useDevicePairing()
     const { showNotice } = useHomeControl()
@@ -220,6 +255,14 @@ export function AddDevice({
                     <Button onPress={close} title="Back" variant="ghost" />
                 )}
             </View>
+            {waiting ? (
+                <Text
+                    accessibilityLiveRegion="polite"
+                    className="text-muted-foreground text-sm"
+                >
+                    Reconnecting to your Home network…
+                </Text>
+            ) : null}
             {notice ? (
                 <Text
                     accessibilityLiveRegion="polite"

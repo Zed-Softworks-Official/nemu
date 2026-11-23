@@ -1,4 +1,4 @@
-import { ControllerProvider } from '@nemu/controller'
+import { ControllerProvider, useController } from '@nemu/controller'
 import {
     createMemoryCredentialStore,
     FakeController,
@@ -70,21 +70,39 @@ function home(lanReachable: boolean) {
     })
 }
 
+/** Lets a test re-check the connection, as the app does after a blip. */
+function Reprobe() {
+    const { reprobe } = useController()
+    return <Button onPress={() => void reprobe()} title="Re-check connection" />
+}
+
 async function renderDevicesTab(
     controller: FakeController,
-    { camera = true }: { camera?: boolean } = {}
+    {
+        camera = true,
+        discoverGate,
+    }: { camera?: boolean; discoverGate?: () => Promise<void> } = {}
 ) {
     const Scanner = camera ? FakeScanner : undefined
     const credentialStore = createMemoryCredentialStore()
     credentialStore.set(controller.controllerId, { clientToken: 'token' })
+    const connectors = fakeControllerConnectors(controller)
+    const discover = connectors.discover
     await render(
         <ControllerProvider
-            connectors={fakeControllerConnectors(controller)}
+            connectors={{
+                ...connectors,
+                discover: async (...args) => {
+                    await discoverGate?.()
+                    return discover ? discover(...args) : null
+                },
+            }}
             controllerId={controller.controllerId}
             credentialStore={credentialStore}
             lanCandidates={[controller.baseUrl]}
         >
             <HomeControlProvider>
+                <Reprobe />
                 <DevicesTab Scanner={Scanner} />
             </HomeControlProvider>
         </ControllerProvider>
@@ -250,6 +268,66 @@ describe('Adding a Device on the Home network', () => {
 
         await waitFor(() => expect(controller.zigbeeJoinOpenFor).toBe(0))
         await screen.findByText('Cancelled. Nothing was added.')
+    })
+})
+
+describe('Adding a Device while the connection changes', () => {
+    async function commissioningMatter(controller: FakeController) {
+        await startAdding()
+        await press('Matter')
+        scans.push('MT:Y.K9042C00KA0648G00')
+        await press('Scan with the camera')
+        await waitFor(() =>
+            expect(controller.matterCommissioning).not.toBeNull()
+        )
+    }
+
+    it('keeps commissioning through a brief re-check of the Home network', async () => {
+        const controller = home(true)
+        let release: () => void = () => {}
+        let gated = false
+        await renderDevicesTab(controller, {
+            discoverGate: () =>
+                gated
+                    ? new Promise<void>((resolve) => {
+                          release = resolve
+                      })
+                    : Promise.resolve(),
+        })
+        await commissioningMatter(controller)
+
+        gated = true
+        await press('Re-check connection')
+        await screen.findByText(/Reconnecting to your Home network/)
+        expect(screen.getByText('Add a Device')).toBeTruthy()
+        expect(controller.matterCommissioning).not.toBeNull()
+
+        gated = false
+        await act(async () => release())
+        await waitFor(() =>
+            expect(
+                screen.queryByText(/Reconnecting to your Home network/)
+            ).toBeNull()
+        )
+        expect(controller.matterCommissioning).not.toBeNull()
+        expect(controller.commissioningRequests).not.toContainEqual(
+            expect.objectContaining({ type: 'cancelMatterCommission' })
+        )
+    })
+
+    it('stops adding once the phone settles on Relay', async () => {
+        const controller = home(true)
+        await renderDevicesTab(controller)
+        await commissioningMatter(controller)
+
+        controller.lanReachable = false
+        await press('Re-check connection')
+
+        await screen.findByText('Away from home')
+        await screen.findByText(/Adding a Device stopped/)
+        expect(
+            screen.queryByRole('button', { name: 'Add a Device' })
+        ).toBeNull()
     })
 })
 
