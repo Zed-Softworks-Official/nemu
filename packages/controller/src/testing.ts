@@ -12,6 +12,7 @@
 import {
     ApiError,
     type AssignRoomRequest,
+    type ClientToken,
     type CommandResult,
     type CommissionRequest,
     type CommissionResponse,
@@ -22,6 +23,7 @@ import {
     type HistoryQuery,
     type HistoryQueryRead,
     type HomeMeterDesignation,
+    type HouseholdMember,
     type IdentifyResponse,
     type MatterWifiResponse,
     type PairResponse,
@@ -33,6 +35,7 @@ import {
     type Room,
     type RoomNotEmptyDetails,
     type SessionMintResult,
+    type UpdateStatusResponse,
 } from '@nemu/protocol'
 import type { ControllerConnectors } from './connection.ts'
 import type { ProbeResult } from './discovery.ts'
@@ -118,6 +121,15 @@ export class FakeController {
         type: string
         via: TransportMode
     }> = []
+    // --- Household and Release reads (NEM-89) ---
+    /** Household members the Controller lists. */
+    members: HouseholdMember[] = []
+    /** Access Clients the Controller lists. */
+    accessClients: ClientToken[] = []
+    /** Installed Release status, or null when the Controller cannot read it. */
+    releaseStatus: UpdateStatusResponse | null = null
+    // --- end Household and Release reads ---
+
     private readonly tokens: Set<string>
     private readonly otherMembershipTokens: Set<string>
     private readonly transports = new Set<FakeTransport>()
@@ -583,6 +595,30 @@ export class FakeTransport implements ControllerTransport {
     async designateHomeMeter(): Promise<HomeMeterDesignation> {
         throw new Error('Home meter is not scripted on FakeController')
     }
+
+    // --- Household and Release reads (NEM-89) ---
+    async getMembers(): Promise<HouseholdMember[]> {
+        this.authorize()
+        return structuredClone(this.controller.members)
+    }
+
+    async getTokens(): Promise<ClientToken[]> {
+        this.authorize()
+        return structuredClone(this.controller.accessClients)
+    }
+
+    async getReleaseStatus(): Promise<UpdateStatusResponse> {
+        this.authorize()
+        if (!this.controller.releaseStatus) {
+            throw new ApiError(
+                'updater_unavailable',
+                'The Updater is unavailable',
+                503
+            )
+        }
+        return structuredClone(this.controller.releaseStatus)
+    }
+    // --- end Household and Release reads ---
 
     subscribeEvents(cb: (event: DeviceEvent) => void): () => void {
         this.listeners.add(cb)

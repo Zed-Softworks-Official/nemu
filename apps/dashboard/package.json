@@ -13,7 +13,7 @@
         "start": "next start",
         "check-types": "tsc --noEmit",
         "typecheck": "tsc --noEmit",
-        "test": "node --experimental-strip-types --test src/lib/energy-presentation.test.ts src/lib/room-presentation.test.ts",
+        "test": "vitest run",
         "with-env": "dotenv -e ../../.env --"
     },
     "dependencies": {
@@ -38,12 +38,19 @@
         "@nemu/biome-config": "workspace:*",
         "@nemu/typescript-config": "workspace:*",
         "@tailwindcss/postcss": "catalog:",
+        "@testing-library/dom": "^10.4.2",
+        "@testing-library/jest-dom": "^8.0.0",
+        "@testing-library/react": "^16.3.3",
+        "@testing-library/user-event": "^14.6.13",
         "@types/node": "catalog:",
         "@types/react": "catalog:",
         "@types/react-dom": "catalog:",
+        "@vitejs/plugin-react": "^6.3.0",
+        "jsdom": "^26.1.0",
         "postcss": "^8.5.3",
         "tailwindcss": "catalog:",
-        "typescript": "catalog:"
+        "typescript": "catalog:",
+        "vitest": "^5.1.1"
     },
     "ct3aMetadata": {
         "initVersion": "7.40.0"
