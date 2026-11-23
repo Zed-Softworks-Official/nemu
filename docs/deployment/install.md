@@ -130,9 +130,11 @@ An explicit **Publish Release** run ignores the platform-hash skip. On `canary` 
 
 Postgres, Mosquitto, and Zigbee2MQTT are pinned by digest. They do not receive `:canary` or `:latest`. Homes install the signed manifest.
 
+Each `v0.*` GitHub release carries its own immutable `release-manifest.json`. The channel manifests are mutable pointers, so they are served from the install host instead: `https://get.nemu.sh/releases/canary.json` and `https://get.nemu.sh/releases/stable.json`. The workflow writes them to the `nemu-release-channels` Vercel Blob store on the `nemu-web` project, with a 60-second cache, so a promotion shows up within a few minutes. The host is not trusted. The installer and Updater verify the signature against the pinned release key and refuse a Platform version older than the installed one.
+
 `core-v*` and `matter-v*` do not publish a platform Release.
 
-The private release-signing key is the `NEMU_RELEASE_SIGNING_KEY` repository secret.
+The private release-signing key is the `NEMU_RELEASE_SIGNING_KEY` repository secret. The Blob write token is the `NEMU_RELEASE_CHANNELS_BLOB_TOKEN` repository secret.
 
 See [`.github/workflows/publish-release.yml`](../../.github/workflows/publish-release.yml).
 
