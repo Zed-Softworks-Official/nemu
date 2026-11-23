@@ -8,6 +8,8 @@ A platform Release is published by [`.github/workflows/publish-release.yml`](../
 
 The private release-signing key is the `NEMU_RELEASE_SIGNING_KEY` repository secret. It stays in the publisher.
 
+The signed channel manifests (`canary.json`, `stable.json`) are written to the `nemu-release-channels` Vercel Blob store with the `NEMU_RELEASE_CHANNELS_BLOB_TOKEN` repository secret, and `get.nemu.sh/releases/<channel>.json` serves them. They are not GitHub release assets.
+
 ## Controls
 
 ### Branches
@@ -24,6 +26,10 @@ The private release-signing key is the `NEMU_RELEASE_SIGNING_KEY` repository sec
 
 1. **Tag ruleset** — `Protect platform release tags`  
    Blocks update/delete/force-push of `v0.*` tags for everyone except `@kzolt` (bypass). Creation stays open so the publish workflow can attach the signed manifest and create the tag with `GITHUB_TOKEN`.
+
+### Immutable releases
+
+Immutable releases are enabled on this repository. Once a `v0.*` release is published, its `release-manifest.json` cannot be replaced or deleted, and no asset is replaced in place. That is why the channel pointers live on the install host rather than on a GitHub release.
 
 ### CODEOWNERS
 

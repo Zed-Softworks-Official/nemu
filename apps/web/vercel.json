@@ -8,6 +8,10 @@
             "source": "/",
             "has": [{ "type": "host", "value": "get.nemu.sh" }],
             "destination": "/install.sh"
+        },
+        {
+            "source": "/releases/:channel(canary|stable).json",
+            "destination": "https://qvztei2juwyf4zjk.public.blob.vercel-storage.com/releases/:channel.json"
         }
     ],
     "headers": [

@@ -25,6 +25,11 @@
 # The private release-signing key is the NEMU_RELEASE_SIGNING_KEY secret
 # (base64 of the 32-byte ed25519 seed). This workflow does not print it and
 # does not upload installed-version or channel telemetry.
+#
+# The signed channel manifest is written to the nemu-release-channels Vercel
+# Blob store with NEMU_RELEASE_CHANNELS_BLOB_TOKEN, and get.nemu.sh serves it
+# at /releases/<channel>.json. That host is not trusted: Homes verify the
+# signature against the pinned key.
 
 name: Publish Release
 
@@ -318,10 +323,22 @@ jobs:
       - name: Build publish-release
         run: cargo build --release --locked --bin publish-release --manifest-path platform/updater/Cargo.toml
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install the channel manifest publisher
+        run: |
+          mkdir -p "$RUNNER_TEMP/channel-publisher"
+          cp scripts/publish-channel-manifest.mjs "$RUNNER_TEMP/channel-publisher/"
+          npm install --no-save --no-package-lock --prefix "$RUNNER_TEMP/channel-publisher" @vercel/blob@2.8.2
+
       - name: Plan and publish the Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_SIGNING_KEY: ${{ secrets.NEMU_RELEASE_SIGNING_KEY }}
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.NEMU_RELEASE_CHANNELS_BLOB_TOKEN }}
           SOURCE: ${{ needs.prepare.outputs.source }}
           MINOR_BUMP: ${{ needs.prepare.outputs.minor_bump }}
           SHOULD_BUILD: ${{ needs.prepare.outputs.should_build }}
@@ -428,6 +445,12 @@ jobs:
             echo "NEMU_RELEASE_SIGNING_KEY is not set" >&2
             exit 1
           fi
+          # Check before any tag moves, so a missing token cannot leave
+          # :latest or a version tag ahead of the channel manifest.
+          if [ -z "${BLOB_READ_WRITE_TOKEN:-}" ]; then
+            echo "NEMU_RELEASE_CHANNELS_BLOB_TOKEN is not set" >&2
+            exit 1
+          fi
           NEMU_RELEASE_SIGNING_KEY="$signing_key" \
             ./platform/updater/target/release/publish-release \
             < "$RUNNER_TEMP/request.json" > "$RUNNER_TEMP/plan.json"
@@ -483,16 +506,14 @@ jobs:
             fi
           fi
 
-          cp "$RUNNER_TEMP/release-manifest.json" "$RUNNER_TEMP/${channel}.json"
-          if gh release view release-manifests >/dev/null 2>&1; then
-            gh release upload release-manifests "$RUNNER_TEMP/${channel}.json#${channel}.json" --clobber
-          else
-            gh release create release-manifests \
-              "$RUNNER_TEMP/${channel}.json#${channel}.json" \
-              --target "$PLAN_COMMIT" \
-              --title "Release manifests" \
-              --notes "Signed Canary and Stable manifests. A Home installs the manifest for its Release channel."
-          fi
+          # Channel manifests are mutable pointers, so they live on the install
+          # host (get.nemu.sh/releases/<channel>.json), not on an immutable
+          # GitHub release. Each v0.* release keeps its own manifest.
+          url=$(node "$RUNNER_TEMP/channel-publisher/publish-channel-manifest.mjs" \
+            "$channel" "$RUNNER_TEMP/release-manifest.json")
+          echo "Published ${channel}.json to ${url}"
+          curl -fsSL -H 'Cache-Control: no-cache' "${url}?v=${PLAN_COMMIT}" -o "$RUNNER_TEMP/published.json"
+          cmp "$RUNNER_TEMP/release-manifest.json" "$RUNNER_TEMP/published.json"
 
           # Only sync master back when this publish allocated a new version.
           # Reusing a cut for Stable leaves canary alone. Canary requires a
