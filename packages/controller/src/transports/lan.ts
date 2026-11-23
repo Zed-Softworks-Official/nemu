@@ -18,6 +18,7 @@ import {
     type Device,
     type DeviceCommand,
     type DeviceEvent,
+    deleteRoomRequestSchema,
     deviceEventSchema,
     deviceSchema,
     devicesResponseSchema,
@@ -269,8 +270,13 @@ export class LanTransport implements ControllerTransport {
         return roomSchema.parse(data)
     }
 
-    async deleteRoom(roomId: string): Promise<void> {
-        await this.http.delete(`/api/rooms/${encodeURIComponent(roomId)}`)
+    async deleteRoom(
+        roomId: string,
+        destinationRoomId: string | null
+    ): Promise<void> {
+        await this.http.delete(`/api/rooms/${encodeURIComponent(roomId)}`, {
+            data: deleteRoomRequestSchema.parse({ destinationRoomId }),
+        })
     }
 
     async patchDevice(

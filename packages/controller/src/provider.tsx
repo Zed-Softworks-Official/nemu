@@ -76,7 +76,11 @@ type ControllerContextValue = {
     getRooms: () => Promise<Room[]>
     createRoom: (request: CreateRoomRequest) => Promise<Room>
     patchRoom: (roomId: string, patch: PatchRoomRequest) => Promise<Room>
-    deleteRoom: (roomId: string) => Promise<void>
+    /** `destinationRoomId: null` moves the Room's contents to No Room. */
+    deleteRoom: (
+        roomId: string,
+        destinationRoomId: string | null
+    ) => Promise<void>
     patchDevice: (
         deviceId: string,
         patch: PatchDeviceRequest
@@ -90,7 +94,8 @@ type ControllerContextValue = {
     /**
      * Device and Room setup over LAN or Relay. Each rejects with an
      * `ApiError` whose `code` comes from the Controller, for example
-     * `inactive_membership`, `room_not_empty`, or `unsupported_action`.
+     * `inactive_membership`, `destination_not_found`, or
+     * `unsupported_action`.
      * Nothing is queued while the Controller is unreachable.
      */
     renameDevice: (request: RenameDeviceRequest) => Promise<Device>
@@ -245,7 +250,8 @@ export function ControllerProvider({
         [connection]
     )
     const deleteRoom = useCallback(
-        (roomId: string) => connection.deleteRoom(roomId),
+        (roomId: string, destinationRoomId: string | null) =>
+            connection.deleteRoom(roomId, destinationRoomId),
         [connection]
     )
     const patchDevice = useCallback(

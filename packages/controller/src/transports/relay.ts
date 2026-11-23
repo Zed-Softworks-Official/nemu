@@ -385,8 +385,14 @@ export class RelayTransport implements ControllerTransport {
         )
     }
 
-    async deleteRoom(roomId: string): Promise<void> {
-        await this.expectOk({ type: 'deleteRoom', roomId }, 'delete the Room')
+    async deleteRoom(
+        roomId: string,
+        destinationRoomId: string | null
+    ): Promise<void> {
+        await this.expectOk(
+            { type: 'deleteRoom', roomId, destinationRoomId },
+            'delete the Room'
+        )
     }
 
     private async expectDevice(

@@ -31,7 +31,6 @@ import {
     type RenameDeviceRequest,
     type RenameRoomRequest,
     type Room,
-    type RoomNotEmptyDetails,
     type SessionMintResult,
 } from '@nemu/protocol'
 import type { ControllerConnectors } from './connection.ts'
@@ -334,33 +333,60 @@ export class FakeController {
         return structuredClone(room)
     }
 
-    /** @internal */
-    deleteRoom(roomId: string): void {
+    // --- Room deletion with a destination (NEM-87) ---------------------
+
+    /** Room deletions this Controller carried out, in order. */
+    readonly deletedRooms: Array<{
+        roomId: string
+        destinationRoomId: string | null
+        via: TransportMode
+    }> = []
+
+    /**
+     * @internal Like Core: moves every Device in the Room, and every
+     * Component explicitly assigned to it, to the destination, then deletes
+     * the Room. A Component moving to No Room loses its explicit
+     * assignment. An invalid destination changes nothing.
+     */
+    deleteRoom(
+        roomId: string,
+        destinationRoomId: string | null,
+        via: TransportMode
+    ): void {
         const room = this.requireRoom(roomId)
-        const details: RoomNotEmptyDetails = {
-            devices: this.devices
-                .filter((device) => device.roomId === roomId)
-                .map(({ id, name }) => ({ id, name })),
-            components: this.devices.flatMap((device) =>
-                Object.entries(device.componentRooms ?? {})
-                    .filter(([, room]) => room === roomId)
-                    .map(([componentId]) => ({
-                        deviceId: device.id,
-                        deviceName: device.name,
-                        componentId,
-                    }))
-            ),
-        }
-        if (details.devices.length > 0 || details.components.length > 0) {
+        if (destinationRoomId === roomId) {
             throw new ApiError(
-                'room_not_empty',
-                "Move this Room's Devices and Components to another Room first",
-                409,
-                details
+                'invalid_destination',
+                "Choose another Room, or No Room, for this Room's Devices",
+                400
             )
         }
+        if (
+            destinationRoomId !== null &&
+            !this.rooms.some((other) => other.id === destinationRoomId)
+        ) {
+            throw new ApiError(
+                'destination_not_found',
+                'The destination Room no longer exists',
+                404
+            )
+        }
+        for (const device of this.devices) {
+            if (device.roomId === roomId) device.roomId = destinationRoomId
+            const rooms = { ...device.componentRooms }
+            for (const [componentId, assigned] of Object.entries(rooms)) {
+                if (assigned !== roomId) continue
+                if (destinationRoomId === null) delete rooms[componentId]
+                else rooms[componentId] = destinationRoomId
+            }
+            device.componentRooms =
+                Object.keys(rooms).length > 0 ? rooms : undefined
+        }
         this.rooms = this.rooms.filter((other) => other !== room)
+        this.deletedRooms.push({ roomId, destinationRoomId, via })
     }
+
+    // --- end Room deletion with a destination ---------------------------
 
     private requireDevice(deviceId: string): Device {
         const device = this.devices.find((d) => d.id === deviceId)
@@ -513,8 +539,13 @@ export class FakeTransport implements ControllerTransport {
         )
     }
 
-    async deleteRoom(roomId: string): Promise<void> {
-        this.setup('deleteRoom', () => this.controller.deleteRoom(roomId))
+    async deleteRoom(
+        roomId: string,
+        destinationRoomId: string | null
+    ): Promise<void> {
+        this.setup('deleteRoom', () =>
+            this.controller.deleteRoom(roomId, destinationRoomId, this.mode)
+        )
     }
 
     async permitJoin(seconds: number): Promise<PermitJoinResponse> {

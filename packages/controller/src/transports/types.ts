@@ -62,7 +62,7 @@ export interface ControllerTransport {
     getRooms?(): Promise<Room[]>
     createRoom?(request: CreateRoomRequest): Promise<Room>
     patchRoom?(roomId: string, patch: PatchRoomRequest): Promise<Room>
-    deleteRoom?(roomId: string): Promise<void>
+    deleteRoom?(roomId: string, destinationRoomId: string | null): Promise<void>
     patchDevice?(deviceId: string, patch: PatchDeviceRequest): Promise<Device>
     patchOutlet?(
         deviceId: string,
@@ -104,7 +104,7 @@ export interface ControllerTransport {
     getRooms?(): Promise<Room[]>
     createRoom?(request: CreateRoomRequest): Promise<Room>
     patchRoom?(roomId: string, patch: PatchRoomRequest): Promise<Room>
-    deleteRoom?(roomId: string): Promise<void>
+    deleteRoom?(roomId: string, destinationRoomId: string | null): Promise<void>
     patchDevice?(deviceId: string, patch: PatchDeviceRequest): Promise<Device>
     patchOutlet?(
         deviceId: string,

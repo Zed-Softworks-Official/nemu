@@ -4,6 +4,7 @@ import {
     assignRoomRequestSchema,
     clientTokenSchema,
     createRoomRequestSchema,
+    deleteRoomRequestSchema,
     householdMemberSchema,
     releaseChannelSchema,
     releaseStatusSchema,
@@ -73,7 +74,10 @@ const setupRelayMessageSchemas = [
         name: z.string().trim().min(1).max(255).optional(),
         sortOrder: z.number().int().optional(),
     }),
-    z.object({ type: z.literal('deleteRoom'), roomId: z.string().min(1) }),
+    deleteRoomRequestSchema.extend({
+        type: z.literal('deleteRoom'),
+        roomId: z.string().min(1),
+    }),
 ] as const
 
 const authenticatedRelayMessageSchema = z.union([

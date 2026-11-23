@@ -118,17 +118,56 @@ for (const via of ['lan', 'relay'] as const) {
             )
         })
 
-        it('deletes a Room only after its Devices move', async () => {
-            const { connection } = await connected(via)
-            await assert.rejects(connection.deleteRoom('den'), {
-                code: 'room_not_empty',
-            })
-            await connection.assignRoom({ deviceId: 'lamp', roomId: 'hall' })
-            await connection.deleteRoom('den')
+        it('deletes a Room and moves its contents to another Room', async () => {
+            const { home, connection } = await connected(via)
+            home.setDevices([
+                lamp(),
+                {
+                    ...lamp(),
+                    id: 'strip',
+                    name: 'Strip',
+                    roomId: 'hall',
+                    componentRooms: { l1: 'den' },
+                },
+            ])
+            await connection.deleteRoom('den', 'hall')
             assert.deepEqual(
                 (await connection.getRooms()).map((room) => room.id),
                 ['hall']
             )
+            const devices = await connection.getDevices()
+            assert.equal(devices.find((d) => d.id === 'lamp')?.roomId, 'hall')
+            assert.deepEqual(
+                devices.find((d) => d.id === 'strip')?.componentRooms,
+                { l1: 'hall' }
+            )
+            assert.deepEqual(home.deletedRooms, [
+                { roomId: 'den', destinationRoomId: 'hall', via },
+            ])
+        })
+
+        it('deletes a Room and moves its contents to No Room', async () => {
+            const { connection } = await connected(via)
+            await connection.deleteRoom('den', null)
+            const devices = await connection.getDevices()
+            assert.equal(devices.find((d) => d.id === 'lamp')?.roomId, null)
+        })
+
+        it('leaves everything in place for an invalid destination', async () => {
+            const { home, connection } = await connected(via)
+            await assert.rejects(connection.deleteRoom('den', 'den'), {
+                code: 'invalid_destination',
+            })
+            await assert.rejects(connection.deleteRoom('den', 'attic'), {
+                code: 'destination_not_found',
+            })
+            assert.deepEqual(
+                (await connection.getRooms()).map((room) => room.id),
+                ['den', 'hall']
+            )
+            const devices = await connection.getDevices()
+            assert.equal(devices.find((d) => d.id === 'lamp')?.roomId, 'den')
+            assert.deepEqual(home.deletedRooms, [])
         })
 
         it('surfaces an inactive Membership without changing anything', async () => {

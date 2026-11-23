@@ -5,7 +5,7 @@ export const apiErrorBodySchema = z.object({
     error: z.object({
         code: z.string(),
         message: z.string(),
-        /** Structured context, such as the blockers of `room_not_empty`. */
+        /** Structured context about the error, when the Controller sends any. */
         details: z.unknown().optional(),
     }),
 })
@@ -134,7 +134,23 @@ export const assignRoomRequestSchema = z.object({
 })
 export type AssignRoomRequest = z.infer<typeof assignRoomRequestSchema>
 
-/** `details` of a `room_not_empty` error: what still uses the Room. */
+/**
+ * Delete a Room and move its Devices, and the Components explicitly assigned
+ * to it, to a destination in one step. `destinationRoomId` is required:
+ * another Room's ID, or `null` for No Room. LAN sends this as the body of
+ * `DELETE /api/rooms/:id`.
+ */
+export const deleteRoomRequestSchema = z.object({
+    destinationRoomId: z.string().min(1).nullable(),
+})
+export type DeleteRoomRequest = z.infer<typeof deleteRoomRequestSchema>
+
+/**
+ * `details` of a `room_not_empty` error: what still uses the Room.
+ *
+ * @deprecated The Controller no longer refuses to delete a Room that is in
+ * use; deleting a Room moves its contents to a destination instead.
+ */
 export const roomNotEmptyDetailsSchema = z.object({
     devices: z.array(z.object({ id: z.string(), name: z.string() })),
     components: z.array(
