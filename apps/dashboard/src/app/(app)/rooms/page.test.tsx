@@ -105,9 +105,10 @@ describe('Rooms page', () => {
         expect(screen.getByText('Living Room')).toBeInTheDocument()
     })
 
-    it('names the Devices that keep a Room from being deleted', async () => {
+    it('moves a deleted Room’s Devices to No Room', async () => {
         const user = userEvent.setup()
-        await renderRooms(home())
+        const controller = home()
+        await renderRooms(controller)
 
         await screen.findByText('Living Room')
         const [livingDelete] = screen.getAllByRole('button', {
@@ -121,9 +122,12 @@ describe('Rooms page', () => {
             within(dialog).getByRole('button', { name: 'Delete room' })
         )
 
-        expect(
-            await screen.findByText('Move Reading Lamp to another room first.')
-        ).toBeInTheDocument()
+        await vi.waitFor(() =>
+            expect(screen.queryByText('Living Room')).not.toBeInTheDocument()
+        )
+        expect(controller.deletedRooms).toEqual([
+            { roomId: 'living', destinationRoomId: null, via: 'lan' },
+        ])
     })
 
     it('asks for a Home connection when only the Relay reaches the Controller', async () => {
