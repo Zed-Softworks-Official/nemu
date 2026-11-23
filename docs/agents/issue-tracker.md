@@ -35,6 +35,9 @@ Rules:
 - Never mark a ticket Done just because its branch merged into a feature or integration branch. That's In Review until the work reaches `master`.
 - If work is abandoned, move the ticket back to Todo, or to Canceled with a comment saying why.
 - Comment on the ticket when moving it to In Review. Say what shipped, what wasn't verified, and any follow-up tickets.
+## Pull request base branch
+
+`master` is the default branch, but it is the Stable branch, not where work lands. Cut every branch from `canary` and open every PR against `canary` (`gh pr create --base canary`). Never target `master` directly: `master` only receives `canary` → `master` promotion PRs after the change is verified on Canary.
 
 ## Pull requests as a triage surface
 

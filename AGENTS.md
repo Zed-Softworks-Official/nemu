@@ -14,6 +14,10 @@ Public deployment docs remain in git:
 - `docs/deployment/subdomain-cutover.md`
 - `docs/deployment/github-release-protections.md`
 
+## Branches
+
+`master` is the default and Stable branch; `canary` is the development branch. Cut feature branches from `origin/canary` and open PRs with base `canary`, never `master`. Promote to `master` only through a `canary` → `master` PR after the change is verified on Canary. See `docs/deployment/github-release-protections.md`.
+
 ## Privacy (non-negotiable)
 
 Readable Home inventory, state, telemetry, Automations, History, and voice data stay on the Controller. Convex is limited to identity references, signed Membership routing projections, Controller public identity, invitations, ACME records, short-lived end-to-end encrypted Relay envelopes, and an Owner-enabled opaque encrypted Home backup. Convex receives no Controller, Access Client, TLS, or backup private keys and has no durable readable Home model or History.

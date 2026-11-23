@@ -12,8 +12,10 @@ The private release-signing key is the `NEMU_RELEASE_SIGNING_KEY` repository sec
 
 ### Branches
 
+`master` is the default branch and the Stable branch. `canary` is the development branch: feature branches are cut from `canary` and their pull requests target `canary`, so changes ship to the Canary test environment first. Once verified there, a `canary` → `master` pull request promotes them to Stable.
+
 1. **Branch ruleset** — `Protec`  
-   Protects the default branch (`master`): no deletion, no force-push, required signatures, one approving review, code-owner review, stale-review dismissal, resolved threads, linear history.
+   Protects `master` (an explicit `refs/heads/master` condition rather than `~DEFAULT_BRANCH`, so it stays protected if the default branch ever changes): no deletion, no force-push, required signatures, one approving review, code-owner review, stale-review dismissal, resolved threads, linear history.
 
 2. **Branch ruleset** — `Protect canary`  
    Same rules for `canary` as `master` (org-admin and repository-admin bypass). GitHub rejects listing the built-in Actions app as a bypass actor on this org, so a Stable publish that allocates a new version opens a sync PR into `canary` instead of pushing the branch. Human changes still go through pull requests.
