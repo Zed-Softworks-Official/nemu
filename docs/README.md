@@ -1,10 +1,10 @@
 # Docs
 
-Architecture and design live in Superhuman Docs:
+Product direction (shipped, accepted, roadmap) lives in Superhuman Docs:
 
 **[Nemu](https://docs.superhuman.com/d/_d06TiZ2FvM1)**
 
-Use the **Skills** and **Docs** tables there (and the repo skill `.cursor/skills/nemu-docs/SKILL.md`) when changing the product. Each Docs row has a **Page** link / **Page id** to a dedicated child page with the full body — not an embedded canvas in the table.
+Read **Current Architecture**, **Target Architecture**, and **Beta Roadmap** there (the repo skill `.agents/skills/nemu-docs/SKILL.md` routes to them) when changing the product. For where code lives, use Graphify (`.agents/skills/graphify/SKILL.md`), not the Superhuman **Repo Map**.
 
 ## Kept in this repo (public / deploy)
 

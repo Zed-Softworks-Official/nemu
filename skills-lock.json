@@ -1,434 +1,498 @@
 {
-    "version": 1,
+    "version": 2,
     "skills": {
         "Make Bot UI": {
             "source": "cursor/plugins",
             "ref": "main",
             "sourceType": "github",
             "skillPath": "pstack/skills/make-bot-ui/SKILL.md",
-            "computedHash": "cefd0c691dae9ece412bab9d70f53281397f0459ba2f7604e486b4e01733c8ec"
+            "computedHash": "8f32748333369065a97d536e463ffbf40c6c908c32ad3ac342f8337fdef45914",
+            "commit": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"
         },
         "Poteto Mode": {
             "source": "cursor/plugins",
             "ref": "main",
             "sourceType": "github",
             "skillPath": "pstack/skills/poteto-mode/SKILL.md",
-            "computedHash": "fb70f2026d38d99842cf8b6ba892ac4cb636b7e2e8abfdb6b2a457a5372a601d"
+            "computedHash": "5f651d832aef4d9b4ff23d273d71603f17c357ad3e26d240013bffa16b18ec20",
+            "commit": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"
         },
         "architect": {
             "source": "cursor/plugins",
             "ref": "main",
             "sourceType": "github",
             "skillPath": "pstack/skills/architect/SKILL.md",
-            "computedHash": "bb7317f76ee9a7785304bc8ee9b97e2630a7cf313986ef8b2ae422e0bcf17f66"
+            "computedHash": "b2c440fa359b72e30115258c62df7c96713dcac1fee0abb9e18033901d8a9982",
+            "commit": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"
         },
         "arena": {
             "source": "cursor/plugins",
             "ref": "main",
             "sourceType": "github",
             "skillPath": "pstack/skills/arena/SKILL.md",
-            "computedHash": "04a485fd6c347cb2a79511328e1c469099bfb1cacd2a9e0e0fe61f4a95ba695d"
+            "computedHash": "926f3a4028a5cdd36e036c5c8146a28f1d685de13a8c6cf9d919e8ed0c7e4060",
+            "commit": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"
         },
         "automate-me": {
             "source": "cursor/plugins",
             "ref": "main",
             "sourceType": "github",
             "skillPath": "pstack/skills/automate-me/SKILL.md",
-            "computedHash": "46aa2f1b4a97dce48c1cdd57b5e412429f6c3493ada2bffdfc9c8ddcdc19aa7e"
+            "computedHash": "fd3fab5ee83f30e8d3843a56debe9cb875e5c2d1af458834799f5b3434ffd374",
+            "commit": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"
         },
         "blast-radius": {
             "source": "cursor/plugins",
             "ref": "main",
             "sourceType": "github",
             "skillPath": "pstack/skills/blast-radius/SKILL.md",
-            "computedHash": "29c76d37a04163f5005cec955e4cdd0311783322d0c6bf478577955b6fefea40"
+            "computedHash": "f9ec7353939c4449f2edb1cd195049f477b9ba6c0a869de75c7b440e27295f01",
+            "commit": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"
         },
         "bro": {
             "source": "cursor/plugins",
             "ref": "main",
             "sourceType": "github",
             "skillPath": "pstack/skills/bro/SKILL.md",
-            "computedHash": "b651827a1c11465d79500780e53414fdccffd12ce3b640138dee2d04133a9a33"
+            "computedHash": "f20a76d629ff552e85205507bcab051cc33667943f2c5bb5879b0475f26c7429",
+            "commit": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"
         },
         "code-review": {
             "source": "mattpocock/skills",
             "sourceType": "github",
             "skillPath": "skills/engineering/code-review/SKILL.md",
-            "computedHash": "caa9a086baaf9e0f7cd71f64edfa83da6821c05e826b083221f3d02e3d6a1905"
+            "computedHash": "ce86b40a3d1648a0018b712f0c70704e6c2316b2a9b9e915ab116916a31273dc",
+            "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823"
         },
         "codebase-design": {
             "source": "mattpocock/skills",
             "sourceType": "github",
             "skillPath": "skills/engineering/codebase-design/SKILL.md",
-            "computedHash": "5a17552cc1482f1a40124bf4e6c9dbd90ac0dbb47e71c07d47369f9e5f2ae3b5"
+            "computedHash": "d40f025dc1b0f2020663260f38f2bcb8d6ed3523afb11e5fda624b01238677e8",
+            "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823"
         },
         "create-verification-skill": {
             "source": "cursor/plugins",
             "ref": "main",
             "sourceType": "github",
             "skillPath": "pstack/skills/create-verification-skill/SKILL.md",
-            "computedHash": "a2e50d21892772174225073b3e4864f853883ae2bc13b33eca64c3b67fe06be5"
+            "computedHash": "8a96bace9d61f0c3bfc226755a7de750cfc738f4e3c598430401077d9b9f42d6",
+            "commit": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"
         },
         "diagnosing-bugs": {
             "source": "mattpocock/skills",
             "sourceType": "github",
             "skillPath": "skills/engineering/diagnosing-bugs/SKILL.md",
-            "computedHash": "37b5e9c624513551da790b52864dc8c84bff996a6d03a380cc6facdcc0a88354"
+            "computedHash": "87c78ae966e591f9ceb177789cc5cc9de69277cd26679ffd36ca5300f430d513",
+            "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823"
         },
         "domain-modeling": {
             "source": "mattpocock/skills",
             "sourceType": "github",
             "skillPath": "skills/engineering/domain-modeling/SKILL.md",
-            "computedHash": "a11713c0ff7870efa3c331b2e273f09116158485246edc89ae5088eefd1b0b48"
+            "computedHash": "b78689833404148c769077355e12dbe5ad996a158a1e21e58ddf169e439d9d8c",
+            "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823"
         },
         "figure-it-out": {
             "source": "cursor/plugins",
             "ref": "main",
             "sourceType": "github",
             "skillPath": "pstack/skills/figure-it-out/SKILL.md",
-            "computedHash": "67336d8f721357967b448d87993e40294fdedc76c5c659c1524a5aabeb65bdcd"
+            "computedHash": "54d3d1314433e4cc20226e549a00038d1c1f96df162726ddebdac4a4167dbc02",
+            "commit": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"
         },
         "grill-me": {
             "source": "mattpocock/skills",
             "sourceType": "github",
             "skillPath": "skills/productivity/grill-me/SKILL.md",
-            "computedHash": "9cdbb4b8f7a3aeaef82e6230c9e823500d4a8a1214c726cf342cf9829d34fc7d"
+            "computedHash": "ab1acb9fbd9eaee03da254abb8a8de228d1e7a07475fe959da4a5eefa34ea4b9",
+            "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823"
         },
         "grill-with-docs": {
             "source": "mattpocock/skills",
             "sourceType": "github",
             "skillPath": "skills/engineering/grill-with-docs/SKILL.md",
-            "computedHash": "35e62aa423aaeab6a414bcac273f56dfb17802ef2334b41b6a3b00f28196c8cf"
+            "computedHash": "02e258f41d210f9b2e7cce9faf62b3c59e8fcebe5d2736369c3cd07d471324f8",
+            "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823"
         },
         "grilling": {
             "source": "mattpocock/skills",
             "sourceType": "github",
             "skillPath": "skills/productivity/grilling/SKILL.md",
-            "computedHash": "4dd886b0196bf43729d954ae326016f2bd9f5f79d892500b407c33a753362f14"
+            "computedHash": "485451958784497cd4c4dbea13cb5bbb579da58fac0d0e45f3bcb310fab68ac7",
+            "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823"
         },
         "handoff": {
             "source": "mattpocock/skills",
             "sourceType": "github",
             "skillPath": "skills/productivity/handoff/SKILL.md",
-            "computedHash": "20e5f4afdef502637510bc5c64d27645d3c85c88df9cb006824bbb0980166319"
+            "computedHash": "f60a2c3688379b7a306b3a7b8dd4120eab39da44c74fa2cb62d6424935f04aa7",
+            "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823"
         },
         "how": {
             "source": "cursor/plugins",
             "ref": "main",
             "sourceType": "github",
             "skillPath": "pstack/skills/how/SKILL.md",
-            "computedHash": "e8917fff34e8a16c1a48db488923c320bce646e457c05775f80d1362b496d3d6"
+            "computedHash": "68d69cebe27179ed5fe090d44aa4841ea808ac0b68c41be2a09d36de6169fc4e",
+            "commit": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"
         },
         "implement": {
             "source": "mattpocock/skills",
             "sourceType": "github",
             "skillPath": "skills/engineering/implement/SKILL.md",
-            "computedHash": "2139cfedf24791adbc839aaab6019cff158af1e28bfead020ec6e0ce01b3e74d"
+            "computedHash": "560465496ad0669329993bfdd0604e5c93b5c2446309a76f486040010b063908",
+            "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823"
         },
         "implement-spec": {
             "source": "mattpocock/skills",
             "sourceType": "github",
             "skillPath": "skills/engineering/implement-spec/SKILL.md",
-            "computedHash": "f0db7dafd236fff9dc40da566cb72bbad6802674f64617b06959b00a436c7d5b"
+            "computedHash": "c3474ef320861d793e8b30d41fbdd2cb0ceaa1081bb5c81b7f26c455eb776573",
+            "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823"
         },
         "improve-codebase-architecture": {
             "source": "mattpocock/skills",
             "sourceType": "github",
             "skillPath": "skills/engineering/improve-codebase-architecture/SKILL.md",
-            "computedHash": "ac2c94885f34ff8492dc12aa4543182f661f32ea1722b8d6b6c2c7045af33ae3"
+            "computedHash": "f0820b18426a7d9a6c823a890988ba0ac70bf0fd596d30d7ef07c88558728c23",
+            "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823"
         },
         "interrogate": {
             "source": "cursor/plugins",
             "ref": "main",
             "sourceType": "github",
             "skillPath": "pstack/skills/interrogate/SKILL.md",
-            "computedHash": "16646b6afc214b341407ad3617388809721144e7d1e1033d074e879e66f4059e"
+            "computedHash": "45b67702b12e70485937b5efb0f1217d198ee2bbc8393b70877a3fb496102bdd",
+            "commit": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"
         },
         "maintain-verification-skill": {
             "source": "cursor/plugins",
             "ref": "main",
             "sourceType": "github",
             "skillPath": "pstack/skills/maintain-verification-skill/SKILL.md",
-            "computedHash": "283083c9547641392a58c38edeb147e75aa99912e7fba55edaa7b1a02021ffec"
+            "computedHash": "7e8fa052ad6e9935e53225dcadf7e1c29f2a9c1efc82bb8dd73d4d019fb2cb21",
+            "commit": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"
         },
         "no-comments": {
             "source": "cursor/plugins",
             "ref": "main",
             "sourceType": "github",
             "skillPath": "pstack/skills/no-comments/SKILL.md",
-            "computedHash": "20c90a85f23d4c9732b0db771d2825c1c58993b4187aac0f62094def66d60511"
+            "computedHash": "1de806dd7db5b65c0d06cda8485be3bc368ae7005c5bb269098bef1fa64b686a",
+            "commit": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"
         },
         "principle-boundary-discipline": {
             "source": "cursor/plugins",
             "ref": "main",
             "sourceType": "github",
             "skillPath": "pstack/skills/principle-boundary-discipline/SKILL.md",
-            "computedHash": "e2dee8352e9780cc52413d65020193cb6e5e538175b1a32926ebd9080ea4bbda"
+            "computedHash": "a71373be3a3262d674bc2072f04163be9e1c2c87771068bfd027f757266facee",
+            "commit": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"
         },
         "principle-build-the-lever": {
             "source": "cursor/plugins",
             "ref": "main",
             "sourceType": "github",
             "skillPath": "pstack/skills/principle-build-the-lever/SKILL.md",
-            "computedHash": "82daf34a1a020b16315df83341b7c98f821f757f4df93154507c016219359a37"
+            "computedHash": "c57e1d33f94e632e538d890ededbd9bc78a11677334211d85922ee86ba352f36",
+            "commit": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"
         },
         "principle-encode-lessons-in-structure": {
             "source": "cursor/plugins",
             "ref": "main",
             "sourceType": "github",
             "skillPath": "pstack/skills/principle-encode-lessons-in-structure/SKILL.md",
-            "computedHash": "527fa064a616d4aecb1b952624daae24c6229cbf9c28404233c1678f2488ce22"
+            "computedHash": "164c25e039539bc5cc04f109f3596d723e40c68f9745cd35129b34d4fe3e706e",
+            "commit": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"
         },
         "principle-exhaust-the-design-space": {
             "source": "cursor/plugins",
             "ref": "main",
             "sourceType": "github",
             "skillPath": "pstack/skills/principle-exhaust-the-design-space/SKILL.md",
-            "computedHash": "bf5f30c97afa75da12e1f982bffc3176d2172bd124072f6d9e74d06b0cf2b965"
+            "computedHash": "223970dbf26021ca33726e793017dbbeac919edfbd6873d5e9d5eff2babb9bec",
+            "commit": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"
         },
         "principle-experience-first": {
             "source": "cursor/plugins",
             "ref": "main",
             "sourceType": "github",
             "skillPath": "pstack/skills/principle-experience-first/SKILL.md",
-            "computedHash": "35356c2e1e4b28fe76d3f9b9b6afa95bea2597d340ad615dd806a21a93d1d836"
+            "computedHash": "7e4608c81af0efa3aaa472ae90d6bb790db47d4678419f0fdda75f81f451a520",
+            "commit": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"
         },
         "principle-fix-root-causes": {
             "source": "cursor/plugins",
             "ref": "main",
             "sourceType": "github",
             "skillPath": "pstack/skills/principle-fix-root-causes/SKILL.md",
-            "computedHash": "b21d93ea5f651b83596bbd90187c87f40f4d33c9e5d105a1ad2be41b0d74bd97"
+            "computedHash": "caa4470c10bb7e5c58fac5da77154c5536a89e4549e292f8ecff8ac61b2b4546",
+            "commit": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"
         },
         "principle-foundational-thinking": {
             "source": "cursor/plugins",
             "ref": "main",
             "sourceType": "github",
             "skillPath": "pstack/skills/principle-foundational-thinking/SKILL.md",
-            "computedHash": "7ada3330b2b883c8931a601cf53ef7035b31816facc948533a2d8a92905d938b"
+            "computedHash": "c5428edcaddf914cac196eb49fb4f344103b1feef9eb9ba315213cf128727b2a",
+            "commit": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"
         },
         "principle-guard-the-context-window": {
             "source": "cursor/plugins",
             "ref": "main",
             "sourceType": "github",
             "skillPath": "pstack/skills/principle-guard-the-context-window/SKILL.md",
-            "computedHash": "4ba70fa93ea45d353d411daa7458e15959e6369f388cff727f639587e67b2fed"
+            "computedHash": "d0b6808ab070ab9d020c718687d3f96324833144537d1e635762c90861fe8821",
+            "commit": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"
         },
         "principle-laziness-protocol": {
             "source": "cursor/plugins",
             "ref": "main",
             "sourceType": "github",
             "skillPath": "pstack/skills/principle-laziness-protocol/SKILL.md",
-            "computedHash": "41259a71a7d6fec61fc309bdd72f1db8708a0dacaca034f5c30aa17f27e50ece"
+            "computedHash": "23fb5314b8b2bfb6c2b783892e791aca6c59c69313b714eecc11704e4a2d38cb",
+            "commit": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"
         },
         "principle-make-operations-idempotent": {
             "source": "cursor/plugins",
             "ref": "main",
             "sourceType": "github",
             "skillPath": "pstack/skills/principle-make-operations-idempotent/SKILL.md",
-            "computedHash": "8293bf10530fdffa13216645432989a14b3ca4a1b6a6f0e12bf9a141ba48f802"
+            "computedHash": "bd489510037de30e8b5924bc3eb60fd93f65621992295698ac9e7bea3f4e68b9",
+            "commit": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"
         },
         "principle-migrate-callers-then-delete-legacy-apis": {
             "source": "cursor/plugins",
             "ref": "main",
             "sourceType": "github",
             "skillPath": "pstack/skills/principle-migrate-callers-then-delete-legacy-apis/SKILL.md",
-            "computedHash": "5bd62197e64fa42f312bb1d5181da7724f154ccfc059ad2a3fb16d5e27514992"
+            "computedHash": "23afe0ad1c7daa04d8dd306be2f132809dfb18fa7b783d85f749fe83b71d8784",
+            "commit": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"
         },
         "principle-minimize-reader-load": {
             "source": "cursor/plugins",
             "ref": "main",
             "sourceType": "github",
             "skillPath": "pstack/skills/principle-minimize-reader-load/SKILL.md",
-            "computedHash": "a02eb0ce1333d18aff133e8cdaab798bc8bf024e4b1f1bcc8bb834de5282d7d8"
+            "computedHash": "97f5f52cf69ce89e0fb1fc9c1e150cf2e7cb75fe6e48b1bee29d62d253bccfed",
+            "commit": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"
         },
         "principle-model-the-domain": {
             "source": "cursor/plugins",
             "ref": "main",
             "sourceType": "github",
             "skillPath": "pstack/skills/principle-model-the-domain/SKILL.md",
-            "computedHash": "a94b6f9519c4cb6c79ba92c46030855bfd261c9270c97d6d33ae793a24221446"
+            "computedHash": "a9c5c59b7a3a4f9b60c1b462ebedad84c26c6cf3848af995269dc8eae7391157",
+            "commit": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"
         },
         "principle-never-block-on-the-human": {
             "source": "cursor/plugins",
             "ref": "main",
             "sourceType": "github",
             "skillPath": "pstack/skills/principle-never-block-on-the-human/SKILL.md",
-            "computedHash": "13f79ad8beba024928f4c06d2d6ecf6d31128beac5b392313287686922758604"
+            "computedHash": "ab707816f6a0d48148bff1d7e27c56d76b23ef77fe642c094fbb7812e00474d7",
+            "commit": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"
         },
         "principle-outcome-oriented-execution": {
             "source": "cursor/plugins",
             "ref": "main",
             "sourceType": "github",
             "skillPath": "pstack/skills/principle-outcome-oriented-execution/SKILL.md",
-            "computedHash": "8a353f45bd32f61e67702c0bdab668eb94d669afef038a75a4263ce272492169"
+            "computedHash": "684e3f3887348aed42daa9e51cee47009c84187569c55f3365d16cfef070ff24",
+            "commit": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"
         },
         "principle-prove-it-works": {
             "source": "cursor/plugins",
             "ref": "main",
             "sourceType": "github",
             "skillPath": "pstack/skills/principle-prove-it-works/SKILL.md",
-            "computedHash": "df5e2a3f8b71c39780a398a9cd4515356479f2862e554b3d7cbf6dd8d1a37db7"
+            "computedHash": "e1903c637f60b63a8ded3ca9ec60d132190f0473085581be7fcf1fb8cb18bb49",
+            "commit": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"
         },
         "principle-redesign-from-first-principles": {
             "source": "cursor/plugins",
             "ref": "main",
             "sourceType": "github",
             "skillPath": "pstack/skills/principle-redesign-from-first-principles/SKILL.md",
-            "computedHash": "d39b9050a13ebfa67afc0160057d6286d87dd86bda04da291e40e9c9cca0ba5b"
+            "computedHash": "c6b2348402c9c1a4d3b43ab695ad8dbb6a92b19e02e08f6395146ab9b1b61ce9",
+            "commit": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"
         },
         "principle-separate-before-serializing-shared-state": {
             "source": "cursor/plugins",
             "ref": "main",
             "sourceType": "github",
             "skillPath": "pstack/skills/principle-separate-before-serializing-shared-state/SKILL.md",
-            "computedHash": "00492c49afabc309c388ae0ae3045536045a2cbff599a500c945e6f2afcaee52"
+            "computedHash": "7be23154bac7c6858b373fb5525e847028c06487a91f502ad8a9ac96b9d5b408",
+            "commit": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"
         },
         "principle-sequence-verifiable-units": {
             "source": "cursor/plugins",
             "ref": "main",
             "sourceType": "github",
             "skillPath": "pstack/skills/principle-sequence-verifiable-units/SKILL.md",
-            "computedHash": "a5c25bdd95a1a5be383b6699ce2c9170f1a08deba14fb0414c4314fd50d800ac"
+            "computedHash": "a42555063ab83a206c893b22ccbb2b5aed20a3d10dc770d0d99801525d15012b",
+            "commit": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"
         },
         "principle-subtract-before-you-add": {
             "source": "cursor/plugins",
             "ref": "main",
             "sourceType": "github",
             "skillPath": "pstack/skills/principle-subtract-before-you-add/SKILL.md",
-            "computedHash": "bc86d43626770c780551730a180de8ffb91ab16f193647047644c606d01874c8"
+            "computedHash": "97e61b7e5e8fa4aa1673b1d1d3a5508f5f36cc2f888866caf68992469569171e",
+            "commit": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"
         },
         "principle-type-system-discipline": {
             "source": "cursor/plugins",
             "ref": "main",
             "sourceType": "github",
             "skillPath": "pstack/skills/principle-type-system-discipline/SKILL.md",
-            "computedHash": "092d40b72a904d0a111acde944639e24c8fe1f912455d9c4b94295b9d07709ec"
+            "computedHash": "ea9703ceec880ec704b84afcc218c112850f96ceec6908fd71b436402f317f98",
+            "commit": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"
         },
         "recall": {
             "source": "cursor/plugins",
             "ref": "main",
             "sourceType": "github",
             "skillPath": "pstack/skills/recall/SKILL.md",
-            "computedHash": "6577cd26cfa7546294b923d0a094a64ffc07667a6a8ded32846f66b4619879bc"
+            "computedHash": "4e7421b389d5cd4c781dcf4e18170dfaa014816001560f2708fc433dbb1493e8",
+            "commit": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"
         },
         "reflect": {
             "source": "cursor/plugins",
             "ref": "main",
             "sourceType": "github",
             "skillPath": "pstack/skills/reflect/SKILL.md",
-            "computedHash": "761b434faf768f5aafff6e4edce6d67765a8babc1b91a8379d522137216fed8a"
+            "computedHash": "2ffb9103a66a67d319c12a2f2c1cb92185e89379e337e95b9c3fca705d2cd6ca",
+            "commit": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"
         },
         "setup-matt-pocock-skills": {
             "source": "mattpocock/skills",
             "sourceType": "github",
             "skillPath": "skills/engineering/setup-matt-pocock-skills/SKILL.md",
-            "computedHash": "552b0f48b9fe054aa93c5d432fefbd7bd9645e3f2d20b4e22432453a81800b21"
+            "computedHash": "9659e7025d4cf1c0a0b40ddff32ed4b8debb87a4b20d7a52ff89c506a638df69",
+            "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823"
         },
         "setup-pstack": {
             "source": "cursor/plugins",
             "ref": "main",
             "sourceType": "github",
             "skillPath": "pstack/skills/setup-pstack/SKILL.md",
-            "computedHash": "7beac250e93a9a697065764d278546ed9ada21a0c9fa77ea7367c357afdab036"
+            "computedHash": "1780e98d1f917edd1b09986432cdad9dc4538c548337ce8ee97246c994d9e3f1",
+            "commit": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"
         },
         "show-me-your-work": {
             "source": "cursor/plugins",
             "ref": "main",
             "sourceType": "github",
             "skillPath": "pstack/skills/show-me-your-work/SKILL.md",
-            "computedHash": "eb8f3c13a657dd5b0ab5ed86275fe8a15a392c2fd2b2a3b7858800c9a2af7e07"
+            "computedHash": "b3b8fc893360ad9551cc87636eeb41777a591a4860af256eae37481517c46c5b",
+            "commit": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"
         },
         "swarm": {
             "source": "cursor/plugins",
             "ref": "main",
             "sourceType": "github",
             "skillPath": "pstack/skills/swarm/SKILL.md",
-            "computedHash": "f4053e8337af2fdda3b783fa0e03c5f8f275b93997ceda305448eefc7faea170"
+            "computedHash": "c48fbcf5eee7d1d10bf848eec8329a91133dae323e778a84eda771fe58659fa7",
+            "commit": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"
         },
         "tdd": {
             "source": "cursor/plugins",
             "ref": "main",
             "sourceType": "github",
             "skillPath": "pstack/skills/tdd/SKILL.md",
-            "computedHash": "33a8e530ff47e54b647966bc5d3e615352a0c7cb95220003313769fcfeda11ea"
+            "computedHash": "c88ebf09cd7df89476eca9afb62748d73ca00346cfb044852c0bbb4066e78e27",
+            "commit": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"
         },
         "teach": {
             "source": "cursor/plugins",
             "ref": "main",
             "sourceType": "github",
             "skillPath": "pstack/skills/teach/SKILL.md",
-            "computedHash": "413210cf5a752fb2d4c73bca701ed16da723712251b74bdd8e39a5042f5cb6fb"
+            "computedHash": "94896cc672bd5e849e2da0708abd9b89a6b15d4c525e106cb1a84d741ddaf2f9",
+            "commit": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"
         },
         "technical-writing": {
             "source": "cursor/plugins",
             "ref": "main",
             "sourceType": "github",
             "skillPath": "pstack/skills/technical-writing/SKILL.md",
-            "computedHash": "0a1bf9d082feaaecc0fe7a808daf3fd03a91e9fad55dd785584b27c7b09420db"
+            "computedHash": "a073968ea82cfed3e31be2403ff824783d4a342b2fac551532df0d6c76f51af1",
+            "commit": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"
         },
         "to-spec": {
             "source": "mattpocock/skills",
             "sourceType": "github",
             "skillPath": "skills/engineering/to-spec/SKILL.md",
-            "computedHash": "3fa1a0695d4ea242fae9e569e4d22aa1788623197abb33bfadafae7315789bbf"
+            "computedHash": "eb934b5eda9523c7853a2741544bd4721ee1bea471f5a04f8397827f67bdbdda",
+            "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823"
         },
         "to-tickets": {
             "source": "mattpocock/skills",
             "sourceType": "github",
             "skillPath": "skills/engineering/to-tickets/SKILL.md",
-            "computedHash": "bf5e6ebcb4f1272de0c188d5b3901f265a03d1fa9935a21a7a56938e21e2e761"
+            "computedHash": "17496514c92954f68eacdf2b1221e2ddb39fa231b83f03c70bc7d4422f704b2d",
+            "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823"
         },
         "triage": {
             "source": "mattpocock/skills",
             "sourceType": "github",
             "skillPath": "skills/engineering/triage/SKILL.md",
-            "computedHash": "b954d74c219c805bf353d6642251a713c9b2e9cfdb11babfe588bcfe7dfd16d5"
+            "computedHash": "4342a07c9ebe0696713ec93a883c46e56503a587a34d824fabab5ca61e3bdfbb",
+            "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823"
         },
         "typescript-best-practices": {
             "source": "cursor/plugins",
             "ref": "main",
             "sourceType": "github",
             "skillPath": "pstack/skills/typescript-best-practices/SKILL.md",
-            "computedHash": "b9bfe699fc5b14e1ba2a26c1d153ebb1bde7a15fc7517eaf35fa356e88e64f05"
+            "computedHash": "fb35e49d1b6a48fa42d81fff0e4e9834b8f98e0ebcf188203680f1f4265df690",
+            "commit": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"
         },
         "unslop": {
             "source": "cursor/plugins",
             "ref": "main",
             "sourceType": "github",
             "skillPath": "pstack/skills/unslop/SKILL.md",
-            "computedHash": "78f45b785f543d1bd82f55cd7be018239c769dc1462848a720b62a6d214ffc6d"
+            "computedHash": "4bbcb6719a8f0f6f7fb46752e1c360791d7758a837708e300a06fc7d6907938c",
+            "commit": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"
         },
         "wait-what": {
             "source": "mattpocock/skills",
             "sourceType": "github",
             "skillPath": "skills/productivity/wait-what/SKILL.md",
-            "computedHash": "71a9a1f1773d4b1ff70a9d496db63855ef83a7fe906c72b70cdebf4815a2c4c1"
+            "computedHash": "70c9bf9f5a84b6849760f9492f569d5aa12307a0310323fde5f583144730c26c",
+            "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823"
         },
         "wayfinder": {
             "source": "mattpocock/skills",
             "sourceType": "github",
             "skillPath": "skills/engineering/wayfinder/SKILL.md",
-            "computedHash": "fa790eb4255b13d24d7e33ff4891ccd3d621558cc0ab87ae226777538ea16a8f"
+            "computedHash": "bd82983c105881f6cb0c15e5d029c0d5fca756939b69eebe94e49003069a276f",
+            "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823"
         },
         "why": {
             "source": "cursor/plugins",
             "ref": "main",
             "sourceType": "github",
             "skillPath": "pstack/skills/why/SKILL.md",
-            "computedHash": "b918f84d73285e88cc5f221d91dc61832296683d758617eb6febb19306275aa5"
+            "computedHash": "2050d10fff1d0fa6e19c0a96552a641af6a24f012614955a6dcf3763bf54ac3c",
+            "commit": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"
         },
         "wizard": {
             "source": "mattpocock/skills",
             "sourceType": "github",
             "skillPath": "skills/engineering/wizard/SKILL.md",
-            "computedHash": "dee7f1a523994a1e063c69fe09c2f5b4da97a41ad68107722664e6e472cb2423"
+            "computedHash": "806f7f7461824054ffaf3344e1e56e5e8a42344e22bdf8d22c6a8117eb9b1c38",
+            "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823"
         },
         "writing-for-agents": {
             "source": "mattpocock/skills",
             "sourceType": "github",
             "skillPath": "skills/productivity/writing-for-agents/SKILL.md",
-            "computedHash": "95da47fc97af998e85b7d7e6d57b3ac76727c1e290cfe9ea09005aacb826959f"
+            "computedHash": "e79a2476b2417b228922453478d9505a6b9af19f3a412e560728ce62ed3555ca",
+            "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823"
         }
     }
 }
