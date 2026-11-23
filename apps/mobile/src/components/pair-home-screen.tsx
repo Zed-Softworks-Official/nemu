@@ -18,7 +18,7 @@ const CODE_LENGTH = 6
 
 /** Guides an unpaired installation through Access Client pairing. */
 export function PairHomeScreen() {
-    const { switchHome, completePairing } = useHomeSession()
+    const { switchHome, completePairing, pairingNotice } = useHomeSession()
     const { home, state, pairing } = useAccessClientPairing()
     const [code, setCode] = useState('')
 
@@ -45,6 +45,11 @@ export function PairHomeScreen() {
                             {title(state, homeName)}
                         </Text>
                     </View>
+                    {pairingNotice && state.phase === 'idle' ? (
+                        <Text accessibilityRole="alert" className="text-sm">
+                            {pairingNotice}
+                        </Text>
+                    ) : null}
                     <PairingBody
                         code={code}
                         homeName={homeName}

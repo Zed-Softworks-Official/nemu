@@ -71,9 +71,12 @@ type HomeSessionValue = {
      * Drop this phone's stored credential for the active Home only. Does not
      * revoke on the Controller: Settings offers it on its own only as
      * "Forget on this phone" when the Controller is unreachable, and after
-     * the Controller has confirmed a revocation or a Leave.
+     * the Controller has confirmed a revocation or a Leave. `notice` is
+     * shown on the pairing screen that follows.
      */
-    forgetPairing: () => void
+    forgetPairing: (notice?: string) => void
+    /** Why this Home's pairing was cleared, when the phone should say so. */
+    pairingNotice: string | null
 }
 
 const HomeSessionContext = createContext<HomeSessionValue | null>(null)
@@ -112,6 +115,7 @@ export function HomeSessionProvider({
     const [pairingChange, setPairingChange] = useState<{
         controllerId: string
         paired: boolean
+        notice?: string
     } | null>(null)
 
     // Keep one object per Home value. The Home list reloads when pairing
@@ -136,11 +140,14 @@ export function HomeSessionProvider({
             activeHome ? credentialStore.get(activeHome.controllerId) : null,
         [activeHome, credentialStore]
     )
-    const paired =
+    const ownChange =
         activeHome !== null &&
         pairingChange?.controllerId === activeHome.controllerId
-            ? pairingChange.paired
-            : storedCredential !== null
+            ? pairingChange
+            : null
+    const paired = ownChange ? ownChange.paired : storedCredential !== null
+    const pairingNotice =
+        ownChange && !ownChange.paired ? (ownChange.notice ?? null) : null
 
     const route: HomeRoute =
         homes === undefined
@@ -169,11 +176,18 @@ export function HomeSessionProvider({
         setPairingChange({ controllerId: selectedId, paired: true })
     }, [selectedId])
 
-    const forgetPairing = useCallback(() => {
-        if (!selectedId) return
-        credentialStore.clear(selectedId)
-        setPairingChange({ controllerId: selectedId, paired: false })
-    }, [credentialStore, selectedId])
+    const forgetPairing = useCallback(
+        (notice?: string) => {
+            if (!selectedId) return
+            credentialStore.clear(selectedId)
+            setPairingChange({
+                controllerId: selectedId,
+                paired: false,
+                notice,
+            })
+        },
+        [credentialStore, selectedId]
+    )
 
     const createPairing = useCallback(
         (home: MobileHome) =>
@@ -215,6 +229,7 @@ export function HomeSessionProvider({
             createPairing,
             completePairing,
             forgetPairing,
+            pairingNotice,
         }),
         [
             homes,
@@ -226,6 +241,7 @@ export function HomeSessionProvider({
             createPairing,
             completePairing,
             forgetPairing,
+            pairingNotice,
         ]
     )
 

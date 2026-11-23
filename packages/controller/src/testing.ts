@@ -163,6 +163,13 @@ export class FakeController {
 
     /** `leaveHome`: ends this Membership and revokes all of its tokens. */
     leaveHome(via: TransportMode): void {
+        if (!this.membershipActive) {
+            throw new ApiError(
+                'inactive_membership',
+                'This Membership is not active',
+                403
+            )
+        }
         if (this.lastOwner) {
             throw new ApiError(
                 'last_owner',

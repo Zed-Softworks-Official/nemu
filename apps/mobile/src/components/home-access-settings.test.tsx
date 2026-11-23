@@ -19,9 +19,16 @@ const LAKE: MobileHome = { controllerId: 'lake', name: 'Lake House' }
 const CITY: MobileHome = { controllerId: 'city', name: 'City Flat' }
 
 function Session() {
-    const { route, activeHome } = useHomeSession()
+    const { route, activeHome, pairingNotice } = useHomeSession()
     if (route === 'select-home') return <Text>Choose a Home</Text>
-    if (route === 'pair') return <Text>Pair with {activeHome?.name}</Text>
+    if (route === 'pair') {
+        return (
+            <>
+                <Text>Pair with {activeHome?.name}</Text>
+                {pairingNotice ? <Text>{pairingNotice}</Text> : null}
+            </>
+        )
+    }
     if (route === 'loading') return <Text>Loading Homes</Text>
     return <HomeAccessSettings />
 }
@@ -149,7 +156,7 @@ describe.each([
         expect(credentialStore.get('lake')?.clientToken).toBe('phone')
     })
 
-    it('surfaces any other refusal from the Controller', async () => {
+    it('clears this phone when the Controller no longer accepts it', async () => {
         const controller = lake()
         const { credentialStore } = await setup(controller)
         await screen.findByRole('button', {
@@ -167,8 +174,35 @@ describe.each([
             screen.getByRole('button', { name: 'Remove this phone' })
         )
 
-        expect(await screen.findByText('Invalid client token')).toBeTruthy()
-        expect(credentialStore.get('lake')?.clientToken).toBe('phone')
+        await screen.findByText('Pair with Lake House')
+        expect(
+            screen.getByText('This phone was already removed from Lake House.')
+        ).toBeTruthy()
+        expect(credentialStore.get('lake')).toBeNull()
+        expect(credentialStore.get('city')).toEqual({
+            clientToken: 'city-phone',
+        })
+    })
+
+    it('clears this phone when its Membership is no longer active', async () => {
+        const controller = lake()
+        controller.membershipActive = false
+        const { credentialStore } = await setup(controller)
+
+        await fireEvent.press(
+            await screen.findByRole('button', { name: 'Leave Lake House' })
+        )
+        await fireEvent.press(screen.getByRole('button', { name: 'Leave' }))
+
+        await screen.findByText('Pair with Lake House')
+        expect(
+            screen.getByText('This phone was already removed from Lake House.')
+        ).toBeTruthy()
+        expect(controller.leftVia).toEqual([])
+        // The phone still revoked its own Access Client on the way out.
+        expect(controller.acceptsToken('phone')).toBe(false)
+        expect(controller.acceptsToken('browser')).toBe(true)
+        expect(credentialStore.get('lake')).toBeNull()
     })
 
     it('does not offer to pair this phone again', async () => {

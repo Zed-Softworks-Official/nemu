@@ -41,7 +41,10 @@ function Session() {
             <Text>
                 Controlling {activeHome?.name} via {status.mode}
             </Text>
-            <Button onPress={forgetPairing} title="Forget on this phone" />
+            <Button
+                onPress={() => forgetPairing()}
+                title="Forget on this phone"
+            />
         </>
     )
 }

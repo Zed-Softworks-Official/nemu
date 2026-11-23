@@ -37,7 +37,7 @@ export function HomeAccessSettings() {
                 </Text>
                 <View className="flex-row">
                     <Button
-                        onPress={forgetPairing}
+                        onPress={() => forgetPairing()}
                         title="Forget on this phone"
                         variant="destructive"
                     />
@@ -59,6 +59,17 @@ export function HomeAccessSettings() {
                 switchHome()
             }
         } catch (cause) {
+            if (credentialRejected(cause)) {
+                // The Controller no longer accepts this phone: it was
+                // already removed. Revoke what may remain (a token whose
+                // Membership is inactive), then clear this Home's
+                // credentials on the phone.
+                if (action === 'leave') {
+                    await revokeCurrentToken().catch(() => {})
+                }
+                forgetPairing(`This phone was already removed from ${home}.`)
+                return
+            }
             setError(describeRefusal(cause, home))
             setBusy(false)
             setConfirming(null)
@@ -153,6 +164,17 @@ function Confirmation({
             </View>
         </View>
     )
+}
+
+/** Refusals that mean the Controller no longer accepts this phone. */
+const REMOVED_CODES = new Set([
+    'unauthorized',
+    'not_found',
+    'inactive_membership',
+])
+
+function credentialRejected(cause: unknown): boolean {
+    return cause instanceof ApiError && REMOVED_CODES.has(cause.code)
 }
 
 function describeRefusal(cause: unknown, home: string): string {
