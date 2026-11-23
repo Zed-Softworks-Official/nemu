@@ -336,7 +336,12 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          cuts='[]'
+          # Manifests carry the base64 Updater binaries, which are far larger
+          # than one command-line argument may be. Pass large values to jq as
+          # files, never with --arg or --argjson.
+          work="$RUNNER_TEMP/publish"
+          mkdir -p "$work"
+          echo '[]' > "$work/cuts.json"
           while IFS= read -r tag; do
             [ -n "$tag" ] || continue
             if ! [[ "$tag" =~ ^v0\.[0-9]+\.[0-9]+$ ]]; then
@@ -349,19 +354,21 @@ jobs:
               echo "Platform version ${tag} has no signed manifest" >&2
               exit 1
             fi
-            cuts=$(jq -n \
-              --argjson cuts "$cuts" \
+            jq \
               --arg version "${tag#v}" \
               --arg commit "$commit" \
               --slurpfile signed "$dir/release-manifest.json" \
-              '$cuts + [{platformVersion: $version, commit: $commit, manifest: $signed[0].manifest}]')
+              '. + [{platformVersion: $version, commit: $commit, manifest: $signed[0].manifest}]' \
+              "$work/cuts.json" > "$work/cuts.next.json"
+            mv "$work/cuts.next.json" "$work/cuts.json"
           done < <(git tag -l 'v0.*')
 
           if [ "$SHOULD_BUILD" != "true" ]; then
-            this_cut=$(jq -e --arg commit "$PLAN_COMMIT" '[.[] | select(.commit == $commit)][0]' <<<"$cuts")
-            amd64=$(jq -er '.manifest.updater.amd64' <<<"$this_cut")
-            arm64=$(jq -er '.manifest.updater.arm64' <<<"$this_cut")
-            resolved=$(jq -c '.manifest.services' <<<"$this_cut")
+            jq -e --arg commit "$PLAN_COMMIT" '[.[] | select(.commit == $commit)][0] // error("no cut for this commit")' \
+              "$work/cuts.json" > "$work/this_cut.json"
+            jq -jer '.manifest.updater.amd64' "$work/this_cut.json" > "$work/amd64.b64"
+            jq -jer '.manifest.updater.arm64' "$work/this_cut.json" > "$work/arm64.b64"
+            resolved=$(jq -c '.manifest.services' "$work/this_cut.json")
           else
             resolve() {
               local out digest
@@ -376,8 +383,8 @@ jobs:
             mosquitto=$(resolve eclipse-mosquitto:2)
             zigbee=$(resolve koenkk/zigbee2mqtt)
             postgres=$(resolve postgres:16-alpine)
-            amd64=$(base64 -w0 updater-bins/updater-amd64/updater)
-            arm64=$(base64 -w0 updater-bins/updater-arm64/updater)
+            base64 -w0 updater-bins/updater-amd64/updater > "$work/amd64.b64"
+            base64 -w0 updater-bins/updater-arm64/updater > "$work/arm64.b64"
             resolved=$(jq -n \
               --arg mosquitto "$mosquitto" \
               --arg zigbee "$zigbee" \
@@ -397,17 +404,17 @@ jobs:
             --arg source "$SOURCE" \
             --argjson minorBump "$MINOR_BUMP" \
             --arg commit "$PLAN_COMMIT" \
-            --argjson cutReleases "$cuts" \
+            --slurpfile cutReleases "$work/cuts.json" \
             --argjson resolved "$resolved" \
             --rawfile compose infra/prod/docker-compose.yml \
             --rawfile mosquitto infra/prod/mosquitto/mosquitto.conf \
-            --arg amd64 "$amd64" \
-            --arg arm64 "$arm64" \
+            --rawfile amd64 "$work/amd64.b64" \
+            --rawfile arm64 "$work/arm64.b64" \
             '{
               source: $source,
               minorBump: $minorBump,
               commit: $commit,
-              cutReleases: $cutReleases,
+              cutReleases: $cutReleases[0],
               resolved: $resolved,
               stackFiles: [
                 {path: "docker-compose.yml", contents: $compose},
