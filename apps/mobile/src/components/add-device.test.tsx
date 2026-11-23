@@ -16,6 +16,7 @@ import {
 import { type CodeScanner, DevicesTab } from '~/components/add-device'
 import { HomeControlProvider } from '~/components/home-control'
 import { Button } from '~/components/ui/button'
+import { Text } from '~/components/ui/text'
 
 const PLUG: Device = {
     id: 'plug',
@@ -72,8 +73,16 @@ function home(lanReachable: boolean) {
 
 /** Lets a test re-check the connection, as the app does after a blip. */
 function Reprobe() {
-    const { reprobe } = useController()
-    return <Button onPress={() => void reprobe()} title="Re-check connection" />
+    const { reprobe, status } = useController()
+    return (
+        <>
+            <Button
+                onPress={() => void reprobe()}
+                title="Re-check connection"
+            />
+            <Text>{`Connected over ${status.mode}`}</Text>
+        </>
+    )
 }
 
 async function renderDevicesTab(
@@ -298,16 +307,14 @@ describe('Adding a Device while the connection changes', () => {
 
         gated = true
         await press('Re-check connection')
-        await screen.findByText(/Reconnecting to your Home network/)
+        await screen.findByText(/Reconnecting to your Home/)
         expect(screen.getByText('Add a Device')).toBeTruthy()
         expect(controller.matterCommissioning).not.toBeNull()
 
         gated = false
         await act(async () => release())
         await waitFor(() =>
-            expect(
-                screen.queryByText(/Reconnecting to your Home network/)
-            ).toBeNull()
+            expect(screen.queryByText(/Reconnecting to your Home/)).toBeNull()
         )
         expect(controller.matterCommissioning).not.toBeNull()
         expect(controller.commissioningRequests).not.toContainEqual(
@@ -315,7 +322,7 @@ describe('Adding a Device while the connection changes', () => {
         )
     })
 
-    it('stops adding once the phone settles on Relay', async () => {
+    it('keeps commissioning when the phone moves to Relay', async () => {
         const controller = home(true)
         await renderDevicesTab(controller)
         await commissioningMatter(controller)
@@ -323,7 +330,23 @@ describe('Adding a Device while the connection changes', () => {
         controller.lanReachable = false
         await press('Re-check connection')
 
-        await screen.findByText('Away from home')
+        await screen.findByText('Connected over relay')
+        expect(screen.queryByText(/Adding a Device stopped/)).toBeNull()
+        expect(controller.matterCommissioning).not.toBeNull()
+        expect(controller.commissioningRequests).not.toContainEqual(
+            expect.objectContaining({ type: 'cancelMatterCommission' })
+        )
+        await screen.findByRole('button', { name: 'Cancel' })
+    })
+
+    it('stops adding once the phone loses the Home', async () => {
+        const controller = home(true)
+        await renderDevicesTab(controller)
+        await commissioningMatter(controller)
+
+        controller.goOffline()
+        await press('Re-check connection')
+
         await screen.findByText(/Adding a Device stopped/)
         expect(
             screen.queryByRole('button', { name: 'Add a Device' })
@@ -332,18 +355,111 @@ describe('Adding a Device while the connection changes', () => {
 })
 
 describe('Adding a Device over Relay', () => {
-    it('is not offered and says the phone must be on the Home network', async () => {
+    async function startAddingAway() {
+        await screen.findByText('Away from home')
+        await press('Add a Device')
+    }
+
+    it('lets a Member commission a Matter Device from a typed code', async () => {
         const controller = home(false)
         await renderDevicesTab(controller)
-        await screen.findByText('Away from home')
-        await screen.findByText('Desk Plug')
+        await startAddingAway()
+        await press('Matter')
+        await press('Enter the code instead')
+
+        await fireEvent.changeText(
+            screen.getByLabelText('Pairing code'),
+            '3497-011-2332'
+        )
+        await press('Add Device')
+
+        await waitFor(() =>
+            expect(controller.matterCommissioning).toEqual({
+                code: '34970112332',
+            })
+        )
+        expect(controller.commissioningRequests).toContainEqual({
+            type: 'commissionMatter',
+            via: 'relay',
+        })
+        expect(controller.relayCommissioningAudit).toEqual([
+            { protocol: 'matter' },
+        ])
+
+        // Over Relay the new Device is found from the Device list.
+        controller.devices = [...controller.devices, MATTER_BULB]
+        const name = await screen.findByLabelText(
+            'Device name',
+            {},
+            { timeout: 4_000 }
+        )
+        await fireEvent.changeText(name, 'Hall Light')
+        await press('Bedroom')
+        await press('Finish')
+
+        await screen.findByText('Added Hall Light.')
+        expect(controller.devices.find((d) => d.id === 'bulb')).toMatchObject({
+            name: 'Hall Light',
+            roomId: 'bedroom',
+        })
+    })
+
+    it('lets a Member add a Zigbee Device through permit-join', async () => {
+        const controller = home(false)
+        await renderDevicesTab(controller)
+        await startAddingAway()
+        await press('Zigbee')
+        await press('Start searching')
+
+        await waitFor(() => expect(controller.zigbeeJoinOpenFor).toBe(180))
+        expect(controller.relayCommissioningAudit).toEqual([
+            { protocol: 'zigbee' },
+        ])
+        await screen.findByText(/Searching/)
+
+        // Over Relay no join event arrives; the Device list shows it.
+        controller.devices = [...controller.devices, ZIGBEE_SENSOR]
+        await screen.findByRole(
+            'button',
+            { name: 'Set up 0x00158d0001' },
+            { timeout: 4_000 }
+        )
+        await press('Set up 0x00158d0001')
+        await fireEvent.changeText(
+            await screen.findByLabelText('Device name'),
+            'Hall Sensor'
+        )
+        await press('Living Room')
+        await press('Finish')
+
+        await screen.findByText('Added Hall Sensor.')
+        expect(controller.devices.find((d) => d.id === 'sensor')).toMatchObject(
+            { name: 'Hall Sensor', roomId: 'living' }
+        )
+    })
+
+    it('is refused for an inactive Membership', async () => {
+        const controller = home(false)
+        controller.membershipActive = false
+        await renderDevicesTab(controller)
+        await startAddingAway()
+        await press('Zigbee')
+        await press('Start searching')
+
+        await screen.findByText(/not active/)
+        expect(controller.zigbeeJoinOpenFor).toBe(0)
+        expect(controller.relayCommissioningAudit).toEqual([])
+    })
+
+    it('is not offered while the Home cannot be reached', async () => {
+        const controller = home(false)
+        controller.goOffline()
+        await renderDevicesTab(controller)
+        await screen.findByText('Connected over offline')
 
         expect(
             screen.queryByRole('button', { name: 'Add a Device' })
         ).toBeNull()
-        expect(
-            screen.getByText(/needs this phone on the Home network/)
-        ).toBeTruthy()
         expect(controller.commissioningRequests).toEqual([])
     })
 })
