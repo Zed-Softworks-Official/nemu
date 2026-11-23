@@ -593,12 +593,74 @@ stop_legacy_stack() {
     || warn "could not stop the existing stack cleanly; continuing"
 }
 
+# Prints one progress line for a copy: label, bar, percent, and sizes.
+# On a terminal the line redraws in place; otherwise it is printed as is.
+progress_line() {
+  awk -v label="$1" -v done_k="$2" -v total_k="$3" -v cr="$4" '
+    function human(k) {
+      if (k >= 1048576) return sprintf("%.1f GB", k / 1048576)
+      if (k >= 1024) return sprintf("%.1f MB", k / 1024)
+      return sprintf("%d KB", k)
+    }
+    BEGIN {
+      width = 30
+      pct = total_k > 0 ? int(done_k * 100 / total_k) : 100
+      if (pct > 100) pct = 100
+      filled = int(pct * width / 100)
+      bar = ""
+      for (i = 0; i < filled; i++) bar = bar "#"
+      for (; i < width; i++) bar = bar "."
+      printf "%s    %-12s [%s] %3d%%  %s / %s%s", cr, label, bar, pct, human(done_k), human(total_k), (cr == "" ? "\n" : "")
+    }'
+}
+
+# Copies a directory tree while showing progress. du is polled every two
+# seconds; on a terminal the bar redraws, otherwise a line prints every 20s.
+copy_with_progress() {
+  # POSIX sh has no locals: these names must not collide with the caller's.
+  cwp_src="$1"
+  cwp_dest="$2"
+  cwp_label="$3"
+  cwp_total_k="$(du -sk "${cwp_src}" 2>/dev/null | awk '{ print $1 }')"
+  cwp_total_k="${cwp_total_k:-0}"
+  cp -a "${cwp_src}/." "${cwp_dest}/" &
+  cwp_copy_pid=$!
+  cwp_ticks=0
+  while kill -0 "${cwp_copy_pid}" 2>/dev/null; do
+    cwp_done_k="$(du -sk "${cwp_dest}" 2>/dev/null | awk '{ print $1 }')"
+    # du can briefly exceed the source while files are still being written.
+    if [ "${cwp_done_k:-0}" -ge "${cwp_total_k}" ] && [ "${cwp_total_k}" -gt 0 ]; then
+      cwp_done_k=$((cwp_total_k - 1))
+    fi
+    if [ -t 1 ]; then
+      progress_line "${cwp_label}" "${cwp_done_k:-0}" "${cwp_total_k}" "$(printf '\r')"
+    elif [ $((cwp_ticks % 10)) -eq 0 ]; then
+      progress_line "${cwp_label}" "${cwp_done_k:-0}" "${cwp_total_k}" ""
+    fi
+    cwp_ticks=$((cwp_ticks + 1))
+    sleep 2
+  done
+  if ! wait "${cwp_copy_pid}"; then
+    [ -t 1 ] && printf '\n'
+    return 1
+  fi
+  if [ -t 1 ]; then
+    progress_line "${cwp_label}" "${cwp_total_k}" "${cwp_total_k}" "$(printf '\r')"
+    printf '\n'
+  else
+    progress_line "${cwp_label}" "${cwp_total_k}" "${cwp_total_k}" ""
+  fi
+}
+
 # Home data moved from named volumes to bind mounts under ${INSTALL_DIR}, so
-# the Updater can snapshot it before an install. The copy runs once, only into
-# an empty directory, with the stack stopped. The old volume is not deleted.
+# the Updater can snapshot it before an install. The copy runs with the stack
+# stopped, into "${dest}.partial", and is renamed into place only when it has
+# finished. An interrupted copy is therefore started over on the next run,
+# never mistaken for a finished one. The old volume is not deleted.
 migrate_volume() {
   name="$1"
   dest="$2"
+  label="$3"
   project="${COMPOSE_PROJECT_NAME:-$(basename "${INSTALL_DIR}")}"
   vol="${project}_${name}"
   docker volume inspect "${vol}" >/dev/null 2>&1 || return 0
@@ -607,15 +669,24 @@ migrate_volume() {
   fi
   src="$(docker volume inspect -f '{{ .Mountpoint }}' "${vol}")"
   [ -d "${src}" ] || die "cannot read Docker volume ${vol} at ${src}"
-  mkdir -p "${dest}"
-  cp -a "${src}/." "${dest}/"
-  log "Copied Docker volume ${vol} to ${dest}. It is kept; remove it with 'docker volume rm ${vol}' once the Home is healthy."
+  partial="${dest}.partial"
+  rm -rf "${partial}"
+  mkdir -p "${partial}"
+  log "Copying ${label} data from Docker volume ${vol} (this can take several minutes on a Raspberry Pi)"
+  copy_with_progress "${src}" "${partial}" "${label}" \
+    || die "copying ${vol} failed. Your data is still in the volume; re-run the installer to try again."
+  # An empty destination may exist from an earlier run; the copy replaces it.
+  if [ -d "${dest}" ]; then
+    rmdir "${dest}"
+  fi
+  mv "${partial}" "${dest}"
+  log "Copied ${vol} to ${dest}. The volume is kept; remove it with 'docker volume rm ${vol}' once the Home is healthy."
 }
 
 prepare_home_data() {
-  migrate_volume postgres-data "${INSTALL_DIR}/volumes/postgres"
-  migrate_volume mosquitto-data "${INSTALL_DIR}/mosquitto/data"
-  migrate_volume matter-controller-data "${INSTALL_DIR}/volumes/matter"
+  migrate_volume postgres-data "${INSTALL_DIR}/volumes/postgres" Postgres
+  migrate_volume mosquitto-data "${INSTALL_DIR}/mosquitto/data" Mosquitto
+  migrate_volume matter-controller-data "${INSTALL_DIR}/volumes/matter" Matter
   mkdir -p "${INSTALL_DIR}/volumes/postgres" "${INSTALL_DIR}/mosquitto/data" "${INSTALL_DIR}/volumes/matter"
   # nemu-matter runs as uid 1000.
   chown -R 1000:1000 "${INSTALL_DIR}/volumes/matter"
