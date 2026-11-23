@@ -178,11 +178,25 @@ enum ToControllerMessage {
 enum EnvelopeRejection {
     /// This Controller does not know the requested action.
     UnsupportedAction { request_id: String, action: String },
+    /// A LAN-only action such as commissioning arrived over Relay (ADR-0030).
+    LanOnly { request_id: String, action: String },
     /// A known action arrived in a shape this Controller cannot read.
     ProtocolMismatch { request_id: String, detail: String },
     /// No request ID to answer; the envelope is dropped.
     Unreadable(String),
 }
+
+/// Actions that only run over LAN (ADR-0030). Commissioning carries pairing
+/// codes and Wi-Fi credentials and needs the phone next to the Device, so the
+/// Relay answers these with an explicit rejection instead of the request
+/// waiting for a reply that never comes.
+const LAN_ONLY_ACTIONS: &[&str] = &[
+    "permitJoin",
+    "commissionMatter",
+    "cancelMatterCommission",
+    "getMatterWifi",
+    "saveMatterWifi",
+];
 
 fn parse_envelope(payload: &str) -> Result<ToControllerEnvelope, EnvelopeRejection> {
     let raw: JsonValue = serde_json::from_str(payload)
@@ -191,6 +205,15 @@ fn parse_envelope(payload: &str) -> Result<ToControllerEnvelope, EnvelopeRejecti
         .get("requestId")
         .and_then(JsonValue::as_str)
         .map(str::to_string);
+    let requested = raw.pointer("/message/type").and_then(JsonValue::as_str);
+    if let (Some(request_id), Some(action)) = (request_id.as_ref(), requested) {
+        if LAN_ONLY_ACTIONS.contains(&action) {
+            return Err(EnvelopeRejection::LanOnly {
+                request_id: request_id.clone(),
+                action: action.to_string(),
+            });
+        }
+    }
     match serde_json::from_value::<ToControllerEnvelope>(raw.clone()) {
         Ok(envelope) => Ok(envelope),
         Err(error) => {
@@ -213,6 +236,28 @@ fn parse_envelope(payload: &str) -> Result<ToControllerEnvelope, EnvelopeRejecti
                 })
             }
         }
+    }
+}
+
+/// The error code and message answering a rejected envelope, or `None` when
+/// there is no request ID to answer.
+fn rejection_reply(rejection: &EnvelopeRejection) -> Option<(&'static str, String)> {
+    match rejection {
+        EnvelopeRejection::UnsupportedAction { action, .. } => Some((
+            "unsupported_action",
+            format!("This Controller does not support {action:?}. Update the Controller."),
+        )),
+        EnvelopeRejection::LanOnly { action, .. } => Some((
+            "unsupported_action",
+            format!(
+                "{action:?} is not available over Relay. Adding a Device needs this phone on the Home network."
+            ),
+        )),
+        EnvelopeRejection::ProtocolMismatch { detail, .. } => Some((
+            "protocol_mismatch",
+            format!("This Controller cannot read the request: {detail}"),
+        )),
+        EnvelopeRejection::Unreadable(_) => None,
     }
 }
 
@@ -429,23 +474,14 @@ async fn handle_message(
 ) -> Result<(), String> {
     let envelope = match parse_envelope(&message.payload) {
         Ok(envelope) => envelope,
-        Err(EnvelopeRejection::Unreadable(error)) => return Err(error),
-        Err(EnvelopeRejection::UnsupportedAction { action, .. }) => {
-            let payload = build_error_response(
-                state,
-                &message.request_id,
-                "unsupported_action",
-                &format!("This Controller does not support {action:?}. Update the Controller."),
-            );
-            return respond(state, respond_via, &message.request_id, payload).await;
-        }
-        Err(EnvelopeRejection::ProtocolMismatch { detail, .. }) => {
-            let payload = build_error_response(
-                state,
-                &message.request_id,
-                "protocol_mismatch",
-                &format!("This Controller cannot read the request: {detail}"),
-            );
+        Err(rejection) => {
+            let Some((code, text)) = rejection_reply(&rejection) else {
+                return Err(match rejection {
+                    EnvelopeRejection::Unreadable(error) => error,
+                    _ => "unanswerable relay envelope".to_string(),
+                });
+            };
+            let payload = build_error_response(state, &message.request_id, code, &text);
             return respond(state, respond_via, &message.request_id, payload).await;
         }
     };
@@ -1130,6 +1166,40 @@ mod tests {
                 action: "teleportDevice".into(),
             }
         );
+    }
+
+    #[test]
+    fn commissioning_requests_are_rejected_as_lan_only() {
+        for message in [
+            json!({ "type": "commissionMatter", "code": "34970112332" }),
+            json!({ "type": "cancelMatterCommission" }),
+            json!({ "type": "permitJoin", "seconds": 180 }),
+            json!({ "type": "getMatterWifi" }),
+            json!({ "type": "saveMatterWifi", "wifiSsid": "home", "wifiPassword": "pw" }),
+        ] {
+            let action = message["type"].as_str().unwrap().to_string();
+            let rejection = parse_envelope(&envelope(message)).unwrap_err();
+            assert_eq!(
+                rejection,
+                EnvelopeRejection::LanOnly {
+                    request_id: "r1".into(),
+                    action: action.clone(),
+                },
+                "{action}"
+            );
+            let (code, text) = rejection_reply(&rejection).unwrap();
+            assert_eq!(code, "unsupported_action");
+            assert!(text.contains("Home network"), "{text}");
+        }
+    }
+
+    #[test]
+    fn unknown_actions_reply_with_unsupported_action() {
+        let rejection = parse_envelope(&envelope(json!({ "type": "teleportDevice" }))).unwrap_err();
+        let (code, text) = rejection_reply(&rejection).unwrap();
+        assert_eq!(code, "unsupported_action");
+        assert!(text.contains("teleportDevice"), "{text}");
+        assert!(rejection_reply(&EnvelopeRejection::Unreadable("x".into())).is_none());
     }
 
     #[test]
