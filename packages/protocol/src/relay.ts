@@ -3,11 +3,17 @@ import {
     applyUpdateResponseSchema,
     assignRoomRequestSchema,
     clientTokenSchema,
+    commissionRequestSchema,
+    commissionResponseSchema,
     createRoomRequestSchema,
     householdMemberSchema,
+    matterWifiResponseSchema,
+    permitJoinRequestSchema,
+    permitJoinResponseSchema,
     releaseChannelSchema,
     releaseStatusSchema,
     renameDeviceRequestSchema,
+    saveMatterWifiRequestSchema,
     switchReleaseChannelResponseSchema,
 } from './api.ts'
 import {
@@ -76,8 +82,30 @@ const setupRelayMessageSchemas = [
     z.object({ type: z.literal('deleteRoom'), roomId: z.string().min(1) }),
 ] as const
 
+/**
+ * Commissioning. Every Membership may commission over Relay, with the same
+ * requests and outcomes as LAN (ADR-0034).
+ */
+const commissioningRelayMessageSchemas = [
+    commissionRequestSchema.extend({ type: z.literal('commissionMatter') }),
+    z.object({ type: z.literal('cancelMatterCommission') }),
+    z.object({ type: z.literal('getMatterWifi') }),
+    saveMatterWifiRequestSchema.extend({ type: z.literal('saveMatterWifi') }),
+    permitJoinRequestSchema.extend({ type: z.literal('permitJoin') }),
+] as const
+
+const commissioningRelayResultSchemas = [
+    commissionResponseSchema.extend({ type: z.literal('commissionMatter') }),
+    commissionResponseSchema.extend({
+        type: z.literal('cancelMatterCommission'),
+    }),
+    matterWifiResponseSchema.extend({ type: z.literal('matterWifi') }),
+    permitJoinResponseSchema.extend({ type: z.literal('permitJoin') }),
+] as const
+
 const authenticatedRelayMessageSchema = z.union([
     ...setupRelayMessageSchemas,
+    ...commissioningRelayMessageSchemas,
     relayCommandMessageSchema,
     z.object({ type: z.literal('getDevices') }),
     z.object({ type: z.literal('getRooms') }),
@@ -181,6 +209,7 @@ export const relayToClientEnvelopeSchema = z.object({
         switchReleaseChannelResponseSchema.extend({
             type: z.literal('switchReleaseChannel'),
         }),
+        ...commissioningRelayResultSchemas,
     ]),
 })
 export type RelayToClientEnvelope = z.infer<typeof relayToClientEnvelopeSchema>

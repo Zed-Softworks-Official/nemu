@@ -24,6 +24,7 @@
         "src/events.ts",
         "src/relay.ts",
         "src/setup.test.ts",
+        "src/commissioning.test.ts",
         "src/relay.test.ts"
     ]
 }
