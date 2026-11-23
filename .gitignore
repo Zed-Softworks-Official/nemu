@@ -109,3 +109,5 @@ yarn-error.log*
 /infra/mosquitto/passwd
 !infra/mosquitto/mosquitto.conf
 !infra/mosquitto/acl.conf
+
+.claude/worktrees

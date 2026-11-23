@@ -16,6 +16,10 @@ Resolve the team with the MCP (`list_teams` / equivalent) by name **Nemu**; do n
 
 Ticket identifiers look like `NEM-123` (or whatever prefix the Nemu team uses). Always refer to an issue by **title wrapping a link**; do not leave a bare id as the only name.
 
+## Pull request base branch
+
+`master` is the default branch, but it is the Stable branch, not where work lands. Cut every branch from `canary` and open every PR against `canary` (`gh pr create --base canary`). Never target `master` directly: `master` only receives `canary` → `master` promotion PRs after the change is verified on Canary.
+
 ## Pull requests as a triage surface
 
 **PRs as a request surface: no.** GitHub PRs are not triaged as issues. `/triage` covers Linear issues only.
