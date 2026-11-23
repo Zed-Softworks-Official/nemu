@@ -257,8 +257,8 @@ jobs:
             -t "${MATTER_IMAGE}:${SHA}" \
             "${MATTER_IMAGE}:${SHA}-amd64" \
             "${MATTER_IMAGE}:${SHA}-arm64"
-          core=$(docker buildx imagetools inspect "${CORE_IMAGE}:${SHA}" | awk '/^Digest:/ { print $2; exit }')
-          matter=$(docker buildx imagetools inspect "${MATTER_IMAGE}:${SHA}" | awk '/^Digest:/ { print $2; exit }')
+          core=$(docker buildx imagetools inspect "${CORE_IMAGE}:${SHA}" --format '{{.Manifest.Digest}}')
+          matter=$(docker buildx imagetools inspect "${MATTER_IMAGE}:${SHA}" --format '{{.Manifest.Digest}}')
           for digest in "$core" "$matter"; do
             if ! [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
               echo "Nemu image digest was not resolved" >&2
@@ -357,7 +357,7 @@ jobs:
           else
             resolve() {
               local digest
-              digest=$(docker buildx imagetools inspect "$1" | awk '/^Digest:/ { print $2; exit }')
+              digest=$(docker buildx imagetools inspect "$1" --format '{{.Manifest.Digest}}')
               if ! [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
                 echo "could not freeze a digest for $1" >&2
                 exit 1
