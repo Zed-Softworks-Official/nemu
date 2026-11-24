@@ -50,7 +50,7 @@ pub struct HealthFlags {
     pub mqtt_connected: AtomicBool,
     pub zigbee_online: AtomicBool,
     pub matter_online: AtomicBool,
-    /// The Relay subscription is live (NEM-88).
+    /// The Relay subscription is live.
     pub relay_connected: AtomicBool,
 }
 

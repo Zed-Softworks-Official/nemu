@@ -117,7 +117,7 @@ describe('Rooms page', () => {
 
         const dialog = await openDelete(user, 'Kitchen')
         expect(
-            within(dialog).getByText('No Devices are in this room.')
+            within(dialog).getByText('No Devices are in this Room.')
         ).toBeInTheDocument()
         expect(within(dialog).queryByRole('combobox')).not.toBeInTheDocument()
         await user.click(

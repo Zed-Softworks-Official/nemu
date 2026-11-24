@@ -361,26 +361,28 @@ export class LanTransport implements ControllerTransport {
         return membersResponseSchema.parse(data).members
     }
 
-    // --- NEM-86: session role ---
     async getSession(): Promise<SessionResponse> {
         const { data } = await this.http.get('/api/session')
         return sessionResponseSchema.parse(data)
     }
-    // --- end NEM-86 ---
 
     async getReleaseStatus(): Promise<UpdateStatusResponse> {
         const { data } = await this.http.get('/api/updates')
         return updateStatusResponseSchema.parse(data)
     }
 
-    // NEM-88: Controller health summary.
     async getHealthSummary(): Promise<HealthSummary> {
         const { data } = await this.http.get('/api/health/summary')
         return healthSummarySchema.parse(data)
     }
 
-    async installRelease(): Promise<ApplyUpdateResponse> {
-        const { data } = await this.http.post('/api/updates/apply')
+    async installRelease(
+        platformVersion?: string
+    ): Promise<ApplyUpdateResponse> {
+        const { data } = await this.http.post(
+            '/api/updates/apply',
+            platformVersion === undefined ? undefined : { platformVersion }
+        )
         return applyUpdateResponseSchema.parse(data)
     }
 

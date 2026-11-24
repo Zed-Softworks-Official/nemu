@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
-import type { Device } from '@nemu/protocol'
-import { describe, it } from 'vitest'
-import { devicesInRoom, roomDeletionSummary } from './room-presentation.ts'
+import { describe, it } from 'node:test'
+import type { Device } from './device.ts'
+import { devicesInRoom, roomDeletionSummary } from './rooms.ts'
 
 function device(overrides: Partial<Device>): Device {
     return {
@@ -28,8 +28,8 @@ describe('devicesInRoom', () => {
             }),
             device({ id: 'fan', roomId: 'office' }),
         ]
-        assert.equal(devicesInRoom(devices, 'living'), 2)
-        assert.equal(devicesInRoom(devices, 'kitchen'), 0)
+        assert.equal(devicesInRoom(devices, 'living').length, 2)
+        assert.equal(devicesInRoom(devices, 'kitchen').length, 0)
     })
 })
 
@@ -45,7 +45,7 @@ describe('roomDeletionSummary', () => {
         )
         assert.equal(
             roomDeletionSummary(0, 'No Room'),
-            'No Devices are in this room.'
+            'No Devices are in this Room.'
         )
     })
 })

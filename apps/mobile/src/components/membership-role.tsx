@@ -7,6 +7,7 @@ import {
     useEffect,
     useState,
 } from 'react'
+import { isConnected } from '~/lib/connection'
 
 /** `undefined` means no provider; `null` means the role is unknown. */
 const MembershipRoleContext = createContext<SessionRole | null | undefined>(
@@ -20,7 +21,7 @@ const MembershipRoleContext = createContext<SessionRole | null | undefined>(
  */
 export function MembershipRoleProvider({ children }: { children: ReactNode }) {
     const { status, getSession } = useController()
-    const live = status.mode === 'lan' || status.mode === 'relay'
+    const live = isConnected(status)
     const [role, setRole] = useState<SessionRole | null>(null)
 
     useEffect(() => {

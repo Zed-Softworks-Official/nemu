@@ -64,13 +64,13 @@ export type FakeControllerOptions = {
     rooms?: Room[]
     /** The designated Home meter, or null when none is set. */
     homeMeter?: HomeMeterDesignation | null
-    /** NEM-86: this Membership's role. Defaults to `member`. */
+    /** This Membership's role. Defaults to `member`. */
     role?: SessionRole
 }
 
 type TransportMode = 'lan' | 'relay'
 
-/** NEM-88: readings behind the fake Controller health summary. */
+/** Readings behind the fake Controller health summary. */
 export type FakeHealthReadings = {
     mqtt: boolean
     zigbee: boolean
@@ -132,7 +132,6 @@ export class FakeController {
     matterCommissioning: CommissionRequest | null = null
     /** Wi-Fi the Controller has saved for Matter commissioning. */
     matterWifi: MatterWifiResponse = { configured: false }
-    // --- Commissioning over Relay for every Membership (ADR-0034) ---
     /** Commissioning requests that reached this Controller. */
     readonly commissioningRequests: Array<{
         type: string
@@ -142,23 +141,16 @@ export class FakeController {
      * Audit log entries for commissioning started over Relay, as Core writes
      * them: the protocol only, never a Device identifier.
      */
-    readonly relayCommissioningAudit: Array<{ protocol: 'matter' | 'zigbee' }> =
-        []
-    // --- End commissioning ---
-    // --- Household and Release reads (NEM-89) ---
+    readonly relayCommissioningAudit: Array<{ protocol: 'zigbee' }> = []
     /** Household members the Controller lists. */
     members: HouseholdMember[] = []
     /** Access Clients the Controller lists. */
     accessClients: ClientToken[] = []
     /** Installed Release status, or null when the Controller cannot read it. */
     releaseStatus: UpdateStatusResponse | null = null
-    // --- end Household and Release reads ---
 
-    // --- NEM-86: session role ---
     /** This Membership's role, reported by `getSession` over LAN and Relay. */
     role: SessionRole
-    // --- end NEM-86 ---
-    // --- NEM-88: Controller health summary ---------------------------------
     /** Scripted service and Controller readings for the health summary. */
     health: FakeHealthReadings = {
         mqtt: true,
@@ -169,22 +161,19 @@ export class FakeController {
     }
     /** Transports that carried a health summary request. */
     readonly healthRequests: TransportMode[] = []
-    // --- end NEM-88 ---------------------------------------------------------
-    // --- NEM-95: Release status for every Membership ------------------------
     /** Transports that carried a Release status read. */
     readonly releaseStatusRequests: TransportMode[] = []
-    // --- end NEM-95 ---------------------------------------------------------
-    // --- NEM-96: install, roll back, and the restart ------------------------
     /** The Release a rollback returns to. */
     previousPlatformVersion = '0.0.0'
     /** Installs and rollbacks that reached this Controller. */
     readonly releaseUpdates: Array<{
         type: ReleaseUpdateKind
         via: TransportMode
+        /** The confirmed Release, when the client sent one. */
+        platformVersion?: string
     }> = []
     private reachableBeforeRestart: { lan: boolean; relay: boolean } | null =
         null
-    // --- end NEM-96 ---------------------------------------------------------
     private readonly tokens: Set<string>
     private readonly otherMembershipTokens: Set<string>
     private readonly transports = new Set<FakeTransport>()
@@ -210,7 +199,6 @@ export class FakeController {
         this.role = options.role ?? 'member'
     }
 
-    // --- NEM-86: session role ---
     /** The session's Membership role; an inactive Membership is refused. */
     session(): SessionResponse {
         if (!this.membershipActive) {
@@ -222,7 +210,6 @@ export class FakeController {
         }
         return { role: this.role }
     }
-    // --- end NEM-86 ---
 
     identity(): IdentifyResponse {
         return { controllerId: this.controllerId, name: this.name }
@@ -323,22 +310,35 @@ export class FakeController {
 
     /**
      * Apply one commissioning request with the Controller's rules: active
-     * Owners and Members only, the same over LAN and Relay (ADR-0034). A
-     * commissioning started over Relay is audited before it starts.
+     * Owners and Members only, and nothing carrying a Matter pairing code or
+     * Wi-Fi credentials over Relay (ADR-0034, NEM-63). Zigbee commissioning
+     * started over Relay is audited before it starts.
      * @internal
      */
     commission<T>(
         type: string,
         via: TransportMode,
         apply: () => T,
-        startsProtocol?: 'matter' | 'zigbee'
+        startsZigbee = false
     ): T {
+        this.refuseLanOnly(type, via)
         this.requireActiveMembership()
-        if (via === 'relay' && startsProtocol) {
-            this.relayCommissioningAudit.push({ protocol: startsProtocol })
+        if (via === 'relay' && startsZigbee) {
+            this.relayCommissioningAudit.push({ protocol: 'zigbee' })
         }
         this.commissioningRequests.push({ type, via })
         return apply()
+    }
+
+    /** @internal Like Core's `LAN_ONLY_ACTIONS`. */
+    refuseLanOnly(type: string, via: TransportMode): void {
+        const lanOnly = ['commissionMatter', 'getMatterWifi', 'saveMatterWifi']
+        if (via === 'relay' && lanOnly.includes(type)) {
+            throw new ApiError(
+                'unsupported_action',
+                `${JSON.stringify(type)} is not available over Relay. It needs this phone on the Home network.`
+            )
+        }
     }
 
     /** @internal */
@@ -352,8 +352,6 @@ export class FakeController {
         }
     }
 
-    // --- NEM-88: Controller health summary ---------------------------------
-    // --- NEM-95: Release status for every Membership ------------------------
     /**
      * Release status as Core returns it: any active Owner or Member may read
      * it; installing and rolling back stay Owner-only.
@@ -377,9 +375,7 @@ export class FakeController {
         this.releaseStatusRequests.push(via)
         return structuredClone(this.releaseStatus)
     }
-    // --- end NEM-95 ---------------------------------------------------------
 
-    // --- NEM-96: install, roll back, and the restart ------------------------
     /**
      * Starts an install or rollback as Core does: Owners only. The Home
      * enters maintenance and answers; it restarts on `restart()`.
@@ -387,7 +383,8 @@ export class FakeController {
      */
     startReleaseUpdate(
         type: ReleaseUpdateKind,
-        via: TransportMode
+        via: TransportMode,
+        platformVersion?: string
     ): ApplyUpdateResponse {
         this.requireActiveMembership()
         if (this.role !== 'owner') {
@@ -398,7 +395,15 @@ export class FakeController {
             )
         }
         const release = this.requireReleaseStatus()
-        this.releaseUpdates.push({ type, via })
+        const available = release.availableRelease?.platformVersion
+        if (platformVersion !== undefined && platformVersion !== available) {
+            throw new ApiError(
+                'release_changed',
+                'A different Release is available now. Check it before installing.',
+                409
+            )
+        }
+        this.releaseUpdates.push({ type, via, platformVersion })
         release.maintenanceMode = true
         return { started: true }
     }
@@ -455,7 +460,6 @@ export class FakeController {
         }
         return this.releaseStatus
     }
-    // --- end NEM-96 ---------------------------------------------------------
 
     /**
      * The summary Core would return for this caller: Owners get Controller
@@ -488,7 +492,6 @@ export class FakeController {
               }
             : { view: 'member', ...common }
     }
-    // --- end NEM-88 ---------------------------------------------------------
 
     /** Replace Devices and tell clients to refetch inventory. */
     setDevices(devices: Device[]): void {
@@ -569,13 +572,20 @@ export class FakeController {
         return structuredClone(room)
     }
 
-    // --- Room deletion with a destination (NEM-87) ---------------------
-
     /** Room deletions this Controller carried out, in order. */
     readonly deletedRooms: Array<{
         roomId: string
         destinationRoomId: string | null
         via: TransportMode
+    }> = []
+
+    /** Audit log entries for Room deletions, with Core's detail. */
+    readonly roomDeletionAudit: Array<{
+        roomId: string
+        roomName: string
+        destinationRoomId: string | null
+        devicesMoved: number
+        componentsMoved: number
     }> = []
 
     /**
@@ -589,7 +599,6 @@ export class FakeController {
         destinationRoomId: string | null,
         via: TransportMode
     ): void {
-        const room = this.requireRoom(roomId)
         if (destinationRoomId === roomId) {
             throw new ApiError(
                 'invalid_destination',
@@ -597,6 +606,7 @@ export class FakeController {
                 400
             )
         }
+        const room = this.requireRoom(roomId)
         if (
             destinationRoomId !== null &&
             !this.rooms.some((other) => other.id === destinationRoomId)
@@ -607,11 +617,17 @@ export class FakeController {
                 404
             )
         }
+        let devicesMoved = 0
+        let componentsMoved = 0
         for (const device of this.devices) {
-            if (device.roomId === roomId) device.roomId = destinationRoomId
+            if (device.roomId === roomId) {
+                device.roomId = destinationRoomId
+                devicesMoved += 1
+            }
             const rooms = { ...device.componentRooms }
             for (const [componentId, assigned] of Object.entries(rooms)) {
                 if (assigned !== roomId) continue
+                componentsMoved += 1
                 if (destinationRoomId === null) delete rooms[componentId]
                 else rooms[componentId] = destinationRoomId
             }
@@ -620,9 +636,14 @@ export class FakeController {
         }
         this.rooms = this.rooms.filter((other) => other !== room)
         this.deletedRooms.push({ roomId, destinationRoomId, via })
+        this.roomDeletionAudit.push({
+            roomId,
+            roomName: room.name,
+            destinationRoomId,
+            devicesMoved,
+            componentsMoved,
+        })
     }
-
-    // --- end Room deletion with a destination ---------------------------
 
     private requireDevice(deviceId: string): Device {
         const device = this.devices.find((d) => d.id === deviceId)
@@ -784,8 +805,6 @@ export class FakeTransport implements ControllerTransport {
         )
     }
 
-    // --- Commissioning over Relay for every Membership (ADR-0034) ---
-
     async permitJoin(seconds: number): Promise<PermitJoinResponse> {
         return this.commission(
             'permitJoin',
@@ -793,21 +812,17 @@ export class FakeTransport implements ControllerTransport {
                 this.controller.zigbeeJoinOpenFor = seconds
                 return { ok: true, seconds }
             },
-            seconds > 0 ? 'zigbee' : undefined
+            seconds > 0
         )
     }
 
     async commissionMatter(
         request: CommissionRequest
     ): Promise<CommissionResponse> {
-        return this.commission(
-            'commissionMatter',
-            () => {
-                this.controller.matterCommissioning = structuredClone(request)
-                return { ok: true }
-            },
-            'matter'
-        )
+        return this.commission('commissionMatter', () => {
+            this.controller.matterCommissioning = structuredClone(request)
+            return { ok: true }
+        })
     }
 
     async cancelMatterCommission(): Promise<CommissionResponse> {
@@ -820,6 +835,7 @@ export class FakeTransport implements ControllerTransport {
     /** Reading saved Wi-Fi is not a commissioning step, so it isn't recorded. */
     async getMatterWifi(): Promise<MatterWifiResponse> {
         this.authorize()
+        this.controller.refuseLanOnly('getMatterWifi', this.mode)
         this.controller.requireActiveMembership()
         return structuredClone(this.controller.matterWifi)
     }
@@ -839,30 +855,21 @@ export class FakeTransport implements ControllerTransport {
     private commission<T>(
         type: string,
         apply: () => T,
-        startsProtocol?: 'matter' | 'zigbee'
+        startsZigbee = false
     ): T {
         this.authorize()
-        return this.controller.commission(
-            type,
-            this.mode,
-            apply,
-            startsProtocol
-        )
+        return this.controller.commission(type, this.mode, apply, startsZigbee)
     }
-
-    // --- End commissioning ---
 
     private setup<T>(type: string, apply: () => T): T {
         this.authorize()
         return this.controller.setup(type, this.mode, apply)
     }
 
-    // --- NEM-86: session role ---
     async getSession(): Promise<SessionResponse> {
         this.authorize()
         return this.controller.session()
     }
-    // --- end NEM-86 ---
 
     async revokeCurrentToken(): Promise<void> {
         this.authorize()
@@ -885,18 +892,15 @@ export class FakeTransport implements ControllerTransport {
         return structuredClone(this.controller.homeMeter)
     }
 
-    // --- NEM-88: Controller health summary ---------------------------------
     async getHealthSummary(): Promise<HealthSummary> {
         this.authorize()
         return this.controller.healthSummary(this.mode)
     }
-    // --- end NEM-88 ---------------------------------------------------------
 
     async designateHomeMeter(): Promise<HomeMeterDesignation> {
         throw new Error('Home meter is not scripted on FakeController')
     }
 
-    // --- Household and Release reads (NEM-89) ---
     async getMembers(): Promise<HouseholdMember[]> {
         this.authorize()
         return structuredClone(this.controller.members)
@@ -909,22 +913,25 @@ export class FakeTransport implements ControllerTransport {
 
     async getReleaseStatus(): Promise<UpdateStatusResponse> {
         this.authorize()
-        // NEM-95: the rule lives on the controller so LAN and Relay agree.
+        // The rule lives on the controller so LAN and Relay agree.
         return this.controller.readRelease(this.mode)
     }
-    // --- end Household and Release reads ---
 
-    // --- NEM-96: install, roll back, and the restart ------------------------
-    async installRelease(): Promise<ApplyUpdateResponse> {
+    async installRelease(
+        platformVersion?: string
+    ): Promise<ApplyUpdateResponse> {
         this.authorize()
-        return this.controller.startReleaseUpdate('install', this.mode)
+        return this.controller.startReleaseUpdate(
+            'install',
+            this.mode,
+            platformVersion
+        )
     }
 
     async rollbackRelease(): Promise<ApplyUpdateResponse> {
         this.authorize()
         return this.controller.startReleaseUpdate('rollback', this.mode)
     }
-    // --- end NEM-96 ---------------------------------------------------------
 
     subscribeEvents(cb: (event: DeviceEvent) => void): () => void {
         this.listeners.add(cb)

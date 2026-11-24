@@ -36,7 +36,7 @@ export const healthResponseSchema = z.object({
 })
 export type HealthResponse = z.infer<typeof healthResponseSchema>
 
-// NEM-88: role-aware Controller health summary. LAN `GET /api/health/summary`
+// Role-aware Controller health summary. LAN `GET /api/health/summary`
 // and Relay `getHealthSummary` return this same shape. Members see only
 // service and Device availability (ADR-0006).
 const healthSummaryCommonShape = {
@@ -258,7 +258,6 @@ export const sessionMintResultSchema = z.object({
 })
 export type SessionMintResult = z.infer<typeof sessionMintResultSchema>
 
-// --- NEM-86: session role ---
 /** The caller's Membership role. Clients use it only to decide what to show. */
 export const sessionRoleSchema = z.enum(['owner', 'member'])
 export type SessionRole = z.infer<typeof sessionRoleSchema>
@@ -266,7 +265,6 @@ export type SessionRole = z.infer<typeof sessionRoleSchema>
 /** `GET /api/session`, and the body of the Relay `session` reply. */
 export const sessionResponseSchema = z.object({ role: sessionRoleSchema })
 export type SessionResponse = z.infer<typeof sessionResponseSchema>
-// --- end NEM-86 ---
 
 export const releaseChannelSchema = z.enum(['stable', 'canary'])
 export type ReleaseChannel = z.infer<typeof releaseChannelSchema>
@@ -312,6 +310,15 @@ export const updateStatusResponseSchema = z.union([
     legacyLanUpdateStatusSchema,
 ])
 export type UpdateStatusResponse = z.infer<typeof releaseStatusSchema>
+
+export const applyUpdateRequestSchema = z.object({
+    /**
+     * The Release the Owner confirmed. The Controller installs no other one.
+     * Older Controllers ignore it.
+     */
+    platformVersion: z.string().min(1).optional(),
+})
+export type ApplyUpdateRequest = z.infer<typeof applyUpdateRequestSchema>
 
 export const applyUpdateResponseSchema = z.object({
     started: z.boolean(),

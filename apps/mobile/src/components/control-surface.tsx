@@ -266,7 +266,7 @@ function SurfaceBody({ children }: { children: React.ReactNode }) {
             ) : null}
             {live && devices?.length === 0 ? (
                 <Text className="text-muted-foreground text-sm">
-                    This Home has no Devices yet. Add them from the dashboard.
+                    This Home has no Devices yet. Add one from the Devices tab.
                 </Text>
             ) : null}
             {children}

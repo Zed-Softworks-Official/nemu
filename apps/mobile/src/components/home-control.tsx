@@ -4,6 +4,7 @@ import type {
     CapabilityCurrentState,
     ConnectionStatus,
     Device,
+    DeviceEvent,
     Room,
 } from '@nemu/protocol'
 import {
@@ -23,6 +24,7 @@ import {
     type TrackedCommand,
     useCommandTracker,
 } from '~/components/use-command-tracker'
+import { isConnected } from '~/lib/connection'
 import type { DeviceControl } from '~/lib/device-control'
 
 const NO_CAPABILITIES: readonly CapabilityCurrentState[] = []
@@ -106,7 +108,7 @@ export function HomeControlProvider({
     const setSetupState = useCallback((key: string, state: SetupState) => {
         setSetupStates((current) => ({ ...current, [key]: state }))
     }, [])
-    const live = status.mode === 'lan' || status.mode === 'relay'
+    const live = isConnected(status)
 
     // The Controller session clears its view on disconnect; keep the last one.
     const lastView = useRef<CapabilityView | null>(view)
@@ -159,10 +161,15 @@ export function HomeControlProvider({
         return () => subscription.remove()
     }, [connection, reprobe])
 
+    const subscribeEvents = useCallback(
+        (cb: (event: DeviceEvent) => void) => connection.subscribeEvents(cb),
+        [connection]
+    )
     const { commandFor, send, dismiss } = useCommandTracker({
         devices,
         live,
         sendCommand,
+        subscribeEvents,
         confirmationWindowMs,
     })
 

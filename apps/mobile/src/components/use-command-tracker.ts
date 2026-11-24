@@ -1,4 +1,9 @@
-import type { CommandResult, Device, DeviceCommand } from '@nemu/protocol'
+import type {
+    CommandResult,
+    Device,
+    DeviceCommand,
+    DeviceEvent,
+} from '@nemu/protocol'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import {
@@ -54,9 +59,16 @@ export function useCommandTracker(options: {
     devices: Device[] | undefined
     live: boolean
     sendCommand: (command: DeviceCommand) => Promise<CommandResult>
+    subscribeEvents: (cb: (event: DeviceEvent) => void) => () => void
     confirmationWindowMs: number
 }) {
-    const { devices, live, sendCommand, confirmationWindowMs } = options
+    const {
+        devices,
+        live,
+        sendCommand,
+        subscribeEvents,
+        confirmationWindowMs,
+    } = options
     const [commands, setCommands] = useState<Record<string, TrackedCommand>>({})
     const commandsRef = useRef(commands)
     commandsRef.current = commands
@@ -146,6 +158,27 @@ export function useCommandTracker(options: {
         }
     }, [devices, confirm])
 
+    // Over LAN the Controller also says when an accepted Command failed.
+    const requestIds = useRef(new Map<string, string>())
+    useEffect(
+        () =>
+            subscribeEvents((event) => {
+                if (event.type !== 'commandResult' || event.ok) return
+                for (const [key, requestId] of requestIds.current) {
+                    const command = commandsRef.current[key]
+                    if (
+                        requestId !== event.requestId ||
+                        command?.phase !== 'pending'
+                    ) {
+                        continue
+                    }
+                    clearTimer(key)
+                    applyAnswer(key, command.desired, answerFromResult(event))
+                }
+            }),
+        [applyAnswer, clearTimer, subscribeEvents]
+    )
+
     const mounted = useRef(true)
     useEffect(() => {
         mounted.current = true
@@ -194,9 +227,9 @@ export function useCommandTracker(options: {
                     : control.payload(desired as number)
             let answer: CommandAnswer
             try {
-                answer = answerFromResult(
-                    await sendCommand({ deviceId, payload })
-                )
+                const result = await sendCommand({ deviceId, payload })
+                requestIds.current.set(key, result.requestId)
+                answer = answerFromResult(result)
             } catch (error) {
                 answer = answerFromError(error)
             }

@@ -7,11 +7,9 @@ import {
     type BootstrapOwnerRequest,
     type ClientToken,
     type CommandResult,
-    type CommissionRequest,
     type CommissionResponse,
     type CreateRoomRequest,
     clientTokenSchema,
-    commissionRequestSchema,
     createRoomRequestSchema,
     type Device,
     type DeviceCommand,
@@ -26,8 +24,6 @@ import {
     historyQueryReadSchema,
     homeMeterDesignationResultSchema,
     householdMemberSchema,
-    type MatterWifiResponse,
-    matterWifiResponseSchema,
     type PatchDeviceRequest,
     type PatchRoomRequest,
     type PermitJoinResponse,
@@ -44,10 +40,8 @@ import {
     relayToControllerEnvelopeSchema,
     renameDeviceRequestSchema,
     renameRoomRequestSchema,
-    type SaveMatterWifiRequest,
     type SessionResponse,
     type SwitchReleaseChannelResponse,
-    saveMatterWifiRequestSchema,
     sessionResponseSchema,
     switchReleaseChannelResponseSchema,
     type UpdateStatusResponse,
@@ -97,7 +91,30 @@ export type RelayTransportOptions = {
 }
 
 /**
- * Relay transport talks to Convex mailbox functions.
+ * Requests that change nothing. Every other request is a write, which must
+ * fail while disconnected instead of being held and sent later.
+ */
+const RELAY_READS: ReadonlySet<RelayRequestMessage['type']> = new Set<
+    RelayRequestMessage['type']
+>([
+    'getDevices',
+    'getRooms',
+    'listMembers',
+    'listTokens',
+    'getCapabilitySnapshot',
+    'watchCapabilityChanges',
+    'historyQuery',
+    'getHomeMeterDesignation',
+    'exportHistoryBackup',
+    'releaseStatus',
+    'getSession',
+    'getHealthSummary',
+])
+
+/**
+ * Relay transport talks to Convex mailbox functions. It has no way to send a
+ * Matter pairing code or Wi-Fi credentials, which must not reach Convex until
+ * Relay envelopes are encrypted end to end (NEM-63, ADR-0034).
  * Capability snapshots and live changes use the same messages as LAN.
  */
 export class RelayTransport implements ControllerTransport {
@@ -164,35 +181,13 @@ export class RelayTransport implements ControllerTransport {
     }
 
     async getDevices(): Promise<Device[]> {
-        const requestId = crypto.randomUUID()
-        const token = this.getToken()
-        if (!token) throw new Error('Missing client token')
-
-        const envelope = relayToControllerEnvelopeSchema.parse({
-            requestId,
-            clientToken: token,
-            message: { type: 'getDevices' },
-        })
-
-        await this.convex.mutation(this.api.send, {
-            controllerId: this.controllerId,
-            requestId,
-            payload: JSON.stringify(envelope),
-        })
-        this.pendingIds.add(requestId)
-
-        const response = await this.waitForResponse(requestId)
-        const parsed = relayToClientEnvelopeSchema.parse(
-            JSON.parse(response.payload)
-        )
-
+        const parsed = await this.request({ type: 'getDevices' })
         if (
             parsed.message.type === 'devices' ||
             parsed.message.type === 'snapshot'
         ) {
             return parseDeviceList(parsed.message.devices)
         }
-
         throw new Error('Unexpected relay response for getDevices')
     }
 
@@ -255,14 +250,6 @@ export class RelayTransport implements ControllerTransport {
     }
 
     async sendCommand(cmd: DeviceCommand): Promise<CommandResult> {
-        // Convex holds mutations while disconnected and sends them on
-        // reconnect. A one-time Command must not fire later (ADR-0015).
-        if (!this.convex.connectionState().isWebSocketConnected) {
-            throw new ApiError(
-                'relay_disconnected',
-                'Not connected to the Relay'
-            )
-        }
         const parsed = await this.request({
             type: 'command',
             deviceId: cmd.deviceId,
@@ -279,7 +266,6 @@ export class RelayTransport implements ControllerTransport {
         throw new Error('Unexpected relay response for command')
     }
 
-    // --- NEM-86: session role ---
     async getSession(): Promise<SessionResponse> {
         const parsed = await this.request({ type: 'getSession' })
         if (parsed.message.type === 'session') {
@@ -288,7 +274,6 @@ export class RelayTransport implements ControllerTransport {
         this.throwIfCommandError(parsed, "read this session's role")
         throw new Error('Unexpected relay response for getSession')
     }
-    // --- end NEM-86 ---
 
     async getReleaseStatus(): Promise<UpdateStatusResponse> {
         const parsed = await this.request({ type: 'releaseStatus' })
@@ -299,7 +284,6 @@ export class RelayTransport implements ControllerTransport {
         throw new Error('Unexpected relay response for releaseStatus')
     }
 
-    // NEM-88: Controller health summary.
     async getHealthSummary(): Promise<HealthSummary> {
         const parsed = await this.request({ type: 'getHealthSummary' })
         if (parsed.message.type === 'healthSummary') {
@@ -310,8 +294,13 @@ export class RelayTransport implements ControllerTransport {
         throw new Error('Unexpected relay response for getHealthSummary')
     }
 
-    async installRelease(): Promise<ApplyUpdateResponse> {
-        const parsed = await this.request({ type: 'installRelease' })
+    async installRelease(
+        platformVersion?: string
+    ): Promise<ApplyUpdateResponse> {
+        const parsed = await this.request({
+            type: 'installRelease',
+            platformVersion,
+        })
         if (parsed.message.type === 'installRelease') {
             return applyUpdateResponseSchema.parse(parsed.message)
         }
@@ -431,8 +420,6 @@ export class RelayTransport implements ControllerTransport {
         )
     }
 
-    // --- Commissioning over Relay for every Membership (ADR-0034) ---
-
     async permitJoin(seconds: number): Promise<PermitJoinResponse> {
         const parsed = await this.request({
             type: 'permitJoin',
@@ -445,20 +432,6 @@ export class RelayTransport implements ControllerTransport {
         throw new Error('Unexpected relay response for permitJoin')
     }
 
-    async commissionMatter(
-        request: CommissionRequest
-    ): Promise<CommissionResponse> {
-        const parsed = await this.request({
-            type: 'commissionMatter',
-            ...commissionRequestSchema.parse(request),
-        })
-        if (parsed.message.type === 'commissionMatter') {
-            return { ok: parsed.message.ok }
-        }
-        this.throwIfCommandError(parsed, 'start Matter pairing')
-        throw new Error('Unexpected relay response for commissionMatter')
-    }
-
     async cancelMatterCommission(): Promise<CommissionResponse> {
         const parsed = await this.request({ type: 'cancelMatterCommission' })
         if (parsed.message.type === 'cancelMatterCommission') {
@@ -467,31 +440,6 @@ export class RelayTransport implements ControllerTransport {
         this.throwIfCommandError(parsed, 'cancel Matter pairing')
         throw new Error('Unexpected relay response for cancelMatterCommission')
     }
-
-    async getMatterWifi(): Promise<MatterWifiResponse> {
-        const parsed = await this.request({ type: 'getMatterWifi' })
-        if (parsed.message.type === 'matterWifi') {
-            return matterWifiResponseSchema.parse(parsed.message)
-        }
-        this.throwIfCommandError(parsed, 'read the saved Wi-Fi')
-        throw new Error('Unexpected relay response for getMatterWifi')
-    }
-
-    async saveMatterWifi(
-        request: SaveMatterWifiRequest
-    ): Promise<MatterWifiResponse> {
-        const parsed = await this.request({
-            type: 'saveMatterWifi',
-            ...saveMatterWifiRequestSchema.parse(request),
-        })
-        if (parsed.message.type === 'matterWifi') {
-            return matterWifiResponseSchema.parse(parsed.message)
-        }
-        this.throwIfCommandError(parsed, 'save the Wi-Fi')
-        throw new Error('Unexpected relay response for saveMatterWifi')
-    }
-
-    // --- End commissioning ---
 
     private async expectDevice(
         message: RelayRequestMessage,
@@ -626,21 +574,55 @@ export class RelayTransport implements ControllerTransport {
         const token = this.getToken()
         if (!token) throw new Error('Missing client token')
 
+        // Convex holds mutations while disconnected and sends them on
+        // reconnect. A write must not happen later (ADR-0015).
+        const write = !RELAY_READS.has(message.type)
+        if (write && !this.convex.connectionState().isWebSocketConnected) {
+            throw new ApiError(
+                'relay_disconnected',
+                'Not connected to the Relay'
+            )
+        }
+
         const envelope = relayToControllerEnvelopeSchema.parse({
             requestId,
             clientToken: token,
+            // The socket can still drop before Convex takes this write. The
+            // Controller refuses it if it arrives after we stopped waiting.
+            expiresAt: write ? Date.now() + this.commandTimeoutMs : undefined,
             message,
         })
 
-        await this.convex.mutation(this.api.send, {
-            controllerId: this.controllerId,
-            requestId,
-            payload: JSON.stringify(envelope),
-        })
+        const started = Date.now()
+        await this.settleInTime(
+            this.convex.mutation(this.api.send, {
+                controllerId: this.controllerId,
+                requestId,
+                payload: JSON.stringify(envelope),
+            })
+        )
         this.pendingIds.add(requestId)
 
-        const response = await this.waitForResponse(requestId)
+        const response = await this.waitForResponse(requestId, started)
         return relayToClientEnvelopeSchema.parse(JSON.parse(response.payload))
+    }
+
+    /** Stops waiting for a send that Convex is holding. */
+    private async settleInTime(sent: Promise<unknown>): Promise<void> {
+        let timer: ReturnType<typeof setTimeout> | undefined
+        try {
+            await Promise.race([
+                sent,
+                new Promise<never>((_, reject) => {
+                    timer = setTimeout(
+                        () => reject(new Error('Relay command timed out')),
+                        this.commandTimeoutMs
+                    )
+                }),
+            ])
+        } finally {
+            clearTimeout(timer)
+        }
     }
 
     subscribeEvents(cb: (event: DeviceEvent) => void): () => void {
@@ -737,8 +719,10 @@ export class RelayTransport implements ControllerTransport {
         this.pendingIds.add(requestId)
     }
 
-    private waitForResponse(requestId: string): Promise<RelayResponseDoc> {
-        const started = Date.now()
+    private waitForResponse(
+        requestId: string,
+        started: number
+    ): Promise<RelayResponseDoc> {
         return new Promise((resolve, reject) => {
             const tick = async () => {
                 if (!this.connected) {

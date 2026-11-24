@@ -9,6 +9,7 @@ import { useLastKnownRole } from '~/components/membership-role'
 import { Button } from '~/components/ui/button'
 import { Text } from '~/components/ui/text'
 import { useReleaseStatus } from '~/components/use-release-status'
+import { errorMessage, isConnected } from '~/lib/connection'
 import { updateSheetHref } from '~/lib/tab-routes'
 
 const CHANNEL_LABELS: Record<UpdateStatusResponse['channel'], string> = {
@@ -25,7 +26,7 @@ export function ReleaseSettings() {
     const { activeHome } = useHomeSession()
     const { status, releaseUpdate } = useController()
     const { release, error } = useReleaseStatus()
-    const live = status.mode === 'lan' || status.mode === 'relay'
+    const live = isConnected(status)
     const home = activeHome?.name ?? 'this Home'
 
     return (
@@ -142,9 +143,7 @@ function OwnerReleaseActions({
             await startReleaseUpdate('rollback')
         } catch (cause) {
             setError(
-                cause instanceof Error
-                    ? cause.message
-                    : 'The Controller did not start the rollback'
+                errorMessage(cause, 'The Controller did not start the rollback')
             )
             setConfirming(false)
         } finally {
@@ -269,6 +268,8 @@ function describeResult({
                 : `Rolled back to Release ${version}.`
         case 'rollbackStuck':
             return 'The rollback could not finish. The Controller is in maintenance.'
+        case 'notCompleted':
+            return `The update did not complete. The Controller still runs Release ${version}.`
         case 'notApplied':
             return kind === 'install'
                 ? `The update was not installed. The Controller still runs Release ${version}.`

@@ -25,8 +25,8 @@ export type CodeScanner = ComponentType<{ onCode: (data: string) => void }>
 
 /**
  * The Devices tab: the Device list, and adding a Device whenever the phone
- * reaches the Controller. Every Membership may commission over LAN or Relay
- * (ADR-0034). Adding opens as a sheet above the list.
+ * reaches the Controller. Every Membership may commission, with Matter only
+ * on the Home network for now (ADR-0034). Adding opens as a sheet above the list.
  */
 export function DevicesTab() {
     const { live } = useHomeControl()
@@ -173,6 +173,21 @@ function AddDeviceSteps({
                 />
             )
         }
+        if (pairingKind === 'matter' && pairing.matterNeedsHomeNetwork) {
+            // Also reached when the phone leaves the Home network mid-flow.
+            return (
+                <View className="gap-3">
+                    <MatterNeedsHomeNetwork />
+                    <View className="flex-row">
+                        <Button
+                            onPress={pairing.reset}
+                            title="Back"
+                            variant="outline"
+                        />
+                    </View>
+                </View>
+            )
+        }
         if (pairingKind === 'matter') {
             return (
                 <MatterCodeStep
@@ -213,7 +228,7 @@ function AddDeviceSteps({
                 </Text>
                 <View className="flex-row gap-3">
                     <Button
-                        disabled={!reachable}
+                        disabled={!reachable || pairing.matterNeedsHomeNetwork}
                         onPress={() => {
                             setNotice(null)
                             pairing.chooseMatter()
@@ -231,6 +246,9 @@ function AddDeviceSteps({
                         variant="outline"
                     />
                 </View>
+                {pairing.matterNeedsHomeNetwork ? (
+                    <MatterNeedsHomeNetwork />
+                ) : null}
             </View>
         )
     })()
@@ -247,6 +265,17 @@ function AddDeviceSteps({
             ) : null}
             {step}
         </>
+    )
+}
+
+/** Pairing codes and Wi-Fi credentials never cross Relay (ADR-0034, NEM-63). */
+function MatterNeedsHomeNetwork() {
+    return (
+        <Text accessibilityRole="alert" className="text-sm leading-relaxed">
+            Matter Devices can only be added on your Home network, because the
+            pairing code isn’t sent over Relay. Connect this phone to your Home
+            network to add one.
+        </Text>
     )
 }
 

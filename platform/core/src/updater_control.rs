@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use crate::audit;
+use crate::pairing::members::active_role;
 
 /// The Release the Home could install now, from the signed channel manifest.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -36,6 +37,8 @@ pub struct ReleaseStatus {
 #[derive(Debug, PartialEq, Eq)]
 pub enum ForwardError {
     Refused,
+    /// The channel no longer serves the Release the Owner confirmed.
+    ReleaseChanged,
     Unavailable(String),
 }
 
@@ -48,7 +51,9 @@ pub struct SwitchChannelOutcome {
 
 pub trait UpdaterControl: Send + Sync {
     fn status(&self) -> Result<ReleaseStatus, String>;
-    fn install(&self) -> Result<(), String>;
+    /// Installs the newer Release. With `platform_version`, the Updater refuses
+    /// any other one.
+    fn install(&self, platform_version: Option<&str>) -> Result<(), String>;
     fn rollback(&self) -> Result<(), String>;
     fn switch_channel(&self, channel: &str) -> Result<SwitchChannelOutcome, String>;
     fn maintenance_mode(&self) -> bool;
@@ -145,9 +150,13 @@ impl UpdaterControl for SocketUpdater {
         })
     }
 
-    fn install(&self) -> Result<(), String> {
-        self.request(json!({ "op": "install" }), REQUEST_TIMEOUT)
-            .map(|_| ())
+    fn install(&self, platform_version: Option<&str>) -> Result<(), String> {
+        let mut body = json!({ "op": "install" });
+        // An Updater that predates the field ignores it.
+        if let Some(version) = platform_version {
+            body["platformVersion"] = json!(version);
+        }
+        self.request(body, REQUEST_TIMEOUT).map(|_| ())
     }
 
     fn rollback(&self) -> Result<(), String> {
@@ -203,34 +212,49 @@ fn available_release(status: &Value) -> Option<AvailableRelease> {
     serde_json::from_value(status.get("availableRelease")?.clone()).ok()
 }
 
-/// Every active Membership may read Release status (NEM-95). Installing,
-/// rolling back and switching channel stay Owner-only.
-pub fn authorize_release_status_read(role: &str, member_status: &str) -> Result<(), ForwardError> {
-    match role {
-        "owner" | "member" if member_status == "active" => Ok(()),
-        _ => Err(ForwardError::Refused),
-    }
-}
-
 /// Forwards a status read to the Updater for any active Owner or Member.
+/// Installing, rolling back and switching channel stay Owner-only.
 /// An inactive Membership is refused. A status read is not an audited update.
 pub fn forward_release_status(
     role: &str,
     member_status: &str,
     updater: &dyn UpdaterControl,
 ) -> Result<ReleaseStatus, ForwardError> {
-    authorize_release_status_read(role, member_status)?;
+    active_role(role, member_status).map_err(|_| ForwardError::Refused)?;
     updater.status().map_err(ForwardError::Unavailable)
+}
+
+/// Refuses an install when the channel no longer serves `confirmed`. This also
+/// covers an Updater that ignores the version it is sent. Clients that predate
+/// confirming a version send none.
+pub fn check_confirmed_release(
+    role: &str,
+    member_status: &str,
+    confirmed: Option<&str>,
+    updater: &dyn UpdaterControl,
+) -> Result<(), ForwardError> {
+    audit::authorize_read(role, member_status).map_err(|_| ForwardError::Refused)?;
+    let Some(confirmed) = confirmed else {
+        return Ok(());
+    };
+    let status = updater.status().map_err(ForwardError::Unavailable)?;
+    match status.available_release {
+        Some(available) if available.platform_version == confirmed => Ok(()),
+        _ => Err(ForwardError::ReleaseChanged),
+    }
 }
 
 /// Forwards an install to the Updater for an active Owner. A Member is refused.
 pub fn forward_install(
     role: &str,
     member_status: &str,
+    confirmed: Option<&str>,
     updater: &dyn UpdaterControl,
 ) -> Result<(), ForwardError> {
     audit::authorize_read(role, member_status).map_err(|_| ForwardError::Refused)?;
-    updater.install().map_err(ForwardError::Unavailable)
+    updater
+        .install(confirmed)
+        .map_err(ForwardError::Unavailable)
 }
 
 /// Forwards a rollback to the Updater for an active Owner. A Member is refused.
@@ -271,12 +295,17 @@ pub fn switch_channel_audit(actor_user_id: Option<String>, channel: &str) -> aud
 }
 
 /// The Audit record for an Owner install. The kind is the existing update kind.
-pub fn install_audit(actor_user_id: Option<String>) -> audit::AuditWrite {
+pub fn install_audit(actor_user_id: Option<String>, confirmed: Option<&str>) -> audit::AuditWrite {
     audit::AuditWrite {
         kind: audit::AuditKind::Update,
         actor_user_id,
         summary: "started install of the current Release".to_string(),
-        detail: serde_json::json!({ "action": "install" }),
+        detail: match confirmed {
+            Some(version) => {
+                serde_json::json!({ "action": "install", "platformVersion": version })
+            }
+            None => serde_json::json!({ "action": "install" }),
+        },
     }
 }
 
@@ -297,7 +326,7 @@ mod tests {
 
     use super::{
         AvailableRelease, ForwardError, ReleaseStatus, SwitchChannelOutcome, UpdaterControl,
-        authorize_release_status_read, forward_install, forward_release_status, forward_rollback,
+        check_confirmed_release, forward_install, forward_release_status, forward_rollback,
         forward_switch_channel, install_audit, rollback_audit, switch_channel_audit,
     };
 
@@ -315,7 +344,7 @@ mod tests {
             Ok(self.status.clone())
         }
 
-        fn install(&self) -> Result<(), String> {
+        fn install(&self, _platform_version: Option<&str>) -> Result<(), String> {
             self.installs.fetch_add(1, Ordering::SeqCst);
             Ok(())
         }
@@ -343,42 +372,6 @@ mod tests {
 
     fn no_switches() -> Mutex<Vec<String>> {
         Mutex::new(Vec::new())
-    }
-
-    #[test]
-    fn active_owners_and_members_may_read_release_status() {
-        assert_eq!(authorize_release_status_read("owner", "active"), Ok(()));
-        assert_eq!(authorize_release_status_read("member", "active"), Ok(()));
-    }
-
-    #[test]
-    fn inactive_memberships_may_not_read_release_status() {
-        for status in ["pending", "revoked", "removed", ""] {
-            assert_eq!(
-                authorize_release_status_read("owner", status),
-                Err(ForwardError::Refused)
-            );
-            assert_eq!(
-                authorize_release_status_read("member", status),
-                Err(ForwardError::Refused)
-            );
-        }
-    }
-
-    #[test]
-    fn callers_without_a_membership_may_not_read_release_status() {
-        assert_eq!(
-            authorize_release_status_read("", "active"),
-            Err(ForwardError::Refused)
-        );
-    }
-
-    #[test]
-    fn unknown_roles_may_not_read_release_status() {
-        assert_eq!(
-            authorize_release_status_read("guest", "active"),
-            Err(ForwardError::Refused)
-        );
     }
 
     #[test]
@@ -470,21 +463,68 @@ mod tests {
             switches: no_switches(),
         };
 
-        let member = forward_install("member", "active", &updater);
+        let member = forward_install("member", "active", None, &updater);
         assert_eq!(member, Err(ForwardError::Refused));
         assert_eq!(updater.installs.load(Ordering::SeqCst), 0);
 
-        let pending = forward_install("owner", "pending", &updater);
+        let pending = forward_install("owner", "pending", None, &updater);
         assert_eq!(pending, Err(ForwardError::Refused));
         assert_eq!(updater.installs.load(Ordering::SeqCst), 0);
 
-        forward_install("owner", "active", &updater).expect("owner install");
+        forward_install("owner", "active", None, &updater).expect("owner install");
         assert_eq!(updater.installs.load(Ordering::SeqCst), 1);
 
-        let audit = install_audit(Some("owner-1".to_string()));
+        let audit = install_audit(Some("owner-1".to_string()), Some("0.4.10"));
+        assert_eq!(audit.detail["platformVersion"], "0.4.10");
         assert_eq!(audit.kind, crate::audit::AuditKind::Update);
         assert_eq!(audit.detail["action"], "install");
         assert_eq!(audit.actor_user_id.as_deref(), Some("owner-1"));
+    }
+
+    #[test]
+    fn an_install_is_refused_when_the_channel_serves_another_release() {
+        let mut updater = FakeUpdater {
+            status: ReleaseStatus {
+                platform_version: "0.4.9".to_string(),
+                channel: "stable".to_string(),
+                newer_release_available: true,
+                available_release: Some(AvailableRelease {
+                    platform_version: "0.4.10".to_string(),
+                    release_notes: None,
+                }),
+                maintenance_mode: false,
+                rollback_snapshot_available: false,
+                rollback_stuck: false,
+            },
+            calls: AtomicU32::new(0),
+            installs: AtomicU32::new(0),
+            rollbacks: AtomicU32::new(0),
+            switches: no_switches(),
+        };
+        let check = |confirmed, updater: &FakeUpdater| {
+            check_confirmed_release("owner", "active", confirmed, updater)
+        };
+
+        assert_eq!(check(Some("0.4.10"), &updater), Ok(()));
+        assert_eq!(
+            check(Some("0.4.9"), &updater),
+            Err(ForwardError::ReleaseChanged)
+        );
+        assert_eq!(
+            check_confirmed_release("member", "active", Some("0.4.10"), &updater),
+            Err(ForwardError::Refused)
+        );
+        assert_eq!(updater.calls.load(Ordering::SeqCst), 2);
+
+        // Clients that predate confirming a version.
+        assert_eq!(check(None, &updater), Ok(()));
+        assert_eq!(updater.calls.load(Ordering::SeqCst), 2);
+
+        updater.status.available_release = None;
+        assert_eq!(
+            check(Some("0.4.10"), &updater),
+            Err(ForwardError::ReleaseChanged)
+        );
     }
 
     #[test]
@@ -603,6 +643,7 @@ mod tests {
         let (socket, server) = fake_updater_socket(vec![
             r#"{"ok":true,"status":{"platformVersion":"0.1.1","channel":"canary","newerReleaseAvailable":true,"maintenanceMode":false,"rollbackSnapshotAvailable":true,"rollbackStuck":false}}"#,
             r#"{"ok":true,"started":true}"#,
+            r#"{"ok":true,"started":true}"#,
             r#"{"ok":false,"error":"no Rollback snapshot"}"#,
             r#"{"ok":true,"switch":{"channel":"stable","installed":true}}"#,
             r#"{"ok":true,"maintenance":true}"#,
@@ -614,13 +655,14 @@ mod tests {
         assert_eq!(status.channel, "canary");
         assert!(status.newer_release_available);
         assert!(status.rollback_snapshot_available);
-        updater.install().expect("install");
+        updater.install(None).expect("install");
+        updater.install(Some("0.1.2")).expect("confirmed install");
         assert_eq!(updater.rollback(), Err("no Rollback snapshot".to_string()));
         let switched = updater.switch_channel("stable").expect("switch");
         assert_eq!(switched.channel, "stable");
         assert!(switched.installed);
         assert!(updater.maintenance_mode());
-        // Cached: no sixth connection is made.
+        // Cached: no seventh connection is made.
         assert!(updater.maintenance_mode());
 
         let seen = server.join().unwrap();
@@ -629,6 +671,7 @@ mod tests {
             [
                 r#"{"op":"status"}"#,
                 r#"{"op":"install"}"#,
+                r#"{"op":"install","platformVersion":"0.1.2"}"#,
                 r#"{"op":"rollback"}"#,
                 r#"{"op":"switchChannel","channel":"stable"}"#,
                 r#"{"op":"maintenance"}"#,

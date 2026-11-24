@@ -6,6 +6,7 @@ import { View } from 'react-native'
 import { OwnerOnly } from '~/components/membership-role'
 import { Button } from '~/components/ui/button'
 import { Text } from '~/components/ui/text'
+import { errorMessage } from '~/lib/connection'
 
 type OwnerHealthSummary = Extract<HealthSummary, { view: 'owner' }>
 
@@ -14,10 +15,15 @@ type HealthRead =
     | { kind: 'read'; summary: HealthSummary }
     | { kind: 'failed'; message: string }
 
-const STATUS_LABELS: Record<HealthSummary['status'], string> = {
-    ok: 'OK',
-    degraded: 'Degraded',
-    error: 'Error',
+/**
+ * The summary's `status` covers only the database and MQTT, so it can be `ok`
+ * while Zigbee or Matter is not.
+ */
+function overallHealth({ services, controller }: OwnerHealthSummary): string {
+    if (!controller.database) return 'Error'
+    return services.mqtt && services.zigbee && services.matter
+        ? 'OK'
+        : 'Some services unavailable'
 }
 
 /**
@@ -52,10 +58,10 @@ function OwnerHealth() {
                 if (!current) return
                 setRead({
                     kind: 'failed',
-                    message:
-                        cause instanceof Error
-                            ? cause.message
-                            : 'Could not read the Controller health',
+                    message: errorMessage(
+                        cause,
+                        'Could not read the Controller health'
+                    ),
                 })
             }
         )
@@ -103,10 +109,7 @@ function HealthRows({ summary }: { summary: OwnerHealthSummary }) {
                 label="Relay"
                 value={controller.relayConnected ? 'Connected' : 'Disconnected'}
             />
-            <HealthRow
-                label="Controller"
-                value={STATUS_LABELS[summary.status]}
-            />
+            <HealthRow label="Controller" value={overallHealth(summary)} />
             <HealthRow label="MQTT" value={availability(services.mqtt)} />
             <HealthRow label="Zigbee" value={availability(services.zigbee)} />
             <HealthRow label="Matter" value={availability(services.matter)} />

@@ -11,6 +11,7 @@ use uuid::Uuid;
 
 use crate::api::access::{leave_home, revoke_current};
 use crate::api::auth::AuthenticatedClient;
+use crate::api::error::ApiError;
 use crate::api::members::{
     SessionMintInput, bootstrap_owner, invite_member, list_household_members, mint_session,
     remove_member,
@@ -49,6 +50,10 @@ struct ToControllerEnvelope {
     request_id: String,
     #[serde(default)]
     client_token: Option<String>,
+    /// Unix milliseconds after which the sender gave up. Absent from reads
+    /// and older clients.
+    #[serde(default)]
+    expires_at: Option<i64>,
     message: ToControllerMessage,
 }
 
@@ -126,7 +131,11 @@ enum ToControllerMessage {
     #[serde(rename = "releaseStatus")]
     ReleaseStatus,
     #[serde(rename = "installRelease")]
-    InstallRelease,
+    InstallRelease {
+        /// The Release the Owner confirmed. Absent from older clients.
+        #[serde(rename = "platformVersion", default)]
+        platform_version: Option<String>,
+    },
     #[serde(rename = "rollbackRelease")]
     RollbackRelease,
     #[serde(rename = "switchReleaseChannel")]
@@ -181,34 +190,17 @@ enum ToControllerMessage {
         )]
         destination_room_id: Option<String>,
     },
-    // --- Commissioning over Relay for every Membership (ADR-0034) ---
-    #[serde(rename = "commissionMatter")]
-    CommissionMatter {
-        #[serde(flatten)]
-        request: crate::commissioning::CommissionRequest,
-    },
+    /// Carries no pairing code or Wi-Fi details, so a commissioning started
+    /// over LAN can still be stopped after the client moves to Relay.
     #[serde(rename = "cancelMatterCommission")]
     CancelMatterCommission,
-    #[serde(rename = "getMatterWifi")]
-    GetMatterWifi,
-    #[serde(rename = "saveMatterWifi")]
-    SaveMatterWifi {
-        #[serde(rename = "wifiSsid")]
-        wifi_ssid: String,
-        #[serde(rename = "wifiPassword")]
-        wifi_password: String,
-    },
     #[serde(rename = "permitJoin")]
     PermitJoin {
         #[serde(default)]
         seconds: Option<u32>,
     },
-    // --- End commissioning ---
-    // --- NEM-86: session role ---
     #[serde(rename = "getSession")]
     GetSession,
-    // --- end NEM-86 ---
-    // NEM-88: Controller health summary.
     #[serde(rename = "getHealthSummary")]
     GetHealthSummary,
 }
@@ -218,24 +210,36 @@ enum ToControllerMessage {
 enum EnvelopeRejection {
     /// This Controller does not know the requested action.
     UnsupportedAction { request_id: String, action: String },
-    /// An action that needs the Home network arrived over Relay (ADR-0034).
+    /// An action that needs the Home network arrived over Relay
+    /// ([`LAN_ONLY_ACTIONS`]).
     LanOnly { request_id: String, action: String },
     /// A known action arrived in a shape this Controller cannot read.
     ProtocolMismatch { request_id: String, detail: String },
-    /// No request ID to answer; the envelope is dropped.
-    Unreadable(String),
+    /// No request ID to answer; the envelope is dropped. Carries no detail,
+    /// because it is logged and a parse error can quote the payload.
+    Unreadable,
 }
 
-/// Actions that only run over LAN. Relay matches LAN for every authorized
-/// operation except the Presence checks (ADR-0034), and none of those has a
-/// Relay message, so nothing is listed. A Presence check that gains a Relay
-/// message belongs here, so the Relay answers it with an explicit rejection
-/// instead of the request waiting for a reply that never comes.
-const LAN_ONLY_ACTIONS: &[&str] = &[];
+/// Actions that only run over LAN, rejected before their contents are parsed.
+/// They carry Matter pairing codes or Wi-Fi credentials, which must not cross
+/// Relay for any role until Relay envelopes are encrypted end to end (NEM-63,
+/// ADR-0034). Clients refuse to send them; this is defence in depth. A
+/// Presence check that gains a Relay message belongs here too.
+const LAN_ONLY_ACTIONS: &[&str] = &["commissionMatter", "getMatterWifi", "saveMatterWifi"];
+
+/// How far an Access Client's clock may trail the Controller's.
+const EXPIRY_CLOCK_SKEW_MS: i64 = 60_000;
+
+/// A write can wait in the sender's Convex client while it is disconnected.
+/// Its sender has already reported that it did not happen, so it must not
+/// run once it finally arrives (ADR-0015).
+fn envelope_expired(expires_at: Option<i64>, now_ms: i64) -> bool {
+    expires_at.is_some_and(|at| now_ms > at.saturating_add(EXPIRY_CLOCK_SKEW_MS))
+}
 
 fn parse_envelope(payload: &str) -> Result<ToControllerEnvelope, EnvelopeRejection> {
-    let raw: JsonValue = serde_json::from_str(payload)
-        .map_err(|e| EnvelopeRejection::Unreadable(format!("invalid envelope: {e}")))?;
+    let raw: JsonValue =
+        serde_json::from_str(payload).map_err(|_| EnvelopeRejection::Unreadable)?;
     let request_id = raw
         .get("requestId")
         .and_then(JsonValue::as_str)
@@ -253,9 +257,7 @@ fn parse_envelope(payload: &str) -> Result<ToControllerEnvelope, EnvelopeRejecti
         Ok(envelope) => Ok(envelope),
         Err(error) => {
             let Some(request_id) = request_id else {
-                return Err(EnvelopeRejection::Unreadable(format!(
-                    "invalid envelope: {error}"
-                )));
+                return Err(EnvelopeRejection::Unreadable);
             };
             let action = raw
                 .pointer("/message/type")
@@ -292,7 +294,7 @@ fn rejection_reply(rejection: &EnvelopeRejection) -> Option<(&'static str, Strin
             "protocol_mismatch",
             format!("This Controller cannot read the request: {detail}"),
         )),
-        EnvelopeRejection::Unreadable(_) => None,
+        EnvelopeRejection::Unreadable => None,
     }
 }
 
@@ -524,10 +526,7 @@ async fn handle_message(
         Ok(envelope) => envelope,
         Err(rejection) => {
             let Some((code, text)) = rejection_reply(&rejection) else {
-                return Err(match rejection {
-                    EnvelopeRejection::Unreadable(error) => error,
-                    _ => "unanswerable relay envelope".to_string(),
-                });
+                return Err("unreadable relay envelope".to_string());
             };
             let payload = build_error_response(state, &message.request_id, code, &text);
             return respond(state, respond_via, &message.request_id, payload).await;
@@ -546,6 +545,16 @@ async fn handle_message(
         let response_payload =
             handle_session_mint(state, &message.request_id, envelope.message).await;
         return respond(state, respond_via, &message.request_id, response_payload).await;
+    }
+
+    if envelope_expired(envelope.expires_at, chrono::Utc::now().timestamp_millis()) {
+        let payload = build_error_response(
+            state,
+            &message.request_id,
+            "request_expired",
+            "This request arrived too late, so nothing changed. Check that this device's clock is right, then try again.",
+        );
+        return respond(state, respond_via, &message.request_id, payload).await;
     }
 
     let Some(token) = envelope
@@ -583,14 +592,12 @@ async fn handle_message(
             }
             build_devices_response(state, &message.request_id, resources)
         }
-        ToControllerMessage::GetRooms => match load_rooms(state).await {
-            Ok(rooms) => build_typed_response(
-                state,
-                &message.request_id,
-                json!({ "type": "rooms", "rooms": rooms }),
-            ),
-            Err(err) => build_error_response(state, &message.request_id, &err.code, &err.message),
-        },
+        ToControllerMessage::GetRooms => typed_outcome(
+            state,
+            &message.request_id,
+            load_rooms(state).await,
+            |rooms| json!({ "type": "rooms", "rooms": rooms }),
+        ),
         ToControllerMessage::Command {
             ref device_id,
             ref payload,
@@ -616,68 +623,54 @@ async fn handle_message(
                 ),
             }
         }
-        ToControllerMessage::ListMembers => match list_household_members(state).await {
-            Ok(members) => build_typed_response(
-                state,
-                &message.request_id,
-                json!({ "type": "members", "members": members }),
-            ),
-            Err(err) => build_error_response(state, &message.request_id, &err.code, &err.message),
-        },
-        ToControllerMessage::InviteMember { email } => match invite_member(state, &auth, &email)
-            .await
-        {
-            Ok(member) => build_typed_response(
-                state,
-                &message.request_id,
-                json!({ "type": "member", "member": member }),
-            ),
-            Err(err) => build_error_response(state, &message.request_id, &err.code, &err.message),
-        },
-        ToControllerMessage::RemoveMember { member_id } => {
-            match remove_member(state, &auth, &member_id).await {
-                Ok(()) => build_command_result(state, &message.request_id, true, None, None),
-                Err(err) => {
-                    build_error_response(state, &message.request_id, &err.code, &err.message)
-                }
-            }
-        }
-        ToControllerMessage::ListTokens => match list_household_tokens(state).await {
-            Ok(tokens) => build_typed_response(
-                state,
-                &message.request_id,
-                json!({ "type": "tokens", "tokens": tokens }),
-            ),
-            Err(err) => build_error_response(state, &message.request_id, &err.code, &err.message),
-        },
-        ToControllerMessage::RevokeToken { token_id } => {
-            match revoke_household_token(state, &auth, &token_id).await {
-                Ok(()) => build_command_result(state, &message.request_id, true, None, None),
-                Err(err) => {
-                    build_error_response(state, &message.request_id, &err.code, &err.message)
-                }
-            }
-        }
-        ToControllerMessage::RevokeCurrent => match revoke_current(&state.db, &auth).await {
-            Ok(()) => build_command_result(state, &message.request_id, true, None, None),
-            Err(err) => build_error_response(state, &message.request_id, &err.code, &err.message),
-        },
-        ToControllerMessage::LeaveHome => match leave_home(&state.db, &auth).await {
-            Ok(()) => build_command_result(state, &message.request_id, true, None, None),
-            Err(err) => build_error_response(state, &message.request_id, &err.code, &err.message),
-        },
+        ToControllerMessage::ListMembers => typed_outcome(
+            state,
+            &message.request_id,
+            list_household_members(state).await,
+            |members| json!({ "type": "members", "members": members }),
+        ),
+        ToControllerMessage::InviteMember { email } => typed_outcome(
+            state,
+            &message.request_id,
+            invite_member(state, &auth, &email).await,
+            |member| json!({ "type": "member", "member": member }),
+        ),
+        ToControllerMessage::RemoveMember { member_id } => done_outcome(
+            state,
+            &message.request_id,
+            remove_member(state, &auth, &member_id).await,
+        ),
+        ToControllerMessage::ListTokens => typed_outcome(
+            state,
+            &message.request_id,
+            list_household_tokens(state).await,
+            |tokens| json!({ "type": "tokens", "tokens": tokens }),
+        ),
+        ToControllerMessage::RevokeToken { token_id } => done_outcome(
+            state,
+            &message.request_id,
+            revoke_household_token(state, &auth, &token_id).await,
+        ),
+        ToControllerMessage::RevokeCurrent => done_outcome(
+            state,
+            &message.request_id,
+            revoke_current(&state.db, &auth).await,
+        ),
+        ToControllerMessage::LeaveHome => done_outcome(
+            state,
+            &message.request_id,
+            leave_home(&state.db, &auth).await,
+        ),
         ToControllerMessage::BootstrapOwner {
             user_id,
             email,
             display_name,
-        } => match bootstrap_owner(state, &auth, &user_id, &email, display_name.as_deref()).await {
-            Ok(member) => build_typed_response(
-                state,
-                &message.request_id,
-                json!({ "type": "member", "member": member }),
-            ),
-            Err(err) => build_error_response(state, &message.request_id, &err.code, &err.message),
-        },
+        } => typed_outcome(
+            state,
+            &message.request_id,
+            bootstrap_owner(state, &auth, &user_id, &email, display_name.as_deref()).await,
+            |member| json!({ "type": "member", "member": member }),
+        ),
         ToControllerMessage::GetCapabilitySnapshot => {
             let event = DeviceEvent::from_capability_snapshot(state.capabilities.snapshot());
             let message_body = serde_json::to_value(&event).unwrap_or(JsonValue::Null);
@@ -777,52 +770,24 @@ async fn handle_message(
                 }
             }
         }
-        ToControllerMessage::SwitchReleaseChannel { channel } => {
-            match crate::api::updates::switch_release_channel(state, &auth, &channel).await {
-                Ok(switched) => build_typed_response(
-                    state,
-                    &message.request_id,
-                    json!({
-                        "type": "switchReleaseChannel",
-                        "channel": switched.channel,
-                        "installed": switched.installed,
-                    }),
-                ),
-                Err(error) => {
-                    build_error_response(state, &message.request_id, &error.code, &error.message)
-                }
-            }
-        }
-        ToControllerMessage::InstallRelease => {
-            match crate::api::updates::install_release(state, &auth).await {
-                Ok(started) => build_typed_response(
-                    state,
-                    &message.request_id,
-                    json!({
-                        "type": "installRelease",
-                        "started": started.started,
-                    }),
-                ),
-                Err(error) => {
-                    build_error_response(state, &message.request_id, &error.code, &error.message)
-                }
-            }
-        }
-        ToControllerMessage::RollbackRelease => {
-            match crate::api::updates::rollback_release(state, &auth).await {
-                Ok(started) => build_typed_response(
-                    state,
-                    &message.request_id,
-                    json!({
-                        "type": "rollbackRelease",
-                        "started": started.started,
-                    }),
-                ),
-                Err(error) => {
-                    build_error_response(state, &message.request_id, &error.code, &error.message)
-                }
-            }
-        }
+        ToControllerMessage::SwitchReleaseChannel { channel } => body_outcome(
+            state,
+            &message.request_id,
+            "switchReleaseChannel",
+            crate::api::updates::switch_release_channel(state, &auth, &channel).await,
+        ),
+        ToControllerMessage::InstallRelease { platform_version } => body_outcome(
+            state,
+            &message.request_id,
+            "installRelease",
+            crate::api::updates::install_release(state, &auth, platform_version.as_deref()).await,
+        ),
+        ToControllerMessage::RollbackRelease => body_outcome(
+            state,
+            &message.request_id,
+            "rollbackRelease",
+            crate::api::updates::rollback_release(state, &auth).await,
+        ),
         ToControllerMessage::RenameDevice { device_id, name } => device_outcome(
             state,
             &message.request_id,
@@ -873,125 +838,42 @@ async fn handle_message(
             &message.request_id,
             setup::delete_room(state, &auth, &room_id, destination_room_id.as_deref()).await,
         ),
-        // --- Commissioning over Relay for every Membership (ADR-0034) ---
-        ToControllerMessage::CommissionMatter { request } => {
-            match crate::commissioning::commission_matter(
-                state,
-                &auth,
-                crate::commissioning::Via::Relay,
-                request,
-            )
-            .await
-            {
-                Ok(()) => build_typed_response(
-                    state,
-                    &message.request_id,
-                    json!({ "type": "commissionMatter", "ok": true }),
-                ),
-                Err(err) => {
-                    build_error_response(state, &message.request_id, &err.code, &err.message)
-                }
-            }
-        }
-        ToControllerMessage::CancelMatterCommission => {
-            match crate::commissioning::cancel_matter_commission(state, &auth).await {
-                Ok(()) => build_typed_response(
-                    state,
-                    &message.request_id,
-                    json!({ "type": "cancelMatterCommission", "ok": true }),
-                ),
-                Err(err) => {
-                    build_error_response(state, &message.request_id, &err.code, &err.message)
-                }
-            }
-        }
-        ToControllerMessage::GetMatterWifi => matter_wifi_outcome(
+        ToControllerMessage::CancelMatterCommission => typed_outcome(
             state,
             &message.request_id,
-            crate::commissioning::read_matter_wifi(state, &auth).await,
+            crate::commissioning::cancel_matter_commission(state, &auth).await,
+            |()| json!({ "type": "cancelMatterCommission", "ok": true }),
         ),
-        ToControllerMessage::SaveMatterWifi {
-            wifi_ssid,
-            wifi_password,
-        } => matter_wifi_outcome(
+        ToControllerMessage::PermitJoin { seconds } => typed_outcome(
             state,
             &message.request_id,
-            crate::commissioning::save_matter_wifi(state, &auth, &wifi_ssid, &wifi_password).await,
-        ),
-        ToControllerMessage::PermitJoin { seconds } => {
-            match crate::commissioning::permit_zigbee_join(
+            crate::commissioning::permit_zigbee_join(
                 state,
                 &auth,
                 crate::commissioning::Via::Relay,
                 seconds,
             )
-            .await
-            {
-                Ok(seconds) => build_typed_response(
-                    state,
-                    &message.request_id,
-                    json!({ "type": "permitJoin", "ok": true, "seconds": seconds }),
-                ),
-                Err(err) => {
-                    build_error_response(state, &message.request_id, &err.code, &err.message)
-                }
-            }
-        }
-        // --- End commissioning ---
-        // --- NEM-86: session role ---
-        ToControllerMessage::GetSession => {
-            match crate::api::session::read_session(state, &auth).await {
-                Ok(session) => build_typed_response(
-                    state,
-                    &message.request_id,
-                    json!({ "type": "session", "role": session.role }),
-                ),
-                Err(error) => {
-                    build_error_response(state, &message.request_id, &error.code, &error.message)
-                }
-            }
-        }
-        // --- end NEM-86 ---
-        // NEM-88: Controller health summary.
-        ToControllerMessage::GetHealthSummary => {
-            match crate::api::health::read_health_summary(state, &auth).await {
-                Ok(summary) => match serde_json::to_value(&summary) {
-                    Ok(mut body) => {
-                        body["type"] = json!("healthSummary");
-                        build_typed_response(state, &message.request_id, body)
-                    }
-                    Err(error) => build_error_response(
-                        state,
-                        &message.request_id,
-                        "internal_error",
-                        &error.to_string(),
-                    ),
-                },
-                Err(error) => {
-                    let error = crate::api::error::ApiError::from(error);
-                    build_error_response(state, &message.request_id, &error.code, &error.message)
-                }
-            }
-        }
-        ToControllerMessage::ReleaseStatus => {
-            match crate::api::updates::read_release_status(state, &auth).await {
-                Ok(status) => match serde_json::to_value(&status) {
-                    Ok(mut body) => {
-                        body["type"] = json!("releaseStatus");
-                        build_typed_response(state, &message.request_id, body)
-                    }
-                    Err(_) => build_error_response(
-                        state,
-                        &message.request_id,
-                        "updater_unavailable",
-                        "Could not read the installed Release",
-                    ),
-                },
-                Err(error) => {
-                    build_error_response(state, &message.request_id, &error.code, &error.message)
-                }
-            }
-        }
+            .await,
+            |seconds| json!({ "type": "permitJoin", "ok": true, "seconds": seconds }),
+        ),
+        ToControllerMessage::GetSession => body_outcome(
+            state,
+            &message.request_id,
+            "session",
+            crate::api::session::read_session(state, &auth).await,
+        ),
+        ToControllerMessage::GetHealthSummary => body_outcome(
+            state,
+            &message.request_id,
+            "healthSummary",
+            crate::api::health::read_health_summary(state, &auth).await,
+        ),
+        ToControllerMessage::ReleaseStatus => body_outcome(
+            state,
+            &message.request_id,
+            "releaseStatus",
+            crate::api::updates::read_release_status(state, &auth).await,
+        ),
     };
 
     respond(state, respond_via, &message.request_id, response_payload).await
@@ -1135,19 +1017,47 @@ fn build_command_result(
     sign_envelope(state, envelope)
 }
 
+/// Answers with the message `body` builds, or with the error as a LAN caller
+/// would get it.
+fn typed_outcome<T, E: Into<ApiError>>(
+    state: &AppState,
+    request_id: &str,
+    result: Result<T, E>,
+    body: impl FnOnce(T) -> JsonValue,
+) -> String {
+    match result {
+        Ok(value) => build_typed_response(state, request_id, body(value)),
+        Err(error) => build_api_error_response(state, request_id, &error.into()),
+    }
+}
+
+/// Answers with the LAN response body, plus the Relay message `type`.
+fn body_outcome<T: Serialize, E: Into<ApiError>>(
+    state: &AppState,
+    request_id: &str,
+    message_type: &str,
+    result: Result<T, E>,
+) -> String {
+    let result = result.map_err(Into::into).and_then(|value| {
+        serde_json::to_value(value).map_err(|error| ApiError::internal(error.to_string()))
+    });
+    typed_outcome(state, request_id, result, |mut body| {
+        body["type"] = json!(message_type);
+        body
+    })
+}
+
 fn device_outcome(
     state: &AppState,
     request_id: &str,
     result: Result<crate::events::DeviceResource, setup::SetupError>,
 ) -> String {
-    match result {
-        Ok(device) => build_typed_response(
-            state,
-            request_id,
-            json!({ "type": "device", "device": device }),
-        ),
-        Err(error) => build_setup_error_response(state, request_id, &error),
-    }
+    typed_outcome(
+        state,
+        request_id,
+        result,
+        |device| json!({ "type": "device", "device": device }),
+    )
 }
 
 fn room_outcome(
@@ -1155,58 +1065,36 @@ fn room_outcome(
     request_id: &str,
     result: Result<crate::events::RoomResource, setup::SetupError>,
 ) -> String {
-    match result {
-        Ok(room) => {
-            build_typed_response(state, request_id, json!({ "type": "room", "room": room }))
-        }
-        Err(error) => build_setup_error_response(state, request_id, &error),
-    }
+    typed_outcome(
+        state,
+        request_id,
+        result,
+        |room| json!({ "type": "room", "room": room }),
+    )
 }
 
-/// The Controller's saved Matter Wi-Fi, in the same shape as LAN.
-fn matter_wifi_outcome(
+fn done_outcome<E: Into<ApiError>>(
     state: &AppState,
     request_id: &str,
-    result: Result<crate::commissioning::MatterWifi, crate::api::error::ApiError>,
-) -> String {
-    match result {
-        Ok(wifi) => {
-            let mut body = serde_json::to_value(&wifi).unwrap_or_else(|_| json!({}));
-            body["type"] = json!("matterWifi");
-            build_typed_response(state, request_id, body)
-        }
-        Err(err) => build_error_response(state, request_id, &err.code, &err.message),
-    }
-}
-
-fn done_outcome(
-    state: &AppState,
-    request_id: &str,
-    result: Result<(), setup::SetupError>,
+    result: Result<(), E>,
 ) -> String {
     match result {
         Ok(()) => build_command_result(state, request_id, true, None, None),
-        Err(error) => build_setup_error_response(state, request_id, &error),
+        Err(error) => build_api_error_response(state, request_id, &error.into()),
     }
 }
 
-/// A setup error over Relay carries the same code, message, and details as
-/// on LAN.
-fn build_setup_error_response(
-    state: &AppState,
-    request_id: &str,
-    error: &setup::SetupError,
-) -> String {
-    let mut body = json!({ "code": error.code(), "message": error.message() });
-    if let Some(details) = error.details() {
-        body["details"] = details;
+/// An error over Relay carries the same code, message, and details as on LAN.
+fn build_api_error_response(state: &AppState, request_id: &str, error: &ApiError) -> String {
+    let mut body = json!({ "code": error.code, "message": error.message });
+    if let Some(details) = &error.details {
+        body["details"] = (**details).clone();
     }
-    let envelope = json!({
-        "requestId": request_id,
-        "signature": "",
-        "message": { "type": "commandResult", "ok": false, "error": body },
-    });
-    sign_envelope(state, envelope)
+    build_typed_response(
+        state,
+        request_id,
+        json!({ "type": "commandResult", "ok": false, "error": body }),
+    )
 }
 
 fn build_error_response(state: &AppState, request_id: &str, code: &str, message: &str) -> String {
@@ -1307,7 +1195,6 @@ mod tests {
         json!({ "requestId": "r1", "clientToken": "t", "message": message }).to_string()
     }
 
-    // NEM-88: Controller health summary.
     #[test]
     fn parses_the_health_summary_request() {
         let parsed = parse_envelope(&envelope(json!({ "type": "getHealthSummary" }))).unwrap();
@@ -1358,13 +1245,11 @@ mod tests {
         }
     }
 
-    // --- NEM-86: session role ---
     #[test]
     fn parses_session_requests() {
         let parsed = parse_envelope(&envelope(json!({ "type": "getSession" }))).unwrap();
         assert!(matches!(parsed.message, ToControllerMessage::GetSession));
     }
-    // --- end NEM-86 ---
 
     #[test]
     fn delete_room_requires_a_destination_or_no_room() {
@@ -1408,39 +1293,15 @@ mod tests {
     }
 
     #[test]
-    fn commissioning_requests_are_accepted_over_relay() {
-        let parsed = parse_envelope(&envelope(json!({
-            "type": "commissionMatter", "code": "34970112332", "wifiSsid": "home"
-        })))
-        .unwrap();
-        assert!(matches!(
-            parsed.message,
-            ToControllerMessage::CommissionMatter { ref request }
-                if request.code == "34970112332"
-                    && request.wifi_ssid.as_deref() == Some("home")
-                    && request.wifi_password.is_none()
-        ));
-
+    fn zigbee_join_and_matter_cancel_are_accepted_over_relay() {
         let parsed =
             parse_envelope(&envelope(json!({ "type": "permitJoin", "seconds": 180 }))).unwrap();
         assert!(matches!(
             parsed.message,
             ToControllerMessage::PermitJoin { seconds: Some(180) }
         ));
-
-        let parsed = parse_envelope(&envelope(json!({
-            "type": "saveMatterWifi", "wifiSsid": "home", "wifiPassword": "pw"
-        })))
-        .unwrap();
-        assert!(matches!(
-            parsed.message,
-            ToControllerMessage::SaveMatterWifi { ref wifi_ssid, ref wifi_password }
-                if wifi_ssid == "home" && wifi_password == "pw"
-        ));
-
         for message in [
             json!({ "type": "cancelMatterCommission" }),
-            json!({ "type": "getMatterWifi" }),
             json!({ "type": "permitJoin" }),
         ] {
             assert!(
@@ -1448,10 +1309,72 @@ mod tests {
                 "{message}"
             );
         }
-        assert!(matches!(
-            parse_envelope(&envelope(json!({ "type": "commissionMatter" }))).unwrap_err(),
-            EnvelopeRejection::ProtocolMismatch { .. }
+    }
+
+    #[test]
+    fn pairing_codes_and_wifi_credentials_are_refused_over_relay() {
+        for message in [
+            json!({ "type": "commissionMatter", "code": "34970112332" }),
+            json!({ "type": "commissionMatter", "code": 7, "wifiPassword": ["hunter2"] }),
+            json!({ "type": "getMatterWifi" }),
+            json!({ "type": "saveMatterWifi", "wifiSsid": "home", "wifiPassword": "hunter2" }),
+        ] {
+            let action = message["type"].as_str().unwrap().to_string();
+            let rejection = parse_envelope(&envelope(message)).unwrap_err();
+            assert_eq!(
+                rejection,
+                EnvelopeRejection::LanOnly {
+                    request_id: "r1".into(),
+                    action: action.clone(),
+                }
+            );
+            let (code, text) = rejection_reply(&rejection).unwrap();
+            assert_eq!(code, "unsupported_action");
+            for secret in ["34970112332", "hunter2"] {
+                assert!(!text.contains(secret), "{action}: {text}");
+            }
+        }
+    }
+
+    #[test]
+    fn a_write_that_outlived_its_sender_is_expired() {
+        assert!(!envelope_expired(None, 1_000_000));
+        assert!(!envelope_expired(Some(1_000_000), 1_000_000));
+        assert!(!envelope_expired(
+            Some(1_000_000),
+            1_000_000 + EXPIRY_CLOCK_SKEW_MS
         ));
+        assert!(envelope_expired(
+            Some(1_000_000),
+            1_000_001 + EXPIRY_CLOCK_SKEW_MS
+        ));
+        let parsed = parse_envelope(
+            &json!({
+                "requestId": "r1", "clientToken": "t", "expiresAt": 42,
+                "message": { "type": "leaveHome" }
+            })
+            .to_string(),
+        )
+        .unwrap();
+        assert_eq!(parsed.expires_at, Some(42));
+    }
+
+    #[test]
+    fn an_install_carries_the_confirmed_release_when_the_client_sends_one() {
+        for (message, expected) in [
+            (json!({ "type": "installRelease" }), None),
+            (
+                json!({ "type": "installRelease", "platformVersion": "0.4.10" }),
+                Some("0.4.10"),
+            ),
+        ] {
+            let parsed = parse_envelope(&envelope(message)).unwrap();
+            assert!(matches!(
+                parsed.message,
+                ToControllerMessage::InstallRelease { ref platform_version }
+                    if platform_version.as_deref() == expected
+            ));
+        }
     }
 
     #[test]
@@ -1460,7 +1383,7 @@ mod tests {
         let (code, text) = rejection_reply(&rejection).unwrap();
         assert_eq!(code, "unsupported_action");
         assert!(text.contains("teleportDevice"), "{text}");
-        assert!(rejection_reply(&EnvelopeRejection::Unreadable("x".into())).is_none());
+        assert!(rejection_reply(&EnvelopeRejection::Unreadable).is_none());
     }
 
     #[test]
@@ -1473,7 +1396,7 @@ mod tests {
         ));
         assert!(matches!(
             parse_envelope("not json").unwrap_err(),
-            EnvelopeRejection::Unreadable(_)
+            EnvelopeRejection::Unreadable
         ));
     }
 
