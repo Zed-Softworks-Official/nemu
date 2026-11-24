@@ -75,6 +75,27 @@ export function useControllerSheet(): ControllerSheetValue {
     return sheet ?? { reachable: live }
 }
 
+/** One titled group of controls or edits inside a sheet. */
+export function SheetSection({
+    title,
+    children,
+}: {
+    title: string
+    children: ReactNode
+}) {
+    return (
+        <View accessibilityLabel={title} className="gap-4">
+            <Text
+                accessibilityRole="header"
+                className="font-medium text-muted-foreground text-xs uppercase tracking-[0.18em]"
+            >
+                {title}
+            </Text>
+            {children}
+        </View>
+    )
+}
+
 /** Says the sheet shows old values and that nothing will be sent later. */
 export function SheetUnreachableBanner() {
     const { reconnect } = useHomeControl()
