@@ -188,6 +188,7 @@ export class RelayTransport implements ControllerTransport {
         ) {
             return parseDeviceList(parsed.message.devices)
         }
+        this.throwIfCommandError(parsed, 'load Devices')
         throw new Error('Unexpected relay response for getDevices')
     }
 

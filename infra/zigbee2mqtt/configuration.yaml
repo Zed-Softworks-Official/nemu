@@ -31,4 +31,6 @@ advanced:
     - 101
     - 140
 version: 5
-devices: {}
+devices:
+  '0xc890a81ee94a0000':
+    friendly_name: '0xc890a81ee94a0000'

@@ -500,3 +500,22 @@ describe('RelayTransport Device setup', () => {
         }
     })
 })
+
+describe('RelayTransport Devices', () => {
+    it('surfaces the Controller’s error code, as on LAN', async () => {
+        const { relay } = scriptedRelay(() => ({
+            type: 'commandResult',
+            ok: false,
+            error: { code: 'unauthorized', message: 'Invalid client token' },
+        }))
+        await relay.connect()
+        try {
+            await assert.rejects(relay.getDevices(), {
+                code: 'unauthorized',
+                message: 'Invalid client token',
+            })
+        } finally {
+            relay.disconnect()
+        }
+    })
+})
