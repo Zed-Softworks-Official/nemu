@@ -114,6 +114,14 @@ const press = (name: string | RegExp) =>
     act(async () => {
         fireEvent.press(button(name))
     })
+const slide = (value: number) =>
+    act(async () => {
+        const slider = screen.getByLabelText('Reading Lamp Brightness')
+        await fireEvent(slider, 'change', {
+            currentTarget: { value: String(value) },
+        })
+        await fireEvent(slider, 'pointerUp')
+    })
 const isDisabled = (name: string | RegExp) =>
     Boolean(button(name).props.accessibilityState?.disabled)
 
@@ -188,7 +196,7 @@ describe.each([
         ])
         await screen.findByLabelText('Device name')
         // Every control the Device supports, not only its power toggle.
-        expect(button('Raise Reading Lamp Brightness')).toBeTruthy()
+        expect(screen.getByLabelText('Reading Lamp Brightness')).toBeTruthy()
         expect(controller.commands).toEqual([])
     })
 
@@ -196,7 +204,7 @@ describe.each([
         const controller = home()
         await openSheet(controller, 'Reading Lamp')
 
-        await press('Raise Reading Lamp Brightness')
+        await slide(60)
 
         await waitFor(() =>
             expect(controller.commands).toEqual([
@@ -377,8 +385,6 @@ describe.each([
             'Remove Reading Lamp',
             'Bedroom',
             'Not in a Room',
-            'Raise Reading Lamp Brightness',
-            'Lower Reading Lamp Brightness',
         ]) {
             expect(isDisabled(name)).toBe(true)
             await press(name)
@@ -390,6 +396,10 @@ describe.each([
                 true
             )
         })
+        expect(
+            screen.getByLabelText('Reading Lamp Brightness').props.disabled
+        ).toBe(true)
+        await slide(60)
 
         controller.lanReachable = lanReachable
         controller.relayReachable = true
@@ -424,9 +434,7 @@ describe('the Device lists', () => {
         expect(screen.queryByLabelText('Device name')).toBeNull()
         expect(screen.queryByRole('button', { name: /Remove/ })).toBeNull()
         // Level controls are in the sheet, not on the card.
-        expect(
-            screen.queryByRole('button', { name: /Reading Lamp Brightness/ })
-        ).toBeNull()
+        expect(screen.queryByLabelText('Reading Lamp Brightness')).toBeNull()
     })
 
     it('says when a Device sheet’s Device has left the Home', async () => {

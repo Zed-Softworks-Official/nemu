@@ -28,3 +28,8 @@ jest.mock(
 jest.mock('~/components/native-toggle', () =>
     jest.requireActual('~/components/native-toggle.tsx')
 )
+
+// Likewise native sliders: use the range input the web build uses.
+jest.mock('~/components/native-slider', () =>
+    jest.requireActual('~/components/native-slider.tsx')
+)

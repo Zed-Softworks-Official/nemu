@@ -1,13 +1,12 @@
 import type { Device, Room } from '@nemu/protocol'
-import { cn } from '@nemu/ui/lib/utils'
 import { useRouter, useSegments } from 'expo-router'
-import { Minus, Plus } from 'lucide-react-native'
 import { useState } from 'react'
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native'
 
 import { useControllerSheet } from '~/components/controller-sheet'
 import { NewRoomForm, RoomRenameForm } from '~/components/device-setup'
 import { useHomeControl } from '~/components/home-control'
+import { LevelSlider } from '~/components/level-slider'
 import { NativeToggle } from '~/components/native-toggle'
 import { Button } from '~/components/ui/button'
 import { Text } from '~/components/ui/text'
@@ -278,7 +277,10 @@ export function DeviceCard({ device }: { device: Device }) {
     const router = useRouter()
     const segments = useSegments()
     const controls = controlsForDevice(device)
-    const power = controls.find((control) => control.key === 'power')
+    const power = controls.find(
+        (control): control is ControlOf<'toggle'> =>
+            control.kind === 'toggle' && control.key === 'power'
+    )
     // Levels are set in the Device sheet; the card only shows them.
     const levels = controls.filter((control) => control.kind === 'level')
     const presented = capabilitiesForDevice(device, capabilities)
@@ -326,7 +328,7 @@ export function DeviceCard({ device }: { device: Device }) {
                 </Pressable>
                 {power ? (
                     <View className="pr-4">
-                        <ControlInput control={power} device={device} />
+                        <ToggleInput control={power} device={device} />
                     </View>
                 ) : null}
             </View>
@@ -377,13 +379,16 @@ export function ControlRow({
     device: Device
     control: DeviceControl
 }) {
+    if (control.kind === 'level') {
+        return <LevelRow control={control} device={device} />
+    }
     return (
         <View className="gap-2">
             <View className="flex-row items-center justify-between gap-3">
                 <Text className="min-w-0 flex-1 text-foreground text-sm">
                     {control.label}
                 </Text>
-                <ControlInput control={control} device={device} />
+                <ToggleInput control={control} device={device} />
             </View>
             <ControlStatus control={control} device={device} />
         </View>
@@ -405,6 +410,7 @@ function useControl(device: Device, control: DeviceControl) {
     return {
         command,
         canSend,
+        inFlight,
         enabled: canSend && !inFlight,
         name: `${device.name} ${control.label}`,
         send: (desired: boolean | number) => {
@@ -414,15 +420,20 @@ function useControl(device: Device, control: DeviceControl) {
     }
 }
 
-function ControlInput({
+type ControlOf<Kind extends DeviceControl['kind']> = Extract<
+    DeviceControl,
+    { kind: Kind }
+>
+
+function ToggleInput({
     device,
     control,
 }: {
     device: Device
-    control: DeviceControl
+    control: ControlOf<'toggle'>
 }) {
     const { enabled, name, send } = useControl(device, control)
-    return control.kind === 'toggle' ? (
+    return (
         <NativeToggle
             disabled={!enabled}
             label={name}
@@ -431,13 +442,37 @@ function ControlInput({
             // not changed the Device yet.
             value={control.on}
         />
-    ) : (
-        <LevelStepper
-            control={control}
-            enabled={enabled}
-            name={name}
-            onChange={send}
-        />
+    )
+}
+
+function LevelRow({
+    device,
+    control,
+}: {
+    device: Device
+    control: ControlOf<'level'>
+}) {
+    const { command, enabled, inFlight, name, send } = useControl(
+        device,
+        control
+    )
+    return (
+        <View className="gap-2">
+            <LevelSlider
+                control={control}
+                enabled={enabled}
+                name={name}
+                onRelease={send}
+                // While a Command is on its way the slider keeps the chosen
+                // value. Any outcome returns it to what the Device reports.
+                value={
+                    inFlight && command
+                        ? (command.desired as number)
+                        : control.value
+                }
+            />
+            <ControlStatus control={control} device={device} />
+        </View>
     )
 }
 
@@ -458,69 +493,6 @@ function ControlStatus({
             onDismiss={dismiss}
             onRetry={() => send(command.desired)}
         />
-    )
-}
-
-function LevelStepper({
-    control,
-    enabled,
-    name,
-    onChange,
-}: {
-    control: Extract<DeviceControl, { kind: 'level' }>
-    enabled: boolean
-    name: string
-    onChange: (desired: number) => void
-}) {
-    const { value, min, max, step } = control
-    const lower = Math.max(min, value - step)
-    const higher = Math.min(max, value + step)
-    return (
-        <View className="flex-row items-center gap-3">
-            <StepButton
-                disabled={!enabled || lower === value}
-                icon={Minus}
-                label={`Lower ${name}`}
-                onPress={() => onChange(lower)}
-            />
-            <Text className="min-w-14 text-center text-foreground text-sm">
-                {control.format(value)}
-            </Text>
-            <StepButton
-                disabled={!enabled || higher === value}
-                icon={Plus}
-                label={`Raise ${name}`}
-                onPress={() => onChange(higher)}
-            />
-        </View>
-    )
-}
-
-function StepButton({
-    label,
-    icon: Icon,
-    disabled,
-    onPress,
-}: {
-    label: string
-    icon: typeof Plus
-    disabled: boolean
-    onPress: () => void
-}) {
-    return (
-        <Pressable
-            accessibilityLabel={label}
-            accessibilityRole="button"
-            accessibilityState={{ disabled }}
-            className={cn(
-                'size-11 items-center justify-center rounded-sm border border-border active:bg-muted',
-                disabled && 'opacity-50'
-            )}
-            disabled={disabled}
-            onPress={onPress}
-        >
-            <Icon color={colors.foreground} size={18} />
-        </Pressable>
     )
 }
 
