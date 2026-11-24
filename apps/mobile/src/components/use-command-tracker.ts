@@ -20,7 +20,6 @@ export type TrackedCommand = {
 /** Core marks a Command unconfirmed after 30s; allow for the trip back. */
 export const CONFIRMATION_WINDOW_MS = 35_000
 const CONFIRMED_DISPLAY_MS = 2_500
-const LEVEL_TOLERANCE = 1
 
 function commandKey(deviceId: string, controlKey: string): string {
     return `${deviceId}/${controlKey}`
@@ -38,7 +37,7 @@ function deviceReports(
     if (!control) return false
     return control.kind === 'toggle'
         ? control.on === desired
-        : Math.abs(control.value - (desired as number)) <= LEVEL_TOLERANCE
+        : control.confirms(desired as number)
 }
 
 function splitKey(key: string): [string, string] {

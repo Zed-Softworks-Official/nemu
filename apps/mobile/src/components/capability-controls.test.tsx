@@ -104,6 +104,13 @@ async function setup(options?: {
     return controller
 }
 
+const drag = (label: string, value: number) =>
+    fireEvent(screen.getByLabelText(label), 'change', {
+        currentTarget: { value: String(value) },
+    })
+const letGo = (label: string) =>
+    fireEvent(screen.getByLabelText(label), 'pointerUp')
+
 const power = () => screen.getByLabelText('Lamp Power')
 const turnOn = () => fireEvent(power(), 'valueChange', true)
 
@@ -128,7 +135,8 @@ describe('issuing a Command', () => {
 
     it('sets a level to an absolute value from the Device sheet', async () => {
         const controller = await setup({ sheet: 'lamp' })
-        await fireEvent.press(screen.getByLabelText('Raise Lamp Brightness'))
+        await drag('Lamp Brightness', 60)
+        await letGo('Lamp Brightness')
         await screen.findByText(/Waiting for the Device to report 60%/)
         expect(controller.commands[0]?.command.payload).toEqual({
             brightness: 152,
@@ -148,9 +156,7 @@ describe('issuing a Command', () => {
     it('offers no control for a Capability that cannot be commanded', async () => {
         await setup({ devices: [LAMP, SENSOR], sheet: 'sensor' })
         expect(screen.queryByRole('switch')).toBeNull()
-        expect(
-            screen.queryByRole('button', { name: /^(Raise|Lower)/ })
-        ).toBeNull()
+        expect(screen.queryByLabelText(/Brightness/)).toBeNull()
         expect(screen.queryByText('Controls')).toBeNull()
     })
 
@@ -317,10 +323,9 @@ describe('when a Command cannot be sent', () => {
     it('disables an offline Device’s controls in its sheet', async () => {
         await setup({ sheet: 'old' })
         expect(screen.getByLabelText('Old Power').props.disabled).toBe(true)
-        expect(
-            screen.getByLabelText('Raise Old Brightness').props
-                .accessibilityState.disabled
-        ).toBe(true)
+        expect(screen.getByLabelText('Old Brightness').props.disabled).toBe(
+            true
+        )
     })
 
     it('disables controls with no connection and sends nothing later', async () => {

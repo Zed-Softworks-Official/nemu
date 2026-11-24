@@ -1,7 +1,12 @@
 'use client'
 
 import { useCapabilityState, useController, useDevices } from '@nemu/controller'
-import type { DeviceState, Room } from '@nemu/protocol'
+import {
+    brightnessRange,
+    colorTempRange,
+    type DeviceState,
+    type Room,
+} from '@nemu/protocol'
 import {
     AlertDialog,
     AlertDialogCancel,
@@ -80,8 +85,6 @@ import {
     powerPayload,
 } from '~/lib/device-commands'
 import {
-    COLOR_TEMP_MAX_MIREDS,
-    COLOR_TEMP_MIN_MIREDS,
     colorTempLabel,
     formatCurrent,
     formatEnergy,
@@ -590,7 +593,10 @@ export function DeviceDetail({ deviceId }: { deviceId: string }) {
                                     min={0}
                                     onCommit={(value) =>
                                         void runCommand(
-                                            brightnessPercentToPayload(value)
+                                            brightnessPercentToPayload(
+                                                value,
+                                                brightnessRange(presented)
+                                            )
                                         )
                                     }
                                     value={presented.level}
@@ -605,10 +611,15 @@ export function DeviceDetail({ deviceId }: { deviceId: string }) {
                                     disabled={controlsDisabled}
                                     formatValue={colorTempLabel}
                                     label="Color temperature"
-                                    max={COLOR_TEMP_MAX_MIREDS}
-                                    min={COLOR_TEMP_MIN_MIREDS}
+                                    max={colorTempRange(presented).max}
+                                    min={colorTempRange(presented).min}
                                     onCommit={(value) =>
-                                        void runCommand(colorTempPayload(value))
+                                        void runCommand(
+                                            colorTempPayload(
+                                                value,
+                                                colorTempRange(presented)
+                                            )
+                                        )
                                     }
                                     value={presented.colorTemp}
                                 />
