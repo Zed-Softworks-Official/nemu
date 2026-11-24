@@ -1,6 +1,7 @@
 import { useController } from '@nemu/controller'
 import type { UpdateStatusResponse } from '@nemu/protocol'
 import { useEffect, useState } from 'react'
+import { errorMessage, isConnected } from '~/lib/connection'
 
 /**
  * Release status, read again when the transport changes or an update this
@@ -12,7 +13,7 @@ export function useReleaseStatus(): {
     error: string | null
 } {
     const { status, getReleaseStatus, releaseUpdate } = useController()
-    const live = status.mode === 'lan' || status.mode === 'relay'
+    const live = isConnected(status)
     const updating = releaseUpdate?.phase === 'updating'
     const [release, setRelease] = useState<UpdateStatusResponse | null>(null)
     const [error, setError] = useState<string | null>(null)
@@ -30,9 +31,7 @@ export function useReleaseStatus(): {
             (cause: unknown) => {
                 if (!current) return
                 setError(
-                    cause instanceof Error
-                        ? cause.message
-                        : 'Could not read the installed Release'
+                    errorMessage(cause, 'Could not read the installed Release')
                 )
             }
         )

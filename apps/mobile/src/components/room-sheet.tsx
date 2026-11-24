@@ -1,5 +1,10 @@
 import { useController } from '@nemu/controller'
-import type { Device, Room } from '@nemu/protocol'
+import {
+    type Device,
+    devicesInRoom,
+    type Room,
+    roomDeletionSummary,
+} from '@nemu/protocol'
 import { useEffect, useState } from 'react'
 import { ActivityIndicator, View } from 'react-native'
 
@@ -19,12 +24,7 @@ import { NativePicker } from '~/components/native-picker'
 import { Button } from '~/components/ui/button'
 import { Text } from '~/components/ui/text'
 import { colors } from '~/constants/colors'
-import {
-    devicesInRoom,
-    roomDeletedNotice,
-    roomDeletionSummary,
-    sortRooms,
-} from '~/lib/room-presentation'
+import { roomDeletedNotice, sortRooms } from '~/lib/room-presentation'
 
 const NO_ROOM = 'No Room'
 /** No Room's picker value; Room IDs are never empty. */

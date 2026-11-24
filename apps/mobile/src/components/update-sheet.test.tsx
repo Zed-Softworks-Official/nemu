@@ -179,7 +179,9 @@ describe.each([
 
         await screen.findByText('Updating…')
         expect(rendered.getSegments().at(-1)).toBe('settings')
-        expect(controller.releaseUpdates).toEqual([{ type: 'install', via }])
+        expect(controller.releaseUpdates).toEqual([
+            { type: 'install', via, platformVersion: '0.4.10' },
+        ])
         expect(screen.queryByText('Install update')).toBeNull()
 
         controller.restart()
@@ -203,6 +205,37 @@ describe.each([
         expect(screen.queryByText('Release 0.4.10 was installed.')).toBeNull()
     })
 
+    it('refuses when the channel serves another Release by then', async () => {
+        const controller = lake()
+        await openSheet(controller)
+        controller.releaseStatus = {
+            ...structuredClone(NEWER),
+            availableRelease: { platformVersion: '0.4.11' },
+        }
+        await press('Install now')
+        expect(
+            await screen.findByText(/A different Release is available now/)
+        ).toBeTruthy()
+        expect(controller.releaseUpdates).toEqual([])
+        expect(controller.releaseStatus.maintenanceMode).toBe(false)
+    })
+
+    it('does not claim a rollback from a snapshot that was already there', async () => {
+        const controller = lake('owner', { rollbackSnapshotAvailable: true })
+        await openSheet(controller)
+        await press('Install now')
+        await pass()
+        controller.restart()
+        await pass()
+        controller.finishReleaseUpdate('rolledBack')
+        await pass(10_000)
+        expect(
+            screen.getByText(
+                'The update did not complete. The Controller still runs Release 0.4.9.'
+            )
+        ).toBeTruthy()
+    })
+
     it('keeps Updating… while the Controller is back but still in maintenance', async () => {
         const controller = lake()
         await openSheet(controller)
@@ -215,7 +248,9 @@ describe.each([
     })
 
     it('reports a failed install that rolled back', async () => {
-        const controller = lake()
+        const controller = lake('owner', {
+            rollbackSnapshotAvailable: false,
+        })
         await openSheet(controller)
         await press('Install now')
         await pass()

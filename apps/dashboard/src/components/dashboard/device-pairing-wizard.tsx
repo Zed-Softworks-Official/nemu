@@ -158,6 +158,13 @@ export function DevicePairingWizard() {
 
             {pairing.pairingKind === 'matter' &&
             pairing.phase === 'idle' &&
+            pairing.matterNeedsHomeNetwork ? (
+                <MatterNeedsHomeNetwork onBack={pairing.reset} />
+            ) : null}
+
+            {pairing.pairingKind === 'matter' &&
+            pairing.phase === 'idle' &&
+            !pairing.matterNeedsHomeNetwork &&
             pairing.matterStep === 'ready' ? (
                 <MatterReadyStep
                     onBack={pairing.reset}
@@ -167,6 +174,7 @@ export function DevicePairingWizard() {
 
             {pairing.pairingKind === 'matter' &&
             pairing.phase === 'idle' &&
+            !pairing.matterNeedsHomeNetwork &&
             pairing.matterStep === 'scan' ? (
                 <MatterScanStep
                     code={matterCode}
@@ -180,6 +188,7 @@ export function DevicePairingWizard() {
 
             {pairing.pairingKind === 'matter' &&
             pairing.phase === 'idle' &&
+            !pairing.matterNeedsHomeNetwork &&
             pairing.matterStep === 'wifi' ? (
                 <MatterWifiStep
                     hasSavedWifi={hasSavedWifi}
@@ -358,6 +367,29 @@ function ZigbeePrepareStep({
             </Card>
             <ZigbeeTips />
         </div>
+    )
+}
+
+/** Pairing codes and Wi-Fi credentials never cross Relay (ADR-0034, NEM-63). */
+function MatterNeedsHomeNetwork({ onBack }: { onBack: () => void }) {
+    return (
+        <Card className="mx-auto w-full max-w-2xl">
+            <CardHeader className="text-center">
+                <CardTitle className="text-2xl">
+                    Connect to your Home network
+                </CardTitle>
+                <CardDescription className="mx-auto max-w-md text-base leading-relaxed">
+                    Matter Devices can only be added on your Home network,
+                    because the pairing code and Wi-Fi details aren’t sent over
+                    Relay.
+                </CardDescription>
+            </CardHeader>
+            <CardFooter className="border-t">
+                <Button onClick={onBack} variant="ghost">
+                    Back
+                </Button>
+            </CardFooter>
+        </Card>
     )
 }
 

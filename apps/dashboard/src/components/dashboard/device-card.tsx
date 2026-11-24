@@ -17,6 +17,7 @@ import { useEffect, useState } from 'react'
 import { powerPayload } from '~/lib/device-commands'
 import type { PresentedDevice } from '~/lib/device-presentation'
 import { DeviceIcon } from './device-icon'
+import { useCommandConfirmation } from './use-command-confirmation'
 
 export function DeviceCard({ device }: { device: PresentedDevice }) {
     const { sendCommand, status } = useController()
@@ -27,10 +28,17 @@ export function DeviceCard({ device }: { device: PresentedDevice }) {
         device.supportsPower &&
         (status.mode === 'lan' || status.mode === 'relay')
 
+    const fail = (nextError: Error) => {
+        setPendingPower(null)
+        setError(nextError)
+    }
+    const { awaitConfirmation, settle } = useCommandConfirmation(fail)
+
     useEffect(() => {
+        settle()
         setPendingPower(null)
         setError(null)
-    }, [device.enabled, device.state])
+    }, [device.enabled, device.state, settle])
 
     async function handleToggle(next: boolean) {
         setPendingPower(next)
@@ -45,9 +53,9 @@ export function DeviceCard({ device }: { device: PresentedDevice }) {
                     result.error?.message ?? 'Command failed on the controller'
                 )
             }
+            awaitConfirmation(result)
         } catch (nextError) {
-            setPendingPower(null)
-            setError(
+            fail(
                 nextError instanceof Error
                     ? nextError
                     : new Error(String(nextError))

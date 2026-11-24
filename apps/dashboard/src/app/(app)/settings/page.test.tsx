@@ -1,6 +1,6 @@
 import { FakeController } from '@nemu/controller/testing'
 import type { HouseholdMember } from '@nemu/protocol'
-import { screen, within } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
     DASHBOARD_TOKEN,
@@ -152,6 +152,23 @@ describe('Settings page', () => {
             screen.getByText('Invite someone to this home')
         ).toBeInTheDocument()
         expect(screen.getByText('Add a device with a code')).toBeInTheDocument()
+    })
+
+    it('installs only the Release it read', async () => {
+        const controller = home()
+        controller.role = 'owner'
+        if (controller.releaseStatus) {
+            controller.releaseStatus.availableRelease = {
+                platformVersion: '2026.12.0',
+            }
+        }
+        renderWithController(<SettingsPage />, controller)
+        fireEvent.click(await screen.findByRole('button', { name: 'Install' }))
+        await waitFor(() =>
+            expect(controller.releaseUpdates).toEqual([
+                { type: 'install', via: 'lan', platformVersion: '2026.12.0' },
+            ])
+        )
     })
 
     it('shows a Member the installed Release but hides Owner-only actions', async () => {

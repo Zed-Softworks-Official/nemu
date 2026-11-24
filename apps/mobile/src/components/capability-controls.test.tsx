@@ -247,6 +247,33 @@ describe('final outcomes', () => {
         expect(screen.queryByText(/broker down/)).toBeNull()
     })
 
+    it('shows a Command the Device’s adapter failed after it was accepted', async () => {
+        const controller = await setup({ commandResult: () => ACCEPTED })
+        await turnOn()
+        await screen.findByText(/Waiting for the Device/)
+        await act(async () =>
+            controller.emit({
+                type: 'commandResult',
+                requestId: 'another',
+                ok: false,
+                outcome: 'failed',
+            })
+        )
+        expect(screen.queryByText(/reported an error/)).toBeNull()
+        await act(async () =>
+            controller.emit({
+                type: 'commandResult',
+                requestId: ACCEPTED.requestId,
+                ok: false,
+                outcome: 'failed',
+                error: { code: 'failed', message: 'command failed' },
+            })
+        )
+        expect(
+            screen.getByText('The Device or its network reported an error.')
+        ).toBeTruthy()
+    })
+
     it('shows an unconfirmed Command the Controller gave up on', async () => {
         await setup({ commandResult: throwing('unconfirmed', 'no') })
         await turnOn()

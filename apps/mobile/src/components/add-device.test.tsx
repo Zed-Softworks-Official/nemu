@@ -351,11 +351,8 @@ describe('Adding a Device on the Home network', () => {
 })
 
 describe('Adding a Device while the connection changes', () => {
-    async function commissioningMatter(
-        controller: FakeController,
-        lanReachable = true
-    ) {
-        await screen.findByText(lanReachable ? 'At home' : 'Away from home')
+    async function commissioningMatter(controller: FakeController) {
+        await screen.findByText('At home')
         await press('Add a Device')
         await press('Matter')
         scans.push('MT:Y.K9042C00KA0648G00')
@@ -420,9 +417,9 @@ describe('Adding a Device while the connection changes', () => {
         ['LAN', true],
         ['Relay', false],
     ])('stays open but disables everything while the Home is unreachable, then carries on over %s', async (_label, lanReachable) => {
-        const controller = home(lanReachable)
+        const controller = home(true)
         const rendered = await renderDevicesTab(controller)
-        await commissioningMatter(controller, lanReachable)
+        await commissioningMatter(controller)
         const before = [...controller.commissioningRequests]
 
         controller.goOffline()
@@ -458,6 +455,56 @@ describe('Adding a Device while the connection changes', () => {
         for (const name of ['Bedroom', 'Finish']) {
             expect(isDisabled(name)).toBe(true)
         }
+    })
+
+    it('sends no pairing code once the phone moves to Relay mid-flow', async () => {
+        const controller = home(true)
+        await renderDevicesTab(controller)
+        await startAdding()
+        await press('Matter')
+        await press('Enter the code instead')
+        await fireEvent.changeText(
+            screen.getByLabelText('Pairing code'),
+            '34970112332'
+        )
+
+        controller.lanReachable = false
+        await act(() => reprobe())
+        await screen.findByText(/only be added on your Home network/)
+        expect(screen.queryByLabelText('Pairing code')).toBeNull()
+        expect(
+            screen.queryByRole('button', { name: 'Scan with the camera' })
+        ).toBeNull()
+
+        await press('Back')
+        expect(isDisabled('Matter')).toBe(true)
+        expect(controller.matterCommissioning).toBeNull()
+        expect(controller.commissioningRequests).not.toContainEqual(
+            expect.objectContaining({ type: 'commissionMatter' })
+        )
+    })
+
+    it('starts nothing when reading the Devices drops the Home network', async () => {
+        const controller = home(true)
+        await renderDevicesTab(controller)
+        await startAdding()
+        await press('Matter')
+        await press('Enter the code instead')
+        await fireEvent.changeText(
+            screen.getByLabelText('Pairing code'),
+            '34970112332'
+        )
+
+        // The connection has not noticed yet.
+        controller.lanReachable = false
+        await press('Add Device')
+
+        await screen.findByText('The Device wasn’t added')
+        await screen.findByText('Connected over relay')
+        expect(controller.matterCommissioning).toBeNull()
+        expect(controller.commissioningRequests).not.toContainEqual(
+            expect.objectContaining({ type: 'commissionMatter' })
+        )
     })
 
     it('starts nothing from a code entered or scanned while unreachable', async () => {
@@ -569,54 +616,18 @@ describe('Adding a Device over Relay', () => {
         ['a Member', 'member'],
         ['an Owner', 'owner'],
     ] as const)('as %s', (_label, role) => {
-        it('may commission a Matter Device from a typed code', async () => {
+        it('is told Matter needs the Home network', async () => {
             const controller = home(false, role)
             await renderDevicesTab(controller)
             await screen.findByText(`Session role: ${role}`)
             await startAddingAway()
+
+            await screen.findByText(/only be added on your Home network/)
+            expect(isDisabled('Matter')).toBe(true)
             await press('Matter')
-            await press('Enter the code instead')
-
-            await fireEvent.changeText(
-                screen.getByLabelText('Pairing code'),
-                '3497-011-2332'
-            )
-            await press('Add Device')
-
-            await waitFor(() =>
-                expect(controller.matterCommissioning).toEqual({
-                    code: '34970112332',
-                })
-            )
-            expect(controller.commissioningRequests).toContainEqual({
-                type: 'commissionMatter',
-                via: 'relay',
-            })
-            expect(controller.relayCommissioningAudit).toEqual([
-                { protocol: 'matter' },
-            ])
-
-            // Over Relay the new Device is found from the Device list.
-            controller.devices = [
-                ...controller.devices,
-                structuredClone(MATTER_BULB),
-            ]
-            const name = await screen.findByLabelText(
-                'Device name',
-                {},
-                { timeout: 4_000 }
-            )
-            await fireEvent.changeText(name, 'Hall Light')
-            await press('Bedroom')
-            await press('Finish')
-
-            await screen.findByText('Added Hall Light.')
-            expect(
-                controller.devices.find((d) => d.id === 'bulb')
-            ).toMatchObject({
-                name: 'Hall Light',
-                roomId: 'bedroom',
-            })
+            expect(screen.queryByLabelText('Pairing code')).toBeNull()
+            expect(controller.commissioningRequests).toEqual([])
+            expect(controller.relayCommissioningAudit).toEqual([])
         })
 
         it('may add a Zigbee Device through permit-join', async () => {

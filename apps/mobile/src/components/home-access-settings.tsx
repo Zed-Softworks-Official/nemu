@@ -6,14 +6,15 @@ import { View } from 'react-native'
 import { useHomeSession } from '~/components/home-session'
 import { Button } from '~/components/ui/button'
 import { Text } from '~/components/ui/text'
+import { errorMessage, isConnected } from '~/lib/connection'
 
 type Pending = 'remove' | 'leave'
 
 /**
  * Access Client revocation and Leaving a Home for the active Home.
  *
- * The phone does not know its Membership role; the Controller decides, and
- * any refusal is shown as the Controller gave it.
+ * Any Membership may ask; the Controller decides, and any refusal is shown
+ * as the Controller gave it.
  */
 export function HomeAccessSettings() {
     const { activeHome, forgetPairing, switchHome } = useHomeSession()
@@ -24,7 +25,7 @@ export function HomeAccessSettings() {
 
     if (!activeHome) return null
     const home = activeHome.name
-    const live = status.mode === 'lan' || status.mode === 'relay'
+    const live = isConnected(status)
 
     if (status.mode === 'offline') {
         return (
@@ -181,6 +182,5 @@ function describeRefusal(cause: unknown, home: string): string {
     if (cause instanceof ApiError && cause.code === 'last_owner') {
         return `You are the only Owner of ${home}, so you can’t leave it. Manage this Home’s Members from the dashboard instead.`
     }
-    if (cause instanceof Error && cause.message) return cause.message
-    return 'The Controller did not accept the request.'
+    return errorMessage(cause, 'The Controller did not accept the request.')
 }

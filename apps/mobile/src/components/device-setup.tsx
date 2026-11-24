@@ -10,6 +10,7 @@ import { NativePicker } from '~/components/native-picker'
 import { Button } from '~/components/ui/button'
 import { Text } from '~/components/ui/text'
 import { colors } from '~/constants/colors'
+import { errorMessage } from '~/lib/connection'
 
 /**
  * Runs one Device or Room setup action against the Controller and reloads
@@ -17,8 +18,8 @@ import { colors } from '~/constants/colors'
  * the Controller (inside a `ControllerSheet`, while the sheet's Controller
  * is reachable); nothing is kept to send later.
  *
- * The phone does not know its Membership role. Whatever the Controller
- * refuses is shown as the Controller gave it.
+ * Owners and Members may both set up Devices and Rooms. Whatever the
+ * Controller refuses is shown as the Controller gave it.
  */
 export function useSetupAction(key: string) {
     const { refreshInventory, setupState, setSetupState } = useHomeControl()
@@ -53,8 +54,7 @@ export function useSetupAction(key: string) {
 }
 
 function describeRefusal(cause: unknown): string {
-    if (cause instanceof Error && cause.message) return cause.message
-    return 'The Controller did not accept the change.'
+    return errorMessage(cause, 'The Controller did not accept the change.')
 }
 
 /** Command-style feedback for one setup action. */

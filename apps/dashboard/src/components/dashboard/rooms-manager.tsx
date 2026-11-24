@@ -1,7 +1,12 @@
 'use client'
 
 import { useController } from '@nemu/controller'
-import type { Device, Room } from '@nemu/protocol'
+import {
+    type Device,
+    devicesInRoom,
+    type Room,
+    roomDeletionSummary,
+} from '@nemu/protocol'
 import {
     AlertDialog,
     AlertDialogCancel,
@@ -42,7 +47,6 @@ import {
     TriangleAlertIcon,
 } from 'lucide-react'
 import { type FormEvent, useCallback, useEffect, useState } from 'react'
-import { devicesInRoom, roomDeletionSummary } from '~/lib/room-presentation'
 
 export function RoomsManager() {
     const {
@@ -307,7 +311,10 @@ export function RoomsManager() {
                             const otherRooms = rooms.filter(
                                 (other) => other.id !== room.id
                             )
-                            const deviceCount = devicesInRoom(devices, room.id)
+                            const deviceCount = devicesInRoom(
+                                devices,
+                                room.id
+                            ).length
                             const destinationName =
                                 otherRooms.find(
                                     (other) => other.id === deleteDestination

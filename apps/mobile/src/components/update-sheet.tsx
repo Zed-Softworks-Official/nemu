@@ -11,6 +11,7 @@ import { useLastKnownRole } from '~/components/membership-role'
 import { Button } from '~/components/ui/button'
 import { Text } from '~/components/ui/text'
 import { useReleaseStatus } from '~/components/use-release-status'
+import { errorMessage } from '~/lib/connection'
 
 /**
  * Confirms installing the available Release: its version and release notes.
@@ -68,13 +69,11 @@ function Confirmation({
         setStarting(true)
         setError(null)
         try {
-            await startReleaseUpdate('install')
+            await startReleaseUpdate('install', available?.platformVersion)
             onStarted()
         } catch (cause) {
             setError(
-                cause instanceof Error
-                    ? cause.message
-                    : 'The Controller did not start the update'
+                errorMessage(cause, 'The Controller did not start the update')
             )
             setStarting(false)
         }

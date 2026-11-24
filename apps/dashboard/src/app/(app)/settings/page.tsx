@@ -49,7 +49,7 @@ type ReleaseReadState =
     | { kind: 'idle' }
     | { kind: 'checking' }
     | { kind: 'current' }
-    | { kind: 'newer' }
+    | { kind: 'newer'; platformVersion?: string }
     | { kind: 'error'; message: string }
 
 export default function SettingsPage() {
@@ -185,7 +185,11 @@ export default function SettingsPage() {
             setRollbackStuck(report.rollbackStuck)
             setUpdateState(
                 report.newerReleaseAvailable
-                    ? { kind: 'newer' }
+                    ? {
+                          kind: 'newer',
+                          platformVersion:
+                              report.availableRelease?.platformVersion,
+                      }
                     : { kind: 'current' }
             )
         } catch (err) {
@@ -211,7 +215,11 @@ export default function SettingsPage() {
         setBusyInstall(true)
         setInstallError(null)
         try {
-            await installRelease()
+            await installRelease(
+                updateState.kind === 'newer'
+                    ? updateState.platformVersion
+                    : undefined
+            )
             await readRelease()
         } catch (err) {
             setInstallError(

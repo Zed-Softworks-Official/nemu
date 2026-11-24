@@ -95,6 +95,7 @@ import {
 import { DeviceControlSlider } from './device-control-slider'
 import { DeviceIcon } from './device-icon'
 import { PageHeader } from './page-header'
+import { useCommandConfirmation } from './use-command-confirmation'
 
 export function DeviceDetail({ deviceId }: { deviceId: string }) {
     const { devices, error, refresh, status } = useDevices()
@@ -170,11 +171,19 @@ export function DeviceDetail({ deviceId }: { deviceId: string }) {
         }
     }, [getRooms, status.mode])
 
+    const failCommand = (nextError: Error) => {
+        setPendingPower(null)
+        setPendingOutlets({})
+        setCommandError(nextError)
+    }
+    const { awaitConfirmation, settle } = useCommandConfirmation(failCommand)
+
     useEffect(() => {
+        settle()
         setPendingPower(null)
         setPendingOutlets({})
         setCommandError(null)
-    }, [device?.state, device?.online])
+    }, [device?.state, device?.online, settle])
 
     useEffect(() => {
         if (!device) return
@@ -247,10 +256,9 @@ export function DeviceDetail({ deviceId }: { deviceId: string }) {
                     result.error?.message ?? 'Command failed on the controller'
                 )
             }
+            awaitConfirmation(result)
         } catch (nextError) {
-            setPendingPower(null)
-            setPendingOutlets({})
-            setCommandError(
+            failCommand(
                 nextError instanceof Error
                     ? nextError
                     : new Error(String(nextError))

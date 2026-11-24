@@ -96,7 +96,9 @@ describe.each([
 
         expect(await screen.findByLabelText('Relay: Connected')).toBeTruthy()
         expect(screen.getByText(HEADING)).toBeTruthy()
-        expect(screen.getByLabelText('Controller: OK')).toBeTruthy()
+        expect(
+            screen.getByLabelText('Controller: Some services unavailable')
+        ).toBeTruthy()
         expect(screen.getByLabelText('MQTT: Available')).toBeTruthy()
         expect(screen.getByLabelText('Zigbee: Available')).toBeTruthy()
         expect(screen.getByLabelText('Matter: Unavailable')).toBeTruthy()
@@ -107,13 +109,13 @@ describe.each([
 
     it('reads the health again when an Owner asks', async () => {
         const controller = lake('owner', { lanReachable })
-        controller.health.mqtt = false
+        controller.health.database = false
         controller.health.relayConnected = false
         await renderSettings(controller)
         expect(await screen.findByLabelText('Relay: Disconnected')).toBeTruthy()
-        expect(screen.getByLabelText('Controller: Degraded')).toBeTruthy()
+        expect(screen.getByLabelText('Controller: Error')).toBeTruthy()
 
-        controller.health.mqtt = true
+        controller.health.database = true
         controller.health.relayConnected = true
         await fireEvent.press(screen.getByText('Check health again'))
 
