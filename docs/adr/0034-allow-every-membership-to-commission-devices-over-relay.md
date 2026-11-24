@@ -6,6 +6,10 @@ Any Membership's Access Client, Owner or Member, may start Device commissioning 
 
 More generally, Relay matches LAN for every authorized operation except the three Presence checks: accepting an Invitation (ADR-0020), Recovery Key recovery (ADR-0012), and deleting a Home (ADR-0025). Those still need the Access Client to reach the Controller over the Home network. Every other operation has the same request, outcome, and authorization over both transports (ADR-0023), and Core enforces the Membership's permissions the same way on each (ADR-0005, ADR-0006).
 
+## Interim limit until Relay envelopes are encrypted
+
+Added on 2026-11-23. Relay envelopes are not encrypted end to end yet (ADR-0001). Until NEM-63 ships, nothing carrying a Matter pairing code or Wi-Fi credentials crosses Relay in either direction, for any role: starting Matter commissioning and reading or saving the Controller's Matter Wi-Fi need the Home network. Clients refuse them before building an envelope, and Core rejects them over Relay with `unsupported_action`. Zigbee permit-join, and cancelling Matter commissioning, carry neither and work over Relay for every Membership. The decision above otherwise stands, and NEM-63 removes this limit.
+
 ## Considered options
 
 ADR-0032 let only Owners commission over Relay, so a Member on the Home Wi‑Fi whose phone fell back to Relay still could not add a Device they were standing next to. Members may already add, rename, and remove Devices over LAN (ADR-0006), so the LAN requirement only tested whether LAN discovery worked, not whether the person was trusted to commission. We kept Owner-only commissioning over Relay as the alternative and rejected it: it added a transport-specific rule without reducing risk, and the Audit log entry already makes remote enrollment visible to Owners. We also considered treating every operation the same over Relay with no exceptions. We rejected that because the three Presence checks rely on reaching the Controller over the Home network as proof of being in the Home, and Relay cannot give that proof.
