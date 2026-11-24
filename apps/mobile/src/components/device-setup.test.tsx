@@ -15,7 +15,7 @@ import {
 } from '@testing-library/react-native'
 import { useEffect } from 'react'
 
-import { DevicesView, RoomsView } from '~/components/control-surface'
+import { RoomsView } from '~/components/control-surface'
 import { DeviceNameAndRoom } from '~/components/device-setup'
 import { HomeControlProvider, useHomeControl } from '~/components/home-control'
 
@@ -77,7 +77,7 @@ const disabled = (name: string | RegExp) =>
 describe.each([
     ['LAN', 'lan', true],
     ['Relay', 'relay', false],
-] as const)('Device and Room setup over %s', (_label, via, lanReachable) => {
+] as const)('Room setup over %s', (_label, via, lanReachable) => {
     function home(): FakeController {
         return new FakeController({
             controllerId: 'lake',
@@ -90,99 +90,6 @@ describe.each([
             ],
         })
     }
-
-    async function openDevice(name: string) {
-        await screen.findByText(via === 'lan' ? 'At home' : 'Away from home')
-        await screen.findByText('Living Room')
-        await press(`Set up ${name}`)
-    }
-
-    it('renames a Device without asking first', async () => {
-        const controller = home()
-        await renderSurface(controller)
-        await openDevice('Reading Lamp')
-
-        await fireEvent.changeText(
-            screen.getByLabelText('Device name'),
-            'Sofa Lamp'
-        )
-        await press('Save')
-
-        await screen.findByText('Saved')
-        await screen.findByText('Sofa Lamp')
-        expect(controller.devices.find((d) => d.id === 'lamp')?.name).toBe(
-            'Sofa Lamp'
-        )
-        expect(controller.setupRequests).toEqual([
-            { type: 'renameDevice', via },
-        ])
-    })
-
-    it('moves a Device to another Room at Device level', async () => {
-        const controller = home()
-        await renderSurface(controller)
-        await openDevice('Reading Lamp')
-
-        await press('Bedroom')
-        await press('Save')
-
-        await screen.findByText('Saved')
-        const lamp = controller.devices.find((d) => d.id === 'lamp')
-        expect(lamp?.roomId).toBe('bedroom')
-        expect(lamp?.componentRooms).toBeUndefined()
-        expect(controller.setupRequests).toEqual([{ type: 'assignRoom', via }])
-        // The Room list now shows it under Bedroom.
-        await waitFor(() =>
-            expect(
-                within(screen.getByLabelText('Devices in Bedroom')).getByText(
-                    'Reading Lamp'
-                )
-            ).toBeTruthy()
-        )
-    })
-
-    it('takes a Device out of every Room', async () => {
-        const controller = home()
-        await renderSurface(controller)
-        await openDevice('Reading Lamp')
-
-        await press('Not in a Room')
-        await press('Save')
-
-        await screen.findByText('Saved')
-        expect(controller.devices.find((d) => d.id === 'lamp')?.roomId).toBe(
-            null
-        )
-    })
-
-    it('asks before removing a Device, naming it', async () => {
-        const controller = home()
-        await renderSurface(controller)
-        await openDevice('Reading Lamp')
-
-        await press('Remove Device')
-        expect(
-            screen.getByText(
-                'Remove Reading Lamp from this Home? It will need to be set up again before you can use it.'
-            )
-        ).toBeTruthy()
-        expect(controller.setupRequests).toEqual([])
-
-        await press('Cancel')
-        expect(controller.removedDevices).toEqual([])
-
-        await press('Remove Device')
-        await press('Remove Reading Lamp')
-
-        await screen.findByText('Removed Reading Lamp.')
-        await waitFor(() =>
-            expect(screen.queryByLabelText('Reading Lamp')).toBeNull()
-        )
-        expect(controller.removedDevices.map((d) => d.id)).toEqual(['lamp'])
-        expect(controller.setupRequests).toEqual([
-            { type: 'removeDevice', via },
-        ])
-    })
 
     it('creates a Room', async () => {
         const controller = home()
@@ -233,44 +140,10 @@ describe.each([
         expect(controller.setupRequests).toEqual([{ type: 'updateRoom', via }])
     })
 
-    it('shows the Controller’s refusal as it gave it', async () => {
-        const controller = home()
-        controller.membershipActive = false
-        await renderSurface(controller)
-        await openDevice('Reading Lamp')
-
-        await fireEvent.changeText(
-            screen.getByLabelText('Device name'),
-            'Sofa Lamp'
-        )
-        await press('Save')
-
-        const alert = await screen.findByText('This Membership is not active')
-        expect(alert).toBeTruthy()
-        expect(screen.getByText('Not saved')).toBeTruthy()
-        expect(controller.devices.find((d) => d.id === 'lamp')?.name).toBe(
-            'Reading Lamp'
-        )
-    })
-
-    it('can be reached from the Devices tab', async () => {
-        const controller = home()
-        await renderSurface(controller, <DevicesView />)
-        await screen.findByText('Desk Plug')
-        await press('Set up Desk Plug')
-        expect(screen.getByLabelText('Device name').props.value).toBe(
-            'Desk Plug'
-        )
-    })
-
-    it('disables setup and queues nothing while the Controller is unreachable', async () => {
+    it('disables Room setup and queues nothing while the Controller is unreachable', async () => {
         const controller = home()
         await renderSurface(controller)
-        await openDevice('Reading Lamp')
-        await fireEvent.changeText(
-            screen.getByLabelText('Device name'),
-            'Sofa Lamp'
-        )
+        await screen.findByText('Living Room')
         await fireEvent.changeText(
             screen.getByLabelText('New Room name'),
             'Kitchen'
@@ -280,13 +153,7 @@ describe.each([
         await act(() => reprobe())
         await screen.findByText('Can’t reach the Controller')
 
-        for (const name of [
-            'Save',
-            'Remove Device',
-            'Create Room',
-            'Bedroom',
-            'Rename Living Room',
-        ]) {
+        for (const name of ['Create Room', 'Rename Living Room']) {
             expect(disabled(name)).toBe(true)
             await press(name)
         }
@@ -296,8 +163,8 @@ describe.each([
         await act(() => reprobe())
         await screen.findByText(via === 'lan' ? 'At home' : 'Away from home')
         expect(controller.setupRequests).toEqual([])
-        expect(controller.devices.find((d) => d.id === 'lamp')?.name).toBe(
-            'Reading Lamp'
+        expect(controller.rooms.map((room) => room.name)).not.toContain(
+            'Kitchen'
         )
     })
 })

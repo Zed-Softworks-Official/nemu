@@ -1,7 +1,8 @@
 import { styled } from 'nativewind'
-import { View } from 'react-native'
+import { ScrollView, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
+import { HealthSettings } from '~/components/health-settings'
 import { HomeAccessSettings } from '~/components/home-access-settings'
 import { useHomeSession } from '~/components/home-session'
 import { MembershipRoleProvider } from '~/components/membership-role'
@@ -19,22 +20,26 @@ export default function SettingsScreen() {
     return (
         <MembershipRoleProvider>
             <View className="flex-1 bg-background">
-                <StyledSafeAreaView className="flex-1 gap-6 p-8">
-                    <ScreenHeader title="Settings" />
-                    <View className="gap-3">
-                        <Text className="text-muted-foreground text-sm">
-                            Commands from this phone go to {activeHome?.name}.
-                        </Text>
-                        <View className="flex-row">
-                            <Button
-                                onPress={switchHome}
-                                title="Choose a different Home"
-                                variant="outline"
-                            />
+                <StyledSafeAreaView className="flex-1">
+                    <ScrollView contentContainerClassName="gap-6 p-8">
+                        <ScreenHeader title="Settings" />
+                        <View className="gap-3">
+                            <Text className="text-muted-foreground text-sm">
+                                Commands from this phone go to{' '}
+                                {activeHome?.name}.
+                            </Text>
+                            <View className="flex-row">
+                                <Button
+                                    onPress={switchHome}
+                                    title="Choose a different Home"
+                                    variant="outline"
+                                />
+                            </View>
                         </View>
-                    </View>
-                    <ReleaseSettings />
-                    <HomeAccessSettings />
+                        <ReleaseSettings />
+                        <HealthSettings />
+                        <HomeAccessSettings />
+                    </ScrollView>
                 </StyledSafeAreaView>
             </View>
         </MembershipRoleProvider>
