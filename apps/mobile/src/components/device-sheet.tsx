@@ -1,6 +1,6 @@
 import { useController } from '@nemu/controller'
 import type { Device } from '@nemu/protocol'
-import { type ReactNode, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ActivityIndicator, View } from 'react-native'
 
 import {
@@ -10,6 +10,7 @@ import {
 } from '~/components/control-surface'
 import {
     ControllerSheet,
+    SheetSection,
     useControllerSheet,
 } from '~/components/controller-sheet'
 import {
@@ -99,26 +100,6 @@ export function DeviceSheet({
                 <DeviceRemoval device={device} onRemoved={onClose} />
             </SheetSection>
         </ControllerSheet>
-    )
-}
-
-function SheetSection({
-    title,
-    children,
-}: {
-    title: string
-    children: ReactNode
-}) {
-    return (
-        <View accessibilityLabel={title} className="gap-4">
-            <Text
-                accessibilityRole="header"
-                className="font-medium text-muted-foreground text-xs uppercase tracking-[0.18em]"
-            >
-                {title}
-            </Text>
-            {children}
-        </View>
     )
 }
 

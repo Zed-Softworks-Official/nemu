@@ -52,6 +52,7 @@ import {
     ControllerConnection,
     type ControllerConnectors,
 } from './connection.ts'
+import type { ReleaseUpdate, ReleaseUpdateKind } from './release-update.ts'
 import type { ControllerCredentialStore } from './storage.ts'
 import type { RelayApi } from './transports/relay.ts'
 
@@ -118,6 +119,11 @@ type ControllerContextValue = {
     getHealthSummary: () => Promise<HealthSummary>
     installRelease: () => Promise<ApplyUpdateResponse>
     rollbackRelease: () => Promise<ApplyUpdateResponse>
+    /** NEM-96: the install or rollback this client started, if any. */
+    releaseUpdate: ReleaseUpdate | null
+    /** Starts an install or rollback and follows the restart. */
+    startReleaseUpdate: (kind: ReleaseUpdateKind) => Promise<void>
+    dismissReleaseUpdate: () => void
     switchReleaseChannel: (
         channel: ReleaseChannel
     ) => Promise<SwitchReleaseChannelResponse>
@@ -184,6 +190,15 @@ export function ControllerProvider({
 
     const [status, setStatus] = useState<ConnectionStatus>(
         statusFromMode('probing')
+    )
+
+    const [releaseUpdate, setReleaseUpdate] = useState<ReleaseUpdate | null>(
+        null
+    )
+
+    useEffect(
+        () => connection.subscribeReleaseUpdate(setReleaseUpdate),
+        [connection]
     )
 
     useEffect(() => {
@@ -325,6 +340,14 @@ export function ControllerProvider({
         () => connection.installRelease(),
         [connection]
     )
+    const startReleaseUpdate = useCallback(
+        (kind: ReleaseUpdateKind) => connection.startReleaseUpdate(kind),
+        [connection]
+    )
+    const dismissReleaseUpdate = useCallback(
+        () => connection.dismissReleaseUpdate(),
+        [connection]
+    )
     const rollbackRelease = useCallback(
         () => connection.rollbackRelease(),
         [connection]
@@ -373,6 +396,9 @@ export function ControllerProvider({
             getHealthSummary,
             installRelease,
             rollbackRelease,
+            releaseUpdate,
+            startReleaseUpdate,
+            dismissReleaseUpdate,
             switchReleaseChannel,
         }),
         [
@@ -413,6 +439,9 @@ export function ControllerProvider({
             getHealthSummary,
             installRelease,
             rollbackRelease,
+            releaseUpdate,
+            startReleaseUpdate,
+            dismissReleaseUpdate,
             switchReleaseChannel,
         ]
     )

@@ -1,10 +1,9 @@
 import type { Device, Room } from '@nemu/protocol'
 import { useRouter, useSegments } from 'expo-router'
-import { useState } from 'react'
+import { ChevronRight } from 'lucide-react-native'
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native'
 
 import { useControllerSheet } from '~/components/controller-sheet'
-import { NewRoomForm, RoomRenameForm } from '~/components/device-setup'
 import { useHomeControl } from '~/components/home-control'
 import { LevelSlider } from '~/components/level-slider'
 import { NativeToggle } from '~/components/native-toggle'
@@ -17,7 +16,12 @@ import {
     controlsForDevice,
     type DeviceControl,
 } from '~/lib/device-control'
-import { deviceSheetHref } from '~/lib/tab-routes'
+import { sortRooms } from '~/lib/room-presentation'
+import {
+    createRoomSheetHref,
+    deviceSheetHref,
+    roomSheetHref,
+} from '~/lib/tab-routes'
 
 const UNASSIGNED = 'Not in a Room'
 
@@ -106,12 +110,7 @@ export function groupDevicesByRoom(
     devices: readonly Device[],
     rooms: readonly Room[]
 ): Section[] {
-    const sorted = [...rooms].sort(
-        (a, b) =>
-            (a.sortOrder ?? Number.MAX_SAFE_INTEGER) -
-                (b.sortOrder ?? Number.MAX_SAFE_INTEGER) ||
-            a.name.localeCompare(b.name)
-    )
+    const sorted = sortRooms(rooms)
     const roomIds = new Set(sorted.map((room) => room.id))
     const sections: Section[] = sorted.map((room) => ({
         id: room.id,
@@ -134,6 +133,8 @@ export function groupDevicesByRoom(
 
 /** The Home's Devices in their Rooms, the only control grouping. */
 export function RoomsView() {
+    const router = useRouter()
+    const segments = useSegments()
     const { devices, live, rooms, roomsFailed } = useHomeControl()
     // Without Room names a Device with a Room must not be presented as
     // having none. An older Controller does not answer Rooms over Relay.
@@ -153,7 +154,13 @@ export function RoomsView() {
     }
     return (
         <SurfaceBody>
-            <NewRoomForm />
+            <View className="flex-row">
+                <Button
+                    onPress={() => router.push(createRoomSheetHref(segments))}
+                    title="New Room"
+                    variant="outline"
+                />
+            </View>
             {groupDevicesByRoom(devices ?? [], rooms).map((section) => (
                 <RoomSection key={section.id} section={section} />
             ))}
@@ -161,39 +168,40 @@ export function RoomsView() {
     )
 }
 
+/** A Room's name opens its sheet; nothing is edited inline here. */
 function RoomSection({ section }: { section: Section }) {
-    const { live } = useHomeControl()
-    const [renaming, setRenaming] = useState(false)
+    const router = useRouter()
+    const segments = useSegments()
     const { room } = section
+    const title = (
+        <Text
+            accessibilityRole="header"
+            className="min-w-0 flex-1 font-semibold text-foreground text-lg"
+        >
+            {section.title}
+        </Text>
+    )
     return (
         <View
             accessibilityLabel={`Devices in ${section.title}`}
             className="gap-3"
         >
-            <View className="flex-row items-center justify-between gap-3">
-                <Text
-                    accessibilityRole="header"
-                    className="min-w-0 flex-1 font-semibold text-foreground text-lg"
+            {room ? (
+                <Pressable
+                    accessibilityHint="Opens the Room’s Devices and settings"
+                    accessibilityLabel={room.name}
+                    accessibilityRole="button"
+                    className="min-h-11 flex-row items-center gap-3 active:opacity-70"
+                    onPress={() =>
+                        router.push(roomSheetHref(segments, room.id))
+                    }
                 >
-                    {section.title}
-                </Text>
-                {room && !renaming ? (
-                    <Button
-                        accessibilityLabel={`Rename ${room.name}`}
-                        disabled={!live}
-                        onPress={() => setRenaming(true)}
-                        size="sm"
-                        title="Rename"
-                        variant="ghost"
-                    />
-                ) : null}
-            </View>
-            {room && renaming ? (
-                <RoomRenameForm
-                    onClose={() => setRenaming(false)}
-                    room={room}
-                />
-            ) : null}
+                    {title}
+                    <ChevronRight color={colors.mutedForeground} size={18} />
+                </Pressable>
+            ) : (
+                title
+            )}
             {section.devices.length === 0 ? (
                 <Text className="text-muted-foreground text-sm">
                     No Devices in this Room.

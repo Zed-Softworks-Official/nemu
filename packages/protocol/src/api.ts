@@ -271,10 +271,20 @@ export type SessionResponse = z.infer<typeof sessionResponseSchema>
 export const releaseChannelSchema = z.enum(['stable', 'canary'])
 export type ReleaseChannel = z.infer<typeof releaseChannelSchema>
 
+/** The Release the Home could install, from the signed channel manifest. */
+export const availableReleaseSchema = z.object({
+    platformVersion: z.string(),
+    /** Plain text. Absent when the Release was published without notes. */
+    releaseNotes: z.string().nullish(),
+})
+export type AvailableRelease = z.infer<typeof availableReleaseSchema>
+
 export const releaseStatusSchema = z.object({
     platformVersion: z.string(),
     channel: releaseChannelSchema,
     newerReleaseAvailable: z.boolean(),
+    /** Absent from Controllers that predate it, or when none is newer. */
+    availableRelease: availableReleaseSchema.nullish(),
     maintenanceMode: z.boolean(),
     rollbackSnapshotAvailable: z.boolean(),
     rollbackStuck: z.boolean(),

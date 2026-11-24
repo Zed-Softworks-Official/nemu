@@ -23,6 +23,25 @@ describe('update status response', () => {
         })
     })
 
+    it('keeps the available Release and its notes', () => {
+        const base = {
+            platformVersion: '0.4.10',
+            channel: 'stable',
+            newerReleaseAvailable: true,
+            maintenanceMode: false,
+            rollbackSnapshotAvailable: false,
+            rollbackStuck: false,
+        }
+        for (const availableRelease of [
+            { platformVersion: '0.4.11', releaseNotes: '- Faster pairing' },
+            { platformVersion: '0.4.11', releaseNotes: null },
+            null,
+        ]) {
+            const status = { ...base, availableRelease }
+            assert.deepEqual(updateStatusResponseSchema.parse(status), status)
+        }
+    })
+
     it('maps a legacy LAN payload onto the current release status', () => {
         const parsed = updateStatusResponseSchema.parse({
             currentVersion: '0.2.2',

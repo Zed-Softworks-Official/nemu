@@ -59,12 +59,23 @@ impl ReleaseChannel {
     }
 }
 
+/// The verified Release the Home could install now.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AvailableRelease {
+    pub platform_version: String,
+    /// From the signed manifest. `None` when it was published without notes.
+    pub release_notes: Option<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReleaseStatus {
     pub platform_version: String,
     pub channel: ReleaseChannel,
     pub newer_release_available: bool,
+    /// Present exactly when `newer_release_available` is true.
+    pub available_release: Option<AvailableRelease>,
     /// True while an install or rollback holds maintenance.
     pub maintenance_mode: bool,
     /// True when a Rollback snapshot is on disk. It stays until the next Release
@@ -164,7 +175,7 @@ pub fn status(
         return Err(StatusError::PlatformVersionMissing);
     };
     let declined = stored.declined_platform_version.clone();
-    let newer_release_available = newer_manifest_on_channel(
+    let available_release = newer_manifest_on_channel(
         manifests,
         channel,
         &platform_version,
@@ -174,7 +185,8 @@ pub fn status(
     Ok(ReleaseStatus {
         platform_version,
         channel,
-        newer_release_available,
+        newer_release_available: available_release.is_some(),
+        available_release,
         maintenance_mode: install::maintenance_mode(controller_dir),
         rollback_snapshot_available: install::snapshot_kept(controller_dir),
         rollback_stuck: rollback::rollback_stuck(controller_dir),
@@ -187,22 +199,25 @@ fn newer_manifest_on_channel(
     installed: &str,
     declined: Option<&str>,
     release_key: Option<&VerifyingKey>,
-) -> Result<bool, StatusError> {
+) -> Result<Option<AvailableRelease>, StatusError> {
     let Some(release_key) = release_key else {
-        return Ok(false);
+        return Ok(None);
     };
     let Some(bytes) = manifests
         .fetch(channel)
         .map_err(|error| StatusError::Manifest(error.to_string()))?
     else {
-        return Ok(false);
+        return Ok(None);
     };
-    Ok(match verify_manifest(&bytes, release_key) {
-        Ok(manifest) => {
+    Ok(verify_manifest(&bytes, release_key)
+        .ok()
+        .filter(|manifest| {
             platform_version_is_eligible(&manifest.platform_version, installed, declined)
-        }
-        Err(_) => false,
-    })
+        })
+        .map(|manifest| AvailableRelease {
+            platform_version: manifest.platform_version,
+            release_notes: manifest.release_notes,
+        }))
 }
 
 /// A manifest is eligible when its Platform version is newer than the
@@ -350,6 +365,7 @@ mod tests {
                 arm64: BASE64.encode(b"arm64"),
             },
             next_pin: None,
+            release_notes: None,
         }
     }
 
@@ -524,7 +540,34 @@ mod tests {
         assert_eq!(report.channel, ReleaseChannel::Stable);
         assert_eq!(report.platform_version, "0.4.9");
         assert!(report.newer_release_available);
+        let available = report.available_release.expect("available");
+        assert_eq!(available.platform_version, "0.4.10");
+        assert_eq!(available.release_notes, None);
         assert_eq!(snapshot_home(home.path()), before);
+    }
+
+    #[test]
+    fn the_available_release_carries_the_signed_release_notes() {
+        let home = TempHome::new();
+        write_installed(home.path(), "stable", "0.4.9");
+        let mut manifest = release_manifest("0.4.10", pinned_services());
+        manifest.release_notes = Some("- Faster pairing".to_string());
+        let host = FakeHost {
+            manifests: vec![(
+                ReleaseChannel::Stable,
+                sign_manifest(&manifest, &release_signing_key()),
+            )],
+            tags: Vec::new(),
+        };
+
+        let report = read_status(home.path(), &host, &release_signing_key()).expect("status");
+        let available = report.available_release.expect("available");
+        assert_eq!(available.release_notes.as_deref(), Some("- Faster pairing"));
+
+        write_installed(home.path(), "stable", "0.4.10");
+        let current = read_status(home.path(), &host, &release_signing_key()).expect("status");
+        assert!(!current.newer_release_available);
+        assert_eq!(current.available_release, None);
     }
 
     #[test]

@@ -13,6 +13,12 @@ import {
 } from '~/components/home-session'
 import SettingsScreen from '../app/(app)/(tabs)/(home,devices,energy)/settings'
 
+// Settings opens the update sheet; update-sheet.test.tsx covers the routes.
+jest.mock('expo-router', () => ({
+    useRouter: () => ({ push: () => {} }),
+    useSegments: () => [],
+}))
+
 // The header's menu button needs the drawer navigator, which isn't under test.
 jest.mock('~/components/drawer-menu-button', () => ({
     DrawerMenuButton: () => null,
@@ -29,7 +35,7 @@ const NEWER: UpdateStatusResponse = {
     rollbackStuck: false,
 }
 
-const OWNER_ONLY = 'Install it from the dashboard.'
+const OWNER_ONLY = 'Install update'
 const MEMBER_NOTE = 'An Owner of Lake House can install it.'
 
 async function renderSettings(controller: FakeController) {
