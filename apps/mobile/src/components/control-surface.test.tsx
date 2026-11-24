@@ -200,6 +200,25 @@ describe('connection status', () => {
         await screen.findByText('Reading Lamp')
     })
 
+    it('picks up Device state over Relay, which pushes none', async () => {
+        const controller = home({ lanReachable: false })
+        controller.devices = [{ ...LAMP, state: undefined }]
+        await renderSurface(controller)
+        expect(await screen.findByText('Reading Lamp')).toBeTruthy()
+        expect(
+            screen.queryByRole('switch', { name: /Reading Lamp/ })
+        ).toBeNull()
+
+        controller.devices = [{ ...LAMP, state: { state: 'ON' } }]
+        await waitFor(
+            () =>
+                expect(
+                    screen.getByRole('switch', { name: /Reading Lamp/ })
+                ).toBeTruthy(),
+            { timeout: 8_000 }
+        )
+    }, 12_000)
+
     it('lists Devices in their Rooms over Relay', async () => {
         await renderSurface(home({ lanReachable: false }))
         await screen.findByText('Away from home')

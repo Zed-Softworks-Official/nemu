@@ -469,6 +469,9 @@ export function useController(): ControllerContextValue {
     return ctx
 }
 
+/** Relay pushes no Device state, so Devices are read again this often. */
+const RELAY_DEVICES_REFRESH_MS = 5_000
+
 export function useDevices(): {
     devices: Device[] | undefined
     error: Error | null
@@ -490,8 +493,24 @@ export function useDevices(): {
     }, [getDevices])
 
     useEffect(() => {
-        if (status.mode === 'lan' || status.mode === 'relay') {
+        if (status.mode === 'lan') {
             void refresh()
+            return
+        }
+        if (status.mode !== 'relay') return
+        let stopped = false
+        let timer: ReturnType<typeof setTimeout> | undefined
+        const poll = async () => {
+            await refresh()
+            // Wait for the answer first, so slow reads never pile up.
+            if (!stopped) {
+                timer = setTimeout(() => void poll(), RELAY_DEVICES_REFRESH_MS)
+            }
+        }
+        void poll()
+        return () => {
+            stopped = true
+            clearTimeout(timer)
         }
     }, [status.mode, refresh])
 

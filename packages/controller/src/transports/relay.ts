@@ -682,11 +682,6 @@ export class RelayTransport implements ControllerTransport {
                         envelope.message.type === 'capabilityChange'
                     ) {
                         this.emit(envelope.message)
-                    } else if (
-                        envelope.message.type === 'devices' ||
-                        envelope.message.type === 'snapshot'
-                    ) {
-                        this.emit({ type: 'resync' })
                     }
                 } catch {
                     // ignore malformed payloads
