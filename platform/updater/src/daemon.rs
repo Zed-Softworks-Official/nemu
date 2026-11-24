@@ -302,7 +302,7 @@ mod tests {
     use std::sync::{Arc, Mutex};
 
     use super::{Response, SwitchOutcome, UpdaterOps, bind, handle_line, serve};
-    use crate::{ReleaseChannel, ReleaseStatus};
+    use crate::{AvailableRelease, ReleaseChannel, ReleaseStatus};
 
     #[derive(Default)]
     struct Fake {
@@ -314,6 +314,10 @@ mod tests {
             platform_version: "0.1.1".to_string(),
             channel: ReleaseChannel::Stable,
             newer_release_available: true,
+            available_release: Some(AvailableRelease {
+                platform_version: "0.1.2".to_string(),
+                release_notes: Some("- Faster pairing".to_string()),
+            }),
             maintenance_mode: false,
             rollback_snapshot_available: false,
             rollback_stuck: false,
@@ -448,6 +452,14 @@ mod tests {
         assert_eq!(value["ok"], true);
         assert_eq!(value["status"]["platformVersion"], "0.1.1");
         assert_eq!(value["status"]["channel"], "stable");
+        assert_eq!(
+            value["status"]["availableRelease"]["platformVersion"],
+            "0.1.2"
+        );
+        assert_eq!(
+            value["status"]["availableRelease"]["releaseNotes"],
+            "- Faster pairing"
+        );
 
         let mode = std::fs::metadata(&socket).unwrap();
         assert_eq!(

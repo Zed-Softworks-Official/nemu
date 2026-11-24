@@ -46,6 +46,16 @@ import {
 } from './discovery.ts'
 import type { GetToken } from './http.ts'
 import {
+    controllerAnswered,
+    RELEASE_UPDATE_POLL_MS,
+    RELEASE_UPDATE_TIMEOUT_MS,
+    type ReleaseUpdate,
+    type ReleaseUpdateKind,
+    type ReleaseUpdateProgress,
+    releaseUpdateIsCutOff,
+    releaseUpdateOutcome,
+} from './release-update.ts'
+import {
     type ControllerCredentialStore,
     defaultCredentialStore,
     getRememberedBaseUrl,
@@ -131,6 +141,14 @@ export class ControllerConnection {
     private readonly connectors: ControllerConnectors
     /** Controller adopted from LAN identify when no Home is selected. */
     private identifiedControllerId: string | null = null
+    // --- NEM-96: an update this client started and follows ---
+    private releaseUpdate: ReleaseUpdate | null = null
+    private releaseUpdateRun: { cancelled: boolean } | null = null
+    private releaseUpdateTimer: ReturnType<typeof setTimeout> | null = null
+    private readonly releaseUpdateListeners = new Set<
+        (update: ReleaseUpdate | null) => void
+    >()
+    // --- end NEM-96 ---
 
     constructor(options: ControllerConnectionOptions = {}) {
         this.options = options
@@ -225,13 +243,17 @@ export class ControllerConnection {
             clearInterval(this.reprobeTimer)
             this.reprobeTimer = null
         }
+        this.stopFollowingRelease()
         this.teardownTransport()
         this.setStatus(statusFromMode('offline'))
     }
 
     async reprobe(): Promise<void> {
         this.setStatus(statusFromMode('probing'))
+        await this.connect()
+    }
 
+    private async connect(): Promise<void> {
         const probe = await this.discover()
         if (probe) {
             const ok = await this.tryLan(probe)
@@ -506,6 +528,164 @@ export class ControllerConnection {
         }
         return await transport.rollbackRelease()
     }
+
+    // --- NEM-96: install or roll back, and follow the restart ---
+    getReleaseUpdate(): ReleaseUpdate | null {
+        return this.releaseUpdate
+    }
+
+    subscribeReleaseUpdate(
+        cb: (update: ReleaseUpdate | null) => void
+    ): () => void {
+        this.releaseUpdateListeners.add(cb)
+        cb(this.releaseUpdate)
+        return () => {
+            this.releaseUpdateListeners.delete(cb)
+        }
+    }
+
+    /** Forget a finished update's outcome. A running one is kept. */
+    dismissReleaseUpdate(): void {
+        if (this.releaseUpdate?.phase === 'finished') {
+            this.setReleaseUpdate(null)
+        }
+    }
+
+    /**
+     * Installs the available Release, or rolls back the last one, and treats
+     * the Controller's restart as expected: it reconnects over LAN or Relay,
+     * then reads Release status to report the outcome. Resolves once the
+     * Controller has started; follow it with `subscribeReleaseUpdate`.
+     * Nothing is sent, or queued, while the Controller is unreachable.
+     */
+    async startReleaseUpdate(kind: ReleaseUpdateKind): Promise<void> {
+        if (this.releaseUpdateRun) {
+            throw new ApiError(
+                'update_in_progress',
+                'An update is already running'
+            )
+        }
+        const run = { cancelled: false }
+        this.releaseUpdateRun = run
+        try {
+            const before = await this.getReleaseStatus()
+            const retry = kind === 'rollback' && before.rollbackStuck
+            if (before.maintenanceMode && !retry) {
+                throw new ApiError(
+                    'in_maintenance',
+                    'The Controller is already updating'
+                )
+            }
+            const { started } =
+                kind === 'install'
+                    ? await this.installRelease()
+                    : await this.rollbackRelease()
+            if (!started) {
+                throw new ApiError(
+                    'update_not_started',
+                    'The Controller did not start the update'
+                )
+            }
+            if (run.cancelled) return
+            this.setReleaseUpdate({
+                phase: 'updating',
+                kind,
+                reconnecting: false,
+            })
+            void this.followRelease(run, kind, before)
+        } catch (error) {
+            if (this.releaseUpdateRun === run) this.releaseUpdateRun = null
+            throw error
+        }
+    }
+
+    private async followRelease(
+        run: { cancelled: boolean },
+        kind: ReleaseUpdateKind,
+        before: UpdateStatusResponse
+    ): Promise<void> {
+        const startedAt = Date.now()
+        let quietSince = startedAt
+        const progress: ReleaseUpdateProgress = {
+            kind,
+            before,
+            sawMaintenance: false,
+            lostConnection: false,
+            quietMs: 0,
+        }
+        const finish = (
+            outcome: Extract<ReleaseUpdate, { phase: 'finished' }>['outcome'],
+            release: UpdateStatusResponse | null
+        ) => {
+            this.releaseUpdateRun = null
+            this.setReleaseUpdate({ phase: 'finished', kind, outcome, release })
+        }
+        const reconnecting = (value: boolean) => {
+            const current = this.releaseUpdate
+            if (
+                current?.phase === 'updating' &&
+                current.reconnecting !== value
+            ) {
+                this.setReleaseUpdate({ ...current, reconnecting: value })
+            }
+        }
+
+        while (Date.now() - startedAt < RELEASE_UPDATE_TIMEOUT_MS) {
+            await new Promise<void>((resolve) => {
+                this.releaseUpdateTimer = setTimeout(
+                    resolve,
+                    RELEASE_UPDATE_POLL_MS
+                )
+            })
+            if (run.cancelled) return
+            try {
+                const status = await this.getReleaseStatus()
+                if (run.cancelled) return
+                reconnecting(false)
+                if (status.maintenanceMode) progress.sawMaintenance = true
+                progress.quietMs = Date.now() - quietSince
+                const outcome = releaseUpdateOutcome(progress, status)
+                if (outcome) {
+                    finish(outcome, status)
+                    return
+                }
+            } catch (error) {
+                if (run.cancelled) return
+                if (releaseUpdateIsCutOff(error)) {
+                    finish('unknown', null)
+                    return
+                }
+                // Core is up but its Updater isn't yet, or is restarting.
+                if (controllerAnswered(error)) {
+                    reconnecting(false)
+                    continue
+                }
+                progress.lostConnection = true
+                reconnecting(true)
+                await this.connect()
+                if (run.cancelled) {
+                    if (!this.started) this.teardownTransport()
+                    return
+                }
+                quietSince = Date.now()
+            }
+        }
+        finish('unknown', null)
+    }
+
+    private stopFollowingRelease(): void {
+        if (this.releaseUpdateRun) this.releaseUpdateRun.cancelled = true
+        this.releaseUpdateRun = null
+        if (this.releaseUpdateTimer) clearTimeout(this.releaseUpdateTimer)
+        this.releaseUpdateTimer = null
+        this.setReleaseUpdate(null)
+    }
+
+    private setReleaseUpdate(update: ReleaseUpdate | null): void {
+        this.releaseUpdate = update
+        for (const listener of this.releaseUpdateListeners) listener(update)
+    }
+    // --- end NEM-96 ---
 
     async switchReleaseChannel(
         channel: ReleaseChannel
@@ -788,6 +968,8 @@ export class ControllerConnection {
     private startReprobeLoop(): void {
         const interval = this.options.reprobeIntervalMs ?? 10_000
         this.reprobeTimer = setInterval(() => {
+            // Following an update reconnects on its own.
+            if (this.releaseUpdate?.phase === 'updating') return
             if (
                 this.status.mode === 'relay' ||
                 this.status.mode === 'offline'
