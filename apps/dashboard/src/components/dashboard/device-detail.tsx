@@ -76,6 +76,7 @@ import {
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { commandControl } from '~/lib/command-confirmation'
 import {
     brightnessPercentToPayload,
     colorHexPayload,
@@ -171,19 +172,29 @@ export function DeviceDetail({ deviceId }: { deviceId: string }) {
         }
     }, [getRooms, status.mode])
 
-    const failCommand = (nextError: Error) => {
-        setPendingPower(null)
-        setPendingOutlets({})
-        setCommandError(nextError)
+    const clearPending = (payload: DeviceState) => {
+        if (commandControl(payload) === 'power') setPendingPower(null)
+        if (payload.outlet !== undefined) {
+            const outletId = String(payload.outlet)
+            setPendingOutlets(({ [outletId]: _, ...rest }) => rest)
+        }
     }
-    const { awaitConfirmation, settle } = useCommandConfirmation(failCommand)
+    const track = useCommandConfirmation(device, {
+        onConfirmed: (payload, errorsLeft) => {
+            clearPending(payload)
+            if (!errorsLeft) setCommandError(null)
+        },
+        onFailure: (nextError, payload) => {
+            clearPending(payload)
+            setCommandError(nextError)
+        },
+    })
 
     useEffect(() => {
-        settle()
         setPendingPower(null)
         setPendingOutlets({})
         setCommandError(null)
-    }, [device?.state, device?.online, settle])
+    }, [deviceId])
 
     useEffect(() => {
         if (!device) return
@@ -249,6 +260,7 @@ export function DeviceDetail({ deviceId }: { deviceId: string }) {
 
     async function runCommand(payload: DeviceState) {
         setCommandError(null)
+        const command = track(payload)
         try {
             const result = await sendCommand({ deviceId, payload })
             if (!result.ok) {
@@ -256,9 +268,9 @@ export function DeviceDetail({ deviceId }: { deviceId: string }) {
                     result.error?.message ?? 'Command failed on the controller'
                 )
             }
-            awaitConfirmation(result)
+            command.accepted(result)
         } catch (nextError) {
-            failCommand(
+            command.failed(
                 nextError instanceof Error
                     ? nextError
                     : new Error(String(nextError))

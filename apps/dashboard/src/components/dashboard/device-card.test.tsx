@@ -1,5 +1,7 @@
 import { FakeController } from '@nemu/controller/testing'
+import type { Device, DeviceState } from '@nemu/protocol'
 import { act, fireEvent, screen } from '@testing-library/react'
+import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { presentDevice } from '~/lib/device-presentation'
 import {
@@ -9,7 +11,7 @@ import {
 import { DeviceCard } from './device-card'
 import { CONFIRMATION_WINDOW_MS } from './use-command-confirmation'
 
-const LAMP = presentDevice({
+const LAMP_DEVICE: Device = {
     id: 'lamp',
     name: 'Lamp',
     type: 'light',
@@ -18,7 +20,8 @@ const LAMP = presentDevice({
     roomId: null,
     online: true,
     state: { state: 'OFF' },
-})
+}
+const LAMP = presentDevice(LAMP_DEVICE)
 
 async function toggled() {
     vi.useFakeTimers({ shouldAdvanceTime: true })
@@ -31,7 +34,16 @@ async function toggled() {
         ok: true,
         outcome: 'accepted',
     })
-    renderWithController(<DeviceCard device={LAMP} />, controller)
+    let report: (state: DeviceState, online?: boolean) => void = () => {}
+    function ReportingCard() {
+        const [device, setDevice] = useState(LAMP)
+        report = (state, online = true) =>
+            act(() =>
+                setDevice(presentDevice({ ...LAMP_DEVICE, state, online }))
+            )
+        return <DeviceCard device={device} />
+    }
+    renderWithController(<ReportingCard />, controller)
     const toggle = screen.getByRole('switch', { name: 'Toggle Lamp' })
     await vi.waitFor(() => expect(toggle).not.toHaveAttribute('data-disabled'))
     await act(async () => {
@@ -39,7 +51,7 @@ async function toggled() {
     })
     expect(controller.commands).toHaveLength(1)
     expect(toggle).toHaveAttribute('aria-checked', 'true')
-    return { controller, toggle }
+    return { controller, toggle, report }
 }
 
 afterEach(() => {
@@ -69,5 +81,51 @@ describe('An accepted Command on a Device card', () => {
         )
         expect(toggle).toHaveAttribute('aria-checked', 'false')
         expect(screen.getByText('command failed: failed')).toBeInTheDocument()
+    })
+
+    it('keeps waiting through reports that do not confirm it', async () => {
+        const { toggle, report } = await toggled()
+        report({ state: 'OFF', linkquality: 90 })
+        report({ state: 'OFF', linkquality: 90 }, false)
+        expect(toggle).toHaveAttribute('aria-checked', 'true')
+
+        await act(() => vi.advanceTimersByTimeAsync(CONFIRMATION_WINDOW_MS))
+        expect(toggle).toHaveAttribute('aria-checked', 'false')
+        report({ state: 'OFF', linkquality: 91 })
+        expect(
+            screen.getByText('The Device did not report the change.')
+        ).toBeInTheDocument()
+
+        report({ state: 'ON' })
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    })
+
+    it('is settled by a report of the requested value', async () => {
+        const { toggle, report } = await toggled()
+        report({ state: 'ON' })
+        await act(() => vi.advanceTimersByTimeAsync(CONFIRMATION_WINDOW_MS))
+        expect(toggle).toHaveAttribute('aria-checked', 'true')
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    })
+
+    it('is not confirmed by a report from before the Command it replaced', async () => {
+        const { controller, toggle, report } = await toggled()
+        controller.commandResult = () => ({
+            requestId: 'cmd-2',
+            ok: true,
+            outcome: 'accepted',
+        })
+        await act(async () => {
+            fireEvent.click(toggle)
+        })
+        expect(controller.commands).toHaveLength(2)
+        report({ state: 'ON' })
+        expect(toggle).toHaveAttribute('aria-checked', 'false')
+
+        await act(() => vi.advanceTimersByTimeAsync(CONFIRMATION_WINDOW_MS))
+        expect(toggle).toHaveAttribute('aria-checked', 'true')
+        expect(
+            screen.getByText('The Device did not report the change.')
+        ).toBeInTheDocument()
     })
 })
