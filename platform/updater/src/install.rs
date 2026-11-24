@@ -1067,6 +1067,7 @@ devices:
                 arm64: BASE64.encode(ARM64_UPDATER),
             },
             next_pin: None,
+            release_notes: None,
         }
     }
 

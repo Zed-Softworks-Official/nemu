@@ -308,6 +308,7 @@ mod tests {
                 arm64: BASE64.encode(b"arm64-next"),
             },
             next_pin: None,
+            release_notes: None,
         }
     }
 

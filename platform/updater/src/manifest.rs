@@ -76,6 +76,11 @@ pub struct ReleaseManifest {
     /// covers the field when it is present.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub next_pin: Option<String>,
+    /// What changed, as plain text for the Owner who confirms the install.
+    /// An Updater at Platform version 0.1.1 or older rejects a manifest that
+    /// has this field, so it is omitted unless the publisher opts in.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub release_notes: Option<String>,
 }
 
 /// A Release manifest and the ed25519 signature over its canonical JSON.

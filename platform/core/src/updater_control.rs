@@ -4,10 +4,20 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use crate::audit;
+
+/// The Release the Home could install now, from the signed channel manifest.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AvailableRelease {
+    pub platform_version: String,
+    /// `None` when the Release was published without notes.
+    #[serde(default)]
+    pub release_notes: Option<String>,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -15,6 +25,9 @@ pub struct ReleaseStatus {
     pub platform_version: String,
     pub channel: String,
     pub newer_release_available: bool,
+    /// `None` when there is no newer Release, or when the Updater predates
+    /// this field.
+    pub available_release: Option<AvailableRelease>,
     pub maintenance_mode: bool,
     pub rollback_snapshot_available: bool,
     pub rollback_stuck: bool,
@@ -125,6 +138,7 @@ impl UpdaterControl for SocketUpdater {
             platform_version: text("platformVersion"),
             channel: text("channel"),
             newer_release_available: flag("newerReleaseAvailable"),
+            available_release: available_release(status),
             maintenance_mode: flag("maintenanceMode"),
             rollback_snapshot_available: flag("rollbackSnapshotAvailable"),
             rollback_stuck: flag("rollbackStuck"),
@@ -183,6 +197,10 @@ impl UpdaterControl for SocketUpdater {
         *cached = Some((Instant::now(), held));
         held
     }
+}
+
+fn available_release(status: &Value) -> Option<AvailableRelease> {
+    serde_json::from_value(status.get("availableRelease")?.clone()).ok()
 }
 
 /// Every active Membership may read Release status (NEM-95). Installing,
@@ -278,7 +296,7 @@ mod tests {
     use std::sync::atomic::{AtomicU32, Ordering};
 
     use super::{
-        ForwardError, ReleaseStatus, SwitchChannelOutcome, UpdaterControl,
+        AvailableRelease, ForwardError, ReleaseStatus, SwitchChannelOutcome, UpdaterControl,
         authorize_release_status_read, forward_install, forward_release_status, forward_rollback,
         forward_switch_channel, install_audit, rollback_audit, switch_channel_audit,
     };
@@ -370,6 +388,7 @@ mod tests {
                 platform_version: "0.4.2".to_string(),
                 channel: "stable".to_string(),
                 newer_release_available: false,
+                available_release: None,
                 maintenance_mode: false,
                 rollback_snapshot_available: false,
                 rollback_stuck: false,
@@ -404,6 +423,10 @@ mod tests {
                 platform_version: "0.4.9".to_string(),
                 channel: "stable".to_string(),
                 newer_release_available: true,
+                available_release: Some(AvailableRelease {
+                    platform_version: "0.4.10".to_string(),
+                    release_notes: Some("- Faster pairing".to_string()),
+                }),
                 maintenance_mode: true,
                 rollback_snapshot_available: true,
                 rollback_stuck: true,
@@ -419,6 +442,9 @@ mod tests {
             assert_eq!(forwarded.platform_version, "0.4.9");
             assert_eq!(forwarded.channel, "stable");
             assert!(forwarded.newer_release_available);
+            let body = serde_json::to_value(&forwarded).expect("json");
+            assert_eq!(body["availableRelease"]["platformVersion"], "0.4.10");
+            assert_eq!(body["availableRelease"]["releaseNotes"], "- Faster pairing");
             assert!(forwarded.maintenance_mode);
             assert!(forwarded.rollback_snapshot_available);
             assert!(forwarded.rollback_stuck);
@@ -433,6 +459,7 @@ mod tests {
                 platform_version: "0.4.10".to_string(),
                 channel: "stable".to_string(),
                 newer_release_available: true,
+                available_release: None,
                 maintenance_mode: false,
                 rollback_snapshot_available: false,
                 rollback_stuck: false,
@@ -467,6 +494,7 @@ mod tests {
                 platform_version: "0.4.10".to_string(),
                 channel: "stable".to_string(),
                 newer_release_available: false,
+                available_release: None,
                 maintenance_mode: false,
                 rollback_snapshot_available: true,
                 rollback_stuck: false,
@@ -502,6 +530,7 @@ mod tests {
                 platform_version: "0.4.10".to_string(),
                 channel: "stable".to_string(),
                 newer_release_available: false,
+                available_release: None,
                 maintenance_mode: false,
                 rollback_snapshot_available: false,
                 rollback_stuck: false,
@@ -618,5 +647,36 @@ mod tests {
         );
         assert!(!updater.maintenance_mode());
         assert!(updater.switch_channel("beta").is_err());
+    }
+
+    #[test]
+    fn the_available_release_is_read_from_the_updater_reply() {
+        let reply = |value| super::available_release(&value);
+        assert_eq!(
+            reply(serde_json::json!({
+                "availableRelease": {
+                    "platformVersion": "0.4.10",
+                    "releaseNotes": "- Faster pairing",
+                }
+            })),
+            Some(AvailableRelease {
+                platform_version: "0.4.10".to_string(),
+                release_notes: Some("- Faster pairing".to_string()),
+            })
+        );
+        assert_eq!(
+            reply(serde_json::json!({
+                "availableRelease": { "platformVersion": "0.4.10", "releaseNotes": null }
+            })),
+            Some(AvailableRelease {
+                platform_version: "0.4.10".to_string(),
+                release_notes: None,
+            })
+        );
+        // An Updater that predates the field.
+        assert_eq!(
+            reply(serde_json::json!({ "platformVersion": "0.4.9" })),
+            None
+        );
     }
 }

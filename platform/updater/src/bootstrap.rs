@@ -188,6 +188,7 @@ mod tests {
                 arm64: BASE64.encode(b"arm64-updater"),
             },
             next_pin: None,
+            release_notes: None,
         }
     }
 
