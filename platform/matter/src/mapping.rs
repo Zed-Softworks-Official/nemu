@@ -516,7 +516,55 @@ pub fn descriptor_type(kind: EndpointKind) -> &'static str {
     }
 }
 
-fn synthesize_exposes(kind: EndpointKind) -> Value {
+/// LevelControl MinLevel and MaxLevel.
+const ATTR_MIN_LEVEL: u32 = 2;
+const ATTR_MAX_LEVEL: u32 = 3;
+/// ColorControl ColorTempPhysicalMinMireds and ColorTempPhysicalMaxMireds.
+const ATTR_COLOR_TEMP_MIN: u32 = 0x400B;
+const ATTR_COLOR_TEMP_MAX: u32 = 0x400C;
+
+/// A change to one of these changes the descriptor's `exposes`.
+pub fn is_limit_attribute(cluster: u32, attribute: u32) -> bool {
+    if cluster == u32::from(CLUSTER_LEVEL_CONTROL) {
+        return matches!(attribute, ATTR_MIN_LEVEL | ATTR_MAX_LEVEL);
+    }
+    cluster == u32::from(CLUSTER_COLOR_CONTROL)
+        && matches!(attribute, ATTR_COLOR_TEMP_MIN | ATTR_COLOR_TEMP_MAX)
+}
+
+fn numeric_expose(property: &str, min: u64, max: u64) -> Value {
+    json!({
+        "type": "numeric",
+        "name": property,
+        "property": property,
+        "access": 7,
+        "value_min": min,
+        "value_max": max
+    })
+}
+
+/// The endpoint's level range. The optional limit attributes default to the
+/// cluster's full 0-254.
+fn brightness_expose(attributes: &Attributes, endpoint: u16) -> Value {
+    let limit = |id| attr(attributes, endpoint, CLUSTER_LEVEL_CONTROL, id).and_then(Value::as_u64);
+    numeric_expose(
+        "brightness",
+        limit(ATTR_MIN_LEVEL).unwrap_or(0),
+        limit(ATTR_MAX_LEVEL).map_or(254, |max| max.min(254)),
+    )
+}
+
+/// The endpoint's color temperature range in mireds, when it reports both ends.
+fn color_temp_expose(attributes: &Attributes, endpoint: u16) -> Option<Value> {
+    let limit = |id| attr(attributes, endpoint, CLUSTER_COLOR_CONTROL, id).and_then(Value::as_u64);
+    Some(numeric_expose(
+        "color_temp",
+        limit(ATTR_COLOR_TEMP_MIN)?,
+        limit(ATTR_COLOR_TEMP_MAX)?,
+    ))
+}
+
+fn synthesize_exposes(device: &EndpointDevice, attributes: &Attributes) -> Value {
     let binary = json!({
         "type": "binary",
         "name": "state",
@@ -525,27 +573,28 @@ fn synthesize_exposes(kind: EndpointKind) -> Value {
         "value_on": "ON",
         "value_off": "OFF"
     });
-    match kind {
-        EndpointKind::Light => json!([{
-            "type": "light",
-            "features": [
-                binary,
-                {
-                    "type": "numeric",
-                    "name": "brightness",
-                    "property": "brightness",
-                    "access": 7,
-                    "value_min": 0,
-                    "value_max": 254
-                }
-            ]
-        }]),
-        EndpointKind::Strip => json!([{ "type": "strip", "features": [binary] }]),
-        EndpointKind::Switch => json!([{ "type": "switch", "features": [binary] }]),
+    let endpoint = device.endpoint_id;
+    let has_level = attr(attributes, endpoint, CLUSTER_LEVEL_CONTROL, 0).is_some();
+    let mut features = vec![binary];
+    match device.kind {
+        EndpointKind::Light => {
+            features.push(brightness_expose(attributes, endpoint));
+            features.extend(color_temp_expose(attributes, endpoint));
+        }
+        // A dimmable plug is a switch with a level.
+        EndpointKind::Switch if has_level => {
+            features.push(brightness_expose(attributes, endpoint));
+        }
+        EndpointKind::Switch | EndpointKind::Strip => {}
     }
+    json!([{ "type": descriptor_type(device.kind), "features": features }])
 }
 
-pub fn device_descriptor(device: &EndpointDevice, friendly_name: &str) -> Value {
+pub fn device_descriptor(
+    device: &EndpointDevice,
+    friendly_name: &str,
+    attributes: &Attributes,
+) -> Value {
     json!({
         "external_id": device.id,
         "ieee_address": device.id,
@@ -555,7 +604,7 @@ pub fn device_descriptor(device: &EndpointDevice, friendly_name: &str) -> Value 
         "definition": {
             "model": device.model,
             "description": device.description,
-            "exposes": synthesize_exposes(device.kind)
+            "exposes": synthesize_exposes(device, attributes)
         }
     })
 }
@@ -696,7 +745,14 @@ pub fn apply_set_to_attributes(
                         format!("{endpoint}/{CLUSTER_LEVEL_CONTROL}/0"),
                         json!(u64::from(*level)),
                     );
-                    attributes.insert(format!("{endpoint}/{CLUSTER_ON_OFF}/0"), json!(*level > 0));
+                    // With on/off, moving to the minimum level turns the light off.
+                    let off_at = attr(attributes, *endpoint, CLUSTER_LEVEL_CONTROL, ATTR_MIN_LEVEL)
+                        .and_then(Value::as_u64)
+                        .unwrap_or(0);
+                    attributes.insert(
+                        format!("{endpoint}/{CLUSTER_ON_OFF}/0"),
+                        json!(u64::from(*level) > off_at),
+                    );
                 }
                 CommandName::MoveToColorTemperature { mireds } => {
                     attributes.insert(
@@ -1056,10 +1112,69 @@ mod tests {
     #[test]
     fn device_descriptor_is_z2m_shaped() {
         let device = &map_node("17", &strip_attrs())[0];
-        let descriptor = device_descriptor(device, "Kitchen strip");
+        let descriptor = device_descriptor(device, "Kitchen strip", &strip_attrs());
         assert_eq!(descriptor["type"], "strip");
         assert_eq!(descriptor["external_id"], "17");
         assert_eq!(descriptor["definition"]["exposes"][0]["type"], "strip");
+    }
+
+    fn features(attributes: &Attributes) -> Value {
+        let device = &map_node("9", attributes)[0];
+        device_descriptor(device, "Bulb", attributes)["definition"]["exposes"][0]["features"]
+            .clone()
+    }
+
+    #[test]
+    fn descriptor_carries_the_bulbs_own_limits() {
+        let mut attributes = bulb_attrs();
+        attributes.insert("1/8/2".into(), json!(1));
+        attributes.insert("1/8/3".into(), json!(200));
+        attributes.insert("1/768/16395".into(), json!(200));
+        attributes.insert("1/768/16396".into(), json!(400));
+        let features = features(&attributes);
+        assert_eq!(features[1]["property"], "brightness");
+        assert_eq!(features[1]["value_min"], 1);
+        assert_eq!(features[1]["value_max"], 200);
+        assert_eq!(features[2]["property"], "color_temp");
+        assert_eq!(features[2]["value_min"], 200);
+        assert_eq!(features[2]["value_max"], 400);
+    }
+
+    #[test]
+    fn unreported_limits_use_the_full_level_range_and_no_color_range() {
+        let features = features(&bulb_attrs());
+        assert_eq!(features[1]["value_min"], 0);
+        assert_eq!(features[1]["value_max"], 254);
+        assert_eq!(features.as_array().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn a_dimmable_plug_exposes_its_level_range() {
+        let attributes = attrs(&[
+            ("1/29/0", device_types(&[DEVICE_TYPE_DIMMABLE_PLUG])),
+            ("1/6/0", json!(true)),
+            ("1/8/0", json!(180)),
+            ("1/8/3", json!(250)),
+        ]);
+        assert_eq!(features(&attributes)[1]["value_max"], 250);
+    }
+
+    #[test]
+    fn limit_attributes() {
+        assert!(is_limit_attribute(8, 2));
+        assert!(is_limit_attribute(768, 0x400C));
+        assert!(!is_limit_attribute(8, 0));
+        assert!(!is_limit_attribute(6, 2));
+    }
+
+    #[test]
+    fn moving_to_the_minimum_level_turns_the_light_off() {
+        let mut attributes = bulb_attrs();
+        attributes.insert("1/8/2".into(), json!(1));
+        let payload = json!({ "brightness": 1 }).as_object().unwrap().clone();
+        let (actions, _) = commands_for_set(&payload);
+        apply_set_to_attributes(&mut attributes, &[1], &actions);
+        assert_eq!(attributes.get("1/6/0"), Some(&json!(false)));
     }
 
     #[test]

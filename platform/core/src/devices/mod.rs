@@ -1,3 +1,4 @@
+pub mod limits;
 pub mod registry;
 pub mod setup_store;
 pub mod state_cache;

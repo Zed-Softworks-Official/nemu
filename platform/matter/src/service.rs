@@ -18,8 +18,8 @@ use crate::config::Config;
 use crate::mapping::{
     Attributes, CLUSTER_DESCRIPTOR, CLUSTER_ELECTRICAL_ENERGY, CLUSTER_ELECTRICAL_POWER,
     CommandName, EndpointDevice, apply_set_to_attributes, collapsed_legacy_ids, commands_for_set,
-    device_covers_endpoint, device_descriptor, is_state_attribute_path, map_node_with_fallback,
-    outlet_id_from_set, placeholder_device, state_for_device,
+    device_covers_endpoint, device_descriptor, is_limit_attribute, is_state_attribute_path,
+    map_node_with_fallback, outlet_id_from_set, placeholder_device, state_for_device,
 };
 use crate::meters::{
     MeterIdentityStore, PublishedMeter, assigned_capability_ids, fresh_observed_unix,
@@ -876,10 +876,13 @@ impl MatterService {
         if !is_state_attribute_path(&key) {
             return;
         }
-        self.attributes
+        let previous = self
+            .attributes
             .entry(node_id)
             .or_default()
-            .insert(key, value);
+            .insert(key, value.clone());
+        let limits_changed =
+            is_limit_attribute(cluster, attribute) && previous.as_ref() != Some(&value);
         self.rebuild_index_for_node(node_id);
         let fresh_meter = cluster == u32::from(CLUSTER_ELECTRICAL_POWER)
             || cluster == u32::from(CLUSTER_ELECTRICAL_ENERGY);
@@ -892,6 +895,9 @@ impl MatterService {
         for id in ids {
             self.publish_state(&id, fresh_meter).await;
         }
+        if limits_changed && self.inventory_ready {
+            self.publish_devices().await;
+        }
     }
 
     async fn publish_devices(&self) {
@@ -901,7 +907,12 @@ impl MatterService {
                 .names
                 .get(id)
                 .unwrap_or(entry.device.default_name.as_str());
-            descriptors.push(device_descriptor(&entry.device, name));
+            let attributes = self
+                .attributes
+                .get(&entry.node_id)
+                .cloned()
+                .unwrap_or_default();
+            descriptors.push(device_descriptor(&entry.device, name, &attributes));
         }
         self.mqtt
             .publish_json("bridge/devices", &JsonValue::Array(descriptors), true)
