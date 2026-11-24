@@ -1,15 +1,21 @@
 import { useDevicePairing } from '@nemu/controller'
 import type { Device } from '@nemu/protocol'
-import { type ComponentType, useEffect, useState } from 'react'
-import { ScrollView, TextInput, View } from 'react-native'
+import { useRouter, useSegments } from 'expo-router'
+import { type ComponentType, useState } from 'react'
+import { TextInput, View } from 'react-native'
 
 import { DevicesView } from '~/components/control-surface'
+import {
+    ControllerSheet,
+    useControllerSheet,
+} from '~/components/controller-sheet'
 import { DeviceNameAndRoom } from '~/components/device-setup'
 import { useHomeControl } from '~/components/home-control'
 import { Button } from '~/components/ui/button'
 import { Text } from '~/components/ui/text'
 import { colors } from '~/constants/colors'
 import { readMatterCode } from '~/lib/matter-code'
+import { addDeviceHref } from '~/lib/tab-routes'
 
 /**
  * Reads QR codes for the Matter step. The app passes the camera; tests pass
@@ -20,54 +26,19 @@ export type CodeScanner = ComponentType<{ onCode: (data: string) => void }>
 /**
  * The Devices tab: the Device list, and adding a Device whenever the phone
  * reaches the Controller. Every Membership may commission over LAN or Relay
- * (ADR-0034).
- *
- * Adding stays mounted while the connection is re-checked (`probing`) or
- * moves between LAN and Relay, so a blip does not cancel commissioning. It
- * stops only when the person cancels or the connection settles offline.
+ * (ADR-0034). Adding opens as a sheet above the list.
  */
-export function DevicesTab({ Scanner }: { Scanner?: CodeScanner }) {
-    const { status, live } = useHomeControl()
-    const [adding, setAdding] = useState(false)
-    const [stopped, setStopped] = useState(false)
-    const settledAway = status.mode === 'offline'
-
-    useEffect(() => {
-        if (adding && settledAway) {
-            // Unmounting AddDevice stops commissioning on the Controller.
-            setAdding(false)
-            setStopped(true)
-        }
-    }, [adding, settledAway])
-
-    if (adding && !settledAway) {
-        return (
-            <AddDevice
-                onClose={() => setAdding(false)}
-                Scanner={Scanner}
-                waiting={!live}
-            />
-        )
-    }
+export function DevicesTab() {
+    const { live } = useHomeControl()
+    const router = useRouter()
+    const segments = useSegments()
 
     return (
         <View className="min-h-0 flex-1 gap-4">
-            {stopped ? (
-                <Text
-                    accessibilityRole="alert"
-                    className="text-muted-foreground text-sm leading-relaxed"
-                >
-                    Adding a Device stopped because this phone lost its
-                    connection to the Home. Nothing new was added.
-                </Text>
-            ) : null}
             {live ? (
                 <View className="flex-row">
                     <Button
-                        onPress={() => {
-                            setStopped(false)
-                            setAdding(true)
-                        }}
+                        onPress={() => router.push(addDeviceHref(segments))}
                         title="Add a Device"
                         variant="outline"
                     />
@@ -91,18 +62,46 @@ const MATTER_STAGES: Record<string, string> = {
 /**
  * Commission a Matter or Zigbee Device, then name it and choose its Room.
  * The phone hands the pairing code to the Controller, which stays the Matter
- * commissioner and fabric authority. Cancelling stops it on the Controller.
+ * commissioner and fabric authority. Cancelling, or closing the sheet, stops
+ * it on the Controller.
+ *
+ * The sheet stays open while the connection is re-checked, moves between LAN
+ * and Relay, or drops, so commissioning the Controller already started is
+ * picked up again once it is back.
  */
-export function AddDevice({
+export function AddDeviceSheet({
     Scanner,
     onClose,
-    waiting = false,
+}: {
+    Scanner?: CodeScanner
+    /** Unmounts this sheet, which stops commissioning on the Controller. */
+    onClose: () => void
+}) {
+    const { status } = useHomeControl()
+
+    return (
+        <ControllerSheet
+            detail={
+                status.mode === 'probing'
+                    ? 'Reconnecting to your Home…'
+                    : undefined
+            }
+            onClose={onClose}
+            title="Add a Device"
+        >
+            <AddDeviceSteps onClose={onClose} Scanner={Scanner} />
+        </ControllerSheet>
+    )
+}
+
+function AddDeviceSteps({
+    Scanner,
+    onClose,
 }: {
     Scanner?: CodeScanner
     onClose: () => void
-    /** The connection is being re-checked; the Controller keeps going. */
-    waiting?: boolean
 }) {
+    const { reachable } = useControllerSheet()
     const pairing = useDevicePairing()
     const { showNotice } = useHomeControl()
     const [notice, setNotice] = useState<string | null>(null)
@@ -112,14 +111,9 @@ export function AddDevice({
         setNotice('Cancelled. Nothing was added.')
     }
 
-    function close() {
-        pairing.reset()
-        onClose()
-    }
-
     function finished(name: string) {
         showNotice(`Added ${name}.`)
-        close()
+        onClose()
     }
 
     const step = (() => {
@@ -145,7 +139,11 @@ export function AddDevice({
                             'Put the Device back in pairing mode and try again.'}
                     </Text>
                     <View className="flex-row">
-                        <Button onPress={pairing.reset} title="Start over" />
+                        <Button
+                            disabled={!reachable}
+                            onPress={pairing.reset}
+                            title="Start over"
+                        />
                     </View>
                 </View>
             )
@@ -196,6 +194,7 @@ export function AddDevice({
                     </Text>
                     <View className="flex-row">
                         <Button
+                            disabled={!reachable}
                             onPress={() => {
                                 setNotice(null)
                                 void pairing.startDiscovery()
@@ -214,6 +213,7 @@ export function AddDevice({
                 </Text>
                 <View className="flex-row gap-3">
                     <Button
+                        disabled={!reachable}
                         onPress={() => {
                             setNotice(null)
                             pairing.chooseMatter()
@@ -222,6 +222,7 @@ export function AddDevice({
                         variant="outline"
                     />
                     <Button
+                        disabled={!reachable}
                         onPress={() => {
                             setNotice(null)
                             pairing.chooseZigbee()
@@ -234,29 +235,8 @@ export function AddDevice({
         )
     })()
 
-    const busy = pairing.phase === 'discovering'
-
     return (
-        <ScrollView
-            contentContainerClassName="gap-6 pb-8"
-            keyboardShouldPersistTaps="handled"
-        >
-            <View className="flex-row items-center justify-between gap-3">
-                <Text className="font-semibold text-foreground text-lg">
-                    Add a Device
-                </Text>
-                {busy ? null : (
-                    <Button onPress={close} title="Back" variant="ghost" />
-                )}
-            </View>
-            {waiting ? (
-                <Text
-                    accessibilityLiveRegion="polite"
-                    className="text-muted-foreground text-sm"
-                >
-                    Reconnecting to your Home…
-                </Text>
-            ) : null}
+        <>
             {notice ? (
                 <Text
                     accessibilityLiveRegion="polite"
@@ -266,7 +246,7 @@ export function AddDevice({
                 </Text>
             ) : null}
             {step}
-        </ScrollView>
+        </>
     )
 }
 
@@ -279,12 +259,15 @@ function MatterCodeStep({
     wifiConfigured: boolean | undefined
     onCode: (code: string) => void
 }) {
+    const { reachable } = useControllerSheet()
     const [typing, setTyping] = useState(Scanner === undefined)
     const [entry, setEntry] = useState('')
     const [scanProblem, setScanProblem] = useState<string | null>(null)
     const typed = readMatterCode(entry)
 
     function scanned(data: string) {
+        // The camera keeps reading; nothing scanned now is sent later.
+        if (!reachable) return
         const reading = readMatterCode(data)
         if (reading.ok) onCode(reading.code)
         else setScanProblem(reading.problem)
@@ -315,6 +298,7 @@ function MatterCodeStep({
                     ) : null}
                     <View className="flex-row">
                         <Button
+                            disabled={!reachable}
                             onPress={() => setTyping(true)}
                             title="Enter the code instead"
                             variant="ghost"
@@ -327,6 +311,7 @@ function MatterCodeStep({
                         accessibilityLabel="Pairing code"
                         autoCorrect={false}
                         className="h-11 rounded-sm border border-border px-3 text-foreground"
+                        editable={reachable}
                         inputMode="numeric"
                         onChangeText={setEntry}
                         placeholder="11-digit code"
@@ -340,12 +325,13 @@ function MatterCodeStep({
                     ) : null}
                     <View className="flex-row gap-3">
                         <Button
-                            disabled={!typed.ok}
+                            disabled={!reachable || !typed.ok}
                             onPress={() => typed.ok && onCode(typed.code)}
                             title="Add Device"
                         />
                         {Scanner ? (
                             <Button
+                                disabled={!reachable}
                                 onPress={() => setTyping(false)}
                                 title="Scan instead"
                                 variant="ghost"
@@ -367,6 +353,8 @@ function Working({
     detail: string
     onCancel: () => void
 }) {
+    const { reachable } = useControllerSheet()
+
     return (
         <View className="gap-3">
             <Text
@@ -379,7 +367,12 @@ function Working({
                 {detail}
             </Text>
             <View className="flex-row">
-                <Button onPress={onCancel} title="Cancel" variant="outline" />
+                <Button
+                    disabled={!reachable}
+                    onPress={onCancel}
+                    title="Cancel"
+                    variant="outline"
+                />
             </View>
         </View>
     )
@@ -396,6 +389,8 @@ function ZigbeeSearch({
     onSelect: (device: Device) => void
     onCancel: () => void
 }) {
+    const { reachable } = useControllerSheet()
+
     return (
         <View className="gap-4">
             <Working
@@ -417,6 +412,7 @@ function ZigbeeSearch({
                     </Text>
                     <Button
                         accessibilityLabel={`Set up ${device.name}`}
+                        disabled={!reachable}
                         onPress={() => onSelect(device)}
                         title="Set up"
                     />

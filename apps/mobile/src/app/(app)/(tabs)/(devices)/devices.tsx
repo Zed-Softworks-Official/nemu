@@ -3,7 +3,6 @@ import { View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { DevicesTab } from '~/components/add-device'
-import { CameraCodeScanner } from '~/components/camera-code-scanner'
 import { DrawerMenuButton } from '~/components/drawer-menu-button'
 import { Text } from '~/components/ui/text'
 
@@ -20,7 +19,7 @@ export default function DevicesScreen() {
                     <DrawerMenuButton />
                 </View>
                 <View className="min-h-0 flex-1">
-                    <DevicesTab Scanner={CameraCodeScanner} />
+                    <DevicesTab />
                 </View>
             </StyledSafeAreaView>
         </View>

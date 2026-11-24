@@ -40,6 +40,7 @@ export default function TabStackLayout() {
                 contentStyle: { backgroundColor: 'transparent' },
             }}
         >
+            <Stack.Screen name="add-device" options={sheetOptions} />
             <Stack.Screen name="device/[deviceId]" options={sheetOptions} />
             <Stack.Screen name="room/[roomId]" options={sheetOptions} />
             <Stack.Screen name="room/new" options={sheetOptions} />
