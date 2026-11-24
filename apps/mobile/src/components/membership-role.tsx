@@ -71,3 +71,16 @@ export function useMembershipRole(): SessionRole | null {
 export function OwnerOnly({ children }: { children: ReactNode }) {
     return useMembershipRole() === 'owner' ? <>{children}</> : null
 }
+
+/**
+ * The role last reported in this session, kept while the Controller is
+ * unreachable so Owner actions stay in place, disabled, instead of vanishing.
+ */
+export function useLastKnownRole(): SessionRole | null {
+    const role = useMembershipRole()
+    const [known, setKnown] = useState(role)
+    useEffect(() => {
+        if (role !== null) setKnown(role)
+    }, [role])
+    return role ?? known
+}

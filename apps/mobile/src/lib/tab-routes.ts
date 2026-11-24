@@ -19,3 +19,8 @@ export function deviceSheetHref(segments: readonly string[], deviceId: string) {
         params: { deviceId },
     } as const
 }
+
+/** The update confirmation sheet, on the active tab's Stack. */
+export function updateSheetHref(segments: readonly string[]) {
+    return `/(app)/(tabs)/${activeTab(segments)}/update` as const
+}

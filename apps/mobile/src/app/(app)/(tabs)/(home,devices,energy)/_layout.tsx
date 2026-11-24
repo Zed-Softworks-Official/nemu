@@ -41,6 +41,7 @@ export default function TabStackLayout() {
             }}
         >
             <Stack.Screen name="device/[deviceId]" options={sheetOptions} />
+            <Stack.Screen name="update" options={sheetOptions} />
         </Stack>
     )
 }
