@@ -154,7 +154,7 @@ describe('Settings page', () => {
         expect(screen.getByText('Add a device with a code')).toBeInTheDocument()
     })
 
-    it('hides Owner-only actions from a Member', async () => {
+    it('shows a Member the installed Release but hides Owner-only actions', async () => {
         const adaAsMember: HouseholdMember = { ...ADA, role: 'member' }
         renderWithController(
             <SettingsPage />,
@@ -172,7 +172,11 @@ describe('Settings page', () => {
         expect(
             within(people).getAllByRole('button', { name: 'Remove' })
         ).toHaveLength(1)
-        expect(screen.getByText('Platform version')).toBeInTheDocument()
+        // Every active Membership can read the installed Release (NEM-95).
+        expect(await screen.findByText('2026.11.0')).toBeInTheDocument()
+        expect(
+            screen.getByText('Stable', { selector: 'p' })
+        ).toBeInTheDocument()
         expect(
             screen.queryByText('Invite someone to this home')
         ).not.toBeInTheDocument()

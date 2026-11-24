@@ -171,8 +171,10 @@ export default function SettingsPage() {
         void loadHousehold()
     }, [loadHousehold])
 
+    // Every active Membership can read the installed Release; only Owners
+    // see the update actions (NEM-95).
     const readRelease = useCallback(async () => {
-        if (!isOwner || !connected) return
+        if (!connected) return
         if (updateStateRef.current.kind === 'checking') return
         setUpdateState({ kind: 'checking' })
         try {
@@ -199,7 +201,7 @@ export default function SettingsPage() {
                         : 'Failed to read the installed Release',
             })
         }
-    }, [connected, getReleaseStatus, isOwner])
+    }, [connected, getReleaseStatus])
 
     useEffect(() => {
         void readRelease()

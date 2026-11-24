@@ -1,29 +1,23 @@
-import { ApiError, roomNotEmptyDetailsSchema } from '@nemu/protocol'
+import type { Device } from '@nemu/protocol'
 
 /**
- * The message to show when a Room action fails. A `room_not_empty` error
- * names the Devices and Components that still use the Room.
+ * How many Devices deleting a Room moves: every Device assigned to it, and
+ * every Device with a Component explicitly assigned to it, each counted once.
  */
-export function roomActionMessage(error: unknown): string {
-    if (error instanceof ApiError && error.code === 'room_not_empty') {
-        const details = roomNotEmptyDetailsSchema.safeParse(error.details)
-        if (details.success) {
-            const names = [
-                ...details.data.devices.map((device) => device.name),
-                ...details.data.components.map(
-                    (component) =>
-                        `${component.deviceName} (${component.componentId})`
-                ),
-            ]
-            if (names.length > 0) {
-                return `Move ${joinNames(names)} to another room first.`
-            }
-        }
-    }
-    return error instanceof Error ? error.message : String(error)
+export function devicesInRoom(devices: Device[], roomId: string): number {
+    return devices.filter(
+        (device) =>
+            device.roomId === roomId ||
+            Object.values(device.componentRooms ?? {}).includes(roomId)
+    ).length
 }
 
-function joinNames(names: string[]): string {
-    if (names.length === 1) return names[0] ?? ''
-    return `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`
+/** What the delete confirmation says will happen to a Room's Devices. */
+export function roomDeletionSummary(
+    deviceCount: number,
+    destinationName: string
+): string {
+    if (deviceCount === 0) return 'No Devices are in this room.'
+    const devices = deviceCount === 1 ? '1 Device' : `${deviceCount} Devices`
+    return `${devices} will move to ${destinationName}.`
 }
