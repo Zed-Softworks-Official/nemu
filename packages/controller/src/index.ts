@@ -57,6 +57,11 @@ export {
     useDevices,
 } from './provider.tsx'
 export type {
+    ReleaseUpdate,
+    ReleaseUpdateKind,
+    ReleaseUpdateOutcome,
+} from './release-update.ts'
+export type {
     AccessClientCredential,
     ControllerCredentialStore,
 } from './storage.ts'

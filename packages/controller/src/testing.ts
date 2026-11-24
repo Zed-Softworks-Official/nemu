@@ -11,6 +11,7 @@
  */
 import {
     ApiError,
+    type ApplyUpdateResponse,
     type AssignRoomRequest,
     type ClientToken,
     type CommandResult,
@@ -43,6 +44,7 @@ import {
 import type { ControllerConnectors } from './connection.ts'
 import type { ProbeResult } from './discovery.ts'
 import type { GetToken } from './http.ts'
+import type { ReleaseUpdateKind } from './release-update.ts'
 import type { ControllerTransport } from './transports/types.ts'
 
 export type FakeControllerOptions = {
@@ -172,6 +174,17 @@ export class FakeController {
     /** Transports that carried a Release status read. */
     readonly releaseStatusRequests: TransportMode[] = []
     // --- end NEM-95 ---------------------------------------------------------
+    // --- NEM-96: install, roll back, and the restart ------------------------
+    /** The Release a rollback returns to. */
+    previousPlatformVersion = '0.0.0'
+    /** Installs and rollbacks that reached this Controller. */
+    readonly releaseUpdates: Array<{
+        type: ReleaseUpdateKind
+        via: TransportMode
+    }> = []
+    private reachableBeforeRestart: { lan: boolean; relay: boolean } | null =
+        null
+    // --- end NEM-96 ---------------------------------------------------------
     private readonly tokens: Set<string>
     private readonly otherMembershipTokens: Set<string>
     private readonly transports = new Set<FakeTransport>()
@@ -365,6 +378,84 @@ export class FakeController {
         return structuredClone(this.releaseStatus)
     }
     // --- end NEM-95 ---------------------------------------------------------
+
+    // --- NEM-96: install, roll back, and the restart ------------------------
+    /**
+     * Starts an install or rollback as Core does: Owners only. The Home
+     * enters maintenance and answers; it restarts on `restart()`.
+     * @internal
+     */
+    startReleaseUpdate(
+        type: ReleaseUpdateKind,
+        via: TransportMode
+    ): ApplyUpdateResponse {
+        this.requireActiveMembership()
+        if (this.role !== 'owner') {
+            throw new ApiError(
+                'owner_required',
+                'Only the home owner can do that',
+                403
+            )
+        }
+        const release = this.requireReleaseStatus()
+        this.releaseUpdates.push({ type, via })
+        release.maintenanceMode = true
+        return { started: true }
+    }
+
+    /** The Controller restarts: nothing answers over LAN or Relay. */
+    restart(): void {
+        this.reachableBeforeRestart ??= {
+            lan: this.lanReachable,
+            relay: this.relayReachable,
+        }
+        this.goOffline()
+    }
+
+    /** The Controller is back, on the transports it answered before. */
+    finishRestart(): void {
+        if (!this.reachableBeforeRestart) return
+        this.lanReachable = this.reachableBeforeRestart.lan
+        this.relayReachable = this.reachableBeforeRestart.relay
+        this.reachableBeforeRestart = null
+    }
+
+    /**
+     * Ends the update. A failed install returns to the Release it replaced,
+     * which stays available, as on a Home whose health gate failed.
+     */
+    finishReleaseUpdate(
+        outcome: 'installed' | 'rolledBack' | 'notApplied' | 'rollbackStuck'
+    ): void {
+        const release = this.requireReleaseStatus()
+        const type = this.releaseUpdates.at(-1)?.type
+        if (outcome === 'installed') {
+            this.previousPlatformVersion = release.platformVersion
+            release.platformVersion =
+                release.availableRelease?.platformVersion ?? 'unknown'
+            release.newerReleaseAvailable = false
+            release.availableRelease = null
+        }
+        if (outcome === 'rolledBack' && type === 'rollback') {
+            release.platformVersion = this.previousPlatformVersion
+        }
+        if (outcome !== 'notApplied') release.rollbackSnapshotAvailable = true
+        release.rollbackStuck = outcome === 'rollbackStuck'
+        release.maintenanceMode = outcome === 'rollbackStuck'
+        this.finishRestart()
+    }
+
+    private requireReleaseStatus(): UpdateStatusResponse {
+        if (!this.releaseStatus) {
+            throw new ApiError(
+                'updater_unavailable',
+                'The Updater is unavailable',
+                503
+            )
+        }
+        return this.releaseStatus
+    }
+    // --- end NEM-96 ---------------------------------------------------------
 
     /**
      * The summary Core would return for this caller: Owners get Controller
@@ -822,6 +913,18 @@ export class FakeTransport implements ControllerTransport {
         return this.controller.readRelease(this.mode)
     }
     // --- end Household and Release reads ---
+
+    // --- NEM-96: install, roll back, and the restart ------------------------
+    async installRelease(): Promise<ApplyUpdateResponse> {
+        this.authorize()
+        return this.controller.startReleaseUpdate('install', this.mode)
+    }
+
+    async rollbackRelease(): Promise<ApplyUpdateResponse> {
+        this.authorize()
+        return this.controller.startReleaseUpdate('rollback', this.mode)
+    }
+    // --- end NEM-96 ---------------------------------------------------------
 
     subscribeEvents(cb: (event: DeviceEvent) => void): () => void {
         this.listeners.add(cb)
