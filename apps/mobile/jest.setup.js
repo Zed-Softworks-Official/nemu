@@ -28,3 +28,8 @@ jest.mock(
 jest.mock('~/components/native-toggle', () =>
     jest.requireActual('~/components/native-toggle.tsx')
 )
+
+// Likewise the SwiftUI and Compose pickers: use the web fallback's buttons.
+jest.mock('~/components/native-picker', () =>
+    jest.requireActual('~/components/native-picker.tsx')
+)

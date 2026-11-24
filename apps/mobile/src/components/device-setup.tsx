@@ -2,10 +2,11 @@ import { useController } from '@nemu/controller'
 import type { Device, Room } from '@nemu/protocol'
 import { cn } from '@nemu/ui/lib/utils'
 import { useCallback, useState } from 'react'
-import { Pressable, TextInput, View } from 'react-native'
+import { TextInput, View } from 'react-native'
 
 import { useControllerSheet } from '~/components/controller-sheet'
 import { type SetupState, useHomeControl } from '~/components/home-control'
+import { NativePicker } from '~/components/native-picker'
 import { Button } from '~/components/ui/button'
 import { Text } from '~/components/ui/text'
 import { colors } from '~/constants/colors'
@@ -200,6 +201,9 @@ export function DeviceNameAndRoom({
     )
 }
 
+/** The picker value for no Room; Room IDs are never empty. */
+const NO_ROOM = ''
+
 export function RoomChoice({
     rooms,
     selected,
@@ -219,132 +223,16 @@ export function RoomChoice({
             </Text>
         )
     }
-    const choices: Array<{ id: string | null; name: string }> = [
-        ...rooms,
-        { id: null, name: 'Not in a Room' },
-    ]
     return (
-        <View accessibilityLabel="Room" className="gap-2">
-            <Text className="text-muted-foreground text-sm">Room</Text>
-            <View className="flex-row flex-wrap gap-2">
-                {choices.map((choice) => {
-                    const isSelected = choice.id === selected
-                    return (
-                        <Pressable
-                            accessibilityLabel={choice.name}
-                            accessibilityRole="button"
-                            accessibilityState={{
-                                selected: isSelected,
-                                disabled: !enabled,
-                            }}
-                            className={cn(
-                                'h-9 justify-center rounded-sm border px-3',
-                                isSelected
-                                    ? 'border-primary bg-primary/10'
-                                    : 'border-border',
-                                !enabled && 'opacity-50'
-                            )}
-                            disabled={!enabled}
-                            key={choice.id ?? 'none'}
-                            onPress={() => onChange(choice.id)}
-                        >
-                            <Text className="text-foreground text-sm">
-                                {choice.name}
-                            </Text>
-                        </Pressable>
-                    )
-                })}
-            </View>
-        </View>
-    )
-}
-
-/** Create a Room. */
-export function NewRoomForm() {
-    const { createRoom } = useController()
-    const { state, run, dismiss, busy, live } = useSetupAction('new-room')
-    const [name, setName] = useState('')
-    const enabled = live && !busy
-
-    async function create() {
-        const trimmed = name.trim()
-        const created = await run(
-            () => createRoom({ name: trimmed }),
-            `Created ${trimmed}`
-        )
-        if (created) setName('')
-    }
-
-    return (
-        <View className="gap-2">
-            <View className="flex-row items-center gap-2">
-                <View className="min-w-0 flex-1">
-                    <SetupTextInput
-                        editable={enabled}
-                        label="New Room name"
-                        onChangeText={setName}
-                        placeholder="New Room"
-                        value={name}
-                    />
-                </View>
-                <Button
-                    disabled={!enabled || name.trim() === ''}
-                    onPress={create}
-                    title="Create Room"
-                    variant="outline"
-                />
-            </View>
-            <SetupStatus onDismiss={dismiss} state={state} />
-        </View>
-    )
-}
-
-/** Rename a Room. Deleting one stays on the dashboard. */
-export function RoomRenameForm({
-    room,
-    onClose,
-}: {
-    room: Room
-    onClose: () => void
-}) {
-    const { renameRoom } = useController()
-    const { state, run, dismiss, busy, live } = useSetupAction(
-        `room:${room.id}`
-    )
-    const [name, setName] = useState(room.name)
-    const enabled = live && !busy
-
-    return (
-        <View className="gap-2 rounded-sm border border-border p-3">
-            <SetupTextInput
-                editable={enabled}
-                label="Room name"
-                onChangeText={setName}
-                value={name}
-            />
-            <View className="flex-row gap-3">
-                <Button
-                    accessibilityLabel="Save Room name"
-                    disabled={!enabled || name.trim() === ''}
-                    onPress={() =>
-                        run(
-                            () =>
-                                renameRoom({
-                                    roomId: room.id,
-                                    name: name.trim(),
-                                }),
-                            'Saved'
-                        )
-                    }
-                    title="Save"
-                />
-                <Button onPress={onClose} title="Done" variant="ghost" />
-            </View>
-            <SetupStatus onDismiss={dismiss} state={state} />
-            <Text className="text-muted-foreground text-xs leading-relaxed">
-                To delete a Room, use the dashboard. It asks you to move the
-                Room’s Devices first.
-            </Text>
-        </View>
+        <NativePicker
+            disabled={!enabled}
+            label="Room"
+            onChange={(value) => onChange(value === NO_ROOM ? null : value)}
+            options={[
+                ...rooms.map((room) => ({ value: room.id, label: room.name })),
+                { value: NO_ROOM, label: 'Not in a Room' },
+            ]}
+            selected={selected ?? NO_ROOM}
+        />
     )
 }
