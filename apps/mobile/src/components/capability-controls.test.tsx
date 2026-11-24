@@ -5,16 +5,11 @@ import {
     fakeControllerConnectors,
 } from '@nemu/controller/testing'
 import { ApiError, type CommandResult, type Device } from '@nemu/protocol'
-import {
-    act,
-    fireEvent,
-    render,
-    screen,
-    within,
-} from '@testing-library/react-native'
+import { act, fireEvent, render, screen } from '@testing-library/react-native'
 import { useEffect } from 'react'
 
 import { RoomsView } from '~/components/control-surface'
+import { DeviceSheet } from '~/components/device-sheet'
 import { HomeControlProvider } from '~/components/home-control'
 
 const LAMP: Device = {
@@ -66,6 +61,8 @@ async function setup(options?: {
     lanReachable?: boolean
     confirmationWindowMs?: number
     commandResult?: () => CommandResult
+    /** Open this Device's sheet instead of showing the Room list. */
+    sheet?: string
 }) {
     const controller = new FakeController({
         controllerId: 'lake',
@@ -87,10 +84,18 @@ async function setup(options?: {
             <HomeControlProvider
                 confirmationWindowMs={options?.confirmationWindowMs}
             >
-                <RoomsView />
+                {options?.sheet ? (
+                    <DeviceSheet deviceId={options.sheet} onClose={() => {}} />
+                ) : (
+                    <RoomsView />
+                )}
             </HomeControlProvider>
         </ControllerProvider>
     )
+    if (options?.sheet) {
+        await screen.findByLabelText('Device name')
+        return controller
+    }
     await screen.findByLabelText(
         `${(options?.devices ?? [LAMP])[0]?.name} ${
             (options?.devices ?? [LAMP])[0]?.id === 'strip' ? 'Fan' : 'Power'
@@ -121,8 +126,8 @@ describe('issuing a Command', () => {
         ])
     })
 
-    it('sets a level to an absolute value', async () => {
-        const controller = await setup()
+    it('sets a level to an absolute value from the Device sheet', async () => {
+        const controller = await setup({ sheet: 'lamp' })
         await fireEvent.press(screen.getByLabelText('Raise Lamp Brightness'))
         await screen.findByText(/Waiting for the Device to report 60%/)
         expect(controller.commands[0]?.command.payload).toEqual({
@@ -130,8 +135,8 @@ describe('issuing a Command', () => {
         })
     })
 
-    it('commands one outlet of a strip', async () => {
-        const controller = await setup({ devices: [STRIP] })
+    it('commands one outlet of a strip from the Device sheet', async () => {
+        const controller = await setup({ devices: [STRIP], sheet: 'strip' })
         await fireEvent(screen.getByLabelText('Strip Fan'), 'valueChange', true)
         await screen.findByText(/Waiting for the Device to report on/)
         expect(controller.commands[0]?.command.payload).toEqual({
@@ -141,15 +146,12 @@ describe('issuing a Command', () => {
     })
 
     it('offers no control for a Capability that cannot be commanded', async () => {
-        await setup({ devices: [LAMP, SENSOR] })
-        const sensor = screen.getByLabelText('Sensor')
-        expect(within(sensor).queryByRole('switch')).toBeNull()
-        // Only Device setup, no Capability control.
+        await setup({ devices: [LAMP, SENSOR], sheet: 'sensor' })
+        expect(screen.queryByRole('switch')).toBeNull()
         expect(
-            within(sensor)
-                .queryAllByRole('button')
-                .map((button) => button.props.accessibilityLabel)
-        ).toEqual(['Set up Sensor'])
+            screen.queryByRole('button', { name: /^(Raise|Lower)/ })
+        ).toBeNull()
+        expect(screen.queryByText('Controls')).toBeNull()
     })
 
     it('uses the same operation over Relay', async () => {
@@ -309,6 +311,11 @@ describe('final outcomes', () => {
 describe('when a Command cannot be sent', () => {
     it('disables controls for an offline Device', async () => {
         await setup()
+        expect(screen.getByLabelText('Old Power').props.disabled).toBe(true)
+    })
+
+    it('disables an offline Device’s controls in its sheet', async () => {
+        await setup({ sheet: 'old' })
         expect(screen.getByLabelText('Old Power').props.disabled).toBe(true)
         expect(
             screen.getByLabelText('Raise Old Brightness').props

@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { Text } from '~/components/ui/text'
 import { colors } from '~/constants/colors'
+import { activeTab, type Tab } from '~/lib/tab-routes'
 
 type DrawerLink = {
     name: 'home' | StackScreen
@@ -19,15 +20,6 @@ type DrawerLink = {
 
 /** Screens opened on the active tab's Stack, so the tab bar stays. */
 type StackScreen = 'rooms' | 'settings' | 'account'
-type Tab = '(home)' | '(devices)' | '(energy)'
-
-const TABS: readonly string[] = ['(home)', '(devices)', '(energy)']
-
-function activeTab(segments: readonly string[]): Tab {
-    const tab = segments.find((segment) => TABS.includes(segment))
-    return (tab as Tab | undefined) ?? '(home)'
-}
-
 function openLink(name: DrawerLink['name'], tab: Tab) {
     if (name === 'home') {
         router.navigate('/')

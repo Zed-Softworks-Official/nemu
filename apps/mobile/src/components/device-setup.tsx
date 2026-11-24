@@ -4,6 +4,7 @@ import { cn } from '@nemu/ui/lib/utils'
 import { useCallback, useState } from 'react'
 import { Pressable, TextInput, View } from 'react-native'
 
+import { useControllerSheet } from '~/components/controller-sheet'
 import { type SetupState, useHomeControl } from '~/components/home-control'
 import { Button } from '~/components/ui/button'
 import { Text } from '~/components/ui/text'
@@ -12,14 +13,15 @@ import { colors } from '~/constants/colors'
 /**
  * Runs one Device or Room setup action against the Controller and reloads
  * the Room and Device lists afterwards. Only runs while LAN or Relay reaches
- * the Controller; nothing is kept to send later.
+ * the Controller (inside a `ControllerSheet`, while the sheet's Controller
+ * is reachable); nothing is kept to send later.
  *
  * The phone does not know its Membership role. Whatever the Controller
  * refuses is shown as the Controller gave it.
  */
 export function useSetupAction(key: string) {
-    const { live, refreshInventory, setupState, setSetupState } =
-        useHomeControl()
+    const { refreshInventory, setupState, setSetupState } = useHomeControl()
+    const { reachable: live } = useControllerSheet()
     const state = setupState(key)
     const setState = useCallback(
         (next: SetupState) => setSetupState(key, next),
@@ -198,7 +200,7 @@ export function DeviceNameAndRoom({
     )
 }
 
-function RoomChoice({
+export function RoomChoice({
     rooms,
     selected,
     enabled,
@@ -253,63 +255,6 @@ function RoomChoice({
                     )
                 })}
             </View>
-        </View>
-    )
-}
-
-/** Device setup: name and Room, and removing the Device after confirming. */
-export function DeviceSetupPanel({ device }: { device: Device }) {
-    const { removeDevice } = useController()
-    const { showNotice } = useHomeControl()
-    const { state, run, dismiss, busy, live } = useSetupAction(
-        `remove:${device.id}`
-    )
-    const [confirming, setConfirming] = useState(false)
-
-    async function remove() {
-        const removed = await run(
-            () => removeDevice(device.id),
-            `Removed ${device.name}.`
-        )
-        if (removed) showNotice(`Removed ${device.name}.`)
-        else setConfirming(false)
-    }
-
-    return (
-        <View className="gap-4 border-border border-t pt-3">
-            <DeviceNameAndRoom device={device} />
-            {confirming ? (
-                <View className="gap-3">
-                    <Text className="text-foreground text-sm leading-relaxed">
-                        Remove {device.name} from this Home? It will need to be
-                        set up again before you can use it.
-                    </Text>
-                    <View className="flex-row gap-3">
-                        <Button
-                            disabled={!live || busy}
-                            onPress={remove}
-                            title={`Remove ${device.name}`}
-                            variant="destructive"
-                        />
-                        <Button
-                            disabled={busy}
-                            onPress={() => setConfirming(false)}
-                            title="Cancel"
-                            variant="ghost"
-                        />
-                    </View>
-                </View>
-            ) : (
-                <View className="flex-row">
-                    <Button
-                        disabled={!live || busy}
-                        onPress={() => setConfirming(true)}
-                        title="Remove Device"
-                        variant="destructive"
-                    />
-                </View>
-            )}
-            <SetupStatus onDismiss={dismiss} state={state} />
         </View>
     )
 }
