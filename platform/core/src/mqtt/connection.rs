@@ -52,6 +52,18 @@ pub fn device_protocol(device: &Device) -> Protocol {
     Protocol::parse(&device.protocol).unwrap_or(Protocol::Zigbee)
 }
 
+/// Nemu's Matter adapter answers a failed set with the Command's ID. Only it
+/// is sent one; Zigbee2MQTT has no such answer.
+fn set_body(protocol: Protocol, payload: &JsonValue, command_id: &str) -> JsonValue {
+    let mut body = payload.clone();
+    if protocol == Protocol::Matter
+        && let Some(object) = body.as_object_mut()
+    {
+        object.insert("transaction".into(), json!(command_id));
+    }
+    body
+}
+
 #[derive(Clone)]
 pub struct MqttHandle {
     client: AsyncClient,
@@ -84,9 +96,10 @@ impl MqttHandle {
         protocol: Protocol,
         topic_id: &str,
         payload: &JsonValue,
+        command_id: &str,
     ) -> Result<(), String> {
         let topic = set_topic(self.base_topic(protocol)?, topic_id);
-        let body = payload.to_string();
+        let body = set_body(protocol, payload, command_id).to_string();
         self.client
             .publish(topic, QoS::AtLeastOnce, false, body)
             .await
@@ -740,6 +753,16 @@ async fn handle_bridge_event(
         state.emit(DeviceEvent::CommissionProgress { stage, message });
     }
 
+    if event.event_type == "command_failed"
+        && let (Some(external_id), Some(command_id)) = (
+            event.data.get("ieee_address").and_then(|v| v.as_str()),
+            event.data.get("transaction").and_then(|v| v.as_str()),
+        )
+        && let Some(device) = resolve_topic_device(state, protocol, external_id).await
+    {
+        crate::commands::fail_device_command(state, device.id, command_id).await;
+    }
+
     if event.event_type == "device_leave" {
         let external_id = event
             .data
@@ -982,6 +1005,19 @@ mod tests {
 
     use super::{should_publish_capability_ids, without_meter_report};
     use crate::capabilities::AdapterCapabilityManifest;
+
+    #[test]
+    fn only_the_matter_adapter_is_sent_the_command_id() {
+        let payload = json!({ "state": "ON" });
+        assert_eq!(
+            super::set_body(super::Protocol::Matter, &payload, "cmd-1"),
+            json!({ "state": "ON", "transaction": "cmd-1" })
+        );
+        assert_eq!(
+            super::set_body(super::Protocol::Zigbee, &payload, "cmd-1"),
+            payload
+        );
+    }
 
     #[test]
     fn unchanged_capability_manifest_is_not_published_again() {

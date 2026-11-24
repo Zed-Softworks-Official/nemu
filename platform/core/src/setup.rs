@@ -17,7 +17,7 @@ use crate::db::models::{NewRoom, Room, UpdateDevice, UpdateRoom};
 use crate::db::schema::rooms;
 use crate::devices::setup_store::{self, RoomDeletion, RoomMove};
 use crate::events::{DeviceResource, RoomResource};
-use crate::pairing::members::find_member_by_user_id;
+use crate::pairing::members::{MembershipRefusal, active_membership};
 use crate::state::AppState;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -150,21 +150,6 @@ pub fn parse_component_id(raw: &str) -> Result<String, SetupError> {
         return Err(SetupError::InvalidComponent);
     }
     Ok(id.to_string())
-}
-
-/// Active Owners and Members may set up Devices and Rooms.
-pub fn authorize_setup(role: &str, status: &str) -> Result<(), SetupError> {
-    match role {
-        "" => Err(SetupError::Unauthenticated),
-        "owner" | "member" if status == "active" => Ok(()),
-        _ => Err(SetupError::Forbidden),
-    }
-}
-
-/// Active Owners and Members may delete a Room and move its contents
-/// (ADR-0006).
-pub fn authorize_delete_room(role: &str, status: &str) -> Result<(), SetupError> {
-    authorize_setup(role, status)
 }
 
 /// The Room to delete and where its contents go. The destination is required:
@@ -479,7 +464,7 @@ pub async fn delete_room(
     room_id: &str,
     destination: Option<&str>,
 ) -> Result<(), SetupError> {
-    authorize_caller_with(state, auth, authorize_delete_room).await?;
+    authorize_caller(state, auth).await?;
     let (room_id, destination) = parse_room_deletion(room_id, destination)?;
     let actor = auth.user_id.clone();
     let deletion = with_conn(state, move |conn| {
@@ -504,23 +489,15 @@ pub async fn delete_room(
     }
 }
 
+/// Active Owners and Members may set up Devices and Rooms, and delete Rooms
+/// (ADR-0006).
 async fn authorize_caller(state: &AppState, auth: &AuthenticatedClient) -> Result<(), SetupError> {
-    authorize_caller_with(state, auth, authorize_setup).await
-}
-
-async fn authorize_caller_with(
-    state: &AppState,
-    auth: &AuthenticatedClient,
-    authorize: fn(&str, &str) -> Result<(), SetupError>,
-) -> Result<(), SetupError> {
-    let Some(user_id) = auth.user_id.as_deref() else {
-        return Err(SetupError::Unauthenticated);
-    };
-    let member = find_member_by_user_id(&state.db, user_id)
-        .await
-        .map_err(SetupError::Internal)?
-        .ok_or(SetupError::Unauthenticated)?;
-    authorize(&member.role, &member.status)
+    match active_membership(&state.db, auth).await {
+        Ok(_) => Ok(()),
+        Err(MembershipRefusal::Unauthenticated) => Err(SetupError::Unauthenticated),
+        Err(MembershipRefusal::Inactive) => Err(SetupError::Forbidden),
+        Err(MembershipRefusal::Internal(error)) => Err(SetupError::Internal(error)),
+    }
 }
 
 async fn with_conn<T, F>(state: &AppState, work: F) -> Result<T, SetupError>
@@ -552,37 +529,6 @@ pub fn remove_already_gone(error: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn owners_and_members_may_delete_rooms() {
-        assert_eq!(authorize_delete_room("owner", "active"), Ok(()));
-        assert_eq!(authorize_delete_room("member", "active"), Ok(()));
-    }
-
-    #[test]
-    fn inactive_memberships_may_not_delete_rooms() {
-        for role in ["owner", "member"] {
-            for status in ["pending", "removed", "left", ""] {
-                assert_eq!(
-                    authorize_delete_room(role, status),
-                    Err(SetupError::Forbidden),
-                    "{role} with status {status:?}"
-                );
-            }
-        }
-    }
-
-    #[test]
-    fn unauthenticated_callers_may_not_delete_rooms() {
-        assert_eq!(
-            authorize_delete_room("", "active"),
-            Err(SetupError::Unauthenticated)
-        );
-        assert_eq!(
-            authorize_delete_room("", ""),
-            Err(SetupError::Unauthenticated)
-        );
-    }
 
     #[test]
     fn a_room_deletion_needs_a_destination_other_than_itself() {
@@ -683,45 +629,6 @@ mod tests {
         assert!(exposes("l1"));
         assert!(!exposes("l2"), "another Device's Component");
         assert!(!exposes("l9"));
-    }
-
-    #[test]
-    fn active_owners_and_members_may_set_up_devices_and_rooms() {
-        assert_eq!(authorize_setup("owner", "active"), Ok(()));
-        assert_eq!(authorize_setup("member", "active"), Ok(()));
-    }
-
-    #[test]
-    fn inactive_memberships_are_forbidden() {
-        for status in ["pending", "removed", "left", ""] {
-            assert_eq!(
-                authorize_setup("member", status),
-                Err(SetupError::Forbidden),
-                "member with status {status:?}"
-            );
-            assert_eq!(
-                authorize_setup("owner", status),
-                Err(SetupError::Forbidden),
-                "owner with status {status:?}"
-            );
-        }
-    }
-
-    #[test]
-    fn callers_without_a_membership_are_unauthenticated() {
-        assert_eq!(
-            authorize_setup("", "active"),
-            Err(SetupError::Unauthenticated)
-        );
-        assert_eq!(authorize_setup("", ""), Err(SetupError::Unauthenticated));
-    }
-
-    #[test]
-    fn unknown_roles_are_forbidden() {
-        assert_eq!(
-            authorize_setup("guest", "active"),
-            Err(SetupError::Forbidden)
-        );
     }
 
     #[test]

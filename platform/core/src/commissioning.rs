@@ -3,14 +3,15 @@
 //!
 //! Each operation is one function that the LAN HTTP handler and the Relay
 //! handler both call, so authorization cannot differ between the two paths
-//! (ADR-0023). Every active Membership may commission over LAN or Relay
-//! (ADR-0034). Each commissioning started over Relay writes one Audit log
+//! (ADR-0023). Every active Membership may commission (ADR-0034), but nothing
+//! carrying a Matter pairing code or Wi-Fi credentials crosses Relay until
+//! its envelopes are encrypted end to end (NEM-63): over Relay only Zigbee
+//! permit-join, and cancelling Matter, are available. Each commissioning started over Relay writes one Audit log
 //! entry before it starts, naming the Membership, the Access Client, and the
 //! protocol, and carrying no Device identifiers. The Controller stays the only
 //! Matter commissioner and fabric authority (ADR-0007): the phone only sends
 //! the pairing code.
 
-use axum::http::StatusCode;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
@@ -20,7 +21,7 @@ use crate::audit::{self, AuditKind, AuditWrite};
 use crate::config::Protocol;
 use crate::db::models::Member;
 use crate::identity::{get_string, set_string};
-use crate::pairing::members::find_member_by_user_id;
+use crate::pairing::members::active_membership;
 use crate::state::{AppState, DbPool};
 
 const KEY_WIFI_SSID: &str = "matter_wifi_ssid";
@@ -59,20 +60,6 @@ pub struct MatterWifi {
     pub configured: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub network_name: Option<String>,
-}
-
-/// Active Owners and Members may commission Devices over LAN and Relay
-/// (ADR-0006, ADR-0034).
-pub fn authorize_commissioning(role: &str, status: &str) -> Result<(), ApiError> {
-    match role {
-        "" => Err(unauthenticated()),
-        "owner" | "member" if status == "active" => Ok(()),
-        _ => Err(ApiError::new(
-            StatusCode::FORBIDDEN,
-            "inactive_membership",
-            "This Membership is not active",
-        )),
-    }
 }
 
 /// The Audit log entry for one commissioning started over Relay. It names
@@ -251,26 +238,12 @@ async fn audit_relay_start(
         .map_err(ApiError::internal)
 }
 
-fn unauthenticated() -> ApiError {
-    ApiError::new(
-        StatusCode::UNAUTHORIZED,
-        "unauthorized",
-        "Pair this Access Client with a Membership first",
-    )
-}
-
+/// Active Owners and Members may commission Devices (ADR-0006, ADR-0034).
 async fn authorize_caller(
     state: &AppState,
     auth: &AuthenticatedClient,
 ) -> Result<Member, ApiError> {
-    let Some(user_id) = auth.user_id.as_deref() else {
-        return Err(unauthenticated());
-    };
-    let member = find_member_by_user_id(&state.db, user_id)
-        .await
-        .map_err(ApiError::internal)?
-        .ok_or_else(unauthenticated)?;
-    authorize_commissioning(&member.role, &member.status)?;
+    let (member, _) = active_membership(&state.db, auth).await?;
     Ok(member)
 }
 
@@ -404,38 +377,6 @@ mod tests {
             label: "Kitchen phone".into(),
             user_id: Some("user-member".into()),
         }
-    }
-
-    #[test]
-    fn active_owners_and_members_may_commission() {
-        assert!(authorize_commissioning("owner", "active").is_ok());
-        assert!(authorize_commissioning("member", "active").is_ok());
-    }
-
-    #[test]
-    fn inactive_memberships_may_not_commission() {
-        for (role, status) in [
-            ("owner", "pending"),
-            ("member", "pending"),
-            ("member", "removed"),
-        ] {
-            let error = authorize_commissioning(role, status).unwrap_err();
-            assert_eq!(error.code, "inactive_membership", "{role} {status}");
-            assert_eq!(error.status, StatusCode::FORBIDDEN);
-        }
-    }
-
-    #[test]
-    fn callers_without_a_membership_are_unauthenticated() {
-        let error = authorize_commissioning("", "").unwrap_err();
-        assert_eq!(error.code, "unauthorized");
-        assert_eq!(error.status, StatusCode::UNAUTHORIZED);
-    }
-
-    #[test]
-    fn unknown_roles_may_not_commission() {
-        let error = authorize_commissioning("guest", "active").unwrap_err();
-        assert_eq!(error.code, "inactive_membership");
     }
 
     #[test]

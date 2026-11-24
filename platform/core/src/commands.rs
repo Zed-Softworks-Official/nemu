@@ -173,6 +173,7 @@ async fn publish_and_record(
             device_protocol(device),
             device_topic_id(device),
             &row.payload,
+            &row.command_id,
         )
         .await
     {
@@ -198,6 +199,21 @@ async fn publish_and_record(
 pub async fn confirm_device(state: &AppState, device_id: Uuid) {
     if let Err(error) = ledger::confirm_accepted(&state.db, device_id, Utc::now()).await {
         warn!(%error, "failed to confirm commands");
+    }
+}
+
+/// The adapter could not carry out a Command. Ends it as `failed` and tells
+/// connected clients, so nobody waits for a confirmation that cannot come.
+pub async fn fail_device_command(state: &AppState, device_id: Uuid, command_id: &str) {
+    match ledger::fail_from_adapter(&state.db, command_id, device_id, Utc::now()).await {
+        Ok(true) => state.emit(crate::events::DeviceEvent::CommandResult {
+            request_id: command_id.to_string(),
+            ok: false,
+            outcome: Some(CommandOutcome::Failed.as_str().to_string()),
+            error: Some(CommandError::Failed("failed".to_string()).to_error_body()),
+        }),
+        Ok(false) => {}
+        Err(error) => warn!(%error, "failed to record command failure"),
     }
 }
 

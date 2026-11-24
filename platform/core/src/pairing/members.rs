@@ -1,6 +1,10 @@
+use axum::http::StatusCode;
 use diesel::prelude::*;
+use serde::Serialize;
 use uuid::Uuid;
 
+use crate::api::auth::AuthenticatedClient;
+use crate::api::error::ApiError;
 use crate::audit::{self, AuditWrite};
 use crate::db::models::{Member, NewMember};
 use crate::db::schema::members;
@@ -12,6 +16,67 @@ pub fn normalize_email(email: &str) -> Result<String, String> {
         return Err("email is invalid".to_string());
     }
     Ok(email)
+}
+
+/// The role an active Membership holds.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum MembershipRole {
+    Owner,
+    Member,
+}
+
+/// Why a caller does not act as an active Membership.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MembershipRefusal {
+    /// The Access Client has no Membership.
+    Unauthenticated,
+    /// The Membership is inactive, or its role is unknown.
+    Inactive,
+    Internal(String),
+}
+
+impl From<MembershipRefusal> for ApiError {
+    fn from(refusal: MembershipRefusal) -> Self {
+        match refusal {
+            MembershipRefusal::Unauthenticated => ApiError::new(
+                StatusCode::UNAUTHORIZED,
+                "unauthorized",
+                "Pair this Access Client with a Membership first",
+            ),
+            MembershipRefusal::Inactive => {
+                ApiError::forbidden("inactive_membership", "This Membership is not active")
+            }
+            MembershipRefusal::Internal(message) => ApiError::internal(message),
+        }
+    }
+}
+
+/// The active role behind a stored role and status. Everything every active
+/// Owner and Member may do is authorized by this succeeding.
+pub fn active_role(role: &str, status: &str) -> Result<MembershipRole, MembershipRefusal> {
+    match (role, status) {
+        ("", _) => Err(MembershipRefusal::Unauthenticated),
+        ("owner", "active") => Ok(MembershipRole::Owner),
+        ("member", "active") => Ok(MembershipRole::Member),
+        _ => Err(MembershipRefusal::Inactive),
+    }
+}
+
+/// The calling Access Client's Membership and role, when it is active.
+pub async fn active_membership(
+    pool: &DbPool,
+    auth: &AuthenticatedClient,
+) -> Result<(Member, MembershipRole), MembershipRefusal> {
+    let Some(user_id) = auth.user_id.as_deref() else {
+        return Err(MembershipRefusal::Unauthenticated);
+    };
+    let member = find_member_by_user_id(pool, user_id)
+        .await
+        .map_err(MembershipRefusal::Internal)?
+        .ok_or(MembershipRefusal::Unauthenticated)?;
+    let role = active_role(&member.role, &member.status)?;
+    Ok((member, role))
 }
 
 pub async fn count_members(pool: &DbPool) -> Result<i64, String> {
@@ -193,4 +258,58 @@ pub async fn delete_member(
     })
     .await
     .map_err(|e| format!("db interact error: {e}"))?
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn active_owners_and_members_have_their_role() {
+        assert_eq!(active_role("owner", "active"), Ok(MembershipRole::Owner));
+        assert_eq!(active_role("member", "active"), Ok(MembershipRole::Member));
+    }
+
+    #[test]
+    fn inactive_memberships_have_no_active_role() {
+        for role in ["owner", "member"] {
+            for status in ["pending", "revoked", "removed", "left", "inactive", ""] {
+                assert_eq!(
+                    active_role(role, status),
+                    Err(MembershipRefusal::Inactive),
+                    "{role}/{status}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn callers_without_a_membership_are_unauthenticated() {
+        for status in ["", "active"] {
+            assert_eq!(
+                active_role("", status),
+                Err(MembershipRefusal::Unauthenticated)
+            );
+        }
+    }
+
+    #[test]
+    fn unknown_roles_are_refused() {
+        for role in ["admin", "guest"] {
+            assert_eq!(
+                active_role(role, "active"),
+                Err(MembershipRefusal::Inactive)
+            );
+        }
+    }
+
+    #[test]
+    fn refusals_keep_their_wire_codes() {
+        let unauthenticated = ApiError::from(MembershipRefusal::Unauthenticated);
+        assert_eq!(unauthenticated.status, StatusCode::UNAUTHORIZED);
+        assert_eq!(unauthenticated.code, "unauthorized");
+        let inactive = ApiError::from(MembershipRefusal::Inactive);
+        assert_eq!(inactive.status, StatusCode::FORBIDDEN);
+        assert_eq!(inactive.code, "inactive_membership");
+    }
 }

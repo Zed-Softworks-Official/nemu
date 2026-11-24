@@ -55,7 +55,6 @@ pub fn router(state: AppState) -> Router {
         .route("/api/pairing-code", post(pairing::create_pairing_code));
 
     let protected = Router::new()
-        // NEM-86: the caller's Membership role for this session.
         .route("/api/session", get(session::show))
         .route("/api/devices", get(devices::list_devices))
         .route(

@@ -3,8 +3,8 @@ use axum::extract::State;
 use serde::Serialize;
 
 use crate::api::auth::AuthenticatedClient;
-use crate::api::error::{ApiError, ApiResult};
-use crate::pairing::members::find_member_by_user_id;
+use crate::api::error::ApiResult;
+use crate::pairing::members::{MembershipRole, active_membership};
 use crate::state::AppState;
 
 /// The public LAN probe. Discovery reads `status`, so it stays unauthenticated
@@ -57,11 +57,6 @@ async fn check_db(state: &AppState) -> bool {
     .is_some()
 }
 
-// ---------------------------------------------------------------------------
-// Role-aware Controller health summary (NEM-88). LAN and Relay both call
-// `read_health_summary`, so the two transports return the same shape.
-// ---------------------------------------------------------------------------
-
 /// Which summary a caller may see (ADR-0006).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -72,41 +67,12 @@ pub enum HealthView {
     Member,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum HealthSummaryError {
-    Unauthenticated,
-    Forbidden,
-    Internal(String),
-}
-
-impl From<HealthSummaryError> for ApiError {
-    fn from(error: HealthSummaryError) -> Self {
-        match error {
-            HealthSummaryError::Unauthenticated => ApiError::new(
-                axum::http::StatusCode::UNAUTHORIZED,
-                "unauthorized",
-                "Pair this Access Client with a Membership first",
-            ),
-            HealthSummaryError::Forbidden => {
-                ApiError::forbidden("inactive_membership", "This Membership is not active")
-            }
-            HealthSummaryError::Internal(message) => ApiError::internal(message),
+impl From<MembershipRole> for HealthView {
+    fn from(role: MembershipRole) -> Self {
+        match role {
+            MembershipRole::Owner => Self::Owner,
+            MembershipRole::Member => Self::Member,
         }
-    }
-}
-
-/// Active Owners get the Owner view and active Members the Member view.
-/// Callers without a Membership are unauthenticated; inactive Memberships
-/// and unknown roles are forbidden.
-pub fn authorize_health_summary(
-    role: &str,
-    status: &str,
-) -> Result<HealthView, HealthSummaryError> {
-    match (role, status) {
-        ("", _) => Err(HealthSummaryError::Unauthenticated),
-        ("owner", "active") => Ok(HealthView::Owner),
-        ("member", "active") => Ok(HealthView::Member),
-        _ => Err(HealthSummaryError::Forbidden),
     }
 }
 
@@ -176,20 +142,14 @@ pub fn summarize(view: HealthView, readings: HealthReadings) -> HealthSummary {
     }
 }
 
-/// The Controller health summary for the caller's Membership.
+/// The Controller health summary for the caller's Membership. LAN and Relay
+/// both call this, so the two transports return the same shape.
 pub async fn read_health_summary(
     state: &AppState,
     auth: &AuthenticatedClient,
-) -> Result<HealthSummary, HealthSummaryError> {
-    let Some(user_id) = auth.user_id.as_deref() else {
-        return Err(HealthSummaryError::Unauthenticated);
-    };
-    let member = find_member_by_user_id(&state.db, user_id)
-        .await
-        .map_err(HealthSummaryError::Internal)?
-        .ok_or(HealthSummaryError::Unauthenticated)?;
-    let view = authorize_health_summary(&member.role, &member.status)?;
-    Ok(summarize(view, collect_readings(state).await))
+) -> ApiResult<HealthSummary> {
+    let (_, role) = active_membership(&state.db, auth).await?;
+    Ok(summarize(role.into(), collect_readings(state).await))
 }
 
 async fn collect_readings(state: &AppState) -> HealthReadings {
@@ -235,52 +195,9 @@ mod tests {
     }
 
     #[test]
-    fn active_owners_get_the_owner_view() {
-        assert_eq!(
-            authorize_health_summary("owner", "active"),
-            Ok(HealthView::Owner)
-        );
-    }
-
-    #[test]
-    fn active_members_get_the_member_view() {
-        assert_eq!(
-            authorize_health_summary("member", "active"),
-            Ok(HealthView::Member)
-        );
-    }
-
-    #[test]
-    fn inactive_memberships_are_forbidden() {
-        for role in ["owner", "member"] {
-            for status in ["revoked", "pending", "inactive"] {
-                assert_eq!(
-                    authorize_health_summary(role, status),
-                    Err(HealthSummaryError::Forbidden),
-                    "{role}/{status}"
-                );
-            }
-        }
-    }
-
-    #[test]
-    fn callers_without_a_membership_are_unauthenticated() {
-        assert_eq!(
-            authorize_health_summary("", ""),
-            Err(HealthSummaryError::Unauthenticated)
-        );
-        assert_eq!(
-            authorize_health_summary("", "active"),
-            Err(HealthSummaryError::Unauthenticated)
-        );
-    }
-
-    #[test]
-    fn unknown_roles_are_forbidden() {
-        assert_eq!(
-            authorize_health_summary("admin", "active"),
-            Err(HealthSummaryError::Forbidden)
-        );
+    fn each_role_gets_its_own_view() {
+        assert_eq!(HealthView::from(MembershipRole::Owner), HealthView::Owner);
+        assert_eq!(HealthView::from(MembershipRole::Member), HealthView::Member);
     }
 
     #[test]
