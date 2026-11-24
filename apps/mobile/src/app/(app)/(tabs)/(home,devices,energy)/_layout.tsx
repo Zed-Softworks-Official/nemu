@@ -1,4 +1,7 @@
 import { Stack } from 'expo-router'
+import type { ComponentProps } from 'react'
+
+import { colors } from '~/constants/colors'
 
 /**
  * Each tab (Home, Devices, Energy) gets its own Stack from this one layout.
@@ -17,6 +20,18 @@ export const unstable_settings = {
     energy: { anchor: 'energy' },
 }
 
+/**
+ * How every sheet route is presented: a form sheet with detents on iOS, a
+ * bottom sheet on Android. Sheets cover the tab bar only while open.
+ */
+const sheetOptions: ComponentProps<typeof Stack.Screen>['options'] = {
+    presentation: 'formSheet',
+    sheetAllowedDetents: [0.6, 1],
+    sheetGrabberVisible: true,
+    sheetCornerRadius: 16,
+    contentStyle: { backgroundColor: colors.background },
+}
+
 export default function TabStackLayout() {
     return (
         <Stack
@@ -24,6 +39,8 @@ export default function TabStackLayout() {
                 headerShown: false,
                 contentStyle: { backgroundColor: 'transparent' },
             }}
-        />
+        >
+            <Stack.Screen name="device/[deviceId]" options={sheetOptions} />
+        </Stack>
     )
 }

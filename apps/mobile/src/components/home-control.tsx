@@ -64,9 +64,6 @@ type HomeControlValue = {
      */
     setupState: (key: string) => SetupState
     setSetupState: (key: string, state: SetupState) => void
-    /** The Device whose setup is open, one at a time. */
-    deviceSetupOpen: string | null
-    setDeviceSetupOpen: (deviceId: string | null) => void
 }
 
 /** Outcome of one Device or Room setup action. */
@@ -102,7 +99,6 @@ export function HomeControlProvider({
     const [setupStates, setSetupStates] = useState<Record<string, SetupState>>(
         {}
     )
-    const [deviceSetupOpen, setDeviceSetupOpen] = useState<string | null>(null)
     const setupState = useCallback(
         (key: string) => setupStates[key] ?? IDLE,
         [setupStates]
@@ -193,8 +189,6 @@ export function HomeControlProvider({
             dismissNotice,
             setupState,
             setSetupState,
-            deviceSetupOpen,
-            setDeviceSetupOpen,
         }),
         [
             status,
@@ -214,7 +208,6 @@ export function HomeControlProvider({
             dismissNotice,
             setupState,
             setSetupState,
-            deviceSetupOpen,
         ]
     )
 
