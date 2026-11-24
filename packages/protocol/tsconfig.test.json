@@ -25,6 +25,8 @@
         "src/device-limits.test.ts",
         "src/events.ts",
         "src/relay.ts",
+        "src/rooms.ts",
+        "src/rooms.test.ts",
         "src/setup.test.ts",
         "src/commissioning.test.ts",
         "src/relay.test.ts",

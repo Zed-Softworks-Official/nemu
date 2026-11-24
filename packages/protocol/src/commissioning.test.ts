@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
+import { commissionRequestSchema } from './api.ts'
 import {
     relayToClientEnvelopeSchema,
     relayToControllerEnvelopeSchema,
@@ -54,4 +55,19 @@ describe('Commissioning outcomes over Relay', () => {
             assert.deepEqual(envelope.message, message)
         })
     }
+})
+
+describe('Matter commissioning requests over LAN', () => {
+    it('need a pairing code', () => {
+        assert.equal(
+            commissionRequestSchema.parse({ code: ' 34970112332 ' }).code,
+            '34970112332'
+        )
+        for (const request of [{}, { code: '' }, { code: '   ' }]) {
+            assert.equal(
+                commissionRequestSchema.safeParse(request).success,
+                false
+            )
+        }
+    })
 })
