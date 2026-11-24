@@ -19,3 +19,8 @@ export function deviceSheetHref(segments: readonly string[], deviceId: string) {
         params: { deviceId },
     } as const
 }
+
+/** The add-Device sheet, on the active tab's Stack. */
+export function addDeviceHref(segments: readonly string[]) {
+    return `/(app)/(tabs)/${activeTab(segments)}/add-device` as const
+}
