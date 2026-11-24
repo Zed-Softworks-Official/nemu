@@ -21,6 +21,8 @@
         "src/api.ts",
         "src/api.test.ts",
         "src/device.ts",
+        "src/device-limits.ts",
+        "src/device-limits.test.ts",
         "src/events.ts",
         "src/relay.ts",
         "src/setup.test.ts",

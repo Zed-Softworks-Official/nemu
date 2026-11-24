@@ -1,16 +1,13 @@
 import {
+    brightnessRange,
+    brightnessToPercent,
     type CapabilityCurrentState,
     type Device,
     type DeviceState,
     measurementsForDevice,
     type ScopedMeasurement,
 } from '@nemu/protocol'
-import {
-    brightnessToPercent,
-    COLOR_TEMP_MAX_MIREDS,
-    COLOR_TEMP_MIN_MIREDS,
-    normalizeHex,
-} from '~/lib/device-commands'
+import { normalizeHex } from '~/lib/device-commands'
 import { formatPower } from '~/lib/energy-presentation'
 
 export {
@@ -85,7 +82,7 @@ export function presentDevice(
     const level =
         rawBrightness === undefined
             ? undefined
-            : brightnessToPercent(rawBrightness)
+            : brightnessToPercent(rawBrightness, brightnessRange(device))
     const colorTemp = readNumber(state, ['color_temp', 'colorTemp'])
     const colorHex = readColorHex(state)
     const battery = readNumber(state, ['battery', 'batteryLevel'])
@@ -149,8 +146,6 @@ export function colorTempLabel(mireds: number): string {
     const kelvin = Math.round(1_000_000 / clamp(mireds, 1, 1000))
     return `${kelvin}K`
 }
-
-export { COLOR_TEMP_MAX_MIREDS, COLOR_TEMP_MIN_MIREDS }
 
 function getDeviceCategory(device: Device): DeviceCategory {
     const descriptor = `${device.name} ${device.type} ${device.model ?? ''}`
