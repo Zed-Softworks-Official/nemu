@@ -49,7 +49,7 @@ type ReleaseReadState =
     | { kind: 'idle' }
     | { kind: 'checking' }
     | { kind: 'current' }
-    | { kind: 'newer' }
+    | { kind: 'newer'; platformVersion?: string }
     | { kind: 'error'; message: string }
 
 export default function SettingsPage() {
@@ -171,8 +171,10 @@ export default function SettingsPage() {
         void loadHousehold()
     }, [loadHousehold])
 
+    // Every active Membership can read the installed Release; only Owners
+    // see the update actions (NEM-95).
     const readRelease = useCallback(async () => {
-        if (!isOwner || !connected) return
+        if (!connected) return
         if (updateStateRef.current.kind === 'checking') return
         setUpdateState({ kind: 'checking' })
         try {
@@ -183,7 +185,11 @@ export default function SettingsPage() {
             setRollbackStuck(report.rollbackStuck)
             setUpdateState(
                 report.newerReleaseAvailable
-                    ? { kind: 'newer' }
+                    ? {
+                          kind: 'newer',
+                          platformVersion:
+                              report.availableRelease?.platformVersion,
+                      }
                     : { kind: 'current' }
             )
         } catch (err) {
@@ -199,7 +205,7 @@ export default function SettingsPage() {
                         : 'Failed to read the installed Release',
             })
         }
-    }, [connected, getReleaseStatus, isOwner])
+    }, [connected, getReleaseStatus])
 
     useEffect(() => {
         void readRelease()
@@ -209,7 +215,11 @@ export default function SettingsPage() {
         setBusyInstall(true)
         setInstallError(null)
         try {
-            await installRelease()
+            await installRelease(
+                updateState.kind === 'newer'
+                    ? updateState.platformVersion
+                    : undefined
+            )
             await readRelease()
         } catch (err) {
             setInstallError(

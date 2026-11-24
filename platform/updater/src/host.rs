@@ -155,8 +155,10 @@ pub fn run_rollback(controller_dir: &Path) -> Result<(), crate::rollback::Rollba
 }
 
 /// Install using the host adapters. The library call is still in-process.
-pub fn run_install(controller_dir: &Path) -> Result<(), InstallError> {
-    with_host_env(controller_dir, |env| install(controller_dir, env))
+pub fn run_install(controller_dir: &Path, confirmed: Option<&str>) -> Result<(), InstallError> {
+    with_host_env(controller_dir, |env| {
+        install(controller_dir, env, confirmed)
+    })
 }
 
 /// Switch channel using the host adapters. A newer Release is installed by

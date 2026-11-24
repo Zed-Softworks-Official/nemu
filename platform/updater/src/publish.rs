@@ -71,6 +71,10 @@ pub struct PublishRequest {
     /// the pin that cut was signed with.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub next_pin: Option<String>,
+    /// Release notes to put in a newly cut manifest. Reusing a cut keeps the
+    /// notes that cut was signed with. Blank notes are omitted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub release_notes: Option<String>,
 }
 
 /// A tag the workflow applies to one digest. Third-party images never appear.
@@ -189,6 +193,12 @@ fn new_manifest(request: &PublishRequest) -> Result<ReleaseManifest, PublishErro
         migrations: request.migrations.clone(),
         updater: request.updater.clone(),
         next_pin: request.next_pin.clone(),
+        release_notes: request
+            .release_notes
+            .as_deref()
+            .map(str::trim)
+            .filter(|notes| !notes.is_empty())
+            .map(str::to_string),
     })
 }
 
@@ -482,7 +492,69 @@ mod tests {
                 arm64: BASE64.encode(b"updater-arm64"),
             },
             next_pin: None,
+            release_notes: None,
         }
+    }
+
+    #[test]
+    fn a_new_cut_signs_its_release_notes_and_a_reused_cut_keeps_its_own() {
+        let signing_key = key();
+        let mut publish = request(
+            PublishSource::Canary,
+            "commit-1",
+            false,
+            Vec::new(),
+            resolved(1),
+        );
+        publish.release_notes = Some("\n- Faster pairing\n".to_string());
+        let plan = plan_publish(&publish, &signing_key).expect("plan");
+        let manifest =
+            verify_manifest(&plan.signed_manifest, &signing_key.verifying_key()).expect("verify");
+        assert_eq!(manifest.release_notes.as_deref(), Some("- Faster pairing"));
+
+        publish.cut_releases = vec![CutRelease {
+            platform_version: manifest.platform_version.clone(),
+            commit: "commit-1".to_string(),
+            manifest: manifest.clone(),
+        }];
+        publish.release_notes = Some("- Something else".to_string());
+        let reused = plan_publish(&publish, &signing_key).expect("reuse");
+        assert_eq!(reused.signed_manifest, plan.signed_manifest);
+    }
+
+    #[test]
+    fn a_manifest_without_release_notes_omits_the_field_for_older_updaters() {
+        for notes in [None, Some("  \n".to_string())] {
+            let mut publish = request(
+                PublishSource::Canary,
+                "commit-1",
+                false,
+                Vec::new(),
+                resolved(1),
+            );
+            publish.release_notes = notes;
+            let plan = plan_publish(&publish, &key()).expect("plan");
+            let text = String::from_utf8(plan.signed_manifest).expect("utf8");
+            assert!(!text.contains("releaseNotes"));
+        }
+    }
+
+    #[test]
+    fn changed_release_notes_do_not_verify() {
+        let signing_key = key();
+        let mut publish = request(
+            PublishSource::Canary,
+            "commit-1",
+            false,
+            Vec::new(),
+            resolved(1),
+        );
+        publish.release_notes = Some("- Faster pairing".to_string());
+        let plan = plan_publish(&publish, &signing_key).expect("plan");
+        let forged = String::from_utf8(plan.signed_manifest)
+            .expect("utf8")
+            .replace("Faster pairing", "Slower pairing");
+        assert!(verify_manifest(forged.as_bytes(), &signing_key.verifying_key()).is_err());
     }
 
     fn tags_for<'a>(tags: &'a [super::ImageTag], image_suffix: &str) -> Vec<&'a str> {
@@ -995,6 +1067,7 @@ mod tests {
                     arm64: BASE64.encode(b"cut-arm64"),
                 },
                 next_pin: None,
+                release_notes: None,
             },
         }
     }

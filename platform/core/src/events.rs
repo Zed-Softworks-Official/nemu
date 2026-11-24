@@ -3,6 +3,8 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 
+use crate::devices::limits::DeviceLimits;
+
 /// Wire events matching `@nemu/protocol` `deviceEventSchema`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
@@ -123,6 +125,9 @@ pub struct DeviceResource {
     /// Components assigned to a Room other than the Device's, by Component ID.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub component_rooms: BTreeMap<String, String>,
+    /// The Device's own value limits. Absent when it reports none.
+    #[serde(default, skip_serializing_if = "DeviceLimits::is_empty")]
+    pub limits: DeviceLimits,
 }
 
 impl DeviceResource {
@@ -142,6 +147,7 @@ impl DeviceResource {
             external_id: device.external_id.clone(),
             state,
             component_rooms: BTreeMap::new(),
+            limits: DeviceLimits::default(),
         }
     }
 }

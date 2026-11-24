@@ -42,7 +42,7 @@ pub fn switch_channel(
 ) -> Result<ChannelSwitch, ChannelError> {
     let chosen = save_channel(controller_dir, channel, env)?;
     if chosen.installed {
-        crate::install::install(controller_dir, env)?;
+        crate::install::install(controller_dir, env, None)?;
     }
     Ok(chosen)
 }
@@ -308,6 +308,7 @@ mod tests {
                 arm64: BASE64.encode(b"arm64-next"),
             },
             next_pin: None,
+            release_notes: None,
         }
     }
 
@@ -575,6 +576,7 @@ mod tests {
                 clock: &world,
                 arch: UpdaterArch::Amd64,
             },
+            None,
         )
         .expect("later release");
 

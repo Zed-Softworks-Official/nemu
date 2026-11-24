@@ -16,6 +16,7 @@ import {
     type DeviceEvent,
     type DeviceProtocol,
     deviceEventRefreshesInventory,
+    type HealthSummary,
     type HistoryQuery,
     type HistoryQueryRead,
     type HomeMeterDesignation,
@@ -31,6 +32,7 @@ import {
     type RenameRoomRequest,
     type Room,
     type SaveMatterWifiRequest,
+    type SessionResponse,
     type SwitchReleaseChannelResponse,
     statusFromMode,
     type UpdateStatusResponse,
@@ -50,6 +52,7 @@ import {
     ControllerConnection,
     type ControllerConnectors,
 } from './connection.ts'
+import type { ReleaseUpdate, ReleaseUpdateKind } from './release-update.ts'
 import type { ControllerCredentialStore } from './storage.ts'
 import type { RelayApi } from './transports/relay.ts'
 
@@ -76,7 +79,11 @@ type ControllerContextValue = {
     getRooms: () => Promise<Room[]>
     createRoom: (request: CreateRoomRequest) => Promise<Room>
     patchRoom: (roomId: string, patch: PatchRoomRequest) => Promise<Room>
-    deleteRoom: (roomId: string) => Promise<void>
+    /** `destinationRoomId: null` moves the Room's contents to No Room. */
+    deleteRoom: (
+        roomId: string,
+        destinationRoomId: string | null
+    ) => Promise<void>
     patchDevice: (
         deviceId: string,
         patch: PatchDeviceRequest
@@ -90,7 +97,8 @@ type ControllerContextValue = {
     /**
      * Device and Room setup over LAN or Relay. Each rejects with an
      * `ApiError` whose `code` comes from the Controller, for example
-     * `inactive_membership`, `room_not_empty`, or `unsupported_action`.
+     * `inactive_membership`, `destination_not_found`, or
+     * `unsupported_action`.
      * Nothing is queued while the Controller is unreachable.
      */
     renameDevice: (request: RenameDeviceRequest) => Promise<Device>
@@ -106,8 +114,20 @@ type ControllerContextValue = {
     leaveHome: () => Promise<void>
     bootstrapOwner: (request: BootstrapOwnerRequest) => Promise<HouseholdMember>
     getReleaseStatus: () => Promise<UpdateStatusResponse>
-    installRelease: () => Promise<ApplyUpdateResponse>
+    /** The caller's Membership role, only for deciding what to show. */
+    getSession: () => Promise<SessionResponse>
+    getHealthSummary: () => Promise<HealthSummary>
+    installRelease: (platformVersion?: string) => Promise<ApplyUpdateResponse>
     rollbackRelease: () => Promise<ApplyUpdateResponse>
+    /** The install or rollback this client started, if any. */
+    releaseUpdate: ReleaseUpdate | null
+    /** Starts an install or rollback and follows the restart. */
+    startReleaseUpdate: (
+        kind: ReleaseUpdateKind,
+        /** Install only this Release. */
+        confirmedVersion?: string
+    ) => Promise<void>
+    dismissReleaseUpdate: () => void
     switchReleaseChannel: (
         channel: ReleaseChannel
     ) => Promise<SwitchReleaseChannelResponse>
@@ -174,6 +194,15 @@ export function ControllerProvider({
 
     const [status, setStatus] = useState<ConnectionStatus>(
         statusFromMode('probing')
+    )
+
+    const [releaseUpdate, setReleaseUpdate] = useState<ReleaseUpdate | null>(
+        null
+    )
+
+    useEffect(
+        () => connection.subscribeReleaseUpdate(setReleaseUpdate),
+        [connection]
     )
 
     useEffect(() => {
@@ -245,7 +274,8 @@ export function ControllerProvider({
         [connection]
     )
     const deleteRoom = useCallback(
-        (roomId: string) => connection.deleteRoom(roomId),
+        (roomId: string, destinationRoomId: string | null) =>
+            connection.deleteRoom(roomId, destinationRoomId),
         [connection]
     )
     const patchDevice = useCallback(
@@ -301,12 +331,27 @@ export function ControllerProvider({
         (request: BootstrapOwnerRequest) => connection.bootstrapOwner(request),
         [connection]
     )
+    const getSession = useCallback(() => connection.getSession(), [connection])
     const getReleaseStatus = useCallback(
         () => connection.getReleaseStatus(),
         [connection]
     )
+    const getHealthSummary = useCallback(
+        () => connection.getHealthSummary(),
+        [connection]
+    )
     const installRelease = useCallback(
-        () => connection.installRelease(),
+        (platformVersion?: string) =>
+            connection.installRelease(platformVersion),
+        [connection]
+    )
+    const startReleaseUpdate = useCallback(
+        (kind: ReleaseUpdateKind, confirmedVersion?: string) =>
+            connection.startReleaseUpdate(kind, confirmedVersion),
+        [connection]
+    )
+    const dismissReleaseUpdate = useCallback(
+        () => connection.dismissReleaseUpdate(),
         [connection]
     )
     const rollbackRelease = useCallback(
@@ -352,9 +397,14 @@ export function ControllerProvider({
             revokeCurrentToken,
             leaveHome,
             bootstrapOwner,
+            getSession,
             getReleaseStatus,
+            getHealthSummary,
             installRelease,
             rollbackRelease,
+            releaseUpdate,
+            startReleaseUpdate,
+            dismissReleaseUpdate,
             switchReleaseChannel,
         }),
         [
@@ -390,9 +440,14 @@ export function ControllerProvider({
             revokeCurrentToken,
             leaveHome,
             bootstrapOwner,
+            getSession,
             getReleaseStatus,
+            getHealthSummary,
             installRelease,
             rollbackRelease,
+            releaseUpdate,
+            startReleaseUpdate,
+            dismissReleaseUpdate,
             switchReleaseChannel,
         ]
     )
@@ -489,6 +544,7 @@ export type CommissionProgress = {
     message?: string
 }
 
+const RELAY_JOIN_POLL_MS = 2_000
 const MATTER_CONNECT_MS = 240_000
 const MATTER_CONNECTED_WAIT_MS = 20_000
 
@@ -507,6 +563,9 @@ export function useDevicePairing(): {
     error: Error | null
     secondsRemaining: number
     commissionProgress: CommissionProgress | null
+    /** Connected over Relay, which never carries a Matter pairing code. */
+    matterNeedsHomeNetwork: boolean
+    /** `null` until it is read, which needs the Home network. */
     savedWifi: MatterWifiResponse | null
     chooseMatter: () => void
     chooseZigbee: () => void
@@ -706,6 +765,54 @@ export function useDevicePairing(): {
         })
     }, [absorbMatterJoins, connection, phase, protocol])
 
+    // Over Relay the Controller pushes no `deviceJoined` events, so Zigbee
+    // joins are found by polling the Device list against the Devices that
+    // were there when the network opened (ADR-0034).
+    useEffect(() => {
+        if (
+            phase !== 'discovering' ||
+            protocol !== 'zigbee' ||
+            status.mode !== 'relay'
+        ) {
+            return
+        }
+        let known: Set<string> | null = null
+        let cancelled = false
+        const poll = async () => {
+            try {
+                const devices = await getDevices()
+                if (cancelled) return
+                if (known === null) {
+                    known = new Set(devices.map((device) => device.id))
+                    return
+                }
+                const before = known
+                const joined = devices.filter(
+                    (device) =>
+                        !before.has(device.id) && device.protocol !== 'matter'
+                )
+                if (joined.length === 0) return
+                setDiscoveredDevices((current) => {
+                    const seen = new Set(current.map((device) => device.id))
+                    const next = [
+                        ...current,
+                        ...joined.filter((device) => !seen.has(device.id)),
+                    ]
+                    discoveredDevicesRef.current = next
+                    return next
+                })
+            } catch {
+                // A dropped poll is retried on the next tick.
+            }
+        }
+        void poll()
+        const timer = setInterval(() => void poll(), RELAY_JOIN_POLL_MS)
+        return () => {
+            cancelled = true
+            clearInterval(timer)
+        }
+    }, [getDevices, phase, protocol, status.mode])
+
     useEffect(() => {
         if (phase !== 'discovering' || protocol !== 'matter') return
         void absorbMatterJoins()
@@ -798,10 +905,20 @@ export function useDevicePairing(): {
         setProtocol('matter')
         setMatterStep('ready')
         setError(null)
-        void getMatterWifi()
-            .then(setSavedWifi)
-            .catch(() => setSavedWifi({ configured: false }))
-    }, [getMatterWifi])
+    }, [])
+
+    useEffect(() => {
+        if (pairingKind !== 'matter' || status.mode !== 'lan') return
+        let current = true
+        getMatterWifi()
+            .catch(() => ({ configured: false }))
+            .then((wifi) => {
+                if (current) setSavedWifi(wifi)
+            })
+        return () => {
+            current = false
+        }
+    }, [getMatterWifi, pairingKind, status.mode])
 
     const chooseZigbee = useCallback(() => {
         setPairingKind('zigbee')
@@ -832,20 +949,33 @@ export function useDevicePairing(): {
     const startMatterCommission = useCallback(
         async (request: CommissionRequest) => {
             const attempt = beginPairingAttempt()
+            setProtocol('matter')
+            setPairingKind('matter')
+            setError(null)
             try {
+                // Without this list an old Device would look newly joined.
                 const existing = await getDevices()
                 if (!isCurrentPairingAttempt(attempt)) return
                 knownDeviceIds.current = new Set(
                     existing.map((device) => device.id)
                 )
-            } catch {
+                // Reading the list can move the connection to Relay.
+                const { mode } = connection.getStatus()
+                if (mode !== 'lan') {
+                    throw new Error(
+                        mode === 'relay'
+                            ? 'Matter pairing needs the Home network. Connect to it and try again.'
+                            : 'The Controller can’t be reached. Nothing was started.'
+                    )
+                }
+            } catch (err) {
                 if (!isCurrentPairingAttempt(attempt)) return
-                knownDeviceIds.current = new Set()
+                setError(toError(err))
+                setPhase('error')
+                return
             }
 
             lastMatterRequest.current = request
-            setProtocol('matter')
-            setPairingKind('matter')
             setMatterStep('connecting')
             setError(null)
             setInterviews([])
@@ -870,7 +1000,13 @@ export function useDevicePairing(): {
                 setPhase('error')
             }
         },
-        [absorbMatterJoins, commissionMatter, getDevices, stopPairingRadios]
+        [
+            absorbMatterJoins,
+            commissionMatter,
+            connection,
+            getDevices,
+            stopPairingRadios,
+        ]
     )
 
     const selectDevice = useCallback(
@@ -942,6 +1078,7 @@ export function useDevicePairing(): {
         error,
         secondsRemaining,
         commissionProgress,
+        matterNeedsHomeNetwork: status.mode === 'relay',
         savedWifi,
         chooseMatter,
         chooseZigbee,

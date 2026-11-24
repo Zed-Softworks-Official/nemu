@@ -262,6 +262,44 @@ pub async fn mark_failed(
     .await
 }
 
+/// Ends a Command its adapter reported as failed. An unrelated state report
+/// may have confirmed it while the adapter was still working, so that is
+/// corrected too. Returns whether the Command was updated.
+pub async fn fail_from_adapter(
+    pool: &DbPool,
+    command_id: &str,
+    device_id: Uuid,
+    now: DateTime<Utc>,
+) -> Result<bool, String> {
+    let command_id = command_id.to_string();
+    let conn = pool.get().await.map_err(|error| error.to_string())?;
+    let updated = conn
+        .interact(move |conn| {
+            diesel::update(
+                command_outcomes::table.filter(
+                    command_outcomes::command_id
+                        .eq(command_id)
+                        .and(command_outcomes::device_id.eq(device_id))
+                        .and(command_outcomes::outcome.eq_any([
+                            CommandOutcome::Accepted.as_str(),
+                            CommandOutcome::Confirmed.as_str(),
+                        ])),
+                ),
+            )
+            .set((
+                command_outcomes::outcome.eq(CommandOutcome::Failed.as_str()),
+                command_outcomes::error_code.eq(Some("failed")),
+                command_outcomes::claimed_at.eq(None::<DateTime<Utc>>),
+                command_outcomes::updated_at.eq(now),
+            ))
+            .execute(conn)
+        })
+        .await
+        .map_err(|error| error.to_string())?
+        .map_err(|error| error.to_string())?;
+    Ok(updated > 0)
+}
+
 /// Records that MQTT publication returned. The claim stays live until the
 /// dispatch window ends so a restart does not send the Command again.
 pub async fn note_published(
@@ -609,6 +647,57 @@ mod tests {
         .unwrap();
         let unconfirmed = get(&pool, &accepted_id).await.unwrap().unwrap();
         assert_eq!(unconfirmed.outcome, "unconfirmed");
+
+        let refused_id = format!("cmd-{}", Uuid::new_v4());
+        let refused_payload = serde_json::json!({ "state": "OFF" });
+        admit(
+            &pool,
+            &refused_id,
+            Some(device_id),
+            refused_payload.clone(),
+            true,
+            accepted_at,
+        )
+        .await
+        .unwrap();
+        mark_accepted(&pool, &refused_id, accepted_at)
+            .await
+            .unwrap();
+        // Another Device's adapter report does not end this Command.
+        assert!(
+            !fail_from_adapter(&pool, &refused_id, Uuid::new_v4(), accepted_at)
+                .await
+                .unwrap()
+        );
+        // A late report never replaces `unconfirmed`.
+        assert!(
+            !fail_from_adapter(&pool, &accepted_id, device_id, accepted_at)
+                .await
+                .unwrap()
+        );
+        confirm_accepted(&pool, device_id, accepted_at)
+            .await
+            .unwrap();
+        assert!(
+            fail_from_adapter(&pool, &refused_id, device_id, accepted_at)
+                .await
+                .unwrap()
+        );
+        let refused = admit(
+            &pool,
+            &refused_id,
+            Some(device_id),
+            refused_payload,
+            true,
+            accepted_at,
+        )
+        .await
+        .unwrap();
+        assert!(matches!(
+            refused,
+            AdmitDecision::Stored(ref row)
+                if row.outcome == "failed" && row.error_code.as_deref() == Some("failed")
+        ));
 
         let kept = get(&pool, &command_id).await.unwrap();
         assert!(kept.is_some());

@@ -4,8 +4,9 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use matter_controller::{
-    AttestationTrust, AttributePath, CommandPath, FabricConfig, FileStore, MatterController,
-    MatterTime, NetworkCredentials, ReadPath, SubscriptionEvent, Value, WiFiCredentials,
+    AttestationTrust, AttributePath, CommandPath, FabricConfig, FileStore, InvokeResult,
+    MatterController, MatterTime, NetworkCredentials, Node, ReadPath, SubscriptionEvent, Value,
+    WiFiCredentials,
 };
 use serde_json::{Map, Value as JsonValue, json};
 use tracing::{info, warn};
@@ -17,9 +18,10 @@ use crate::codec::{empty_structure, unsigned_fields, value_to_json};
 use crate::config::Config;
 use crate::mapping::{
     Attributes, CLUSTER_DESCRIPTOR, CLUSTER_ELECTRICAL_ENERGY, CLUSTER_ELECTRICAL_POWER,
-    CommandName, EndpointDevice, apply_set_to_attributes, collapsed_legacy_ids, commands_for_set,
-    device_covers_endpoint, device_descriptor, is_state_attribute_path, map_node_with_fallback,
-    outlet_id_from_set, placeholder_device, state_for_device,
+    CLUSTER_ON_OFF, CommandName, DeviceCommandAction, EndpointDevice, collapsed_legacy_ids,
+    commands_for_set, confirms_request, device_covers_endpoint, device_descriptor,
+    is_limit_attribute, is_state_attribute_path, map_node_with_fallback, outlet_id_from_set,
+    placeholder_device, requested_attributes, state_for_device,
 };
 use crate::meters::{
     MeterIdentityStore, PublishedMeter, assigned_capability_ids, fresh_observed_unix,
@@ -279,9 +281,17 @@ impl MatterService {
                         IncomingMessage::Set {
                             device_id,
                             payload,
-                        } => self.handle_set(&device_id, payload).await,
+                        } => self.handle_set(&device_id, payload, attr_tx.clone()),
                         IncomingMessage::SubscribeEnded { node_id } => {
                             self.note_subscribe_ended(node_id, &resub_tx);
+                        }
+                        IncomingMessage::SetConfirmed {
+                            node_id,
+                            device_id,
+                            attributes,
+                        } => {
+                            self.apply_confirmed_set(node_id, &device_id, attributes)
+                                .await;
                         }
                         IncomingMessage::AttributeChange { .. } => {
                             self.apply_attribute_change(message).await;
@@ -304,6 +314,14 @@ impl MatterService {
                     match update {
                         IncomingMessage::SubscribeEnded { node_id } => {
                             self.note_subscribe_ended(node_id, &resub_tx);
+                        }
+                        IncomingMessage::SetConfirmed {
+                            node_id,
+                            device_id,
+                            attributes,
+                        } => {
+                            self.apply_confirmed_set(node_id, &device_id, attributes)
+                                .await;
                         }
                         other => self.apply_attribute_change(other).await,
                     }
@@ -528,17 +546,25 @@ impl MatterService {
         }
     }
 
-    async fn handle_set(&mut self, device_id: &str, payload: JsonValue) {
+    /// Invokes the set on the Device. Its requested values are published only
+    /// once the Device reports them, by this read-back or its subscription; a
+    /// failed invoke is answered with `command_failed` (ADR-0015).
+    fn handle_set(
+        &self,
+        device_id: &str,
+        payload: JsonValue,
+        reports: tokio::sync::mpsc::UnboundedSender<IncomingMessage>,
+    ) {
         let Some(object) = payload.as_object() else {
             return;
         };
+        let transaction = transaction_of(&payload).map(str::to_string);
         let Some(entry) = self.index.get(device_id) else {
             warn!(device_id, "set for unknown device");
             return;
         };
         let node_id = entry.node_id;
-        let device = entry.device.clone();
-        let endpoints = target_endpoints(&device, object);
+        let endpoints = target_endpoints(&entry.device, object);
         let (actions, ignored) = commands_for_set(object);
         if !ignored.is_empty() {
             info!(?ignored, "ignored set keys");
@@ -546,53 +572,54 @@ impl MatterService {
         if actions.is_empty() {
             return;
         }
-        apply_set_to_attributes(
-            self.attributes.entry(node_id).or_default(),
-            &endpoints,
-            &actions,
-        );
-        self.rebuild_index_for_node(node_id);
-        self.publish_state(device_id, false).await;
+        let before = self.attributes.get(&node_id).cloned().unwrap_or_default();
+        let requested = requested_attributes(&before, &endpoints, &actions);
 
         let controller = self.controller.clone();
+        let mqtt = self.mqtt.clone();
         let device_id = device_id.to_string();
         tokio::spawn(async move {
             let node = controller.node(node_id);
-            for endpoint in endpoints {
-                for action in &actions {
-                    let fields = match &action.command {
-                        CommandName::On | CommandName::Off | CommandName::Toggle => {
-                            empty_structure()
-                        }
-                        CommandName::MoveToLevelWithOnOff { level } => {
-                            unsigned_fields(&[(0, u64::from(*level)), (1, 0), (2, 0), (3, 0)])
-                        }
-                        CommandName::MoveToColorTemperature { mireds } => {
-                            unsigned_fields(&[(0, u64::from(*mireds)), (1, 0), (2, 0), (3, 0)])
-                        }
-                        CommandName::MoveToColor { color_x, color_y } => unsigned_fields(&[
-                            (0, u64::from(*color_x)),
-                            (1, u64::from(*color_y)),
-                            (2, 0),
-                            (3, 0),
-                        ]),
-                    };
-                    if let Err(error) = node
-                        .invoke(
-                            CommandPath {
-                                endpoint,
-                                cluster: u32::from(action.cluster_id),
-                                command: action.command.command_id(),
-                            },
-                            fields,
-                        )
-                        .await
-                    {
-                        warn!(error = %error, device_id, endpoint, "invoke failed");
-                    }
+            if let Err(error) = invoke_set(&node, &endpoints, &actions).await {
+                warn!(error, device_id, "invoke failed");
+                mqtt.event(
+                    "command_failed",
+                    command_failed(&device_id, transaction.as_deref(), &error),
+                )
+                .await;
+                return;
+            }
+            match read_set_attributes(&node, &endpoints, &actions).await {
+                Ok(read) if confirms_request(&requested, &read) => {
+                    let _ = reports.send(IncomingMessage::SetConfirmed {
+                        node_id,
+                        device_id,
+                        attributes: read.into_iter().collect(),
+                    });
                 }
+                // Not there yet, for example while a light still dims. The
+                // subscription reports the value when it changes.
+                Ok(_) => {}
+                Err(error) => warn!(error, device_id, "read-back failed"),
             }
         });
+    }
+
+    async fn apply_confirmed_set(
+        &mut self,
+        node_id: u64,
+        device_id: &str,
+        attributes: Vec<(String, JsonValue)>,
+    ) {
+        if self.reads.ignored(node_id) || !self.index.contains_key(device_id) {
+            return;
+        }
+        self.attributes
+            .entry(node_id)
+            .or_default()
+            .extend(attributes);
+        self.rebuild_index_for_node(node_id);
+        self.publish_state(device_id, false).await;
     }
 
     async fn enqueue_boot_reads(&mut self) {
@@ -876,10 +903,13 @@ impl MatterService {
         if !is_state_attribute_path(&key) {
             return;
         }
-        self.attributes
+        let previous = self
+            .attributes
             .entry(node_id)
             .or_default()
-            .insert(key, value);
+            .insert(key, value.clone());
+        let limits_changed =
+            is_limit_attribute(cluster, attribute) && previous.as_ref() != Some(&value);
         self.rebuild_index_for_node(node_id);
         let fresh_meter = cluster == u32::from(CLUSTER_ELECTRICAL_POWER)
             || cluster == u32::from(CLUSTER_ELECTRICAL_ENERGY);
@@ -892,6 +922,9 @@ impl MatterService {
         for id in ids {
             self.publish_state(&id, fresh_meter).await;
         }
+        if limits_changed && self.inventory_ready {
+            self.publish_devices().await;
+        }
     }
 
     async fn publish_devices(&self) {
@@ -901,7 +934,12 @@ impl MatterService {
                 .names
                 .get(id)
                 .unwrap_or(entry.device.default_name.as_str());
-            descriptors.push(device_descriptor(&entry.device, name));
+            let attributes = self
+                .attributes
+                .get(&entry.node_id)
+                .cloned()
+                .unwrap_or_default();
+            descriptors.push(device_descriptor(&entry.device, name, &attributes));
         }
         self.mqtt
             .publish_json("bridge/devices", &JsonValue::Array(descriptors), true)
@@ -1262,6 +1300,7 @@ const REFRESH_AFTER_COMMISSION_ATTEMPTS: u32 = 5;
 const REFRESH_AFTER_COMMISSION_GAP: Duration = Duration::from_secs(2);
 const REFRESH_READ_TIMEOUT: Duration = Duration::from_secs(35);
 const DESCRIPTOR_REFRESH_TIMEOUT: Duration = Duration::from_secs(5);
+const SET_READ_BACK_TIMEOUT: Duration = Duration::from_secs(10);
 const SUBSCRIBE_RETRY_GAP: Duration = Duration::from_secs(5);
 const FORGET_NODE_TIMEOUT: Duration = Duration::from_secs(8);
 const FOREIGN_FABRIC: &str = "device belongs to another fabric";
@@ -1381,6 +1420,94 @@ fn promote_node(candidates: &mut Vec<u64>, index: usize, node_id: u64) {
     }
 }
 
+/// Invokes every action on every endpoint. Keeps going after a failure, so one
+/// outlet of a strip does not stop the others, and returns the first one.
+async fn invoke_set(
+    node: &Node,
+    endpoints: &[u16],
+    actions: &[DeviceCommandAction],
+) -> Result<(), String> {
+    let mut failure = None;
+    for &endpoint in endpoints {
+        for action in actions {
+            let fields = match &action.command {
+                CommandName::On | CommandName::Off | CommandName::Toggle => empty_structure(),
+                CommandName::MoveToLevelWithOnOff { level } => {
+                    unsigned_fields(&[(0, u64::from(*level)), (1, 0), (2, 0), (3, 0)])
+                }
+                CommandName::MoveToColorTemperature { mireds } => {
+                    unsigned_fields(&[(0, u64::from(*mireds)), (1, 0), (2, 0), (3, 0)])
+                }
+                CommandName::MoveToColor { color_x, color_y } => unsigned_fields(&[
+                    (0, u64::from(*color_x)),
+                    (1, u64::from(*color_y)),
+                    (2, 0),
+                    (3, 0),
+                ]),
+            };
+            let path = CommandPath {
+                endpoint,
+                cluster: u32::from(action.cluster_id),
+                command: action.command.command_id(),
+            };
+            let outcome = match node.invoke(path, fields).await {
+                Ok(result) => invoke_outcome(&result),
+                Err(error) => Err(error.to_string()),
+            };
+            if let Err(error) = outcome {
+                failure.get_or_insert(error);
+            }
+        }
+    }
+    failure.map_or(Ok(()), Err)
+}
+
+/// A Device answers a refused command with a status, not a transport error.
+fn invoke_outcome(result: &InvokeResult) -> Result<(), String> {
+    match result {
+        InvokeResult::Status(status) if !status.is_success() => {
+            Err(format!("the device answered {status:?}"))
+        }
+        _ => Ok(()),
+    }
+}
+
+/// Core finds the Command by `transaction`, the Command ID it sent with the set.
+fn command_failed(device_id: &str, transaction: Option<&str>, error: &str) -> JsonValue {
+    json!({
+        "ieee_address": device_id,
+        "transaction": transaction,
+        "error": error,
+    })
+}
+
+/// Reads the clusters a set can change, after it was invoked.
+async fn read_set_attributes(
+    node: &Node,
+    endpoints: &[u16],
+    actions: &[DeviceCommandAction],
+) -> Result<Attributes, String> {
+    let mut paths = Vec::new();
+    for &endpoint in endpoints {
+        // Moving to a level also turns the light on or off.
+        let clusters: HashSet<u16> = actions
+            .iter()
+            .map(|action| action.cluster_id)
+            .chain([CLUSTER_ON_OFF])
+            .collect();
+        paths.extend(
+            clusters
+                .into_iter()
+                .map(|cluster| ReadPath::cluster(endpoint, u32::from(cluster))),
+        );
+    }
+    match tokio::time::timeout(SET_READ_BACK_TIMEOUT, node.read(&paths)).await {
+        Ok(Ok(report)) => Ok(attributes_from_report(report)),
+        Ok(Err(error)) => Err(error.to_string()),
+        Err(_) => Err("read-back timed out".into()),
+    }
+}
+
 async fn read_node_attributes(
     controller: &MatterController,
     node_id: u64,
@@ -1495,7 +1622,24 @@ impl Drop for MatterService {
 mod tests {
     use std::time::Duration;
 
-    use super::{ReadPurpose, ReadScheduler};
+    use matter_controller::{ImStatus, InvokeResult};
+    use serde_json::json;
+
+    use super::{ReadPurpose, ReadScheduler, command_failed, invoke_outcome};
+
+    #[test]
+    fn a_command_the_device_refuses_is_a_failure() {
+        assert!(invoke_outcome(&InvokeResult::Status(ImStatus::Success)).is_ok());
+        assert!(invoke_outcome(&InvokeResult::Status(ImStatus::Failure(0x87))).is_err());
+    }
+
+    #[test]
+    fn a_failed_set_names_the_device_and_the_command() {
+        assert_eq!(
+            command_failed("7:1", Some("cmd-1"), "timed out"),
+            json!({ "ieee_address": "7:1", "transaction": "cmd-1", "error": "timed out" })
+        );
+    }
 
     #[tokio::test(start_paused = true)]
     async fn unpair_is_accepted_while_a_node_read_is_outstanding() {

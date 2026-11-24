@@ -129,6 +129,8 @@ pub enum InstallError {
     PlatformVersionMissing,
     #[error("no newer Release is available")]
     NotEligible,
+    #[error("the channel no longer serves the confirmed Release")]
+    ReleaseChanged,
     #[error("the release manifest was rejected")]
     Rejected,
     #[error("a migration names a setting the Release cannot change")]
@@ -145,7 +147,9 @@ pub enum InstallError {
     Unavailable(String),
 }
 
-/// Installs the newer Release on the stored channel.
+/// Installs the newer Release on the stored channel. With `confirmed`, only
+/// that Platform version: the manifest installed is the one checked here, so
+/// a Release published after an Owner confirmed is refused.
 ///
 /// The process that enters this function is the previous Updater: the binary
 /// the wrapper would start, and a new wrapper pin, are replaced only after
@@ -153,11 +157,18 @@ pub enum InstallError {
 /// the snapshot, previous stack files, previous digests, and the previous
 /// binary. Maintenance stays only when that restore cannot finish or the
 /// previous Release will not stay healthy.
-pub fn install(controller_dir: &Path, env: &InstallEnv<'_>) -> Result<(), InstallError> {
+pub fn install(
+    controller_dir: &Path,
+    env: &InstallEnv<'_>,
+    confirmed: Option<&str>,
+) -> Result<(), InstallError> {
     if maintenance_mode(controller_dir) {
         return Err(InstallError::InMaintenance);
     }
     let manifest = verified_newer_manifest(controller_dir, env)?;
+    if confirmed.is_some_and(|version| version != manifest.platform_version) {
+        return Err(InstallError::ReleaseChanged);
+    }
     if manifest
         .migrations
         .iter()
@@ -255,7 +266,7 @@ pub fn hourly_check(controller_dir: &Path, env: &InstallEnv<'_>) -> Result<bool,
     if !due {
         return Ok(false);
     }
-    match install(controller_dir, env) {
+    match install(controller_dir, env, None) {
         Ok(()) => {
             mark_hourly_check(controller_dir, now)?;
             Ok(true)
@@ -1067,6 +1078,7 @@ devices:
                 arm64: BASE64.encode(ARM64_UPDATER),
             },
             next_pin: None,
+            release_notes: None,
         }
     }
 
@@ -1141,6 +1153,16 @@ devices:
         host: &FakeHost,
         key: &SigningKey,
     ) -> Result<(), InstallError> {
+        run_install_confirming(home, world, host, key, None)
+    }
+
+    fn run_install_confirming(
+        home: &Path,
+        world: &World,
+        host: &FakeHost,
+        key: &SigningKey,
+        confirmed: Option<&str>,
+    ) -> Result<(), InstallError> {
         let public = key.verifying_key();
         install(
             home,
@@ -1153,6 +1175,7 @@ devices:
                 clock: world,
                 arch: UpdaterArch::Amd64,
             },
+            confirmed,
         )
     }
 
@@ -1428,6 +1451,35 @@ devices:
         assert_eq!(
             read_stored(home.path()).platform_version.as_deref(),
             Some("0.4.9")
+        );
+    }
+
+    #[test]
+    fn only_the_confirmed_release_is_installed() {
+        let home = TempHome::new();
+        seed_home(home.path());
+        let before = fs::read(installed_release_path(home.path())).unwrap();
+        let world = World::new(home.path());
+        let key = release_signing_key();
+        let manifest = release_manifest(pinned_services(9), false);
+        let host = host_for(signed_with(&manifest, &key));
+
+        let error = run_install_confirming(home.path(), &world, &host, &key, Some("0.4.99"))
+            .expect_err("another Release");
+        assert_eq!(error, InstallError::ReleaseChanged);
+        assert_eq!(
+            fs::read(installed_release_path(home.path())).unwrap(),
+            before
+        );
+        assert!(!home.path().join(SNAPSHOT_DIR).exists());
+        assert!(!home.path().join(MAINTENANCE_FILE).is_file());
+
+        let confirmed = manifest.platform_version.as_str();
+        run_install_confirming(home.path(), &world, &host, &key, Some(confirmed))
+            .expect("the confirmed Release");
+        assert_eq!(
+            read_stored(home.path()).platform_version.as_deref(),
+            Some(confirmed)
         );
     }
 

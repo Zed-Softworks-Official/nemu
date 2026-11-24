@@ -1,13 +1,19 @@
 import {
+    brightnessRange,
+    brightnessToPercent,
     type CapabilityCurrentState,
     canonicalQuantity,
+    colorTempRange,
     type Device,
     type DeviceState,
+    kelvinRange,
+    kelvinToMireds,
+    miredsToKelvin,
+    percentToBrightness,
 } from '@nemu/protocol'
 
-const BRIGHTNESS_MAX = 254
-const COLOR_TEMP_MIN_MIREDS = 153
-const COLOR_TEMP_MAX_MIREDS = 500
+const COLOR_TEMP_TOLERANCE_MIREDS = 1
+const BRIGHTNESS_TOLERANCE_PERCENT = 1
 
 /** A Device control the Device's reported state shows it supports. */
 export type DeviceControl =
@@ -25,9 +31,14 @@ export type DeviceControl =
           value: number
           min: number
           max: number
-          step: number
+          /** Warm-to-cool for color temperature. */
+          track: 'plain' | 'warmToCool'
+          /** The nearest value the Device can be set to. */
+          snap: (value: number) => number
           format: (value: number) => string
           payload: (desired: number) => DeviceState
+          /** The reported value is the one asked for. */
+          confirms: (desired: number) => boolean
       }
 
 function record(value: unknown): Record<string, unknown> | null {
@@ -107,34 +118,48 @@ export function controlsForDevice(device: Device): DeviceControl[] {
     const brightness =
         finiteNumber(state.brightness) ?? finiteNumber(state.level)
     if (brightness !== undefined) {
+        const range = brightnessRange(device)
+        const value = brightnessToPercent(brightness, range)
         controls.push({
             key: 'brightness',
             kind: 'level',
             label: 'Brightness',
-            value: Math.round((brightness / BRIGHTNESS_MAX) * 100),
+            value,
             min: 0,
             max: 100,
-            step: 10,
-            format: (value) => `${value}%`,
+            track: 'plain',
+            snap: Math.round,
+            format: (percent) => `${percent}%`,
             payload: (desired) => ({
-                brightness: Math.round((desired / 100) * BRIGHTNESS_MAX),
+                brightness: percentToBrightness(desired, range),
             }),
+            confirms: (desired) =>
+                Math.abs(value - desired) <= BRIGHTNESS_TOLERANCE_PERCENT,
         })
     }
 
-    const colorTemp =
+    const mireds =
         finiteNumber(state.color_temp) ?? finiteNumber(state.colorTemp)
-    if (colorTemp !== undefined) {
+    if (mireds !== undefined && mireds > 0) {
+        const range = colorTempRange(device)
+        const { min, max } = kelvinRange(range)
         controls.push({
             key: 'colorTemp',
             kind: 'level',
             label: 'Color temperature',
-            value: colorTemp,
-            min: COLOR_TEMP_MIN_MIREDS,
-            max: COLOR_TEMP_MAX_MIREDS,
-            step: 25,
-            format: (value) => `${Math.round(1_000_000 / value)}K`,
-            payload: (desired) => ({ color_temp: Math.round(desired) }),
+            // The reported value, even where it is past the slider's ends.
+            value: miredsToKelvin(mireds),
+            min,
+            max,
+            track: 'warmToCool',
+            snap: (kelvin) => miredsToKelvin(kelvinToMireds(kelvin, range)),
+            format: (kelvin) => `${kelvin} K`,
+            payload: (desired) => ({
+                color_temp: kelvinToMireds(desired, range),
+            }),
+            confirms: (desired) =>
+                Math.abs(mireds - kelvinToMireds(desired, range)) <=
+                COLOR_TEMP_TOLERANCE_MIREDS,
         })
     }
 

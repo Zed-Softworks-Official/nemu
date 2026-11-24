@@ -345,6 +345,7 @@ jobs:
           PLAN_COMMIT: ${{ needs.prepare.outputs.plan_commit }}
           CORE_DIGEST: ${{ needs.merge-images.outputs.core_digest }}
           MATTER_DIGEST: ${{ needs.merge-images.outputs.matter_digest }}
+          PUBLISH_RELEASE_NOTES: ${{ vars.NEMU_PUBLISH_RELEASE_NOTES }}
         run: |
           set -euo pipefail
           signing_key=${RELEASE_SIGNING_KEY:-}
@@ -417,6 +418,20 @@ jobs:
               ]')
           fi
 
+          # Updaters at 0.1.1 and older reject a manifest that has release
+          # notes, so a Home on one would stop updating. Set the repository
+          # variable NEMU_PUBLISH_RELEASE_NOTES to true only once every Home
+          # runs a Release that understands them. Reusing a cut keeps the
+          # notes it was signed with.
+          : > "$work/notes.txt"
+          if [ "${PUBLISH_RELEASE_NOTES:-}" = "true" ]; then
+            # Read every tag before picking one: an early-exiting reader
+            # fails under pipefail.
+            tags=$(git tag -l 'v0.*' --sort=-v:refname)
+            previous=$(awk '/^v0\.[0-9]+\.[0-9]+$/ && !found { found = $0 } END { print found }' <<<"$tags")
+            ./scripts/release-notes.sh "$previous" "$PLAN_COMMIT" > "$work/notes.txt"
+          fi
+
           jq -n \
             --arg source "$SOURCE" \
             --argjson minorBump "$MINOR_BUMP" \
@@ -425,6 +440,7 @@ jobs:
             --argjson resolved "$resolved" \
             --rawfile compose infra/prod/docker-compose.yml \
             --rawfile mosquitto infra/prod/mosquitto/mosquitto.conf \
+            --rawfile notes "$work/notes.txt" \
             --rawfile amd64 "$work/amd64.b64" \
             --rawfile arm64 "$work/arm64.b64" \
             '{
@@ -438,7 +454,8 @@ jobs:
                 {path: "mosquitto/mosquitto.conf", contents: $mosquitto}
               ],
               migrations: [],
-              updater: {amd64: $amd64, arm64: $arm64}
+              updater: {amd64: $amd64, arm64: $arm64},
+              releaseNotes: $notes
             }' > "$RUNNER_TEMP/request.json"
 
           if [ -z "${signing_key}" ]; then

@@ -201,6 +201,9 @@ A bounded Controller-local record of raw protocol payloads used for troubleshoot
 **Relay**:
 The short-lived cloud path used when an Access Client cannot reach a Controller over the home network. Relay envelopes are encrypted end to end and contain no durable home model or history.
 
+**Presence check**:
+An operation that requires the Access Client to reach the Controller over the Home network as proof of being in the Home. Accepting an Invitation, Recovery Key recovery, and deleting a Home are the only Presence checks; every other authorized operation works the same over Relay, except that Matter pairing codes and Wi-Fi credentials stay on the Home network until Relay envelopes are encrypted end to end (NEM-63).
+
 **Release channel**:
 The stream of Releases assigned to a Home. Stable is the default; an Owner can move a Home to Canary, and the Home installs that channel's Release only when it is newer than the installed Release.
 

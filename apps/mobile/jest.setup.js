@@ -22,3 +22,19 @@ jest.mock(
             { get: (_, name) => (name === '__esModule' ? true : () => null) }
         )
 )
+
+// Native SwiftUI and Compose toggles can't render under Jest; use the
+// React Native Switch fallback the web build uses.
+jest.mock('~/components/native-toggle', () =>
+    jest.requireActual('~/components/native-toggle.tsx')
+)
+
+// Likewise native sliders: use the range input the web build uses.
+jest.mock('~/components/native-slider', () =>
+    jest.requireActual('~/components/native-slider.tsx')
+)
+
+// Likewise the SwiftUI and Compose pickers: use the web fallback's buttons.
+jest.mock('~/components/native-picker', () =>
+    jest.requireActual('~/components/native-picker.tsx')
+)

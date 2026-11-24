@@ -13,10 +13,11 @@ import {
 import { Switch } from '@nemu/ui/components/switch'
 import { ArrowUpRightIcon, BatteryMediumIcon } from 'lucide-react'
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { powerPayload } from '~/lib/device-commands'
 import type { PresentedDevice } from '~/lib/device-presentation'
 import { DeviceIcon } from './device-icon'
+import { useCommandConfirmation } from './use-command-confirmation'
 
 export function DeviceCard({ device }: { device: PresentedDevice }) {
     const { sendCommand, status } = useController()
@@ -27,27 +28,32 @@ export function DeviceCard({ device }: { device: PresentedDevice }) {
         device.supportsPower &&
         (status.mode === 'lan' || status.mode === 'relay')
 
-    useEffect(() => {
-        setPendingPower(null)
-        setError(null)
-    }, [device.enabled, device.state])
+    const track = useCommandConfirmation(device, {
+        onConfirmed: (_payload, errorsLeft) => {
+            setPendingPower(null)
+            if (!errorsLeft) setError(null)
+        },
+        onFailure: (nextError) => {
+            setPendingPower(null)
+            setError(nextError)
+        },
+    })
 
     async function handleToggle(next: boolean) {
         setPendingPower(next)
         setError(null)
+        const payload = powerPayload(next)
+        const command = track(payload)
         try {
-            const result = await sendCommand({
-                deviceId: device.id,
-                payload: powerPayload(next),
-            })
+            const result = await sendCommand({ deviceId: device.id, payload })
             if (!result.ok) {
                 throw new Error(
                     result.error?.message ?? 'Command failed on the controller'
                 )
             }
+            command.accepted(result)
         } catch (nextError) {
-            setPendingPower(null)
-            setError(
+            command.failed(
                 nextError instanceof Error
                     ? nextError
                     : new Error(String(nextError))

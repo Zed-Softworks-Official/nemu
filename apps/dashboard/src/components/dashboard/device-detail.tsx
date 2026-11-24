@@ -1,7 +1,12 @@
 'use client'
 
 import { useCapabilityState, useController, useDevices } from '@nemu/controller'
-import type { DeviceState, Room } from '@nemu/protocol'
+import {
+    brightnessRange,
+    colorTempRange,
+    type DeviceState,
+    type Room,
+} from '@nemu/protocol'
 import {
     AlertDialog,
     AlertDialogCancel,
@@ -71,6 +76,7 @@ import {
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { commandControl } from '~/lib/command-confirmation'
 import {
     brightnessPercentToPayload,
     colorHexPayload,
@@ -80,8 +86,6 @@ import {
     powerPayload,
 } from '~/lib/device-commands'
 import {
-    COLOR_TEMP_MAX_MIREDS,
-    COLOR_TEMP_MIN_MIREDS,
     colorTempLabel,
     formatCurrent,
     formatEnergy,
@@ -92,6 +96,7 @@ import {
 import { DeviceControlSlider } from './device-control-slider'
 import { DeviceIcon } from './device-icon'
 import { PageHeader } from './page-header'
+import { useCommandConfirmation } from './use-command-confirmation'
 
 export function DeviceDetail({ deviceId }: { deviceId: string }) {
     const { devices, error, refresh, status } = useDevices()
@@ -167,11 +172,29 @@ export function DeviceDetail({ deviceId }: { deviceId: string }) {
         }
     }, [getRooms, status.mode])
 
+    const clearPending = (payload: DeviceState) => {
+        if (commandControl(payload) === 'power') setPendingPower(null)
+        if (payload.outlet !== undefined) {
+            const outletId = String(payload.outlet)
+            setPendingOutlets(({ [outletId]: _, ...rest }) => rest)
+        }
+    }
+    const track = useCommandConfirmation(device, {
+        onConfirmed: (payload, errorsLeft) => {
+            clearPending(payload)
+            if (!errorsLeft) setCommandError(null)
+        },
+        onFailure: (nextError, payload) => {
+            clearPending(payload)
+            setCommandError(nextError)
+        },
+    })
+
     useEffect(() => {
         setPendingPower(null)
         setPendingOutlets({})
         setCommandError(null)
-    }, [device?.state, device?.online])
+    }, [deviceId])
 
     useEffect(() => {
         if (!device) return
@@ -237,6 +260,7 @@ export function DeviceDetail({ deviceId }: { deviceId: string }) {
 
     async function runCommand(payload: DeviceState) {
         setCommandError(null)
+        const command = track(payload)
         try {
             const result = await sendCommand({ deviceId, payload })
             if (!result.ok) {
@@ -244,10 +268,9 @@ export function DeviceDetail({ deviceId }: { deviceId: string }) {
                     result.error?.message ?? 'Command failed on the controller'
                 )
             }
+            command.accepted(result)
         } catch (nextError) {
-            setPendingPower(null)
-            setPendingOutlets({})
-            setCommandError(
+            command.failed(
                 nextError instanceof Error
                     ? nextError
                     : new Error(String(nextError))
@@ -590,7 +613,10 @@ export function DeviceDetail({ deviceId }: { deviceId: string }) {
                                     min={0}
                                     onCommit={(value) =>
                                         void runCommand(
-                                            brightnessPercentToPayload(value)
+                                            brightnessPercentToPayload(
+                                                value,
+                                                brightnessRange(presented)
+                                            )
                                         )
                                     }
                                     value={presented.level}
@@ -605,10 +631,15 @@ export function DeviceDetail({ deviceId }: { deviceId: string }) {
                                     disabled={controlsDisabled}
                                     formatValue={colorTempLabel}
                                     label="Color temperature"
-                                    max={COLOR_TEMP_MAX_MIREDS}
-                                    min={COLOR_TEMP_MIN_MIREDS}
+                                    max={colorTempRange(presented).max}
+                                    min={colorTempRange(presented).min}
                                     onCommit={(value) =>
-                                        void runCommand(colorTempPayload(value))
+                                        void runCommand(
+                                            colorTempPayload(
+                                                value,
+                                                colorTempRange(presented)
+                                            )
+                                        )
                                     }
                                     value={presented.colorTemp}
                                 />
