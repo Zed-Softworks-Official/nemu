@@ -65,6 +65,28 @@ describe('the outcome of a Release update', () => {
         )
     })
 
+    it('did not complete when a snapshot from before may have been kept', () => {
+        const before = { ...BEFORE, rollbackSnapshotAvailable: true }
+        for (const progress of [
+            { before, sawMaintenance: true },
+            {
+                before,
+                lostConnection: true,
+                quietMs: RELEASE_UPDATE_START_GRACE_MS,
+            },
+        ]) {
+            assert.equal(outcome(progress, {}), 'notCompleted')
+        }
+        // The install cleared the snapshot and stopped before replacing anything.
+        assert.equal(
+            outcome(
+                { before, sawMaintenance: true },
+                { rollbackSnapshotAvailable: false }
+            ),
+            'notApplied'
+        )
+    })
+
     it('is not applied when the Updater refused it', () => {
         assert.equal(outcome({ sawMaintenance: true }, {}), 'notApplied')
         assert.equal(

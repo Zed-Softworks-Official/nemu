@@ -114,15 +114,19 @@ type ControllerContextValue = {
     leaveHome: () => Promise<void>
     bootstrapOwner: (request: BootstrapOwnerRequest) => Promise<HouseholdMember>
     getReleaseStatus: () => Promise<UpdateStatusResponse>
-    /** NEM-86: the caller's Membership role, only for deciding what to show. */
+    /** The caller's Membership role, only for deciding what to show. */
     getSession: () => Promise<SessionResponse>
     getHealthSummary: () => Promise<HealthSummary>
-    installRelease: () => Promise<ApplyUpdateResponse>
+    installRelease: (platformVersion?: string) => Promise<ApplyUpdateResponse>
     rollbackRelease: () => Promise<ApplyUpdateResponse>
-    /** NEM-96: the install or rollback this client started, if any. */
+    /** The install or rollback this client started, if any. */
     releaseUpdate: ReleaseUpdate | null
     /** Starts an install or rollback and follows the restart. */
-    startReleaseUpdate: (kind: ReleaseUpdateKind) => Promise<void>
+    startReleaseUpdate: (
+        kind: ReleaseUpdateKind,
+        /** Install only this Release. */
+        confirmedVersion?: string
+    ) => Promise<void>
     dismissReleaseUpdate: () => void
     switchReleaseChannel: (
         channel: ReleaseChannel
@@ -337,11 +341,13 @@ export function ControllerProvider({
         [connection]
     )
     const installRelease = useCallback(
-        () => connection.installRelease(),
+        (platformVersion?: string) =>
+            connection.installRelease(platformVersion),
         [connection]
     )
     const startReleaseUpdate = useCallback(
-        (kind: ReleaseUpdateKind) => connection.startReleaseUpdate(kind),
+        (kind: ReleaseUpdateKind, confirmedVersion?: string) =>
+            connection.startReleaseUpdate(kind, confirmedVersion),
         [connection]
     )
     const dismissReleaseUpdate = useCallback(
@@ -557,6 +563,9 @@ export function useDevicePairing(): {
     error: Error | null
     secondsRemaining: number
     commissionProgress: CommissionProgress | null
+    /** Connected over Relay, which never carries a Matter pairing code. */
+    matterNeedsHomeNetwork: boolean
+    /** `null` until it is read, which needs the Home network. */
     savedWifi: MatterWifiResponse | null
     chooseMatter: () => void
     chooseZigbee: () => void
@@ -896,10 +905,20 @@ export function useDevicePairing(): {
         setProtocol('matter')
         setMatterStep('ready')
         setError(null)
-        void getMatterWifi()
-            .then(setSavedWifi)
-            .catch(() => setSavedWifi({ configured: false }))
-    }, [getMatterWifi])
+    }, [])
+
+    useEffect(() => {
+        if (pairingKind !== 'matter' || status.mode !== 'lan') return
+        let current = true
+        getMatterWifi()
+            .catch(() => ({ configured: false }))
+            .then((wifi) => {
+                if (current) setSavedWifi(wifi)
+            })
+        return () => {
+            current = false
+        }
+    }, [getMatterWifi, pairingKind, status.mode])
 
     const chooseZigbee = useCallback(() => {
         setPairingKind('zigbee')
@@ -930,20 +949,33 @@ export function useDevicePairing(): {
     const startMatterCommission = useCallback(
         async (request: CommissionRequest) => {
             const attempt = beginPairingAttempt()
+            setProtocol('matter')
+            setPairingKind('matter')
+            setError(null)
             try {
+                // Without this list an old Device would look newly joined.
                 const existing = await getDevices()
                 if (!isCurrentPairingAttempt(attempt)) return
                 knownDeviceIds.current = new Set(
                     existing.map((device) => device.id)
                 )
-            } catch {
+                // Reading the list can move the connection to Relay.
+                const { mode } = connection.getStatus()
+                if (mode !== 'lan') {
+                    throw new Error(
+                        mode === 'relay'
+                            ? 'Matter pairing needs the Home network. Connect to it and try again.'
+                            : 'The Controller can’t be reached. Nothing was started.'
+                    )
+                }
+            } catch (err) {
                 if (!isCurrentPairingAttempt(attempt)) return
-                knownDeviceIds.current = new Set()
+                setError(toError(err))
+                setPhase('error')
+                return
             }
 
             lastMatterRequest.current = request
-            setProtocol('matter')
-            setPairingKind('matter')
             setMatterStep('connecting')
             setError(null)
             setInterviews([])
@@ -968,7 +1000,13 @@ export function useDevicePairing(): {
                 setPhase('error')
             }
         },
-        [absorbMatterJoins, commissionMatter, getDevices, stopPairingRadios]
+        [
+            absorbMatterJoins,
+            commissionMatter,
+            connection,
+            getDevices,
+            stopPairingRadios,
+        ]
     )
 
     const selectDevice = useCallback(
@@ -1040,6 +1078,7 @@ export function useDevicePairing(): {
         error,
         secondsRemaining,
         commissionProgress,
+        matterNeedsHomeNetwork: status.mode === 'relay',
         savedWifi,
         chooseMatter,
         chooseZigbee,

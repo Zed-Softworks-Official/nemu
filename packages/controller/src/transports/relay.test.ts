@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import type { ConvexReactClient } from 'convex/react'
+import { ControllerConnection } from '../connection.ts'
+import { createMemoryCredentialStore } from '../storage.ts'
 import { type RelayApi, RelayTransport } from './relay.ts'
 
 describe('RelayTransport Commands', () => {
@@ -27,10 +29,170 @@ describe('RelayTransport Commands', () => {
     })
 })
 
+describe('RelayTransport writes while disconnected', () => {
+    function disconnectedRelay(commandTimeoutMs?: number) {
+        const state = { isWebSocketConnected: false }
+        const mutations: Array<{ payload: string }> = []
+        const convex = {
+            connectionState: () => state,
+            // Convex holds a mutation until it is connected again.
+            mutation: (_ref: unknown, args: { payload: string }) => {
+                mutations.push(args)
+                return new Promise(() => {})
+            },
+            query: async () => [],
+        } as unknown as ConvexReactClient
+        const relay = new RelayTransport({
+            convex,
+            api: {} as RelayApi,
+            controllerId: 'home-a',
+            getToken: () => 'token-a',
+            commandTimeoutMs,
+        })
+        return { relay, state, mutations }
+    }
+
+    const writes: Record<string, (relay: RelayTransport) => Promise<unknown>> =
+        {
+            renameDevice: (relay) =>
+                relay.renameDevice({ deviceId: 'lamp', name: 'Lamp' }),
+            assignRoom: (relay) =>
+                relay.assignRoom({ deviceId: 'lamp', roomId: null }),
+            removeDevice: (relay) => relay.removeDevice('lamp'),
+            createRoom: (relay) => relay.createRoom({ name: 'Den' }),
+            updateRoom: (relay) =>
+                relay.renameRoom({ roomId: 'den', name: 'Den' }),
+            deleteRoom: (relay) => relay.deleteRoom('den', null),
+            permitJoin: (relay) => relay.permitJoin(180),
+            cancelMatterCommission: (relay) => relay.cancelMatterCommission(),
+            installRelease: (relay) => relay.installRelease('0.4.10'),
+            rollbackRelease: (relay) => relay.rollbackRelease(),
+            switchReleaseChannel: (relay) =>
+                relay.switchReleaseChannel('canary'),
+            designateHomeMeter: (relay) =>
+                relay.designateHomeMeter({
+                    powerCapabilityId: null,
+                    importedEnergyCapabilityId: null,
+                }),
+            inviteMember: (relay) => relay.inviteMember('a@example.com'),
+            removeMember: (relay) => relay.removeMember('m'),
+            revokeToken: (relay) => relay.revokeToken('t'),
+            revokeCurrentToken: (relay) => relay.revokeCurrentToken(),
+            leaveHome: (relay) => relay.leaveHome(),
+            bootstrapOwner: (relay) =>
+                relay.bootstrapOwner({ userId: 'u', email: 'a@example.com' }),
+        }
+
+    for (const [name, write] of Object.entries(writes)) {
+        it(`refuses ${name} without handing it to Convex`, async () => {
+            const { relay, mutations } = disconnectedRelay()
+            await assert.rejects(write(relay), { code: 'relay_disconnected' })
+            assert.deepEqual(mutations, [])
+        })
+    }
+
+    it('gives up on a write the socket dropped, and dates it', async () => {
+        const { relay, state, mutations } = disconnectedRelay(20)
+        state.isWebSocketConnected = true
+        const before = Date.now()
+        await assert.rejects(relay.removeDevice('lamp'), /timed out/)
+        const { expiresAt } = JSON.parse(mutations[0]?.payload ?? '{}')
+        assert.ok(expiresAt >= before + 20)
+        assert.ok(expiresAt <= Date.now() + 20)
+    })
+
+    it('does not date a read', async () => {
+        const { relay, mutations } = disconnectedRelay(20)
+        await assert.rejects(relay.getRooms(), /timed out/)
+        assert.equal(
+            'expiresAt' in JSON.parse(mutations[0]?.payload ?? '{}'),
+            false
+        )
+    })
+})
+
+describe('Matter pairing codes and Wi-Fi credentials', () => {
+    it('never reach Convex: no mutation is made for them over Relay', async () => {
+        const sent: string[] = []
+        const convex = {
+            connectionState: () => ({ isWebSocketConnected: true }),
+            mutation: async (_ref: unknown, args: { payload: string }) => {
+                sent.push(args.payload)
+            },
+            query: async () => [],
+        } as unknown as ConvexReactClient
+        const relay = new RelayTransport({
+            convex,
+            api: {} as RelayApi,
+            controllerId: 'home-a',
+            getToken: () => 'token-a',
+            commandTimeoutMs: 20,
+        })
+        for (const operation of [
+            'commissionMatter',
+            'getMatterWifi',
+            'saveMatterWifi',
+        ]) {
+            assert.equal(operation in relay, false, operation)
+        }
+        // Even a message forced past the types has no envelope.
+        const forced = relay as unknown as {
+            request(message: unknown): Promise<unknown>
+        }
+        for (const message of [
+            { type: 'commissionMatter', code: '34970112332' },
+            { type: 'getMatterWifi' },
+            { type: 'saveMatterWifi', wifiSsid: 'home', wifiPassword: 'pw' },
+        ]) {
+            await assert.rejects(forced.request(message))
+        }
+
+        const connection = new ControllerConnection({
+            reprobeIntervalMs: 60_000,
+            controllerId: 'home-a',
+            credentialStore: createMemoryCredentialStore({
+                'home-a': { clientToken: 'token-a' },
+            }),
+            connectors: {
+                discover: async () => null,
+                createRelayTransport: () => relay,
+            },
+        })
+        await connection.start()
+        try {
+            assert.equal(connection.getStatus().mode, 'relay')
+            for (const operation of [
+                () => connection.commissionMatter({ code: '34970112332' }),
+                () => connection.getMatterWifi(),
+                () =>
+                    connection.saveMatterWifi({
+                        wifiSsid: 'home',
+                        wifiPassword: 'pw',
+                    }),
+            ]) {
+                await assert.rejects(operation, { code: 'unsupported_action' })
+            }
+        } finally {
+            connection.stop()
+        }
+        const types = sent.map((payload) => JSON.parse(payload).message.type)
+        assert.deepEqual(
+            types.filter(
+                (type) =>
+                    type !== 'watchCapabilityChanges' &&
+                    type !== 'getCapabilitySnapshot'
+            ),
+            []
+        )
+        assert.equal(sent.join().includes('34970112332'), false)
+    })
+})
+
 describe('RelayTransport Rooms', () => {
     it('loads the Home’s Rooms over Relay', async () => {
         const sent: Array<{ requestId: string; payload: string }> = []
         const convex = {
+            connectionState: () => ({ isWebSocketConnected: true }),
             mutation: async (_ref: unknown, args: (typeof sent)[number]) => {
                 sent.push(args)
             },
@@ -79,6 +241,7 @@ describe('RelayTransport leaving and revocation', () => {
     function relayAnswering(message: unknown) {
         const sent: Array<{ requestId: string; payload: string }> = []
         const convex = {
+            connectionState: () => ({ isWebSocketConnected: true }),
             mutation: async (_ref: unknown, args: (typeof sent)[number]) => {
                 sent.push(args)
             },
@@ -291,6 +454,7 @@ describe('RelayTransport Device setup', () => {
     it('checks the Room before renaming, so a bad roomId changes nothing', async () => {
         const sent: Array<{ requestId: string; payload: string }> = []
         const convex = {
+            connectionState: () => ({ isWebSocketConnected: true }),
             mutation: async (_ref: unknown, args: (typeof sent)[number]) => {
                 sent.push(args)
             },

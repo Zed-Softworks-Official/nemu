@@ -144,6 +144,15 @@ for (const via of ['lan', 'relay'] as const) {
             assert.deepEqual(home.deletedRooms, [
                 { roomId: 'den', destinationRoomId: 'hall', via },
             ])
+            assert.deepEqual(home.roomDeletionAudit, [
+                {
+                    roomId: 'den',
+                    roomName: 'Den',
+                    destinationRoomId: 'hall',
+                    devicesMoved: 1,
+                    componentsMoved: 1,
+                },
+            ])
         })
 
         it('deletes a Room and moves its contents to No Room', async () => {
@@ -167,7 +176,15 @@ for (const via of ['lan', 'relay'] as const) {
             )
             const devices = await connection.getDevices()
             assert.equal(devices.find((d) => d.id === 'lamp')?.roomId, 'den')
+            // As in Core, the destination is checked before the Room exists.
+            await assert.rejects(connection.deleteRoom('gone', 'gone'), {
+                code: 'invalid_destination',
+            })
+            await assert.rejects(connection.deleteRoom('gone', 'attic'), {
+                code: 'room_not_found',
+            })
             assert.deepEqual(home.deletedRooms, [])
+            assert.deepEqual(home.roomDeletionAudit, [])
         })
 
         it('surfaces an inactive Membership without changing anything', async () => {

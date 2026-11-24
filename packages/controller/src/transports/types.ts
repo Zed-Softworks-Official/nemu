@@ -56,6 +56,7 @@ export interface ControllerTransport {
     onSocketReopen?(cb: () => void): () => void
     permitJoin?(seconds: number): Promise<PermitJoinResponse>
     /** Matter commissioning, over LAN or Relay (ADR-0034). */
+    /** LAN only, like Matter Wi-Fi: the Relay transport has neither. */
     commissionMatter?(request: CommissionRequest): Promise<CommissionResponse>
     /** Abort in-flight Matter commissioning. */
     cancelMatterCommission?(): Promise<CommissionResponse>
@@ -88,14 +89,13 @@ export interface ControllerTransport {
     leaveHome?(): Promise<void>
     bootstrapOwner?(request: BootstrapOwnerRequest): Promise<HouseholdMember>
     getReleaseStatus?(): Promise<UpdateStatusResponse>
-    // NEM-86: the caller's Membership role for this session.
     getSession?(): Promise<SessionResponse>
-    installRelease?(): Promise<ApplyUpdateResponse>
+    /** With `platformVersion`, no other Release is installed. */
+    installRelease?(platformVersion?: string): Promise<ApplyUpdateResponse>
     rollbackRelease?(): Promise<ApplyUpdateResponse>
     switchReleaseChannel?(
         channel: ReleaseChannel
     ): Promise<SwitchReleaseChannelResponse>
-    // NEM-88: Controller health summary.
     /** Owners get Controller details; Members get availability only. */
     getHealthSummary?(): Promise<HealthSummary>
 }

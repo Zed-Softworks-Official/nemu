@@ -70,23 +70,46 @@ describe('Commissioning over LAN', () => {
 })
 
 describe('Commissioning over Relay', () => {
-    it('hands the Matter pairing code to the Controller and audits it once', async () => {
+    it('never carries a Matter pairing code or Wi-Fi credentials', async () => {
         const controller = home(false)
+        controller.matterWifi = { configured: true, networkName: 'home' }
         const connection = await connectTo(controller)
         assert.equal(connection.getStatus().mode, 'relay')
+        const transport = controller.createTransport('relay', () => 'token')
 
+        // The connection refuses, and so does the Controller if it is asked.
+        for (const target of [connection, transport]) {
+            await assert.rejects(
+                target.commissionMatter({ code: '34970112332' }),
+                { code: 'unsupported_action' }
+            )
+            await assert.rejects(target.getMatterWifi(), {
+                code: 'unsupported_action',
+            })
+            await assert.rejects(
+                target.saveMatterWifi({ wifiSsid: 'lake', wifiPassword: 'pw' }),
+                { code: 'unsupported_action' }
+            )
+        }
+        assert.equal(controller.matterCommissioning, null)
+        assert.deepEqual(controller.matterWifi, {
+            configured: true,
+            networkName: 'home',
+        })
+        assert.deepEqual(controller.commissioningRequests, [])
+        assert.deepEqual(controller.relayCommissioningAudit, [])
+    })
+
+    it('can cancel Matter commissioning that LAN started', async () => {
+        const controller = home(true)
+        const connection = await connectTo(controller)
         await connection.commissionMatter({ code: '34970112332' })
-        assert.equal(controller.matterCommissioning?.code, '34970112332')
+        controller.lanReachable = false
+        await connection.reprobe()
+        assert.equal(connection.getStatus().mode, 'relay')
+
         await connection.cancelMatterCommission()
         assert.equal(controller.matterCommissioning, null)
-
-        assert.deepEqual(controller.commissioningRequests, [
-            { type: 'commissionMatter', via: 'relay' },
-            { type: 'cancelMatterCommission', via: 'relay' },
-        ])
-        assert.deepEqual(controller.relayCommissioningAudit, [
-            { protocol: 'matter' },
-        ])
     })
 
     it('opens Zigbee permit-join and audits only the opening', async () => {
@@ -104,8 +127,8 @@ describe('Commissioning over Relay', () => {
         ])
     })
 
-    it('reads and saves the Controller’s Matter Wi-Fi', async () => {
-        const controller = home(false)
+    it('reads and saves Matter Wi-Fi over LAN', async () => {
+        const controller = home(true)
         const connection = await connectTo(controller)
 
         assert.deepEqual(await connection.getMatterWifi(), {
@@ -127,10 +150,12 @@ describe('Commissioning over Relay', () => {
             controller.membershipActive = false
             const connection = await connectTo(controller)
 
-            await assert.rejects(
-                connection.commissionMatter({ code: '34970112332' }),
-                { code: 'inactive_membership' }
-            )
+            if (lanReachable) {
+                await assert.rejects(
+                    connection.commissionMatter({ code: '34970112332' }),
+                    { code: 'inactive_membership' }
+                )
+            }
             await assert.rejects(connection.permitJoin(180), {
                 code: 'inactive_membership',
             })
