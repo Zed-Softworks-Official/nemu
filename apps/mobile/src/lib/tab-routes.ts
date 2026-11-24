@@ -20,6 +20,19 @@ export function deviceSheetHref(segments: readonly string[], deviceId: string) {
     } as const
 }
 
+/** The Room sheet for one Room, on the active tab's Stack. */
+export function roomSheetHref(segments: readonly string[], roomId: string) {
+    return {
+        pathname: `/(app)/(tabs)/${activeTab(segments)}/room/[roomId]`,
+        params: { roomId },
+    } as const
+}
+
+/** The create-Room sheet, on the active tab's Stack. */
+export function createRoomSheetHref(segments: readonly string[]) {
+    return `/(app)/(tabs)/${activeTab(segments)}/room/new` as const
+}
+
 /** The add-Device sheet, on the active tab's Stack. */
 export function addDeviceHref(segments: readonly string[]) {
     return `/(app)/(tabs)/${activeTab(segments)}/add-device` as const
