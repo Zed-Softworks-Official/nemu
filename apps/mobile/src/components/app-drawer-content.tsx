@@ -1,4 +1,5 @@
 import { cn } from '@nemu/ui/lib/utils'
+import { router, useSegments } from 'expo-router'
 import type { DrawerContentComponentProps } from 'expo-router/drawer'
 import { DrawerContentScrollView } from 'expo-router/drawer'
 import { Bolt, Home, LayoutGrid, Settings, User, X } from 'lucide-react-native'
@@ -8,17 +9,28 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { Text } from '~/components/ui/text'
 import { colors } from '~/constants/colors'
+import { activeTab, type Tab } from '~/lib/tab-routes'
 
 type DrawerLink = {
-    name: '(tabs)' | 'rooms' | 'settings' | 'account'
+    name: 'home' | StackScreen
     label: string
     description: string
     icon: ComponentType<{ color: string; size: number; strokeWidth?: number }>
 }
 
+/** Screens opened on the active tab's Stack, so the tab bar stays. */
+type StackScreen = 'rooms' | 'settings' | 'account'
+function openLink(name: DrawerLink['name'], tab: Tab) {
+    if (name === 'home') {
+        router.navigate('/')
+        return
+    }
+    router.navigate(`/(app)/(tabs)/${tab}/${name}`)
+}
+
 const links: DrawerLink[] = [
     {
-        name: '(tabs)',
+        name: 'home',
         label: 'Home',
         description: 'Overview and status',
         icon: Home,
@@ -45,7 +57,9 @@ const links: DrawerLink[] = [
 
 export function AppDrawerContent(props: DrawerContentComponentProps) {
     const insets = useSafeAreaInsets()
-    const focused = props.state.routes[props.state.index]?.name
+    const segments = useSegments() as string[]
+    const leaf = segments.at(-1)
+    const focused = links.some((link) => link.name === leaf) ? leaf : 'home'
 
     return (
         <View className="flex-1 border-border border-l bg-background">
@@ -106,7 +120,7 @@ export function AppDrawerContent(props: DrawerContentComponentProps) {
                                 )}
                                 key={link.name}
                                 onPress={() => {
-                                    props.navigation.navigate(link.name)
+                                    openLink(link.name, activeTab(segments))
                                     props.navigation.dispatch({
                                         type: 'CLOSE_DRAWER',
                                     })

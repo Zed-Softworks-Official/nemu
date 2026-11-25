@@ -11,10 +11,10 @@ use ed25519_dalek::SigningKey;
 use serde::{Deserialize, Serialize};
 
 use crate::manifest::{STACK_FILES, image_names_a_tag, is_sha256_digest};
+use crate::version::PlatformVersion;
 use crate::{
     ManifestError, RELEASE_SERVICES, ReleaseChannel, ReleaseManifest, ServiceImage,
-    SettingMigration, StackFile, UpdaterBinaries, parse_platform_version, sign_manifest,
-    verify_manifest,
+    SettingMigration, StackFile, UpdaterBinaries, sign_manifest, verify_manifest,
 };
 
 /// Images the publisher builds. Third-party services are digest-pinned and
@@ -71,6 +71,10 @@ pub struct PublishRequest {
     /// the pin that cut was signed with.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub next_pin: Option<String>,
+    /// Release notes to put in a newly cut manifest. Reusing a cut keeps the
+    /// notes that cut was signed with. Blank notes are omitted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub release_notes: Option<String>,
 }
 
 /// A tag the workflow applies to one digest. Third-party images never appear.
@@ -162,7 +166,7 @@ pub fn signing_key_from_base64(encoded: &str) -> Result<SigningKey, PublishError
 }
 
 fn reused_manifest(cut: &CutRelease) -> Result<ReleaseManifest, PublishError> {
-    if parse_platform_version(&cut.platform_version).is_none()
+    if plain_version(&cut.platform_version).is_none()
         || cut.manifest.platform_version != cut.platform_version
     {
         return Err(PublishError::CutVersion);
@@ -189,6 +193,13 @@ fn new_manifest(request: &PublishRequest) -> Result<ReleaseManifest, PublishErro
         migrations: request.migrations.clone(),
         updater: request.updater.clone(),
         next_pin: request.next_pin.clone(),
+        release_notes: request
+            .release_notes
+            .as_deref()
+            .map(str::trim)
+            .filter(|notes| !notes.is_empty())
+            .map(str::to_string),
+        hotfix: false,
     })
 }
 
@@ -212,10 +223,9 @@ fn cut_for_commit<'a>(
 }
 
 fn allocate_version(cut: &[CutRelease], minor_bump: bool) -> Result<String, PublishError> {
-    let mut newest: Option<(u64, u64, u64)> = None;
+    let mut newest: Option<PlatformVersion> = None;
     for release in cut {
-        let parsed =
-            parse_platform_version(&release.platform_version).ok_or(PublishError::CutVersion)?;
+        let parsed = plain_version(&release.platform_version).ok_or(PublishError::CutVersion)?;
         newest = Some(match newest {
             Some(current) if current >= parsed => current,
             _ => parsed,
@@ -223,9 +233,14 @@ fn allocate_version(cut: &[CutRelease], minor_bump: bool) -> Result<String, Publ
     }
     Ok(match newest {
         None => "0.1.0".to_string(),
-        Some((_, minor, _)) if minor_bump => format!("0.{}.0", minor + 1),
-        Some((_, minor, patch)) => format!("0.{minor}.{}", patch + 1),
+        Some(newest) if minor_bump => format!("0.{}.0", newest.minor + 1),
+        Some(newest) => format!("0.{}.{}", newest.minor, newest.patch + 1),
     })
+}
+
+/// This publisher does not cut Release candidates and refuses to build on one.
+fn plain_version(version: &str) -> Option<PlatformVersion> {
+    PlatformVersion::parse(version).filter(|version| !version.is_candidate())
 }
 
 fn pin_services(resolved: &[ResolvedService]) -> Result<Vec<ServiceImage>, PublishError> {
@@ -482,7 +497,69 @@ mod tests {
                 arm64: BASE64.encode(b"updater-arm64"),
             },
             next_pin: None,
+            release_notes: None,
         }
+    }
+
+    #[test]
+    fn a_new_cut_signs_its_release_notes_and_a_reused_cut_keeps_its_own() {
+        let signing_key = key();
+        let mut publish = request(
+            PublishSource::Canary,
+            "commit-1",
+            false,
+            Vec::new(),
+            resolved(1),
+        );
+        publish.release_notes = Some("\n- Faster pairing\n".to_string());
+        let plan = plan_publish(&publish, &signing_key).expect("plan");
+        let manifest =
+            verify_manifest(&plan.signed_manifest, &signing_key.verifying_key()).expect("verify");
+        assert_eq!(manifest.release_notes.as_deref(), Some("- Faster pairing"));
+
+        publish.cut_releases = vec![CutRelease {
+            platform_version: manifest.platform_version.clone(),
+            commit: "commit-1".to_string(),
+            manifest: manifest.clone(),
+        }];
+        publish.release_notes = Some("- Something else".to_string());
+        let reused = plan_publish(&publish, &signing_key).expect("reuse");
+        assert_eq!(reused.signed_manifest, plan.signed_manifest);
+    }
+
+    #[test]
+    fn a_manifest_without_release_notes_omits_the_field_for_older_updaters() {
+        for notes in [None, Some("  \n".to_string())] {
+            let mut publish = request(
+                PublishSource::Canary,
+                "commit-1",
+                false,
+                Vec::new(),
+                resolved(1),
+            );
+            publish.release_notes = notes;
+            let plan = plan_publish(&publish, &key()).expect("plan");
+            let text = String::from_utf8(plan.signed_manifest).expect("utf8");
+            assert!(!text.contains("releaseNotes"));
+        }
+    }
+
+    #[test]
+    fn changed_release_notes_do_not_verify() {
+        let signing_key = key();
+        let mut publish = request(
+            PublishSource::Canary,
+            "commit-1",
+            false,
+            Vec::new(),
+            resolved(1),
+        );
+        publish.release_notes = Some("- Faster pairing".to_string());
+        let plan = plan_publish(&publish, &signing_key).expect("plan");
+        let forged = String::from_utf8(plan.signed_manifest)
+            .expect("utf8")
+            .replace("Faster pairing", "Slower pairing");
+        assert!(verify_manifest(forged.as_bytes(), &signing_key.verifying_key()).is_err());
     }
 
     fn tags_for<'a>(tags: &'a [super::ImageTag], image_suffix: &str) -> Vec<&'a str> {
@@ -995,7 +1072,24 @@ mod tests {
                     arm64: BASE64.encode(b"cut-arm64"),
                 },
                 next_pin: None,
+                release_notes: None,
+                hotfix: false,
             },
+        }
+    }
+
+    #[test]
+    fn a_release_candidate_among_the_cuts_is_refused() {
+        let cut = vec![cut_release("0.1.4-canary.1", "commit-a", 0x40)];
+        for commit in ["commit-a", "commit-b"] {
+            for source in [PublishSource::Canary, PublishSource::Stable] {
+                let error = plan_publish(
+                    &request(source, commit, false, cut.clone(), resolved(0x10)),
+                    &key(),
+                )
+                .expect_err("candidate");
+                assert_eq!(error, super::PublishError::CutVersion, "{commit}");
+            }
         }
     }
 }

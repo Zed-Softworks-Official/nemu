@@ -1,13 +1,21 @@
 import { z } from 'zod'
 import {
+    applyUpdateRequestSchema,
     applyUpdateResponseSchema,
     assignRoomRequestSchema,
     clientTokenSchema,
+    commissionResponseSchema,
     createRoomRequestSchema,
+    deleteRoomRequestSchema,
     householdMemberSchema,
+    memberHealthSummarySchema,
+    ownerHealthSummarySchema,
+    permitJoinRequestSchema,
+    permitJoinResponseSchema,
     releaseChannelSchema,
     releaseStatusSchema,
     renameDeviceRequestSchema,
+    sessionResponseSchema,
     switchReleaseChannelResponseSchema,
 } from './api.ts'
 import {
@@ -73,11 +81,34 @@ const setupRelayMessageSchemas = [
         name: z.string().trim().min(1).max(255).optional(),
         sortOrder: z.number().int().optional(),
     }),
-    z.object({ type: z.literal('deleteRoom'), roomId: z.string().min(1) }),
+    deleteRoomRequestSchema.extend({
+        type: z.literal('deleteRoom'),
+        roomId: z.string().min(1),
+    }),
+] as const
+
+/**
+ * Commissioning every Membership may do over Relay (ADR-0034). Starting
+ * Matter commissioning and reading or saving Matter Wi-Fi have no Relay
+ * message: pairing codes and Wi-Fi credentials must not cross Relay until
+ * its envelopes are encrypted end to end (NEM-63). Cancelling Matter carries
+ * neither, so a commissioning started over LAN can still be stopped.
+ */
+const commissioningRelayMessageSchemas = [
+    z.object({ type: z.literal('cancelMatterCommission') }),
+    permitJoinRequestSchema.extend({ type: z.literal('permitJoin') }),
+] as const
+
+const commissioningRelayResultSchemas = [
+    commissionResponseSchema.extend({
+        type: z.literal('cancelMatterCommission'),
+    }),
+    permitJoinResponseSchema.extend({ type: z.literal('permitJoin') }),
 ] as const
 
 const authenticatedRelayMessageSchema = z.union([
     ...setupRelayMessageSchemas,
+    ...commissioningRelayMessageSchemas,
     relayCommandMessageSchema,
     z.object({ type: z.literal('getDevices') }),
     z.object({ type: z.literal('getRooms') }),
@@ -105,12 +136,14 @@ const authenticatedRelayMessageSchema = z.union([
     exportHistoryBackupMessageSchema,
     importHistoryBackupMessageSchema,
     z.object({ type: z.literal('releaseStatus') }),
-    z.object({ type: z.literal('installRelease') }),
+    applyUpdateRequestSchema.extend({ type: z.literal('installRelease') }),
     z.object({ type: z.literal('rollbackRelease') }),
     z.object({
         type: z.literal('switchReleaseChannel'),
         channel: releaseChannelSchema,
     }),
+    z.object({ type: z.literal('getSession') }),
+    z.object({ type: z.literal('getHealthSummary') }),
 ])
 
 export const relayToControllerEnvelopeSchema = z.union([
@@ -121,6 +154,12 @@ export const relayToControllerEnvelopeSchema = z.union([
     z.object({
         requestId: z.string(),
         clientToken: z.string(),
+        /**
+         * Unix milliseconds after which the sender gave up on a write. The
+         * Controller refuses it from then on, so a write Convex held while
+         * disconnected does not run later. Older Controllers ignore it.
+         */
+        expiresAt: z.number().int().optional(),
         message: authenticatedRelayMessageSchema,
     }),
 ])
@@ -181,6 +220,10 @@ export const relayToClientEnvelopeSchema = z.object({
         switchReleaseChannelResponseSchema.extend({
             type: z.literal('switchReleaseChannel'),
         }),
+        ...commissioningRelayResultSchemas,
+        sessionResponseSchema.extend({ type: z.literal('session') }),
+        ownerHealthSummarySchema.extend({ type: z.literal('healthSummary') }),
+        memberHealthSummarySchema.extend({ type: z.literal('healthSummary') }),
     ]),
 })
 export type RelayToClientEnvelope = z.infer<typeof relayToClientEnvelopeSchema>

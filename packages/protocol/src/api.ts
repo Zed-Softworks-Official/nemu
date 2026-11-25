@@ -5,7 +5,7 @@ export const apiErrorBodySchema = z.object({
     error: z.object({
         code: z.string(),
         message: z.string(),
-        /** Structured context, such as the blockers of `room_not_empty`. */
+        /** Structured context about the error, when the Controller sends any. */
         details: z.unknown().optional(),
     }),
 })
@@ -35,6 +35,39 @@ export const healthResponseSchema = z.object({
     status: z.string(),
 })
 export type HealthResponse = z.infer<typeof healthResponseSchema>
+
+// Role-aware Controller health summary. LAN `GET /api/health/summary`
+// and Relay `getHealthSummary` return this same shape. Members see only
+// service and Device availability (ADR-0006).
+const healthSummaryCommonShape = {
+    status: z.enum(['ok', 'degraded', 'error']),
+    services: z.object({
+        mqtt: z.boolean(),
+        zigbee: z.boolean(),
+        matter: z.boolean(),
+    }),
+    devices: z.object({
+        online: z.number().int().nonnegative(),
+        total: z.number().int().nonnegative(),
+    }),
+}
+export const ownerHealthSummarySchema = z.object({
+    view: z.literal('owner'),
+    ...healthSummaryCommonShape,
+    controller: z.object({
+        database: z.boolean(),
+        relayConnected: z.boolean(),
+    }),
+})
+export const memberHealthSummarySchema = z.object({
+    view: z.literal('member'),
+    ...healthSummaryCommonShape,
+})
+export const healthSummarySchema = z.discriminatedUnion('view', [
+    ownerHealthSummarySchema,
+    memberHealthSummarySchema,
+])
+export type HealthSummary = z.infer<typeof healthSummarySchema>
 
 export const identifyResponseSchema = z.object({
     controllerId: z.string(),
@@ -134,18 +167,16 @@ export const assignRoomRequestSchema = z.object({
 })
 export type AssignRoomRequest = z.infer<typeof assignRoomRequestSchema>
 
-/** `details` of a `room_not_empty` error: what still uses the Room. */
-export const roomNotEmptyDetailsSchema = z.object({
-    devices: z.array(z.object({ id: z.string(), name: z.string() })),
-    components: z.array(
-        z.object({
-            deviceId: z.string(),
-            deviceName: z.string(),
-            componentId: z.string(),
-        })
-    ),
+/**
+ * Delete a Room and move its Devices, and the Components explicitly assigned
+ * to it, to a destination in one step. `destinationRoomId` is required:
+ * another Room's ID, or `null` for No Room. LAN sends this as the body of
+ * `DELETE /api/rooms/:id`.
+ */
+export const deleteRoomRequestSchema = z.object({
+    destinationRoomId: z.string().min(1).nullable(),
 })
-export type RoomNotEmptyDetails = z.infer<typeof roomNotEmptyDetailsSchema>
+export type DeleteRoomRequest = z.infer<typeof deleteRoomRequestSchema>
 
 export const renameRoomRequestSchema = z.object({
     roomId: z.string().min(1),
@@ -227,13 +258,31 @@ export const sessionMintResultSchema = z.object({
 })
 export type SessionMintResult = z.infer<typeof sessionMintResultSchema>
 
+/** The caller's Membership role. Clients use it only to decide what to show. */
+export const sessionRoleSchema = z.enum(['owner', 'member'])
+export type SessionRole = z.infer<typeof sessionRoleSchema>
+
+/** `GET /api/session`, and the body of the Relay `session` reply. */
+export const sessionResponseSchema = z.object({ role: sessionRoleSchema })
+export type SessionResponse = z.infer<typeof sessionResponseSchema>
+
 export const releaseChannelSchema = z.enum(['stable', 'canary'])
 export type ReleaseChannel = z.infer<typeof releaseChannelSchema>
+
+/** The Release the Home could install, from the signed channel manifest. */
+export const availableReleaseSchema = z.object({
+    platformVersion: z.string(),
+    /** Plain text. Absent when the Release was published without notes. */
+    releaseNotes: z.string().nullish(),
+})
+export type AvailableRelease = z.infer<typeof availableReleaseSchema>
 
 export const releaseStatusSchema = z.object({
     platformVersion: z.string(),
     channel: releaseChannelSchema,
     newerReleaseAvailable: z.boolean(),
+    /** Absent from Controllers that predate it, or when none is newer. */
+    availableRelease: availableReleaseSchema.nullish(),
     maintenanceMode: z.boolean(),
     rollbackSnapshotAvailable: z.boolean(),
     rollbackStuck: z.boolean(),
@@ -261,6 +310,15 @@ export const updateStatusResponseSchema = z.union([
     legacyLanUpdateStatusSchema,
 ])
 export type UpdateStatusResponse = z.infer<typeof releaseStatusSchema>
+
+export const applyUpdateRequestSchema = z.object({
+    /**
+     * The Release the Owner confirmed. The Controller installs no other one.
+     * Older Controllers ignore it.
+     */
+    platformVersion: z.string().min(1).optional(),
+})
+export type ApplyUpdateRequest = z.infer<typeof applyUpdateRequestSchema>
 
 export const applyUpdateResponseSchema = z.object({
     started: z.boolean(),

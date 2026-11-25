@@ -6,8 +6,7 @@ use ed25519_dalek::VerifyingKey;
 
 use crate::manifest::{ManifestHost, ReleaseManifest, SettingMigration};
 use crate::{
-    ReleaseChannel, StatusError, platform_version_is_eligible, read_stored_release,
-    write_stored_release,
+    ReleaseChannel, StatusError, read_stored_release, release_is_eligible, write_stored_release,
 };
 
 const MAINTENANCE_FILE: &str = "updater/maintenance";
@@ -129,6 +128,8 @@ pub enum InstallError {
     PlatformVersionMissing,
     #[error("no newer Release is available")]
     NotEligible,
+    #[error("the channel no longer serves the confirmed Release")]
+    ReleaseChanged,
     #[error("the release manifest was rejected")]
     Rejected,
     #[error("a migration names a setting the Release cannot change")]
@@ -145,7 +146,9 @@ pub enum InstallError {
     Unavailable(String),
 }
 
-/// Installs the newer Release on the stored channel.
+/// Installs the newer Release on the stored channel. With `confirmed`, only
+/// that Platform version: the manifest installed is the one checked here, so
+/// a Release published after an Owner confirmed is refused.
 ///
 /// The process that enters this function is the previous Updater: the binary
 /// the wrapper would start, and a new wrapper pin, are replaced only after
@@ -153,11 +156,18 @@ pub enum InstallError {
 /// the snapshot, previous stack files, previous digests, and the previous
 /// binary. Maintenance stays only when that restore cannot finish or the
 /// previous Release will not stay healthy.
-pub fn install(controller_dir: &Path, env: &InstallEnv<'_>) -> Result<(), InstallError> {
+pub fn install(
+    controller_dir: &Path,
+    env: &InstallEnv<'_>,
+    confirmed: Option<&str>,
+) -> Result<(), InstallError> {
     if maintenance_mode(controller_dir) {
         return Err(InstallError::InMaintenance);
     }
     let manifest = verified_newer_manifest(controller_dir, env)?;
+    if confirmed.is_some_and(|version| version != manifest.platform_version) {
+        return Err(InstallError::ReleaseChanged);
+    }
     if manifest
         .migrations
         .iter()
@@ -217,7 +227,7 @@ pub fn install(controller_dir: &Path, env: &InstallEnv<'_>) -> Result<(), Instal
         let _ = crate::rollback::restore_after_failed_gate(controller_dir, env);
         return Err(InstallError::Unavailable(error.to_string()));
     }
-    if let Err(error) = record_installed(controller_dir, &manifest) {
+    if let Err(error) = record_installed(controller_dir, &manifest, env.arch) {
         let _ = crate::rollback::restore_after_failed_gate(controller_dir, env);
         return Err(error);
     }
@@ -255,7 +265,7 @@ pub fn hourly_check(controller_dir: &Path, env: &InstallEnv<'_>) -> Result<bool,
     if !due {
         return Ok(false);
     }
-    match install(controller_dir, env) {
+    match install(controller_dir, env, None) {
         Ok(()) => {
             mark_hourly_check(controller_dir, now)?;
             Ok(true)
@@ -284,10 +294,13 @@ fn verified_newer_manifest(
     })?;
     let stored = stored.unwrap_or_default();
     let channel = stored.channel.unwrap_or(ReleaseChannel::Stable);
-    let installed = stored
+    if stored
         .platform_version
-        .filter(|version| !version.trim().is_empty())
-        .ok_or(InstallError::PlatformVersionMissing)?;
+        .as_deref()
+        .is_none_or(|version| version.trim().is_empty())
+    {
+        return Err(InstallError::PlatformVersionMissing);
+    }
     let release_key = crate::wrapper::load_pin(controller_dir).or(env.release_key.copied());
     let Some(release_key) = release_key else {
         return Err(InstallError::NotEligible);
@@ -301,11 +314,7 @@ fn verified_newer_manifest(
     };
     let manifest = crate::manifest::verify_manifest(&bytes, &release_key)
         .map_err(|_| InstallError::Rejected)?;
-    if !platform_version_is_eligible(
-        &manifest.platform_version,
-        &installed,
-        stored.declined_platform_version.as_deref(),
-    ) {
+    if !release_is_eligible(controller_dir, &stored, &manifest, env.arch) {
         return Err(InstallError::NotEligible);
     }
     Ok(manifest)
@@ -662,7 +671,11 @@ pub(crate) fn commit_binary(controller_dir: &Path, bytes: &[u8]) -> Result<(), I
         .map_err(|error| InstallError::Unavailable(error.to_string()))
 }
 
-fn record_installed(controller_dir: &Path, manifest: &ReleaseManifest) -> Result<(), InstallError> {
+fn record_installed(
+    controller_dir: &Path,
+    manifest: &ReleaseManifest,
+    arch: UpdaterArch,
+) -> Result<(), InstallError> {
     let mut stored = read_stored_release(controller_dir)
         .map_err(|error| InstallError::Unavailable(error.to_string()))?
         .unwrap_or_default();
@@ -671,6 +684,7 @@ fn record_installed(controller_dir: &Path, manifest: &ReleaseManifest) -> Result
     }
     stored.platform_version = Some(manifest.platform_version.clone());
     stored.services = manifest.services.clone();
+    stored.build_identity = crate::build_identity::build_identity(manifest, arch);
     write_stored_release(controller_dir, &stored)
         .map_err(|error| InstallError::Unavailable(error.to_string()))
 }
@@ -1067,6 +1081,8 @@ devices:
                 arm64: BASE64.encode(ARM64_UPDATER),
             },
             next_pin: None,
+            release_notes: None,
+            hotfix: false,
         }
     }
 
@@ -1141,6 +1157,16 @@ devices:
         host: &FakeHost,
         key: &SigningKey,
     ) -> Result<(), InstallError> {
+        run_install_confirming(home, world, host, key, None)
+    }
+
+    fn run_install_confirming(
+        home: &Path,
+        world: &World,
+        host: &FakeHost,
+        key: &SigningKey,
+        confirmed: Option<&str>,
+    ) -> Result<(), InstallError> {
         let public = key.verifying_key();
         install(
             home,
@@ -1153,6 +1179,7 @@ devices:
                 clock: world,
                 arch: UpdaterArch::Amd64,
             },
+            confirmed,
         )
     }
 
@@ -1257,6 +1284,7 @@ devices:
             home.path(),
             &host,
             Some(&release_signing_key().verifying_key()),
+            UpdaterArch::Amd64,
         )
         .unwrap();
         assert_eq!(report.platform_version, "0.4.10");
@@ -1432,6 +1460,35 @@ devices:
     }
 
     #[test]
+    fn only_the_confirmed_release_is_installed() {
+        let home = TempHome::new();
+        seed_home(home.path());
+        let before = fs::read(installed_release_path(home.path())).unwrap();
+        let world = World::new(home.path());
+        let key = release_signing_key();
+        let manifest = release_manifest(pinned_services(9), false);
+        let host = host_for(signed_with(&manifest, &key));
+
+        let error = run_install_confirming(home.path(), &world, &host, &key, Some("0.4.99"))
+            .expect_err("another Release");
+        assert_eq!(error, InstallError::ReleaseChanged);
+        assert_eq!(
+            fs::read(installed_release_path(home.path())).unwrap(),
+            before
+        );
+        assert!(!home.path().join(SNAPSHOT_DIR).exists());
+        assert!(!home.path().join(MAINTENANCE_FILE).is_file());
+
+        let confirmed = manifest.platform_version.as_str();
+        run_install_confirming(home.path(), &world, &host, &key, Some(confirmed))
+            .expect("the confirmed Release");
+        assert_eq!(
+            read_stored(home.path()).platform_version.as_deref(),
+            Some(confirmed)
+        );
+    }
+
+    #[test]
     fn a_bad_signature_does_not_change_the_home() {
         let home = TempHome::new();
         seed_home(home.path());
@@ -1490,6 +1547,7 @@ devices:
             home.path(),
             &host,
             Some(&release_signing_key().verifying_key()),
+            UpdaterArch::Amd64,
         )
         .unwrap();
         assert!(report.maintenance_mode);
@@ -1760,6 +1818,7 @@ devices:
             home.path(),
             &host,
             Some(&release_signing_key().verifying_key()),
+            UpdaterArch::Amd64,
         )
         .unwrap();
         assert!(!report.maintenance_mode);
@@ -1927,6 +1986,7 @@ devices:
             home.path(),
             &host,
             Some(&release_signing_key().verifying_key()),
+            UpdaterArch::Amd64,
         )
         .unwrap();
         assert!(!report.maintenance_mode);
@@ -2001,6 +2061,7 @@ devices:
             home.path(),
             &host,
             Some(&release_signing_key().verifying_key()),
+            UpdaterArch::Amd64,
         )
         .unwrap();
         assert!(report.rollback_stuck);
@@ -2047,6 +2108,7 @@ devices:
             home.path(),
             &host,
             Some(&release_signing_key().verifying_key()),
+            UpdaterArch::Amd64,
         )
         .unwrap();
         assert!(!report.rollback_stuck);
@@ -2327,6 +2389,201 @@ devices:
         assert_eq!(
             read_stored(home.path()).platform_version.as_deref(),
             Some("0.4.10")
+        );
+    }
+
+    fn versioned(version: &str, matter: u8) -> ReleaseManifest {
+        ReleaseManifest {
+            platform_version: version.to_string(),
+            ..release_manifest(pinned_services(matter), false)
+        }
+    }
+
+    fn published(manifest: &ReleaseManifest) -> FakeHost {
+        host_for(signed_with(manifest, &release_signing_key()))
+    }
+
+    fn offered(home: &Path, host: &FakeHost) -> bool {
+        status(
+            home,
+            host,
+            Some(&release_signing_key().verifying_key()),
+            UpdaterArch::Amd64,
+        )
+        .unwrap()
+        .newer_release_available
+    }
+
+    fn assert_skipped(home: &Path, world: &World, host: &FakeHost) {
+        assert!(!offered(home, host));
+        assert_eq!(
+            run_install(home, world, host).expect_err("skipped"),
+            InstallError::NotEligible
+        );
+        world.now.fetch_add(10_000, Ordering::SeqCst);
+        world.horizon.fetch_add(10_000, Ordering::SeqCst);
+        assert!(!run_hourly(home, world, host).unwrap());
+    }
+
+    fn seeded_home() -> (TempHome, World) {
+        let home = TempHome::new();
+        seed_home(home.path());
+        let world = World::new(home.path());
+        *world.services.lock().unwrap() = running_like_release(3);
+        (home, world)
+    }
+
+    /// A Home that installed `manifest` over 0.4.9 and rolled it back.
+    fn declined_home(manifest: &ReleaseManifest) -> (TempHome, World) {
+        let (home, world) = seeded_home();
+        let host = published(manifest);
+        run_install(home.path(), &world, &host).expect("install");
+        run_rollback(home.path(), &world, &host).expect("rollback");
+        (home, world)
+    }
+
+    #[test]
+    fn a_promotion_installs_over_its_candidate_and_a_hotfix_does_not() {
+        let (home, world) = seeded_home();
+        for (version, matter) in [("0.4.10-canary.9", 8), ("0.4.10-canary.10", 9)] {
+            let host = published(&versioned(version, matter));
+            run_install(home.path(), &world, &host).expect(version);
+        }
+        let mut hotfix = versioned("0.4.11", 10);
+        hotfix.hotfix = true;
+        assert_skipped(home.path(), &world, &published(&hotfix));
+
+        run_install(home.path(), &world, &published(&versioned("0.4.10", 9))).expect("promoted");
+        run_install(home.path(), &world, &published(&hotfix)).expect("plain Home");
+        assert_eq!(
+            read_stored(home.path()).platform_version.as_deref(),
+            Some("0.4.11")
+        );
+    }
+
+    #[test]
+    fn a_declined_candidates_promoted_build_is_skipped_and_a_different_build_installs() {
+        let candidate = versioned("0.4.10-canary.1", 9);
+        let (home, world) = declined_home(&candidate);
+
+        let mut promoted = versioned("0.4.10", 9);
+        promoted.release_notes = Some("notes".to_string());
+        promoted.services.reverse();
+        promoted.stack_files.reverse();
+        promoted.migrations.reverse();
+        promoted.updater.arm64 = BASE64.encode(b"another arm64 build");
+        assert_skipped(home.path(), &world, &published(&promoted));
+
+        // Restoring the snapshot again keeps the declined build.
+        for _ in 0..2 {
+            fs::copy(
+                home.path()
+                    .join(SNAPSHOT_DIR)
+                    .join("installed-release.json"),
+                installed_release_path(home.path()),
+            )
+            .unwrap();
+            fs::write(home.path().join("updater/rollback-stuck"), b"1\n").unwrap();
+            run_rollback(home.path(), &world, &published(&promoted)).expect("restore again");
+            assert_skipped(home.path(), &world, &published(&promoted));
+        }
+
+        // Not newer than the declined version, whatever the build.
+        assert_skipped(home.path(), &world, &published(&candidate));
+        let recut = published(&versioned("0.4.10-canary.1", 7));
+        assert_skipped(home.path(), &world, &recut);
+
+        run_install(home.path(), &world, &published(&versioned("0.4.10", 10))).expect("new build");
+    }
+
+    #[test]
+    fn each_part_of_a_build_distinguishes_it_from_a_declined_one() {
+        type Change = fn(&mut ReleaseManifest);
+        let changes: [Change; 4] = [
+            |m| m.services[0].digest = digest(0x55),
+            |m| m.stack_files[1].contents.push_str("# changed\n"),
+            |m| m.migrations.clear(),
+            |m| m.updater.amd64 = BASE64.encode(b"another amd64 build"),
+        ];
+        let (home, _world) = declined_home(&versioned("0.4.10-canary.1", 9));
+        for (index, change) in changes.iter().enumerate() {
+            let mut manifest = versioned("0.4.10", 9);
+            assert!(!offered(home.path(), &published(&manifest)));
+            change(&mut manifest);
+            assert!(offered(home.path(), &published(&manifest)), "{index}");
+        }
+    }
+
+    #[test]
+    fn an_earlier_declined_build_stays_declined_after_another_rollback() {
+        let (home, world) = declined_home(&versioned("0.4.10-canary.1", 9));
+        let second = published(&versioned("0.4.10-canary.2", 10));
+        run_install(home.path(), &world, &second).expect("second");
+        run_rollback(home.path(), &world, &second).expect("rollback");
+
+        assert_skipped(home.path(), &world, &published(&versioned("0.4.11", 9)));
+        assert_skipped(home.path(), &world, &published(&versioned("0.4.11", 10)));
+        assert!(offered(home.path(), &published(&versioned("0.4.11", 11))));
+    }
+
+    #[test]
+    fn a_declined_record_without_a_build_still_skips_by_version_only() {
+        let (home, world) = declined_home(&versioned("0.4.10", 9));
+        fs::remove_file(home.path().join("updater/declined-builds")).unwrap();
+
+        assert_skipped(home.path(), &world, &published(&versioned("0.4.10", 9)));
+        assert!(offered(home.path(), &published(&versioned("0.4.11", 9))));
+    }
+
+    /// An Updater before 0.1.3 records no build, so the rolled-back build has
+    /// to come from a channel manifest that still serves that Release.
+    #[test]
+    fn a_release_installed_by_an_older_updater_is_declined_by_its_served_build() {
+        for served in [true, false] {
+            let (home, world) = seeded_home();
+            let installed = versioned("0.4.10", 9);
+            run_install(home.path(), &world, &published(&installed)).expect("install");
+            let path = installed_release_path(home.path());
+            let mut json: serde_json::Value =
+                serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+            json.as_object_mut()
+                .unwrap()
+                .remove("buildIdentity")
+                .expect("recorded");
+            fs::write(&path, json.to_string()).unwrap();
+
+            let newer = published(&versioned("0.4.11", 9));
+            let host = if served {
+                // The Owner has since switched away from the channel that serves it.
+                FakeHost {
+                    manifests: vec![(
+                        ReleaseChannel::Canary,
+                        signed_with(&installed, &release_signing_key()),
+                    )],
+                }
+            } else {
+                published(&versioned("0.4.11", 10))
+            };
+            run_rollback(home.path(), &world, &host).expect("rollback");
+
+            assert_eq!(offered(home.path(), &newer), !served);
+            assert_skipped(home.path(), &world, &published(&installed));
+        }
+    }
+
+    #[test]
+    fn a_declined_build_survives_an_older_updater_rewriting_the_stored_release() {
+        let (home, world) = declined_home(&versioned("0.4.10-canary.1", 9));
+        fs::write(
+            installed_release_path(home.path()),
+            r#"{"channel":"stable","platformVersion":"0.4.9","declinedPlatformVersion":"0.4.10-canary.1"}"#,
+        )
+        .unwrap();
+
+        assert_skipped(home.path(), &world, &published(&versioned("0.4.10", 9)));
+        assert_eq!(
+            fs::read_to_string(home.path().join("updater/declined-platform-version")).unwrap(),
+            "0.4.10-canary.1\n"
         );
     }
 }

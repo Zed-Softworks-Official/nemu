@@ -1,21 +1,13 @@
 import type { Device, Room } from '@nemu/protocol'
-import { cn } from '@nemu/ui/lib/utils'
-import { Minus, Plus } from 'lucide-react-native'
+import { useRouter, useSegments } from 'expo-router'
+import { ChevronRight } from 'lucide-react-native'
 import { useState } from 'react'
-import {
-    ActivityIndicator,
-    Pressable,
-    ScrollView,
-    Switch,
-    View,
-} from 'react-native'
+import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native'
 
-import {
-    DeviceSetupPanel,
-    NewRoomForm,
-    RoomRenameForm,
-} from '~/components/device-setup'
+import { useControllerSheet } from '~/components/controller-sheet'
 import { useHomeControl } from '~/components/home-control'
+import { LevelSlider } from '~/components/level-slider'
+import { NativeToggle } from '~/components/native-toggle'
 import { Button } from '~/components/ui/button'
 import { Text } from '~/components/ui/text'
 import type { TrackedCommand } from '~/components/use-command-tracker'
@@ -25,6 +17,12 @@ import {
     controlsForDevice,
     type DeviceControl,
 } from '~/lib/device-control'
+import { sortRooms } from '~/lib/room-presentation'
+import {
+    createRoomSheetHref,
+    deviceSheetHref,
+    roomSheetHref,
+} from '~/lib/tab-routes'
 
 const UNASSIGNED = 'Not in a Room'
 
@@ -87,6 +85,50 @@ export function ConnectionBanner() {
     }
 }
 
+/** Says the Controller was reached but did not return its Devices, and why. */
+export function LoadErrorBanner() {
+    const { devices, loadError, refreshInventory } = useHomeControl()
+    const [retrying, setRetrying] = useState(false)
+    if (loadError === null) return null
+
+    async function retry() {
+        setRetrying(true)
+        await refreshInventory()
+        setRetrying(false)
+    }
+
+    return (
+        <View
+            accessibilityRole="alert"
+            className="gap-3 rounded-sm bg-destructive/10 p-4"
+        >
+            <View className="gap-1">
+                <Text className="font-medium text-foreground">
+                    {devices === undefined
+                        ? 'Devices couldn’t be loaded'
+                        : 'Devices couldn’t be refreshed'}
+                </Text>
+                <Text className="text-muted-foreground text-sm leading-relaxed">
+                    {devices === undefined
+                        ? 'Connected, but the Controller did not return its Devices.'
+                        : 'What you see may be out of date.'}
+                </Text>
+                <Text className="text-muted-foreground text-sm leading-relaxed">
+                    {loadError}
+                </Text>
+            </View>
+            <View className="flex-row">
+                <Button
+                    disabled={retrying}
+                    onPress={retry}
+                    title="Try again"
+                    variant="outline"
+                />
+            </View>
+        </View>
+    )
+}
+
 function Banner({ title, detail }: { title: string; detail: string }) {
     return (
         <View
@@ -113,12 +155,7 @@ export function groupDevicesByRoom(
     devices: readonly Device[],
     rooms: readonly Room[]
 ): Section[] {
-    const sorted = [...rooms].sort(
-        (a, b) =>
-            (a.sortOrder ?? Number.MAX_SAFE_INTEGER) -
-                (b.sortOrder ?? Number.MAX_SAFE_INTEGER) ||
-            a.name.localeCompare(b.name)
-    )
+    const sorted = sortRooms(rooms)
     const roomIds = new Set(sorted.map((room) => room.id))
     const sections: Section[] = sorted.map((room) => ({
         id: room.id,
@@ -141,6 +178,8 @@ export function groupDevicesByRoom(
 
 /** The Home's Devices in their Rooms, the only control grouping. */
 export function RoomsView() {
+    const router = useRouter()
+    const segments = useSegments()
     const { devices, live, rooms, roomsFailed } = useHomeControl()
     // Without Room names a Device with a Room must not be presented as
     // having none. An older Controller does not answer Rooms over Relay.
@@ -160,7 +199,13 @@ export function RoomsView() {
     }
     return (
         <SurfaceBody>
-            <NewRoomForm />
+            <View className="flex-row">
+                <Button
+                    onPress={() => router.push(createRoomSheetHref(segments))}
+                    title="New Room"
+                    variant="outline"
+                />
+            </View>
             {groupDevicesByRoom(devices ?? [], rooms).map((section) => (
                 <RoomSection key={section.id} section={section} />
             ))}
@@ -168,39 +213,40 @@ export function RoomsView() {
     )
 }
 
+/** A Room's name opens its sheet; nothing is edited inline here. */
 function RoomSection({ section }: { section: Section }) {
-    const { live } = useHomeControl()
-    const [renaming, setRenaming] = useState(false)
+    const router = useRouter()
+    const segments = useSegments()
     const { room } = section
+    const title = (
+        <Text
+            accessibilityRole="header"
+            className="min-w-0 flex-1 font-semibold text-foreground text-lg"
+        >
+            {section.title}
+        </Text>
+    )
     return (
         <View
             accessibilityLabel={`Devices in ${section.title}`}
             className="gap-3"
         >
-            <View className="flex-row items-center justify-between gap-3">
-                <Text
-                    accessibilityRole="header"
-                    className="min-w-0 flex-1 font-semibold text-foreground text-lg"
+            {room ? (
+                <Pressable
+                    accessibilityHint="Opens the Room’s Devices and settings"
+                    accessibilityLabel={room.name}
+                    accessibilityRole="button"
+                    className="min-h-11 flex-row items-center gap-3 active:opacity-70"
+                    onPress={() =>
+                        router.push(roomSheetHref(segments, room.id))
+                    }
                 >
-                    {section.title}
-                </Text>
-                {room && !renaming ? (
-                    <Button
-                        accessibilityLabel={`Rename ${room.name}`}
-                        disabled={!live}
-                        onPress={() => setRenaming(true)}
-                        size="sm"
-                        title="Rename"
-                        variant="ghost"
-                    />
-                ) : null}
-            </View>
-            {room && renaming ? (
-                <RoomRenameForm
-                    onClose={() => setRenaming(false)}
-                    room={room}
-                />
-            ) : null}
+                    {title}
+                    <ChevronRight color={colors.mutedForeground} size={18} />
+                </Pressable>
+            ) : (
+                title
+            )}
             {section.devices.length === 0 ? (
                 <Text className="text-muted-foreground text-sm">
                     No Devices in this Room.
@@ -250,14 +296,7 @@ function SurfaceBody({ children }: { children: React.ReactNode }) {
                     />
                 </View>
             ) : null}
-            {loadFailed ? (
-                <Text
-                    accessibilityRole="alert"
-                    className="text-muted-foreground text-sm"
-                >
-                    Connected, but the Controller did not return its Devices.
-                </Text>
-            ) : null}
+            <LoadErrorBanner />
             {devices === undefined &&
             !loadFailed &&
             status.mode !== 'offline' ? (
@@ -265,7 +304,7 @@ function SurfaceBody({ children }: { children: React.ReactNode }) {
             ) : null}
             {live && devices?.length === 0 ? (
                 <Text className="text-muted-foreground text-sm">
-                    This Home has no Devices yet. Add them from the dashboard.
+                    This Home has no Devices yet. Add one from the Devices tab.
                 </Text>
             ) : null}
             {children}
@@ -273,200 +312,233 @@ function SurfaceBody({ children }: { children: React.ReactNode }) {
     )
 }
 
+/**
+ * One Device in a list. Its power toggle sends the on/off Command right
+ * away; the rest of the card opens the Device sheet, which holds every
+ * control and the Device's setup. Nothing is edited inline here.
+ */
 export function DeviceCard({ device }: { device: Device }) {
-    const {
-        capabilities,
-        capabilitiesCurrent,
-        stale,
-        deviceSetupOpen,
-        setDeviceSetupOpen,
-        setSetupState,
-    } = useHomeControl()
-    const settingUp = deviceSetupOpen === device.id
+    const { capabilities, capabilitiesCurrent, commandFor, stale } =
+        useHomeControl()
+    const router = useRouter()
+    const segments = useSegments()
     const controls = controlsForDevice(device)
+    const power = controls.find(
+        (control): control is ControlOf<'toggle'> =>
+            control.kind === 'toggle' && control.key === 'power'
+    )
+    // Levels are set in the Device sheet; the card only shows them.
+    const levels = controls.filter((control) => control.kind === 'level')
     const presented = capabilitiesForDevice(device, capabilities)
 
     return (
-        <View
-            accessibilityLabel={device.name}
-            className="gap-3 rounded-sm border border-border p-4"
-        >
-            <View className="flex-row items-center justify-between gap-3">
-                <Text
-                    className="min-w-0 flex-1 font-medium text-foreground"
-                    numberOfLines={1}
-                >
-                    {device.name}
-                </Text>
-                <Text className="text-muted-foreground text-xs">
-                    {stale
-                        ? 'Last known'
-                        : device.online
-                          ? 'Online'
-                          : 'Device offline'}
-                </Text>
-                <Button
-                    accessibilityLabel={
-                        settingUp
-                            ? `Close setup for ${device.name}`
-                            : `Set up ${device.name}`
+        <View className="rounded-sm border border-border">
+            <View className="flex-row items-center">
+                <Pressable
+                    accessibilityHint="Opens its controls and settings"
+                    accessibilityLabel={device.name}
+                    accessibilityRole="button"
+                    className="min-w-0 flex-1 gap-3 p-4 active:opacity-70"
+                    onPress={() =>
+                        router.push(deviceSheetHref(segments, device.id))
                     }
-                    onPress={() => {
-                        setSetupState(`device:${device.id}`, { phase: 'idle' })
-                        setSetupState(`remove:${device.id}`, { phase: 'idle' })
-                        setDeviceSetupOpen(settingUp ? null : device.id)
-                    }}
-                    size="sm"
-                    title={settingUp ? 'Close' : 'Set up'}
-                    variant="ghost"
-                />
-            </View>
-            {settingUp ? <DeviceSetupPanel device={device} /> : null}
-            {controls.map((control) => (
-                <ControlRow
-                    control={control}
-                    device={device}
-                    key={control.key}
-                />
-            ))}
-            {presented.map((capability) => (
-                <View
-                    className="flex-row items-center justify-between gap-3"
-                    key={capability.id}
                 >
-                    <Text className="min-w-0 flex-1 text-muted-foreground text-sm">
-                        {capability.label}
-                    </Text>
-                    <Text className="text-foreground text-sm">
-                        {capability.reading ?? 'Unavailable'}
-                        {capability.reading && !capabilitiesCurrent
-                            ? ' (last known)'
-                            : ''}
-                    </Text>
+                    <View className="flex-row items-center justify-between gap-3">
+                        <Text
+                            className="min-w-0 flex-1 font-medium text-foreground"
+                            numberOfLines={1}
+                        >
+                            {device.name}
+                        </Text>
+                        <Text className="text-muted-foreground text-xs">
+                            {availabilityLabel(device, stale)}
+                        </Text>
+                    </View>
+                    {levels.map((level) => (
+                        <View
+                            className="flex-row items-center justify-between gap-3"
+                            key={level.key}
+                        >
+                            <Text className="min-w-0 flex-1 text-muted-foreground text-sm">
+                                {level.label}
+                            </Text>
+                            <Text className="text-foreground text-sm">
+                                {level.format(level.value)}
+                            </Text>
+                        </View>
+                    ))}
+                    <CapabilityReadings
+                        capabilities={presented}
+                        current={capabilitiesCurrent}
+                    />
+                </Pressable>
+                {power ? (
+                    <View className="pr-4">
+                        <ToggleInput control={power} device={device} />
+                    </View>
+                ) : null}
+            </View>
+            {power && commandFor(device.id, power.key) ? (
+                <View className="px-4 pb-4">
+                    <ControlStatus control={power} device={device} />
                 </View>
-            ))}
+            ) : null}
         </View>
     )
 }
 
-function ControlRow({
+/** Whether the Device is reachable, or that what is shown is old. */
+export function availabilityLabel(device: Device, stale: boolean): string {
+    if (stale) return 'Last known'
+    return device.online ? 'Online' : 'Device offline'
+}
+
+/** The Device's Capability readings, each marked when it is old. */
+export function CapabilityReadings({
+    capabilities,
+    current,
+}: {
+    capabilities: ReturnType<typeof capabilitiesForDevice>
+    current: boolean
+}) {
+    return capabilities.map((capability) => (
+        <View
+            className="flex-row items-center justify-between gap-3"
+            key={capability.id}
+        >
+            <Text className="min-w-0 flex-1 text-muted-foreground text-sm">
+                {capability.label}
+            </Text>
+            <Text className="text-foreground text-sm">
+                {capability.reading ?? 'Unavailable'}
+                {capability.reading && !current ? ' (last known)' : ''}
+            </Text>
+        </View>
+    ))
+}
+
+/** A labelled control with its Command's progress, as in the Device sheet. */
+export function ControlRow({
     device,
     control,
 }: {
     device: Device
     control: DeviceControl
 }) {
-    const { live, commandFor, sendControl, dismissCommand } = useHomeControl()
-    const command = commandFor(device.id, control.key)
-    const inFlight =
-        command?.phase === 'sending' || command?.phase === 'pending'
-    const canSend = live && device.online
-    const enabled = canSend && !inFlight
-    const name = `${device.name} ${control.label}`
-
+    if (control.kind === 'level') {
+        return <LevelRow control={control} device={device} />
+    }
     return (
         <View className="gap-2">
             <View className="flex-row items-center justify-between gap-3">
                 <Text className="min-w-0 flex-1 text-foreground text-sm">
                     {control.label}
                 </Text>
-                {control.kind === 'toggle' ? (
-                    <Switch
-                        accessibilityLabel={name}
-                        disabled={!enabled}
-                        onValueChange={(desired) =>
-                            sendControl(device.id, control, desired)
-                        }
-                        // The reported value, not the request: a pending
-                        // Command has not changed the Device yet.
-                        value={control.on}
-                    />
-                ) : (
-                    <LevelStepper
-                        control={control}
-                        enabled={enabled}
-                        name={name}
-                        onChange={(desired) =>
-                            sendControl(device.id, control, desired)
-                        }
-                    />
-                )}
+                <ToggleInput control={control} device={device} />
             </View>
-            {command ? (
-                <CommandStatus
-                    canRetry={canSend}
-                    command={command}
-                    control={control}
-                    onDismiss={() => dismissCommand(device.id, control.key)}
-                    onRetry={() =>
-                        sendControl(device.id, control, command.desired)
-                    }
-                />
-            ) : null}
+            <ControlStatus control={control} device={device} />
         </View>
     )
 }
 
-function LevelStepper({
+/**
+ * Sending is allowed only while the Controller is reachable and the Device
+ * online, and one Command per control at a time. Inside a `ControllerSheet`
+ * this follows the sheet's reachability.
+ */
+function useControl(device: Device, control: DeviceControl) {
+    const { commandFor, sendControl, dismissCommand } = useHomeControl()
+    const { reachable } = useControllerSheet()
+    const command = commandFor(device.id, control.key)
+    const inFlight =
+        command?.phase === 'sending' || command?.phase === 'pending'
+    const canSend = reachable && device.online
+    return {
+        command,
+        canSend,
+        inFlight,
+        enabled: canSend && !inFlight,
+        name: `${device.name} ${control.label}`,
+        send: (desired: boolean | number) => {
+            if (canSend) sendControl(device.id, control, desired)
+        },
+        dismiss: () => dismissCommand(device.id, control.key),
+    }
+}
+
+type ControlOf<Kind extends DeviceControl['kind']> = Extract<
+    DeviceControl,
+    { kind: Kind }
+>
+
+function ToggleInput({
+    device,
     control,
-    enabled,
-    name,
-    onChange,
 }: {
-    control: Extract<DeviceControl, { kind: 'level' }>
-    enabled: boolean
-    name: string
-    onChange: (desired: number) => void
+    device: Device
+    control: ControlOf<'toggle'>
 }) {
-    const { value, min, max, step } = control
-    const lower = Math.max(min, value - step)
-    const higher = Math.min(max, value + step)
+    const { enabled, name, send } = useControl(device, control)
     return (
-        <View className="flex-row items-center gap-3">
-            <StepButton
-                disabled={!enabled || lower === value}
-                icon={Minus}
-                label={`Lower ${name}`}
-                onPress={() => onChange(lower)}
+        <NativeToggle
+            disabled={!enabled}
+            label={name}
+            onValueChange={send}
+            // The reported value, not the request: a pending Command has
+            // not changed the Device yet.
+            value={control.on}
+        />
+    )
+}
+
+function LevelRow({
+    device,
+    control,
+}: {
+    device: Device
+    control: ControlOf<'level'>
+}) {
+    const { command, enabled, inFlight, name, send } = useControl(
+        device,
+        control
+    )
+    return (
+        <View className="gap-2">
+            <LevelSlider
+                control={control}
+                enabled={enabled}
+                name={name}
+                onRelease={send}
+                // While a Command is on its way the slider keeps the chosen
+                // value. Any outcome returns it to what the Device reports.
+                value={
+                    inFlight && command
+                        ? (command.desired as number)
+                        : control.value
+                }
             />
-            <Text className="min-w-14 text-center text-foreground text-sm">
-                {control.format(value)}
-            </Text>
-            <StepButton
-                disabled={!enabled || higher === value}
-                icon={Plus}
-                label={`Raise ${name}`}
-                onPress={() => onChange(higher)}
-            />
+            <ControlStatus control={control} device={device} />
         </View>
     )
 }
 
-function StepButton({
-    label,
-    icon: Icon,
-    disabled,
-    onPress,
+function ControlStatus({
+    device,
+    control,
 }: {
-    label: string
-    icon: typeof Plus
-    disabled: boolean
-    onPress: () => void
+    device: Device
+    control: DeviceControl
 }) {
+    const { command, canSend, send, dismiss } = useControl(device, control)
+    if (!command) return null
     return (
-        <Pressable
-            accessibilityLabel={label}
-            accessibilityRole="button"
-            accessibilityState={{ disabled }}
-            className={cn(
-                'size-11 items-center justify-center rounded-sm border border-border active:bg-muted',
-                disabled && 'opacity-50'
-            )}
-            disabled={disabled}
-            onPress={onPress}
-        >
-            <Icon color={colors.foreground} size={18} />
-        </Pressable>
+        <CommandStatus
+            canRetry={canSend}
+            command={command}
+            control={control}
+            onDismiss={dismiss}
+            onRetry={() => send(command.desired)}
+        />
     )
 }
 

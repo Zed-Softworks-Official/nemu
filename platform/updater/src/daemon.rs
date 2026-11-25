@@ -39,7 +39,11 @@ pub enum Request {
     Status,
     /// Cheap: reads the maintenance flag only. Core asks before each Command.
     Maintenance,
-    Install,
+    Install {
+        /// The Release an Owner confirmed. A Core that predates it sends none.
+        #[serde(default, rename = "platformVersion")]
+        platform_version: Option<String>,
+    },
     Rollback,
     SwitchChannel {
         channel: ReleaseChannel,
@@ -78,7 +82,7 @@ impl Response {
 pub trait UpdaterOps: Send + Sync {
     fn status(&self) -> Result<ReleaseStatus, String>;
     fn maintenance_mode(&self) -> bool;
-    fn start_install(&self) -> Result<(), String>;
+    fn start_install(&self, platform_version: Option<&str>) -> Result<(), String>;
     fn start_rollback(&self) -> Result<(), String>;
     fn switch_channel(&self, channel: ReleaseChannel) -> Result<SwitchOutcome, String>;
 }
@@ -97,10 +101,12 @@ pub fn handle_line(line: &str, ops: &dyn UpdaterOps) -> Response {
             ok: true,
             maintenance: ops.maintenance_mode(),
         }),
-        Request::Install => ops.start_install().map(|()| Response::Started {
-            ok: true,
-            started: true,
-        }),
+        Request::Install { platform_version } => ops
+            .start_install(platform_version.as_deref())
+            .map(|()| Response::Started {
+                ok: true,
+                started: true,
+            }),
         Request::Rollback => ops.start_rollback().map(|()| Response::Started {
             ok: true,
             started: true,
@@ -253,17 +259,23 @@ impl UpdaterOps for HostOps {
     fn status(&self) -> Result<ReleaseStatus, String> {
         let manifests = crate::host::RemoteManifestHost::from_env(&self.controller_dir);
         let key = crate::host::load_release_key(&self.controller_dir);
-        crate::status(&self.controller_dir, &manifests, key.as_ref())
-            .map_err(|error| error.to_string())
+        crate::status(
+            &self.controller_dir,
+            &manifests,
+            key.as_ref(),
+            crate::UpdaterArch::from_host(),
+        )
+        .map_err(|error| error.to_string())
     }
 
     fn maintenance_mode(&self) -> bool {
         crate::maintenance_mode(&self.controller_dir)
     }
 
-    fn start_install(&self) -> Result<(), String> {
-        self.in_background("install", |dir| {
-            crate::host::run_install(dir)
+    fn start_install(&self, platform_version: Option<&str>) -> Result<(), String> {
+        let confirmed = platform_version.map(str::to_string);
+        self.in_background("install", move |dir| {
+            crate::host::run_install(dir, confirmed.as_deref())
                 .map(|()| true)
                 .map_err(|error| error.to_string())
         })
@@ -286,7 +298,7 @@ impl UpdaterOps for HostOps {
         })
         .map_err(|error| error.to_string())?;
         if saved.installed {
-            self.start_install()?;
+            self.start_install(None)?;
         }
         Ok(SwitchOutcome {
             channel: saved.channel,
@@ -302,7 +314,7 @@ mod tests {
     use std::sync::{Arc, Mutex};
 
     use super::{Response, SwitchOutcome, UpdaterOps, bind, handle_line, serve};
-    use crate::{ReleaseChannel, ReleaseStatus};
+    use crate::{AvailableRelease, ReleaseChannel, ReleaseStatus};
 
     #[derive(Default)]
     struct Fake {
@@ -314,6 +326,10 @@ mod tests {
             platform_version: "0.1.1".to_string(),
             channel: ReleaseChannel::Stable,
             newer_release_available: true,
+            available_release: Some(AvailableRelease {
+                platform_version: "0.1.2".to_string(),
+                release_notes: Some("- Faster pairing".to_string()),
+            }),
             maintenance_mode: false,
             rollback_snapshot_available: false,
             rollback_stuck: false,
@@ -331,8 +347,12 @@ mod tests {
             true
         }
 
-        fn start_install(&self) -> Result<(), String> {
-            self.calls.lock().unwrap().push("install".into());
+        fn start_install(&self, platform_version: Option<&str>) -> Result<(), String> {
+            let call = match platform_version {
+                Some(version) => format!("install:{version}"),
+                None => "install".to_string(),
+            };
+            self.calls.lock().unwrap().push(call);
             Ok(())
         }
 
@@ -379,6 +399,13 @@ mod tests {
             }
         );
         assert_eq!(
+            handle_line(r#"{"op":"install","platformVersion":"0.1.2"}"#, &fake),
+            Response::Started {
+                ok: true,
+                started: true
+            }
+        );
+        assert_eq!(
             handle_line(r#"{"op":"rollback"}"#, &fake),
             Response::Error {
                 ok: false,
@@ -401,9 +428,28 @@ mod tests {
                 "status",
                 "maintenance",
                 "install",
+                "install:0.1.2",
                 "rollback",
                 "switch:canary"
             ]
+        );
+    }
+
+    /// Core sends the confirmed version to Updaters already installed on
+    /// Homes. This is the request type they run.
+    #[test]
+    fn an_updater_that_predates_the_confirmed_version_ignores_it() {
+        #[derive(serde::Deserialize, Debug, PartialEq)]
+        #[serde(tag = "op", rename_all = "camelCase")]
+        enum PublishedRequest {
+            Install,
+        }
+        assert_eq!(
+            serde_json::from_str::<PublishedRequest>(
+                r#"{"op":"install","platformVersion":"0.1.2"}"#
+            )
+            .unwrap(),
+            PublishedRequest::Install
         );
     }
 
@@ -448,6 +494,14 @@ mod tests {
         assert_eq!(value["ok"], true);
         assert_eq!(value["status"]["platformVersion"], "0.1.1");
         assert_eq!(value["status"]["channel"], "stable");
+        assert_eq!(
+            value["status"]["availableRelease"]["platformVersion"],
+            "0.1.2"
+        );
+        assert_eq!(
+            value["status"]["availableRelease"]["releaseNotes"],
+            "- Faster pairing"
+        );
 
         let mode = std::fs::metadata(&socket).unwrap();
         assert_eq!(

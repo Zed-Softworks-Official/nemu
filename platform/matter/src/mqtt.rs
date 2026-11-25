@@ -30,6 +30,12 @@ pub enum IncomingMessage {
         device_id: String,
         payload: Value,
     },
+    /// The Device read back what a set asked for, so it is confirmed.
+    SetConfirmed {
+        node_id: u64,
+        device_id: String,
+        attributes: Vec<(String, Value)>,
+    },
     AttributeChange {
         node_id: u64,
         endpoint: u16,

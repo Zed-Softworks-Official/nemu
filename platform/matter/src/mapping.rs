@@ -516,7 +516,55 @@ pub fn descriptor_type(kind: EndpointKind) -> &'static str {
     }
 }
 
-fn synthesize_exposes(kind: EndpointKind) -> Value {
+/// LevelControl MinLevel and MaxLevel.
+const ATTR_MIN_LEVEL: u32 = 2;
+const ATTR_MAX_LEVEL: u32 = 3;
+/// ColorControl ColorTempPhysicalMinMireds and ColorTempPhysicalMaxMireds.
+const ATTR_COLOR_TEMP_MIN: u32 = 0x400B;
+const ATTR_COLOR_TEMP_MAX: u32 = 0x400C;
+
+/// A change to one of these changes the descriptor's `exposes`.
+pub fn is_limit_attribute(cluster: u32, attribute: u32) -> bool {
+    if cluster == u32::from(CLUSTER_LEVEL_CONTROL) {
+        return matches!(attribute, ATTR_MIN_LEVEL | ATTR_MAX_LEVEL);
+    }
+    cluster == u32::from(CLUSTER_COLOR_CONTROL)
+        && matches!(attribute, ATTR_COLOR_TEMP_MIN | ATTR_COLOR_TEMP_MAX)
+}
+
+fn numeric_expose(property: &str, min: u64, max: u64) -> Value {
+    json!({
+        "type": "numeric",
+        "name": property,
+        "property": property,
+        "access": 7,
+        "value_min": min,
+        "value_max": max
+    })
+}
+
+/// The endpoint's level range. The optional limit attributes default to the
+/// cluster's full 0-254.
+fn brightness_expose(attributes: &Attributes, endpoint: u16) -> Value {
+    let limit = |id| attr(attributes, endpoint, CLUSTER_LEVEL_CONTROL, id).and_then(Value::as_u64);
+    numeric_expose(
+        "brightness",
+        limit(ATTR_MIN_LEVEL).unwrap_or(0),
+        limit(ATTR_MAX_LEVEL).map_or(254, |max| max.min(254)),
+    )
+}
+
+/// The endpoint's color temperature range in mireds, when it reports both ends.
+fn color_temp_expose(attributes: &Attributes, endpoint: u16) -> Option<Value> {
+    let limit = |id| attr(attributes, endpoint, CLUSTER_COLOR_CONTROL, id).and_then(Value::as_u64);
+    Some(numeric_expose(
+        "color_temp",
+        limit(ATTR_COLOR_TEMP_MIN)?,
+        limit(ATTR_COLOR_TEMP_MAX)?,
+    ))
+}
+
+fn synthesize_exposes(device: &EndpointDevice, attributes: &Attributes) -> Value {
     let binary = json!({
         "type": "binary",
         "name": "state",
@@ -525,27 +573,28 @@ fn synthesize_exposes(kind: EndpointKind) -> Value {
         "value_on": "ON",
         "value_off": "OFF"
     });
-    match kind {
-        EndpointKind::Light => json!([{
-            "type": "light",
-            "features": [
-                binary,
-                {
-                    "type": "numeric",
-                    "name": "brightness",
-                    "property": "brightness",
-                    "access": 7,
-                    "value_min": 0,
-                    "value_max": 254
-                }
-            ]
-        }]),
-        EndpointKind::Strip => json!([{ "type": "strip", "features": [binary] }]),
-        EndpointKind::Switch => json!([{ "type": "switch", "features": [binary] }]),
+    let endpoint = device.endpoint_id;
+    let has_level = attr(attributes, endpoint, CLUSTER_LEVEL_CONTROL, 0).is_some();
+    let mut features = vec![binary];
+    match device.kind {
+        EndpointKind::Light => {
+            features.push(brightness_expose(attributes, endpoint));
+            features.extend(color_temp_expose(attributes, endpoint));
+        }
+        // A dimmable plug is a switch with a level.
+        EndpointKind::Switch if has_level => {
+            features.push(brightness_expose(attributes, endpoint));
+        }
+        EndpointKind::Switch | EndpointKind::Strip => {}
     }
+    json!([{ "type": descriptor_type(device.kind), "features": features }])
 }
 
-pub fn device_descriptor(device: &EndpointDevice, friendly_name: &str) -> Value {
+pub fn device_descriptor(
+    device: &EndpointDevice,
+    friendly_name: &str,
+    attributes: &Attributes,
+) -> Value {
     json!({
         "external_id": device.id,
         "ieee_address": device.id,
@@ -555,7 +604,7 @@ pub fn device_descriptor(device: &EndpointDevice, friendly_name: &str) -> Value 
         "definition": {
             "model": device.model,
             "description": device.description,
-            "exposes": synthesize_exposes(device.kind)
+            "exposes": synthesize_exposes(device, attributes)
         }
     })
 }
@@ -667,56 +716,71 @@ pub fn outlet_id_from_set(payload: &Map<String, Value>) -> Option<u16> {
     }
 }
 
-/// Apply a set payload to cached attributes so MQTT state can update without a
-/// blocking wildcard read. Subscriptions confirm the device afterwards.
-pub fn apply_set_to_attributes(
-    attributes: &mut Attributes,
+/// The attribute values the Device reports once `actions` have taken effect,
+/// starting from what it reported before. Nothing publishes these: they are
+/// only compared with what the Device reads back (ADR-0015).
+pub fn requested_attributes(
+    before: &Attributes,
     endpoints: &[u16],
     actions: &[DeviceCommandAction],
-) {
-    for endpoint in endpoints {
+) -> Attributes {
+    let mut requested = Attributes::new();
+    let mut request = |endpoint: u16, cluster: u16, attribute: u32, value: Value| {
+        requested.insert(attr_key(endpoint, cluster, attribute), value);
+    };
+    for &endpoint in endpoints {
         for action in actions {
             match &action.command {
-                CommandName::On => {
-                    attributes.insert(format!("{endpoint}/{CLUSTER_ON_OFF}/0"), json!(true));
-                }
-                CommandName::Off => {
-                    attributes.insert(format!("{endpoint}/{CLUSTER_ON_OFF}/0"), json!(false));
-                }
+                CommandName::On => request(endpoint, CLUSTER_ON_OFF, 0, json!(true)),
+                CommandName::Off => request(endpoint, CLUSTER_ON_OFF, 0, json!(false)),
                 CommandName::Toggle => {
-                    let key = format!("{endpoint}/{CLUSTER_ON_OFF}/0");
-                    let on = attributes
-                        .get(&key)
+                    let on = attr(before, endpoint, CLUSTER_ON_OFF, 0)
                         .and_then(Value::as_bool)
                         .unwrap_or(false);
-                    attributes.insert(key, json!(!on));
+                    request(endpoint, CLUSTER_ON_OFF, 0, json!(!on));
                 }
                 CommandName::MoveToLevelWithOnOff { level } => {
-                    attributes.insert(
-                        format!("{endpoint}/{CLUSTER_LEVEL_CONTROL}/0"),
-                        json!(u64::from(*level)),
-                    );
-                    attributes.insert(format!("{endpoint}/{CLUSTER_ON_OFF}/0"), json!(*level > 0));
+                    let level = u64::from(*level);
+                    request(endpoint, CLUSTER_LEVEL_CONTROL, 0, json!(level));
+                    // With on/off, moving to the minimum level turns the light off.
+                    let off_at = attr(before, endpoint, CLUSTER_LEVEL_CONTROL, ATTR_MIN_LEVEL)
+                        .and_then(Value::as_u64)
+                        .unwrap_or(0);
+                    request(endpoint, CLUSTER_ON_OFF, 0, json!(level > off_at));
                 }
                 CommandName::MoveToColorTemperature { mireds } => {
-                    attributes.insert(
-                        format!("{endpoint}/{CLUSTER_COLOR_CONTROL}/7"),
+                    request(
+                        endpoint,
+                        CLUSTER_COLOR_CONTROL,
+                        7,
                         json!(u64::from(*mireds)),
                     );
                 }
                 CommandName::MoveToColor { color_x, color_y } => {
-                    attributes.insert(
-                        format!("{endpoint}/{CLUSTER_COLOR_CONTROL}/3"),
+                    request(
+                        endpoint,
+                        CLUSTER_COLOR_CONTROL,
+                        3,
                         json!(u64::from(*color_x)),
                     );
-                    attributes.insert(
-                        format!("{endpoint}/{CLUSTER_COLOR_CONTROL}/4"),
+                    request(
+                        endpoint,
+                        CLUSTER_COLOR_CONTROL,
+                        4,
                         json!(u64::from(*color_y)),
                     );
                 }
             }
         }
     }
+    requested
+}
+
+/// Whether the Device reads back every requested value.
+pub fn confirms_request(requested: &Attributes, read: &Attributes) -> bool {
+    requested
+        .iter()
+        .all(|(key, value)| read.get(key) == Some(value))
 }
 
 pub fn commands_for_set(payload: &Map<String, Value>) -> (Vec<DeviceCommandAction>, Vec<String>) {
@@ -801,7 +865,13 @@ pub fn commands_for_set(payload: &Map<String, Value>) -> (Vec<DeviceCommandActio
     for key in payload.keys() {
         if !matches!(
             key.as_str(),
-            "state" | "brightness" | "color_temp" | "color" | "transition" | "outlet"
+            "state"
+                | "brightness"
+                | "color_temp"
+                | "color"
+                | "transition"
+                | "outlet"
+                | "transaction"
         ) {
             ignored.push(key.clone());
         }
@@ -1056,10 +1126,69 @@ mod tests {
     #[test]
     fn device_descriptor_is_z2m_shaped() {
         let device = &map_node("17", &strip_attrs())[0];
-        let descriptor = device_descriptor(device, "Kitchen strip");
+        let descriptor = device_descriptor(device, "Kitchen strip", &strip_attrs());
         assert_eq!(descriptor["type"], "strip");
         assert_eq!(descriptor["external_id"], "17");
         assert_eq!(descriptor["definition"]["exposes"][0]["type"], "strip");
+    }
+
+    fn features(attributes: &Attributes) -> Value {
+        let device = &map_node("9", attributes)[0];
+        device_descriptor(device, "Bulb", attributes)["definition"]["exposes"][0]["features"]
+            .clone()
+    }
+
+    #[test]
+    fn descriptor_carries_the_bulbs_own_limits() {
+        let mut attributes = bulb_attrs();
+        attributes.insert("1/8/2".into(), json!(1));
+        attributes.insert("1/8/3".into(), json!(200));
+        attributes.insert("1/768/16395".into(), json!(200));
+        attributes.insert("1/768/16396".into(), json!(400));
+        let features = features(&attributes);
+        assert_eq!(features[1]["property"], "brightness");
+        assert_eq!(features[1]["value_min"], 1);
+        assert_eq!(features[1]["value_max"], 200);
+        assert_eq!(features[2]["property"], "color_temp");
+        assert_eq!(features[2]["value_min"], 200);
+        assert_eq!(features[2]["value_max"], 400);
+    }
+
+    #[test]
+    fn unreported_limits_use_the_full_level_range_and_no_color_range() {
+        let features = features(&bulb_attrs());
+        assert_eq!(features[1]["value_min"], 0);
+        assert_eq!(features[1]["value_max"], 254);
+        assert_eq!(features.as_array().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn a_dimmable_plug_exposes_its_level_range() {
+        let attributes = attrs(&[
+            ("1/29/0", device_types(&[DEVICE_TYPE_DIMMABLE_PLUG])),
+            ("1/6/0", json!(true)),
+            ("1/8/0", json!(180)),
+            ("1/8/3", json!(250)),
+        ]);
+        assert_eq!(features(&attributes)[1]["value_max"], 250);
+    }
+
+    #[test]
+    fn limit_attributes() {
+        assert!(is_limit_attribute(8, 2));
+        assert!(is_limit_attribute(768, 0x400C));
+        assert!(!is_limit_attribute(8, 0));
+        assert!(!is_limit_attribute(6, 2));
+    }
+
+    #[test]
+    fn moving_to_the_minimum_level_turns_the_light_off() {
+        let mut attributes = bulb_attrs();
+        attributes.insert("1/8/2".into(), json!(1));
+        let payload = json!({ "brightness": 1 }).as_object().unwrap().clone();
+        let (actions, _) = commands_for_set(&payload);
+        let requested = requested_attributes(&attributes, &[1], &actions);
+        assert_eq!(requested.get("1/6/0"), Some(&json!(false)));
     }
 
     #[test]
@@ -1106,13 +1235,26 @@ mod tests {
     }
 
     #[test]
-    fn apply_set_updates_on_off() {
-        let mut attributes = Attributes::new();
-        attributes.insert("1/6/0".into(), json!(true));
-        let payload = json!({ "state": "OFF" }).as_object().unwrap().clone();
-        let (actions, _) = commands_for_set(&payload);
-        apply_set_to_attributes(&mut attributes, &[1], &actions);
-        assert_eq!(attributes.get("1/6/0"), Some(&json!(false)));
+    fn only_a_matching_read_back_confirms_a_request() {
+        let before = attrs(&[("1/6/0", json!(true)), ("1/8/0", json!(254))]);
+        let payload = json!({ "state": "OFF", "transaction": "cmd-1" })
+            .as_object()
+            .unwrap()
+            .clone();
+        let (actions, ignored) = commands_for_set(&payload);
+        assert!(ignored.is_empty());
+        let requested = requested_attributes(&before, &[1], &actions);
+        assert_eq!(requested, attrs(&[("1/6/0", json!(false))]));
+
+        assert!(
+            !confirms_request(&requested, &before),
+            "the old value does not confirm the request"
+        );
+        assert!(!confirms_request(&requested, &Attributes::new()));
+        assert!(confirms_request(
+            &requested,
+            &attrs(&[("1/6/0", json!(false)), ("1/8/0", json!(254))])
+        ));
     }
 
     #[test]

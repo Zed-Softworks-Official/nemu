@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { deviceLimitsSchema } from './device-limits.ts'
 
 export const deviceStateSchema = z.record(z.string(), z.unknown())
 export type DeviceState = z.infer<typeof deviceStateSchema>
@@ -18,6 +19,8 @@ export const deviceSchema = z.object({
     externalId: z.string().optional(),
     /** Components assigned to a Room other than the Device's, by Component ID. */
     componentRooms: z.record(z.string(), z.string()).optional(),
+    /** The Device's own value limits, when it reports any. */
+    limits: deviceLimitsSchema.optional().catch(undefined),
     state: deviceStateSchema
         .nullish()
         .transform((value): DeviceState | undefined => value ?? undefined),

@@ -13,6 +13,7 @@ mod api;
 mod audit;
 pub mod capabilities;
 mod commands;
+mod commissioning;
 mod config;
 mod crypto;
 mod db;

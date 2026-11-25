@@ -10,6 +10,7 @@ import type {
     Device,
     DeviceCommand,
     DeviceEvent,
+    HealthSummary,
     HistoryQuery,
     HistoryQueryRead,
     HomeMeterDesignation,
@@ -25,6 +26,7 @@ import type {
     RenameRoomRequest,
     Room,
     SaveMatterWifiRequest,
+    SessionResponse,
     SwitchReleaseChannelResponse,
     UpdateStatusResponse,
 } from '@nemu/protocol'
@@ -53,16 +55,17 @@ export interface ControllerTransport {
     /** Fires after a dropped LAN socket opens again. */
     onSocketReopen?(cb: () => void): () => void
     permitJoin?(seconds: number): Promise<PermitJoinResponse>
-    /** Matter commissioning. LAN transport only, same policy as permitJoin. */
+    /** Matter commissioning, over LAN or Relay (ADR-0034). */
+    /** LAN only, like Matter Wi-Fi: the Relay transport has neither. */
     commissionMatter?(request: CommissionRequest): Promise<CommissionResponse>
-    /** Abort in-flight Matter commissioning. LAN transport only. */
+    /** Abort in-flight Matter commissioning. */
     cancelMatterCommission?(): Promise<CommissionResponse>
     getMatterWifi?(): Promise<MatterWifiResponse>
     saveMatterWifi?(request: SaveMatterWifiRequest): Promise<MatterWifiResponse>
     getRooms?(): Promise<Room[]>
     createRoom?(request: CreateRoomRequest): Promise<Room>
     patchRoom?(roomId: string, patch: PatchRoomRequest): Promise<Room>
-    deleteRoom?(roomId: string): Promise<void>
+    deleteRoom?(roomId: string, destinationRoomId: string | null): Promise<void>
     patchDevice?(deviceId: string, patch: PatchDeviceRequest): Promise<Device>
     patchOutlet?(
         deviceId: string,
@@ -86,11 +89,15 @@ export interface ControllerTransport {
     leaveHome?(): Promise<void>
     bootstrapOwner?(request: BootstrapOwnerRequest): Promise<HouseholdMember>
     getReleaseStatus?(): Promise<UpdateStatusResponse>
-    installRelease?(): Promise<ApplyUpdateResponse>
+    getSession?(): Promise<SessionResponse>
+    /** With `platformVersion`, no other Release is installed. */
+    installRelease?(platformVersion?: string): Promise<ApplyUpdateResponse>
     rollbackRelease?(): Promise<ApplyUpdateResponse>
     switchReleaseChannel?(
         channel: ReleaseChannel
     ): Promise<SwitchReleaseChannelResponse>
+    /** Owners get Controller details; Members get availability only. */
+    getHealthSummary?(): Promise<HealthSummary>
 }
 
 export interface ControllerTransport {
@@ -104,7 +111,7 @@ export interface ControllerTransport {
     getRooms?(): Promise<Room[]>
     createRoom?(request: CreateRoomRequest): Promise<Room>
     patchRoom?(roomId: string, patch: PatchRoomRequest): Promise<Room>
-    deleteRoom?(roomId: string): Promise<void>
+    deleteRoom?(roomId: string, destinationRoomId: string | null): Promise<void>
     patchDevice?(deviceId: string, patch: PatchDeviceRequest): Promise<Device>
     patchOutlet?(
         deviceId: string,

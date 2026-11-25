@@ -11,6 +11,7 @@ use uuid::Uuid;
 use crate::config::Protocol;
 use crate::db::models::{Device, NewDevice, UpdateDevice};
 use crate::db::schema::devices;
+use crate::devices::limits::{DeviceLimits, limits_from_descriptor};
 use crate::devices::setup_store;
 use crate::diagnostics::{self, DiagnosticKind, DiagnosticWrite};
 use crate::events::{DeviceEvent, DeviceResource};
@@ -34,6 +35,8 @@ pub struct DeviceRegistry {
     by_id: RwLock<HashMap<Uuid, Device>>,
     /// Component Room assignments that differ from the Device's Room.
     component_rooms: RwLock<HashMap<Uuid, BTreeMap<String, Uuid>>>,
+    /// Value limits from each bridge's inventory. Rebuilt on every sync.
+    limits: RwLock<HashMap<Uuid, DeviceLimits>>,
 }
 
 impl DeviceRegistry {
@@ -232,11 +235,12 @@ impl DeviceRegistry {
                 .map_err(|e| e.to_string())?
                 .map_err(|e| e.to_string())?;
 
-            upserted.push(device);
+            upserted.push((device, limits_from_descriptor(desc)));
         }
 
-        for device in upserted {
+        for (device, limits) in upserted {
             self.put(device.clone()).await;
+            self.limits.write().await.insert(device.id, limits);
             // Present on the mesh until availability (or missing state refresh) says otherwise.
             state.state_cache.set_online_if_unknown(device.id, true);
         }
@@ -270,6 +274,7 @@ impl DeviceRegistry {
 
                 self.remove_id(id).await;
                 self.component_rooms.write().await.remove(&id);
+                self.limits.write().await.remove(&id);
                 state.state_cache.remove(id);
                 let capability_device = crate::capabilities::DeviceIdentity {
                     protocol: protocol.as_str().into(),
@@ -382,6 +387,7 @@ impl DeviceRegistry {
 
         let removed = self.remove_id(id).await;
         self.component_rooms.write().await.remove(&id);
+        self.limits.write().await.remove(&id);
         state.state_cache.remove(id);
         let capability_device = crate::capabilities::DeviceIdentity {
             protocol: protocol.as_str().into(),
@@ -473,6 +479,9 @@ impl DeviceRegistry {
                 .iter()
                 .map(|(component_id, room_id)| (component_id.clone(), room_id.to_string()))
                 .collect();
+        }
+        if let Some(limits) = self.limits.read().await.get(&device.id) {
+            resource.limits = *limits;
         }
         resource
     }

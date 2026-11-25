@@ -6,12 +6,14 @@
  * `ControllerConnection` (or `ControllerProvider`) and the real LAN-then-Relay
  * selection runs against scripted reachability, credentials, Devices, Rooms,
  * events, Command results, Device and Room setup (with Membership and
- * unsupported-Controller rejections), and LAN-only commissioning with
- * progress events. Nothing touches the network.
+ * unsupported-Controller rejections), and commissioning over LAN and Relay
+ * with progress events. Nothing touches the network.
  */
 import {
     ApiError,
+    type ApplyUpdateResponse,
     type AssignRoomRequest,
+    type ClientToken,
     type CommandResult,
     type CommissionRequest,
     type CommissionResponse,
@@ -19,9 +21,11 @@ import {
     type Device,
     type DeviceCommand,
     type DeviceEvent,
+    type HealthSummary,
     type HistoryQuery,
     type HistoryQueryRead,
     type HomeMeterDesignation,
+    type HouseholdMember,
     type IdentifyResponse,
     type MatterWifiResponse,
     type PairResponse,
@@ -31,12 +35,16 @@ import {
     type RenameDeviceRequest,
     type RenameRoomRequest,
     type Room,
-    type RoomNotEmptyDetails,
+    type SaveMatterWifiRequest,
     type SessionMintResult,
+    type SessionResponse,
+    type SessionRole,
+    type UpdateStatusResponse,
 } from '@nemu/protocol'
 import type { ControllerConnectors } from './connection.ts'
 import type { ProbeResult } from './discovery.ts'
 import type { GetToken } from './http.ts'
+import type { ReleaseUpdateKind } from './release-update.ts'
 import type { ControllerTransport } from './transports/types.ts'
 
 export type FakeControllerOptions = {
@@ -56,9 +64,20 @@ export type FakeControllerOptions = {
     rooms?: Room[]
     /** The designated Home meter, or null when none is set. */
     homeMeter?: HomeMeterDesignation | null
+    /** This Membership's role. Defaults to `member`. */
+    role?: SessionRole
 }
 
 type TransportMode = 'lan' | 'relay'
+
+/** Readings behind the fake Controller health summary. */
+export type FakeHealthReadings = {
+    mqtt: boolean
+    zigbee: boolean
+    matter: boolean
+    database: boolean
+    relayConnected: boolean
+}
 
 export class FakeController {
     readonly controllerId: string
@@ -79,6 +98,8 @@ export class FakeController {
         query: HistoryQuery
         via: TransportMode
     }> = []
+    /** False when the Controller is reached but fails to return its Devices. */
+    devicesAvailable = true
     /** Set false to act as a Controller that cannot answer a Rooms request. */
     roomsAvailable = true
     /** Override to script Command outcomes. */
@@ -113,11 +134,48 @@ export class FakeController {
     matterCommissioning: CommissionRequest | null = null
     /** Wi-Fi the Controller has saved for Matter commissioning. */
     matterWifi: MatterWifiResponse = { configured: false }
-    /** Commissioning requests that reached this Controller (LAN only). */
+    /** Commissioning requests that reached this Controller. */
     readonly commissioningRequests: Array<{
         type: string
         via: TransportMode
     }> = []
+    /**
+     * Audit log entries for commissioning started over Relay, as Core writes
+     * them: the protocol only, never a Device identifier.
+     */
+    readonly relayCommissioningAudit: Array<{ protocol: 'zigbee' }> = []
+    /** Household members the Controller lists. */
+    members: HouseholdMember[] = []
+    /** Access Clients the Controller lists. */
+    accessClients: ClientToken[] = []
+    /** Installed Release status, or null when the Controller cannot read it. */
+    releaseStatus: UpdateStatusResponse | null = null
+
+    /** This Membership's role, reported by `getSession` over LAN and Relay. */
+    role: SessionRole
+    /** Scripted service and Controller readings for the health summary. */
+    health: FakeHealthReadings = {
+        mqtt: true,
+        zigbee: true,
+        matter: true,
+        database: true,
+        relayConnected: true,
+    }
+    /** Transports that carried a health summary request. */
+    readonly healthRequests: TransportMode[] = []
+    /** Transports that carried a Release status read. */
+    readonly releaseStatusRequests: TransportMode[] = []
+    /** The Release a rollback returns to. */
+    previousPlatformVersion = '0.0.0'
+    /** Installs and rollbacks that reached this Controller. */
+    readonly releaseUpdates: Array<{
+        type: ReleaseUpdateKind
+        via: TransportMode
+        /** The confirmed Release, when the client sent one. */
+        platformVersion?: string
+    }> = []
+    private reachableBeforeRestart: { lan: boolean; relay: boolean } | null =
+        null
     private readonly tokens: Set<string>
     private readonly otherMembershipTokens: Set<string>
     private readonly transports = new Set<FakeTransport>()
@@ -140,6 +198,19 @@ export class FakeController {
         this.devices = options.devices ?? []
         this.rooms = options.rooms ?? []
         this.homeMeter = options.homeMeter ?? null
+        this.role = options.role ?? 'member'
+    }
+
+    /** The session's Membership role; an inactive Membership is refused. */
+    session(): SessionResponse {
+        if (!this.membershipActive) {
+            throw new ApiError(
+                'inactive_membership',
+                'This Membership is not active',
+                403
+            )
+        }
+        return { role: this.role }
     }
 
     identity(): IdentifyResponse {
@@ -240,19 +311,188 @@ export class FakeController {
     }
 
     /**
-     * Apply one commissioning request. LAN-only (ADR-0030): over Relay the
-     * Controller answers `unsupported_action`.
+     * Apply one commissioning request with the Controller's rules: active
+     * Owners and Members only, and nothing carrying a Matter pairing code or
+     * Wi-Fi credentials over Relay (ADR-0034, NEM-63). Zigbee commissioning
+     * started over Relay is audited before it starts.
      * @internal
      */
-    commission<T>(type: string, via: TransportMode, apply: () => T): T {
-        if (via === 'relay') {
-            throw new ApiError(
-                'unsupported_action',
-                `${JSON.stringify(type)} is not available over Relay. Adding a Device needs this phone on the Home network.`
-            )
+    commission<T>(
+        type: string,
+        via: TransportMode,
+        apply: () => T,
+        startsZigbee = false
+    ): T {
+        this.refuseLanOnly(type, via)
+        this.requireActiveMembership()
+        if (via === 'relay' && startsZigbee) {
+            this.relayCommissioningAudit.push({ protocol: 'zigbee' })
         }
         this.commissioningRequests.push({ type, via })
         return apply()
+    }
+
+    /** @internal Like Core's `LAN_ONLY_ACTIONS`. */
+    refuseLanOnly(type: string, via: TransportMode): void {
+        const lanOnly = ['commissionMatter', 'getMatterWifi', 'saveMatterWifi']
+        if (via === 'relay' && lanOnly.includes(type)) {
+            throw new ApiError(
+                'unsupported_action',
+                `${JSON.stringify(type)} is not available over Relay. It needs this phone on the Home network.`
+            )
+        }
+    }
+
+    /** @internal */
+    requireActiveMembership(): void {
+        if (!this.membershipActive) {
+            throw new ApiError(
+                'inactive_membership',
+                'This Membership is not active',
+                403
+            )
+        }
+    }
+
+    /**
+     * Release status as Core returns it: any active Owner or Member may read
+     * it; installing and rolling back stay Owner-only.
+     * @internal
+     */
+    readRelease(via: TransportMode): UpdateStatusResponse {
+        if (!this.membershipActive) {
+            throw new ApiError(
+                'inactive_membership',
+                'This Membership is not active',
+                403
+            )
+        }
+        if (!this.releaseStatus) {
+            throw new ApiError(
+                'updater_unavailable',
+                'The Updater is unavailable',
+                503
+            )
+        }
+        this.releaseStatusRequests.push(via)
+        return structuredClone(this.releaseStatus)
+    }
+
+    /**
+     * Starts an install or rollback as Core does: Owners only. The Home
+     * enters maintenance and answers; it restarts on `restart()`.
+     * @internal
+     */
+    startReleaseUpdate(
+        type: ReleaseUpdateKind,
+        via: TransportMode,
+        platformVersion?: string
+    ): ApplyUpdateResponse {
+        this.requireActiveMembership()
+        if (this.role !== 'owner') {
+            throw new ApiError(
+                'owner_required',
+                'Only the home owner can do that',
+                403
+            )
+        }
+        const release = this.requireReleaseStatus()
+        const available = release.availableRelease?.platformVersion
+        if (platformVersion !== undefined && platformVersion !== available) {
+            throw new ApiError(
+                'release_changed',
+                'A different Release is available now. Check it before installing.',
+                409
+            )
+        }
+        this.releaseUpdates.push({ type, via, platformVersion })
+        release.maintenanceMode = true
+        return { started: true }
+    }
+
+    /** The Controller restarts: nothing answers over LAN or Relay. */
+    restart(): void {
+        this.reachableBeforeRestart ??= {
+            lan: this.lanReachable,
+            relay: this.relayReachable,
+        }
+        this.goOffline()
+    }
+
+    /** The Controller is back, on the transports it answered before. */
+    finishRestart(): void {
+        if (!this.reachableBeforeRestart) return
+        this.lanReachable = this.reachableBeforeRestart.lan
+        this.relayReachable = this.reachableBeforeRestart.relay
+        this.reachableBeforeRestart = null
+    }
+
+    /**
+     * Ends the update. A failed install returns to the Release it replaced,
+     * which stays available, as on a Home whose health gate failed.
+     */
+    finishReleaseUpdate(
+        outcome: 'installed' | 'rolledBack' | 'notApplied' | 'rollbackStuck'
+    ): void {
+        const release = this.requireReleaseStatus()
+        const type = this.releaseUpdates.at(-1)?.type
+        if (outcome === 'installed') {
+            this.previousPlatformVersion = release.platformVersion
+            release.platformVersion =
+                release.availableRelease?.platformVersion ?? 'unknown'
+            release.newerReleaseAvailable = false
+            release.availableRelease = null
+        }
+        if (outcome === 'rolledBack' && type === 'rollback') {
+            release.platformVersion = this.previousPlatformVersion
+        }
+        if (outcome !== 'notApplied') release.rollbackSnapshotAvailable = true
+        release.rollbackStuck = outcome === 'rollbackStuck'
+        release.maintenanceMode = outcome === 'rollbackStuck'
+        this.finishRestart()
+    }
+
+    private requireReleaseStatus(): UpdateStatusResponse {
+        if (!this.releaseStatus) {
+            throw new ApiError(
+                'updater_unavailable',
+                'The Updater is unavailable',
+                503
+            )
+        }
+        return this.releaseStatus
+    }
+
+    /**
+     * The summary Core would return for this caller: Owners get Controller
+     * details, Members only service and Device availability (ADR-0006).
+     * @internal
+     */
+    healthSummary(via: TransportMode): HealthSummary {
+        if (!this.membershipActive) {
+            throw new ApiError(
+                'inactive_membership',
+                'This Membership is not active',
+                403
+            )
+        }
+        this.healthRequests.push(via)
+        const { mqtt, zigbee, matter, database, relayConnected } = this.health
+        const common = {
+            status: database ? (mqtt ? 'ok' : 'degraded') : 'error',
+            services: { mqtt, zigbee, matter },
+            devices: {
+                online: this.devices.filter((device) => device.online).length,
+                total: this.devices.length,
+            },
+        } as const
+        return this.role === 'owner'
+            ? {
+                  view: 'owner',
+                  ...common,
+                  controller: { database, relayConnected },
+              }
+            : { view: 'member', ...common }
     }
 
     /** Replace Devices and tell clients to refetch inventory. */
@@ -334,32 +574,77 @@ export class FakeController {
         return structuredClone(room)
     }
 
-    /** @internal */
-    deleteRoom(roomId: string): void {
-        const room = this.requireRoom(roomId)
-        const details: RoomNotEmptyDetails = {
-            devices: this.devices
-                .filter((device) => device.roomId === roomId)
-                .map(({ id, name }) => ({ id, name })),
-            components: this.devices.flatMap((device) =>
-                Object.entries(device.componentRooms ?? {})
-                    .filter(([, room]) => room === roomId)
-                    .map(([componentId]) => ({
-                        deviceId: device.id,
-                        deviceName: device.name,
-                        componentId,
-                    }))
-            ),
-        }
-        if (details.devices.length > 0 || details.components.length > 0) {
+    /** Room deletions this Controller carried out, in order. */
+    readonly deletedRooms: Array<{
+        roomId: string
+        destinationRoomId: string | null
+        via: TransportMode
+    }> = []
+
+    /** Audit log entries for Room deletions, with Core's detail. */
+    readonly roomDeletionAudit: Array<{
+        roomId: string
+        roomName: string
+        destinationRoomId: string | null
+        devicesMoved: number
+        componentsMoved: number
+    }> = []
+
+    /**
+     * @internal Like Core: moves every Device in the Room, and every
+     * Component explicitly assigned to it, to the destination, then deletes
+     * the Room. A Component moving to No Room loses its explicit
+     * assignment. An invalid destination changes nothing.
+     */
+    deleteRoom(
+        roomId: string,
+        destinationRoomId: string | null,
+        via: TransportMode
+    ): void {
+        if (destinationRoomId === roomId) {
             throw new ApiError(
-                'room_not_empty',
-                "Move this Room's Devices and Components to another Room first",
-                409,
-                details
+                'invalid_destination',
+                "Choose another Room, or No Room, for this Room's Devices",
+                400
             )
         }
+        const room = this.requireRoom(roomId)
+        if (
+            destinationRoomId !== null &&
+            !this.rooms.some((other) => other.id === destinationRoomId)
+        ) {
+            throw new ApiError(
+                'destination_not_found',
+                'The destination Room no longer exists',
+                404
+            )
+        }
+        let devicesMoved = 0
+        let componentsMoved = 0
+        for (const device of this.devices) {
+            if (device.roomId === roomId) {
+                device.roomId = destinationRoomId
+                devicesMoved += 1
+            }
+            const rooms = { ...device.componentRooms }
+            for (const [componentId, assigned] of Object.entries(rooms)) {
+                if (assigned !== roomId) continue
+                componentsMoved += 1
+                if (destinationRoomId === null) delete rooms[componentId]
+                else rooms[componentId] = destinationRoomId
+            }
+            device.componentRooms =
+                Object.keys(rooms).length > 0 ? rooms : undefined
+        }
         this.rooms = this.rooms.filter((other) => other !== room)
+        this.deletedRooms.push({ roomId, destinationRoomId, via })
+        this.roomDeletionAudit.push({
+            roomId,
+            roomName: room.name,
+            destinationRoomId,
+            devicesMoved,
+            componentsMoved,
+        })
     }
 
     private requireDevice(deviceId: string): Device {
@@ -442,6 +727,9 @@ export class FakeTransport implements ControllerTransport {
 
     async getDevices(): Promise<Device[]> {
         this.authorize()
+        if (!this.controller.devicesAvailable) {
+            throw new Error('Relay command timed out')
+        }
         return structuredClone(this.controller.devices)
     }
 
@@ -513,15 +801,24 @@ export class FakeTransport implements ControllerTransport {
         )
     }
 
-    async deleteRoom(roomId: string): Promise<void> {
-        this.setup('deleteRoom', () => this.controller.deleteRoom(roomId))
+    async deleteRoom(
+        roomId: string,
+        destinationRoomId: string | null
+    ): Promise<void> {
+        this.setup('deleteRoom', () =>
+            this.controller.deleteRoom(roomId, destinationRoomId, this.mode)
+        )
     }
 
     async permitJoin(seconds: number): Promise<PermitJoinResponse> {
-        return this.commission('permitJoin', () => {
-            this.controller.zigbeeJoinOpenFor = seconds
-            return { ok: true, seconds }
-        })
+        return this.commission(
+            'permitJoin',
+            () => {
+                this.controller.zigbeeJoinOpenFor = seconds
+                return { ok: true, seconds }
+            },
+            seconds > 0
+        )
     }
 
     async commissionMatter(
@@ -540,23 +837,43 @@ export class FakeTransport implements ControllerTransport {
         })
     }
 
-    /** Reading saved Wi-Fi is LAN-only too, but not a commissioning step. */
+    /** Reading saved Wi-Fi is not a commissioning step, so it isn't recorded. */
     async getMatterWifi(): Promise<MatterWifiResponse> {
         this.authorize()
-        if (this.mode === 'relay') {
-            this.controller.commission('getMatterWifi', 'relay', () => null)
-        }
+        this.controller.refuseLanOnly('getMatterWifi', this.mode)
+        this.controller.requireActiveMembership()
         return structuredClone(this.controller.matterWifi)
     }
 
-    private commission<T>(type: string, apply: () => T): T {
+    async saveMatterWifi(
+        request: SaveMatterWifiRequest
+    ): Promise<MatterWifiResponse> {
+        return this.commission('saveMatterWifi', () => {
+            this.controller.matterWifi = {
+                configured: true,
+                networkName: request.wifiSsid.trim(),
+            }
+            return structuredClone(this.controller.matterWifi)
+        })
+    }
+
+    private commission<T>(
+        type: string,
+        apply: () => T,
+        startsZigbee = false
+    ): T {
         this.authorize()
-        return this.controller.commission(type, this.mode, apply)
+        return this.controller.commission(type, this.mode, apply, startsZigbee)
     }
 
     private setup<T>(type: string, apply: () => T): T {
         this.authorize()
         return this.controller.setup(type, this.mode, apply)
+    }
+
+    async getSession(): Promise<SessionResponse> {
+        this.authorize()
+        return this.controller.session()
     }
 
     async revokeCurrentToken(): Promise<void> {
@@ -580,8 +897,45 @@ export class FakeTransport implements ControllerTransport {
         return structuredClone(this.controller.homeMeter)
     }
 
+    async getHealthSummary(): Promise<HealthSummary> {
+        this.authorize()
+        return this.controller.healthSummary(this.mode)
+    }
+
     async designateHomeMeter(): Promise<HomeMeterDesignation> {
         throw new Error('Home meter is not scripted on FakeController')
+    }
+
+    async getMembers(): Promise<HouseholdMember[]> {
+        this.authorize()
+        return structuredClone(this.controller.members)
+    }
+
+    async getTokens(): Promise<ClientToken[]> {
+        this.authorize()
+        return structuredClone(this.controller.accessClients)
+    }
+
+    async getReleaseStatus(): Promise<UpdateStatusResponse> {
+        this.authorize()
+        // The rule lives on the controller so LAN and Relay agree.
+        return this.controller.readRelease(this.mode)
+    }
+
+    async installRelease(
+        platformVersion?: string
+    ): Promise<ApplyUpdateResponse> {
+        this.authorize()
+        return this.controller.startReleaseUpdate(
+            'install',
+            this.mode,
+            platformVersion
+        )
+    }
+
+    async rollbackRelease(): Promise<ApplyUpdateResponse> {
+        this.authorize()
+        return this.controller.startReleaseUpdate('rollback', this.mode)
     }
 
     subscribeEvents(cb: (event: DeviceEvent) => void): () => void {

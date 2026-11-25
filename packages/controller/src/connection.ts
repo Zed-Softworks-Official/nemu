@@ -14,6 +14,7 @@ import {
     type Device,
     type DeviceCommand,
     type DeviceEvent,
+    type HealthSummary,
     type HistoryQuery,
     type HistoryQueryRead,
     type HomeMeterDesignation,
@@ -30,6 +31,7 @@ import {
     type RenameRoomRequest,
     type Room,
     type SaveMatterWifiRequest,
+    type SessionResponse,
     type SwitchReleaseChannelResponse,
     statusFromMode,
     type UpdateStatusResponse,
@@ -43,6 +45,11 @@ import {
     type ProbeResult,
 } from './discovery.ts'
 import type { GetToken } from './http.ts'
+import {
+    type ReleaseUpdate,
+    ReleaseUpdateFollower,
+    type ReleaseUpdateKind,
+} from './release-update.ts'
 import {
     type ControllerCredentialStore,
     defaultCredentialStore,
@@ -129,6 +136,8 @@ export class ControllerConnection {
     private readonly connectors: ControllerConnectors
     /** Controller adopted from LAN identify when no Home is selected. */
     private identifiedControllerId: string | null = null
+    /** An update this client started and follows. */
+    private readonly releaseUpdates: ReleaseUpdateFollower
 
     constructor(options: ControllerConnectionOptions = {}) {
         this.options = options
@@ -150,6 +159,15 @@ export class ControllerConnection {
             },
             ...options.connectors,
         }
+        this.releaseUpdates = new ReleaseUpdateFollower({
+            getReleaseStatus: () => this.getReleaseStatus(),
+            installRelease: (version) => this.installRelease(version),
+            rollbackRelease: () => this.rollbackRelease(),
+            reconnect: () => this.connect(),
+            abandonReconnect: () => {
+                if (!this.started) this.teardownTransport()
+            },
+        })
     }
 
     private get selectedControllerId(): string | null {
@@ -223,13 +241,17 @@ export class ControllerConnection {
             clearInterval(this.reprobeTimer)
             this.reprobeTimer = null
         }
+        this.releaseUpdates.stop()
         this.teardownTransport()
         this.setStatus(statusFromMode('offline'))
     }
 
     async reprobe(): Promise<void> {
         this.setStatus(statusFromMode('probing'))
+        await this.connect()
+    }
 
+    private async connect(): Promise<void> {
         const probe = await this.discover()
         if (probe) {
             const ok = await this.tryLan(probe)
@@ -282,8 +304,15 @@ export class ControllerConnection {
         }
     }
 
+    /*
+     * Zigbee commissioning works over LAN and Relay for every Membership
+     * (ADR-0034). Starting Matter commissioning, and Matter Wi-Fi, need the
+     * Home network: pairing codes and Wi-Fi credentials must not cross Relay
+     * until its envelopes are encrypted end to end (NEM-63). Like setup,
+     * commissioning never queues: it needs a live connection.
+     */
     async permitJoin(seconds: number): Promise<PermitJoinResponse> {
-        const transport = this.requireLanTransport('Device pairing')
+        const transport = this.requireConnectedTransport('Device pairing')
         if (!transport.permitJoin) {
             throw new Error(
                 'Device pairing is not supported by this controller'
@@ -295,8 +324,7 @@ export class ControllerConnection {
     async commissionMatter(
         request: CommissionRequest
     ): Promise<CommissionResponse> {
-        // LAN-only like permitJoin: Wi-Fi credentials never traverse the relay.
-        const transport = this.requireLanTransport('Matter pairing')
+        const transport = this.requireHomeNetworkTransport('Matter pairing')
         if (!transport.commissionMatter) {
             throw new Error(
                 'Matter pairing is not supported by this controller'
@@ -306,7 +334,7 @@ export class ControllerConnection {
     }
 
     async cancelMatterCommission(): Promise<CommissionResponse> {
-        const transport = this.requireLanTransport('Matter pairing')
+        const transport = this.requireConnectedTransport('Matter pairing')
         if (!transport.cancelMatterCommission) {
             throw new Error(
                 'Matter pairing is not supported by this controller'
@@ -316,7 +344,7 @@ export class ControllerConnection {
     }
 
     async getMatterWifi(): Promise<MatterWifiResponse> {
-        const transport = this.requireLanTransport('Matter pairing')
+        const transport = this.requireHomeNetworkTransport('Matter pairing')
         if (!transport.getMatterWifi) {
             throw new Error(
                 'Matter pairing is not supported by this controller'
@@ -328,7 +356,7 @@ export class ControllerConnection {
     async saveMatterWifi(
         request: SaveMatterWifiRequest
     ): Promise<MatterWifiResponse> {
-        const transport = this.requireLanTransport('Matter pairing')
+        const transport = this.requireHomeNetworkTransport('Matter pairing')
         if (!transport.saveMatterWifi) {
             throw new Error(
                 'Matter pairing is not supported by this controller'
@@ -384,11 +412,17 @@ export class ControllerConnection {
         return await transport.patchRoom(roomId, patch)
     }
 
-    /** Dashboard only. The Controller refuses while Devices are assigned. */
-    async deleteRoom(roomId: string): Promise<void> {
+    /**
+     * Delete a Room and move its Devices and Components to
+     * `destinationRoomId`, or to No Room when it is `null`, in one step.
+     */
+    async deleteRoom(
+        roomId: string,
+        destinationRoomId: string | null
+    ): Promise<void> {
         const transport = this.requireSetupTransport()
         if (!transport.deleteRoom) throw unsupported('Deleting Rooms')
-        await transport.deleteRoom(roomId)
+        await transport.deleteRoom(roomId, destinationRoomId)
     }
 
     async patchDevice(
@@ -437,6 +471,21 @@ export class ControllerConnection {
         return await transport.designateHomeMeter(selection)
     }
 
+    /**
+     * The caller's Membership role for this session, over LAN or Relay.
+     * Use it only to decide what to show; the Controller still enforces
+     * every permission.
+     */
+    async getSession(): Promise<SessionResponse> {
+        const transport = this.requireConnectedTransport('Membership role')
+        if (!transport.getSession) {
+            throw new Error(
+                'Membership role is not supported by this controller'
+            )
+        }
+        return await transport.getSession()
+    }
+
     async getReleaseStatus(): Promise<UpdateStatusResponse> {
         const transport = this.requireConnectedTransport('Installed Release')
         if (!transport.getReleaseStatus) {
@@ -447,12 +496,29 @@ export class ControllerConnection {
         return await transport.getReleaseStatus()
     }
 
-    async installRelease(): Promise<ApplyUpdateResponse> {
+    /**
+     * The role-aware Controller health summary, the same over LAN and Relay.
+     * Owners see Controller details; Members see service and Device
+     * availability only (ADR-0006).
+     */
+    async getHealthSummary(): Promise<HealthSummary> {
+        const transport = this.requireConnectedTransport('Controller health')
+        if (!transport.getHealthSummary) {
+            throw new Error(
+                'Controller health is not supported by this controller'
+            )
+        }
+        return await transport.getHealthSummary()
+    }
+
+    async installRelease(
+        platformVersion?: string
+    ): Promise<ApplyUpdateResponse> {
         const transport = this.requireConnectedTransport('Install Release')
         if (!transport.installRelease) {
             throw new Error('Install is not supported by this controller')
         }
-        return await transport.installRelease()
+        return await transport.installRelease(platformVersion)
     }
 
     async rollbackRelease(): Promise<ApplyUpdateResponse> {
@@ -461,6 +527,36 @@ export class ControllerConnection {
             throw new Error('Rollback is not supported by this controller')
         }
         return await transport.rollbackRelease()
+    }
+
+    getReleaseUpdate(): ReleaseUpdate | null {
+        return this.releaseUpdates.current()
+    }
+
+    subscribeReleaseUpdate(
+        cb: (update: ReleaseUpdate | null) => void
+    ): () => void {
+        return this.releaseUpdates.subscribe(cb)
+    }
+
+    /** Forget a finished update's outcome. A running one is kept. */
+    dismissReleaseUpdate(): void {
+        this.releaseUpdates.dismiss()
+    }
+
+    /**
+     * Installs the available Release, or rolls back the last one, and treats
+     * the Controller's restart as expected: it reconnects over LAN or Relay,
+     * then reads Release status to report the outcome. Resolves once the
+     * Controller has started; follow it with `subscribeReleaseUpdate`.
+     * With `confirmedVersion`, no other Release is installed. Nothing is sent,
+     * or queued, while the Controller is unreachable.
+     */
+    async startReleaseUpdate(
+        kind: ReleaseUpdateKind,
+        confirmedVersion?: string
+    ): Promise<void> {
+        await this.releaseUpdates.start(kind, confirmedVersion)
     }
 
     async switchReleaseChannel(
@@ -564,26 +660,23 @@ export class ControllerConnection {
         return await transport.bootstrapOwner(request)
     }
 
-    /**
-     * Commissioning is LAN-only (ADR-0030). Over Relay it is rejected here,
-     * as the Controller would reject it, without sending anything.
-     */
-    private requireLanTransport(operation: string): ControllerTransport {
-        if (this.status.mode === 'relay') {
-            throw new ApiError(
-                'unsupported_action',
-                `${operation} is not available over Relay. Adding a Device needs this phone on the Home network.`
-            )
-        }
-        if (this.status.mode !== 'lan' || !this.transport) {
-            throw new Error(`${operation} requires a Home connection`)
-        }
-        return this.transport
-    }
-
     /** Setup never queues: it needs a live LAN or Relay connection now. */
     private requireSetupTransport(): ControllerTransport {
         return this.requireConnectedTransport('Device and Room setup')
+    }
+
+    /** Refuses over Relay before anything is built or sent. */
+    private requireHomeNetworkTransport(
+        operation: string
+    ): ControllerTransport {
+        const transport = this.requireConnectedTransport(operation)
+        if (transport.mode !== 'lan') {
+            throw new ApiError(
+                'unsupported_action',
+                `${operation} is not available over Relay. It needs the Home network.`
+            )
+        }
+        return transport
     }
 
     private requireConnectedTransport(operation: string): ControllerTransport {
@@ -761,6 +854,8 @@ export class ControllerConnection {
     private startReprobeLoop(): void {
         const interval = this.options.reprobeIntervalMs ?? 10_000
         this.reprobeTimer = setInterval(() => {
+            // Following an update reconnects on its own.
+            if (this.releaseUpdates.current()?.phase === 'updating') return
             if (
                 this.status.mode === 'relay' ||
                 this.status.mode === 'offline'

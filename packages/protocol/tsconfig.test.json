@@ -21,9 +21,16 @@
         "src/api.ts",
         "src/api.test.ts",
         "src/device.ts",
+        "src/device-limits.ts",
+        "src/device-limits.test.ts",
         "src/events.ts",
         "src/relay.ts",
+        "src/rooms.ts",
+        "src/rooms.test.ts",
         "src/setup.test.ts",
-        "src/relay.test.ts"
+        "src/commissioning.test.ts",
+        "src/relay.test.ts",
+        "src/session.test.ts",
+        "src/health.test.ts"
     ]
 }

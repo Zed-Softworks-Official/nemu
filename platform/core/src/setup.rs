@@ -15,9 +15,9 @@ use crate::audit::{self, AuditKind, AuditWrite};
 use crate::capabilities::{DeviceIdentity, PhysicalScope};
 use crate::db::models::{NewRoom, Room, UpdateDevice, UpdateRoom};
 use crate::db::schema::rooms;
-use crate::devices::setup_store::{self, RoomBlockers, RoomDeletion};
+use crate::devices::setup_store::{self, RoomDeletion, RoomMove};
 use crate::events::{DeviceResource, RoomResource};
-use crate::pairing::members::find_member_by_user_id;
+use crate::pairing::members::{MembershipRefusal, active_membership};
 use crate::state::AppState;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -33,7 +33,10 @@ pub enum SetupError {
     EmptyPatch,
     DeviceNotFound,
     RoomNotFound,
-    RoomNotEmpty(RoomBlockers),
+    /// A Room cannot be deleted into itself.
+    InvalidDestination,
+    /// The Room chosen to receive a deleted Room's contents does not exist.
+    DestinationNotFound,
     AdapterUnavailable(String),
     RemoveFailed(String),
     Internal(String),
@@ -51,7 +54,8 @@ impl SetupError {
             Self::EmptyPatch => "empty_patch",
             Self::DeviceNotFound => "device_not_found",
             Self::RoomNotFound => "room_not_found",
-            Self::RoomNotEmpty(_) => "room_not_empty",
+            Self::InvalidDestination => "invalid_destination",
+            Self::DestinationNotFound => "destination_not_found",
             Self::ComponentNotFound => "component_not_found",
             Self::AdapterUnavailable(_) => "mqtt_error",
             Self::RemoveFailed(_) => "device_remove_failed",
@@ -73,21 +77,10 @@ impl SetupError {
             Self::DeviceNotFound => "Device not found".into(),
             Self::RoomNotFound => "Room not found".into(),
             Self::ComponentNotFound => "This Device has no Component with that ID".into(),
-            Self::RoomNotEmpty(blockers) => {
-                let names = blockers
-                    .devices
-                    .iter()
-                    .map(|device| device.name.clone())
-                    .chain(blockers.components.iter().map(|component| {
-                        format!("{} ({})", component.device_name, component.component_id)
-                    }))
-                    .collect::<Vec<_>>();
-                if names.is_empty() {
-                    "Move this Room's Devices and Components to another Room first".into()
-                } else {
-                    format!("Move these to another Room first: {}", names.join(", "))
-                }
+            Self::InvalidDestination => {
+                "Choose another Room, or No Room, for this Room's Devices".into()
             }
+            Self::DestinationNotFound => "The destination Room no longer exists".into(),
             Self::AdapterUnavailable(message)
             | Self::RemoveFailed(message)
             | Self::Internal(message) => message.clone(),
@@ -102,22 +95,21 @@ impl SetupError {
             | Self::InvalidId
             | Self::InvalidRoom
             | Self::InvalidComponent
-            | Self::EmptyPatch => StatusCode::BAD_REQUEST,
-            Self::DeviceNotFound | Self::RoomNotFound | Self::ComponentNotFound => {
-                StatusCode::NOT_FOUND
-            }
-            Self::RoomNotEmpty(_) => StatusCode::CONFLICT,
+            | Self::EmptyPatch
+            | Self::InvalidDestination => StatusCode::BAD_REQUEST,
+            Self::DeviceNotFound
+            | Self::RoomNotFound
+            | Self::ComponentNotFound
+            | Self::DestinationNotFound => StatusCode::NOT_FOUND,
             Self::AdapterUnavailable(_) | Self::RemoveFailed(_) => StatusCode::SERVICE_UNAVAILABLE,
             Self::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 
-    /// Structured context for clients: the blockers of a Room deletion.
+    /// Structured context for clients. No setup error carries any today;
+    /// LAN and Relay both forward it when one does.
     pub fn details(&self) -> Option<serde_json::Value> {
-        match self {
-            Self::RoomNotEmpty(blockers) => serde_json::to_value(blockers).ok(),
-            _ => None,
-        }
+        None
     }
 }
 
@@ -160,12 +152,39 @@ pub fn parse_component_id(raw: &str) -> Result<String, SetupError> {
     Ok(id.to_string())
 }
 
-/// Active Owners and Members may set up Devices and Rooms.
-pub fn authorize_setup(role: &str, status: &str) -> Result<(), SetupError> {
-    match role {
-        "" => Err(SetupError::Unauthenticated),
-        "owner" | "member" if status == "active" => Ok(()),
-        _ => Err(SetupError::Forbidden),
+/// The Room to delete and where its contents go. The destination is required:
+/// a Room ID, or `None` for No Room. It cannot be the Room itself.
+pub fn parse_room_deletion(
+    room_id: &str,
+    destination: Option<&str>,
+) -> Result<(Uuid, Option<Uuid>), SetupError> {
+    let room_id = parse_id(room_id)?;
+    let destination = parse_room_target(destination)?;
+    if destination == Some(room_id) {
+        return Err(SetupError::InvalidDestination);
+    }
+    Ok((room_id, destination))
+}
+
+/// The one Audit log entry for a Room deletion.
+pub fn room_deletion_audit(actor_user_id: Option<String>, moved: &RoomMove) -> AuditWrite {
+    let destination = moved
+        .destination
+        .map_or_else(|| "No Room".to_string(), |id| format!("room {id}"));
+    AuditWrite {
+        kind: AuditKind::RoomDeletion,
+        actor_user_id,
+        summary: format!(
+            "deleted room {}, moving {} devices and {} components to {destination}",
+            moved.room_id, moved.devices_moved, moved.components_moved
+        ),
+        detail: serde_json::json!({
+            "roomId": moved.room_id,
+            "roomName": moved.room_name,
+            "destinationRoomId": moved.destination,
+            "devicesMoved": moved.devices_moved,
+            "componentsMoved": moved.components_moved,
+        }),
     }
 }
 
@@ -436,34 +455,49 @@ pub async fn update_room(
     Ok(RoomResource::from(&room))
 }
 
-/// Delete a Room after its Devices and Components have moved elsewhere.
+/// Delete a Room, moving its Devices and explicitly assigned Components to
+/// `destination` (`None` is No Room) in one transaction with one Audit log
+/// entry. An invalid destination changes nothing.
 pub async fn delete_room(
     state: &AppState,
     auth: &AuthenticatedClient,
     room_id: &str,
+    destination: Option<&str>,
 ) -> Result<(), SetupError> {
     authorize_caller(state, auth).await?;
-    let room_id = parse_id(room_id)?;
-    match with_conn(state, move |conn| {
-        setup_store::delete_room_if_empty(conn, room_id)
+    let (room_id, destination) = parse_room_deletion(room_id, destination)?;
+    let actor = auth.user_id.clone();
+    let deletion = with_conn(state, move |conn| {
+        setup_store::delete_room_moving_contents(conn, room_id, destination, |moved| {
+            room_deletion_audit(actor, moved)
+        })
     })
-    .await?
-    {
-        RoomDeletion::Deleted => Ok(()),
+    .await?;
+    match deletion {
+        RoomDeletion::Deleted(_) => {
+            // Devices and Component assignments changed in the database.
+            state
+                .registry
+                .load_from_db(&state.db)
+                .await
+                .map_err(SetupError::Internal)?;
+            Ok(())
+        }
         RoomDeletion::NotFound => Err(SetupError::RoomNotFound),
-        RoomDeletion::NotEmpty(blockers) => Err(SetupError::RoomNotEmpty(blockers)),
+        RoomDeletion::DestinationIsRoom => Err(SetupError::InvalidDestination),
+        RoomDeletion::DestinationNotFound => Err(SetupError::DestinationNotFound),
     }
 }
 
+/// Active Owners and Members may set up Devices and Rooms, and delete Rooms
+/// (ADR-0006).
 async fn authorize_caller(state: &AppState, auth: &AuthenticatedClient) -> Result<(), SetupError> {
-    let Some(user_id) = auth.user_id.as_deref() else {
-        return Err(SetupError::Unauthenticated);
-    };
-    let member = find_member_by_user_id(&state.db, user_id)
-        .await
-        .map_err(SetupError::Internal)?
-        .ok_or(SetupError::Unauthenticated)?;
-    authorize_setup(&member.role, &member.status)
+    match active_membership(&state.db, auth).await {
+        Ok(_) => Ok(()),
+        Err(MembershipRefusal::Unauthenticated) => Err(SetupError::Unauthenticated),
+        Err(MembershipRefusal::Inactive) => Err(SetupError::Forbidden),
+        Err(MembershipRefusal::Internal(error)) => Err(SetupError::Internal(error)),
+    }
 }
 
 async fn with_conn<T, F>(state: &AppState, work: F) -> Result<T, SetupError>
@@ -495,39 +529,78 @@ pub fn remove_already_gone(error: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::devices::setup_store::{BlockingComponent, BlockingDevice};
 
     #[test]
-    fn room_not_empty_names_the_blocking_devices_and_components() {
-        let device_id = Uuid::nil();
-        let error = ApiError::from(SetupError::RoomNotEmpty(RoomBlockers {
-            devices: vec![BlockingDevice {
-                id: device_id,
-                name: "Desk lamp".into(),
-            }],
-            components: vec![BlockingComponent {
-                device_id,
-                device_name: "Power strip".into(),
-                component_id: "l2".into(),
-            }],
-        }));
-        assert_eq!(error.code, "room_not_empty");
-        assert!(error.message.contains("Desk lamp"), "{}", error.message);
-        assert!(
-            error.message.contains("Power strip (l2)"),
-            "{}",
-            error.message
+    fn a_room_deletion_needs_a_destination_other_than_itself() {
+        let room = Uuid::new_v4();
+        let other = Uuid::new_v4();
+        assert_eq!(
+            parse_room_deletion(&room.to_string(), Some(&other.to_string())),
+            Ok((room, Some(other)))
         );
         assert_eq!(
-            error.details.as_deref(),
-            Some(&serde_json::json!({
-                "devices": [{ "id": device_id, "name": "Desk lamp" }],
-                "components": [{
-                    "deviceId": device_id,
-                    "deviceName": "Power strip",
-                    "componentId": "l2",
-                }],
-            }))
+            parse_room_deletion(&room.to_string(), None),
+            Ok((room, None)),
+            "null is No Room"
+        );
+        assert_eq!(
+            parse_room_deletion(&room.to_string(), Some(&room.to_string())),
+            Err(SetupError::InvalidDestination)
+        );
+        assert_eq!(
+            parse_room_deletion(&room.to_string(), Some("garage")),
+            Err(SetupError::InvalidRoom)
+        );
+        assert_eq!(
+            parse_room_deletion("garage", None),
+            Err(SetupError::InvalidId)
+        );
+    }
+
+    #[test]
+    fn a_room_deletion_is_one_audit_entry_naming_the_room_and_destination() {
+        let room_id = Uuid::new_v4();
+        let destination = Uuid::new_v4();
+        let audit = room_deletion_audit(
+            Some("user-1".into()),
+            &RoomMove {
+                room_id,
+                room_name: "Garage".into(),
+                destination: Some(destination),
+                devices_moved: 2,
+                components_moved: 1,
+            },
+        );
+        assert_eq!(audit.kind, AuditKind::RoomDeletion);
+        assert_eq!(audit.actor_user_id.as_deref(), Some("user-1"));
+        assert_eq!(
+            audit.detail,
+            serde_json::json!({
+                "roomId": room_id,
+                "roomName": "Garage",
+                "destinationRoomId": destination,
+                "devicesMoved": 2,
+                "componentsMoved": 1,
+            })
+        );
+        let to_no_room = room_deletion_audit(
+            None,
+            &RoomMove {
+                room_id,
+                room_name: "Garage".into(),
+                destination: None,
+                devices_moved: 0,
+                components_moved: 0,
+            },
+        );
+        assert_eq!(
+            to_no_room.detail["destinationRoomId"],
+            serde_json::Value::Null
+        );
+        assert!(
+            to_no_room.summary.contains("No Room"),
+            "{}",
+            to_no_room.summary
         );
     }
 
@@ -556,45 +629,6 @@ mod tests {
         assert!(exposes("l1"));
         assert!(!exposes("l2"), "another Device's Component");
         assert!(!exposes("l9"));
-    }
-
-    #[test]
-    fn active_owners_and_members_may_set_up_devices_and_rooms() {
-        assert_eq!(authorize_setup("owner", "active"), Ok(()));
-        assert_eq!(authorize_setup("member", "active"), Ok(()));
-    }
-
-    #[test]
-    fn inactive_memberships_are_forbidden() {
-        for status in ["pending", "removed", "left", ""] {
-            assert_eq!(
-                authorize_setup("member", status),
-                Err(SetupError::Forbidden),
-                "member with status {status:?}"
-            );
-            assert_eq!(
-                authorize_setup("owner", status),
-                Err(SetupError::Forbidden),
-                "owner with status {status:?}"
-            );
-        }
-    }
-
-    #[test]
-    fn callers_without_a_membership_are_unauthenticated() {
-        assert_eq!(
-            authorize_setup("", "active"),
-            Err(SetupError::Unauthenticated)
-        );
-        assert_eq!(authorize_setup("", ""), Err(SetupError::Unauthenticated));
-    }
-
-    #[test]
-    fn unknown_roles_are_forbidden() {
-        assert_eq!(
-            authorize_setup("guest", "active"),
-            Err(SetupError::Forbidden)
-        );
     }
 
     #[test]
@@ -680,9 +714,14 @@ mod tests {
                 "room_not_found",
             ),
             (
-                SetupError::RoomNotEmpty(RoomBlockers::default()),
-                StatusCode::CONFLICT,
-                "room_not_empty",
+                SetupError::InvalidDestination,
+                StatusCode::BAD_REQUEST,
+                "invalid_destination",
+            ),
+            (
+                SetupError::DestinationNotFound,
+                StatusCode::NOT_FOUND,
+                "destination_not_found",
             ),
             (
                 SetupError::ComponentNotFound,

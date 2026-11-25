@@ -4,6 +4,7 @@ import type {
     CapabilityCurrentState,
     ConnectionStatus,
     Device,
+    DeviceEvent,
     Room,
 } from '@nemu/protocol'
 import {
@@ -23,6 +24,7 @@ import {
     type TrackedCommand,
     useCommandTracker,
 } from '~/components/use-command-tracker'
+import { errorMessage, isConnected } from '~/lib/connection'
 import type { DeviceControl } from '~/lib/device-control'
 
 const NO_CAPABILITIES: readonly CapabilityCurrentState[] = []
@@ -41,6 +43,11 @@ type HomeControlValue = {
     /** False while `capabilities` is a previous snapshot. */
     capabilitiesCurrent: boolean
     loadFailed: boolean
+    /**
+     * Why the Controller, though reached, did not return its Devices. Any
+     * Devices shown are from an earlier read.
+     */
+    loadError: string | null
     reconnect: () => void
     commandFor: (
         deviceId: string,
@@ -64,9 +71,6 @@ type HomeControlValue = {
      */
     setupState: (key: string) => SetupState
     setSetupState: (key: string, state: SetupState) => void
-    /** The Device whose setup is open, one at a time. */
-    deviceSetupOpen: string | null
-    setDeviceSetupOpen: (deviceId: string | null) => void
 }
 
 /** Outcome of one Device or Room setup action. */
@@ -102,7 +106,6 @@ export function HomeControlProvider({
     const [setupStates, setSetupStates] = useState<Record<string, SetupState>>(
         {}
     )
-    const [deviceSetupOpen, setDeviceSetupOpen] = useState<string | null>(null)
     const setupState = useCallback(
         (key: string) => setupStates[key] ?? IDLE,
         [setupStates]
@@ -110,7 +113,7 @@ export function HomeControlProvider({
     const setSetupState = useCallback((key: string, state: SetupState) => {
         setSetupStates((current) => ({ ...current, [key]: state }))
     }, [])
-    const live = status.mode === 'lan' || status.mode === 'relay'
+    const live = isConnected(status)
 
     // The Controller session clears its view on disconnect; keep the last one.
     const lastView = useRef<CapabilityView | null>(view)
@@ -163,10 +166,15 @@ export function HomeControlProvider({
         return () => subscription.remove()
     }, [connection, reprobe])
 
+    const subscribeEvents = useCallback(
+        (cb: (event: DeviceEvent) => void) => connection.subscribeEvents(cb),
+        [connection]
+    )
     const { commandFor, send, dismiss } = useCommandTracker({
         devices,
         live,
         sendCommand,
+        subscribeEvents,
         confirmationWindowMs,
     })
 
@@ -181,6 +189,10 @@ export function HomeControlProvider({
             capabilities: shownView?.capabilities ?? NO_CAPABILITIES,
             capabilitiesCurrent: live && view !== null,
             loadFailed: live && devices === undefined && error !== null,
+            loadError:
+                live && error
+                    ? errorMessage(error, 'The Controller gave no reason.')
+                    : null,
             reconnect,
             commandFor,
             sendControl: (deviceId, control, desired) => {
@@ -193,8 +205,6 @@ export function HomeControlProvider({
             dismissNotice,
             setupState,
             setSetupState,
-            deviceSetupOpen,
-            setDeviceSetupOpen,
         }),
         [
             status,
@@ -214,7 +224,6 @@ export function HomeControlProvider({
             dismissNotice,
             setupState,
             setSetupState,
-            deviceSetupOpen,
         ]
     )
 

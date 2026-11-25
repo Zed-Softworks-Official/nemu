@@ -201,6 +201,9 @@ A bounded Controller-local record of raw protocol payloads used for troubleshoot
 **Relay**:
 The short-lived cloud path used when an Access Client cannot reach a Controller over the home network. Relay envelopes are encrypted end to end and contain no durable home model or history.
 
+**Presence check**:
+An operation that requires the Access Client to reach the Controller over the Home network as proof of being in the Home. Accepting an Invitation, Recovery Key recovery, and deleting a Home are the only Presence checks; every other authorized operation works the same over Relay, except that Matter pairing codes and Wi-Fi credentials stay on the Home network until Relay envelopes are encrypted end to end (NEM-63).
+
 **Release channel**:
 The stream of Releases assigned to a Home. Stable is the default; an Owner can move a Home to Canary, and the Home installs that channel's Release only when it is newer than the installed Release.
 
@@ -209,8 +212,20 @@ A publication of the whole Controller platform on one Release channel, identifie
 _Avoid_: Platform image, update bundle
 
 **Platform version**:
-The identity of one Release, shared by every service and stack file in it. A Release channel is not part of that identity.
+The identity of one Release, shared by every service and stack file in it. A Release candidate's Platform version names the Stable Release it precedes and orders before it.
 _Avoid_: Crate version, image tag
+
+**Release candidate**:
+A Canary Release offered for promotion to Stable. It keeps its own Platform version after promotion.
+_Avoid_: Canary build, prerelease, beta
+
+**Promotion**:
+The publication of a Release candidate's unchanged build as a Stable Release with its own Platform version.
+_Avoid_: Rebuild, stable cut
+
+**Hotfix Release**:
+A Stable Release whose build was not a Release candidate.
+_Avoid_: Patch, emergency promotion
 
 **Release manifest**:
 The published description of one Release on a Release channel.
