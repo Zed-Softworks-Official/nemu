@@ -1,6 +1,7 @@
 import type { Device, Room } from '@nemu/protocol'
 import { useRouter, useSegments } from 'expo-router'
 import { ChevronRight } from 'lucide-react-native'
+import { useState } from 'react'
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native'
 
 import { useControllerSheet } from '~/components/controller-sheet'
@@ -82,6 +83,50 @@ export function ConnectionBanner() {
                 </View>
             )
     }
+}
+
+/** Says the Controller was reached but did not return its Devices, and why. */
+export function LoadErrorBanner() {
+    const { devices, loadError, refreshInventory } = useHomeControl()
+    const [retrying, setRetrying] = useState(false)
+    if (loadError === null) return null
+
+    async function retry() {
+        setRetrying(true)
+        await refreshInventory()
+        setRetrying(false)
+    }
+
+    return (
+        <View
+            accessibilityRole="alert"
+            className="gap-3 rounded-sm bg-destructive/10 p-4"
+        >
+            <View className="gap-1">
+                <Text className="font-medium text-foreground">
+                    {devices === undefined
+                        ? 'Devices couldn’t be loaded'
+                        : 'Devices couldn’t be refreshed'}
+                </Text>
+                <Text className="text-muted-foreground text-sm leading-relaxed">
+                    {devices === undefined
+                        ? 'Connected, but the Controller did not return its Devices.'
+                        : 'What you see may be out of date.'}
+                </Text>
+                <Text className="text-muted-foreground text-sm leading-relaxed">
+                    {loadError}
+                </Text>
+            </View>
+            <View className="flex-row">
+                <Button
+                    disabled={retrying}
+                    onPress={retry}
+                    title="Try again"
+                    variant="outline"
+                />
+            </View>
+        </View>
+    )
 }
 
 function Banner({ title, detail }: { title: string; detail: string }) {
@@ -251,14 +296,7 @@ function SurfaceBody({ children }: { children: React.ReactNode }) {
                     />
                 </View>
             ) : null}
-            {loadFailed ? (
-                <Text
-                    accessibilityRole="alert"
-                    className="text-muted-foreground text-sm"
-                >
-                    Connected, but the Controller did not return its Devices.
-                </Text>
-            ) : null}
+            <LoadErrorBanner />
             {devices === undefined &&
             !loadFailed &&
             status.mode !== 'offline' ? (
