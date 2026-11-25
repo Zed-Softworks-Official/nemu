@@ -520,17 +520,18 @@ jobs:
             url=$(node "$RUNNER_TEMP/channel-publisher/publish-channel-manifest.mjs" \
               "$channel" "$RUNNER_TEMP/release-manifest.json")
             echo "Published ${channel}.json to ${url}"
-            # An overwrite can take a moment to be readable. Each read uses a
+            # An overwrite may stay unreadable for the 60-second cache age, so the
+            # last read is at or after 60 seconds. Each read uses a
             # new URL, so a stale response is not cached for the next one.
-            for attempt in {1..12}; do
+            for attempt in {1..13}; do
               if curl -fsSL -H 'Cache-Control: no-cache' \
                 "${url}?v=${version}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${attempt}" \
                 -o "$RUNNER_TEMP/published.json" &&
                 cmp "$RUNNER_TEMP/release-manifest.json" "$RUNNER_TEMP/published.json"; then
                 break
               fi
-              if [ "$attempt" = "12" ]; then
-                echo "${channel}.json does not serve ${version} after 12 reads" >&2
+              if [ "$attempt" = "13" ]; then
+                echo "${channel}.json does not serve ${version} after 60 seconds" >&2
                 exit 1
               fi
               sleep 5
