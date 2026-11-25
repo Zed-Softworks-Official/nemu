@@ -4,6 +4,7 @@ use ed25519_dalek::VerifyingKey;
 use serde::{Deserialize, Serialize};
 
 mod bootstrap;
+mod build_identity;
 mod channel;
 mod daemon;
 mod host;
@@ -12,6 +13,7 @@ mod manifest;
 mod publish;
 mod rollback;
 mod supervise;
+mod version;
 mod wrapper;
 
 pub use bootstrap::{BootstrapError, BootstrapOutcome, bootstrap};
@@ -38,6 +40,8 @@ pub use publish::{
     CutRelease, ImageTag, PublishError, PublishPlan, PublishRequest, PublishSource,
     ResolvedService, plan_publish, signing_key_from_base64,
 };
+
+use version::PlatformVersion;
 
 /// Home data file under the Controller directory. A Release may replace stack
 /// files; it does not replace this file.
@@ -102,6 +106,10 @@ pub struct StoredRelease {
     /// Digests of the Release that was committed. A failed gate does not write these.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub services: Vec<crate::manifest::ServiceImage>,
+    /// Build identity of the committed Release. An Updater older than 0.1.3
+    /// ignores this, and drops it when it writes the file.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub build_identity: Option<String>,
     /// Platform version left by a rollback. The snapshot copy of this file does
     /// not carry it; rollback writes it again after that copy is restored.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -152,8 +160,8 @@ pub(crate) fn write_stored_release(
 ///
 /// A Home with no stored channel is recorded as Stable. The Platform version
 /// is whatever Home data already holds; this does not invent one. A newer
-/// Release is a verified manifest on that channel whose Platform version is
-/// greater than both the installed version and a previously declined version.
+/// Release is a verified manifest on that channel that `release_is_eligible`
+/// accepts.
 /// The `release_key` is the release-signing public key, not the
 /// Controller identity key. `:canary` and `:latest` are not consulted.
 /// Verification failure leaves Home data and stack files unchanged.
@@ -161,6 +169,7 @@ pub fn status(
     controller_dir: &Path,
     manifests: &dyn ManifestHost,
     release_key: Option<&VerifyingKey>,
+    arch: UpdaterArch,
 ) -> Result<ReleaseStatus, StatusError> {
     let mut stored = read_stored_release(controller_dir)?.unwrap_or_default();
     if stored.channel.is_none() {
@@ -170,17 +179,18 @@ pub fn status(
     let channel = stored.channel.unwrap_or(ReleaseChannel::Stable);
     let Some(platform_version) = stored
         .platform_version
+        .clone()
         .filter(|version| !version.trim().is_empty())
     else {
         return Err(StatusError::PlatformVersionMissing);
     };
-    let declined = stored.declined_platform_version.clone();
     let available_release = newer_manifest_on_channel(
+        controller_dir,
         manifests,
         channel,
-        &platform_version,
-        declined.as_deref(),
+        &stored,
         release_key,
+        arch,
     )?;
     Ok(ReleaseStatus {
         platform_version,
@@ -194,11 +204,12 @@ pub fn status(
 }
 
 fn newer_manifest_on_channel(
+    controller_dir: &Path,
     manifests: &dyn ManifestHost,
     channel: ReleaseChannel,
-    installed: &str,
-    declined: Option<&str>,
+    stored: &StoredRelease,
     release_key: Option<&VerifyingKey>,
+    arch: UpdaterArch,
 ) -> Result<Option<AvailableRelease>, StatusError> {
     let Some(release_key) = release_key else {
         return Ok(None);
@@ -211,46 +222,38 @@ fn newer_manifest_on_channel(
     };
     Ok(verify_manifest(&bytes, release_key)
         .ok()
-        .filter(|manifest| {
-            platform_version_is_eligible(&manifest.platform_version, installed, declined)
-        })
+        .filter(|manifest| release_is_eligible(controller_dir, stored, manifest, arch))
         .map(|manifest| AvailableRelease {
             platform_version: manifest.platform_version,
             release_notes: manifest.release_notes,
         }))
 }
 
-/// A manifest is eligible when its Platform version is newer than the
-/// installed version and newer than a version the Home has already declined.
-pub(crate) fn platform_version_is_eligible(
-    candidate: &str,
-    installed: &str,
-    declined: Option<&str>,
+/// The one rule for status, the hourly check, an Owner install, and a channel
+/// switch. The Release must be newer than the installed version and than a
+/// version the Home declined, and must not carry a build the Home declined.
+/// A Home running a Release candidate does not take a Hotfix Release, which
+/// may be older code than the candidate.
+pub(crate) fn release_is_eligible(
+    controller_dir: &Path,
+    stored: &StoredRelease,
+    manifest: &ReleaseManifest,
+    arch: UpdaterArch,
 ) -> bool {
-    platform_version_is_newer(candidate, installed)
-        && declined.is_none_or(|declined| platform_version_is_newer(candidate, declined))
-}
-
-/// Platform versions are `0.MINOR.PATCH`. The channel is not part of the version.
-pub(crate) fn platform_version_is_newer(candidate: &str, installed: &str) -> bool {
-    match (
-        parse_platform_version(candidate),
-        parse_platform_version(installed),
-    ) {
-        (Some(next), Some(current)) => next > current,
-        _ => false,
-    }
-}
-
-pub(crate) fn parse_platform_version(version: &str) -> Option<(u64, u64, u64)> {
-    let mut parts = version.split('.');
-    let major = parts.next()?.parse().ok()?;
-    let minor = parts.next()?.parse().ok()?;
-    let patch = parts.next()?.parse().ok()?;
-    if parts.next().is_some() || major != 0 {
-        return None;
-    }
-    Some((major, minor, patch))
+    let parse = |version: &Option<String>| version.as_deref().and_then(PlatformVersion::parse);
+    let (Some(next), Some(installed)) = (
+        PlatformVersion::parse(&manifest.platform_version),
+        parse(&stored.platform_version),
+    ) else {
+        return false;
+    };
+    let newer_than_declined = stored.declined_platform_version.is_none()
+        || parse(&stored.declined_platform_version).is_some_and(|declined| next > declined);
+    next > installed
+        && newer_than_declined
+        && !(manifest.hotfix && installed.is_candidate())
+        && !build_identity::build_identity(manifest, arch)
+            .is_some_and(|build| build_identity::build_is_declined(controller_dir, &build))
 }
 
 #[cfg(test)]
@@ -266,8 +269,8 @@ mod tests {
 
     use super::{
         ManifestHost, ManifestHostError, MissingManifestHost, RELEASE_SERVICES, ReleaseChannel,
-        ReleaseManifest, ServiceImage, SettingMigration, StackFile, StatusError, UpdaterBinaries,
-        installed_release_path, sign_manifest, status,
+        ReleaseManifest, ServiceImage, SettingMigration, StackFile, StatusError, UpdaterArch,
+        UpdaterBinaries, installed_release_path, sign_manifest, status,
     };
 
     struct TempHome(PathBuf);
@@ -366,6 +369,7 @@ mod tests {
             },
             next_pin: None,
             release_notes: None,
+            hotfix: false,
         }
     }
 
@@ -460,7 +464,7 @@ mod tests {
         key: &SigningKey,
     ) -> Result<super::ReleaseStatus, StatusError> {
         let public = key.verifying_key();
-        status(home, host, Some(&public))
+        status(home, host, Some(&public), UpdaterArch::Amd64)
     }
 
     #[test]
@@ -473,7 +477,7 @@ mod tests {
             tags: Vec::new(),
         };
 
-        let report = status(home.path(), &host, None).expect("status");
+        let report = status(home.path(), &host, None, UpdaterArch::Amd64).expect("status");
 
         assert_eq!(report.channel, ReleaseChannel::Stable);
         assert_eq!(report.platform_version, "0.4.2");
@@ -509,8 +513,13 @@ mod tests {
             tags: Vec::new(),
         };
 
-        let error = status(home.path(), &host, Some(&key.verifying_key()))
-            .expect_err("missing platform version");
+        let error = status(
+            home.path(),
+            &host,
+            Some(&key.verifying_key()),
+            UpdaterArch::Amd64,
+        )
+        .expect_err("missing platform version");
         assert_eq!(error, StatusError::PlatformVersionMissing);
 
         let stored = fs::read_to_string(installed_release_path(home.path())).unwrap();
@@ -750,7 +759,13 @@ mod tests {
         let before = snapshot_home(home.path());
         let key = release_signing_key().verifying_key();
 
-        let report = status(home.path(), &MissingManifestHost, Some(&key)).expect("status");
+        let report = status(
+            home.path(),
+            &MissingManifestHost,
+            Some(&key),
+            UpdaterArch::Amd64,
+        )
+        .expect("status");
 
         assert_eq!(report.channel, ReleaseChannel::Stable);
         assert_eq!(report.platform_version, "0.4.9");
@@ -769,10 +784,146 @@ mod tests {
             tags: Vec::new(),
         };
 
-        let report = status(home.path(), &host, None).expect("status");
+        let report = status(home.path(), &host, None, UpdaterArch::Amd64).expect("status");
 
         assert!(!report.newer_release_available);
         assert_eq!(report.platform_version, "0.4.9");
         assert_eq!(snapshot_home(home.path()), before);
+    }
+
+    fn offers(installed: &str, published: &ReleaseManifest) -> bool {
+        let home = TempHome::new();
+        write_stack_files(home.path());
+        write_installed(home.path(), "canary", installed);
+        let key = release_signing_key();
+        let host = FakeHost {
+            manifests: vec![(ReleaseChannel::Canary, sign_manifest(published, &key))],
+            tags: Vec::new(),
+        };
+        read_status(home.path(), &host, &key)
+            .expect("status")
+            .newer_release_available
+    }
+
+    #[test]
+    fn platform_versions_order_by_semver_precedence() {
+        let ascending = [
+            "0.1.3",
+            "0.1.4-canary.1",
+            "0.1.4-canary.9",
+            "0.1.4-canary.10",
+            "0.1.4",
+            "0.1.5-canary.1",
+            "0.1.10",
+            "0.2.0-canary.1",
+            "0.2.0",
+        ];
+        for (i, installed) in ascending.iter().enumerate() {
+            for (j, published) in ascending.iter().enumerate() {
+                let manifest = release_manifest(published, pinned_services());
+                assert_eq!(
+                    offers(installed, &manifest),
+                    j > i,
+                    "{installed} {published}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn a_malformed_platform_version_is_not_offered() {
+        for version in [
+            "",
+            "0.9",
+            "0.9.9.9",
+            "1.0.0",
+            "00.9.9",
+            "0.09.9",
+            "0.9.09",
+            "+0.9.9",
+            "0.+9.9",
+            "0.9.-9",
+            " 0.9.9",
+            "0.9.9 ",
+            "v0.9.9",
+            "0.9.9-",
+            "0.9.9-canary",
+            "0.9.9-canary.",
+            "0.9.9-canary.0",
+            "0.9.9-canary.01",
+            "0.9.9-canary.+1",
+            "0.9.9-canary.1.1",
+            "0.9.9-canary.1-canary.1",
+            "0.9.9-Canary.1",
+            "0.9.9-beta.1",
+            "0.9.9+build",
+            "0.9.9-canary.1+build",
+            "0.9.99999999999999999999",
+        ] {
+            let manifest = release_manifest(version, pinned_services());
+            assert!(!offers("0.1.3", &manifest), "{version:?}");
+        }
+    }
+
+    #[test]
+    fn a_home_on_a_candidate_is_not_offered_a_hotfix() {
+        let mut hotfix = release_manifest("0.1.5", pinned_services());
+        hotfix.hotfix = true;
+        assert!(!offers("0.1.4-canary.2", &hotfix));
+        assert!(offers("0.1.4", &hotfix));
+        hotfix.hotfix = false;
+        assert!(offers("0.1.4-canary.2", &hotfix));
+    }
+
+    #[test]
+    fn a_normal_manifest_omits_hotfix_and_a_hotfix_is_signed() {
+        let key = release_signing_key();
+        let mut manifest = release_manifest("0.1.4", pinned_services());
+        manifest.migrations.clear();
+        let json = |text: &str| serde_json::to_string(text).unwrap();
+        let services: Vec<String> = manifest
+            .services
+            .iter()
+            .map(|service| {
+                format!(
+                    r#"{{"service":"{}","image":"{}","digest":"{}"}}"#,
+                    service.service, service.image, service.digest
+                )
+            })
+            .collect();
+        let files: Vec<String> = manifest
+            .stack_files
+            .iter()
+            .map(|file| {
+                format!(
+                    r#"{{"path":{},"contents":{}}}"#,
+                    json(&file.path),
+                    json(&file.contents)
+                )
+            })
+            .collect();
+        let before = format!(
+            r#"{{"platformVersion":"0.1.4","services":[{}],"stackFiles":[{}],"migrations":[],"updater":{{"amd64":"{}","arm64":"{}"}}}}"#,
+            services.join(","),
+            files.join(","),
+            manifest.updater.amd64,
+            manifest.updater.arm64
+        );
+        assert_eq!(
+            String::from_utf8(super::manifest_signing_bytes(&manifest)).unwrap(),
+            before
+        );
+
+        manifest.hotfix = true;
+        let signed = String::from_utf8(sign_manifest(&manifest, &key)).unwrap();
+        let public = key.verifying_key();
+        assert!(
+            super::verify_manifest(signed.as_bytes(), &public)
+                .unwrap()
+                .hotfix
+        );
+        assert!(signed.contains(r#","hotfix":true"#));
+        let stripped = signed.replace(r#","hotfix":true"#, "");
+        assert!(super::verify_manifest(stripped.as_bytes(), &public).is_err());
     }
 }

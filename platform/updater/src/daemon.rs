@@ -259,8 +259,13 @@ impl UpdaterOps for HostOps {
     fn status(&self) -> Result<ReleaseStatus, String> {
         let manifests = crate::host::RemoteManifestHost::from_env(&self.controller_dir);
         let key = crate::host::load_release_key(&self.controller_dir);
-        crate::status(&self.controller_dir, &manifests, key.as_ref())
-            .map_err(|error| error.to_string())
+        crate::status(
+            &self.controller_dir,
+            &manifests,
+            key.as_ref(),
+            crate::UpdaterArch::from_host(),
+        )
+        .map_err(|error| error.to_string())
     }
 
     fn maintenance_mode(&self) -> bool {

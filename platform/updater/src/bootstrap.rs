@@ -15,6 +15,7 @@ use crate::install::{
     InstallError, UpdaterArch, commit_binary, decode_binary, migrate_zigbee, write_stack_files,
 };
 use crate::manifest::ManifestHost;
+use crate::version::PlatformVersion;
 use crate::{ReleaseChannel, read_stored_release, verify_manifest, write_stored_release};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -82,6 +83,9 @@ pub fn bootstrap(
         .ok_or(BootstrapError::NoManifest(channel.as_str()))?;
     let manifest =
         verify_manifest(&bytes, &key).map_err(|_| BootstrapError::Rejected(channel.as_str()))?;
+    if PlatformVersion::parse(&manifest.platform_version).is_none() {
+        return Err(BootstrapError::Rejected(channel.as_str()));
+    }
     let binary = decode_binary(&manifest, arch)?;
 
     write_stack_files(controller_dir, &manifest)?;
@@ -91,6 +95,7 @@ pub fn bootstrap(
     stored.channel = Some(channel);
     stored.platform_version = Some(manifest.platform_version.clone());
     stored.services = manifest.services.clone();
+    stored.build_identity = crate::build_identity::build_identity(&manifest, arch);
     stored.last_hourly_check = Some(now);
     write_stored_release(controller_dir, &stored)
         .map_err(|error| BootstrapError::Unavailable(error.to_string()))?;
@@ -189,6 +194,7 @@ mod tests {
             },
             next_pin: None,
             release_notes: None,
+            hotfix: false,
         }
     }
 
@@ -345,5 +351,34 @@ mod tests {
         .expect_err("no key");
 
         assert_eq!(error, BootstrapError::NoReleaseKey);
+    }
+
+    #[test]
+    fn a_release_candidate_installs_and_a_malformed_version_is_refused() {
+        let public = key().verifying_key();
+        let run = |version: &str, home: &TempHome| {
+            let host = Host(vec![(
+                ReleaseChannel::Canary,
+                sign_manifest(&manifest(version), &key()),
+            )]);
+            bootstrap(
+                home.path(),
+                ReleaseChannel::Canary,
+                &host,
+                Some(&public),
+                UpdaterArch::Amd64,
+                0,
+            )
+        };
+
+        let home = TempHome::new();
+        run("0.1.4-canary.1", &home).expect("candidate");
+
+        let home = TempHome::new();
+        assert_eq!(
+            run("0.1.4-canary.0", &home).expect_err("malformed"),
+            BootstrapError::Rejected("canary")
+        );
+        assert!(!installed_release_path(home.path()).exists());
     }
 }

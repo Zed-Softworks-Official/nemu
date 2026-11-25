@@ -9,11 +9,12 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
+use crate::build_identity::{decline_build, installed_build};
 use crate::install::{
     self, BINARY_DIR, GENERATION_FILE, InstallEnv, InstallError, MATTER_TRUST_ROOT_SCRIPT,
     RunningService, SNAPSHOT_DIR, SNAPSHOT_TREES, STACK_FILES,
 };
-use crate::{installed_release_path, read_stored_release, write_stored_release};
+use crate::{StoredRelease, installed_release_path, read_stored_release, write_stored_release};
 
 const STUCK_FILE: &str = "updater/rollback-stuck";
 /// Outside the rollback snapshot. Restoring the snapshot copy of the installed
@@ -142,10 +143,19 @@ fn finish_restore(controller_dir: &Path, env: &InstallEnv<'_>) -> Result<(), Rol
         Ok(runtime) => runtime,
         Err(error) => return enter_stuck(controller_dir, error),
     };
+    // Looked up before the stack is paused: it may fetch a manifest.
+    let declined_build = match rolled_back_release(controller_dir, &root) {
+        Ok(Some(stored)) => {
+            let key = crate::wrapper::load_pin(controller_dir).or(env.release_key.copied());
+            installed_build(&stored, env.manifests, key.as_ref(), env.arch)
+        }
+        Ok(None) => None,
+        Err(error) => return enter_stuck(controller_dir, error),
+    };
     if let Err(error) = env.runtime.quiesce() {
         return enter_stuck(controller_dir, RollbackError::Unavailable(error));
     }
-    if let Err(error) = restore_files(controller_dir, &root, &runtime) {
+    if let Err(error) = restore_files(controller_dir, &root, &runtime, declined_build.as_deref()) {
         let _ = env.runtime.resume();
         return enter_stuck(controller_dir, error);
     }
@@ -170,6 +180,7 @@ fn restore_files(
     controller_dir: &Path,
     snapshot_root: &Path,
     runtime: &SnapshotRuntime,
+    declined_build: Option<&str>,
 ) -> Result<(), RollbackError> {
     for (live_rel, snap_rel) in SNAPSHOT_TREES {
         let from = snapshot_root.join(snap_rel);
@@ -182,7 +193,7 @@ fn restore_files(
         }
     }
     restore_stack(controller_dir, snapshot_root)?;
-    restore_release_file(controller_dir, snapshot_root)?;
+    restore_release_file(controller_dir, snapshot_root, declined_build)?;
     restore_binary(controller_dir, snapshot_root, runtime.generation)?;
     Ok(())
 }
@@ -202,35 +213,54 @@ fn restore_stack(controller_dir: &Path, snapshot_root: &Path) -> Result<(), Roll
     Ok(())
 }
 
-fn restore_release_file(controller_dir: &Path, snapshot_root: &Path) -> Result<(), RollbackError> {
-    let rolled_back = read_stored_release(controller_dir)
-        .map_err(|_| RollbackError::RestoreFailed)?
-        .and_then(|stored| stored.platform_version)
-        .filter(|version| !version.trim().is_empty());
-    let from = snapshot_root.join(RELEASE_COPY);
-    if !from.is_file() {
-        return Err(RollbackError::RestoreFailed);
+fn restore_release_file(
+    controller_dir: &Path,
+    snapshot_root: &Path,
+    declined_build: Option<&str>,
+) -> Result<(), RollbackError> {
+    let rolled_back = rolled_back_release(controller_dir, snapshot_root)?;
+    if let Some(version) = rolled_back.and_then(|stored| stored.platform_version) {
+        // Recorded before the stored Release that names it is replaced.
+        write_declined_version(controller_dir, &version)?;
+        if let Some(build) = declined_build {
+            decline_build(controller_dir, build).map_err(|_| RollbackError::RestoreFailed)?;
+        }
     }
-    let bytes = std::fs::read(&from).map_err(|_| RollbackError::RestoreFailed)?;
     let to = installed_release_path(controller_dir);
     if let Some(parent) = to.parent() {
         std::fs::create_dir_all(parent).map_err(|_| RollbackError::RestoreFailed)?;
     }
-    std::fs::write(&to, bytes).map_err(|_| RollbackError::RestoreFailed)?;
-    let mut stored = read_stored_release(controller_dir)
-        .map_err(|_| RollbackError::RestoreFailed)?
-        .unwrap_or_default();
-    if let Some(version) =
-        rolled_back.filter(|version| stored.platform_version.as_ref() != Some(version))
-    {
-        write_declined_version(controller_dir, &version)?;
-        stored.declined_platform_version = Some(version);
-        write_stored_release(controller_dir, &stored).map_err(unavailable)?;
-    } else if let Some(version) = read_declined_version(controller_dir) {
+    std::fs::copy(snapshot_root.join(RELEASE_COPY), &to)
+        .map_err(|_| RollbackError::RestoreFailed)?;
+    if let Some(version) = read_declined_version(controller_dir) {
+        let mut stored = snapshot_release(snapshot_root)?;
         stored.declined_platform_version = Some(version);
         write_stored_release(controller_dir, &stored).map_err(unavailable)?;
     }
     Ok(())
+}
+
+/// The stored Release, when it is not the snapshotted one. A restore that is
+/// retried, or one after a failed gate, has no Release to decline.
+fn rolled_back_release(
+    controller_dir: &Path,
+    snapshot_root: &Path,
+) -> Result<Option<StoredRelease>, RollbackError> {
+    let previous = snapshot_release(snapshot_root)?;
+    let stored = read_stored_release(controller_dir).map_err(|_| RollbackError::RestoreFailed)?;
+    Ok(stored.filter(|stored| {
+        stored.platform_version != previous.platform_version
+            && stored
+                .platform_version
+                .as_deref()
+                .is_some_and(|version| !version.trim().is_empty())
+    }))
+}
+
+fn snapshot_release(snapshot_root: &Path) -> Result<StoredRelease, RollbackError> {
+    let bytes = std::fs::read(snapshot_root.join(RELEASE_COPY))
+        .map_err(|_| RollbackError::RestoreFailed)?;
+    serde_json::from_slice(&bytes).map_err(|_| RollbackError::RestoreFailed)
 }
 
 fn write_declined_version(controller_dir: &Path, version: &str) -> Result<(), RollbackError> {
