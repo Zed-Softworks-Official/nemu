@@ -132,15 +132,31 @@ A re-run on a Home that is already on a Release refreshes the wrapper, `.env`, a
 
 This is how Homes receive updates. A Home runs the Updater binary from its own Release, so the first Release that carries a given Updater change has to be installed by the previous Updater, or by the installer.
 
-A push to `canary` that changes `platform/` or `infra/prod/` publishes the next patch Release. The workflow builds the Nemu images, freezes every service image at a digest, signs the Canary manifest, tags those Nemu images with the Platform version and `:canary`, and tags the commit `v0.MINOR.PATCH`. The first Platform version is `0.1.0`. A dashboard-only, marketing-only, or Convex-only push skips the publish. Vercel and Convex deploy on their own.
+A push to `canary` whose `platform/` or `infra/prod/` differs from the newest Release candidate or promoted Release publishes the next Release candidate, such as `0.1.4-canary.1`. The workflow builds the Nemu images, freezes every service image at a digest, signs the Canary manifest, tags those images with the Platform version and `:canary`, and tags the commit `v0.MINOR.PATCH-canary.N`. Its GitHub release is a pre-release. A dashboard-only, marketing-only, or Convex-only push skips the publish. Vercel and Convex deploy on their own.
 
-A minor bump is explicit. Add this line to the commit message, or run **Publish Release** on `canary` with the minor-bump input. It is not the default:
+N counts up within one target, which is the next patch after the newest plain version unless a candidate already chose a higher one. All of the following run from **Actions → Publish Release**:
+
+| Action | Branch | Inputs |
+| --- | --- | --- |
+| Cut a candidate although the trees did not change (for example a third-party digest refresh) | `canary` | channel `canary` |
+| Start the next minor target | `canary` | channel `canary`, minor bump |
+| Start the next patch target | `canary` | channel `canary`, advance version |
+| Promote a candidate | `master` | channel `stable`, candidate `0.1.4-canary.3` |
+| Publish a Hotfix Release | `master` | channel `stable`, hotfix |
+
+**Minor bump.** It is explicit: the checkbox, or this line in the message of the pushed commit. It holds for the rest of the cycle, so repeating it does nothing.
 
 ```text
 Bump-Platform-Minor: true
 ```
 
-An explicit **Publish Release** run ignores the platform-hash skip. On `canary` it cuts a patch even when those trees match (for example a third-party digest refresh). On `master` with channel `stable` it points the Stable manifest at a Platform version already cut and moves `:latest`. When `master` is only ahead by non-platform commits, Stable reuses the newest matching cut and does not allocate or open a sync PR. A `master` commit whose platform tree has never been published is cut as the next Platform version and opens a sync PR into `canary`.
+**Advance.** Only the newest candidate for a target can be promoted. Advance before newer work lands to keep the current one promotable: cuts then continue on the next target. A commit carries at most one candidate and one Stable Release, so advance from a `canary` commit that has no candidate yet, for example one that changes only documentation. Combined with a minor bump, it starts the next minor target.
+
+**Promote.** Rebase-merge the `canary` → `master` PR, then promote. The run is refused unless the candidate exists, its platform trees match `master`, it is the newest candidate for its target, and its plain version is unused and newer than Stable. Nothing is rebuilt: the plain Release has the candidate's digests, stack files, and Updater binaries, and its tag is on the candidate's commit. It moves Stable and `:latest`, and also Canary and `:canary` unless Canary is already newer.
+
+**Hotfix.** For an urgent fix when Canary is not ready. It builds `master` as the next plain patch, moves Stable only, and opens a sync PR into `canary`. Merge that PR. Candidates for the version it took can no longer be promoted, and the next cut moves past it. Homes running a candidate do not install it. Any other Stable run is refused, so Stable never gets an untested build by accident.
+
+**Retry.** Re-run the workflow run, or start it again with the same inputs on the same commit. It finishes the same version at whatever step was interrupted and never moves a channel backwards. A draft GitHub release is not a Release; the retry replaces it. Re-running an old run that never published is refused once a later Release contains its commit. A refused request leaves every channel and tag unchanged.
 
 Postgres, Mosquitto, and Zigbee2MQTT are pinned by digest. They do not receive `:canary` or `:latest`. Homes install the signed manifest.
 
@@ -151,6 +167,14 @@ Each `v0.*` GitHub release carries its own immutable `release-manifest.json`. Th
 The private release-signing key is the `NEMU_RELEASE_SIGNING_KEY` repository secret. The Blob write token is the `NEMU_RELEASE_CHANNELS_BLOB_TOKEN` repository secret.
 
 See [`.github/workflows/publish-release.yml`](../../.github/workflows/publish-release.yml).
+
+### First activation
+
+The Publisher change itself is a `platform/` change, so merging it into `canary` publishes `0.1.4-canary.1`. Updaters at 0.1.2 and older treat candidates as not newer and reject a Hotfix Release's manifest. Before merging it:
+
+1. Cut the bridge Release, 0.1.3, under the previous scheme and publish it on Stable. Do not merge `platform/` or `infra/prod/` changes into `canary` between the two.
+2. Confirm every Home runs 0.1.3: check the Platform version in each Home's dashboard Settings. There is no telemetry. A Canary Home that missed it can switch to Stable, install 0.1.3, and switch back while Stable serves it. Re-running the installer does not replace an existing Home's Updater.
+3. Merge. Do not run **Publish Release** on `master` until the change reaches `master`, because the workflow there still uses the previous scheme.
 
 Security controls: [github-release-protections.md](github-release-protections.md).
 
