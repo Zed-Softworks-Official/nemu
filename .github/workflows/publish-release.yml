@@ -1,23 +1,27 @@
 # Publishes one platform Release.
 #
-# A push to canary cuts the next patch when platform/ or infra/prod/ changed
-# since the newest v0.* tag (or since the previous canary tip when no tag
-# exists yet). It builds the Nemu images, freezes every service image at a
-# digest, signs the Canary manifest, tags those Nemu images with the Platform
-# version and :canary, and tags the commit v0.MINOR.PATCH. A dashboard-only
-# push skips the publish. A minor bump is an explicit input: the
-# workflow_dispatch checkbox, or a commit message line
-# `Bump-Platform-Minor: true`. It is not the default. The first Platform
-# version is 0.1.0.
+# Canary publishes Release candidates, 0.MINOR.PATCH-canary.N. A push to canary
+# cuts one when platform/ or infra/prod/ differs from the newest candidate or
+# promoted Release; a dashboard-only push skips. An explicit run on canary
+# ignores that skip, for example for a third-party digest refresh, but a commit
+# carries one candidate: the run finishes an unfinished one and is refused on a
+# finished one. N counts up within the next patch target. The minor_bump checkbox, or a commit message
+# line `Bump-Platform-Minor: true`, starts the next minor target instead, once
+# per cycle. advance_version starts the next patch target.
 #
-# An explicit Publish Release run ignores the platform-hash skip. On canary it
-# cuts a patch even when the trees match (for example a third-party digest
-# refresh). On master with channel stable it points the Stable manifest at a
-# Platform version already cut and moves :latest. When master is only ahead by
-# non-platform commits, Stable reuses the newest matching cut and does not
-# allocate or open a sync PR. A master commit whose platform tree has never
-# been published is cut as the next Platform version and opens a sync PR into
-# canary.
+# Stable publishes plain versions, 0.MINOR.PATCH, from master. Name the exact
+# candidate to promote: its unchanged build is published as the plain version,
+# on Stable and, unless Canary is already newer, on Canary. Nothing is rebuilt.
+# Or choose hotfix: master is built as the next plain patch, Stable only, and a
+# sync PR into canary is opened, or a warning links to it when Actions may not
+# open one. A Stable run that does neither is refused.
+#
+# The planner (platform/updater, publish-release) makes every decision. prepare
+# asks it before anything is built, and publish asks it again, so a refused
+# request leaves every channel and tag unchanged. To retry an interrupted
+# publish, re-run it, or start it again with the same inputs on the same
+# commit: it finishes the same version. A draft GitHub release is not a Release
+# yet, and a retry replaces it.
 #
 # Third-party images are digest-pinned and are not tagged. Homes install the
 # signed manifest. :canary and :latest are not a Release.
@@ -48,7 +52,22 @@ on:
           - stable
         default: canary
       minor_bump:
-        description: When cutting a new Platform version, allocate the next minor instead of the next patch
+        description: "Canary: target the next minor version, unless this cycle already does"
+        required: true
+        type: boolean
+        default: false
+      advance_version:
+        description: "Canary: start the next patch target, so the current target can be promoted"
+        required: true
+        type: boolean
+        default: false
+      candidate:
+        description: "Stable: the Release candidate to promote, for example 0.1.4-canary.3"
+        required: false
+        type: string
+        default: ""
+      hotfix:
+        description: "Stable: build master as a Hotfix Release instead of promoting"
         required: true
         type: boolean
         default: false
@@ -63,17 +82,25 @@ permissions:
 env:
   CORE_IMAGE: ghcr.io/zed-softworks-official/nemu-core
   MATTER_IMAGE: ghcr.io/zed-softworks-official/nemu-matter
+  # What was asked for. Both jobs give these to scripts/release-facts.sh.
+  SOURCE: ${{ github.event_name == 'workflow_dispatch' && inputs.channel || 'canary' }}
+  BRANCH: ${{ github.ref_type == 'branch' && github.ref_name || '' }}
+  COMMIT: ${{ github.sha }}
+  PUSH: ${{ github.event_name == 'push' }}
+  # A re-run may find its own cut finished.
+  RESUMING: ${{ github.run_attempt > 1 }}
+  MINOR_BUMP: ${{ inputs.minor_bump || false }}
+  ADVANCE_VERSION: ${{ inputs.advance_version || false }}
+  CANDIDATE: ${{ inputs.candidate || '' }}
+  HOTFIX: ${{ inputs.hotfix || false }}
 
 jobs:
   prepare:
     runs-on: blacksmith
     outputs:
-      source: ${{ steps.vars.outputs.source }}
-      minor_bump: ${{ steps.vars.outputs.minor_bump }}
-      already_cut: ${{ steps.vars.outputs.already_cut }}
-      should_build: ${{ steps.vars.outputs.should_build }}
-      should_publish: ${{ steps.vars.outputs.should_publish }}
-      plan_commit: ${{ steps.vars.outputs.plan_commit }}
+      action: ${{ steps.decide.outputs.action }}
+      version: ${{ steps.decide.outputs.version }}
+      commit: ${{ steps.decide.outputs.commit }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -82,89 +109,30 @@ jobs:
           fetch-tags: true
           persist-credentials: false
 
-      - name: Choose the publish
-        id: vars
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.100.0
+
+      - name: Build publish-release
+        run: cargo build --release --locked --bin publish-release --manifest-path platform/updater/Cargo.toml
+
+      - name: Decide the publish
+        id: decide
         env:
-          EVENT_NAME: ${{ github.event_name }}
-          INPUT_CHANNEL: ${{ inputs.channel }}
-          INPUT_MINOR: ${{ inputs.minor_bump }}
-          PUSH_BEFORE: ${{ github.event.before }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          source="canary"
-          minor="false"
-          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-            source="$INPUT_CHANNEL"
-            minor="$INPUT_MINOR"
-          fi
-          if git log -1 --format='%B' | grep -Eq '^Bump-Platform-Minor: true$'; then
-            minor="true"
-          fi
-          if [ "$source" = "stable" ] && [ "$GITHUB_REF" != "refs/heads/master" ]; then
-            echo "An explicit Stable release publishes master." >&2
-            exit 1
-          fi
-          if [ "$source" = "canary" ] && [ "$GITHUB_REF" != "refs/heads/canary" ]; then
-            echo "A Canary publish runs on the canary branch." >&2
-            exit 1
-          fi
-
-          already="false"
-          if git tag --points-at HEAD | grep -Eq '^v0\.[0-9]+\.[0-9]+$'; then
-            already="true"
-          fi
-
-          # Trees a Home installs. Dashboard and Convex changes do not move this.
-          platform_changed="true"
-          newest=""
-          while IFS= read -r tag; do
-            [ -n "$tag" ] || continue
-            if [[ "$tag" =~ ^v0\.[0-9]+\.[0-9]+$ ]]; then
-              newest="$tag"
-              break
-            fi
-          done < <(git tag -l 'v0.*' --sort=-v:refname)
-
-          if [ -n "$newest" ]; then
-            if git diff --quiet "$newest" HEAD -- platform infra/prod; then
-              platform_changed="false"
-            fi
-          elif [ "$EVENT_NAME" = "push" ] \
-            && [ -n "${PUSH_BEFORE:-}" ] \
-            && [ "$PUSH_BEFORE" != "0000000000000000000000000000000000000000" ] \
-            && git rev-parse --verify "$PUSH_BEFORE^{commit}" >/dev/null 2>&1; then
-            if git diff --quiet "$PUSH_BEFORE" HEAD -- platform infra/prod; then
-              platform_changed="false"
-            fi
-          fi
-
-          plan_commit="$GITHUB_SHA"
-          should_build="false"
-          should_publish="false"
-
-          if [ "$already" = "true" ]; then
-            should_publish="true"
-          elif [ "$platform_changed" = "false" ] && [ "$source" = "stable" ] && [ -n "$newest" ]; then
-            # Master is ahead only by non-platform commits. Point Stable at the
-            # newest cut whose platform tree matches and do not allocate.
-            plan_commit=$(git rev-parse "${newest}^{commit}")
-            should_publish="true"
-          elif [ "$EVENT_NAME" = "workflow_dispatch" ] || [ "$platform_changed" = "true" ]; then
-            should_build="true"
-            should_publish="true"
-          fi
-
-          echo "source=$source" >> "$GITHUB_OUTPUT"
-          echo "minor_bump=$minor" >> "$GITHUB_OUTPUT"
-          echo "already_cut=$already" >> "$GITHUB_OUTPUT"
-          echo "should_build=$should_build" >> "$GITHUB_OUTPUT"
-          echo "should_publish=$should_publish" >> "$GITHUB_OUTPUT"
-          echo "plan_commit=$plan_commit" >> "$GITHUB_OUTPUT"
-          echo "platform_changed=$platform_changed newest=${newest:-none} should_build=$should_build should_publish=$should_publish plan_commit=$plan_commit"
+          ./scripts/release-facts.sh "$RUNNER_TEMP/facts" > "$RUNNER_TEMP/release.json"
+          ./platform/updater/target/release/publish-release decide \
+            < "$RUNNER_TEMP/release.json" > "$RUNNER_TEMP/decision.json"
+          jq . "$RUNNER_TEMP/decision.json"
+          jq -r '"action=\(.action)", "version=\(.platformVersion)", "commit=\(.commit)"' \
+            "$RUNNER_TEMP/decision.json" >> "$GITHUB_OUTPUT"
 
   build:
     needs: prepare
-    if: needs.prepare.outputs.should_build == 'true'
+    if: needs.prepare.outputs.action == 'build'
     permissions:
       contents: read
       packages: write
@@ -233,7 +201,7 @@ jobs:
 
   merge-images:
     needs: [prepare, build]
-    if: needs.prepare.outputs.should_build == 'true'
+    if: needs.prepare.outputs.action == 'build'
     permissions:
       packages: write
     runs-on: blacksmith
@@ -286,7 +254,7 @@ jobs:
     if: >-
       always() &&
       needs.prepare.result == 'success' &&
-      needs.prepare.outputs.should_publish == 'true' &&
+      needs.prepare.outputs.action != 'skip' &&
       (needs.build.result == 'success' || needs.build.result == 'skipped') &&
       (needs.merge-images.result == 'success' || needs.merge-images.result == 'skipped')
     permissions:
@@ -309,7 +277,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download Updater binaries
-        if: needs.prepare.outputs.should_build == 'true'
+        if: needs.prepare.outputs.action == 'build'
         uses: actions/download-artifact@v4
         with:
           pattern: updater-*
@@ -337,12 +305,12 @@ jobs:
       - name: Plan and publish the Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # prepare already accepted this request.
+          RESUMING: "true"
           RELEASE_SIGNING_KEY: ${{ secrets.NEMU_RELEASE_SIGNING_KEY }}
           BLOB_READ_WRITE_TOKEN: ${{ secrets.NEMU_RELEASE_CHANNELS_BLOB_TOKEN }}
-          SOURCE: ${{ needs.prepare.outputs.source }}
-          MINOR_BUMP: ${{ needs.prepare.outputs.minor_bump }}
-          SHOULD_BUILD: ${{ needs.prepare.outputs.should_build }}
-          PLAN_COMMIT: ${{ needs.prepare.outputs.plan_commit }}
+          EXPECTED_VERSION: ${{ needs.prepare.outputs.version }}
+          EXPECTED_COMMIT: ${{ needs.prepare.outputs.commit }}
           CORE_DIGEST: ${{ needs.merge-images.outputs.core_digest }}
           MATTER_DIGEST: ${{ needs.merge-images.outputs.matter_digest }}
           PUBLISH_RELEASE_NOTES: ${{ vars.NEMU_PUBLISH_RELEASE_NOTES }}
@@ -350,43 +318,36 @@ jobs:
           set -euo pipefail
           signing_key=${RELEASE_SIGNING_KEY:-}
           unset RELEASE_SIGNING_KEY
+          # Check before any tag moves, so a missing secret cannot leave an
+          # image tag or a Release ahead of the channel manifest.
+          if [ -z "${signing_key}" ]; then
+            echo "NEMU_RELEASE_SIGNING_KEY is not set" >&2
+            exit 1
+          fi
+          if [ -z "${BLOB_READ_WRITE_TOKEN:-}" ]; then
+            echo "NEMU_RELEASE_CHANNELS_BLOB_TOKEN is not set" >&2
+            exit 1
+          fi
           git fetch origin --tags --force
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           # Manifests carry the base64 Updater binaries, which are far larger
           # than one command-line argument may be. Pass large values to jq as
           # files, never with --arg or --argjson.
           work="$RUNNER_TEMP/publish"
           mkdir -p "$work"
-          echo '[]' > "$work/cuts.json"
-          while IFS= read -r tag; do
-            [ -n "$tag" ] || continue
-            if ! [[ "$tag" =~ ^v0\.[0-9]+\.[0-9]+$ ]]; then
-              continue
-            fi
-            commit=$(git rev-parse "${tag}^{commit}")
-            dir="$RUNNER_TEMP/cuts/$tag"
-            mkdir -p "$dir"
-            if ! gh release download "$tag" --pattern release-manifest.json --dir "$dir"; then
-              echo "Platform version ${tag} has no signed manifest" >&2
-              exit 1
-            fi
-            jq \
-              --arg version "${tag#v}" \
-              --arg commit "$commit" \
-              --slurpfile signed "$dir/release-manifest.json" \
-              '. + [{platformVersion: $version, commit: $commit, manifest: $signed[0].manifest}]' \
-              "$work/cuts.json" > "$work/cuts.next.json"
-            mv "$work/cuts.next.json" "$work/cuts.json"
-          done < <(git tag -l 'v0.*')
+          planner=./platform/updater/target/release/publish-release
+          ./scripts/release-facts.sh "$RUNNER_TEMP/facts" > "$work/release.json"
+          "$planner" decide < "$work/release.json" > "$work/decision.json"
+          jq . "$work/decision.json"
+          action=$(jq -r '.action' "$work/decision.json")
 
-          if [ "$SHOULD_BUILD" != "true" ]; then
-            jq -e --arg commit "$PLAN_COMMIT" '[.[] | select(.commit == $commit)][0] // error("no cut for this commit")' \
-              "$work/cuts.json" > "$work/this_cut.json"
-            jq -jer '.manifest.updater.amd64' "$work/this_cut.json" > "$work/amd64.b64"
-            jq -jer '.manifest.updater.arm64' "$work/this_cut.json" > "$work/arm64.b64"
-            resolved=$(jq -c '.manifest.services' "$work/this_cut.json")
+          echo 'null' > "$work/source.json"
+          echo 'null' > "$work/build.json"
+          if [ "$action" != "build" ]; then
+            source_tag=$(jq -er '.sourceTag' "$work/decision.json")
+            gh release download "$source_tag" --pattern release-manifest.json \
+              --dir "$work/source" --clobber
+            jq -e '.manifest' "$work/source/release-manifest.json" > "$work/source.json"
           else
             resolve() {
               local out digest
@@ -403,153 +364,205 @@ jobs:
             postgres=$(resolve postgres:16-alpine)
             base64 -w0 updater-bins/updater-amd64/updater > "$work/amd64.b64"
             base64 -w0 updater-bins/updater-arm64/updater > "$work/arm64.b64"
-            resolved=$(jq -n \
+            jq -n \
               --arg mosquitto "$mosquitto" \
               --arg zigbee "$zigbee" \
               --arg matter "$MATTER_DIGEST" \
               --arg postgres "$postgres" \
               --arg core "$CORE_DIGEST" \
-              '[
-                {service: "mosquitto", image: "eclipse-mosquitto:2", digest: $mosquitto},
-                {service: "zigbee2mqtt", image: "koenkk/zigbee2mqtt", digest: $zigbee},
-                {service: "nemu-matter", image: "ghcr.io/zed-softworks-official/nemu-matter", digest: $matter},
-                {service: "postgres", image: "postgres:16-alpine", digest: $postgres},
-                {service: "nemu-core", image: "ghcr.io/zed-softworks-official/nemu-core", digest: $core}
-              ]')
+              --rawfile compose infra/prod/docker-compose.yml \
+              --rawfile mosquittoConf infra/prod/mosquitto/mosquitto.conf \
+              --rawfile amd64 "$work/amd64.b64" \
+              --rawfile arm64 "$work/arm64.b64" \
+              '{
+                resolved: [
+                  {service: "mosquitto", image: "eclipse-mosquitto:2", digest: $mosquitto},
+                  {service: "zigbee2mqtt", image: "koenkk/zigbee2mqtt", digest: $zigbee},
+                  {service: "nemu-matter", image: "ghcr.io/zed-softworks-official/nemu-matter", digest: $matter},
+                  {service: "postgres", image: "postgres:16-alpine", digest: $postgres},
+                  {service: "nemu-core", image: "ghcr.io/zed-softworks-official/nemu-core", digest: $core}
+                ],
+                stackFiles: [
+                  {path: "docker-compose.yml", contents: $compose},
+                  {path: "mosquitto/mosquitto.conf", contents: $mosquittoConf}
+                ],
+                migrations: [],
+                updater: {amd64: $amd64, arm64: $arm64}
+              }' > "$work/build.json"
           fi
 
+          notes_since=$(jq -r '.notesSince // empty' "$work/decision.json")
+          commit=$(jq -er '.commit' "$work/decision.json")
+          ./scripts/release-notes.sh "$notes_since" "$commit" > "$work/notes.txt"
           # Updaters at 0.1.1 and older reject a manifest that has release
           # notes, so a Home on one would stop updating. Set the repository
           # variable NEMU_PUBLISH_RELEASE_NOTES to true only once every Home
-          # runs a Release that understands them. Reusing a cut keeps the
-          # notes it was signed with.
-          : > "$work/notes.txt"
+          # runs a Release that understands them. The GitHub release always
+          # has the notes.
+          : > "$work/manifest-notes.txt"
           if [ "${PUBLISH_RELEASE_NOTES:-}" = "true" ]; then
-            # Read every tag before picking one: an early-exiting reader
-            # fails under pipefail.
-            tags=$(git tag -l 'v0.*' --sort=-v:refname)
-            previous=$(awk '/^v0\.[0-9]+\.[0-9]+$/ && !found { found = $0 } END { print found }' <<<"$tags")
-            ./scripts/release-notes.sh "$previous" "$PLAN_COMMIT" > "$work/notes.txt"
+            cp "$work/notes.txt" "$work/manifest-notes.txt"
           fi
 
           jq -n \
-            --arg source "$SOURCE" \
-            --argjson minorBump "$MINOR_BUMP" \
-            --arg commit "$PLAN_COMMIT" \
-            --slurpfile cutReleases "$work/cuts.json" \
-            --argjson resolved "$resolved" \
-            --rawfile compose infra/prod/docker-compose.yml \
-            --rawfile mosquitto infra/prod/mosquitto/mosquitto.conf \
-            --rawfile notes "$work/notes.txt" \
-            --rawfile amd64 "$work/amd64.b64" \
-            --rawfile arm64 "$work/arm64.b64" \
+            --arg version "$EXPECTED_VERSION" \
+            --arg commit "$EXPECTED_COMMIT" \
+            --slurpfile release "$work/release.json" \
+            --slurpfile build "$work/build.json" \
+            --slurpfile source "$work/source.json" \
+            --rawfile notes "$work/manifest-notes.txt" \
             '{
-              source: $source,
-              minorBump: $minorBump,
-              commit: $commit,
-              cutReleases: $cutReleases[0],
-              resolved: $resolved,
-              stackFiles: [
-                {path: "docker-compose.yml", contents: $compose},
-                {path: "mosquitto/mosquitto.conf", contents: $mosquitto}
-              ],
-              migrations: [],
-              updater: {amd64: $amd64, arm64: $arm64},
+              release: $release[0],
+              expectedVersion: $version,
+              expectedCommit: $commit,
+              build: $build[0],
+              sourceManifest: $source[0],
               releaseNotes: $notes
-            }' > "$RUNNER_TEMP/request.json"
-
-          if [ -z "${signing_key}" ]; then
-            echo "NEMU_RELEASE_SIGNING_KEY is not set" >&2
-            exit 1
-          fi
-          # Check before any tag moves, so a missing token cannot leave
-          # :latest or a version tag ahead of the channel manifest.
-          if [ -z "${BLOB_READ_WRITE_TOKEN:-}" ]; then
-            echo "NEMU_RELEASE_CHANNELS_BLOB_TOKEN is not set" >&2
-            exit 1
-          fi
+            }' > "$work/request.json"
           NEMU_RELEASE_SIGNING_KEY="$signing_key" \
-            ./platform/updater/target/release/publish-release \
-            < "$RUNNER_TEMP/request.json" > "$RUNNER_TEMP/plan.json"
+            "$planner" plan < "$work/request.json" > "$work/plan.json"
           unset signing_key
 
-          jq -r '.signedManifest' "$RUNNER_TEMP/plan.json" | base64 -d > "$RUNNER_TEMP/release-manifest.json"
+          jq -r '.signedManifest' "$work/plan.json" | base64 -d > "$RUNNER_TEMP/release-manifest.json"
           jq -e '.manifest.platformVersion' "$RUNNER_TEMP/release-manifest.json" >/dev/null
-          version=$(jq -r '.platformVersion' "$RUNNER_TEMP/plan.json")
-          channel=$(jq -r '.channel' "$RUNNER_TEMP/plan.json")
+          version=$(jq -er '.platformVersion' "$work/plan.json")
 
-          jq -c '.imageTags[]' "$RUNNER_TEMP/plan.json" | while IFS= read -r row; do
-            image=$(jq -r '.image' <<<"$row")
-            tag=$(jq -r '.tag' <<<"$row")
-            digest=$(jq -r '.digest' <<<"$row")
-            docker buildx imagetools create -t "${image}:${tag}" "${image}@${digest}"
-          done
+          tag_images() {
+            jq -c ".$1[]" "$work/plan.json" | while IFS= read -r row; do
+              image=$(jq -r '.image' <<<"$row")
+              tag=$(jq -r '.tag' <<<"$row")
+              digest=$(jq -r '.digest' <<<"$row")
+              docker buildx imagetools create -t "${image}:${tag}" "${image}@${digest}"
+            done
+          }
 
-          git_tag=$(jq -r '.gitTag // empty' "$RUNNER_TEMP/plan.json")
+          # Nothing before this line writes a tag, a Release, or a channel.
+          tag_images versionTags
+
+          git_tag=$(jq -r '.gitTag // empty' "$work/plan.json")
           if [ -n "$git_tag" ]; then
-            if git rev-parse -q --verify "refs/tags/${git_tag}" >/dev/null; then
-              existing=$(git rev-parse "${git_tag}^{commit}")
-              if [ "$existing" != "$PLAN_COMMIT" ]; then
-                echo "${git_tag} already points at another commit" >&2
-                exit 1
+            # An interrupted publish may have left a draft, possibly of another
+            # commit. Without its tag it is not a Release. Listing releases
+            # fails only on an error; having no draft is an empty list.
+            drafts() {
+              gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" > "$work/releases.json"
+              jq -r --arg tag "$git_tag" \
+                '.[] | select(.draft and .tag_name == $tag) | "\(.id) \(.target_commitish)"' \
+                "$work/releases.json"
+            }
+            drafts > "$work/drafts.txt"
+            while read -r id _; do
+              gh api --method DELETE "repos/${GITHUB_REPOSITORY}/releases/${id}" < /dev/null
+            done < "$work/drafts.txt"
+            {
+              echo "Platform version ${version}."
+              if [ -s "$work/notes.txt" ]; then
+                echo
+                cat "$work/notes.txt"
               fi
+            } > "$work/github-notes.md"
+            kind=(--prerelease=false)
+            latest=(--latest=true)
+            if [ "$(jq -r '.prerelease' "$work/plan.json")" = "true" ]; then
+              kind=(--prerelease=true)
+              latest=(--latest=false)
             fi
             # Attach the manifest before the version tag exists. A draft
             # release does not publish the tag; publishing the release does.
-            if gh release view "$git_tag" >/dev/null 2>&1; then
-              gh release upload "$git_tag" "$RUNNER_TEMP/release-manifest.json#release-manifest.json" --clobber
-            else
-              gh release create "$git_tag" \
-                "$RUNNER_TEMP/release-manifest.json#release-manifest.json" \
-                --draft \
-                --target "$PLAN_COMMIT" \
-                --title "$git_tag" \
-                --notes "Platform version ${version}."
-            fi
-            if [ "$(gh release view "$git_tag" --json isDraft --jq .isDraft)" = "true" ]; then
-              gh release edit "$git_tag" --draft=false
-            fi
-            # Publishing the draft creates the tag. Push only when that did
-            # not happen, and only after the manifest is attached.
-            if git fetch --force origin "tag ${git_tag}"; then
-              existing=$(git rev-parse "${git_tag}^{commit}")
-              if [ "$existing" != "$PLAN_COMMIT" ]; then
-                echo "${git_tag} already points at another commit" >&2
+            gh release create "$git_tag" \
+              "$RUNNER_TEMP/release-manifest.json#release-manifest.json" \
+              --draft \
+              "${kind[@]}" \
+              --target "$commit" \
+              --title "$git_tag" \
+              --notes-file "$work/github-notes.md"
+            # Publish only a lone draft of this commit. The list may lag.
+            for attempt in 1 2 3 4 5; do
+              drafts > "$work/drafts.txt"
+              if [ "$(wc -l < "$work/drafts.txt")" -eq 1 ] &&
+                [ "$(cut -d ' ' -f 2 "$work/drafts.txt")" = "$commit" ]; then
+                break
+              fi
+              if [ "$attempt" = "5" ]; then
+                echo "The draft of ${git_tag} does not target ${commit}:" >&2
+                cat "$work/drafts.txt" >&2
                 exit 1
               fi
-            else
-              git tag "$git_tag" "$PLAN_COMMIT"
-              git push origin "refs/tags/${git_tag}"
+              sleep 2
+            done
+            gh release edit "$git_tag" --draft=false "${kind[@]}" "${latest[@]}"
+            for attempt in 1 2 3 4 5; do
+              if git fetch --force origin "refs/tags/${git_tag}:refs/tags/${git_tag}"; then
+                break
+              fi
+              if [ "$attempt" = "5" ]; then
+                echo "Publishing ${git_tag} did not create its tag" >&2
+                exit 1
+              fi
+              sleep 2
+            done
+            existing=$(git rev-parse "refs/tags/${git_tag}^{commit}")
+            if [ "$existing" != "$commit" ]; then
+              echo "${git_tag} already points at another commit" >&2
+              exit 1
             fi
           fi
+
+          tag_images pointerTags
 
           # Channel manifests are mutable pointers, so they live on the install
           # host (get.nemu.sh/releases/<channel>.json), not on an immutable
           # GitHub release. Each v0.* release keeps its own manifest.
-          url=$(node "$RUNNER_TEMP/channel-publisher/publish-channel-manifest.mjs" \
-            "$channel" "$RUNNER_TEMP/release-manifest.json")
-          echo "Published ${channel}.json to ${url}"
-          curl -fsSL -H 'Cache-Control: no-cache' "${url}?v=${PLAN_COMMIT}" -o "$RUNNER_TEMP/published.json"
-          cmp "$RUNNER_TEMP/release-manifest.json" "$RUNNER_TEMP/published.json"
+          # The request's query differs on every run, because a promotion has
+          # its candidate's commit and the host caches by URL.
+          channels=$(jq -r '.channels[]' "$work/plan.json")
+          for channel in $channels; do
+            url=$(node "$RUNNER_TEMP/channel-publisher/publish-channel-manifest.mjs" \
+              "$channel" "$RUNNER_TEMP/release-manifest.json")
+            echo "Published ${channel}.json to ${url}"
+            curl -fsSL -H 'Cache-Control: no-cache' \
+              "${url}?v=${version}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
+              -o "$RUNNER_TEMP/published.json"
+            cmp "$RUNNER_TEMP/release-manifest.json" "$RUNNER_TEMP/published.json"
+          done
 
-          # Only sync master back when this publish allocated a new version.
-          # Reusing a cut for Stable leaves canary alone. Canary requires a
-          # pull request (GitHub rejects listing the Actions app as a bypass
-          # actor on this org), so open a PR instead of pushing the branch.
-          if [ "$(jq -r '.mergeBackToCanary' "$RUNNER_TEMP/plan.json")" = "true" ]; then
+          # Only a hotfix syncs master back. Canary requires a pull request
+          # (GitHub rejects listing the Actions app as a bypass actor on this
+          # org), so open a PR instead of pushing the branch. A retry does not
+          # reopen one that was merged or closed. Stable is already published,
+          # and Actions may not be allowed to open pull requests, so a failure
+          # here is a warning that says how to open it by hand.
+          if [ "$(jq -r '.mergeBackToCanary' "$work/plan.json")" = "true" ]; then
             git fetch origin canary
-            if ! git merge-base --is-ancestor "$PLAN_COMMIT" origin/canary; then
+            if ! git merge-base --is-ancestor "$commit" origin/canary; then
               branch="sync/stable-${version}-to-canary"
-              git push origin "${PLAN_COMMIT}:refs/heads/${branch}"
-              existing=$(gh pr list --base canary --head "$branch" --json number --jq 'length')
-              if [ "$existing" = "0" ]; then
+              sync_pr() {
+                local existing
+                existing=$(gh pr list --state all --base canary --head "$branch" --json number --jq 'length') || return 1
+                if [ "$existing" != "0" ]; then
+                  echo "Sync PR for ${branch} already exists."
+                  return 0
+                fi
+                git push origin "${commit}:refs/heads/${branch}" || return 1
                 gh pr create \
                   --base canary \
                   --head "$branch" \
                   --title "Sync Stable ${version} back to canary" \
-                  --body "Stable allocated Platform version ${version} on master. Merge this into canary so the branches stay aligned."
-              else
-                echo "Sync PR for ${branch} already exists."
+                  --body "Hotfix Release ${version} was built on master. Merge this into canary so the next Release candidate has the fix."
+              }
+              if ! sync_pr; then
+                compare="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/canary...${branch}?expand=1"
+                echo "::warning title=Sync PR not opened::Hotfix Release ${version} is published, but its sync PR into canary was not opened. Open it at ${compare}"
+                {
+                  echo "### Open the sync PR by hand"
+                  echo
+                  echo "Hotfix Release ${version} is published, but its sync PR into \`canary\` was not opened."
+                  echo "[Open it from \`${branch}\`](${compare}) and merge it."
+                  echo
+                  echo "If that branch does not exist, push it first:"
+                  echo
+                  echo "    git push origin ${commit}:refs/heads/${branch}"
+                } >> "$GITHUB_STEP_SUMMARY"
               fi
             fi
           fi

@@ -1,3 +1,5 @@
+use std::fmt;
+
 /// A Platform version: `0.MINOR.PATCH`, or `0.MINOR.PATCH-canary.N` for a
 /// Release candidate. The derived order is semver precedence, so a candidate
 /// is older than its plain version and candidates compare by `N`.
@@ -32,8 +34,54 @@ impl PlatformVersion {
         })
     }
 
+    pub(crate) fn plain(minor: u64, patch: u64) -> Self {
+        Self {
+            minor,
+            patch,
+            stage: Stage::Plain,
+        }
+    }
+
+    /// Release candidate `n` for this version's target.
+    pub(crate) fn candidate(self, n: u64) -> Self {
+        Self {
+            stage: Stage::Candidate(n),
+            ..self
+        }
+    }
+
+    /// The plain version a candidate precedes; a plain version is its own.
+    pub(crate) fn target(self) -> Self {
+        Self::plain(self.minor, self.patch)
+    }
+
+    pub(crate) fn next_patch(self) -> Self {
+        Self::plain(self.minor, self.patch + 1)
+    }
+
+    pub(crate) fn next_minor(self) -> Self {
+        Self::plain(self.minor + 1, 0)
+    }
+
+    pub(crate) fn candidate_number(&self) -> Option<u64> {
+        match self.stage {
+            Stage::Candidate(n) => Some(n),
+            Stage::Plain => None,
+        }
+    }
+
     pub(crate) fn is_candidate(&self) -> bool {
         matches!(self.stage, Stage::Candidate(_))
+    }
+}
+
+impl fmt::Display for PlatformVersion {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "0.{}.{}", self.minor, self.patch)?;
+        match self.candidate_number() {
+            Some(n) => write!(f, "-canary.{n}"),
+            None => Ok(()),
+        }
     }
 }
 

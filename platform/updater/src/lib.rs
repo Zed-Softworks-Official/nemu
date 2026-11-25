@@ -37,8 +37,9 @@ pub use manifest::{
 };
 
 pub use publish::{
-    CutRelease, ImageTag, PublishError, PublishPlan, PublishRequest, PublishSource,
-    ResolvedService, plan_publish, signing_key_from_base64,
+    BuildInputs, ChannelVersions, CutRelease, ImageTag, PublishAction, PublishDecision,
+    PublishError, PublishPlan, PublishRequest, PublishSource, ReleaseRequest, ResolvedService,
+    decide, plan_publish, signing_key_from_base64,
 };
 
 use version::PlatformVersion;
