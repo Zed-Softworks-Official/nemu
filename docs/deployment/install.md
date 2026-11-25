@@ -138,25 +138,25 @@ N counts up within one target, which is the next patch after the newest plain ve
 
 | Action | Branch | Inputs |
 | --- | --- | --- |
-| Cut a candidate although the trees did not change (for example a third-party digest refresh) | `canary` | channel `canary` |
+| Cut a candidate although the trees did not change (for example a third-party digest refresh), on a commit without one | `canary` | channel `canary` |
 | Start the next minor target | `canary` | channel `canary`, minor bump |
 | Start the next patch target | `canary` | channel `canary`, advance version |
 | Promote a candidate | `master` | channel `stable`, candidate `0.1.4-canary.3` |
 | Publish a Hotfix Release | `master` | channel `stable`, hotfix |
 
-**Minor bump.** It is explicit: the checkbox, or this line in the message of the pushed commit. It holds for the rest of the cycle, so repeating it does nothing.
+**Minor bump.** It is explicit: the checkbox, or this line in the message of the pushed commit. It holds while cuts stay on that minor target, so repeating it there changes nothing. Advancing starts a new target, so a minor bump after it selects the next minor.
 
 ```text
 Bump-Platform-Minor: true
 ```
 
-**Advance.** Only the newest candidate for a target can be promoted. Advance before newer work lands to keep the current one promotable: cuts then continue on the next target. A commit carries at most one candidate and one Stable Release, so advance from a `canary` commit that has no candidate yet, for example one that changes only documentation. Combined with a minor bump, it starts the next minor target.
+**Advance.** Only the newest candidate for a target can be promoted. Advance before newer work lands to keep the current one promotable: cuts then continue on the next target. A commit carries at most one candidate and one Stable Release, so advance from a `canary` commit that has no candidate yet, for example one that changes only documentation. On a commit whose unfinished candidate was not an advance, the run is refused: finish that candidate without the option first. Combined with a minor bump, it starts the next minor target.
 
 **Promote.** Rebase-merge the `canary` → `master` PR, then promote. The run is refused unless the candidate exists, its platform trees match `master`, it is the newest candidate for its target, and its plain version is unused and newer than Stable. Nothing is rebuilt: the plain Release has the candidate's digests, stack files, and Updater binaries, and its tag is on the candidate's commit. It moves Stable and `:latest`, and also Canary and `:canary` unless Canary is already newer.
 
-**Hotfix.** For an urgent fix when Canary is not ready. It builds `master` as the next plain patch, moves Stable only, and opens a sync PR into `canary`. Merge that PR. Candidates for the version it took can no longer be promoted, and the next cut moves past it. Homes running a candidate do not install it. Any other Stable run is refused, so Stable never gets an untested build by accident.
+**Hotfix.** For an urgent fix when Canary is not ready. It builds `master` as the next plain patch, moves Stable only, and opens a sync PR into `canary`. Merge that PR. Opening it needs **Settings → Actions → General → Allow GitHub Actions to create and approve pull requests**, which the organization can also disallow. Without it the run still succeeds, with a warning and a link in its summary for opening the PR from the pushed `sync/stable-<version>-to-canary` branch by hand. Candidates for the version it took can no longer be promoted, and the next cut moves past it. Homes running a candidate do not install it. Any other Stable run is refused, so Stable never gets an untested build by accident.
 
-**Retry.** Re-run the workflow run, or start it again with the same inputs on the same commit. It finishes the same version at whatever step was interrupted and never moves a channel backwards. A draft GitHub release is not a Release; the retry replaces it. Re-running an old run that never published is refused once a later Release contains its commit. A refused request leaves every channel and tag unchanged.
+**Retry.** Re-run the workflow run, or start it again with the same inputs on the same commit. It finishes the same version at whatever step was interrupted and never moves a channel backwards. Once Canary serves the candidate, only a re-run is accepted: starting a new Canary run on that commit is refused, because it would be a second candidate. If an interrupted advance cannot be told from a normal first cut, its retry is refused too; finish it without advance version. A draft GitHub release is not a Release; the retry replaces it. Re-running an old run that never published is refused once a later Release contains its commit. A refused request leaves every channel and tag unchanged.
 
 Postgres, Mosquitto, and Zigbee2MQTT are pinned by digest. They do not receive `:canary` or `:latest`. Homes install the signed manifest.
 

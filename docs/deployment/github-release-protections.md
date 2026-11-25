@@ -2,7 +2,7 @@
 
 A platform Release is published by [`.github/workflows/publish-release.yml`](../../.github/workflows/publish-release.yml):
 
-- A push to `canary` whose `platform/` or `infra/prod/` differs from the newest Release candidate or promoted Release cuts the next candidate, signs the Canary manifest, and tags the commit `v0.MINOR.PATCH-canary.N`. A dashboard-only, marketing-only, or Convex-only push skips the publish. An explicit run on `canary` ignores that skip.
+- A push to `canary` whose `platform/` or `infra/prod/` differs from the newest Release candidate or promoted Release cuts the next candidate, signs the Canary manifest, and tags the commit `v0.MINOR.PATCH-canary.N`. A dashboard-only, marketing-only, or Convex-only push skips the publish. An explicit run on `canary` ignores that skip, but is refused on a commit whose candidate is already fully published.
 - An explicit run on `master` with channel `stable` either promotes a named candidate, publishing its unchanged build as `v0.MINOR.PATCH`, or builds `master` as a Hotfix Release. Anything else is refused. See [Publishing a Release](install.md#publishing-a-release-maintainers).
 - `core-v*` and `matter-v*` do not publish a platform Release.
 
@@ -24,7 +24,7 @@ Promotion pull requests are rebase-merged, so `master` gets the same commits `ca
    Protects `master` (an explicit `refs/heads/master` condition rather than `~DEFAULT_BRANCH`, so it stays protected if the default branch ever changes): no deletion, no force-push, required signatures, one approving review, code-owner review, stale-review dismissal, resolved threads, linear history, and rebase as the only allowed merge method.
 
 2. **Branch ruleset** — `Protect canary`  
-   Same rules for `canary` as `master` (org-admin and repository-admin bypass). GitHub rejects listing the built-in Actions app as a bypass actor on this org, so a Hotfix Release opens a sync PR into `canary` instead of pushing the branch. Human changes still go through pull requests.
+   Same rules for `canary` as `master` (org-admin and repository-admin bypass). GitHub rejects listing the built-in Actions app as a bypass actor on this org, so a Hotfix Release opens a sync PR into `canary` instead of pushing the branch. That needs the Actions setting **Allow GitHub Actions to create and approve pull requests**. While it is off, the publish succeeds with a warning and a compare link, and a maintainer opens the PR by hand. Human changes still go through pull requests.
 
 ### Platform version tags
 

@@ -3,8 +3,9 @@
 # Canary publishes Release candidates, 0.MINOR.PATCH-canary.N. A push to canary
 # cuts one when platform/ or infra/prod/ differs from the newest candidate or
 # promoted Release; a dashboard-only push skips. An explicit run on canary
-# ignores that skip, for example for a third-party digest refresh. N counts up
-# within the next patch target. The minor_bump checkbox, or a commit message
+# ignores that skip, for example for a third-party digest refresh, but a commit
+# carries one candidate: the run finishes an unfinished one and is refused on a
+# finished one. N counts up within the next patch target. The minor_bump checkbox, or a commit message
 # line `Bump-Platform-Minor: true`, starts the next minor target instead, once
 # per cycle. advance_version starts the next patch target.
 #
@@ -12,7 +13,8 @@
 # candidate to promote: its unchanged build is published as the plain version,
 # on Stable and, unless Canary is already newer, on Canary. Nothing is rebuilt.
 # Or choose hotfix: master is built as the next plain patch, Stable only, and a
-# sync PR into canary is opened. A Stable run that does neither is refused.
+# sync PR into canary is opened, or a warning links to it when Actions may not
+# open one. A Stable run that does neither is refused.
 #
 # The planner (platform/updater, publish-release) makes every decision. prepare
 # asks it before anything is built, and publish asks it again, so a refused
@@ -85,6 +87,8 @@ env:
   BRANCH: ${{ github.ref_type == 'branch' && github.ref_name || '' }}
   COMMIT: ${{ github.sha }}
   PUSH: ${{ github.event_name == 'push' }}
+  # A re-run may find its own cut finished.
+  RESUMING: ${{ github.run_attempt > 1 }}
   MINOR_BUMP: ${{ inputs.minor_bump || false }}
   ADVANCE_VERSION: ${{ inputs.advance_version || false }}
   CANDIDATE: ${{ inputs.candidate || '' }}
@@ -301,6 +305,8 @@ jobs:
       - name: Plan and publish the Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # prepare already accepted this request.
+          RESUMING: "true"
           RELEASE_SIGNING_KEY: ${{ secrets.NEMU_RELEASE_SIGNING_KEY }}
           BLOB_READ_WRITE_TOKEN: ${{ secrets.NEMU_RELEASE_CHANNELS_BLOB_TOKEN }}
           EXPECTED_VERSION: ${{ needs.prepare.outputs.version }}
@@ -436,10 +442,18 @@ jobs:
           git_tag=$(jq -r '.gitTag // empty' "$work/plan.json")
           if [ -n "$git_tag" ]; then
             # An interrupted publish may have left a draft, possibly of another
-            # commit. Without its tag it is not a Release.
-            if [ "$(gh release view "$git_tag" --json isDraft --jq .isDraft 2>/dev/null || true)" = "true" ]; then
-              gh release delete "$git_tag" --yes
-            fi
+            # commit. Without its tag it is not a Release. Listing releases
+            # fails only on an error; having no draft is an empty list.
+            drafts() {
+              gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" > "$work/releases.json"
+              jq -r --arg tag "$git_tag" \
+                '.[] | select(.draft and .tag_name == $tag) | "\(.id) \(.target_commitish)"' \
+                "$work/releases.json"
+            }
+            drafts > "$work/drafts.txt"
+            while read -r id _; do
+              gh api --method DELETE "repos/${GITHUB_REPOSITORY}/releases/${id}" < /dev/null
+            done < "$work/drafts.txt"
             {
               echo "Platform version ${version}."
               if [ -s "$work/notes.txt" ]; then
@@ -462,6 +476,20 @@ jobs:
               --target "$commit" \
               --title "$git_tag" \
               --notes-file "$work/github-notes.md"
+            # Publish only a lone draft of this commit. The list may lag.
+            for attempt in 1 2 3 4 5; do
+              drafts > "$work/drafts.txt"
+              if [ "$(wc -l < "$work/drafts.txt")" -eq 1 ] &&
+                [ "$(cut -d ' ' -f 2 "$work/drafts.txt")" = "$commit" ]; then
+                break
+              fi
+              if [ "$attempt" = "5" ]; then
+                echo "The draft of ${git_tag} does not target ${commit}:" >&2
+                cat "$work/drafts.txt" >&2
+                exit 1
+              fi
+              sleep 2
+            done
             gh release edit "$git_tag" --draft=false "${kind[@]}" "${latest[@]}"
             for attempt in 1 2 3 4 5; do
               if git fetch --force origin "refs/tags/${git_tag}:refs/tags/${git_tag}"; then
@@ -501,21 +529,40 @@ jobs:
           # Only a hotfix syncs master back. Canary requires a pull request
           # (GitHub rejects listing the Actions app as a bypass actor on this
           # org), so open a PR instead of pushing the branch. A retry does not
-          # reopen one that was merged or closed.
+          # reopen one that was merged or closed. Stable is already published,
+          # and Actions may not be allowed to open pull requests, so a failure
+          # here is a warning that says how to open it by hand.
           if [ "$(jq -r '.mergeBackToCanary' "$work/plan.json")" = "true" ]; then
             git fetch origin canary
             if ! git merge-base --is-ancestor "$commit" origin/canary; then
               branch="sync/stable-${version}-to-canary"
-              existing=$(gh pr list --state all --base canary --head "$branch" --json number --jq 'length')
-              if [ "$existing" = "0" ]; then
-                git push origin "${commit}:refs/heads/${branch}"
+              sync_pr() {
+                local existing
+                existing=$(gh pr list --state all --base canary --head "$branch" --json number --jq 'length') || return 1
+                if [ "$existing" != "0" ]; then
+                  echo "Sync PR for ${branch} already exists."
+                  return 0
+                fi
+                git push origin "${commit}:refs/heads/${branch}" || return 1
                 gh pr create \
                   --base canary \
                   --head "$branch" \
                   --title "Sync Stable ${version} back to canary" \
                   --body "Hotfix Release ${version} was built on master. Merge this into canary so the next Release candidate has the fix."
-              else
-                echo "Sync PR for ${branch} already exists."
+              }
+              if ! sync_pr; then
+                compare="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/canary...${branch}?expand=1"
+                echo "::warning title=Sync PR not opened::Hotfix Release ${version} is published, but its sync PR into canary was not opened. Open it at ${compare}"
+                {
+                  echo "### Open the sync PR by hand"
+                  echo
+                  echo "Hotfix Release ${version} is published, but its sync PR into \`canary\` was not opened."
+                  echo "[Open it from \`${branch}\`](${compare}) and merge it."
+                  echo
+                  echo "If that branch does not exist, push it first:"
+                  echo
+                  echo "    git push origin ${commit}:refs/heads/${branch}"
+                } >> "$GITHUB_STEP_SUMMARY"
               fi
             fi
           fi

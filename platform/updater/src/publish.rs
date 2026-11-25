@@ -66,6 +66,9 @@ pub struct ReleaseRequest {
     /// A push skips when the platform trees did not change; an explicit run
     /// does not.
     pub push: bool,
+    /// A re-run, or a run that `prepare` already accepted. It may find its own
+    /// cut finished, so that is not a duplicate.
+    pub resuming: bool,
     /// Canary: start the next minor target unless the current target is one.
     pub minor_bump: bool,
     /// Canary: start the target after the one candidates use.
@@ -203,6 +206,10 @@ pub enum PublishError {
     StaleCommit,
     #[error("this commit is already cut as {0}; a new version needs a new commit")]
     AlreadyCut(String),
+    #[error(
+        "this commit is already cut as {0}, which did not advance and is not finished; run again without advance version to finish it, then advance from a new commit"
+    )]
+    NotAdvanced(String),
     #[error("the publish facts changed since the build was decided")]
     Drifted,
     #[error("there is nothing to publish")]
@@ -227,6 +234,23 @@ pub enum PublishError {
     Pin,
 }
 
+impl PublishDecision {
+    fn new(action: PublishAction, commit: &str) -> Self {
+        Self {
+            action,
+            platform_version: String::new(),
+            commit: commit.to_string(),
+            git_tag: None,
+            source_tag: None,
+            notes_since: None,
+            prerelease: false,
+            channels: Vec::new(),
+            merge_back_to_canary: false,
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
 struct Cut<'a> {
     version: PlatformVersion,
     release: &'a CutRelease,
@@ -348,6 +372,24 @@ impl<'a> Facts<'a> {
         target.candidate(last.unwrap_or(0) + 1)
     }
 
+    /// Whether a candidate left an earlier target that could still be
+    /// promoted, as this request would have. Cuts below it decide: without the
+    /// advance or bump they would have given another version.
+    fn left_target(&self, version: PlatformVersion, minor_bump: bool) -> bool {
+        let before = Facts {
+            cuts: self
+                .cuts
+                .iter()
+                .copied()
+                .filter(|cut| cut.version < version)
+                .collect(),
+            canary: self.canary,
+            stable: self.stable,
+        };
+        before.next_candidate(minor_bump, true) == version
+            && before.next_candidate(false, false) != version
+    }
+
     fn decision(
         &self,
         action: PublishAction,
@@ -362,15 +404,12 @@ impl<'a> Facts<'a> {
             self.plain().rfind(|cut| cut.version < version)
         };
         PublishDecision {
-            action,
             platform_version: version.to_string(),
-            commit: commit.to_string(),
             git_tag: (action != PublishAction::Finish).then(|| tag(version)),
             source_tag: source.map(tag),
             notes_since: previous.map(|cut| tag(cut.version)),
             prerelease: candidate,
-            channels: Vec::new(),
-            merge_back_to_canary: false,
+            ..PublishDecision::new(action, commit)
         }
     }
 }
@@ -418,14 +457,22 @@ fn decide_canary(
 ) -> Result<PublishDecision, PublishError> {
     let commit = request.commit.trim();
     let mut decision = if let (Some(cut), _) = facts.at(commit)? {
-        // A retry finishes this cut. An option it cannot have been cut with
-        // asks for a second candidate on the commit.
+        // A retry finishes this cut. Writing the channel manifest is the last
+        // step, so an explicit run that finds it written asks for a second
+        // candidate on the commit, as does an option it cannot have been cut
+        // with.
         let finished = facts.canary.is_some_and(|current| current >= cut.version);
+        let duplicate = finished && !request.push && !request.resuming;
         let other_target = request.minor_bump && cut.version.patch != 0;
-        let advances =
-            request.advance_version && (finished || cut.version.candidate_number() != Some(1));
-        if other_target || advances {
+        if duplicate || other_target {
             return Err(PublishError::AlreadyCut(cut.version.to_string()));
+        }
+        if request.advance_version && !facts.left_target(cut.version, request.minor_bump) {
+            return Err(if finished {
+                PublishError::AlreadyCut(cut.version.to_string())
+            } else {
+                PublishError::NotAdvanced(cut.version.to_string())
+            });
         }
         let source = Some(cut.version);
         facts.decision(PublishAction::Finish, cut.version, commit, source)
@@ -441,17 +488,7 @@ fn decide_canary(
         if request.push
             && baseline.is_some_and(|cut| cut.release.platform_tree == request.platform_tree)
         {
-            return Ok(PublishDecision {
-                action: PublishAction::Skip,
-                platform_version: String::new(),
-                commit: commit.to_string(),
-                git_tag: None,
-                source_tag: None,
-                notes_since: None,
-                prerelease: false,
-                channels: Vec::new(),
-                merge_back_to_canary: false,
-            });
+            return Ok(PublishDecision::new(PublishAction::Skip, commit));
         }
         let version = facts.next_candidate(request.minor_bump, request.advance_version);
         if facts.canary.is_some_and(|current| current >= version) {
@@ -892,6 +929,7 @@ mod tests {
             commit: commit.to_string(),
             platform_tree: "tree-new".to_string(),
             push: true,
+            resuming: false,
             minor_bump: false,
             advance_version: false,
             candidate: String::new(),
@@ -1251,16 +1289,24 @@ mod tests {
             request.advance_version = advance;
             assert_eq!(
                 refused(&request),
-                PublishError::AlreadyCut("0.1.4-canary.2".to_string())
+                if advance {
+                    PublishError::NotAdvanced("0.1.4-canary.2".to_string())
+                } else {
+                    PublishError::AlreadyCut("0.1.4-canary.2".to_string())
+                }
             );
         }
-        // Retrying an interrupted advance finishes it; a finished one is cut.
+        // Retrying an interrupted advance finishes it; a finished one is cut,
+        // unless this run may be what finished it.
         let advanced = with(&[("0.1.4-canary.2", "c1", "t"), ("0.1.5-canary.1", "c2", "t")]);
         let mut retry = serving(canary("c2", &advanced), "0.1.4-canary.2", "0.1.3");
+        retry.push = false;
         retry.advance_version = true;
         assert_eq!(version(&retry), "0.1.5-canary.1");
         retry.channels.canary = Some("0.1.5-canary.1".to_string());
         assert!(matches!(refused(&retry), PublishError::AlreadyCut(_)));
+        retry.resuming = true;
+        assert_eq!(version(&retry), "0.1.5-canary.1");
 
         // A plain Release does not stop a candidate on its commit.
         let mut forced = canary("old-3", &OLD_SCHEME);
@@ -1283,6 +1329,109 @@ mod tests {
             refused(&canary("new", &same_version)),
             PublishError::CutTwice
         );
+    }
+
+    #[test]
+    fn an_explicit_canary_run_on_a_finished_candidate_is_refused() {
+        let cut = with(&[("0.1.4-canary.1", "c1", "t")]);
+        for minor in [false, true] {
+            let prior = with(&[("0.2.0-canary.1", "c1", "t")]);
+            let mut run = serving(canary("c1", &prior), "0.2.0-canary.1", "0.1.3");
+            run.push = false;
+            run.minor_bump = minor;
+            assert!(matches!(refused(&run), PublishError::AlreadyCut(_)));
+        }
+        for served in ["0.1.4-canary.1", "0.1.4"] {
+            let mut run = serving(canary("c1", &cut), served, "0.1.3");
+            // A push re-run stays a harmless no-op.
+            assert_eq!(
+                decide(&run).expect("decision").action,
+                PublishAction::Finish
+            );
+            run.push = false;
+            assert_eq!(
+                refused(&run),
+                PublishError::AlreadyCut("0.1.4-canary.1".to_string())
+            );
+            // Interrupted after the channel write, then re-run.
+            run.resuming = true;
+            assert_eq!(
+                decide(&run).expect("decision").action,
+                PublishAction::Finish
+            );
+        }
+        // Interrupted before the channel write.
+        let mut run = serving(canary("c1", &cut), "0.1.3", "0.1.3");
+        run.push = false;
+        let decision = decide(&run).expect("decision");
+        assert_eq!(decision.action, PublishAction::Finish);
+        assert_eq!(decision.channels, [Canary]);
+    }
+
+    #[test]
+    fn an_advance_finishes_only_a_cut_that_left_an_earlier_target() {
+        for (prior, minor_bump, finishes) in [
+            // The first cut of a cycle is not an advance.
+            (with(&[("0.1.4-canary.1", "c", "t")]), false, false),
+            (
+                with(&[
+                    ("0.1.4-canary.2", "c2", "t"),
+                    ("0.1.4", "c2", "t"),
+                    ("0.1.5-canary.1", "c", "t"),
+                ]),
+                false,
+                false,
+            ),
+            (
+                with(&[("0.1.4-canary.2", "c2", "t"), ("0.1.5-canary.1", "c", "t")]),
+                false,
+                true,
+            ),
+            // A minor bump is not a patch advance.
+            (
+                with(&[("0.1.4-canary.2", "c2", "t"), ("0.2.0-canary.1", "c", "t")]),
+                false,
+                false,
+            ),
+            (
+                with(&[("0.1.4-canary.2", "c2", "t"), ("0.2.0-canary.1", "c", "t")]),
+                true,
+                true,
+            ),
+            (
+                with(&[("0.2.0-canary.1", "c2", "t"), ("0.2.0-canary.2", "c", "t")]),
+                false,
+                false,
+            ),
+        ] {
+            // What the channel served before the interrupted cut.
+            let mut run = serving(canary("c", &prior), "0.1.3", "0.1.3");
+            run.push = false;
+            run.minor_bump = minor_bump;
+            run.advance_version = true;
+            for resuming in [false, true] {
+                run.resuming = resuming;
+                if finishes {
+                    assert_eq!(
+                        decide(&run).expect("decision").action,
+                        PublishAction::Finish
+                    );
+                } else {
+                    let error = refused(&run);
+                    assert!(
+                        matches!(error, PublishError::NotAdvanced(_)),
+                        "{prior:?} {error}"
+                    );
+                }
+            }
+            // Finishing it without the option is the way on.
+            run.advance_version = false;
+            run.minor_bump = false;
+            assert_eq!(
+                decide(&run).expect("decision").action,
+                PublishAction::Finish
+            );
+        }
     }
 
     #[test]

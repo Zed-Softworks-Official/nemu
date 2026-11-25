@@ -3,7 +3,7 @@
 # and channel facts the planner decides from. It decides nothing itself.
 #
 # Needs the tags fetched, gh, jq, and curl. Reads SOURCE, BRANCH, COMMIT, PUSH,
-# MINOR_BUMP, ADVANCE_VERSION, CANDIDATE, and HOTFIX from the environment.
+# RESUMING, MINOR_BUMP, ADVANCE_VERSION, CANDIDATE, and HOTFIX from the environment.
 #
 # Usage: release-facts.sh <work-directory>
 
@@ -77,10 +77,11 @@ tree=$(platform_tree "$COMMIT")
 
 jq -n \
   --arg source "$SOURCE" --arg branch "$BRANCH" --arg commit "$COMMIT" --arg tree "$tree" \
-  --argjson push "${PUSH:-false}" --argjson minor "$minor" \
+  --argjson push "${PUSH:-false}" --argjson resuming "${RESUMING:-false}" --argjson minor "$minor" \
   --argjson advance "${ADVANCE_VERSION:-false}" --arg candidate "${CANDIDATE:-}" \
   --argjson hotfix "${HOTFIX:-false}" --argjson canary "$canary" --argjson stable "$stable" \
   --slurpfile cuts "$work/cuts.jsonl" \
   '{source: $source, branch: $branch, commit: $commit, platformTree: $tree, push: $push,
+    resuming: $resuming,
     minorBump: $minor, advanceVersion: $advance, candidate: $candidate, hotfix: $hotfix,
     cutReleases: $cuts, channels: {canary: $canary, stable: $stable}}'
