@@ -2,7 +2,7 @@ use std::path::Path;
 
 use crate::install::InstallEnv;
 use crate::{
-    ReleaseChannel, maintenance_mode, platform_version_is_eligible, read_stored_release,
+    ReleaseChannel, StoredRelease, maintenance_mode, read_stored_release, release_is_eligible,
     verify_manifest, write_stored_release,
 };
 
@@ -28,9 +28,9 @@ pub enum ChannelError {
 }
 
 /// Saves the Home's Release channel. Installs only when that channel's
-/// verified Release has a newer Platform version, by calling `install`.
+/// verified Release is eligible, by calling `install`.
 ///
-/// An older or equal Release is saved and not installed. The hourly check
+/// A Release that is not eligible is not installed; the channel is saved. The hourly check
 /// already installs a newer manifest on the stored channel, so a Home that
 /// is waiting does not need a second installer. A Release does not overwrite
 /// the stored channel. A manifest that does not verify is rejected and leaves
@@ -62,13 +62,14 @@ pub fn save_channel(
     let mut stored = read_stored_release(controller_dir)
         .map_err(|error| ChannelError::Unavailable(error.to_string()))?
         .unwrap_or_default();
-    let installed = stored
+    if stored
         .platform_version
-        .clone()
-        .filter(|version| !version.trim().is_empty())
-        .ok_or(ChannelError::PlatformVersionMissing)?;
-    let declined = stored.declined_platform_version.clone();
-    let newer = chosen_release_is_newer(env, channel, &installed, declined.as_deref())?;
+        .as_deref()
+        .is_none_or(|version| version.trim().is_empty())
+    {
+        return Err(ChannelError::PlatformVersionMissing);
+    }
+    let newer = chosen_release_is_newer(controller_dir, env, channel, &stored)?;
     stored.channel = Some(channel);
     write_stored_release(controller_dir, &stored)
         .map_err(|error| ChannelError::Unavailable(error.to_string()))?;
@@ -82,10 +83,10 @@ pub fn save_channel(
 /// A missing manifest or a missing release key is not newer. A manifest
 /// that does not verify is rejected before the channel is saved.
 fn chosen_release_is_newer(
+    controller_dir: &Path,
     env: &InstallEnv<'_>,
     channel: ReleaseChannel,
-    installed: &str,
-    declined: Option<&str>,
+    stored: &StoredRelease,
 ) -> Result<bool, ChannelError> {
     let Some(release_key) = env.release_key else {
         return Ok(false);
@@ -98,10 +99,11 @@ fn chosen_release_is_newer(
         return Ok(false);
     };
     let manifest = verify_manifest(&bytes, release_key).map_err(|_| ChannelError::Rejected)?;
-    Ok(platform_version_is_eligible(
-        &manifest.platform_version,
-        installed,
-        declined,
+    Ok(release_is_eligible(
+        controller_dir,
+        stored,
+        &manifest,
+        env.arch,
     ))
 }
 
@@ -309,6 +311,7 @@ mod tests {
             },
             next_pin: None,
             release_notes: None,
+            hotfix: false,
         }
     }
 
@@ -599,7 +602,8 @@ mod tests {
             },
         );
 
-        let report = status(home.path(), &MissingManifestHost, None).expect("status");
+        let report =
+            status(home.path(), &MissingManifestHost, None, UpdaterArch::Amd64).expect("status");
         assert_eq!(report.channel, ReleaseChannel::Stable);
         assert_eq!(report.platform_version, "0.4.10");
         assert_eq!(
@@ -679,5 +683,75 @@ mod tests {
             fs::read_to_string(home.path().join("docker-compose.yml")).unwrap(),
             "services: {}\n"
         );
+    }
+
+    #[test]
+    fn a_home_on_a_candidate_switches_to_stable_without_a_downgrade_or_a_hotfix() {
+        let home = TempHome::new();
+        seed_running(home.path());
+        write_stored(
+            home.path(),
+            &stored_version(ReleaseChannel::Canary, "0.4.10-canary.2"),
+        );
+        let world = World::new();
+        let mut hotfix = release_manifest("0.4.10");
+        hotfix.hotfix = true;
+        let host = FakeHost::new(vec![(
+            ReleaseChannel::Stable,
+            sign_manifest(&hotfix, &release_signing_key()),
+        )]);
+
+        let outcome = switched(home.path(), &world, &host, ReleaseChannel::Stable).expect("switch");
+        assert!(!outcome.installed);
+        host.publish(ReleaseChannel::Stable, signed("0.4.9"));
+        let outcome = switched(home.path(), &world, &host, ReleaseChannel::Stable).expect("switch");
+        assert!(!outcome.installed);
+        assert_eq!(generation(home.path()), "1");
+
+        host.publish(ReleaseChannel::Stable, signed("0.4.11"));
+        let outcome = switched(home.path(), &world, &host, ReleaseChannel::Stable).expect("switch");
+        assert!(outcome.installed);
+        assert_eq!(
+            read_stored(home.path()).platform_version.as_deref(),
+            Some("0.4.11")
+        );
+    }
+
+    #[test]
+    fn switching_channel_skips_a_declined_build_under_its_promoted_version() {
+        let home = TempHome::new();
+        seed_running(home.path());
+        write_stored(
+            home.path(),
+            &stored_version(ReleaseChannel::Canary, "0.4.9"),
+        );
+        let world = World::new();
+        let mut release = release_manifest("0.4.10-canary.1");
+        let key = release_signing_key();
+        let host = FakeHost::new(vec![(
+            ReleaseChannel::Canary,
+            sign_manifest(&release, &key),
+        )]);
+        let public = key.verifying_key();
+        let env = InstallEnv {
+            manifests: &host,
+            release_key: Some(&public),
+            runtime: &world,
+            health: &world,
+            space: &world,
+            clock: &world,
+            arch: UpdaterArch::Amd64,
+        };
+        install(home.path(), &env, None).expect("candidate");
+        crate::rollback::rollback(home.path(), &env).expect("rollback");
+
+        release.platform_version = "0.4.10".to_string();
+        host.publish(ReleaseChannel::Stable, sign_manifest(&release, &key));
+        let outcome = switched(home.path(), &world, &host, ReleaseChannel::Stable).expect("switch");
+        assert!(!outcome.installed);
+
+        host.publish(ReleaseChannel::Stable, signed("0.4.11"));
+        let outcome = switched(home.path(), &world, &host, ReleaseChannel::Stable).expect("switch");
+        assert!(outcome.installed);
     }
 }

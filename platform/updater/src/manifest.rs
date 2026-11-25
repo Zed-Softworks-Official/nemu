@@ -81,6 +81,11 @@ pub struct ReleaseManifest {
     /// has this field, so it is omitted unless the publisher opts in.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub release_notes: Option<String>,
+    /// True on a Hotfix Release. A Home running a Release candidate does not
+    /// install it. An Updater older than Platform version 0.1.3 rejects a
+    /// manifest that has this field, so it is omitted unless true.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub hotfix: bool,
 }
 
 /// A Release manifest and the ed25519 signature over its canonical JSON.
