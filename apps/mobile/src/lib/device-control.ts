@@ -80,6 +80,23 @@ function outletsOf(
     })
 }
 
+/** Multi-gang switches report one `state_<endpoint>` for each gang. */
+function endpointsOf(
+    state: DeviceState
+): { key: string; endpoint: string; on: boolean }[] {
+    return Object.entries(state).flatMap(([key, value]) => {
+        const endpoint = /^state_(.+)$/.exec(key)?.[1]
+        if (!endpoint || typeof value !== 'string') return []
+        const on = onOff(value)
+        return on === undefined ? [] : [{ key, endpoint, on }]
+    })
+}
+
+function titleCase(value: string): string {
+    const words = value.replaceAll('_', ' ').toLowerCase()
+    return words.charAt(0).toUpperCase() + words.slice(1)
+}
+
 export function controlsForDevice(device: Device): DeviceControl[] {
     const state = device.state ?? {}
     const controls: DeviceControl[] = []
@@ -96,6 +113,16 @@ export function controlsForDevice(device: Device): DeviceControl[] {
                     outlet: outlet.id,
                     state: desired ? 'ON' : 'OFF',
                 }),
+            })
+        }
+    } else if (endpointsOf(state).length > 0) {
+        for (const { key, endpoint, on } of endpointsOf(state)) {
+            controls.push({
+                key,
+                kind: 'toggle',
+                label: titleCase(endpoint),
+                on,
+                payload: (desired) => ({ [key]: desired ? 'ON' : 'OFF' }),
             })
         }
     } else {
@@ -212,6 +239,85 @@ export function capabilitiesForDevice(
                         : null,
             }
         })
+}
+
+type StateField = {
+    label: string
+    unit?: string
+    /** What `true` and `false` mean; without it a boolean isn't shown. */
+    words?: readonly [whenTrue: string, whenFalse: string]
+}
+
+const DETECTED = ['Detected', 'Clear'] as const
+
+/**
+ * Reported fields shown as readings, in this order. Energy measurements are
+ * left out: those come from Capabilities.
+ */
+const STATE_FIELDS: Record<string, StateField> = {
+    temperature: { label: 'Temperature', unit: '°C' },
+    local_temperature: { label: 'Temperature', unit: '°C' },
+    occupied_heating_setpoint: { label: 'Heat to', unit: '°C' },
+    occupied_cooling_setpoint: { label: 'Cool to', unit: '°C' },
+    current_heating_setpoint: { label: 'Heat to', unit: '°C' },
+    system_mode: { label: 'Mode' },
+    running_state: { label: 'Activity' },
+    fan_mode: { label: 'Fan' },
+    humidity: { label: 'Humidity', unit: '%' },
+    soil_moisture: { label: 'Soil moisture', unit: '%' },
+    pressure: { label: 'Pressure', unit: 'hPa' },
+    illuminance: { label: 'Illuminance', unit: 'lx' },
+    co2: { label: 'CO₂', unit: 'ppm' },
+    pm25: { label: 'PM2.5', unit: 'µg/m³' },
+    contact: { label: 'Contact', words: ['Closed', 'Open'] },
+    occupancy: { label: 'Motion', words: DETECTED },
+    presence: { label: 'Presence', words: DETECTED },
+    water_leak: { label: 'Water leak', words: DETECTED },
+    smoke: { label: 'Smoke', words: DETECTED },
+    gas: { label: 'Gas', words: DETECTED },
+    carbon_monoxide: { label: 'Carbon monoxide', words: DETECTED },
+    vibration: { label: 'Vibration', words: DETECTED },
+    tamper: { label: 'Tamper', words: DETECTED },
+    lock_state: { label: 'Lock' },
+    state: { label: 'State' },
+    position: { label: 'Position', unit: '%' },
+    tilt: { label: 'Tilt', unit: '%' },
+    battery: { label: 'Battery', unit: '%' },
+    battery_low: { label: 'Battery level', words: ['Low', 'OK'] },
+}
+
+/** What the Device reports about itself besides its controls. */
+export function stateReadingsForDevice(device: Device): PresentedCapability[] {
+    const state = device.state ?? {}
+    return Object.entries(STATE_FIELDS).flatMap(([key, field]) => {
+        // On and off are a control, not a reading.
+        if (key === 'state' && onOff(state.state) !== undefined) return []
+        const reading = stateReading(state[key], field)
+        return reading === null
+            ? []
+            : [
+                  {
+                      id: `state:${key}`,
+                      label: field.label,
+                      available: true,
+                      reading,
+                  },
+              ]
+    })
+}
+
+function stateReading(value: unknown, field: StateField): string | null {
+    if (typeof value === 'boolean') {
+        return field.words ? field.words[value ? 0 : 1] : null
+    }
+    const number = finiteNumber(value)
+    if (number !== undefined) {
+        const unit = field.unit === '%' ? '%' : field.unit && ` ${field.unit}`
+        return `${formatQuantity(number)}${unit ?? ''}`
+    }
+    return typeof value === 'string' && value.trim() !== ''
+        ? titleCase(value.trim())
+        : null
 }
 
 function formatQuantity(value: number): string {

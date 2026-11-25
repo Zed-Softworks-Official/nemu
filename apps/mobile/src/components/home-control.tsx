@@ -24,7 +24,7 @@ import {
     type TrackedCommand,
     useCommandTracker,
 } from '~/components/use-command-tracker'
-import { isConnected } from '~/lib/connection'
+import { errorMessage, isConnected } from '~/lib/connection'
 import type { DeviceControl } from '~/lib/device-control'
 
 const NO_CAPABILITIES: readonly CapabilityCurrentState[] = []
@@ -43,6 +43,11 @@ type HomeControlValue = {
     /** False while `capabilities` is a previous snapshot. */
     capabilitiesCurrent: boolean
     loadFailed: boolean
+    /**
+     * Why the Controller, though reached, did not return its Devices. Any
+     * Devices shown are from an earlier read.
+     */
+    loadError: string | null
     reconnect: () => void
     commandFor: (
         deviceId: string,
@@ -184,6 +189,10 @@ export function HomeControlProvider({
             capabilities: shownView?.capabilities ?? NO_CAPABILITIES,
             capabilitiesCurrent: live && view !== null,
             loadFailed: live && devices === undefined && error !== null,
+            loadError:
+                live && error
+                    ? errorMessage(error, 'The Controller gave no reason.')
+                    : null,
             reconnect,
             commandFor,
             sendControl: (deviceId, control, desired) => {

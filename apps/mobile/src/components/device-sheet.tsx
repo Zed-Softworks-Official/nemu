@@ -7,6 +7,7 @@ import {
     availabilityLabel,
     CapabilityReadings,
     ControlRow,
+    LoadErrorBanner,
 } from '~/components/control-surface'
 import {
     ControllerSheet,
@@ -23,7 +24,11 @@ import { useHomeControl } from '~/components/home-control'
 import { Button } from '~/components/ui/button'
 import { Text } from '~/components/ui/text'
 import { colors } from '~/constants/colors'
-import { capabilitiesForDevice, controlsForDevice } from '~/lib/device-control'
+import {
+    capabilitiesForDevice,
+    controlsForDevice,
+    stateReadingsForDevice,
+} from '~/lib/device-control'
 
 /**
  * Everything about one Device: every control it supports, and an Edit
@@ -41,6 +46,7 @@ export function DeviceSheet({
         devices,
         status,
         stale,
+        loadFailed,
         capabilities,
         capabilitiesCurrent,
         setSetupState,
@@ -57,7 +63,9 @@ export function DeviceSheet({
     if (!device) {
         return (
             <ControllerSheet onClose={onClose} title="Device">
-                {devices === undefined && status.mode !== 'offline' ? (
+                <LoadErrorBanner />
+                {loadFailed ? null : devices === undefined &&
+                  status.mode !== 'offline' ? (
                     <ActivityIndicator color={colors.primary} />
                 ) : (
                     <Text className="text-muted-foreground text-sm">
@@ -71,7 +79,10 @@ export function DeviceSheet({
     }
 
     const controls = controlsForDevice(device)
-    const readings = capabilitiesForDevice(device, capabilities)
+    const measurements = capabilitiesForDevice(device, capabilities)
+    const readings = stateReadingsForDevice(device)
+    const reports =
+        controls.length > 0 || measurements.length > 0 || readings.length > 0
 
     return (
         <ControllerSheet
@@ -79,7 +90,8 @@ export function DeviceSheet({
             onClose={onClose}
             title={device.name}
         >
-            {controls.length > 0 || readings.length > 0 ? (
+            <LoadErrorBanner />
+            {controls.length > 0 ? (
                 <SheetSection title="Controls">
                     {controls.map((control) => (
                         <ControlRow
@@ -88,12 +100,27 @@ export function DeviceSheet({
                             key={control.key}
                         />
                     ))}
+                </SheetSection>
+            ) : null}
+            {measurements.length > 0 || readings.length > 0 ? (
+                <SheetSection title="Readings">
                     <CapabilityReadings
                         capabilities={readings}
+                        current={!stale}
+                    />
+                    <CapabilityReadings
+                        capabilities={measurements}
                         current={capabilitiesCurrent}
                     />
                 </SheetSection>
             ) : null}
+            {reports ? null : (
+                <Text className="text-muted-foreground text-sm leading-relaxed">
+                    {hasState(device)
+                        ? 'This Device reports nothing this app can show yet.'
+                        : 'This Device hasn’t reported its state to the Controller yet. It appears here as soon as it does.'}
+                </Text>
+            )}
             <SheetSection title="Edit">
                 <DeviceRename device={device} />
                 <DeviceRoom device={device} />
@@ -101,6 +128,10 @@ export function DeviceSheet({
             </SheetSection>
         </ControllerSheet>
     )
+}
+
+function hasState(device: Device): boolean {
+    return Object.keys(device.state ?? {}).length > 0
 }
 
 function DeviceRename({ device }: { device: Device }) {

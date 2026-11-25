@@ -98,6 +98,8 @@ export class FakeController {
         query: HistoryQuery
         via: TransportMode
     }> = []
+    /** False when the Controller is reached but fails to return its Devices. */
+    devicesAvailable = true
     /** Set false to act as a Controller that cannot answer a Rooms request. */
     roomsAvailable = true
     /** Override to script Command outcomes. */
@@ -725,6 +727,9 @@ export class FakeTransport implements ControllerTransport {
 
     async getDevices(): Promise<Device[]> {
         this.authorize()
+        if (!this.controller.devicesAvailable) {
+            throw new Error('Relay command timed out')
+        }
         return structuredClone(this.controller.devices)
     }
 
