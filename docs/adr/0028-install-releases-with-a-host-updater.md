@@ -1,5 +1,7 @@
 # Install Releases with a host Updater
 
+The Platform version and publishing rules below are amended by ADR-0035.
+
 A Home installs one Release at a time from its Release channel. The Updater is a host process outside the compose stack, supervised by a small wrapper that can start the previous Updater binary. It replaces Watchtower. A signed Release manifest names one Platform version, the digest of every service image, the stack files, and the Updater binary for each supported architecture. The Home installs those digests. Moving image tags do not install a Release.
 
 ## Considered options

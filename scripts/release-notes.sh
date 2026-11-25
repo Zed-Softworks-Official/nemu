@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 # Prints plain-text release notes for a new platform Release: the features and
 # fixes in the trees a Home installs, newest first. The notes go into the
-# signed Release manifest.
+# GitHub release and, when opted in, the signed Release manifest.
+#
+# The previous tag may be on the other branch: a hotfix is on master, where a
+# rebase merge gave canary's commits new hashes. A commit whose change the
+# previous tag already has is left out.
 #
 # Usage: release-notes.sh <previous-tag-or-empty> <commit>
 
@@ -10,9 +14,9 @@ set -euo pipefail
 previous="$1"
 commit="$2"
 range="$commit"
-[ -z "$previous" ] || range="${previous}..${commit}"
+[ -z "$previous" ] || range="${previous}...${commit}"
 
-git log --no-merges --format='%s' "$range" -- platform infra/prod \
+git log --no-merges --right-only --cherry-pick --format='%s' "$range" -- platform infra/prod \
   | awk '
       /^(feat|fix|perf|security)(\([^)]*\))?!?: / && count < 40 {
         sub(/^[a-z]+(\([^)]*\))?!?: /, "")

@@ -1,6 +1,6 @@
 # Number Canary Releases as candidates and promote them to Stable
 
-Accepted, not yet shipped. Amends the Platform version and publishing rules of ADR-0028.
+Accepted, shipped with the Publisher. Amends the Platform version and publishing rules of ADR-0028.
 
 Canary publishes Release candidates numbered `0.MINOR.PATCH-canary.N`, with N starting at 1. Stable publishes plain Platform versions, `0.MINOR.PATCH`. Versions follow semver precedence: candidates order numerically by N and before their plain version. The major version stays at 0, and any other form is rejected. The channel is still not part of the version: a promoted Release is served on both channels.
 
@@ -22,4 +22,4 @@ One shared counter for both channels, as in ADR-0028, uses up a Stable number on
 
 **Tags and notes.** The commit that was built is tagged, and candidate GitHub releases are pre-releases. Tags are selected in Platform version order, because Git's default version sort places candidates after their plain version. GitHub releases always include notes generated from Git history. Manifest notes remain opt-in.
 
-**Rollout.** The Updater rule ships first, as a plain Release on both channels, under the existing publishing scheme. An older Updater treats candidates as not newer and rejects a manifest with `hotfix`. The Publisher change waits until every Home runs the bridge Release. Promotion restarts a Canary Home for an identical build, and its Rollback snapshot then precedes that same build. That cost is accepted.
+**Rollout.** The Updater rule ships first, as a plain Release on both channels, under the existing publishing scheme. An older Updater treats candidates as not newer and rejects a manifest with `hotfix`. The Publisher change merges only after every Home runs the bridge Release. Promotion restarts a Canary Home for an identical build, and its Rollback snapshot then precedes that same build. That cost is accepted.
