@@ -212,8 +212,20 @@ A publication of the whole Controller platform on one Release channel, identifie
 _Avoid_: Platform image, update bundle
 
 **Platform version**:
-The identity of one Release, shared by every service and stack file in it. A Release channel is not part of that identity.
+The identity of one Release, shared by every service and stack file in it. A Release candidate's Platform version names the Stable Release it precedes and orders before it.
 _Avoid_: Crate version, image tag
+
+**Release candidate**:
+A Canary Release offered for promotion to Stable. It keeps its own Platform version after promotion.
+_Avoid_: Canary build, prerelease, beta
+
+**Promotion**:
+The publication of a Release candidate's unchanged build as a Stable Release with its own Platform version.
+_Avoid_: Rebuild, stable cut
+
+**Hotfix Release**:
+A Stable Release whose build was not a Release candidate.
+_Avoid_: Patch, emergency promotion
 
 **Release manifest**:
 The published description of one Release on a Release channel.
