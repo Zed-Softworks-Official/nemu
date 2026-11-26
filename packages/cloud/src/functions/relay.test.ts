@@ -191,3 +191,84 @@ describe('Relay mailbox answers', () => {
         ).toEqual([])
     })
 })
+
+describe('Relay mailbox cleanup', () => {
+    const CLEANUP_BATCH_SIZE = 100
+
+    async function seedMessages(
+        t: ReturnType<typeof convexTest>,
+        count: number,
+        expiresAt: number,
+        prefix: string
+    ) {
+        await t.run(async (ctx) => {
+            for (let i = 0; i < count; i++) {
+                await ctx.db.insert('relayMessages', {
+                    controllerId: CONTROLLER_ID,
+                    direction: 'toController',
+                    requestId: `${prefix}-${i}`,
+                    payload: 'payload',
+                    consumed: false,
+                    expiresAt,
+                })
+            }
+        })
+    }
+
+    async function remainingRequestIds(t: ReturnType<typeof convexTest>) {
+        return t.run(async (ctx) =>
+            (await ctx.db.query('relayMessages').collect()).map(
+                (message) => message.requestId
+            )
+        )
+    }
+
+    test('removes expired messages and leaves unexpired ones', async () => {
+        const { t } = setup()
+        await seedMessages(t, 3, Date.now() - 1, 'expired')
+        await seedMessages(t, 2, Date.now() + RELAY_TTL_MS, 'live')
+
+        expect(await t.mutation(internal.relay.cleanup, {})).toBe(3)
+        await t.finishAllScheduledFunctions(vi.runAllTimers)
+
+        expect((await remainingRequestIds(t)).sort()).toEqual([
+            'live-0',
+            'live-1',
+        ])
+    })
+
+    test('keeps rescheduling until a backlog bigger than one batch is gone', async () => {
+        const { t } = setup()
+        const backlog = CLEANUP_BATCH_SIZE * 2 + 50
+        await seedMessages(t, backlog, Date.now() - 1, 'expired')
+        await seedMessages(t, 1, Date.now() + RELAY_TTL_MS, 'live')
+
+        expect(await t.mutation(internal.relay.cleanup, {})).toBe(
+            CLEANUP_BATCH_SIZE
+        )
+        expect(await remainingRequestIds(t)).toHaveLength(
+            backlog - CLEANUP_BATCH_SIZE + 1
+        )
+
+        await t.finishAllScheduledFunctions(vi.runAllTimers)
+
+        expect(await remainingRequestIds(t)).toEqual(['live-0'])
+    })
+
+    test('does not delete consumed messages that have not expired', async () => {
+        const { t } = setup()
+        await t.run(async (ctx) => {
+            await ctx.db.insert('relayMessages', {
+                controllerId: CONTROLLER_ID,
+                direction: 'toClient',
+                requestId: 'consumed-live',
+                payload: 'payload',
+                consumed: true,
+                expiresAt: Date.now() + RELAY_TTL_MS,
+            })
+        })
+
+        expect(await t.mutation(internal.relay.cleanup, {})).toBe(0)
+        expect(await remainingRequestIds(t)).toEqual(['consumed-live'])
+    })
+})

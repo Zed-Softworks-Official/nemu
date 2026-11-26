@@ -1,6 +1,7 @@
 import { v } from 'convex/values'
 import { requireControllerIdentity } from '../lib/auth'
 import { authedMutation, authedQuery } from '../lib/customFunctions'
+import { internal } from './_generated/api'
 import type { Doc } from './_generated/dataModel'
 import type { MutationCtx, QueryCtx } from './_generated/server'
 import {
@@ -16,6 +17,7 @@ const pendingEnvelopeValidator = v.object({
 })
 
 const RELAY_TTL_MS = 5 * 60 * 1000
+const CLEANUP_BATCH_SIZE = 100
 
 /**
  * Whether a Relay message may still be handed out. Reads filter on this so an
@@ -268,32 +270,28 @@ export const respond = mutation({
     },
 })
 
+/**
+ * Backstop sweep for Relay messages nobody collected. Deletes one batch through
+ * the expiry index per run and reschedules itself while batches come back full,
+ * so a burst drains promptly without exceeding per-mutation write limits.
+ */
 export const cleanup = internalMutation({
     args: {},
     returns: v.number(),
     handler: async (ctx) => {
-        const now = Date.now()
-        let deleted = 0
-
         const expired = await ctx.db
             .query('relayMessages')
-            .withIndex('by_expiry', (q) => q.lt('expiresAt', now))
-            .take(100)
+            .withIndex('by_expiry', (q) => q.lt('expiresAt', Date.now()))
+            .take(CLEANUP_BATCH_SIZE)
 
         for (const message of expired) {
             await ctx.db.delete(message._id)
-            deleted++
         }
 
-        // Also remove consumed rows that haven't expired yet (privacy contract).
-        const recent = await ctx.db.query('relayMessages').take(100)
-        for (const message of recent) {
-            if (message.consumed) {
-                await ctx.db.delete(message._id)
-                deleted++
-            }
+        if (expired.length === CLEANUP_BATCH_SIZE) {
+            await ctx.scheduler.runAfter(0, internal.relay.cleanup, {})
         }
 
-        return deleted
+        return expired.length
     },
 })
