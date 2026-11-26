@@ -1,10 +1,12 @@
 # Docs
 
-Product direction (shipped, accepted, roadmap) lives in Superhuman Docs:
+For what the code does and where it lives, use Graphify (`.agents/skills/graphify/SKILL.md`). It is the source of truth for code.
+
+Planning and architecture direction live in Superhuman Docs:
 
 **[Nemu](https://docs.superhuman.com/d/_d06TiZ2FvM1)**
 
-Read **Current Architecture**, **Target Architecture**, and **Beta Roadmap** there (the repo skill `.agents/skills/nemu-docs/SKILL.md` routes to them) when changing the product. For where code lives, use Graphify (`.agents/skills/graphify/SKILL.md`), not the Superhuman **Repo Map**.
+Read **Target Architecture** and **Beta Roadmap** there (the repo skill `.agents/skills/nemu-docs/SKILL.md` routes to them) when planning product changes.
 
 ## Kept in this repo (public / deploy)
 
@@ -14,4 +16,4 @@ Read **Current Architecture**, **Target Architecture**, and **Beta Roadmap** the
 | [deployment/subdomain-cutover.md](deployment/subdomain-cutover.md) | `nemu.sh` / `app.nemu.sh` / `get.nemu.sh` |
 | [deployment/github-release-protections.md](deployment/github-release-protections.md) | GHCR tag and environment protections |
 
-These deployment docs are also copied into the Superhuman Docs table so agents can find them via Skills.
+These files are the canonical copies. The Superhuman Docs table may hold older copies.
