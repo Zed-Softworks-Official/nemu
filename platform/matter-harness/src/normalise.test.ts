@@ -97,27 +97,22 @@ test('bridge/devices is sorted by external_id', () => {
     ])
 })
 
-test('consecutive repeats collapse on retained topics but not on responses', () => {
+test('a retained topic records its value at the end of the step; responses record every message', () => {
     const on = JSON.stringify({ state: 'ON' })
     const off = JSON.stringify({ state: 'OFF' })
     const ok = JSON.stringify({ status: 'ok', transaction: 't' })
     const record = normaliseStep(
         [
             { topic: '2', payload: off },
-            { topic: '2', payload: off },
-            { topic: '2', payload: on },
             { topic: '2', payload: on },
             { topic: '2', payload: off },
+            { topic: '2', payload: on },
             { topic: 'bridge/response/health/check', payload: ok },
             { topic: 'bridge/response/health/check', payload: ok },
         ],
         names
     )
-    assert.deepEqual(record['<plug>'], [
-        { state: 'OFF' },
-        { state: 'ON' },
-        { state: 'OFF' },
-    ])
+    assert.deepEqual(record['<plug>'], [{ state: 'ON' }])
     assert.equal(record['bridge/response/health/check']?.length, 2)
 })
 

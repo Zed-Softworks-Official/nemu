@@ -36,9 +36,16 @@ if ((kindArg !== 'plug' && kindArg !== 'light') || storageDir === undefined) {
 const kind: DeviceKind = kindArg
 const fixture = DEVICE_FIXTURES[kind]
 
-Logger.level = LogLevel.WARN
+Logger.level =
+    process.env.MATTER_HARNESS_DEVICE_DEBUG === '1'
+        ? LogLevel.DEBUG
+        : LogLevel.WARN
 const environment = Environment.default
 environment.vars.set('storage.path', storageDir)
+// One interface only. Advertising loopback and bridge addresses too lets the
+// commissioner reach the Device twice over, which can wedge its CASE session.
+const mdnsInterface = process.env.MATTER_HARNESS_MDNS_INTERFACE
+if (mdnsInterface) environment.vars.set('mdns.networkInterface', mdnsInterface)
 
 const PowerServer = ElectricalPowerMeasurementServer.with('AlternatingCurrent')
 const EnergyServer = ElectricalEnergyMeasurementServer.with(

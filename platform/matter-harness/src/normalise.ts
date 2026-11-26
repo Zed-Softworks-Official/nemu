@@ -8,9 +8,11 @@
  * - `observedAt` and `observationId`. They come from the adapter clock.
  * - `bridge/devices` order. The array is sorted by `external_id`, because the
  *   Rust adapter emits it in hash-map order.
- * - Repeats. A retained topic can be republished with an unchanged payload any
- *   number of times as subscription reports arrive, so consecutive identical
- *   payloads on one topic collapse into one. Responses are never collapsed.
+ * - Intermediate retained values. A retained topic is republished as each
+ *   subscription report arrives, and how a Device batches its reports differs
+ *   between hosts (a load change can come as one report or four). Each retained
+ *   topic therefore records the value it holds when the step ends, which is
+ *   what a subscriber sees. Responses and events record every message.
  */
 
 export interface RawMessage {
@@ -123,7 +125,7 @@ function sortKey(device: unknown): string {
     return typeof id === 'string' ? id : JSON.stringify(device)
 }
 
-function collapses(topic: string): boolean {
+function isRetained(topic: string): boolean {
     return !topic.startsWith('bridge/response/') && topic !== 'bridge/event'
 }
 
@@ -137,15 +139,9 @@ export function normaliseStep(
         if (!isRecordedTopic(message.topic, message.payload)) continue
         const topic = renameNodeId(message.topic, names)
         const value = normalisePayload(message.topic, message.payload, names)
-        const values = byTopic.get(topic) ?? []
-        const last = values.at(-1)
-        if (
-            collapses(topic) &&
-            values.length > 0 &&
-            JSON.stringify(last) === JSON.stringify(value)
-        ) {
-            continue
-        }
+        const values = isRetained(message.topic)
+            ? []
+            : (byTopic.get(topic) ?? [])
         values.push(value)
         byTopic.set(topic, values)
     }

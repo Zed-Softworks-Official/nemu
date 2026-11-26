@@ -1,6 +1,7 @@
 import { type ChildProcess, execFile, spawn } from 'node:child_process'
 import { createWriteStream } from 'node:fs'
 import { createServer } from 'node:net'
+import { networkInterfaces } from 'node:os'
 import { join } from 'node:path'
 import { createInterface } from 'node:readline'
 import { promisify } from 'node:util'
@@ -179,6 +180,30 @@ export class Adapter implements Stoppable {
     }
 }
 
+/**
+ * The interface the simulated Devices advertise on: MATTER_HARNESS_MDNS_INTERFACE,
+ * else the first up interface with an external IPv4 address that is not a
+ * container bridge or tunnel.
+ */
+export function mdnsInterface(): string {
+    const chosen = process.env.MATTER_HARNESS_MDNS_INTERFACE
+    if (chosen) return chosen
+    for (const [name, addresses] of Object.entries(networkInterfaces())) {
+        if (/^(docker|br-|veth|bridge|utun|awdl|llw|vmnet|lo)/.test(name))
+            continue
+        if (
+            addresses?.some(
+                (address) => address.family === 'IPv4' && !address.internal
+            )
+        ) {
+            return name
+        }
+    }
+    throw new Error(
+        'no network interface for mDNS; set MATTER_HARNESS_MDNS_INTERFACE'
+    )
+}
+
 const DEVICE_SCRIPT = new URL('./device.js', import.meta.url).pathname
 
 /** A simulated matter.js Device in its own process, on storage that survives a restart. */
@@ -204,7 +229,13 @@ export class SimulatedDevice implements Stoppable {
                 String(fixture.discriminator),
                 String(fixture.passcode),
             ],
-            { stdio: ['pipe', 'pipe', 'pipe'] }
+            {
+                stdio: ['pipe', 'pipe', 'pipe'],
+                env: {
+                    ...process.env,
+                    MATTER_HARNESS_MDNS_INTERFACE: mdnsInterface(),
+                },
+            }
         )
         this.#child = child
         const log = createWriteStream(this.logFile, { flags: 'a' })
