@@ -2,7 +2,7 @@
 
 How the engineering skills should consume this repo's domain documentation when exploring the codebase.
 
-Product direction (shipped, accepted, roadmap) lives in Superhuman Docs; load the `nemu-docs` skill. Code structure comes from Graphify; load the `graphify` skill and use its tools before grep when you explore. `CONTEXT.md` and `docs/adr/` are the skills-pack glossary and decisions, created lazily by `/domain-modeling`. If they disagree with Superhuman on direction, prefer Superhuman and flag the drift.
+Code structure and current behavior come from Graphify, the source of truth for code; load the `graphify` skill and use its tools before grep when you explore. Planning and architecture direction (accepted decisions, roadmap) live in Superhuman Docs; load the `nemu-docs` skill. `CONTEXT.md` and `docs/adr/` are the skills-pack glossary and decisions, created lazily by `/domain-modeling`. If they disagree with Superhuman on direction, prefer Superhuman and flag the drift.
 
 ## Before exploring, read these
 

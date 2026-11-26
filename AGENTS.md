@@ -2,11 +2,13 @@
 
 ## Documentation
 
-Product direction lives in Superhuman Docs:
+Graphify is the source of truth for the code: what exists, where it lives, and what a change affects. See "Use Graphify before grep" below.
+
+Planning and architecture direction live in Superhuman Docs:
 
 **[Nemu](https://docs.superhuman.com/d/_d06TiZ2FvM1)** (`superhuman://docs/06TiZ2FvM1`)
 
-Before changing product code, load the **`nemu-docs`** skill. Use **Current Architecture** for shipped facts, **Target Architecture** for accepted decisions, and **Beta Roadmap** for sequence. Never describe target behavior as shipped. Superhuman no longer maps the repo tree; find code with Graphify (the **`graphify`** skill).
+Before designing or changing product behavior, load the **`nemu-docs`** skill. Use **Target Architecture** for accepted direction and **Beta Roadmap** for sequence. These pages are plans, not facts about the code: never describe them as built, and when one disagrees with the code, trust the code and flag the drift.
 
 Public deployment docs remain in git:
 
