@@ -16,6 +16,10 @@ import {
     type ControllerCredentialStore,
     defaultCredentialStore,
 } from './storage.ts'
+import {
+    acknowledgeRelayResponses,
+    type RelayAcknowledgeRef,
+} from './transports/relay-acknowledge.ts'
 
 export type PairWithControllerResult = {
     baseUrl: string
@@ -87,6 +91,7 @@ type SessionMintRequestArgs = {
 }
 
 type RelayResponseDoc = {
+    _id: string
     requestId: string
     payload: string
     direction: 'toController' | 'toClient'
@@ -105,6 +110,7 @@ export type SessionMintApi = {
         { requestIds: string[] },
         RelayResponseDoc[]
     >
+    acknowledge: RelayAcknowledgeRef
 }
 
 export async function mintSessionViaRelay(options: {
@@ -139,6 +145,10 @@ export async function mintSessionViaRelay(options: {
                 message.direction === 'toClient'
         )
         if (match) {
+            // Privacy: the response carries a Client token, so delete it now.
+            acknowledgeRelayResponses(options.convex, options.api.acknowledge, [
+                match._id,
+            ])
             const parsed = relayToClientEnvelopeSchema.safeParse(
                 JSON.parse(match.payload)
             )

@@ -43,14 +43,9 @@ export default defineSchema({
         direction: v.union(v.literal('toController'), v.literal('toClient')),
         requestId: v.string(),
         payload: v.string(),
-        consumed: v.boolean(),
         expiresAt: v.number(),
     })
-        .index('by_controller_and_direction', [
-            'controllerId',
-            'direction',
-            'consumed',
-        ])
+        .index('by_controller_and_direction', ['controllerId', 'direction'])
         .index('by_request_id', ['requestId'])
         .index('by_expiry', ['expiresAt']),
 })

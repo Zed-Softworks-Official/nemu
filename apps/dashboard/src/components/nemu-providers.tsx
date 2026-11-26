@@ -24,6 +24,7 @@ const convex = new ConvexReactClient(
 const relayApi = {
     send: api.relay.send,
     responses: api.relay.responses,
+    acknowledge: api.relay.acknowledge,
 }
 
 export function NemuProvider(props: { children: React.ReactNode }) {

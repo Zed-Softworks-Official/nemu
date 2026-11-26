@@ -1,6 +1,8 @@
 import { v } from 'convex/values'
 import { requireControllerIdentity } from '../lib/auth'
 import { authedMutation, authedQuery } from '../lib/customFunctions'
+import { CLEANUP_BATCH_SIZE, RELAY_TTL_MS } from '../lib/relay'
+import { internal } from './_generated/api'
 import type { Doc } from './_generated/dataModel'
 import type { MutationCtx, QueryCtx } from './_generated/server'
 import {
@@ -15,7 +17,13 @@ const pendingEnvelopeValidator = v.object({
     payload: v.string(),
 })
 
-const RELAY_TTL_MS = 5 * 60 * 1000
+/**
+ * Whether a Relay message may still be handed out. Reads filter on this so an
+ * expired message is never returned, however late the cleanup sweep runs.
+ */
+function isLive(message: Doc<'relayMessages'>, now: number): boolean {
+    return message.expiresAt > now
+}
 
 const relayMessageValidator = v.object({
     _id: v.id('relayMessages'),
@@ -24,15 +32,16 @@ const relayMessageValidator = v.object({
     direction: v.union(v.literal('toController'), v.literal('toClient')),
     requestId: v.string(),
     payload: v.string(),
-    consumed: v.boolean(),
     expiresAt: v.number(),
 })
 
-async function requirePairing(
-    ctx: (QueryCtx | MutationCtx) & { identity: { subject: string } },
+type AuthedCtx = (QueryCtx | MutationCtx) & { identity: { subject: string } }
+
+async function findPairing(
+    ctx: AuthedCtx,
     controllerId: string
-): Promise<Doc<'pairings'>> {
-    const pairing = await ctx.db
+): Promise<Doc<'pairings'> | null> {
+    return await ctx.db
         .query('pairings')
         .withIndex('by_user_and_controller', (q) =>
             q
@@ -40,6 +49,20 @@ async function requirePairing(
                 .eq('controllerId', controllerId)
         )
         .unique()
+}
+
+async function isPairedWith(
+    ctx: AuthedCtx,
+    controllerId: string
+): Promise<boolean> {
+    return (await findPairing(ctx, controllerId)) !== null
+}
+
+async function requirePairing(
+    ctx: AuthedCtx,
+    controllerId: string
+): Promise<Doc<'pairings'>> {
+    const pairing = await findPairing(ctx, controllerId)
     if (!pairing) {
         throw new Error('Not paired with this controller')
     }
@@ -79,7 +102,6 @@ async function writeResponse(
         direction: 'toClient',
         requestId: args.requestId,
         payload: args.payload,
-        consumed: false,
         expiresAt: Date.now() + RELAY_TTL_MS,
     })
 }
@@ -99,7 +121,6 @@ export const send = authedMutation({
             direction: 'toController',
             requestId: args.requestId,
             payload: args.payload,
-            consumed: false,
             expiresAt: Date.now() + RELAY_TTL_MS,
         })
     },
@@ -111,6 +132,7 @@ export const responses = authedQuery({
     },
     returns: v.array(relayMessageValidator),
     handler: async (ctx, args) => {
+        const now = Date.now()
         const results: Doc<'relayMessages'>[] = []
         for (const requestId of args.requestIds) {
             const messages = await ctx.db
@@ -119,20 +141,42 @@ export const responses = authedQuery({
                 .collect()
             for (const message of messages) {
                 if (message.direction !== 'toClient') continue
-                const pairing = await ctx.db
-                    .query('pairings')
-                    .withIndex('by_user_and_controller', (q) =>
-                        q
-                            .eq('userId', ctx.identity.subject)
-                            .eq('controllerId', message.controllerId)
-                    )
-                    .unique()
-                if (pairing) {
+                if (!isLive(message, now)) continue
+                if (await isPairedWith(ctx, message.controllerId)) {
                     results.push(message)
                 }
             }
         }
         return results
+    },
+})
+
+/**
+ * IDs that are missing, already deleted, malformed or not the caller's are
+ * skipped quietly, so acknowledging twice is harmless.
+ */
+export const acknowledge = authedMutation({
+    args: {
+        messageIds: v.array(v.string()),
+    },
+    returns: v.null(),
+    handler: async (ctx, args) => {
+        const pairedByController = new Map<string, boolean>()
+        for (const rawId of args.messageIds) {
+            const messageId = ctx.db.normalizeId('relayMessages', rawId)
+            if (!messageId) continue
+            const message = await ctx.db.get(messageId)
+            if (!message || message.direction !== 'toClient') continue
+            let allowed = pairedByController.get(message.controllerId)
+            if (allowed === undefined) {
+                allowed = await isPairedWith(ctx, message.controllerId)
+                pairedByController.set(message.controllerId, allowed)
+            }
+            if (allowed) {
+                await ctx.db.delete(messageId)
+            }
+        }
+        return null
     },
 })
 
@@ -158,15 +202,16 @@ export const pendingForController = internalQuery({
     },
     returns: v.array(relayMessageValidator),
     handler: async (ctx, args) => {
-        return await ctx.db
+        const now = Date.now()
+        const messages = await ctx.db
             .query('relayMessages')
             .withIndex('by_controller_and_direction', (q) =>
                 q
                     .eq('controllerId', args.controllerId)
                     .eq('direction', 'toController')
-                    .eq('consumed', false)
             )
             .collect()
+        return messages.filter((message) => isLive(message, now))
     },
 })
 
@@ -176,19 +221,21 @@ export const pendingForMe = query({
     returns: v.array(pendingEnvelopeValidator),
     handler: async (ctx) => {
         const { controllerId } = await requireControllerIdentity(ctx)
+        const now = Date.now()
         const messages = await ctx.db
             .query('relayMessages')
             .withIndex('by_controller_and_direction', (q) =>
                 q
                     .eq('controllerId', controllerId)
                     .eq('direction', 'toController')
-                    .eq('consumed', false)
             )
             .collect()
-        return messages.map((message) => ({
-            requestId: message.requestId,
-            payload: message.payload,
-        }))
+        return messages
+            .filter((message) => isLive(message, now))
+            .map((message) => ({
+                requestId: message.requestId,
+                payload: message.payload,
+            }))
     },
 })
 
@@ -205,17 +252,6 @@ export const respondAsController = mutation({
             requestId: args.requestId,
             payload: args.payload,
         })
-    },
-})
-
-export const markConsumed = internalMutation({
-    args: {
-        messageId: v.id('relayMessages'),
-    },
-    returns: v.null(),
-    handler: async (ctx, args) => {
-        await ctx.db.delete(args.messageId)
-        return null
     },
 })
 
@@ -253,32 +289,28 @@ export const respond = mutation({
     },
 })
 
+/**
+ * Backstop sweep for Relay messages nobody collected. Batched and
+ * self-rescheduling so a burst drains without exceeding per-mutation write
+ * limits.
+ */
 export const cleanup = internalMutation({
     args: {},
     returns: v.number(),
     handler: async (ctx) => {
-        const now = Date.now()
-        let deleted = 0
-
         const expired = await ctx.db
             .query('relayMessages')
-            .withIndex('by_expiry', (q) => q.lt('expiresAt', now))
-            .take(100)
+            .withIndex('by_expiry', (q) => q.lt('expiresAt', Date.now()))
+            .take(CLEANUP_BATCH_SIZE)
 
         for (const message of expired) {
             await ctx.db.delete(message._id)
-            deleted++
         }
 
-        // Also remove consumed rows that haven't expired yet (privacy contract).
-        const recent = await ctx.db.query('relayMessages').take(100)
-        for (const message of recent) {
-            if (message.consumed) {
-                await ctx.db.delete(message._id)
-                deleted++
-            }
+        if (expired.length === CLEANUP_BATCH_SIZE) {
+            await ctx.scheduler.runAfter(0, internal.relay.cleanup, {})
         }
 
-        return deleted
+        return expired.length
     },
 })
