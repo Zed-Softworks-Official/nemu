@@ -16,6 +16,10 @@ import {
     type ControllerCredentialStore,
     defaultCredentialStore,
 } from './storage.ts'
+import {
+    acknowledgeRelayResponses,
+    type RelayAcknowledgeRef,
+} from './transports/relay-acknowledge.ts'
 
 export type PairWithControllerResult = {
     baseUrl: string
@@ -106,13 +110,7 @@ export type SessionMintApi = {
         { requestIds: string[] },
         RelayResponseDoc[]
     >
-    /** Deletes the session mint response once it has been read. */
-    acknowledge: FunctionReference<
-        'mutation',
-        'public',
-        { messageIds: string[] },
-        unknown
-    >
+    acknowledge: RelayAcknowledgeRef
 }
 
 export async function mintSessionViaRelay(options: {
@@ -147,15 +145,10 @@ export async function mintSessionViaRelay(options: {
                 message.direction === 'toClient'
         )
         if (match) {
-            // The response carries a Client token: delete it from Convex now.
-            // A failure is ignored; the cleanup sweep removes it.
-            void Promise.resolve()
-                .then(() =>
-                    options.convex.mutation(options.api.acknowledge, {
-                        messageIds: [match._id],
-                    })
-                )
-                .catch(() => {})
+            // Privacy: the response carries a Client token, so delete it now.
+            acknowledgeRelayResponses(options.convex, options.api.acknowledge, [
+                match._id,
+            ])
             const parsed = relayToClientEnvelopeSchema.safeParse(
                 JSON.parse(match.payload)
             )

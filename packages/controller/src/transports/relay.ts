@@ -31,6 +31,7 @@ import {
     patchRoomRequestSchema,
     permitJoinRequestSchema,
     permitJoinResponseSchema,
+    type RelayToClientEnvelope,
     type RelayToControllerEnvelope,
     type ReleaseChannel,
     type RenameDeviceRequest,
@@ -50,6 +51,10 @@ import {
 import type { ConvexReactClient } from 'convex/react'
 import type { FunctionReference } from 'convex/server'
 import type { GetToken } from '../http.ts'
+import {
+    acknowledgeRelayResponses,
+    type RelayAcknowledgeRef,
+} from './relay-acknowledge.ts'
 import type { ControllerTransport } from './types.ts'
 
 type RelaySendArgs = {
@@ -75,13 +80,7 @@ export type RelayApi = {
         { requestIds: string[] },
         RelayResponseDoc[]
     >
-    /** Deletes Relay responses this Access Client has used. */
-    acknowledge: FunctionReference<
-        'mutation',
-        'public',
-        { messageIds: string[] },
-        unknown
-    >
+    acknowledge: RelayAcknowledgeRef
 }
 
 type RelayRequestMessage = Extract<
@@ -562,7 +561,7 @@ export class RelayTransport implements ControllerTransport {
     }
 
     private throwIfCommandError(
-        parsed: ReturnType<typeof relayToClientEnvelopeSchema.parse>,
+        parsed: RelayToClientEnvelope,
         action: string
     ): void {
         if (parsed.message.type === 'commandResult' && !parsed.message.ok) {
@@ -578,7 +577,7 @@ export class RelayTransport implements ControllerTransport {
 
     private async request(
         message: RelayRequestMessage
-    ): Promise<ReturnType<typeof relayToClientEnvelopeSchema.parse>> {
+    ): Promise<RelayToClientEnvelope> {
         const requestId = crypto.randomUUID()
         const token = this.getToken()
         if (!token) throw new Error('Missing client token')
@@ -627,7 +626,7 @@ export class RelayTransport implements ControllerTransport {
      */
     private emitCommandResultOnce(
         response: RelayResponseDoc,
-        envelope: ReturnType<typeof relayToClientEnvelopeSchema.parse>
+        envelope: RelayToClientEnvelope
     ): void {
         if (envelope.message.type !== 'commandResult') return
         const key = `${response.requestId}:${response.payload}`
@@ -642,19 +641,8 @@ export class RelayTransport implements ControllerTransport {
         })
     }
 
-    /**
-     * Deletes used responses from Convex. A failure is ignored: the backstop
-     * sweep removes the messages once they expire.
-     */
     private acknowledge(messageIds: string[]): void {
-        if (messageIds.length === 0) return
-        void Promise.resolve()
-            .then(() =>
-                this.convex.mutation(this.api.acknowledge, { messageIds })
-            )
-            .catch(() => {
-                // The cleanup sweep removes it.
-            })
+        acknowledgeRelayResponses(this.convex, this.api.acknowledge, messageIds)
     }
 
     /** Stops waiting for a send that Convex is holding. */

@@ -1,12 +1,12 @@
 import { convexTest } from 'convex-test'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { CONTROLLER_JWT_ISSUER } from '../lib/controllerAuth'
+import { CLEANUP_BATCH_SIZE, RELAY_TTL_MS } from '../lib/relay'
 import { api, internal } from './_generated/api'
 import schema from './schema'
 
 const modules = import.meta.glob('./**/*.*s')
 
-const RELAY_TTL_MS = 5 * 60 * 1000
 const CONTROLLER_ID = 'controller-1'
 const USER_ID = 'user-1'
 
@@ -193,14 +193,17 @@ describe('Relay mailbox answers', () => {
 })
 
 describe('Relay mailbox cleanup', () => {
-    const CLEANUP_BATCH_SIZE = 100
-
-    async function seedMessages(
-        t: ReturnType<typeof convexTest>,
-        count: number,
-        expiresAt: number,
+    async function seedMessages({
+        t,
+        count,
+        expiresAt,
+        prefix,
+    }: {
+        t: ReturnType<typeof convexTest>
+        count: number
+        expiresAt: number
         prefix: string
-    ) {
+    }) {
         await t.run(async (ctx) => {
             for (let i = 0; i < count; i++) {
                 await ctx.db.insert('relayMessages', {
@@ -224,8 +227,18 @@ describe('Relay mailbox cleanup', () => {
 
     test('removes expired messages and leaves unexpired ones', async () => {
         const { t } = setup()
-        await seedMessages(t, 3, Date.now() - 1, 'expired')
-        await seedMessages(t, 2, Date.now() + RELAY_TTL_MS, 'live')
+        await seedMessages({
+            t,
+            count: 3,
+            expiresAt: Date.now() - 1,
+            prefix: 'expired',
+        })
+        await seedMessages({
+            t,
+            count: 2,
+            expiresAt: Date.now() + RELAY_TTL_MS,
+            prefix: 'live',
+        })
 
         expect(await t.mutation(internal.relay.cleanup, {})).toBe(3)
         await t.finishAllScheduledFunctions(vi.runAllTimers)
@@ -239,8 +252,18 @@ describe('Relay mailbox cleanup', () => {
     test('keeps rescheduling until a backlog bigger than one batch is gone', async () => {
         const { t } = setup()
         const backlog = CLEANUP_BATCH_SIZE * 2 + 50
-        await seedMessages(t, backlog, Date.now() - 1, 'expired')
-        await seedMessages(t, 1, Date.now() + RELAY_TTL_MS, 'live')
+        await seedMessages({
+            t,
+            count: backlog,
+            expiresAt: Date.now() - 1,
+            prefix: 'expired',
+        })
+        await seedMessages({
+            t,
+            count: 1,
+            expiresAt: Date.now() + RELAY_TTL_MS,
+            prefix: 'live',
+        })
 
         expect(await t.mutation(internal.relay.cleanup, {})).toBe(
             CLEANUP_BATCH_SIZE

@@ -533,10 +533,6 @@ type StoredResponse = {
     direction: 'toClient'
 }
 
-/**
- * A fake Convex Relay mailbox: `send` hands the request to `answer`, which
- * may store responses; `responses` reads them; `acknowledge` deletes by ID.
- */
 function mailboxRelay(options: {
     answer?: (
         message: { type: string },

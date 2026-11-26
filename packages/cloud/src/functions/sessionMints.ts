@@ -1,8 +1,7 @@
 import { v } from 'convex/values'
 import { authedMutation } from '../lib/customFunctions'
 import { normalizeEmail } from '../lib/email'
-
-const RELAY_TTL_MS = 5 * 60 * 1000
+import { RELAY_TTL_MS } from '../lib/relay'
 
 export const request = authedMutation({
     args: {

@@ -1,6 +1,7 @@
 import { v } from 'convex/values'
 import { requireControllerIdentity } from '../lib/auth'
 import { authedMutation, authedQuery } from '../lib/customFunctions'
+import { CLEANUP_BATCH_SIZE, RELAY_TTL_MS } from '../lib/relay'
 import { internal } from './_generated/api'
 import type { Doc } from './_generated/dataModel'
 import type { MutationCtx, QueryCtx } from './_generated/server'
@@ -15,9 +16,6 @@ const pendingEnvelopeValidator = v.object({
     requestId: v.string(),
     payload: v.string(),
 })
-
-const RELAY_TTL_MS = 5 * 60 * 1000
-const CLEANUP_BATCH_SIZE = 100
 
 /**
  * Whether a Relay message may still be handed out. Reads filter on this so an
@@ -37,11 +35,13 @@ const relayMessageValidator = v.object({
     expiresAt: v.number(),
 })
 
-async function requirePairing(
-    ctx: (QueryCtx | MutationCtx) & { identity: { subject: string } },
+type AuthedCtx = (QueryCtx | MutationCtx) & { identity: { subject: string } }
+
+async function findPairing(
+    ctx: AuthedCtx,
     controllerId: string
-): Promise<Doc<'pairings'>> {
-    const pairing = await ctx.db
+): Promise<Doc<'pairings'> | null> {
+    return await ctx.db
         .query('pairings')
         .withIndex('by_user_and_controller', (q) =>
             q
@@ -49,6 +49,20 @@ async function requirePairing(
                 .eq('controllerId', controllerId)
         )
         .unique()
+}
+
+async function isPairedWith(
+    ctx: AuthedCtx,
+    controllerId: string
+): Promise<boolean> {
+    return (await findPairing(ctx, controllerId)) !== null
+}
+
+async function requirePairing(
+    ctx: AuthedCtx,
+    controllerId: string
+): Promise<Doc<'pairings'>> {
+    const pairing = await findPairing(ctx, controllerId)
     if (!pairing) {
         throw new Error('Not paired with this controller')
     }
@@ -128,15 +142,7 @@ export const responses = authedQuery({
             for (const message of messages) {
                 if (message.direction !== 'toClient') continue
                 if (!isLive(message, now)) continue
-                const pairing = await ctx.db
-                    .query('pairings')
-                    .withIndex('by_user_and_controller', (q) =>
-                        q
-                            .eq('userId', ctx.identity.subject)
-                            .eq('controllerId', message.controllerId)
-                    )
-                    .unique()
-                if (pairing) {
+                if (await isPairedWith(ctx, message.controllerId)) {
                     results.push(message)
                 }
             }
@@ -146,10 +152,8 @@ export const responses = authedQuery({
 })
 
 /**
- * Deletes Relay responses the caller's Access Client has used. Only
- * `toClient` messages for a Controller the caller is paired with are deleted;
- * any other ID (missing, already deleted, malformed or not allowed) is skipped
- * quietly, so acknowledging twice is harmless.
+ * IDs that are missing, already deleted, malformed or not the caller's are
+ * skipped quietly, so acknowledging twice is harmless.
  */
 export const acknowledge = authedMutation({
     args: {
@@ -157,24 +161,16 @@ export const acknowledge = authedMutation({
     },
     returns: v.null(),
     handler: async (ctx, args) => {
-        const paired = new Map<string, boolean>()
+        const pairedByController = new Map<string, boolean>()
         for (const rawId of args.messageIds) {
             const messageId = ctx.db.normalizeId('relayMessages', rawId)
             if (!messageId) continue
             const message = await ctx.db.get(messageId)
             if (!message || message.direction !== 'toClient') continue
-            let allowed = paired.get(message.controllerId)
+            let allowed = pairedByController.get(message.controllerId)
             if (allowed === undefined) {
-                const pairing = await ctx.db
-                    .query('pairings')
-                    .withIndex('by_user_and_controller', (q) =>
-                        q
-                            .eq('userId', ctx.identity.subject)
-                            .eq('controllerId', message.controllerId)
-                    )
-                    .unique()
-                allowed = pairing !== null
-                paired.set(message.controllerId, allowed)
+                allowed = await isPairedWith(ctx, message.controllerId)
+                pairedByController.set(message.controllerId, allowed)
             }
             if (allowed) {
                 await ctx.db.delete(messageId)
@@ -294,9 +290,9 @@ export const respond = mutation({
 })
 
 /**
- * Backstop sweep for Relay messages nobody collected. Deletes one batch through
- * the expiry index per run and reschedules itself while batches come back full,
- * so a burst drains promptly without exceeding per-mutation write limits.
+ * Backstop sweep for Relay messages nobody collected. Batched and
+ * self-rescheduling so a burst drains without exceeding per-mutation write
+ * limits.
  */
 export const cleanup = internalMutation({
     args: {},
