@@ -34,7 +34,6 @@ const relayMessageValidator = v.object({
     direction: v.union(v.literal('toController'), v.literal('toClient')),
     requestId: v.string(),
     payload: v.string(),
-    consumed: v.optional(v.boolean()),
     expiresAt: v.number(),
 })
 
