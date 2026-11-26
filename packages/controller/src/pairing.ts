@@ -87,6 +87,7 @@ type SessionMintRequestArgs = {
 }
 
 type RelayResponseDoc = {
+    _id: string
     requestId: string
     payload: string
     direction: 'toController' | 'toClient'
@@ -104,6 +105,13 @@ export type SessionMintApi = {
         'public',
         { requestIds: string[] },
         RelayResponseDoc[]
+    >
+    /** Deletes the session mint response once it has been read. */
+    acknowledge: FunctionReference<
+        'mutation',
+        'public',
+        { messageIds: string[] },
+        unknown
     >
 }
 
@@ -139,6 +147,15 @@ export async function mintSessionViaRelay(options: {
                 message.direction === 'toClient'
         )
         if (match) {
+            // The response carries a Client token: delete it from Convex now.
+            // A failure is ignored; the cleanup sweep removes it.
+            void Promise.resolve()
+                .then(() =>
+                    options.convex.mutation(options.api.acknowledge, {
+                        messageIds: [match._id],
+                    })
+                )
+                .catch(() => {})
             const parsed = relayToClientEnvelopeSchema.safeParse(
                 JSON.parse(match.payload)
             )

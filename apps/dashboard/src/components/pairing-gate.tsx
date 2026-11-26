@@ -111,6 +111,7 @@ export function PairingGate(props: { children: React.ReactNode }) {
             api: {
                 request: api.sessionMints.request,
                 responses: api.relay.responses,
+                acknowledge: api.relay.acknowledge,
             },
             controllerId,
             clientLabel: defaultClientLabel(),

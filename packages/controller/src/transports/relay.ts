@@ -59,6 +59,7 @@ type RelaySendArgs = {
 }
 
 type RelayResponseDoc = {
+    _id: string
     requestId: string
     payload: string
     direction: 'toController' | 'toClient'
@@ -73,6 +74,13 @@ export type RelayApi = {
         'public',
         { requestIds: string[] },
         RelayResponseDoc[]
+    >
+    /** Deletes Relay responses this Access Client has used. */
+    acknowledge: FunctionReference<
+        'mutation',
+        'public',
+        { messageIds: string[] },
+        unknown
     >
 }
 
@@ -605,7 +613,48 @@ export class RelayTransport implements ControllerTransport {
         this.pendingIds.add(requestId)
 
         const response = await this.waitForResponse(requestId, started)
-        return relayToClientEnvelopeSchema.parse(JSON.parse(response.payload))
+        const parsed = relayToClientEnvelopeSchema.parse(
+            JSON.parse(response.payload)
+        )
+        this.emitCommandResultOnce(response, parsed)
+        return parsed
+    }
+
+    /**
+     * Emits a Command's outcome once, whether the waiter or the general poll
+     * read the response first. The waiter deletes the response once it has
+     * it, so the poll may never see it.
+     */
+    private emitCommandResultOnce(
+        response: RelayResponseDoc,
+        envelope: ReturnType<typeof relayToClientEnvelopeSchema.parse>
+    ): void {
+        if (envelope.message.type !== 'commandResult') return
+        const key = `${response.requestId}:${response.payload}`
+        if (this.seenResponses.has(key)) return
+        this.seenResponses.add(key)
+        this.emit({
+            type: 'commandResult',
+            requestId: envelope.requestId,
+            ok: envelope.message.ok,
+            outcome: envelope.message.outcome,
+            error: envelope.message.error,
+        })
+    }
+
+    /**
+     * Deletes used responses from Convex. A failure is ignored: the backstop
+     * sweep removes the messages once they expire.
+     */
+    private acknowledge(messageIds: string[]): void {
+        if (messageIds.length === 0) return
+        void Promise.resolve()
+            .then(() =>
+                this.convex.mutation(this.api.acknowledge, { messageIds })
+            )
+            .catch(() => {
+                // The cleanup sweep removes it.
+            })
     }
 
     /** Stops waiting for a send that Convex is holding. */
@@ -653,8 +702,17 @@ export class RelayTransport implements ControllerTransport {
             const messages = await this.convex.query(this.api.responses, {
                 requestIds,
             })
+            // Only watch messages are used here. A request's waiter deletes
+            // its own response, which it may not have read yet.
+            const watchIds = new Set(
+                [this.watchRequestId, this.previousWatchRequestId].filter(
+                    (id): id is string => id !== null
+                )
+            )
+            const used: string[] = []
             for (const message of messages) {
                 const key = `${message.requestId}:${message.payload}`
+                if (watchIds.has(message.requestId)) used.push(message._id)
                 try {
                     const envelope = relayToClientEnvelopeSchema.parse(
                         JSON.parse(message.payload)
@@ -667,17 +725,13 @@ export class RelayTransport implements ControllerTransport {
                     ) {
                         continue
                     }
+                    if (envelope.message.type === 'commandResult') {
+                        this.emitCommandResultOnce(message, envelope)
+                        continue
+                    }
                     if (this.seenResponses.has(key)) continue
                     this.seenResponses.add(key)
-                    if (envelope.message.type === 'commandResult') {
-                        this.emit({
-                            type: 'commandResult',
-                            requestId: envelope.requestId,
-                            ok: envelope.message.ok,
-                            outcome: envelope.message.outcome,
-                            error: envelope.message.error,
-                        })
-                    } else if (
+                    if (
                         envelope.message.type === 'capabilitySnapshot' ||
                         envelope.message.type === 'capabilityChange'
                     ) {
@@ -687,6 +741,7 @@ export class RelayTransport implements ControllerTransport {
                     // ignore malformed payloads
                 }
             }
+            this.acknowledge(used)
         } catch {
             // transient poll failures are ignored; next tick retries
         }
@@ -745,6 +800,7 @@ export class RelayTransport implements ControllerTransport {
                     if (match) {
                         this.pendingIds.delete(requestId)
                         resolve(match)
+                        this.acknowledge([match._id])
                         return
                     }
                 } catch {

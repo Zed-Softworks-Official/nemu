@@ -191,3 +191,125 @@ describe('Relay mailbox answers', () => {
         ).toEqual([])
     })
 })
+
+describe('Relay mailbox acknowledge', () => {
+    const OTHER_USER_ID = 'user-2'
+    const OTHER_CONTROLLER_ID = 'controller-2'
+
+    async function storedIds(t: ReturnType<typeof convexTest>) {
+        const messages = await t.run((ctx) =>
+            ctx.db.query('relayMessages').collect()
+        )
+        return messages.map((message) => message._id)
+    }
+
+    test('deletes a response for a Controller the caller is paired with', async () => {
+        const { t, client, controller } = setup()
+        await seedPairing(t)
+
+        const responseId = await controller.mutation(
+            api.relay.respondAsController,
+            { requestId: 'req', payload: 'result' }
+        )
+        await client.mutation(api.relay.acknowledge, {
+            messageIds: [responseId],
+        })
+
+        expect(await storedIds(t)).toEqual([])
+        expect(
+            await client.query(api.relay.responses, { requestIds: ['req'] })
+        ).toEqual([])
+    })
+
+    test('deletes only the acknowledged messages of a watch stream', async () => {
+        const { t, client, controller } = setup()
+        await seedPairing(t)
+
+        const first = await controller.mutation(api.relay.respondAsController, {
+            requestId: 'watch',
+            payload: 'change-1',
+        })
+        await controller.mutation(api.relay.respondAsController, {
+            requestId: 'watch',
+            payload: 'change-2',
+        })
+        await client.mutation(api.relay.acknowledge, { messageIds: [first] })
+
+        const left = await client.query(api.relay.responses, {
+            requestIds: ['watch'],
+        })
+        expect(left.map((message) => message.payload)).toEqual(['change-2'])
+    })
+
+    test('skips responses for a Controller the caller is not paired with', async () => {
+        const { t, controller } = setup()
+        await seedPairing(t)
+        const other = t.withIdentity({
+            subject: OTHER_USER_ID,
+            issuer: 'https://clerk.nemu.test',
+        })
+        await t.run(async (ctx) => {
+            await ctx.db.insert('pairings', {
+                userId: OTHER_USER_ID,
+                controllerId: OTHER_CONTROLLER_ID,
+                createdAt: Date.now(),
+                role: 'owner',
+            })
+        })
+
+        const responseId = await controller.mutation(
+            api.relay.respondAsController,
+            { requestId: 'req', payload: 'result' }
+        )
+        await other.mutation(api.relay.acknowledge, {
+            messageIds: [responseId],
+        })
+
+        expect(await storedIds(t)).toEqual([responseId])
+    })
+
+    test('never deletes requests sent to the Controller', async () => {
+        const { t, client } = setup()
+        await seedPairing(t)
+
+        const requestId = await client.mutation(api.relay.send, {
+            controllerId: CONTROLLER_ID,
+            requestId: 'req',
+            payload: 'command',
+        })
+        await client.mutation(api.relay.acknowledge, {
+            messageIds: [requestId],
+        })
+
+        expect(await storedIds(t)).toEqual([requestId])
+    })
+
+    test('skips missing and malformed IDs and is safe to call twice', async () => {
+        const { t, client, controller } = setup()
+        await seedPairing(t)
+
+        const responseId = await controller.mutation(
+            api.relay.respondAsController,
+            { requestId: 'req', payload: 'result' }
+        )
+        const kept = await controller.mutation(api.relay.respondAsController, {
+            requestId: 'other',
+            payload: 'kept',
+        })
+        const pairingId = await t.run(async (ctx) => {
+            const pairing = await ctx.db.query('pairings').first()
+            return pairing?._id ?? ''
+        })
+
+        for (let attempt = 0; attempt < 2; attempt++) {
+            await client.mutation(api.relay.acknowledge, {
+                messageIds: [responseId, 'not-an-id', pairingId],
+            })
+        }
+
+        expect(await storedIds(t)).toEqual([kept])
+        expect(
+            await t.run((ctx) => ctx.db.query('pairings').collect())
+        ).toHaveLength(1)
+    })
+})

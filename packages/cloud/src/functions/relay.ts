@@ -146,6 +146,45 @@ export const responses = authedQuery({
     },
 })
 
+/**
+ * Deletes Relay responses the caller's Access Client has used. Only
+ * `toClient` messages for a Controller the caller is paired with are deleted;
+ * any other ID (missing, already deleted, malformed or not allowed) is skipped
+ * quietly, so acknowledging twice is harmless.
+ */
+export const acknowledge = authedMutation({
+    args: {
+        messageIds: v.array(v.string()),
+    },
+    returns: v.null(),
+    handler: async (ctx, args) => {
+        const paired = new Map<string, boolean>()
+        for (const rawId of args.messageIds) {
+            const messageId = ctx.db.normalizeId('relayMessages', rawId)
+            if (!messageId) continue
+            const message = await ctx.db.get(messageId)
+            if (!message || message.direction !== 'toClient') continue
+            let allowed = paired.get(message.controllerId)
+            if (allowed === undefined) {
+                const pairing = await ctx.db
+                    .query('pairings')
+                    .withIndex('by_user_and_controller', (q) =>
+                        q
+                            .eq('userId', ctx.identity.subject)
+                            .eq('controllerId', message.controllerId)
+                    )
+                    .unique()
+                allowed = pairing !== null
+                paired.set(message.controllerId, allowed)
+            }
+            if (allowed) {
+                await ctx.db.delete(messageId)
+            }
+        }
+        return null
+    },
+})
+
 export const controllerExists = internalQuery({
     args: {
         controllerId: v.string(),

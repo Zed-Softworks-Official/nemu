@@ -29,11 +29,13 @@ const convex = new ConvexReactClient(
 const relayApi = {
     send: api.relay.send,
     responses: api.relay.responses,
+    acknowledge: api.relay.acknowledge,
 }
 
 const sessionMintApi = {
     request: api.sessionMints.request,
     responses: api.relay.responses,
+    acknowledge: api.relay.acknowledge,
 }
 
 function clientLabel(): string {
