@@ -34,7 +34,7 @@ const relayMessageValidator = v.object({
     direction: v.union(v.literal('toController'), v.literal('toClient')),
     requestId: v.string(),
     payload: v.string(),
-    consumed: v.boolean(),
+    consumed: v.optional(v.boolean()),
     expiresAt: v.number(),
 })
 
@@ -89,7 +89,6 @@ async function writeResponse(
         direction: 'toClient',
         requestId: args.requestId,
         payload: args.payload,
-        consumed: false,
         expiresAt: Date.now() + RELAY_TTL_MS,
     })
 }
@@ -109,7 +108,6 @@ export const send = authedMutation({
             direction: 'toController',
             requestId: args.requestId,
             payload: args.payload,
-            consumed: false,
             expiresAt: Date.now() + RELAY_TTL_MS,
         })
     },
@@ -177,7 +175,6 @@ export const pendingForController = internalQuery({
                 q
                     .eq('controllerId', args.controllerId)
                     .eq('direction', 'toController')
-                    .eq('consumed', false)
             )
             .collect()
         return messages.filter((message) => isLive(message, now))
@@ -197,7 +194,6 @@ export const pendingForMe = query({
                 q
                     .eq('controllerId', controllerId)
                     .eq('direction', 'toController')
-                    .eq('consumed', false)
             )
             .collect()
         return messages
@@ -222,17 +218,6 @@ export const respondAsController = mutation({
             requestId: args.requestId,
             payload: args.payload,
         })
-    },
-})
-
-export const markConsumed = internalMutation({
-    args: {
-        messageId: v.id('relayMessages'),
-    },
-    returns: v.null(),
-    handler: async (ctx, args) => {
-        await ctx.db.delete(args.messageId)
-        return null
     },
 })
 
