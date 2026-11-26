@@ -17,6 +17,14 @@ const pendingEnvelopeValidator = v.object({
 
 const RELAY_TTL_MS = 5 * 60 * 1000
 
+/**
+ * Whether a Relay message may still be handed out. Reads filter on this so an
+ * expired message is never returned, however late the cleanup sweep runs.
+ */
+function isLive(message: Doc<'relayMessages'>, now: number): boolean {
+    return message.expiresAt > now
+}
+
 const relayMessageValidator = v.object({
     _id: v.id('relayMessages'),
     _creationTime: v.number(),
@@ -111,6 +119,7 @@ export const responses = authedQuery({
     },
     returns: v.array(relayMessageValidator),
     handler: async (ctx, args) => {
+        const now = Date.now()
         const results: Doc<'relayMessages'>[] = []
         for (const requestId of args.requestIds) {
             const messages = await ctx.db
@@ -119,6 +128,7 @@ export const responses = authedQuery({
                 .collect()
             for (const message of messages) {
                 if (message.direction !== 'toClient') continue
+                if (!isLive(message, now)) continue
                 const pairing = await ctx.db
                     .query('pairings')
                     .withIndex('by_user_and_controller', (q) =>
@@ -158,7 +168,8 @@ export const pendingForController = internalQuery({
     },
     returns: v.array(relayMessageValidator),
     handler: async (ctx, args) => {
-        return await ctx.db
+        const now = Date.now()
+        const messages = await ctx.db
             .query('relayMessages')
             .withIndex('by_controller_and_direction', (q) =>
                 q
@@ -167,6 +178,7 @@ export const pendingForController = internalQuery({
                     .eq('consumed', false)
             )
             .collect()
+        return messages.filter((message) => isLive(message, now))
     },
 })
 
@@ -176,6 +188,7 @@ export const pendingForMe = query({
     returns: v.array(pendingEnvelopeValidator),
     handler: async (ctx) => {
         const { controllerId } = await requireControllerIdentity(ctx)
+        const now = Date.now()
         const messages = await ctx.db
             .query('relayMessages')
             .withIndex('by_controller_and_direction', (q) =>
@@ -185,10 +198,12 @@ export const pendingForMe = query({
                     .eq('consumed', false)
             )
             .collect()
-        return messages.map((message) => ({
-            requestId: message.requestId,
-            payload: message.payload,
-        }))
+        return messages
+            .filter((message) => isLive(message, now))
+            .map((message) => ({
+                requestId: message.requestId,
+                payload: message.payload,
+            }))
     },
 })
 

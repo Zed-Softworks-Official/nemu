@@ -1,0 +1,193 @@
+import { convexTest } from 'convex-test'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+import { CONTROLLER_JWT_ISSUER } from '../lib/controllerAuth'
+import { api, internal } from './_generated/api'
+import schema from './schema'
+
+const modules = import.meta.glob('./**/*.*s')
+
+const RELAY_TTL_MS = 5 * 60 * 1000
+const CONTROLLER_ID = 'controller-1'
+const USER_ID = 'user-1'
+
+function setup() {
+    const t = convexTest(schema, modules)
+    const client = t.withIdentity({
+        subject: USER_ID,
+        issuer: 'https://clerk.nemu.test',
+    })
+    const controller = t.withIdentity({
+        subject: CONTROLLER_ID,
+        issuer: CONTROLLER_JWT_ISSUER,
+    })
+    return { t, client, controller }
+}
+
+async function seedPairing(t: ReturnType<typeof convexTest>) {
+    await t.run(async (ctx) => {
+        await ctx.db.insert('controllers', {
+            controllerId: CONTROLLER_ID,
+            publicKey: 'public-key',
+            name: 'Home',
+            registeredAt: Date.now(),
+        })
+        await ctx.db.insert('pairings', {
+            userId: USER_ID,
+            controllerId: CONTROLLER_ID,
+            createdAt: Date.now(),
+            role: 'owner',
+        })
+    })
+}
+
+beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-11-25T12:00:00Z'))
+})
+
+afterEach(() => {
+    vi.useRealTimers()
+})
+
+describe('Relay mailbox expiry', () => {
+    test('the Controller receives unexpired requests and never expired ones', async () => {
+        const { t, client, controller } = setup()
+        await seedPairing(t)
+
+        await client.mutation(api.relay.send, {
+            controllerId: CONTROLLER_ID,
+            requestId: 'old',
+            payload: 'old-payload',
+        })
+        vi.advanceTimersByTime(RELAY_TTL_MS - 1000)
+        await client.mutation(api.relay.send, {
+            controllerId: CONTROLLER_ID,
+            requestId: 'new',
+            payload: 'new-payload',
+        })
+
+        expect(await controller.query(api.relay.pendingForMe, {})).toEqual([
+            { requestId: 'old', payload: 'old-payload' },
+            { requestId: 'new', payload: 'new-payload' },
+        ])
+
+        vi.advanceTimersByTime(2000)
+
+        expect(await controller.query(api.relay.pendingForMe, {})).toEqual([
+            { requestId: 'new', payload: 'new-payload' },
+        ])
+        const polled = await t.query(internal.relay.pendingForController, {
+            controllerId: CONTROLLER_ID,
+        })
+        expect(polled.map((message) => message.requestId)).toEqual(['new'])
+    })
+
+    test('pendingForController drops expired requests', async () => {
+        const { t, client } = setup()
+        await seedPairing(t)
+
+        await client.mutation(api.relay.send, {
+            controllerId: CONTROLLER_ID,
+            requestId: 'req',
+            payload: 'payload',
+        })
+        expect(
+            await t.query(internal.relay.pendingForController, {
+                controllerId: CONTROLLER_ID,
+            })
+        ).toHaveLength(1)
+
+        vi.advanceTimersByTime(RELAY_TTL_MS + 1)
+
+        expect(
+            await t.query(internal.relay.pendingForController, {
+                controllerId: CONTROLLER_ID,
+            })
+        ).toEqual([])
+    })
+
+    test('clients receive unexpired responses and never expired ones', async () => {
+        const { t, client, controller } = setup()
+        await seedPairing(t)
+
+        await controller.mutation(api.relay.respondAsController, {
+            requestId: 'old',
+            payload: 'old-response',
+        })
+        vi.advanceTimersByTime(RELAY_TTL_MS - 1000)
+        await controller.mutation(api.relay.respondAsController, {
+            requestId: 'new',
+            payload: 'new-response',
+        })
+
+        const before = await client.query(api.relay.responses, {
+            requestIds: ['old', 'new'],
+        })
+        expect(before.map((message) => message.payload)).toEqual([
+            'old-response',
+            'new-response',
+        ])
+
+        vi.advanceTimersByTime(2000)
+
+        const after = await client.query(api.relay.responses, {
+            requestIds: ['old', 'new'],
+        })
+        expect(after.map((message) => message.payload)).toEqual([
+            'new-response',
+        ])
+    })
+})
+
+describe('Relay mailbox answers', () => {
+    test('answering a request deletes it and hands the response to the client', async () => {
+        const { t, client, controller } = setup()
+        await seedPairing(t)
+
+        await client.mutation(api.relay.send, {
+            controllerId: CONTROLLER_ID,
+            requestId: 'req',
+            payload: 'command',
+        })
+        await controller.mutation(api.relay.respondAsController, {
+            requestId: 'req',
+            payload: 'result',
+        })
+
+        expect(await controller.query(api.relay.pendingForMe, {})).toEqual([])
+        const stored = await t.run((ctx) =>
+            ctx.db
+                .query('relayMessages')
+                .withIndex('by_request_id', (q) => q.eq('requestId', 'req'))
+                .collect()
+        )
+        expect(stored.map((message) => message.direction)).toEqual(['toClient'])
+        const answered = await client.query(api.relay.responses, {
+            requestIds: ['req'],
+        })
+        expect(answered.map((message) => message.payload)).toEqual(['result'])
+    })
+
+    test('answering through respondInternal also deletes the request', async () => {
+        const { t, client, controller } = setup()
+        await seedPairing(t)
+
+        await client.mutation(api.relay.send, {
+            controllerId: CONTROLLER_ID,
+            requestId: 'req',
+            payload: 'command',
+        })
+        await t.mutation(internal.relay.respondInternal, {
+            controllerId: CONTROLLER_ID,
+            requestId: 'req',
+            payload: 'result',
+        })
+
+        expect(await controller.query(api.relay.pendingForMe, {})).toEqual([])
+        expect(
+            await t.query(internal.relay.pendingForController, {
+                controllerId: CONTROLLER_ID,
+            })
+        ).toEqual([])
+    })
+})

@@ -23,13 +23,17 @@
         "dev:web": "convex dev",
         "convex:dev": "convex dev",
         "convex:deploy": "convex deploy",
-        "check-types": "tsc --noEmit"
+        "check-types": "tsc --noEmit",
+        "test": "vitest run"
     },
     "devDependencies": {
+        "@edge-runtime/vm": "^5.0.0",
         "@nemu/biome-config": "workspace:*",
         "@nemu/typescript-config": "workspace:*",
         "@types/node": "catalog:",
-        "typescript": "catalog:"
+        "convex-test": "^0.0.75",
+        "typescript": "catalog:",
+        "vitest": "^5.1.1"
     },
     "dependencies": {
         "@t3-oss/env-core": "^0.13.11",
