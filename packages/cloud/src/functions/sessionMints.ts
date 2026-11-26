@@ -82,7 +82,6 @@ export const request = authedMutation({
             direction: 'toController',
             requestId: args.requestId,
             payload,
-            consumed: false,
             expiresAt: Date.now() + RELAY_TTL_MS,
         })
     },
