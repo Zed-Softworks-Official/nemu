@@ -63,3 +63,18 @@ fn env_flag(name: &str) -> bool {
         Err(_) => false,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Test certificates are dev/test-only: without the flag the adapter
+    /// trusts only the PAA/CD roots on disk, or refuses to start.
+    #[test]
+    fn example_roots_are_off_by_default() {
+        assert!(!env_flag("NEMU_MATTER_TEST_FLAG_THAT_IS_NEVER_SET"));
+        if std::env::var_os("MATTER_ALLOW_EXAMPLE_ROOTS").is_none() {
+            assert!(!Config::from_env().allow_example_roots);
+        }
+    }
+}
