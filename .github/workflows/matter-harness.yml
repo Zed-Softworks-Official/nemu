@@ -1,0 +1,87 @@
+# Seam 1 of the Matter adapter (NEM-109): commissions simulated matter.js
+# Devices through the adapter under test, over MQTT only, and compares what it
+# publishes with the golden payloads recorded from the Rust adapter.
+#
+# Mosquitto runs in Docker. The simulated Devices and the adapter share the
+# runner's network, so mDNS discovery works as on a Controller host.
+
+name: Matter harness
+
+on:
+  pull_request:
+    paths:
+      - platform/matter/**
+      - platform/matter-harness/**
+      - .github/workflows/matter-harness.yml
+  push:
+    paths:
+      - platform/matter/**
+      - platform/matter-harness/**
+      - .github/workflows/matter-harness.yml
+  workflow_dispatch:
+
+concurrency:
+  group: matter-harness-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  rust-adapter:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.100.0
+
+      - name: Install the BLE build dependency
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libdbus-1-dev pkg-config
+
+      - name: Build the Rust adapter
+        run: cargo build --release --locked --manifest-path platform/matter/Cargo.toml
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install the harness
+        run: pnpm install --frozen-lockfile --filter @nemu/matter-harness...
+
+      - name: Type-check and unit-test the harness
+        run: |
+          pnpm --filter @nemu/matter-harness check-types
+          pnpm --filter @nemu/matter-harness test
+
+      - name: Pull Mosquitto
+        run: docker pull eclipse-mosquitto:2.0.22
+
+      - name: Compare the Rust adapter with the golden payloads
+        env:
+          TMPDIR: ${{ runner.temp }}/matter-harness
+        run: |
+          mkdir -p "$TMPDIR"
+          pnpm --filter @nemu/matter-harness harness
+
+      - name: Upload the run on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: matter-harness-run
+          path: |
+            platform/matter-harness/.run/
+            ${{ runner.temp }}/matter-harness/
+          include-hidden-files: true
+          if-no-files-found: ignore
