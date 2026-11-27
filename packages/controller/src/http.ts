@@ -1,12 +1,34 @@
 import { ApiError, apiErrorBodySchema } from '@nemu/protocol'
-import axios, { type AxiosInstance, isAxiosError } from 'axios'
+import axios, {
+    type AxiosInstance,
+    type InternalAxiosRequestConfig,
+    isAxiosError,
+} from 'axios'
 
 export type GetToken = () => string | null
 
+/** A Local session source; see `LocalSession`. */
+export type LocalSessionAuth = {
+    token(): Promise<string>
+    invalidate(): void
+}
+
+/** The Controller ended or does not know the Local session. */
+const LOCAL_SESSION_INVALID = 'local_session_invalid'
+
+type RetriedConfig = InternalAxiosRequestConfig & { localSessionRetried?: true }
+
+/**
+ * HTTP to a LAN Controller. With `localSession`, requests carry
+ * `Authorization: NemuSession`, and a refused session is renewed and the
+ * request sent once more. Otherwise a bearer token from `getToken`, until
+ * NEM-131 removes them.
+ */
 export function createControllerHttp(
     baseUrl: string,
     getToken: GetToken,
-    timeoutMs = 5_000
+    timeoutMs = 5_000,
+    localSession?: LocalSessionAuth
 ): AxiosInstance {
     const client = axios.create({
         baseURL: baseUrl.replace(/\/$/, ''),
@@ -14,7 +36,11 @@ export function createControllerHttp(
         headers: { Accept: 'application/json' },
     })
 
-    client.interceptors.request.use((config) => {
+    client.interceptors.request.use(async (config) => {
+        if (localSession) {
+            config.headers.Authorization = `NemuSession ${await localSession.token()}`
+            return config
+        }
         const token = getToken()
         if (token) {
             config.headers.Authorization = `Bearer ${token}`
@@ -24,8 +50,22 @@ export function createControllerHttp(
 
     client.interceptors.response.use(
         (res) => res,
-        (err: unknown) => {
-            throw toApiError(err)
+        async (err: unknown) => {
+            const error = toApiError(err)
+            const config = isAxiosError(err)
+                ? (err.config as RetriedConfig | undefined)
+                : undefined
+            if (
+                localSession &&
+                config &&
+                !config.localSessionRetried &&
+                error.code === LOCAL_SESSION_INVALID
+            ) {
+                localSession.invalidate()
+                config.localSessionRetried = true
+                return await client.request(config)
+            }
+            throw error
         }
     )
 

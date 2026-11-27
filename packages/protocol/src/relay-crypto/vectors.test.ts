@@ -44,6 +44,10 @@ import {
     EMPTY_REPLAY_WINDOW,
     type ReplayWindow,
 } from './replay.ts'
+import {
+    signLocalSessionChallenge,
+    verifyLocalSessionChallenge,
+} from './session.ts'
 import { ed25519Signer } from './signing.ts'
 
 const FIXTURE_URL = new URL(
@@ -464,6 +468,48 @@ describe('Access grants', () => {
                     )
                 ),
                 r.expectedError
+            )
+        })
+    }
+})
+
+describe('Local session challenges', () => {
+    const challenge = (v: {
+        controllerId: string
+        accessClientId: string
+        nonce: string
+    }) => ({
+        controllerId: v.controllerId,
+        accessClientId: v.accessClientId,
+        nonce: h(v.nonce),
+    })
+
+    for (const v of fixture.localSessions) {
+        it(`signs and verifies: ${v.name}`, async () => {
+            const signature = await signLocalSessionChallenge(
+                ed25519Signer(h(accessClient.signingSecret)),
+                challenge(v)
+            )
+            assert.equal(hexEncode(signature), v.signature)
+            assert.ok(
+                verifyLocalSessionChallenge(
+                    h(accessClient.signingPublic),
+                    challenge(v),
+                    h(v.signature)
+                )
+            )
+        })
+    }
+
+    for (const r of fixture.rejections.localSessions) {
+        it(`rejects a challenge signed ${r.name}`, () => {
+            assert.equal(
+                verifyLocalSessionChallenge(
+                    h(accessClient.signingPublic),
+                    challenge(r),
+                    h(r.signature)
+                ),
+                false
             )
         })
     }

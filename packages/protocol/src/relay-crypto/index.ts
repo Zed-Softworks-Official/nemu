@@ -79,6 +79,14 @@ export {
     type ReplayWindow,
 } from './replay.ts'
 export {
+    LOCAL_SESSION_LABEL,
+    LOCAL_SESSION_NONCE_LENGTH,
+    type LocalSessionChallenge,
+    localSessionMessage,
+    signLocalSessionChallenge,
+    verifyLocalSessionChallenge,
+} from './session.ts'
+export {
     type Ed25519Signer,
     ed25519PublicKey,
     ed25519Signer,

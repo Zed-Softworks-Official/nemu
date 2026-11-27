@@ -65,7 +65,11 @@ import {
     updateStatusResponseSchema,
 } from '@nemu/protocol'
 import type { AxiosInstance } from 'axios'
-import { createControllerHttp, type GetToken } from '../http.ts'
+import {
+    createControllerHttp,
+    type GetToken,
+    type LocalSessionAuth,
+} from '../http.ts'
 import { isLoopbackHostname, isMixedContentUrl } from '../mixedContent.ts'
 import type { ControllerTransport } from './types.ts'
 
@@ -136,7 +140,10 @@ type PendingDesignation = {
 
 export type LanTransportOptions = {
     baseUrl: string
-    getToken: GetToken
+    /** Bearer token, until NEM-131. Ignored when `localSession` is set. */
+    getToken?: GetToken
+    /** Authorizes HTTP and the WebSocket with a Local session (NEM-126). */
+    localSession?: LocalSessionAuth
     commandTimeoutMs?: number
     reconnectBaseMs?: number
     reconnectMaxMs?: number
@@ -147,6 +154,7 @@ export class LanTransport implements ControllerTransport {
 
     private readonly baseUrl: string
     private readonly getToken: GetToken
+    private readonly localSession: LocalSessionAuth | undefined
     private readonly commandTimeoutMs: number
     private readonly reconnectBaseMs: number
     private readonly reconnectMaxMs: number
@@ -164,11 +172,17 @@ export class LanTransport implements ControllerTransport {
 
     constructor(options: LanTransportOptions) {
         this.baseUrl = options.baseUrl.replace(/\/$/, '')
-        this.getToken = options.getToken
+        this.getToken = options.getToken ?? (() => null)
+        this.localSession = options.localSession
         this.commandTimeoutMs = options.commandTimeoutMs ?? 10_000
         this.reconnectBaseMs = options.reconnectBaseMs ?? 500
         this.reconnectMaxMs = options.reconnectMaxMs ?? 15_000
-        this.http = createControllerHttp(this.baseUrl, this.getToken)
+        this.http = createControllerHttp(
+            this.baseUrl,
+            this.getToken,
+            undefined,
+            this.localSession
+        )
     }
 
     async connect(): Promise<void> {
@@ -565,19 +579,25 @@ export class LanTransport implements ControllerTransport {
         })
     }
 
-    private openSocket(): Promise<void> {
+    private async socketUrl(wsUrl: string): Promise<string> {
+        // Browsers cannot set headers on a WebSocket, so its credential
+        // rides in the query.
+        if (this.localSession) {
+            const session = await this.localSession.token()
+            return `${wsUrl}?session=${encodeURIComponent(session)}`
+        }
+        const token = this.getToken()
+        return token ? `${wsUrl}?token=${encodeURIComponent(token)}` : wsUrl
+    }
+
+    private async openSocket(): Promise<void> {
         const wsUrl = toWsUrl(this.baseUrl)
         if (isMixedContentUrl(this.baseUrl) || isMixedContentUrl(wsUrl)) {
-            return Promise.resolve()
+            return
         }
+        const url = await this.socketUrl(wsUrl)
 
-        return new Promise((resolve, reject) => {
-            const token = this.getToken()
-            // Token via query is a pragmatic v1; header auth isn't available in browsers.
-            const url = token
-                ? `${wsUrl}?token=${encodeURIComponent(token)}`
-                : wsUrl
-
+        return await new Promise((resolve, reject) => {
             const ws = new WebSocket(url)
             this.ws = ws
 
@@ -595,6 +615,9 @@ export class LanTransport implements ControllerTransport {
             }
             const onError = () => {
                 cleanup()
+                // The upgrade may have been refused for a stale Local
+                // session; the next attempt opens a new one.
+                this.localSession?.invalidate()
                 reject(new Error('WebSocket connection failed'))
             }
             const cleanup = () => {

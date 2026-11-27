@@ -15,3 +15,18 @@ describe('Leaving a Home and Access Client revocation over Relay', () => {
         }
     })
 })
+
+describe('First-Owner bootstrap', () => {
+    it('is not a Relay action: it pairs on the home network (NEM-126)', () => {
+        const parsed = relayToControllerEnvelopeSchema.safeParse({
+            requestId: 'r1',
+            clientToken: 'token',
+            message: {
+                type: 'bootstrapOwner',
+                userId: 'u',
+                email: 'owner@example.com',
+            },
+        })
+        assert.equal(parsed.success, false)
+    })
+})

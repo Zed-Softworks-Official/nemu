@@ -4,13 +4,14 @@ use axum::http::StatusCode;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::api::auth::AuthenticatedClient;
+use crate::api::auth::{AuthenticatedClient, Credential, authenticate, count_access_credentials};
 use crate::api::error::{ApiError, ApiResult};
 use crate::api::members::{pair_member_session, require_owner};
 use crate::audit::{AuditKind, AuditWrite};
+use crate::pairing::access_clients::{delete_access_client, list_access_clients};
 use crate::pairing::codes::{consume_pairing_code, mint_pairing_code};
 use crate::pairing::members::count_members;
-use crate::pairing::tokens::{count_client_tokens, list_client_tokens, revoke_client_token};
+use crate::pairing::tokens::{list_client_tokens, revoke_client_token};
 use crate::state::AppState;
 
 #[derive(Deserialize)]
@@ -110,57 +111,16 @@ pub async fn create_pairing_code(
     headers: axum::http::HeaderMap,
     uri: axum::http::Uri,
 ) -> ApiResult<Json<PairingCodeResponse>> {
-    let token_count = count_client_tokens(&state.db)
+    let credential_count = count_access_credentials(&state.db)
         .await
         .map_err(ApiError::internal)?;
     let member_count = count_members(&state.db).await.map_err(ApiError::internal)?;
 
-    if token_count > 0 && member_count > 0 {
-        let token = crate::api::auth::extract_bearer(&headers)
-            .or_else(|| crate::api::auth::extract_query_token(&uri))
-            .ok_or_else(|| {
-                ApiError::new(
-                    StatusCode::UNAUTHORIZED,
-                    "unauthorized",
-                    "Missing client token",
-                )
-            })?;
-        let row = crate::pairing::tokens::verify_client_token(&state.db, &token)
-            .await
-            .map_err(ApiError::internal)?
-            .ok_or_else(|| {
-                ApiError::new(
-                    StatusCode::UNAUTHORIZED,
-                    "unauthorized",
-                    "Invalid client token",
-                )
-            })?;
-        let auth = AuthenticatedClient {
-            token_id: row.id,
-            label: row.label,
-            user_id: row.user_id,
-        };
-        require_owner(&state, &auth).await?;
-    } else if token_count > 0 {
-        let token = crate::api::auth::extract_bearer(&headers)
-            .or_else(|| crate::api::auth::extract_query_token(&uri))
-            .ok_or_else(|| {
-                ApiError::new(
-                    StatusCode::UNAUTHORIZED,
-                    "unauthorized",
-                    "Missing client token",
-                )
-            })?;
-        let _ = crate::pairing::tokens::verify_client_token(&state.db, &token)
-            .await
-            .map_err(ApiError::internal)?
-            .ok_or_else(|| {
-                ApiError::new(
-                    StatusCode::UNAUTHORIZED,
-                    "unauthorized",
-                    "Invalid client token",
-                )
-            })?;
+    if credential_count > 0 {
+        let auth = authenticate(&state, &headers, &uri).await?;
+        if member_count > 0 {
+            require_owner(&state, &auth).await?;
+        }
     }
 
     let issued = mint_pairing_code(&state.db)
@@ -181,20 +141,47 @@ pub async fn list_tokens(
     Ok(Json(TokensResponse { tokens }))
 }
 
+/// Every Access Client of the Home: CPace-paired ones and, until NEM-131,
+/// bearer tokens. Both revoke through [`revoke_household_token`].
 pub async fn list_household_tokens(state: &AppState) -> ApiResult<Vec<ClientTokenResource>> {
     let tokens = list_client_tokens(&state.db)
         .await
         .map_err(ApiError::internal)?;
+    let access_clients = list_access_clients(&state.db)
+        .await
+        .map_err(ApiError::internal)?;
 
-    Ok(tokens
+    let mut resources: Vec<(chrono::DateTime<chrono::Utc>, ClientTokenResource)> = tokens
         .into_iter()
-        .map(|t| ClientTokenResource {
-            id: t.id.to_string(),
-            label: t.label,
-            created_at: t.created_at.to_rfc3339(),
-            last_seen_at: t.last_seen_at.map(|ts| ts.to_rfc3339()),
-            user_id: t.user_id,
+        .map(|t| {
+            (
+                t.created_at,
+                ClientTokenResource {
+                    id: t.id.to_string(),
+                    label: t.label,
+                    created_at: t.created_at.to_rfc3339(),
+                    last_seen_at: t.last_seen_at.map(|ts| ts.to_rfc3339()),
+                    user_id: t.user_id,
+                },
+            )
         })
+        .chain(access_clients.into_iter().map(|(client, member)| {
+            (
+                client.created_at,
+                ClientTokenResource {
+                    id: client.id.to_string(),
+                    label: client.label,
+                    created_at: client.created_at.to_rfc3339(),
+                    last_seen_at: client.last_seen_at.map(|ts| ts.to_rfc3339()),
+                    user_id: member.user_id,
+                },
+            )
+        }))
+        .collect();
+    resources.sort_by_key(|(created_at, _)| std::cmp::Reverse(*created_at));
+    Ok(resources
+        .into_iter()
+        .map(|(_, resource)| resource)
         .collect())
 }
 
@@ -212,6 +199,9 @@ pub async fn delete_current_token(
     auth: AuthenticatedClient,
 ) -> ApiResult<StatusCode> {
     crate::api::access::revoke_current(&state.db, &auth).await?;
+    if auth.credential == Credential::AccessClient {
+        state.local_sessions.drop_access_client(auth.token_id);
+    }
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -223,12 +213,10 @@ pub async fn revoke_household_token(
     let id = Uuid::parse_str(token_id)
         .map_err(|_| ApiError::bad_request("invalid_id", "token id must be a UUID"))?;
 
-    let tokens = list_client_tokens(&state.db)
-        .await
-        .map_err(ApiError::internal)?;
-    let target = tokens
-        .iter()
-        .find(|token| token.id == id)
+    let target = list_household_tokens(state)
+        .await?
+        .into_iter()
+        .find(|token| token.id == id.to_string())
         .ok_or_else(|| ApiError::not_found("not_found", "Token not found"))?;
 
     let is_self = auth.token_id == id || (auth.user_id.is_some() && auth.user_id == target.user_id);
@@ -236,10 +224,15 @@ pub async fn revoke_household_token(
         require_owner(state, auth).await?;
     }
 
-    let label = target.label.clone();
-    let deleted = revoke_client_token(&state.db, id, Some(revocation_audit(auth, id, &label)))
+    let audit = Some(revocation_audit(auth, id, &target.label));
+    // The ID names a bearer token or a CPace Access Client; never both.
+    let deleted = revoke_client_token(&state.db, id, audit.clone())
         .await
-        .map_err(ApiError::internal)?;
+        .map_err(ApiError::internal)?
+        || delete_access_client(&state.db, id, audit)
+            .await
+            .map_err(ApiError::internal)?;
+    state.local_sessions.drop_access_client(id);
 
     if deleted {
         Ok(())

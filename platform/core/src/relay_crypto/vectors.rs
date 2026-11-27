@@ -17,6 +17,7 @@ use super::envelope::{
 use super::grant::{self, AccessGrant};
 use super::hpke;
 use super::replay::ReplayWindow;
+use super::session::{self, LocalSessionChallenge};
 
 fn vectors() -> Value {
     let path = concat!(
@@ -460,6 +461,47 @@ fn grants_issue_verify_and_reject() {
         let err = grant::verify_grant(s(&r["jws"]), controller_id, &keys.controller.signing_public)
             .unwrap_err();
         assert_eq!(err.to_string(), s(&r["expectedError"]), "{}", s(&r["name"]));
+    }
+}
+
+#[test]
+fn local_session_challenges_sign_verify_and_reject() {
+    let vectors = vectors();
+    let keys = keys(&vectors);
+    let challenge = |v: &Value| {
+        (
+            s(&v["controllerId"]).to_string(),
+            s(&v["accessClientId"]).to_string(),
+            h(&v["nonce"]),
+        )
+    };
+    for v in array(&vectors["localSessions"]) {
+        let (controller_id, access_client_id, nonce) = challenge(v);
+        let c = LocalSessionChallenge {
+            controller_id: &controller_id,
+            access_client_id: &access_client_id,
+            nonce: &nonce,
+        };
+        assert_eq!(
+            hex::encode(session::sign_challenge(&keys.access_client.signing, &c)),
+            s(&v["signature"])
+        );
+        session::verify_challenge(&keys.access_client.signing_public, &c, &h(&v["signature"]))
+            .unwrap();
+    }
+    for r in array(&vectors["rejections"]["localSessions"]) {
+        let (controller_id, access_client_id, nonce) = challenge(r);
+        let c = LocalSessionChallenge {
+            controller_id: &controller_id,
+            access_client_id: &access_client_id,
+            nonce: &nonce,
+        };
+        assert!(
+            session::verify_challenge(&keys.access_client.signing_public, &c, &h(&r["signature"]))
+                .is_err(),
+            "{}",
+            s(&r["name"])
+        );
     }
 }
 

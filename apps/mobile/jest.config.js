@@ -7,8 +7,9 @@ module.exports = {
     },
     setupFiles: ['<rootDir>/jest.setup.js'],
     // pnpm keeps packages under node_modules/.pnpm; transform RN/Expo code
-    // there plus workspace packages, which ship TypeScript source.
+    // there plus workspace packages, which ship TypeScript source, and the
+    // ESM-only @noble crypto they use.
     transformIgnorePatterns: [
-        'node_modules/(?!(\\.pnpm|(jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|react-native-svg|lucide-react-native|nativewind|react-native-css|standard-navigation|@nemu/.*))',
+        'node_modules/(?!(\\.pnpm|(jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|react-native-svg|lucide-react-native|nativewind|react-native-css|standard-navigation|@nemu/.*|@noble/.*))',
     ],
 }

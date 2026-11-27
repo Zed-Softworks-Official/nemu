@@ -1,6 +1,19 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
+    access_clients (id) {
+        id -> Uuid,
+        member_id -> Uuid,
+        #[max_length = 255]
+        label -> Varchar,
+        signing_key -> Bytea,
+        encryption_key -> Bytea,
+        created_at -> Timestamptz,
+        last_seen_at -> Nullable<Timestamptz>,
+    }
+}
+
+diesel::table! {
     audit_records (id) {
         id -> Int8,
         #[max_length = 64]
@@ -335,6 +348,9 @@ diesel::table! {
         expires_at -> Timestamptz,
         consumed -> Bool,
         created_at -> Timestamptz,
+        #[max_length = 16]
+        code -> Nullable<Varchar>,
+        attempts -> Int4,
     }
 }
 
@@ -372,6 +388,7 @@ diesel::table! {
     }
 }
 
+diesel::joinable!(access_clients -> members (member_id));
 diesel::joinable!(capability_observation_keys -> capability_identities (capability_id));
 diesel::joinable!(capability_observations -> capability_identities (capability_id));
 diesel::joinable!(capability_constraint_revisions -> capability_identities (capability_id));
@@ -390,6 +407,7 @@ diesel::joinable!(meter_epochs -> capability_identities (capability_id));
 diesel::joinable!(power_rollups -> capability_identities (capability_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
+    access_clients,
     audit_records,
     capability_identities,
     capability_observation_keys,

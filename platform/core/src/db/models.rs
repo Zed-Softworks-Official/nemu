@@ -76,6 +76,10 @@ pub struct PairingCode {
     pub expires_at: DateTime<Utc>,
     pub consumed: bool,
     pub created_at: DateTime<Utc>,
+    /// The code itself, which CPace needs. `None` on rows from before NEM-126.
+    pub code: Option<String>,
+    /// Pairing runs and failed `POST /api/pair` guesses made against it.
+    pub attempts: i32,
 }
 
 #[derive(Debug, Insertable)]
@@ -83,6 +87,31 @@ pub struct PairingCode {
 pub struct NewPairingCode<'a> {
     pub code_hash: &'a str,
     pub expires_at: DateTime<Utc>,
+    pub code: Option<&'a str>,
+}
+
+/// An Access Client paired with CPace (ADR-0037).
+#[derive(Debug, Clone, Queryable, Selectable, Identifiable)]
+#[diesel(table_name = crate::db::schema::access_clients)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct AccessClient {
+    pub id: Uuid,
+    pub member_id: Uuid,
+    pub label: String,
+    pub signing_key: Vec<u8>,
+    pub encryption_key: Vec<u8>,
+    pub created_at: DateTime<Utc>,
+    pub last_seen_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Insertable)]
+#[diesel(table_name = crate::db::schema::access_clients)]
+pub struct NewAccessClient<'a> {
+    pub id: Uuid,
+    pub member_id: Uuid,
+    pub label: &'a str,
+    pub signing_key: &'a [u8],
+    pub encryption_key: &'a [u8],
 }
 
 #[derive(Debug, Clone, Queryable, Selectable, Identifiable)]

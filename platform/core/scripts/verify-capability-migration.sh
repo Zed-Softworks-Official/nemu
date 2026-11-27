@@ -47,3 +47,5 @@ cargo test --locked -- --ignored command_audit_diagnostic_
 cargo test --locked -- --ignored devices::setup_store::tests::
 cargo test --locked api::access::tests -- --ignored
 cargo test --locked commissioning::tests -- --ignored
+cargo test --locked api::local_access_tests -- --ignored
+cargo test --locked identity::tests -- --ignored

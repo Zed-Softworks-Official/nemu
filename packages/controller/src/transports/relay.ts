@@ -4,7 +4,6 @@ import {
     type AssignRoomRequest,
     applyUpdateResponseSchema,
     assignRoomRequestSchema,
-    type BootstrapOwnerRequest,
     type ClientToken,
     type CommandResult,
     type CommissionResponse,
@@ -542,22 +541,6 @@ export class RelayTransport implements ControllerTransport {
         }
         this.throwIfCommandError(parsed, 'leave the Home')
         throw new Error('Unexpected relay response for leaveHome')
-    }
-
-    async bootstrapOwner(
-        request: BootstrapOwnerRequest
-    ): Promise<HouseholdMember> {
-        const parsed = await this.request({
-            type: 'bootstrapOwner',
-            userId: request.userId,
-            email: request.email,
-            displayName: request.displayName,
-        })
-        if (parsed.message.type === 'member') {
-            return householdMemberSchema.parse(parsed.message.member)
-        }
-        this.throwIfCommandError(parsed, 'bootstrap owner')
-        throw new Error('Unexpected relay response for bootstrapOwner')
     }
 
     private throwIfCommandError(

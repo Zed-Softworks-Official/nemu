@@ -306,6 +306,38 @@ pub async fn mint_session(
     })
 }
 
+/// The Membership a pairing binds to: the first Owner when the Home has no
+/// Members yet, else the caller's existing Membership or the Invitation it
+/// accepts (ADR-0020). Bearer-token pairing and CPace pairing share it.
+pub async fn resolve_pairing_member(
+    state: &AppState,
+    user_id: &str,
+    email: &str,
+    display_name: Option<&str>,
+) -> ApiResult<Member> {
+    let member_count = count_members(&state.db).await.map_err(ApiError::internal)?;
+    if member_count > 0 {
+        return resolve_or_activate_member(state, user_id, email, display_name).await;
+    }
+    let email = normalize_email(email)
+        .map_err(|message| ApiError::bad_request("invalid_email", message))?;
+    let user_id = user_id.trim();
+    if user_id.is_empty() {
+        return Err(ApiError::bad_request("invalid_user", "userId is required"));
+    }
+    insert_member(
+        &state.db,
+        Some(user_id),
+        &email,
+        display_name.map(str::trim).filter(|name| !name.is_empty()),
+        "owner",
+        "active",
+        Some(bootstrap_audit(user_id, &email)),
+    )
+    .await
+    .map_err(ApiError::internal)
+}
+
 pub async fn pair_member_session(
     state: &AppState,
     user_id: &str,
@@ -313,29 +345,7 @@ pub async fn pair_member_session(
     display_name: Option<&str>,
     client_label: &str,
 ) -> ApiResult<SessionMintResult> {
-    let member_count = count_members(&state.db).await.map_err(ApiError::internal)?;
-
-    if member_count == 0 {
-        let email = normalize_email(email)
-            .map_err(|message| ApiError::bad_request("invalid_email", message))?;
-        let user_id = user_id.trim();
-        if user_id.is_empty() {
-            return Err(ApiError::bad_request("invalid_user", "userId is required"));
-        }
-        insert_member(
-            &state.db,
-            Some(user_id),
-            &email,
-            display_name.map(str::trim).filter(|name| !name.is_empty()),
-            "owner",
-            "active",
-            Some(bootstrap_audit(user_id, &email)),
-        )
-        .await
-        .map_err(ApiError::internal)?;
-    } else {
-        resolve_or_activate_member(state, user_id, email, display_name).await?;
-    }
+    resolve_pairing_member(state, user_id, email, display_name).await?;
 
     let issued = mint_client_token(
         &state.db,

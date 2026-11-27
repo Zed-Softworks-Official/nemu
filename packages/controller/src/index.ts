@@ -1,5 +1,15 @@
 export type { CapabilityView } from '@nemu/protocol'
 export type {
+    AccessClientEnrollment,
+    AccessClientKeyStore,
+    AccessClientKeys,
+    AccessClientRecord,
+} from './access-client-keys.ts'
+export {
+    accessClientKeysFromSecrets,
+    createMemoryAccessClientKeyStore,
+} from './access-client-keys.ts'
+export type {
     AccessClientPairing,
     AccessClientPairingOptions,
     AccessClientPairingState,
@@ -31,12 +41,18 @@ export {
     TLS_TRUSTED_MESSAGE,
     upgradeToHttps,
 } from './discovery.ts'
+export type { LocalSessionAuth } from './http.ts'
 export { createControllerHttp, toApiError } from './http.ts'
+export type { LocalSessionOptions } from './local-session.ts'
+export { LocalSession, NOT_PAIRED_ERROR_CODE } from './local-session.ts'
 export type {
     PairWithControllerInput,
     PairWithControllerResult,
+    PairWithKeysInput,
+    PairWithKeysResult,
 } from './pairing.ts'
 export {
+    INVALID_GRANT_ERROR_CODE,
     mintSessionViaRelay,
     pairWithController,
     WRONG_HOME_ERROR_CODE,
