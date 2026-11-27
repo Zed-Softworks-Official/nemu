@@ -5,8 +5,9 @@
  * steps, skipping the ones it has no equivalent for.
  *
  * Progress travels from the adapter to Core on `{base}/bridge/commissioning`,
- * and from Core to Access Clients over LAN and Relay as the
- * `commissioningStep` event. It carries no pairing code, passcode, Wi-Fi
+ * and from Core to Access Clients over the LAN WebSocket as the
+ * `commissioningStep` event. It stays off Relay until NEM-63 encrypts Relay
+ * pushes. It carries no pairing code, passcode, Wi-Fi
  * credential, free text or Device identifier: every field is one of the enums
  * below, and the objects are strict, so anything else is refused.
  */
@@ -81,7 +82,7 @@ export type CommissioningProgress = z.infer<typeof commissioningProgressSchema>
 
 const eventType = { type: z.literal('commissioningStep') }
 
-/** The same progress as Core sends it to Access Clients, over LAN and Relay. */
+/** The same progress as Core sends it to Access Clients over LAN. */
 export const commissioningStepEventSchema = z.discriminatedUnion('status', [
     z.strictObject({ ...eventType, ...activeProgress }),
     z.strictObject({ ...eventType, ...completedProgress }),

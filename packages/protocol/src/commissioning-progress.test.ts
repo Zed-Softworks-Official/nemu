@@ -33,16 +33,20 @@ describe('Commissioning progress', () => {
     })
 
     for (const payload of progress) {
-        it(`reads ${JSON.stringify(payload)} from the adapter, over LAN and over Relay`, () => {
+        it(`reads ${JSON.stringify(payload)} from the adapter and over LAN only`, () => {
             assert.deepEqual(bridgeCommissioningSchema.parse(payload), payload)
             const event = { type: 'commissioningStep', ...payload }
             assert.deepEqual(deviceEventSchema.parse(event), event)
-            const envelope = relayToClientEnvelopeSchema.parse({
-                requestId: 'watch-1',
-                signature: 's',
-                message: event,
-            })
-            assert.deepEqual(envelope.message, event)
+            // Relay envelopes aren't encrypted yet, so progress stays off
+            // Relay until NEM-63 brings encrypted pushes.
+            assert.equal(
+                relayToClientEnvelopeSchema.safeParse({
+                    requestId: 'watch-1',
+                    signature: 's',
+                    message: event,
+                }).success,
+                false
+            )
         })
     }
 
@@ -64,7 +68,8 @@ describe('Commissioning progress', () => {
 })
 
 /**
- * Progress goes over Relay, so it must never carry a secret. The schemas are
+ * Progress reaches Access Clients, over Relay too once NEM-63 encrypts it, so
+ * it must never carry a secret. The schemas are
  * strict and every field is an enum: a pairing code, passcode or Wi-Fi
  * credential has nowhere to go, under any name or as any value.
  */
