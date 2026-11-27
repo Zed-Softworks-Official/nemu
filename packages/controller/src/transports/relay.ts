@@ -13,6 +13,7 @@ import {
     type Device,
     type DeviceCommand,
     type DeviceEvent,
+    deviceEventSchema,
     type HealthSummary,
     type HistoryQuery,
     type HistoryQueryRead,
@@ -48,8 +49,11 @@ import {
     updateStatusResponseSchema,
 } from '@nemu/protocol'
 import {
+    EMPTY_REPLAY_WINDOW,
+    openPush,
     openResponse,
     RelayCryptoError,
+    type ReplayWindow,
     type RequestHeader,
     type RequestKeys,
     type SealedPush,
@@ -105,6 +109,38 @@ export type RelayApi = {
 /** A reply, opened and checked against the pinned Controller key. */
 type RelayReply = { requestId: string; message: RelayReplyMessage }
 
+/** A request's final attempt: its header and exported keys, and the reply. */
+type RelayExchange = {
+    reply: RelayReply
+    header: RequestHeader
+    keys: RequestKeys
+    controllerSigningKey: Uint8Array
+}
+
+/**
+ * A capability watch the Controller holds for this transport: the
+ * registering request's header and keys, and the pushes applied so far.
+ */
+type LiveWatch = {
+    header: RequestHeader
+    keys: RequestKeys
+    controllerSigningKey: Uint8Array
+    window: ReplayWindow
+}
+
+/**
+ * Watches polled at once: the current one, and the one it renewed, whose
+ * pushes sealed before the renewal may still be in the mailbox.
+ */
+const POLLED_WATCHES = 2
+
+/** Refusals that mean this Access Client must pair again at home. */
+const PAIR_AGAIN_CODES: ReadonlySet<string> = new Set([
+    'unknown_access_client',
+    'tombstoned_access_client',
+    'bad_signature',
+])
+
 export type RelayTransportOptions = {
     convex: ConvexReactClient
     api: RelayApi
@@ -118,6 +154,8 @@ export type RelayTransportOptions = {
     counter?: RelayCounter
     pollIntervalMs?: number
     commandTimeoutMs?: number
+    /** How often the capability watch is renewed. The Controller's TTL is 45 s. */
+    watchRenewalMs?: number
 }
 
 /** Sends of one request: a refusal that names a fix gets one more try each. */
@@ -151,8 +189,12 @@ const RELAY_READS: ReadonlySet<RelayRequestMessage['type']> = new Set<
  * and checked against the pinned Controller key. Convex sees only the clear
  * header, and no bearer token is ever sent. It has no way to send a Matter
  * pairing code or Wi-Fi credentials (ADR-0034's interim limit, until
- * NEM-98). Capability snapshots use the same messages as LAN; live changes
- * over Relay are sealed pushes, which NEM-132 adds.
+ * NEM-98). Capability snapshots use the same messages as LAN. Live changes
+ * arrive as sealed pushes on a capability watch (NEM-132): each is sealed
+ * with the key exported from the watch request and a counter nonce, and
+ * signed by the Controller. A push only counts when it opens with that key,
+ * verifies against the pinned Controller key, and carries a counter above
+ * every push already applied, so a replayed or reordered push is dropped.
  */
 export class RelayTransport implements ControllerTransport {
     readonly mode = 'relay' as const
@@ -165,8 +207,12 @@ export class RelayTransport implements ControllerTransport {
     private readonly pollIntervalMs: number
     private readonly commandTimeoutMs: number
     private readonly listeners = new Set<(event: DeviceEvent) => void>()
+    private readonly watchRenewalMs: number
     private connected = false
     private watchTimer: ReturnType<typeof setInterval> | null = null
+    private pushTimer: ReturnType<typeof setTimeout> | null = null
+    /** Live watches, oldest first; at most `POLLED_WATCHES`. */
+    private watches: LiveWatch[] = []
 
     constructor(options: RelayTransportOptions) {
         this.convex = options.convex
@@ -176,6 +222,7 @@ export class RelayTransport implements ControllerTransport {
         this.counter = options.counter ?? null
         this.pollIntervalMs = options.pollIntervalMs ?? 1_000
         this.commandTimeoutMs = options.commandTimeoutMs ?? 20_000
+        this.watchRenewalMs = options.watchRenewalMs ?? 20_000
     }
 
     async connect(): Promise<void> {
@@ -186,10 +233,11 @@ export class RelayTransport implements ControllerTransport {
             void this.renewCapabilityWatch().catch(() => {
                 // The next renewal retries.
             })
-        }, 20_000)
+        }, this.watchRenewalMs)
         void this.renewCapabilityWatch().catch(() => {
             // The renewal interval retries.
         })
+        this.schedulePushPoll()
     }
 
     disconnect(): void {
@@ -198,6 +246,11 @@ export class RelayTransport implements ControllerTransport {
             clearInterval(this.watchTimer)
             this.watchTimer = null
         }
+        if (this.pushTimer) {
+            clearTimeout(this.pushTimer)
+            this.pushTimer = null
+        }
+        this.watches = []
     }
 
     async requestCapabilitySnapshot(): Promise<void> {
@@ -588,6 +641,13 @@ export class RelayTransport implements ControllerTransport {
     }
 
     private async request(message: RelayRequestMessage): Promise<RelayReply> {
+        return (await this.exchange(message)).reply
+    }
+
+    /** Sends one request and returns its final attempt with the reply. */
+    private async exchange(
+        message: RelayRequestMessage
+    ): Promise<RelayExchange> {
         const action = relayRequestMessageSchema.parse(message)
         const record = await this.record()
         // Convex holds mutations while disconnected and sends them on
@@ -637,7 +697,13 @@ export class RelayTransport implements ControllerTransport {
                 enrollment.controllerSigningKey,
                 deadline
             )
-            if (attempt >= MAX_SEND_ATTEMPTS) return this.delivered(reply)
+            const done = (): RelayExchange => ({
+                reply: this.delivered(reply),
+                header,
+                keys,
+                controllerSigningKey: enrollment.controllerSigningKey,
+            })
+            if (attempt >= MAX_SEND_ATTEMPTS) return done()
             const fix = refusalFix(reply.message)
             if (fix?.identityEpoch !== undefined) {
                 // The Home moved to a new Controller identity epoch; the
@@ -651,7 +717,7 @@ export class RelayTransport implements ControllerTransport {
                 await counter.advancePast(fix.highestCounter)
                 continue
             }
-            return this.delivered(reply)
+            return done()
         }
     }
 
@@ -706,12 +772,94 @@ export class RelayTransport implements ControllerTransport {
     }
 
     /**
-     * Keeps a capability watch registered with the Controller. Its sealed
-     * pushes, under the key exported from this request, are NEM-132's.
+     * Keeps a capability watch registered with the Controller. Each renewal
+     * registers a new watch, under its own exported key, and names the one
+     * it replaces so every tab holds one watch. A Controller that refuses
+     * this Access Client (revoked or unknown) ends the watch.
      */
     private async renewCapabilityWatch(): Promise<void> {
         if (!this.connected) return
-        await this.request({ type: 'watchCapabilityChanges' })
+        const current = this.watches.at(-1)
+        const sent = await this.exchange({
+            type: 'watchCapabilityChanges',
+            ...(current ? { renews: current.header.requestId } : {}),
+        })
+        if (!this.connected) return
+        const { message } = sent.reply
+        if (message.type === 'capabilityWatchAck') {
+            this.watches = [
+                ...this.watches.slice(1 - POLLED_WATCHES),
+                {
+                    header: sent.header,
+                    keys: sent.keys,
+                    controllerSigningKey: sent.controllerSigningKey,
+                    window: EMPTY_REPLAY_WINDOW,
+                },
+            ]
+            return
+        }
+        if (
+            message.type === 'commandResult' &&
+            PAIR_AGAIN_CODES.has(message.error?.code ?? '')
+        ) {
+            this.watches = []
+        }
+    }
+
+    private schedulePushPoll(): void {
+        if (!this.connected) return
+        this.pushTimer = setTimeout(() => {
+            void this.pollPushes().finally(() => {
+                this.schedulePushPoll()
+            })
+        }, this.pollIntervalMs)
+    }
+
+    /**
+     * Reads the pushes of the live watches, oldest watch first and each in
+     * counter order, and emits the genuine ones. Every push read is
+     * acknowledged, applied or not.
+     */
+    private async pollPushes(): Promise<void> {
+        const watches = this.watches
+        const [first] = watches
+        if (!first) return
+        let docs: RelayToClientDoc[]
+        try {
+            docs = await this.convex.query(this.api.responses, {
+                controllerId: this.controllerId,
+                accessClientId: first.header.accessClientId,
+                requestIds: watches.map((watch) => watch.header.requestId),
+            })
+        } catch {
+            return // the next poll retries
+        }
+        const read: string[] = []
+        let gap = false
+        for (const watch of watches) {
+            const pushes = docs
+                .filter(
+                    (doc) =>
+                        doc.kind === 'push' &&
+                        doc.sealed.header.requestId === watch.header.requestId
+                )
+                .sort((a, b) => pushCounter(a) - pushCounter(b))
+            for (const doc of pushes) {
+                read.push(doc._id)
+                const highest = watch.window.highest
+                const event = openWatchPush(watch, doc.sealed as SealedPush)
+                if (!event) continue
+                if (watch.window.highest > highest + 1) gap = true
+                this.emit(event)
+            }
+        }
+        this.acknowledge(read)
+        if (gap && this.connected) {
+            // A push never arrived: the snapshot brings the state current.
+            await this.requestCapabilitySnapshot().catch(() => {
+                // The next change or reconnect catches up.
+            })
+        }
     }
 
     /**
@@ -770,6 +918,56 @@ export class RelayTransport implements ControllerTransport {
             }
             void tick()
         })
+    }
+}
+
+function pushCounter(doc: RelayToClientDoc): number {
+    const counter = (doc.sealed.header as { counter?: unknown }).counter
+    return typeof counter === 'number' ? counter : 0
+}
+
+/**
+ * A push's capability event, or `null` unless it is genuine and newer than
+ * every push the watch has applied. Moves the watch's window on success.
+ */
+function openWatchPush(
+    watch: LiveWatch,
+    sealed: SealedPush
+): Extract<
+    DeviceEvent,
+    { type: 'capabilityChange' | 'capabilitySnapshot' }
+> | null {
+    const counter = sealed.header?.counter
+    // A counter at or below the highest applied is a replay or arrived out
+    // of order; applying it would roll the state back.
+    if (typeof counter !== 'number' || counter <= watch.window.highest) {
+        return null
+    }
+    try {
+        const opened = openPush({
+            sealed,
+            watch: watch.header,
+            keys: watch.keys,
+            controllerSigningKey: watch.controllerSigningKey,
+            window: watch.window,
+        })
+        const text = utf8Decode(opened.plaintext)
+        if (text === null) return null
+        const parsed = deviceEventSchema.safeParse(JSON.parse(text))
+        if (
+            !parsed.success ||
+            (parsed.data.type !== 'capabilityChange' &&
+                parsed.data.type !== 'capabilitySnapshot')
+        ) {
+            return null
+        }
+        watch.window = opened.window
+        return parsed.data
+    } catch (error) {
+        if (error instanceof RelayCryptoError || error instanceof SyntaxError) {
+            return null
+        }
+        throw error
     }
 }
 

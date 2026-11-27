@@ -3,8 +3,6 @@
 //! A request's plaintext is one action as JSON (`{"type": ...}`); the reply's
 //! plaintext is one message in the same shape LAN callers get (ADR-0023).
 
-use std::time::{Duration, Instant};
-
 use serde::Deserialize;
 use serde_json::{Value as JsonValue, json};
 use uuid::Uuid;
@@ -17,10 +15,9 @@ use crate::api::pairing::{list_household_tokens, revoke_household_token};
 use crate::api::rooms::load_rooms;
 use crate::commands::execute_set;
 use crate::events::DeviceEvent;
+use crate::relay_crypto::envelope::{RequestHeader, RequestKeys};
 use crate::setup;
-use crate::state::{AppState, CapabilityWatch};
-
-const CAPABILITY_WATCH_TTL: Duration = Duration::from_secs(45);
+use crate::state::AppState;
 
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
@@ -58,7 +55,11 @@ pub(crate) enum RelayAction {
     #[serde(rename = "getCapabilitySnapshot")]
     GetCapabilitySnapshot,
     #[serde(rename = "watchCapabilityChanges")]
-    WatchCapabilityChanges,
+    WatchCapabilityChanges {
+        /// The requestId of the watch this one renews, which it replaces.
+        #[serde(default)]
+        renews: Option<String>,
+    },
     #[serde(rename = "historyQuery")]
     HistoryQuery {
         #[serde(flatten)]
@@ -163,7 +164,7 @@ impl RelayAction {
                 | RelayAction::ListMembers
                 | RelayAction::ListTokens
                 | RelayAction::GetCapabilitySnapshot
-                | RelayAction::WatchCapabilityChanges
+                | RelayAction::WatchCapabilityChanges { .. }
                 | RelayAction::HistoryQuery { .. }
                 | RelayAction::GetHomeMeterDesignation
                 | RelayAction::ExportHistoryBackup
@@ -254,10 +255,12 @@ pub(crate) fn rejection_reply(rejection: &ActionRejection) -> JsonValue {
 pub(crate) async fn dispatch(
     state: &AppState,
     auth: &AuthenticatedClient,
-    request_id: &str,
+    request: (&RequestHeader, &RequestKeys),
     command_ledger_id: &str,
     action: RelayAction,
 ) -> JsonValue {
+    let (header, keys) = request;
+    let request_id = header.request_id.as_str();
     match action {
         RelayAction::GetDevices => {
             let devices = state.registry.list().await;
@@ -308,9 +311,27 @@ pub(crate) async fn dispatch(
             let event = DeviceEvent::from_capability_snapshot(state.capabilities.snapshot());
             serde_json::to_value(&event).unwrap_or(JsonValue::Null)
         }
-        RelayAction::WatchCapabilityChanges => {
-            register_capability_watch(state, auth.token_id, request_id);
-            json!({ "type": "capabilityWatchAck" })
+        RelayAction::WatchCapabilityChanges { renews } => {
+            // Bound to the Access Client; pushes are sealed with the key
+            // exported from this request.
+            match crate::relay::watches::register(
+                state,
+                auth.token_id,
+                header,
+                keys,
+                renews.as_deref(),
+            )
+            .await
+            {
+                Ok(()) => json!({ "type": "capabilityWatchAck" }),
+                Err(error) => {
+                    tracing::warn!(%error, "capability watch registration failed");
+                    error_message(
+                        "watch_unavailable",
+                        "Live updates are unavailable right now.",
+                    )
+                }
+            }
         }
         RelayAction::HistoryQuery { query } => {
             match crate::capabilities::history_query::query_for_client(state, auth, query).await {
@@ -519,20 +540,4 @@ pub(crate) fn api_error_message(error: &ApiError) -> JsonValue {
 
 pub(crate) fn error_message(code: &str, message: &str) -> JsonValue {
     build_command_result(false, None, Some((code, message.to_string())))
-}
-
-/// Binds a capability watch to the Access Client. Pushes on it are sealed
-/// with the watch's exported key in NEM-132; until then nothing is pushed.
-fn register_capability_watch(state: &AppState, token_id: Uuid, request_id: &str) {
-    let mut watches = state
-        .capability_watches
-        .lock()
-        .expect("capability watch lock");
-    let now = Instant::now();
-    watches.retain(|watch| watch.token_id != token_id && watch.expires_at > now);
-    watches.push(CapabilityWatch {
-        request_id: request_id.to_string(),
-        token_id,
-        expires_at: now + CAPABILITY_WATCH_TTL,
-    })
 }

@@ -403,6 +403,15 @@ export async function buildRelayCryptoVectors() {
             })
         )
     )
+    const forgedPush = await sealPush({
+        watch: watch.sealed.header,
+        keys: watch.keys,
+        counter: 1,
+        plaintext: utf8Encode(
+            '{"deviceId":"dev_1","capability":"on","value":true}'
+        ),
+        controllerSigner: signer(impostor),
+    })
     const [push1, push2] = pushes as [
         (typeof pushes)[number],
         (typeof pushes)[number],
@@ -656,6 +665,30 @@ export async function buildRelayCryptoVectors() {
                     sealed: push2,
                     acceptedCounters: [],
                     expectedError: 'mismatched_header',
+                },
+                {
+                    name: 'signed by a key other than the pinned one',
+                    request: watch.name,
+                    sealed: forgedPush,
+                    acceptedCounters: [],
+                    expectedError: 'bad_signature',
+                },
+                {
+                    name: 'with a tampered ciphertext',
+                    request: watch.name,
+                    sealed: { ...push1, ciphertext: tamper(push1.ciphertext) },
+                    acceptedCounters: [],
+                    expectedError: 'bad_signature',
+                },
+                {
+                    name: 'with its counter rewritten',
+                    request: watch.name,
+                    sealed: {
+                        ...push1,
+                        header: { ...push1.header, counter: 3 },
+                    },
+                    acceptedCounters: [],
+                    expectedError: 'bad_signature',
                 },
             ],
             /** Verified against `controllerId` and the Controller's key. */

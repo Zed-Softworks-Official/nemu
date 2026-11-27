@@ -1,19 +1,23 @@
 //! Core's side of the Relay mailbox in Convex: it reads sealed requests for
 //! this Controller (a `relay:pendingForMe` subscription, or the HTTP
-//! fallback) and posts each sealed reply back. Everything about a request,
-//! from its checks to its reply, is [`crate::relay::handler`]'s.
+//! fallback) and posts each sealed reply back, along with the sealed
+//! capability pushes of [`crate::relay::watches`]. Everything about a
+//! request, from its checks to its reply, is [`crate::relay::handler`]'s.
 
 use std::collections::{BTreeMap, HashSet, VecDeque};
 use std::time::Duration;
 
 use convex::{AuthenticationToken, ConvexClient, FunctionResult, Value};
 use futures_util::StreamExt;
+use serde::Serialize;
 use serde_json::{Value as JsonValue, json};
+use tokio::sync::mpsc;
 use tracing::{info, warn};
 
 use crate::registration::{convex_cloud_url, fetch_controller_session, register_with_convex};
 use crate::relay::handler::handle_sealed_request;
-use crate::relay_crypto::envelope::{SealedRequest, SealedResponse};
+use crate::relay::watches::CapabilityPushes;
+use crate::relay_crypto::envelope::{SealedPush, SealedRequest};
 use crate::state::AppState;
 
 /// HTTP fallback poll interval when the WebSocket client is unavailable.
@@ -23,6 +27,9 @@ const FALLBACK_ROUNDS_BEFORE_RETRY: u32 = 4;
 /// Requests recently handled, so a stale subscription result that still
 /// lists one does not hand it to the handler twice.
 const RECENTLY_HANDLED: usize = 1024;
+/// Sealed pushes waiting to be posted. Past this the push loop waits, its
+/// capability subscription lags, and the next push is a snapshot.
+const PUSH_QUEUE: usize = 256;
 
 enum RespondVia<'a> {
     Convex(&'a mut ConvexClient),
@@ -43,9 +50,7 @@ async fn run_relay_loop(state: AppState) {
     let cloud_url = convex_cloud_url(&site_url);
 
     info!(%cloud_url, "relay client started");
-    // Capability-watch pushes are sealed with each watch's exported key in
-    // NEM-132. Until then watches are registered and acknowledged, and no
-    // change is pushed over Relay.
+    spawn_capability_pushes(state.clone(), site_url.clone());
 
     loop {
         match run_subscription_relay(&state, &site_url, &cloud_url).await {
@@ -66,6 +71,25 @@ async fn run_relay_loop(state: AppState) {
         }
         tokio::time::sleep(Duration::from_millis(IDLE_BACKOFF_MS)).await;
     }
+}
+
+/// Seals every capability change for each live watch and posts the pushes
+/// to the mailbox one at a time, so they arrive in counter order.
+fn spawn_capability_pushes(state: AppState, site_url: String) {
+    let (pushes, mut sealed) = mpsc::channel::<SealedPush>(PUSH_QUEUE);
+    tokio::spawn(CapabilityPushes::new(state.clone()).run(pushes));
+    tokio::spawn(async move {
+        while let Some(push) = sealed.recv().await {
+            let via = &mut RespondVia::Http {
+                site_url: &site_url,
+            };
+            if let Err(error) = respond(&state, via, &push).await {
+                // The watch's next push skips a counter, so its client
+                // sees the gap and re-reads the capability snapshot.
+                warn!(%error, "failed to post a capability push");
+            }
+        }
+    });
 }
 
 async fn run_subscription_relay(
@@ -298,10 +322,11 @@ fn integral_numbers(value: JsonValue) -> JsonValue {
     }
 }
 
+/// Posts a sealed response or push to the mailbox.
 async fn respond(
     state: &AppState,
     respond_via: &mut RespondVia<'_>,
-    reply: &SealedResponse,
+    reply: &impl Serialize,
 ) -> Result<(), String> {
     let sealed = serde_json::to_value(reply).map_err(|e| format!("reply encode failed: {e}"))?;
     match respond_via {
