@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tracing::{info, warn};
 
-use crate::crypto::ControllerKeypair;
 use crate::crypto::generate_controller_id;
+use crate::crypto::{ControllerEncryptionKey, ControllerKeypair};
 use crate::db::models::{NewSetting, Setting};
 use crate::db::schema::settings;
 use crate::state::DbPool;
@@ -13,12 +13,17 @@ const KEY_CONTROLLER_ID: &str = "controller_id";
 const KEY_CONTROLLER_NAME: &str = "controller_name";
 const KEY_PRIVATE_KEY: &str = "private_key";
 const KEY_PUBLIC_KEY: &str = "public_key";
+const KEY_ENCRYPTION_PRIVATE_KEY: &str = "encryption_private_key";
+const KEY_ENCRYPTION_PUBLIC_KEY: &str = "encryption_public_key";
 
 #[derive(Debug, Clone)]
 pub struct ControllerIdentity {
     pub controller_id: String,
     pub name: String,
+    /// Ed25519 identity key.
     pub keypair: ControllerKeypair,
+    /// X25519 key, created and stored the same way.
+    pub encryption_key: ControllerEncryptionKey,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -73,10 +78,22 @@ fn load_or_create_identity_sync(
         }
     };
 
+    let encryption_key = match get_string(conn, KEY_ENCRYPTION_PRIVATE_KEY)? {
+        Some(private_key_b64) => ControllerEncryptionKey::from_private_key_b64(&private_key_b64)?,
+        None => {
+            let key = ControllerEncryptionKey::generate();
+            set_string(conn, KEY_ENCRYPTION_PRIVATE_KEY, &key.private_key_b64())?;
+            set_string(conn, KEY_ENCRYPTION_PUBLIC_KEY, &key.public_key_b64())?;
+            info!(controller_id = %controller_id, "generated new controller encryption key");
+            key
+        }
+    };
+
     Ok(ControllerIdentity {
         controller_id,
         name,
         keypair,
+        encryption_key,
     })
 }
 
@@ -150,4 +167,36 @@ pub(crate) fn set_string(conn: &mut PgConnection, key: &str, value: &str) -> Res
         .execute(conn)
         .map_err(|e| format!("settings write failed: {e}"))?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    #[ignore = "requires the isolated PostgreSQL database created by the verification script"]
+    async fn the_controller_creates_and_keeps_its_encryption_key_beside_its_identity_key() {
+        let pool = crate::db::test_pool();
+        let first = load_or_create_identity(&pool, "Home").await.unwrap();
+        let again = load_or_create_identity(&pool, "Home").await.unwrap();
+        assert_eq!(
+            first.encryption_key.public_key,
+            again.encryption_key.public_key
+        );
+        assert_eq!(first.keypair.public_key_b64, again.keypair.public_key_b64);
+        assert_eq!(
+            crate::relay_crypto::hpke::public_key(&again.encryption_key.secret_key),
+            again.encryption_key.public_key
+        );
+        assert_eq!(
+            read_setting(&pool, KEY_ENCRYPTION_PUBLIC_KEY)
+                .await
+                .unwrap(),
+            Some(first.encryption_key.public_key_b64())
+        );
+        assert_ne!(
+            first.encryption_key.public_key,
+            first.keypair.signing_key.verifying_key().to_bytes()
+        );
+    }
 }

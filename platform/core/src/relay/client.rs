@@ -13,8 +13,7 @@ use crate::api::access::{leave_home, revoke_current};
 use crate::api::auth::AuthenticatedClient;
 use crate::api::error::ApiError;
 use crate::api::members::{
-    SessionMintInput, bootstrap_owner, invite_member, list_household_members, mint_session,
-    remove_member,
+    SessionMintInput, invite_member, list_household_members, mint_session, remove_member,
 };
 use crate::api::pairing::{list_household_tokens, revoke_household_token};
 use crate::api::rooms::load_rooms;
@@ -100,14 +99,6 @@ enum ToControllerMessage {
     RevokeCurrent,
     #[serde(rename = "leaveHome")]
     LeaveHome,
-    #[serde(rename = "bootstrapOwner")]
-    BootstrapOwner {
-        #[serde(rename = "userId")]
-        user_id: String,
-        email: String,
-        #[serde(rename = "displayName")]
-        display_name: Option<String>,
-    },
     #[serde(rename = "getCapabilitySnapshot")]
     GetCapabilitySnapshot,
     #[serde(rename = "watchCapabilityChanges")]
@@ -660,16 +651,6 @@ async fn handle_message(
             state,
             &message.request_id,
             leave_home(&state.db, &auth).await,
-        ),
-        ToControllerMessage::BootstrapOwner {
-            user_id,
-            email,
-            display_name,
-        } => typed_outcome(
-            state,
-            &message.request_id,
-            bootstrap_owner(state, &auth, &user_id, &email, display_name.as_deref()).await,
-            |member| json!({ "type": "member", "member": member }),
         ),
         ToControllerMessage::GetCapabilitySnapshot => {
             let event = DeviceEvent::from_capability_snapshot(state.capabilities.snapshot());
@@ -1288,6 +1269,24 @@ mod tests {
             EnvelopeRejection::UnsupportedAction {
                 request_id: "r1".into(),
                 action: "teleportDevice".into(),
+            }
+        );
+    }
+
+    #[test]
+    fn first_owner_bootstrap_is_not_a_relay_action() {
+        // First-Owner bootstrap pairs on the home network with CPace (NEM-126).
+        let rejection = parse_envelope(&envelope(json!({
+            "type": "bootstrapOwner",
+            "userId": "user_1",
+            "email": "owner@example.com",
+        })))
+        .unwrap_err();
+        assert_eq!(
+            rejection,
+            EnvelopeRejection::UnsupportedAction {
+                request_id: "r1".into(),
+                action: "bootstrapOwner".into(),
             }
         );
     }

@@ -36,6 +36,10 @@ pub struct AppState {
     pub lan_ip: Option<String>,
     pub updater: Arc<dyn UpdaterControl>,
     pub capability_watches: Arc<Mutex<Vec<CapabilityWatch>>>,
+    /// CPace pairing runs in progress (ADR-0037). Memory only.
+    pub pairing_runs: Arc<crate::pairing::exchange::PairingRuns>,
+    /// Local sessions and their challenges. Memory only.
+    pub local_sessions: Arc<crate::pairing::local_sessions::LocalSessions>,
 }
 
 #[derive(Clone)]

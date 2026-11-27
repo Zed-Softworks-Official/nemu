@@ -6,8 +6,8 @@ use tower_http::cors::{AllowOrigin, CorsLayer};
 
 use crate::api::middleware::require_client_token;
 use crate::api::{
-    audit, devices, health, history_budget, history_health, identify, landing, matter, members,
-    pairing, rooms, session, updates, ws, zigbee,
+    audit, devices, health, history_budget, history_health, identify, landing, local_access,
+    matter, members, pairing, rooms, session, updates, ws, zigbee,
 };
 use crate::state::AppState;
 
@@ -52,7 +52,21 @@ pub fn router(state: AppState) -> Router {
         .route("/api/health", get(health::health_check))
         .route("/api/identify", get(identify::identify))
         .route("/api/pair", post(pairing::pair))
-        .route("/api/pairing-code", post(pairing::create_pairing_code));
+        .route("/api/pairing-code", post(pairing::create_pairing_code))
+        .route("/api/pairing/runs", post(local_access::start))
+        .route(
+            "/api/pairing/runs/{run_id}/exchange",
+            post(local_access::exchange_keys),
+        )
+        .route(
+            "/api/pairing/runs/{run_id}/confirm",
+            post(local_access::confirm),
+        )
+        .route(
+            "/api/local-sessions/challenge",
+            post(local_access::challenge),
+        )
+        .route("/api/local-sessions", post(local_access::open));
 
     let protected = Router::new()
         .route("/api/session", get(session::show))

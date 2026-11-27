@@ -9,11 +9,12 @@ use axum::http::StatusCode;
 use diesel::prelude::*;
 use uuid::Uuid;
 
-use crate::api::auth::AuthenticatedClient;
+use crate::api::auth::{AuthenticatedClient, Credential};
 use crate::api::error::{ApiError, ApiResult};
 use crate::audit::{self, AuditKind, AuditWrite};
 use crate::db::models::Member;
-use crate::db::schema::{client_tokens, members};
+use crate::db::schema::{access_clients, client_tokens, members};
+use crate::pairing::access_clients::delete_access_client;
 use crate::pairing::tokens::revoke_client_token;
 use crate::state::DbPool;
 
@@ -119,7 +120,11 @@ pub async fn leave_home(pool: &DbPool, caller: &AuthenticatedClient) -> ApiResul
                         client_tokens::table
                             .filter(client_tokens::user_id.eq(member.user_id.clone())),
                     )
-                    .execute(conn)?;
+                    .execute(conn)?
+                        + diesel::delete(
+                            access_clients::table.filter(access_clients::member_id.eq(member.id)),
+                        )
+                        .execute(conn)?;
                     diesel::delete(members::table.find(member.id)).execute(conn)?;
                     audit::insert_on(
                         conn,
@@ -153,21 +158,20 @@ pub async fn leave_home(pool: &DbPool, caller: &AuthenticatedClient) -> ApiResul
 /// state (none, pending, or inactive): revoking yourself only reduces access,
 /// and a phone that was removed must still be able to clear itself.
 pub async fn revoke_current(pool: &DbPool, caller: &AuthenticatedClient) -> ApiResult<()> {
-    let deleted = revoke_client_token(
-        pool,
-        caller.token_id,
-        Some(AuditWrite {
-            kind: AuditKind::AccessClientRevoked,
-            actor_user_id: caller.user_id.clone(),
-            summary: format!("revoked access client {}", caller.label),
-            detail: serde_json::json!({
-                "action": "revoke",
-                "tokenId": caller.token_id,
-                "label": caller.label,
-            }),
+    let audit = Some(AuditWrite {
+        kind: AuditKind::AccessClientRevoked,
+        actor_user_id: caller.user_id.clone(),
+        summary: format!("revoked access client {}", caller.label),
+        detail: serde_json::json!({
+            "action": "revoke",
+            "tokenId": caller.token_id,
+            "label": caller.label,
         }),
-    )
-    .await
+    });
+    let deleted = match caller.credential {
+        Credential::ClientToken => revoke_client_token(pool, caller.token_id, audit).await,
+        Credential::AccessClient => delete_access_client(pool, caller.token_id, audit).await,
+    }
     .map_err(ApiError::internal)?;
     if deleted {
         Ok(())
@@ -228,7 +232,7 @@ mod tests {
     // Behaviour against the isolated test PostgreSQL. Each test owns the
     // members and client_tokens tables while it runs, because the last-Owner
     // rule counts every Owner in the Home.
-    static HOME: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+    use crate::db::HOME_TABLES as HOME;
 
     use crate::audit::{self as audit_log, AuditRow};
     use crate::pairing::members::{get_member, insert_member};

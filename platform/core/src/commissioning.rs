@@ -376,6 +376,7 @@ mod tests {
             token_id: Uuid::new_v4(),
             label: "Kitchen phone".into(),
             user_id: Some("user-member".into()),
+            credential: crate::api::auth::Credential::ClientToken,
         }
     }
 

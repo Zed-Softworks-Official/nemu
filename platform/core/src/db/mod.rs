@@ -10,3 +10,8 @@ pub fn test_pool() -> crate::state::DbPool {
     let manager = Manager::new(database_url, Runtime::Tokio1);
     Pool::builder(manager).max_size(2).build().unwrap()
 }
+
+/// Held by tests that own the Membership and Access Client tables while they
+/// run, because rules like the last-Owner check count every row in the Home.
+#[cfg(test)]
+pub static HOME_TABLES: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
