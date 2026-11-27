@@ -6,7 +6,11 @@ import {
     useConvexAuth,
     useQuery,
 } from '@nemu/cloud'
-import { mintSessionViaRelay, pairWithController } from '@nemu/controller'
+import {
+    mintSessionViaRelay,
+    pairWithController,
+    type RelayApi,
+} from '@nemu/controller'
 import * as Device from 'expo-device'
 import { useEffect, useMemo, useRef } from 'react'
 
@@ -26,17 +30,20 @@ const convex = new ConvexReactClient(
     env.EXPO_PUBLIC_CONVEX_URL.replace(/\/$/, '')
 )
 
+// Compile shim (NEM-128): Convex Relay now stores sealed envelopes only.
+// NEM-129 moves the Relay transport to them and NEM-131 deletes session
+// mints; until then these refs no longer match the old plaintext types.
 const relayApi = {
     send: api.relay.send,
     responses: api.relay.responses,
     acknowledge: api.relay.acknowledge,
-}
+} as unknown as RelayApi
 
 const sessionMintApi = {
     request: api.sessionMints.request,
     responses: api.relay.responses,
     acknowledge: api.relay.acknowledge,
-}
+} as unknown as Parameters<typeof mintSessionViaRelay>[0]['api']
 
 function clientLabel(): string {
     return Device.deviceName ?? Device.modelName ?? 'Nemu mobile'

@@ -1,7 +1,6 @@
-import { v } from 'convex/values'
+import { ConvexError, v } from 'convex/values'
 import { authedMutation } from '../lib/customFunctions'
 import { normalizeEmail } from '../lib/email'
-import { RELAY_TTL_MS } from '../lib/relay'
 
 export const request = authedMutation({
     args: {
@@ -65,23 +64,10 @@ export const request = authedMutation({
             throw new Error('Not paired with this controller')
         }
 
-        const payload = JSON.stringify({
-            requestId: args.requestId,
-            message: {
-                type: 'sessionMint',
-                userId: ctx.identity.subject,
-                email,
-                clientLabel: label,
-                displayName: args.displayName,
-            },
-        })
-
-        return await ctx.db.insert('relayMessages', {
-            controllerId: args.controllerId,
-            direction: 'toController',
-            requestId: args.requestId,
-            payload,
-            expiresAt: Date.now() + RELAY_TTL_MS,
-        })
+        // Relay messages now hold only sealed envelopes (NEM-128), so a
+        // plaintext session mint has nowhere to go. Throwing rolls back the
+        // invite redemption above. NEM-131 deletes this function; new Access
+        // Clients pair on the home network instead (NEM-126).
+        throw new ConvexError({ code: 'session_mint_retired' })
     },
 })
