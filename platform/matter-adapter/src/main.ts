@@ -9,6 +9,7 @@ import { MqttBus } from './mqtt/bus.ts'
 import { connectMqtt } from './mqtt/client.ts'
 import { Service } from './service.ts'
 import { NameStore } from './stores/names.ts'
+import { RustAdapterArchive } from './stores/rust-adapter-archive.ts'
 
 const config = configFromEnv()
 const log = consoleLog('matter')
@@ -17,6 +18,10 @@ const ble = bleFromEnv(process.env, {
     exists: existsSync,
 })
 if (!ble.enabled) log.info(`BLE off (${ble.reason}); commissioning on-network`)
+
+// Before matter.js starts (which creates its storage) and before the stores
+// load, so a fresh node never inherits a Rust-era name.
+const rustArchive = RustAdapterArchive.prepare(config.dataDir, log)
 
 const session = createMatterSession({
     dataDir: config.dataDir,
@@ -43,7 +48,8 @@ mqtt.onConnect(async () => {
     if (started) await service.publishInventory()
     else {
         started = true
-        await service.start()
+        await service.start(rustArchive.pendingDeviceIds)
+        rustArchive.announced()
     }
 })
 

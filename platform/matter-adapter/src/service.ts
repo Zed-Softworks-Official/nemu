@@ -92,10 +92,35 @@ export class Service {
         )
     }
 
-    /** Indexes the fabric's nodes and publishes the inventory. */
-    async start(): Promise<void> {
+    /**
+     * Indexes the fabric's nodes and publishes the inventory. First, each of
+     * `goneDeviceIds` (Devices on the Rust adapter's fabric, NEM-121) leaves
+     * the Home as a removed Device does, unless a node on this fabric has
+     * that ID now.
+     */
+    async start(goneDeviceIds: readonly string[] = []): Promise<void> {
         for (const nodeId of this.session.nodeIds()) this.#index(nodeId)
+        for (const id of goneDeviceIds)
+            if (!this.#devices.has(id)) await this.#announceGone(id)
         await this.publishInventory()
+    }
+
+    /**
+     * Tells Core a Device left (it tombstones it, ADR-0017) and clears its
+     * retained topics.
+     */
+    async #announceGone(id: string): Promise<void> {
+        await this.bus.event({
+            type: 'device_leave',
+            data: { ieee_address: id },
+        })
+        for (const topic of [
+            id,
+            `${id}/availability`,
+            `${id}/capabilities`,
+            `${id}/observations`,
+        ])
+            await this.bus.clearRetained(topic)
     }
 
     /** Retained `bridge/devices`, then every Device's state and availability. */
@@ -299,18 +324,7 @@ export class Service {
             this.#devices.delete(id)
             this.#published.delete(id)
             this.#availability.delete(id)
-            // Core tombstones the Device on device_leave (ADR-0017).
-            await this.bus.event({
-                type: 'device_leave',
-                data: { ieee_address: id },
-            })
-            for (const topic of [
-                id,
-                `${id}/availability`,
-                `${id}/capabilities`,
-                `${id}/observations`,
-            ])
-                await this.bus.clearRetained(topic)
+            await this.#announceGone(id)
             this.meters.forget(id)
         }
         // Keep the names of the remaining Devices and their strip outlets.

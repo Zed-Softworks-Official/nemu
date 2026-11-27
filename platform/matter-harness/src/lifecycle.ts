@@ -3,6 +3,9 @@
  * the matter.js adapter. Unlike cli.ts there is no golden file: the Rust
  * adapter recorded no restart. Each check compares the adapter with itself.
  *
+ *   0. Start over a data directory the Rust adapter left (NEM-121): its
+ *      Devices leave the Home, its stores move to `rust-adapter-archive/`,
+ *      and the new node 1 does not inherit the Rust node 1's name.
  *   1. Commission the plug, rename it, and assign its Capability IDs.
  *   2. Quiesce the adapter as a Home backup does (pause, ADR-0013), copy its
  *      data directory, and resume it.
@@ -20,7 +23,7 @@
  * work as for cli.ts.
  */
 import assert from 'node:assert/strict'
-import { cp, mkdir, mkdtemp, rm } from 'node:fs/promises'
+import { cp, mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { isDeepStrictEqual } from 'node:util'
@@ -36,6 +39,7 @@ import { type Received, Recorder } from './recorder.ts'
 
 const BASE_TOPIC = 'matter'
 const NAME = 'Kitchen Kettle'
+const RUST_NAME = 'Rust-era Plug'
 const log = (line: string) => process.stderr.write(`[lifecycle] ${line}\n`)
 
 interface Observations {
@@ -144,9 +148,40 @@ async function main(): Promise<number> {
             )
         }
 
-        log('1. commission the plug and rename it')
+        log('0. the Rust adapter left Devices 1 and 2:3 here')
+        await writeFile(
+            join(dataDir, 'adopted-nodes.json'),
+            JSON.stringify({ node_ids: [1] })
+        )
+        await writeFile(
+            join(dataDir, 'names.json'),
+            JSON.stringify({ names: { '1': RUST_NAME, '2:3': 'Old Lamp' } })
+        )
         let from = startAdapter(dataDir)
         await waitFor('the first inventory', () => devicesSince(from))
+        const leaves = since(recorder, from, 'bridge/event')
+            .filter(
+                (event) => (event as { type?: string }).type === 'device_leave'
+            )
+            .map(
+                (event) =>
+                    (event as { data: { ieee_address: string } }).data
+                        .ieee_address
+            )
+            .sort()
+        assert.deepStrictEqual(leaves, ['1', '2:3'])
+        const top = await readdir(dataDir)
+        assert.ok(top.includes('rust-adapter-archive'), top.join(', '))
+        assert.ok(!top.includes('adopted-nodes.json'), top.join(', '))
+        assert.deepStrictEqual(
+            // The pending-leaves file goes once the leaves are published.
+            (await readdir(join(dataDir, 'rust-adapter-archive')))
+                .filter((file) => file !== 'pending-device-leaves.json')
+                .sort(),
+            ['adopted-nodes.json', 'names.json']
+        )
+
+        log('1. commission the plug and rename it')
         await recorder.publish('bridge/request/commission', {
             code: plug.manualPairingCode,
             transaction: 'commission',
@@ -158,6 +193,7 @@ async function main(): Promise<number> {
                 120_000
             )
         ).external_id
+        assert.notEqual(devicesSince(from)?.[0]?.friendly_name, RUST_NAME)
         await recorder.publish('bridge/request/device/rename', {
             from: id,
             to: NAME,

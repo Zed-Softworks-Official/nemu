@@ -1255,3 +1255,46 @@ describe('Service with a strip', () => {
         })
     })
 })
+
+describe('Service start after the Rust adapter (NEM-121)', () => {
+    it('sends the old Devices away before the inventory, clearing their topics', async () => {
+        const session = new FakeSession()
+        session.nodes.set('1', { ...PLUG })
+        const transport = new FakeTransport()
+        const bus = new MqttBus(transport, 'matter', quiet)
+        await new Service(session, bus, quiet).start(['1', '2', '3:1'])
+        const order = transport.published.map((m) => [m.topic, m.payload])
+        const devices = order.findIndex(
+            ([topic]) => topic === 'matter/bridge/devices'
+        )
+        const leaves = order.filter(
+            ([topic]) => topic === 'matter/bridge/event'
+        )
+        // Node 1 is on this fabric now, so it stays.
+        assert.deepEqual(leaves, [
+            [
+                'matter/bridge/event',
+                { type: 'device_leave', data: { ieee_address: '2' } },
+            ],
+            [
+                'matter/bridge/event',
+                { type: 'device_leave', data: { ieee_address: '3:1' } },
+            ],
+        ])
+        const lastLeave = order
+            .map(([topic]) => topic)
+            .lastIndexOf('matter/bridge/event')
+        assert.ok(lastLeave < devices)
+        for (const topic of [
+            'matter/2',
+            'matter/2/availability',
+            'matter/2/capabilities',
+            'matter/2/observations',
+        ])
+            assert.deepEqual(transport.on(topic), [null], topic)
+        assert.deepEqual(
+            lastDevices(transport).map((d) => d.external_id),
+            ['1']
+        )
+    })
+})
