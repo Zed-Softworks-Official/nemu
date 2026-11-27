@@ -757,6 +757,31 @@ importers:
 
   platform/matter: {}
 
+  platform/matter-adapter:
+    dependencies:
+      '@matter/main':
+        specifier: 0.18.0
+        version: 0.18.0
+      '@nemu/protocol':
+        specifier: workspace:*
+        version: link:../../packages/protocol
+      mqtt:
+        specifier: 5.16.1
+        version: 5.16.1(bufferutil@4.1.0)(supports-color@8.1.1)(utf-8-validate@5.0.10)
+      zod:
+        specifier: 'catalog:'
+        version: 4.3.6
+    devDependencies:
+      '@nemu/typescript-config':
+        specifier: workspace:*
+        version: link:../../tooling/typescript-config
+      '@types/node':
+        specifier: 'catalog:'
+        version: 22.20.0
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.2
+
   platform/matter-harness:
     dependencies:
       '@matter/main':

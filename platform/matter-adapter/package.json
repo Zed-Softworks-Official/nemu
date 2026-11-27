@@ -1,0 +1,23 @@
+{
+    "name": "@nemu/matter-adapter",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "build": "tsc -p tsconfig.build.json",
+        "start": "tsc -p tsconfig.build.json && node dist/main.js",
+        "check-types": "tsc --noEmit",
+        "lint": "biome check .",
+        "test": "tsc -p tsconfig.build.json && node --test \"dist/**/*.test.js\""
+    },
+    "dependencies": {
+        "@matter/main": "0.18.0",
+        "@nemu/protocol": "workspace:*",
+        "mqtt": "5.16.1",
+        "zod": "catalog:"
+    },
+    "devDependencies": {
+        "@nemu/typescript-config": "workspace:*",
+        "@types/node": "catalog:",
+        "typescript": "catalog:"
+    }
+}

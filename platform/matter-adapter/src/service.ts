@@ -1,0 +1,220 @@
+/**
+ * Service: runs the request flows and keeps the published inventory in step
+ * with the fabric. It speaks to Matter only through the session interface and
+ * to Core only through the MQTT bus.
+ *
+ * Device state is published only from what a Device reports, never from what
+ * was requested, so a Command is confirmed only once the Device confirms it.
+ */
+import type { DeviceState } from '@nemu/protocol'
+import type { NodeId } from './attributes.ts'
+import type { Log } from './log.ts'
+import {
+    commandsForSet,
+    deviceDescriptor,
+    type EndpointDevice,
+    mapNode,
+    stateForDevice,
+    targetEndpoints,
+} from './mapping/index.ts'
+import type { AttributeChanges, MatterSession } from './matter/session.ts'
+import type { MqttBus } from './mqtt/bus.ts'
+import { type Incoming, type Payload, transactionOf } from './mqtt/topics.ts'
+
+export class Service {
+    /** Device ID to its Device. */
+    #devices = new Map<string, EndpointDevice>()
+    /** Last state published per Device ID, to skip unchanged republishes. */
+    #published = new Map<string, string>()
+    /** Friendly names set by rename. TODO(NEM-119): persist in the name store. */
+    #names = new Map<string, string>()
+    #commissioning: AbortController | undefined
+
+    constructor(
+        private readonly session: MatterSession,
+        private readonly bus: MqttBus,
+        private readonly log: Log
+    ) {
+        bus.onRequest((incoming) => this.#handle(incoming))
+        session.onAttributes((nodeId, changes) =>
+            this.#onAttributes(nodeId, changes)
+        )
+    }
+
+    /** Indexes the fabric's nodes and publishes the inventory. */
+    async start(): Promise<void> {
+        for (const nodeId of this.session.nodeIds()) this.#index(nodeId)
+        await this.publishInventory()
+    }
+
+    /** Retained `bridge/devices`, then every Device's state and availability. */
+    async publishInventory(): Promise<void> {
+        const descriptors = [...this.#devices.values()].map((device) =>
+            deviceDescriptor(
+                device,
+                this.#names.get(device.id) ?? device.defaultName,
+                this.session.snapshot(device.nodeId) ?? {}
+            )
+        )
+        await this.bus.devices(descriptors)
+        for (const device of this.#devices.values()) {
+            await this.#publishState(device, true)
+            // TODO(NEM-119): offline when the node is unreachable, online when it recovers.
+            await this.bus.availability(device.id, 'online')
+        }
+    }
+
+    async #handle(incoming: Incoming): Promise<void> {
+        switch (incoming.kind) {
+            case 'commission':
+                return this.#commission(incoming.payload)
+            case 'cancel':
+                return this.#cancel(incoming.payload)
+            case 'set':
+                return this.#set(incoming.deviceId, incoming.payload)
+            case 'rename':
+            case 'remove':
+            case 'capabilityIds':
+                // TODO(NEM-118, NEM-119): Capability IDs, rename and remove.
+                this.log.info(`${incoming.kind} is not handled yet`)
+                return
+            case 'health':
+                return
+        }
+    }
+
+    async #commission(payload: Payload): Promise<void> {
+        const transaction = transactionOf(payload)
+        if (this.#commissioning) {
+            await this.bus.respond('commission', transaction, {
+                status: 'error',
+                error: 'pairing is still finishing; try again in a moment',
+            })
+            return
+        }
+        const code = typeof payload.code === 'string' ? payload.code.trim() : ''
+        // An unreadable code gets the Rust adapter's answer for a missing one.
+        if (!code || !this.session.isPairingCode(code)) {
+            await this.bus.respond('commission', transaction, {
+                status: 'error',
+                error: 'pairing code is required',
+            })
+            return
+        }
+        // TODO(NEM-120): wifiSsid/wifiPassword and BLE commissioning.
+        const attempt = new AbortController()
+        this.#commissioning = attempt
+        // Acknowledge first: commissioning takes seconds, and over BLE 20–40 s.
+        await this.bus.respond('commission', transaction, { status: 'ok' })
+        void this.#runCommission(code, attempt)
+    }
+
+    async #runCommission(
+        code: string,
+        attempt: AbortController
+    ): Promise<void> {
+        try {
+            const nodeId = await this.session.commission({
+                code,
+                signal: attempt.signal,
+            })
+            this.log.info(`commissioned node ${nodeId}`)
+            this.#index(nodeId)
+            await this.publishInventory()
+        } catch (error) {
+            if (attempt.signal.aborted) {
+                this.log.info('commissioning cancelled')
+                return
+            }
+            this.log.warn(`commissioning failed: ${String(error)}`)
+            await this.bus.event({
+                type: 'device_interview',
+                data: {
+                    ieee_address: 'commissioning',
+                    status: 'failed',
+                    error:
+                        error instanceof Error ? error.message : String(error),
+                },
+            })
+        } finally {
+            if (this.#commissioning === attempt) this.#commissioning = undefined
+        }
+    }
+
+    async #cancel(payload: Payload): Promise<void> {
+        this.#commissioning?.abort()
+        await this.bus.respond('commission/cancel', transactionOf(payload), {
+            status: 'ok',
+        })
+    }
+
+    async #set(deviceId: string, payload: Payload): Promise<void> {
+        const device = this.#devices.get(deviceId)
+        if (!device) {
+            this.log.warn(`set for unknown device ${deviceId}`)
+            return
+        }
+        const { actions, ignored } = commandsForSet(payload)
+        if (ignored.length > 0)
+            this.log.info(`ignored set keys: ${ignored.join(', ')}`)
+        try {
+            for (const endpoint of targetEndpoints(device, payload)) {
+                for (const action of actions) {
+                    await this.session.invoke(
+                        device.nodeId,
+                        endpoint,
+                        action.cluster,
+                        action.command,
+                        action.fields
+                    )
+                }
+            }
+        } catch (error) {
+            this.log.warn(`set on ${deviceId} failed: ${String(error)}`)
+            await this.bus.event({
+                type: 'command_failed',
+                data: {
+                    ieee_address: deviceId,
+                    transaction: transactionOf(payload) ?? null,
+                    error:
+                        error instanceof Error ? error.message : String(error),
+                },
+            })
+        }
+        // No state here: the Device's report publishes it (#onAttributes).
+    }
+
+    async #onAttributes(
+        nodeId: NodeId,
+        _changes: AttributeChanges
+    ): Promise<void> {
+        for (const device of this.#devices.values()) {
+            if (device.nodeId === nodeId)
+                await this.#publishState(device, false)
+        }
+    }
+
+    async #publishState(
+        device: EndpointDevice,
+        always: boolean
+    ): Promise<void> {
+        const snapshot = this.session.snapshot(device.nodeId)
+        if (!snapshot) return
+        const state: DeviceState = stateForDevice(device, snapshot)
+        const serialised = JSON.stringify(state)
+        if (!always && this.#published.get(device.id) === serialised) return
+        if (await this.bus.deviceState(device.id, state))
+            this.#published.set(device.id, serialised)
+    }
+
+    /** Maps a node's snapshot to its Devices, replacing what it was before. */
+    #index(nodeId: NodeId): void {
+        for (const [id, device] of this.#devices) {
+            if (device.nodeId === nodeId) this.#devices.delete(id)
+        }
+        const snapshot = this.session.snapshot(nodeId)
+        if (!snapshot) return
+        for (const device of mapNode(nodeId, snapshot))
+            this.#devices.set(device.id, device)
+    }
+}
