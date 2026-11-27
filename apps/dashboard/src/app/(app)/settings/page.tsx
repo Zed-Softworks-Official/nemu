@@ -7,9 +7,9 @@ import {
     clearRememberedBaseUrl,
     clearRememberedControllerId,
     createControllerHttp,
-    getClientToken,
     getRememberedBaseUrl,
     getRememberedControllerId,
+    LocalSession,
     useController,
 } from '@nemu/controller'
 import {
@@ -44,6 +44,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { PageHeader } from '~/components/dashboard/page-header'
 import { FixInsecureLanButton } from '~/components/header/fix-insecure-lan'
 import { env } from '~/env'
+import { dashboardKeyStore } from '~/lib/access-client-keys'
 
 type ReleaseReadState =
     | { kind: 'idle' }
@@ -346,7 +347,20 @@ export default function SettingsPage() {
         setBusyCode(true)
         setCodeError(null)
         try {
-            const http = createControllerHttp(baseUrl, getClientToken)
+            if (!controllerId || controllerId === '—') {
+                throw new Error('This browser is not paired with a Home.')
+            }
+            // Signed in with this browser's keys (a Local session).
+            const http = createControllerHttp(
+                baseUrl,
+                () => null,
+                undefined,
+                new LocalSession({
+                    baseUrl,
+                    controllerId,
+                    keyStore: dashboardKeyStore,
+                })
+            )
             const { data } = await http.post('/api/pairing-code')
             setInviteCode(pairingCodeResponseSchema.parse(data))
         } catch (err) {
@@ -358,6 +372,16 @@ export default function SettingsPage() {
         } finally {
             setBusyCode(false)
         }
+    }
+
+    /** Drops this browser's keys and Home on this browser only. */
+    async function forgetThisBrowser() {
+        if (controllerId && controllerId !== '—') {
+            await dashboardKeyStore.clear(controllerId).catch(() => {})
+        }
+        clearClientToken()
+        clearRememberedBaseUrl()
+        clearRememberedControllerId()
     }
 
     async function handleUnpair() {
@@ -373,9 +397,7 @@ export default function SettingsPage() {
             if (controllerId && controllerId !== '—') {
                 await removePairing({ controllerId })
             }
-            clearClientToken()
-            clearRememberedBaseUrl()
-            clearRememberedControllerId()
+            await forgetThisBrowser()
             router.replace('/setup')
         } catch (err) {
             setHouseholdError(
@@ -397,9 +419,7 @@ export default function SettingsPage() {
             if (controllerId && controllerId !== '—') {
                 await removePairing({ controllerId })
             }
-            clearClientToken()
-            clearRememberedBaseUrl()
-            clearRememberedControllerId()
+            await forgetThisBrowser()
             router.replace('/setup')
         } finally {
             setBusyUnpair(false)

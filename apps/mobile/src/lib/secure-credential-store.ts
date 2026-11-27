@@ -1,6 +1,8 @@
 import {
     type AccessClientCredential,
+    type AccessClientKeyStore,
     type ControllerCredentialStore,
+    createSecretAccessClientKeyStore,
     parseCredential,
     serializeCredential,
 } from '@nemu/controller'
@@ -22,7 +24,57 @@ function accountKey(accountId: string, name: string): string {
 }
 
 /**
- * Access Client credentials in the device keychain, one per Home.
+ * Keys never leave this phone: not into iCloud or Google backups, and not
+ * onto a new phone restored from one (ADR-0001). A restored phone pairs again.
+ */
+const KEY_OPTIONS: SecureStore.SecureStoreOptions = {
+    keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY,
+}
+
+/**
+ * This phone's Access Client keys and Access grant, one record per Account
+ * and Home, in the Keychain or Keystore. The crypto runs in JS on Hermes;
+ * the operating system wraps the stored key bytes.
+ *
+ * A bearer-token credential from before Access Client keys loads as
+ * unpaired and is removed, so the phone asks to pair again.
+ */
+export function createSecureAccessClientKeyStore(
+    accountId: string
+): AccessClientKeyStore {
+    const keysKey = (controllerId: string) =>
+        accountKey(
+            accountId,
+            `access-client-keys.${secureSegment(controllerId)}`
+        )
+    const legacyKey = (controllerId: string) =>
+        accountKey(accountId, `access-client.${secureSegment(controllerId)}`)
+    const store = createSecretAccessClientKeyStore({
+        get: (controllerId) =>
+            SecureStore.getItem(keysKey(controllerId), KEY_OPTIONS),
+        set: (controllerId, value) =>
+            SecureStore.setItem(keysKey(controllerId), value, KEY_OPTIONS),
+        delete: (controllerId) =>
+            SecureStore.deleteItemAsync(keysKey(controllerId), KEY_OPTIONS),
+    })
+    return {
+        ...store,
+        async load(controllerId) {
+            const record = await store.load(controllerId)
+            if (!record) {
+                void SecureStore.deleteItemAsync(legacyKey(controllerId)).catch(
+                    () => {}
+                )
+            }
+            return record
+        },
+    }
+}
+
+/**
+ * Bearer-token Access Client credentials in the device keychain, one per
+ * Home. Kept only to read old credentials until NEM-131; the app pairs with
+ * keys (`createSecureAccessClientKeyStore`).
  * Reads go through a memory cache because transports read the token on
  * every request and SecureStore only deletes asynchronously.
  */

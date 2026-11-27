@@ -1,9 +1,9 @@
-import type { ControllerCredentialStore } from '@nemu/controller'
-import { useController } from '@nemu/controller'
+import { type AccessClientKeyStore, useController } from '@nemu/controller'
 import {
-    createMemoryCredentialStore,
+    createMemoryAccessClientKeyStore,
     FakeController,
     fakeControllerConnectors,
+    pairFakeAccessClient,
 } from '@nemu/controller/testing'
 import {
     fireEvent,
@@ -56,12 +56,11 @@ function setup(options?: { selected?: string; controller?: FakeController }) {
             controllerId: 'lake',
             baseUrl: 'http://lake.local:6368',
         })
-    const credentialStore: ControllerCredentialStore =
-        createMemoryCredentialStore()
+    const keyStore: AccessClientKeyStore = createMemoryAccessClientKeyStore()
     let selected = options?.selected ?? null
     const recordMembership = jest.fn(async () => {})
     const services: HomeSessionServices = {
-        credentialStore,
+        accessClientKeyStore: keyStore,
         activeHomeStore: {
             get: () => selected,
             set: (id) => {
@@ -81,16 +80,8 @@ function setup(options?: { selected?: string; controller?: FakeController }) {
                       }
                     : null,
         },
-        pairOnLan: async (home, baseUrl, code, staging) => {
-            staging.set(home.controllerId, {
-                clientToken: controller.pair(code).clientToken,
-                baseUrl,
-            })
-        },
-        mintOverRelay: async (home, staging) => {
-            staging.set(home.controllerId, {
-                clientToken: controller.mintSession().clientToken,
-            })
+        pairOnLan: async (_home, _baseUrl, code, staging) => {
+            await pairFakeAccessClient(controller, staging, { code })
         },
         recordMembership,
     }
@@ -99,7 +90,7 @@ function setup(options?: { selected?: string; controller?: FakeController }) {
             <Session />
         </HomeSessionProvider>
     )
-    return { controller, credentialStore, recordMembership, tree }
+    return { controller, keyStore, recordMembership, tree }
 }
 
 describe('Home selection', () => {
@@ -192,21 +183,21 @@ describe('Access Client pairing', () => {
     })
 
     it('shows cancellation and keeps nothing on the phone', async () => {
-        const { tree, credentialStore } = setup()
+        const { tree, keyStore } = setup()
         await reachCodeEntry(tree)
         await fireEvent.press(screen.getByRole('button', { name: 'Cancel' }))
 
         await screen.findByText('Pairing cancelled')
-        expect(credentialStore.get('lake')).toBeNull()
+        expect(await keyStore.load('lake')).toBeNull()
     })
 
-    it('pairs a Member over Relay when the Home is not on this network', async () => {
+    it('asks to pair at home when the Home is not on this network', async () => {
         const controller = new FakeController({
             controllerId: 'lake',
             baseUrl: 'http://lake.local:6368',
             lanReachable: false,
         })
-        const { tree } = setup({ controller })
+        const { tree, keyStore } = setup({ controller })
         await render(tree([LAKE]))
         await fireEvent.press(
             screen.getByRole('button', { name: 'Lake House' })
@@ -214,43 +205,34 @@ describe('Access Client pairing', () => {
         await fireEvent.press(
             screen.getByRole('button', { name: 'Pair this phone' })
         )
-        await screen.findByText('Paired')
 
-        await fireEvent.press(screen.getByRole('button', { name: 'Continue' }))
-        await screen.findByText('Controlling Lake House via relay')
-    })
-
-    it('reports an unreachable Home', async () => {
-        const controller = new FakeController({
-            controllerId: 'lake',
-            baseUrl: 'http://lake.local:6368',
-            lanReachable: false,
-            relayReachable: false,
-        })
-        const { tree } = setup({ controller })
-        await render(tree([LAKE]))
-        await fireEvent.press(
-            screen.getByRole('button', { name: 'Lake House' })
-        )
-        await fireEvent.press(
-            screen.getByRole('button', { name: 'Pair this phone' })
-        )
         await screen.findByText('Pairing failed')
+        expect(screen.getByText(/Pair at home/)).toBeTruthy()
+        expect(
+            screen.queryByRole('button', {
+                name: 'Pair over the internet instead',
+            })
+        ).toBeNull()
+        expect(await keyStore.load('lake')).toBeNull()
     })
 })
 
 describe('Returning to a paired Home', () => {
-    it('can pair again after the credential stops working', async () => {
-        const controller = new FakeController({
+    async function pairedSetup(controller = lake()) {
+        const session = setup({ controller, selected: 'lake' })
+        const record = await pairFakeAccessClient(controller, session.keyStore)
+        return { ...session, record }
+    }
+
+    function lake() {
+        return new FakeController({
             controllerId: 'lake',
             baseUrl: 'http://lake.local:6368',
-            acceptedTokens: ['saved'],
         })
-        const { tree, credentialStore } = setup({
-            controller,
-            selected: 'lake',
-        })
-        credentialStore.set('lake', { clientToken: 'saved' })
+    }
+
+    it('can pair again after forgetting this phone', async () => {
+        const { tree, keyStore } = await pairedSetup()
         await render(tree([LAKE]))
         await screen.findByText('Controlling Lake House via lan')
 
@@ -258,28 +240,32 @@ describe('Returning to a paired Home', () => {
             screen.getByRole('button', { name: 'Forget on this phone' })
         )
 
-        expect(credentialStore.get('lake')).toBeNull()
-        expect(
-            screen.getByRole('button', { name: 'Pair this phone' })
-        ).toBeTruthy()
+        await screen.findByRole('button', { name: 'Pair this phone' })
+        expect(await keyStore.load('lake')).toBeNull()
     })
 
-    it('connects without asking to pair again', async () => {
-        const controller = new FakeController({
-            controllerId: 'lake',
-            baseUrl: 'http://lake.local:6368',
-            acceptedTokens: ['saved'],
-        })
-        const { tree, credentialStore } = setup({
-            controller,
-            selected: 'lake',
-        })
-        credentialStore.set('lake', { clientToken: 'saved' })
+    it('connects with its keys without asking to pair again', async () => {
+        const { tree, controller, record } = await pairedSetup()
         await render(tree([LAKE]))
 
         await screen.findByText('Controlling Lake House via lan')
         await waitFor(() =>
-            expect(controller.presentedTokens).toContain('saved')
+            expect(controller.presentedTokens).toContain(
+                record.enrollment.accessClientId
+            )
         )
+    })
+
+    it('asks to pair again at home once the Controller revokes this phone', async () => {
+        const { tree, controller, keyStore, record } = await pairedSetup()
+        controller.revokeToken(record.enrollment.accessClientId)
+        await render(tree([LAKE]))
+
+        await screen.findByRole('button', { name: 'Pair this phone' })
+        expect(
+            screen.getByText(/no longer has access to Lake House/)
+        ).toBeTruthy()
+        expect(screen.getByText(/Pair it again at home/)).toBeTruthy()
+        expect(await keyStore.load('lake')).toBeNull()
     })
 })

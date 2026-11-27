@@ -41,6 +41,10 @@ import {
     type SessionRole,
     type UpdateStatusResponse,
 } from '@nemu/protocol'
+import type {
+    AccessClientKeyStore,
+    AccessClientRecord,
+} from './access-client-keys.ts'
 import type { ControllerConnectors } from './connection.ts'
 import type { ProbeResult } from './discovery.ts'
 import type { GetToken } from './http.ts'
@@ -177,6 +181,8 @@ export class FakeController {
     private reachableBeforeRestart: { lan: boolean; relay: boolean } | null =
         null
     private readonly tokens: Set<string>
+    /** Access Clients paired with keys; revoking one leaves a tombstone. */
+    private readonly accessClientIds = new Set<string>()
     private readonly otherMembershipTokens: Set<string>
     private readonly transports = new Set<FakeTransport>()
     private issued = 0
@@ -230,6 +236,39 @@ export class FakeController {
 
     revokeToken(token: string): void {
         this.tokens.delete(token)
+    }
+
+    /**
+     * CPace pairing with Access Client keys, as `/api/pairing/runs` would
+     * answer. The fake authorizes key clients by their Access Client ID.
+     */
+    pairAccessClient(
+        code: string,
+        accessClientId?: string
+    ): {
+        accessClientId: string
+        membershipId: string
+    } {
+        if (code !== this.pairingCode) {
+            throw new ApiError(
+                'invalid_code',
+                'Pairing code is invalid or expired',
+                401
+            )
+        }
+        const id = accessClientId ?? this.issueToken()
+        this.tokens.add(id)
+        this.accessClientIds.add(id)
+        return { accessClientId: id, membershipId: 'membership' }
+    }
+
+    /** True for an Access Client ID this Controller tombstoned. */
+    tombstoned(accessClientId: string | null): boolean {
+        return (
+            accessClientId !== null &&
+            this.accessClientIds.has(accessClientId) &&
+            !this.tokens.has(accessClientId)
+        )
     }
 
     /** `leaveHome`: ends this Membership and revokes all of its tokens. */
@@ -957,6 +996,13 @@ export class FakeTransport implements ControllerTransport {
         }
         const token = this.getToken()
         this.controller.presentedTokens.push(token)
+        if (this.controller.tombstoned(token)) {
+            throw new ApiError(
+                'tombstoned_access_client',
+                'This Access Client was revoked',
+                401
+            )
+        }
         if (!this.controller.acceptsToken(token)) {
             throw new ApiError('unauthorized', 'Invalid client token', 401)
         }
@@ -1017,22 +1063,64 @@ export function fakeControllerConnectors(
             }
             return controller.identity()
         },
-        createLanTransport({ baseUrl, getToken }) {
+        createLanTransport({ baseUrl, getToken, accessClientId }) {
             const controller = byBaseUrl(baseUrl)
             if (!controller) {
                 throw new ApiError('network_error', 'Network Error')
             }
-            return controller.createTransport('lan', getToken)
+            return controller.createTransport(
+                'lan',
+                accessClientId !== undefined ? () => accessClientId : getToken
+            )
         },
-        createRelayTransport({ controllerId, getToken }) {
+        createRelayTransport({ controllerId, getToken, accessClientId }) {
             const controller = controllers.find(
                 (candidate) => candidate.controllerId === controllerId
             )
-            return controller?.createTransport('relay', getToken) ?? null
+            return (
+                controller?.createTransport(
+                    'relay',
+                    accessClientId !== undefined
+                        ? () => accessClientId
+                        : getToken
+                ) ?? null
+            )
         },
     }
 }
 
+/**
+ * Pairs `keyStore` with a fake Controller the way `pairWithController` does:
+ * new keys from the store, an enrollment from the Controller, then `save`.
+ * The grant and pinned keys are placeholders; fake transports never check
+ * them.
+ */
+export async function pairFakeAccessClient(
+    controller: FakeController,
+    keyStore: AccessClientKeyStore,
+    options: { code?: string; accessClientId?: string } = {}
+): Promise<AccessClientRecord> {
+    const keys = await keyStore.generate()
+    const { accessClientId, membershipId } = controller.pairAccessClient(
+        options.code ?? controller.pairingCode,
+        options.accessClientId
+    )
+    const record: AccessClientRecord = {
+        keys,
+        enrollment: {
+            controllerId: controller.controllerId,
+            accessClientId,
+            membershipId,
+            grant: 'fake.grant.signature',
+            controllerSigningKey: new Uint8Array(32).fill(1),
+            controllerEncryptionKey: new Uint8Array(32).fill(2),
+        },
+    }
+    await keyStore.save(record)
+    return record
+}
+
+export { createMemoryAccessClientKeyStore } from './access-client-keys.ts'
 export {
     type AccessClientCredential,
     type ControllerCredentialStore,

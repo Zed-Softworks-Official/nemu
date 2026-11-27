@@ -1,19 +1,14 @@
-import type { ControllerCredentialStore } from '@nemu/controller'
-import {
-    createMemoryCredentialStore,
-    FakeController,
-    fakeControllerConnectors,
-} from '@nemu/controller/testing'
+import { FakeController } from '@nemu/controller/testing'
 import { fireEvent, render, screen } from '@testing-library/react-native'
 import { Text } from 'react-native'
 
 import { HomeAccessSettings } from '~/components/home-access-settings'
 import {
     HomeSessionProvider,
-    type HomeSessionServices,
     type MobileHome,
     useHomeSession,
 } from '~/components/home-session'
+import { pairedServices } from '~/test/home-session-services'
 
 const LAKE: MobileHome = { controllerId: 'lake', name: 'Lake House' }
 const CITY: MobileHome = { controllerId: 'city', name: 'City Flat' }
@@ -34,43 +29,22 @@ function Session() {
 }
 
 async function setup(controller: FakeController) {
-    const credentialStore: ControllerCredentialStore =
-        createMemoryCredentialStore({
-            lake: { clientToken: 'phone' },
-            city: { clientToken: 'city-phone' },
-        })
-    let selected: string | null = 'lake'
-    const services: HomeSessionServices = {
-        credentialStore,
-        activeHomeStore: {
-            get: () => selected,
-            set: (id) => {
-                selected = id
-            },
-            clear: () => {
-                selected = null
-            },
-        },
-        connectors: {
-            ...fakeControllerConnectors(controller),
-            discover: async () =>
-                controller.lanReachable
-                    ? {
-                          baseUrl: controller.baseUrl,
-                          health: { status: 'ok' },
-                      }
-                    : null,
-        },
-        pairOnLan: async () => {},
-        mintOverRelay: async () => {},
-        recordMembership: async () => {},
-    }
+    // This phone is paired with both Homes, under its own Access Client IDs.
+    const city = new FakeController({ controllerId: 'city' })
+    const { services, keyStore } = await pairedServices(controller, {
+        paired: [
+            [controller, 'phone'],
+            [city, 'city-phone'],
+        ],
+    })
     const view = await render(
         <HomeSessionProvider homes={[LAKE, CITY]} services={services}>
             <Session />
         </HomeSessionProvider>
     )
-    return { credentialStore, view }
+    const paired = async (controllerId: string) =>
+        (await keyStore.load(controllerId))?.enrollment.accessClientId ?? null
+    return { paired, view }
 }
 
 describe.each([
@@ -81,15 +55,15 @@ describe.each([
         return new FakeController({
             controllerId: 'lake',
             lanReachable,
-            // This Membership's phone and dashboard browser.
-            acceptedTokens: ['phone', 'browser'],
+            // This Membership's dashboard browser; the phone pairs below.
+            acceptedTokens: ['browser'],
             otherMembershipTokens: ['someone-else'],
         })
     }
 
     it('removes only this phone, then clears only this Home on the phone', async () => {
         const controller = lake()
-        const { credentialStore } = await setup(controller)
+        const { paired } = await setup(controller)
 
         await fireEvent.press(
             await screen.findByRole('button', {
@@ -109,15 +83,13 @@ describe.each([
         expect(controller.revokedVia).toEqual([mode])
         expect(controller.acceptsToken('phone')).toBe(false)
         expect(controller.acceptsToken('browser')).toBe(true)
-        expect(credentialStore.get('lake')).toBeNull()
-        expect(credentialStore.get('city')).toEqual({
-            clientToken: 'city-phone',
-        })
+        expect(await paired('lake')).toBeNull()
+        expect(await paired('city')).toBe('city-phone')
     })
 
     it('leaves the Home after a confirmation that names its reach', async () => {
         const controller = lake()
-        const { credentialStore } = await setup(controller)
+        const { paired } = await setup(controller)
 
         await fireEvent.press(
             await screen.findByRole('button', { name: 'Leave Lake House' })
@@ -133,16 +105,14 @@ describe.each([
         expect(controller.leftVia).toEqual([mode])
         expect(controller.acceptsToken('browser')).toBe(false)
         expect(controller.acceptsToken('someone-else')).toBe(true)
-        expect(credentialStore.get('lake')).toBeNull()
-        expect(credentialStore.get('city')).toEqual({
-            clientToken: 'city-phone',
-        })
+        expect(await paired('lake')).toBeNull()
+        expect(await paired('city')).toBe('city-phone')
     })
 
     it('sends the last Owner to the dashboard and keeps this phone paired', async () => {
         const controller = lake()
         controller.lastOwner = true
-        const { credentialStore } = await setup(controller)
+        const { paired } = await setup(controller)
 
         await fireEvent.press(
             await screen.findByRole('button', { name: 'Leave Lake House' })
@@ -153,12 +123,12 @@ describe.each([
             await screen.findByText(/only Owner of Lake House.*dashboard/)
         ).toBeTruthy()
         expect(controller.leftVia).toEqual([])
-        expect(credentialStore.get('lake')?.clientToken).toBe('phone')
+        expect(await paired('lake')).toBe('phone')
     })
 
     it('clears this phone when the Controller no longer accepts it', async () => {
         const controller = lake()
-        const { credentialStore } = await setup(controller)
+        const { paired } = await setup(controller)
         await screen.findByRole('button', {
             name: 'Remove this phone from Lake House',
         })
@@ -178,16 +148,14 @@ describe.each([
         expect(
             screen.getByText('This phone was already removed from Lake House.')
         ).toBeTruthy()
-        expect(credentialStore.get('lake')).toBeNull()
-        expect(credentialStore.get('city')).toEqual({
-            clientToken: 'city-phone',
-        })
+        expect(await paired('lake')).toBeNull()
+        expect(await paired('city')).toBe('city-phone')
     })
 
     it('clears this phone when its Membership is no longer active', async () => {
         const controller = lake()
         controller.membershipActive = false
-        const { credentialStore } = await setup(controller)
+        const { paired } = await setup(controller)
 
         await fireEvent.press(
             await screen.findByRole('button', { name: 'Leave Lake House' })
@@ -202,7 +170,7 @@ describe.each([
         // The phone still revoked its own Access Client on the way out.
         expect(controller.acceptsToken('phone')).toBe(false)
         expect(controller.acceptsToken('browser')).toBe(true)
-        expect(credentialStore.get('lake')).toBeNull()
+        expect(await paired('lake')).toBeNull()
     })
 
     it('does not offer to pair this phone again', async () => {
@@ -223,9 +191,8 @@ describe('Settings when the Controller is unreachable over LAN and Relay', () =>
             controllerId: 'lake',
             lanReachable: false,
             relayReachable: false,
-            acceptedTokens: ['phone'],
         })
-        const { credentialStore } = await setup(controller)
+        const { paired } = await setup(controller)
 
         const forget = await screen.findByRole('button', {
             name: 'Forget on this phone',
@@ -247,10 +214,8 @@ describe('Settings when the Controller is unreachable over LAN and Relay', () =>
         await fireEvent.press(forget)
 
         await screen.findByText('Pair with Lake House')
-        expect(credentialStore.get('lake')).toBeNull()
-        expect(credentialStore.get('city')).toEqual({
-            clientToken: 'city-phone',
-        })
+        expect(await paired('lake')).toBeNull()
+        expect(await paired('city')).toBe('city-phone')
         // Nothing was revoked on the Controller.
         expect(controller.acceptsToken('phone')).toBe(true)
     })

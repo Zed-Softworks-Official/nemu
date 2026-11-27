@@ -8,11 +8,13 @@ import {
     b64urlEncode,
     signLocalSessionChallenge,
 } from '@nemu/protocol/relay-crypto'
-import type { AccessClientKeyStore } from './access-client-keys.ts'
+import {
+    type AccessClientKeyStore,
+    NOT_PAIRED_ERROR_CODE,
+} from './access-client-keys.ts'
 import { createControllerHttp } from './http.ts'
 
-/** Error code when this Access Client holds no keys for the Home. */
-export const NOT_PAIRED_ERROR_CODE = 'not_paired'
+export { NOT_PAIRED_ERROR_CODE }
 
 export type LocalSessionOptions = {
     baseUrl: string
