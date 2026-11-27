@@ -2,6 +2,12 @@ import { v } from 'convex/values'
 import { requireControllerIdentity } from '../lib/auth'
 import { authedMutation, authedQuery } from '../lib/customFunctions'
 import {
+    hasActiveMembership,
+    membershipFor,
+    publishProjection,
+    signedMembershipProjectionValidator,
+} from '../lib/membershipRoutes'
+import {
     CLEANUP_BATCH_SIZE,
     checkSealedRequest,
     checkSealedToClient,
@@ -45,19 +51,16 @@ const toClientMessageValidator = v.object({
 
 type AuthedCtx = (QueryCtx | MutationCtx) & { identity: { subject: string } }
 
-async function isPairedWith(
+/**
+ * Relay routes on the signed Membership routing projection (NEM-133): only
+ * an Account the Controller last said holds an active Membership may post
+ * to or read from this Home's mailbox.
+ */
+async function isRoutedTo(
     ctx: AuthedCtx,
     controllerId: string
 ): Promise<boolean> {
-    const pairing = await ctx.db
-        .query('pairings')
-        .withIndex('by_user_and_controller', (q) =>
-            q
-                .eq('userId', ctx.identity.subject)
-                .eq('controllerId', controllerId)
-        )
-        .unique()
-    return pairing !== null
+    return await hasActiveMembership(ctx, controllerId, ctx.identity.subject)
 }
 
 async function pendingRequests(
@@ -121,6 +124,42 @@ async function writeToClient(ctx: MutationCtx, input: SealedToClient) {
 }
 
 /**
+ * The caller's signed Membership routing projection for one Membership, or
+ * null. Clients verify it against their pinned Controller key and take the
+ * current identity epoch from it.
+ */
+export const membership = authedQuery({
+    args: {
+        controllerId: v.string(),
+        membershipId: v.string(),
+    },
+    returns: v.union(signedMembershipProjectionValidator, v.null()),
+    handler: async (ctx, args) => {
+        return await membershipFor(
+            ctx,
+            args.controllerId,
+            args.membershipId,
+            ctx.identity.subject
+        )
+    },
+})
+
+/**
+ * The Controller publishes a signed projection from its outbox. Takes any
+ * value: the signature check, against the Controller's registered key, is
+ * the gate. The HTTP route has checked the registration secret.
+ */
+export const publishMembershipInternal = internalMutation({
+    args: {
+        signed: v.any(),
+    },
+    returns: v.union(v.literal('stored'), v.literal('stale')),
+    handler: async (ctx, args) => {
+        return await publishProjection(ctx, args.signed)
+    },
+})
+
+/**
  * An Access Client hands a sealed request to its Controller. Convex checks
  * only routing metadata: the Account's pairing, the header's shape and
  * expiry, and rate limits per Controller and per Access Client.
@@ -133,8 +172,10 @@ export const send = authedMutation({
     handler: async (ctx, args) => {
         const sealed = checkSealedRequest(args.sealed)
         const { header } = sealed
-        if (!(await isPairedWith(ctx, header.controllerId))) {
-            throw new Error('Not paired with this controller')
+        // Routing metadata only: the projection names Accounts, not
+        // Access Clients, and Convex never sees which Access Client is whose.
+        if (!(await isRoutedTo(ctx, header.controllerId))) {
+            throw relayError('no_membership')
         }
 
         const now = Date.now()
@@ -174,7 +215,7 @@ export const responses = authedQuery({
     },
     returns: v.array(toClientMessageValidator),
     handler: async (ctx, args) => {
-        if (!(await isPairedWith(ctx, args.controllerId))) {
+        if (!(await isRoutedTo(ctx, args.controllerId))) {
             return []
         }
         const now = Date.now()
@@ -225,7 +266,7 @@ export const acknowledge = authedMutation({
             if (!message || message.kind === 'request') continue
             let allowed = pairedByController.get(message.controllerId)
             if (allowed === undefined) {
-                allowed = await isPairedWith(ctx, message.controllerId)
+                allowed = await isRoutedTo(ctx, message.controllerId)
                 pairedByController.set(message.controllerId, allowed)
             }
             if (allowed) {

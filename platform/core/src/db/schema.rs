@@ -339,6 +339,19 @@ diesel::table! {
 }
 
 diesel::table! {
+    membership_routing_outbox (sequence) {
+        sequence -> Int8,
+        membership_id -> Uuid,
+        #[max_length = 255]
+        account_id -> Varchar,
+        #[max_length = 16]
+        state -> Varchar,
+        created_at -> Timestamptz,
+        published_at -> Nullable<Timestamptz>,
+    }
+}
+
+diesel::table! {
     meter_epochs (id) {
         id -> Int8,
         capability_id -> Uuid,
@@ -462,6 +475,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     home_meter_designation_periods,
     home_timezone_periods,
     members,
+    membership_routing_outbox,
     meter_epochs,
     pairing_codes,
     power_rollups,

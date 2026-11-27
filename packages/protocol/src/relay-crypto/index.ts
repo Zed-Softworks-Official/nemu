@@ -72,6 +72,20 @@ export {
 } from './grant.ts'
 export { x25519PublicKey } from './hpke.ts'
 export {
+    encodeMembershipProjection,
+    type MembershipProjection,
+    type MembershipRoutingState,
+    membershipProjectionSchema,
+    membershipRoutingStateSchema,
+    ProjectionError,
+    type ProjectionRejection,
+    type SignedMembershipProjection,
+    signedMembershipProjectionSchema,
+    signMembershipProjection,
+    supersedesProjection,
+    verifyMembershipProjection,
+} from './projection.ts'
+export {
     acceptCounter,
     EMPTY_REPLAY_WINDOW,
     REPLAY_WINDOW_SIZE,

@@ -13,6 +13,7 @@
 //!   HKDF-SHA256 and ChaCha20-Poly1305.
 //! - [`envelope`]: sealed Relay requests, responses and pushes.
 //! - [`grant`]: Access grants as EdDSA JWS.
+//! - [`projection`]: signed Membership routing projections.
 //! - [`replay`]: the 64-entry sliding counter window.
 //! - [`session`]: the Local session challenge, and checks on Access Client
 //!   public keys before Core binds them into an Access grant.
@@ -25,6 +26,7 @@ pub mod cpace;
 pub mod envelope;
 pub mod grant;
 pub mod hpke;
+pub mod projection;
 pub mod replay;
 pub mod session;
 pub(crate) mod wire;

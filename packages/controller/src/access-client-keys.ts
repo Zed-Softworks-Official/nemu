@@ -37,9 +37,9 @@ export type AccessClientEnrollment = {
     controllerEncryptionKey: Uint8Array
     /**
      * The Controller identity epoch this client addresses Relay requests to;
-     * 1 until a signed refusal names a newer one (a Home restored onto a new
-     * Controller instance). The signed Membership routing projection will
-     * carry it instead (NEM-133).
+     * 1 until the signed Membership routing projection (NEM-133), or as a
+     * backstop a signed `retired_epoch` refusal, names a newer one (a Home
+     * restored onto a new Controller instance).
      */
     identityEpoch?: number
 }
@@ -77,6 +77,8 @@ export const PAIR_AGAIN_ERROR_CODES = [
     'unknown_access_client',
     'tombstoned_access_client',
     'bad_signature',
+    /** The Controller signed this Membership's routing projection as ended. */
+    'membership_ended',
 ] as const
 
 export type PairAgainReason = (typeof PAIR_AGAIN_ERROR_CODES)[number]

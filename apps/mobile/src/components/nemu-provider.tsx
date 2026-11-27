@@ -32,6 +32,7 @@ const relayApi: RelayApi = {
     send: api.relay.send,
     responses: api.relay.responses,
     acknowledge: api.relay.acknowledge,
+    membership: api.relay.membership,
 }
 
 function clientLabel(): string {

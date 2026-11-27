@@ -72,6 +72,11 @@ import type {
 import { NOT_PAIRED_ERROR_CODE } from '../local-session.ts'
 import { createWebRelayCounter, type RelayCounter } from '../relay-counter.ts'
 import {
+    epochFromProjection,
+    MEMBERSHIP_ENDED_ERROR_CODE,
+    readMembershipProjection,
+} from './membership-projection.ts'
+import {
     acknowledgeRelayResponses,
     type RelayAcknowledgeRef,
 } from './relay-acknowledge.ts'
@@ -104,6 +109,17 @@ export type RelayApi = {
         RelayToClientDoc[]
     >
     acknowledge: RelayAcknowledgeRef
+    /**
+     * The caller's signed Membership routing projection (NEM-133). Never
+     * trusted as returned: the transport verifies it against the pinned
+     * Controller key.
+     */
+    membership: FunctionReference<
+        'query',
+        'public',
+        { controllerId: string; membershipId: string },
+        unknown
+    >
 }
 
 /** A reply, opened and checked against the pinned Controller key. */
@@ -156,7 +172,16 @@ export type RelayTransportOptions = {
     commandTimeoutMs?: number
     /** How often the capability watch is renewed. The Controller's TTL is 45 s. */
     watchRenewalMs?: number
+    /**
+     * How long a read of the signed Membership routing projection stays
+     * fresh before a request re-reads it. A send Convex refuses for want of
+     * an active Membership always re-reads it.
+     */
+    membershipRefreshMs?: number
 }
+
+/** Convex refuses `relay:send` with this when the projection is not active. */
+const NO_MEMBERSHIP_CODE = 'no_membership'
 
 /** Sends of one request: a refusal that names a fix gets one more try each. */
 const MAX_SEND_ATTEMPTS = 3
@@ -208,6 +233,9 @@ export class RelayTransport implements ControllerTransport {
     private readonly commandTimeoutMs: number
     private readonly listeners = new Set<(event: DeviceEvent) => void>()
     private readonly watchRenewalMs: number
+    private readonly membershipRefreshMs: number
+    /** When the projection was last read, in ms; never at first. */
+    private membershipReadAt = Number.NEGATIVE_INFINITY
     private connected = false
     private watchTimer: ReturnType<typeof setInterval> | null = null
     private pushTimer: ReturnType<typeof setTimeout> | null = null
@@ -223,11 +251,15 @@ export class RelayTransport implements ControllerTransport {
         this.pollIntervalMs = options.pollIntervalMs ?? 1_000
         this.commandTimeoutMs = options.commandTimeoutMs ?? 20_000
         this.watchRenewalMs = options.watchRenewalMs ?? 20_000
+        this.membershipRefreshMs = options.membershipRefreshMs ?? 30_000
     }
 
     async connect(): Promise<void> {
         // Without keys for this Home there is nothing to seal with.
-        await this.record()
+        const record = await this.record()
+        // Address the current identity epoch from the first request. An
+        // ended Membership surfaces on the first request instead.
+        await this.syncMembership(record, { force: true }).catch(() => {})
         this.connected = true
         this.watchTimer = setInterval(() => {
             void this.renewCapabilityWatch().catch(() => {
@@ -640,6 +672,67 @@ export class RelayTransport implements ControllerTransport {
         return record
     }
 
+    /**
+     * Reads the signed Membership routing projection and applies what it
+     * says once it verifies against the pinned Controller key: a newer
+     * identity epoch is saved, an ended Membership throws
+     * `membership_ended`. Anything unverifiable changes nothing.
+     */
+    private async syncMembership(
+        record: AccessClientRecord,
+        { force = false }: { force?: boolean } = {}
+    ): Promise<AccessClientRecord> {
+        const now = Date.now()
+        if (!force && now - this.membershipReadAt < this.membershipRefreshMs) {
+            return record
+        }
+        this.membershipReadAt = now
+        const { enrollment } = record
+        const projection = await readMembershipProjection(
+            () =>
+                this.convex.query(this.api.membership, {
+                    controllerId: this.controllerId,
+                    membershipId: enrollment.membershipId,
+                }),
+            enrollment
+        )
+        if (!projection) return record
+        if (projection.state === 'ended') {
+            throw new ApiError(
+                MEMBERSHIP_ENDED_ERROR_CODE,
+                'This Account is no longer a Member of this Home.'
+            )
+        }
+        const updated = epochFromProjection(enrollment, projection)
+        if (!updated) return record
+        const next = { keys: record.keys, enrollment: updated }
+        await this.keyStore.save(next)
+        return next
+    }
+
+    /** Sends a sealed request, explaining a refusal for want of a Membership. */
+    private async send(
+        record: AccessClientRecord,
+        sealed: SealedRequest,
+        deadline: number
+    ): Promise<void> {
+        try {
+            await this.settleBy(
+                this.convex.mutation(this.api.send, { sealed }),
+                deadline
+            )
+        } catch (error) {
+            if (convexErrorCode(error) !== NO_MEMBERSHIP_CODE) throw error
+            // Convex says this Account has no active Membership here. Only
+            // the Controller's signature can say it ended.
+            await this.syncMembership(record, { force: true })
+            throw new ApiError(
+                NO_MEMBERSHIP_CODE,
+                'The Relay does not route this Account to this Home yet.'
+            )
+        }
+    }
+
     private async request(message: RelayRequestMessage): Promise<RelayReply> {
         return (await this.exchange(message)).reply
     }
@@ -649,7 +742,7 @@ export class RelayTransport implements ControllerTransport {
         message: RelayRequestMessage
     ): Promise<RelayExchange> {
         const action = relayRequestMessageSchema.parse(message)
-        const record = await this.record()
+        let record = await this.syncMembership(await this.record())
         // Convex holds mutations while disconnected and sends them on
         // reconnect. A write must not happen later (ADR-0015).
         const write = !RELAY_READS.has(action.type)
@@ -687,10 +780,7 @@ export class RelayTransport implements ControllerTransport {
                 controllerEncryptionKey: enrollment.controllerEncryptionKey,
                 accessClientSigner: record.keys.signer,
             })
-            await this.settleBy(
-                this.convex.mutation(this.api.send, { sealed }),
-                deadline
-            )
+            await this.send(record, sealed, deadline)
             const reply = await this.waitForReply(
                 header,
                 keys,
@@ -708,8 +798,10 @@ export class RelayTransport implements ControllerTransport {
             if (fix?.identityEpoch !== undefined) {
                 // The Home moved to a new Controller identity epoch; the
                 // signed refusal says which. Address it from now on.
+                // The projection is the usual source; this is the backstop.
                 enrollment = { ...enrollment, identityEpoch: fix.identityEpoch }
-                await this.keyStore.save({ keys: record.keys, enrollment })
+                record = { keys: record.keys, enrollment }
+                await this.keyStore.save(record)
                 continue
             }
             if (fix?.highestCounter !== undefined) {
@@ -1025,4 +1117,18 @@ function refusalFix(
         default:
             return null
     }
+}
+
+/** The `code` a ConvexError carries in its data, if any. */
+function convexErrorCode(error: unknown): string | null {
+    if (error === null || typeof error !== 'object' || !('data' in error)) {
+        return null
+    }
+    const { data } = error as { data: unknown }
+    return data !== null &&
+        typeof data === 'object' &&
+        'code' in data &&
+        typeof data.code === 'string'
+        ? data.code
+        : null
 }

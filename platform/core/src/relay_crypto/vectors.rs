@@ -16,6 +16,7 @@ use super::envelope::{
 };
 use super::grant::{self, AccessGrant};
 use super::hpke;
+use super::projection::{self, SignedMembershipProjection};
 use super::replay::ReplayWindow;
 use super::session::{self, LocalSessionChallenge};
 
@@ -461,6 +462,45 @@ fn grants_issue_verify_and_reject() {
         let err = grant::verify_grant(s(&r["jws"]), controller_id, &keys.controller.signing_public)
             .unwrap_err();
         assert_eq!(err.to_string(), s(&r["expectedError"]), "{}", s(&r["name"]));
+    }
+}
+
+#[test]
+fn membership_projections_sign_verify_and_reject() {
+    let vectors = vectors();
+    let keys = keys(&vectors);
+    let controller_id = s(&vectors["pairing"]["accepted"]["controllerId"]);
+    for v in array(&vectors["membershipProjections"]) {
+        let expected: SignedMembershipProjection =
+            serde_json::from_value(v["signed"].clone()).unwrap();
+        let signed =
+            projection::sign_projection(expected.projection.clone(), &keys.controller.signing)
+                .unwrap();
+        assert_eq!(signed, expected, "{}", s(&v["name"]));
+        assert_eq!(
+            serde_json::to_value(&signed).unwrap(),
+            v["signed"],
+            "{}",
+            s(&v["name"])
+        );
+        let verified =
+            projection::verify_projection(&signed, controller_id, &keys.controller.signing_public)
+                .unwrap();
+        assert_eq!(verified, expected.projection);
+    }
+    for r in array(&vectors["rejections"]["membershipProjections"]) {
+        let err = match serde_json::from_value::<SignedMembershipProjection>(r["signed"].clone()) {
+            // An unknown field never deserializes: the TS twin calls it malformed.
+            Err(_) => "malformed".to_string(),
+            Ok(signed) => projection::verify_projection(
+                &signed,
+                controller_id,
+                &keys.controller.signing_public,
+            )
+            .unwrap_err()
+            .to_string(),
+        };
+        assert_eq!(err, s(&r["expectedError"]), "{}", s(&r["name"]));
     }
 }
 

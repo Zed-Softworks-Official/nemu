@@ -51,6 +51,10 @@ async fn run_relay_loop(state: AppState) {
 
     info!(%cloud_url, "relay client started");
     spawn_capability_pushes(state.clone(), site_url.clone());
+    crate::pairing::routing::spawn_publisher(
+        state.clone(),
+        crate::pairing::routing::HttpSink::new(&site_url, state.registration_secret.clone()),
+    );
 
     loop {
         match run_subscription_relay(&state, &site_url, &cloud_url).await {

@@ -311,6 +311,36 @@
             "jws": "eyJhbGciOiJFZERTQSIsInR5cCI6Im5lbXUtYWNjZXNzLWdyYW50K2p3dCJ9.eyJjb250cm9sbGVySWQiOiJuZW11XzAxMjM0NTY3ODlhYmNkZWYiLCJhY2Nlc3NDbGllbnRJZCI6ImFjXzdmM2EiLCJtZW1iZXJzaGlwSWQiOiJtZW1fNDIiLCJzaWduaW5nS2V5IjoidHY3LWF3aUp6LU5XLTV6bm9iRUV4X2JmaC1PTGN5bmlnd2ZtWVIyekZqSSIsImVuY3J5cHRpb25LZXkiOiJGTXRZajFQbVByZWpwcjhMX3NfYXNYZlZ5bHppQWFXNVR6VFp3V0dOWVhNIiwiaWF0IjoxODAwMDAwMDAwfQ.MFds3GRPPdgDykvRByLbjM1yVp0S9GqyIODKrd_VjGQXf3Ob_oP6mOsBnFlOayETOTEZZaIuG5dqvMFnDfNqDg"
         }
     ],
+    "membershipProjections": [
+        {
+            "name": "active Membership",
+            "signed": {
+                "projection": {
+                    "controllerId": "nemu_0123456789abcdef",
+                    "identityEpoch": 3,
+                    "membershipId": "mem_42",
+                    "accountId": "user_2abc",
+                    "state": "active",
+                    "sequence": 7
+                },
+                "signature": "ngkMGCcRY02XdFae8GISK8O8zx-1SDkGW3zLWFst-c0FxiBdb6GqZbN4Xp6t0bmluG7b8Sf_LS199OWiRUuCDw"
+            }
+        },
+        {
+            "name": "ended Membership",
+            "signed": {
+                "projection": {
+                    "controllerId": "nemu_0123456789abcdef",
+                    "identityEpoch": 3,
+                    "membershipId": "mem_42",
+                    "accountId": "user_2abc",
+                    "state": "ended",
+                    "sequence": 8
+                },
+                "signature": "s_AuCGZo7VaJnQ8svNMv69HUE29IHzcfY5ZrIob7dojGmjpGftFWKDEmRBN2MgMn0GcNNzjwmYhdxmbGjM_2AQ"
+            }
+        }
+    ],
     "localSessions": [
         {
             "name": "Local session challenge",
@@ -718,6 +748,114 @@
                 },
                 "acceptedCounters": [],
                 "expectedError": "bad_signature"
+            }
+        ],
+        "membershipProjections": [
+            {
+                "name": "signed by a key other than the Controller",
+                "signed": {
+                    "projection": {
+                        "controllerId": "nemu_0123456789abcdef",
+                        "identityEpoch": 3,
+                        "membershipId": "mem_42",
+                        "accountId": "user_2abc",
+                        "state": "active",
+                        "sequence": 7
+                    },
+                    "signature": "eLBti3ANXOISvHnB5ZgJw474HdZURE7cR3-H1sG7Ij4riDArtmop1IOBdsHf_dia1FNScg5cGNFMwBbnnaASCw"
+                },
+                "expectedError": "bad_signature"
+            },
+            {
+                "name": "signed by another Controller",
+                "signed": {
+                    "projection": {
+                        "controllerId": "nemu_fedcba9876543210",
+                        "identityEpoch": 3,
+                        "membershipId": "mem_42",
+                        "accountId": "user_2abc",
+                        "state": "active",
+                        "sequence": 7
+                    },
+                    "signature": "AP4umWWjpHpt0uvpotbDuEpBk4EysVyjc6S5j3kui1snzy9aQmIbnk4uVVN_CeEcxg_i5fTc68W8oHX4HT4QDw"
+                },
+                "expectedError": "wrong_controller"
+            },
+            {
+                "name": "with its state rewritten",
+                "signed": {
+                    "projection": {
+                        "controllerId": "nemu_0123456789abcdef",
+                        "identityEpoch": 3,
+                        "membershipId": "mem_42",
+                        "accountId": "user_2abc",
+                        "state": "ended",
+                        "sequence": 7
+                    },
+                    "signature": "ngkMGCcRY02XdFae8GISK8O8zx-1SDkGW3zLWFst-c0FxiBdb6GqZbN4Xp6t0bmluG7b8Sf_LS199OWiRUuCDw"
+                },
+                "expectedError": "bad_signature"
+            },
+            {
+                "name": "with its identity epoch rewritten",
+                "signed": {
+                    "projection": {
+                        "controllerId": "nemu_0123456789abcdef",
+                        "identityEpoch": 4,
+                        "membershipId": "mem_42",
+                        "accountId": "user_2abc",
+                        "state": "active",
+                        "sequence": 7
+                    },
+                    "signature": "ngkMGCcRY02XdFae8GISK8O8zx-1SDkGW3zLWFst-c0FxiBdb6GqZbN4Xp6t0bmluG7b8Sf_LS199OWiRUuCDw"
+                },
+                "expectedError": "bad_signature"
+            },
+            {
+                "name": "with its Account rewritten",
+                "signed": {
+                    "projection": {
+                        "controllerId": "nemu_0123456789abcdef",
+                        "identityEpoch": 3,
+                        "membershipId": "mem_42",
+                        "accountId": "user_evil",
+                        "state": "active",
+                        "sequence": 7
+                    },
+                    "signature": "ngkMGCcRY02XdFae8GISK8O8zx-1SDkGW3zLWFst-c0FxiBdb6GqZbN4Xp6t0bmluG7b8Sf_LS199OWiRUuCDw"
+                },
+                "expectedError": "bad_signature"
+            },
+            {
+                "name": "with an extra field",
+                "signed": {
+                    "projection": {
+                        "controllerId": "nemu_0123456789abcdef",
+                        "identityEpoch": 3,
+                        "membershipId": "mem_42",
+                        "accountId": "user_2abc",
+                        "state": "active",
+                        "sequence": 7,
+                        "role": "owner"
+                    },
+                    "signature": "ngkMGCcRY02XdFae8GISK8O8zx-1SDkGW3zLWFst-c0FxiBdb6GqZbN4Xp6t0bmluG7b8Sf_LS199OWiRUuCDw"
+                },
+                "expectedError": "malformed"
+            },
+            {
+                "name": "with a short signature",
+                "signed": {
+                    "projection": {
+                        "controllerId": "nemu_0123456789abcdef",
+                        "identityEpoch": 3,
+                        "membershipId": "mem_42",
+                        "accountId": "user_2abc",
+                        "state": "active",
+                        "sequence": 7
+                    },
+                    "signature": "ngkMGCcRY02XdFae8GISK8O8zx-1SDkGW3zLWFst"
+                },
+                "expectedError": "malformed"
             }
         ],
         "grants": [
