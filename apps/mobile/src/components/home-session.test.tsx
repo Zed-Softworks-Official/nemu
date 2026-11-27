@@ -46,10 +46,7 @@ function Session() {
             <Text>
                 Controlling {activeHome?.name} via {status.mode}
             </Text>
-            <Button
-                onPress={() => clearPairing()}
-                title="Forget on this phone"
-            />
+            <Button onPress={() => clearPairing()} title="Remove this phone" />
         </>
     )
 }
@@ -242,7 +239,7 @@ describe('Returning to a paired Home', () => {
         await screen.findByText('Controlling Lake House via lan')
 
         await fireEvent.press(
-            screen.getByRole('button', { name: 'Forget on this phone' })
+            screen.getByRole('button', { name: 'Remove this phone' })
         )
 
         await screen.findByRole('button', { name: 'Pair this phone' })

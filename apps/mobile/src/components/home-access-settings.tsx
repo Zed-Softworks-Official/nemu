@@ -32,14 +32,15 @@ export function HomeAccessSettings() {
             <View className="gap-3">
                 <Text accessibilityRole="alert" className="text-sm">
                     This phone can’t reach {home} on the Home network or
-                    remotely. Forgetting it only clears {home} from this phone.
+                    remotely. Removing it here only clears {home} from this
+                    phone.
                     {` ${home}`} still trusts this phone until an Owner revokes
                     it from the dashboard.
                 </Text>
                 <View className="flex-row">
                     <Button
                         onPress={() => clearPairing()}
-                        title="Forget on this phone"
+                        title="Remove this phone"
                         variant="destructive"
                     />
                 </View>

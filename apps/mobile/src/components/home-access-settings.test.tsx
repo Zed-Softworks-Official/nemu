@@ -180,13 +180,13 @@ describe.each([
             screen.queryByRole('button', { name: 'Pair this phone again' })
         ).toBeNull()
         expect(
-            screen.queryByRole('button', { name: 'Forget on this phone' })
+            screen.queryByRole('button', { name: 'Remove this phone' })
         ).toBeNull()
     })
 })
 
 describe('Settings when the Controller is unreachable over LAN and Relay', () => {
-    it('offers only Forget on this phone, with its warning', async () => {
+    it('offers only Remove this phone, with its warning', async () => {
         const controller = new FakeController({
             controllerId: 'lake',
             lanReachable: false,
@@ -195,7 +195,7 @@ describe('Settings when the Controller is unreachable over LAN and Relay', () =>
         const { paired } = await setup(controller)
 
         const forget = await screen.findByRole('button', {
-            name: 'Forget on this phone',
+            name: 'Remove this phone',
         })
         expect(
             screen.getByText(
