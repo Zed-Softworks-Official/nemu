@@ -33,7 +33,14 @@ export interface SessionOptions {
     allowTestCertificates: boolean
     /** UDP port the controller listens on; 0 lets the OS choose. */
     port?: number
+    /** BLE commissioning on this HCI adapter; leave out to stay on-network only. */
+    ble?: { hciId: number }
     log: Log
+}
+
+export interface WifiCredentials {
+    ssid: string
+    password: string
 }
 
 export interface CommissionRequest {
@@ -41,6 +48,11 @@ export interface CommissionRequest {
     code: string
     /** Aborting it cancels the attempt. */
     signal?: AbortSignal
+    /**
+     * Home Wi-Fi to give the Device. With it the attempt discovers over BLE as
+     * well as on the network; without it, on the network only.
+     */
+    wifi?: WifiCredentials
 }
 
 /** Attribute values that changed, keyed `endpoint/cluster/attribute`. */
@@ -55,6 +67,8 @@ export interface MatterSession {
     snapshot(nodeId: NodeId): AttributeSnapshot | undefined
     /** Whether a pairing code decodes, so a bad one is refused before the ack. */
     isPairingCode(code: string): boolean
+    /** Whether a Bluetooth adapter is ready for commissioning. */
+    bleAvailable(): boolean
     /** Commissions a Device onto the fabric and returns its node ID. */
     commission(request: CommissionRequest): Promise<NodeId>
     invoke(
@@ -125,16 +139,21 @@ class MatterJsSession implements MatterSession {
             join(this.options.dataDir, 'matter')
         )
         await this.#installTrustStore(environment)
+        const ble = await this.#installBle(environment)
         this.#node = await ServerNode.create(
             ServerNode.RootEndpoint.with(ControllerBehavior),
             {
                 id: 'nemu-matter',
                 network: { port: this.options.port ?? 5540 },
                 commissioning: { enabled: false },
-                controller: { adminFabricLabel: 'Nemu', ble: false },
+                controller: { adminFabricLabel: 'Nemu', ble },
             }
         )
         await this.#node.start()
+        if (ble && !this.bleAvailable())
+            this.options.log.warn(
+                'BLE failed to start; commissioning on-network only'
+            )
         void this.#streamChanges(this.#node)
     }
 
@@ -164,12 +183,28 @@ class MatterJsSession implements MatterSession {
         }
     }
 
+    bleAvailable(): boolean {
+        return this.#node?.stateOf(ControllerBehavior).ble === true
+    }
+
     async commission(request: CommissionRequest): Promise<NodeId> {
         const node = this.#requireNode()
         const identifier = decodePairingCode(request.code)
         let refusal: string | undefined
+        const overBle = request.wifi !== undefined && this.bleAvailable()
         const peer = await node.peers.commission({
             ...identifier,
+            ...(overBle && request.wifi
+                ? {
+                      // BLE and mDNS discovery run side by side; a Device
+                      // already on the network skips the Wi-Fi steps.
+                      discoveryCapabilities: { ble: true },
+                      wifiNetwork: {
+                          wifiSsid: request.wifi.ssid,
+                          wifiCredentials: request.wifi.password,
+                      },
+                  }
+                : {}),
             timeout: Seconds(120),
             abort: request.signal,
             onAttestationFailure: (findings: readonly Finding[]) => {
@@ -254,6 +289,29 @@ class MatterJsSession implements MatterSession {
                 this.options.log.error(
                     `matter state stream stopped: ${String(error)}`
                 )
+        }
+    }
+
+    /**
+     * Registers matter.js BLE (noble over HCI) when the host has an adapter.
+     * The import is dynamic so a host without Bluetooth never loads noble.
+     */
+    async #installBle(environment: Environment): Promise<boolean> {
+        const ble = this.options.ble
+        // matter.js also reads MATTER_BLE_ENABLE itself; this decision wins.
+        environment.vars.set('ble.enable', false)
+        if (!ble) return false
+        try {
+            await import('@matter/nodejs-ble')
+            environment.vars.set('ble.hci.id', ble.hciId)
+            environment.vars.set('ble.enable', true)
+            this.options.log.info(`BLE commissioning on hci${ble.hciId}`)
+            return true
+        } catch (error) {
+            this.options.log.warn(
+                `BLE is unavailable; commissioning on-network only: ${String(error)}`
+            )
+            return false
         }
     }
 

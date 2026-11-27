@@ -2,6 +2,7 @@
 import type { AttributeSnapshot } from '../attributes.ts'
 import {
     DEVICE_TYPE_AGGREGATOR,
+    DEVICE_TYPE_COLOR_TEMPERATURE_LIGHT,
     DEVICE_TYPE_DIMMABLE_LIGHT,
     DEVICE_TYPE_ON_OFF_PLUG,
     DEVICE_TYPE_ROOT_NODE,
@@ -46,4 +47,25 @@ export const BULB: AttributeSnapshot = {
     '1/29/0': deviceTypes(DEVICE_TYPE_DIMMABLE_LIGHT),
     '1/6/0': true,
     '1/8/0': 180,
+}
+
+/**
+ * The harness light as the matter.js session reports it: a color-temperature
+ * light at level 100 and 250 mireds, with the Device's own limits.
+ */
+export const HARNESS_LIGHT: AttributeSnapshot = {
+    '0/29/0': [{ deviceType: DEVICE_TYPE_ROOT_NODE, revision: 5 }],
+    '0/40/1': 'Nemu Harness',
+    '0/40/3': 'Harness Light',
+    '0/40/5': '',
+    '1/29/0': [
+        { deviceType: DEVICE_TYPE_COLOR_TEMPERATURE_LIGHT, revision: 4 },
+    ],
+    '1/6/0': false,
+    '1/8/0': 100,
+    '1/8/2': 1,
+    '1/8/3': 254,
+    '1/768/7': 250,
+    '1/768/16395': 200,
+    '1/768/16396': 400,
 }
