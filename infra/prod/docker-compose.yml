@@ -29,7 +29,7 @@ services:
   nemu-matter:
     image: ghcr.io/zed-softworks-official/nemu-matter:latest
     restart: unless-stopped
-    network_mode: host # mDNS + IPv6 + BlueZ, non-negotiable
+    network_mode: host # mDNS + IPv6 + Bluetooth, non-negotiable
     depends_on:
       - mosquitto
     environment:
@@ -39,6 +39,9 @@ services:
       MATTER_DATA_DIR: /data
       MATTER_PAA_DIR: /data/paa-roots
       MATTER_CD_DIR: /data/cd-roots
+      # TODO(NEM-113): matter.js drives Bluetooth over HCI, not BlueZ over
+      # D-Bus. Drop DBUS_SYSTEM_BUS_ADDRESS and the /run/dbus mount once the
+      # hardware spike confirms direct HCI in the container.
       DBUS_SYSTEM_BUS_ADDRESS: unix:path=/run/dbus/system_bus_socket
     security_opt:
       - apparmor:unconfined

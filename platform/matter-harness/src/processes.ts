@@ -129,20 +129,22 @@ export interface AdapterOptions {
     logFile: string
 }
 
-const RUST_ADAPTER = new URL(
-    '../../matter/target/release/nemu-matter',
+const MATTERJS_ADAPTER = new URL(
+    '../../matter-adapter/dist/main.js',
     import.meta.url
 ).pathname
 
 /**
  * The adapter under test. `MATTER_HARNESS_ADAPTER_CMD` is a shell command that
- * starts any adapter speaking the MQTT contract; by default it is the Rust
- * adapter's release build. The adapter receives the Controller's environment
- * variables, with test certificates accepted.
+ * starts any adapter speaking the MQTT contract; by default it is the matter.js
+ * adapter's build (`pnpm --filter @nemu/matter-adapter build`). The adapter
+ * receives the Controller's environment variables, with test certificates
+ * accepted.
  */
 export function adapterCommand(): string {
     return (
-        process.env.MATTER_HARNESS_ADAPTER_CMD ?? JSON.stringify(RUST_ADAPTER)
+        process.env.MATTER_HARNESS_ADAPTER_CMD ??
+        `node ${JSON.stringify(MATTERJS_ADAPTER)}`
     )
 }
 
@@ -167,7 +169,6 @@ export class Adapter implements Stoppable {
                 MATTER_CD_DIR: join(dataDir, 'cd-roots'),
                 // Dev/test only: accept the simulated Devices' test certificates.
                 MATTER_ALLOW_EXAMPLE_ROOTS: '1',
-                RUST_LOG: process.env.RUST_LOG ?? 'info',
                 NO_COLOR: '1',
             },
         })

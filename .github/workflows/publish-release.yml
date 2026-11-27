@@ -177,8 +177,9 @@ jobs:
       - name: Build nemu-matter
         uses: useblacksmith/build-push-action@v2
         with:
-          context: ./platform/matter
-          file: platform/matter/Dockerfile
+          # The repo root: the adapter uses the workspace package @nemu/protocol.
+          context: .
+          file: platform/matter-adapter/Dockerfile
           push: true
           platforms: ${{ matrix.platform }}
           tags: ${{ env.MATTER_IMAGE }}:${{ github.sha }}-${{ matrix.arch }}

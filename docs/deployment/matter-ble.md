@@ -19,11 +19,11 @@ At startup the adapter logs `BLE commissioning on hci<id>` when BLE is on. If no
 
 ## Container requirements (expected, unverified)
 
-1. **Host networking** (`network_mode: host`). The Rust adapter already needs it for mDNS and IPv6. Bluetooth sockets (`AF_BLUETOOTH`) aren't network-namespaced in the same way, so a host-network container should see the host's HCI adapters. The spike checks this.
+1. **Host networking** (`network_mode: host`). The Rust adapter needed it for mDNS and IPv6, and so does matter.js. Bluetooth sockets (`AF_BLUETOOTH`) aren't network-namespaced in the same way, so a host-network container should see the host's HCI adapters. The spike checks this.
 2. **Capabilities: `NET_ADMIN` and `NET_RAW`.** Both are in today's compose files. noble opens a raw HCI socket (`NET_RAW`) and may bring the adapter up or down (`NET_ADMIN`). Check whether `NET_ADMIN` is still needed once the adapter runs.
 3. **No device mount expected.** HCI adapters aren't `/dev` nodes. The host kernel registers them (`hciuart` for the Raspberry Pi's built-in Bluetooth, `btusb` for a USB dongle), and the container reaches them through the socket. Check that `/sys/class/bluetooth/hci0` is visible inside the container, because auto mode looks for it. If it isn't, set `MATTER_BLE_ENABLE=true`.
 4. **`security_opt: apparmor:unconfined`.** Today's compose files set it. Check whether the default Docker AppArmor profile blocks raw Bluetooth sockets. Keep it until the spike shows it isn't needed.
-5. **D-Bus mount can go.** `/run/dbus` and `DBUS_SYSTEM_BUS_ADDRESS` served the Rust adapter's BlueZ path. matter.js doesn't use D-Bus. Remove both in the cutover (NEM-121) once the spike confirms direct HCI works.
+5. **D-Bus mount can go.** `/run/dbus` and `DBUS_SYSTEM_BUS_ADDRESS` served the Rust adapter's BlueZ path. matter.js doesn't use D-Bus. The cutover (NEM-121) kept both, because the spike hadn't run; both compose files carry a `TODO(NEM-113)` to remove them once it confirms direct HCI works.
 6. **Image base: glibc.** noble, `bluetooth-hci-socket`, `usb` and `serialport` ship prebuilt native modules for glibc `linux-x64` and `linux-arm64`, and pnpm doesn't rebuild them (`allowBuilds: false` in `pnpm-workspace.yaml`). A Debian-slim Node image uses the prebuilds as they are. Alpine (musl) would need a build toolchain in the image.
 
 ## `bluetoothd` on the host (open question)

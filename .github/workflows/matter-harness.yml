@@ -1,31 +1,27 @@
 # Seam 1 of the Matter adapter (NEM-109): commissions simulated matter.js
-# Devices through the adapter under test, over MQTT only, and compares what it
-# publishes with the golden payloads recorded from the Rust adapter.
+# Devices through the matter.js adapter, over MQTT only, and compares what it
+# publishes with the golden payloads.
 #
 # Mosquitto runs in Docker. The simulated Devices and the adapter share the
 # runner's network, so mDNS discovery works as on a Controller host.
 #
-# The matter.js adapter replaces the Rust one ticket by ticket. Its job runs
-# only the steps it supports so far (MATTER_HARNESS_STEPS) and leaves out the
-# topics later tickets add (MATTER_HARNESS_IGNORE_TOPICS). Each ticket widens
-# that scope. Steps that must run for later ones but can't match yet are run
-# without being compared (MATTER_HARNESS_UNCHECKED_STEPS). The Rust job runs the
-# whole scenario and compares all of it except the deliberate fixes the golden
-# records over the Rust adapter.
+# The golden file was recorded from the Rust adapter before NEM-121 deleted it,
+# and is the frozen reference for the MQTT contract. It differs from the Rust
+# recording only in the deliberate fixes NEM-119 and NEM-121 made over Rust
+# (offline availability, Capability IDs kept across a restart). The job runs the
+# whole scenario and compares every step.
 
 name: Matter harness
 
 on:
   pull_request:
     paths:
-      - platform/matter/**
       - platform/matter-adapter/**
       - packages/protocol/**
       - platform/matter-harness/**
       - .github/workflows/matter-harness.yml
   push:
     paths:
-      - platform/matter/**
       - platform/matter-adapter/**
       - packages/protocol/**
       - platform/matter-harness/**
@@ -40,68 +36,6 @@ permissions:
   contents: read
 
 jobs:
-  rust-adapter:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          persist-credentials: false
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: 1.100.0
-
-      - name: Install the BLE build dependency
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libdbus-1-dev pkg-config
-
-      - name: Build the Rust adapter
-        run: cargo build --release --locked --manifest-path platform/matter/Cargo.toml
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Install the harness
-        run: pnpm install --frozen-lockfile --filter @nemu/matter-harness...
-
-      - name: Type-check and unit-test the harness
-        run: |
-          pnpm --filter @nemu/matter-harness check-types
-          pnpm --filter @nemu/matter-harness test
-
-      - name: Pull Mosquitto
-        run: docker pull eclipse-mosquitto:2.0.22
-
-      - name: Compare the Rust adapter with the golden payloads
-        env:
-          TMPDIR: ${{ runner.temp }}/matter-harness
-          # NEM-119: the golden has the plug publish offline, which the Rust
-          # adapter never does. NEM-121: the golden keeps the Capability IDs
-          # across a restart, which the Rust adapter loses.
-          MATTER_HARNESS_UNCHECKED_STEPS: plug-goes-offline,adapter-restarts
-        run: |
-          mkdir -p "$TMPDIR"
-          pnpm --filter @nemu/matter-harness harness
-
-      - name: Upload the run on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: matter-harness-rust-run
-          path: |
-            platform/matter-harness/.run/
-            ${{ runner.temp }}/matter-harness/
-          include-hidden-files: true
-          if-no-files-found: ignore
-
   matterjs-adapter:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -128,6 +62,11 @@ jobs:
           pnpm --filter @nemu/matter-adapter check-types
           pnpm --filter @nemu/matter-adapter test
 
+      - name: Type-check and unit-test the harness
+        run: |
+          pnpm --filter @nemu/matter-harness check-types
+          pnpm --filter @nemu/matter-harness test
+
       - name: Build the adapter
         run: pnpm --filter @nemu/matter-adapter build
 
@@ -138,11 +77,6 @@ jobs:
         env:
           TMPDIR: ${{ runner.temp }}/matter-harness
           MATTER_HARNESS_ADAPTER_CMD: node ${{ github.workspace }}/platform/matter-adapter/dist/main.js
-          # NEM-115: commission, on/off and health check. NEM-116: light brightness, color temp.
-          # NEM-118: Capabilities, observations and assigned Capability IDs.
-          # NEM-120: commission-cancel. NEM-119: rename, offline and recovery, remove, restart.
-          # NEM-117: strips.
-          MATTER_HARNESS_STEPS: adapter-starts,commission-plug,assign-plug-capability-ids,plug-on,plug-off,plug-load-changes,commission-light,light-on,light-brightness,light-brightness-below-minimum,light-brightness-above-maximum,light-color-temperature,light-color-temperature-above-maximum,light-off,rename-light,plug-goes-offline,plug-comes-back,health-check,commission-without-code,commission-cancel,remove-light,adapter-restarts,commission-strip,strip-outlet-2-on,strip-outlet-1-on,strip-all-off
         run: |
           mkdir -p "$TMPDIR"
           pnpm --filter @nemu/matter-harness harness
@@ -154,6 +88,9 @@ jobs:
         run: |
           mkdir -p "$TMPDIR"
           pnpm --filter @nemu/matter-harness harness:lifecycle
+
+      - name: Build the nemu-matter image
+        run: docker build --file platform/matter-adapter/Dockerfile --tag nemu-matter:ci .
 
       - name: Upload the run on failure
         if: failure()

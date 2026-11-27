@@ -755,8 +755,6 @@ importers:
 
   platform/core: {}
 
-  platform/matter: {}
-
   platform/matter-adapter:
     dependencies:
       '@matter/main':

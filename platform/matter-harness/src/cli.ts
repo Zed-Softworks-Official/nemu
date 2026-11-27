@@ -5,8 +5,12 @@
  *   node dist/cli.js            run and compare with the golden file
  *   node dist/cli.js --record   run and write the golden file
  *
+ * The golden file was recorded from the Rust adapter, which NEM-121 deleted,
+ * and is the frozen reference for the MQTT contract. Re-record it only for a
+ * deliberate payload change, and review the diff step by step.
+ *
  * MATTER_HARNESS_ADAPTER_CMD   shell command that starts the adapter
- *                              (default: the Rust adapter's release build)
+ *                              (default: the matter.js adapter's build)
  * MATTER_HARNESS_GOLDEN        golden file (default: golden/matter-mqtt.json)
  * MATTER_HARNESS_OUTPUT        where this run's normalised output is written
  * MATTER_HARNESS_MQTT_URL      use this broker instead of starting Mosquitto

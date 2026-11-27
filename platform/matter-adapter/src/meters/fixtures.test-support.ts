@@ -4,9 +4,10 @@ import { deviceTypes } from '../mapping/fixtures.test-support.ts'
 
 /**
  * The Rust adapter's `plug-under-load` fixture
- * (`platform/matter/fixtures/plug-under-load.json`), unchanged: ActivePower
- * reads 0 while RMSPower shows a 60 W load, and the energy record carries a
- * Device end timestamp.
+ * (`platform/matter/fixtures/plug-under-load.json`, deleted with the Rust
+ * adapter in NEM-121; see git history), unchanged: ActivePower reads 0 while
+ * RMSPower shows a 60 W load, and the energy record carries a Device end
+ * timestamp.
  */
 export const PLUG_UNDER_LOAD_FIXTURE: AttributeSnapshot = {
     '0/29/0': [{ '0': 22, '1': 1 }],
