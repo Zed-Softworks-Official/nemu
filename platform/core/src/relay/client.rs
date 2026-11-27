@@ -55,8 +55,6 @@ async fn run_relay_loop(state: AppState) {
         state.clone(),
         crate::pairing::routing::HttpSink::new(&site_url, state.registration_secret.clone()),
     );
-    // Commissioning progress stays on the LAN WebSocket for now. TODO(NEM-123):
-    // push it here as sealed Relay pushes on the capability watch path.
 
     loop {
         match run_subscription_relay(&state, &site_url, &cloud_url).await {
@@ -79,8 +77,9 @@ async fn run_relay_loop(state: AppState) {
     }
 }
 
-/// Seals every capability change for each live watch and posts the pushes
-/// to the mailbox one at a time, so they arrive in counter order.
+/// Seals every capability change and commissioning step for each live watch
+/// and posts the pushes to the mailbox one at a time, so they arrive in
+/// counter order.
 fn spawn_capability_pushes(state: AppState, site_url: String) {
     let (pushes, mut sealed) = mpsc::channel::<SealedPush>(PUSH_QUEUE);
     tokio::spawn(CapabilityPushes::new(state.clone()).run(pushes));

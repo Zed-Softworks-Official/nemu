@@ -794,3 +794,162 @@ async fn removing_a_member_ends_their_watches_at_once() {
     assert_eq!(sealed.len(), 1);
     assert_eq!(pushes_on(&sealed, &owner_watch).len(), 1);
 }
+
+// ---------------------------------------------------------------------------
+// Commissioning progress over Relay (NEM-123)
+
+use crate::commissioning_progress::{
+    CommissioningFailureReason, CommissioningProgress, CommissioningStep,
+    parse_commissioning_progress,
+};
+use crate::events::{DeviceEvent, InterviewStatus};
+
+/// Runs the push loop as the Relay client does, returning its sealed pushes.
+fn push_loop(home: &Home) -> tokio::sync::mpsc::Receiver<SealedPush> {
+    let (out, sealed) = tokio::sync::mpsc::channel(16);
+    tokio::spawn(CapabilityPushes::new(home.state().clone()).run(out));
+    sealed
+}
+
+async fn next_push(sealed: &mut tokio::sync::mpsc::Receiver<SealedPush>) -> SealedPush {
+    tokio::time::timeout(std::time::Duration::from_secs(5), sealed.recv())
+        .await
+        .expect("a push within 5 s")
+        .expect("the push loop is running")
+}
+
+/// What the adapter publishes on `bridge/commissioning`, as Core reads it.
+fn adapter_step(home: &Home, payload: Value) {
+    let progress = parse_commissioning_progress(&payload.to_string()).unwrap();
+    home.state().emit(DeviceEvent::CommissioningStep(progress));
+}
+
+#[tokio::test]
+#[ignore = "requires the isolated PostgreSQL database created by the verification script"]
+async fn commissioning_progress_is_sealed_on_the_capability_watch() {
+    let _home = crate::db::HOME_TABLES.lock().await;
+    let home = Home::new().await;
+    let mut owner = home.client("user_owner", "owner", 1).await;
+    let mut member = home.client("user_member", "member", 2).await;
+    let mut owner_watch = owner.watch(&home, "owner-w", None).await;
+    let mut member_watch = member.watch(&home, "member-w", None).await;
+    let mut sealed = push_loop(&home);
+
+    // The older events carry free text, so they stay on the LAN WebSocket.
+    home.state().emit(DeviceEvent::CommissionProgress {
+        stage: "wifi".into(),
+        message: Some("Sending your Wi-Fi details".into()),
+    });
+    home.state().emit(DeviceEvent::Interview {
+        external_id: "commissioning".into(),
+        status: InterviewStatus::Failed,
+        error: Some("Use the 2.4 GHz network".into()),
+        message: None,
+    });
+    adapter_step(&home, json!({ "status": "active", "step": "discovering" }));
+    adapter_step(
+        &home,
+        json!({ "status": "failed", "step": "configuring_network", "reason": "network_rejected" }),
+    );
+
+    let mut pushes = Vec::new();
+    for _ in 0..4 {
+        pushes.push(next_push(&mut sealed).await);
+    }
+    let on_owner = pushes_on(&pushes, &owner_watch);
+    let on_member = pushes_on(&pushes, &member_watch);
+    assert_eq!((on_owner.len(), on_member.len()), (2, 2));
+    // Each watch's own counter, as capability changes use.
+    assert_eq!(
+        on_owner
+            .iter()
+            .map(|p| p.header.counter)
+            .collect::<Vec<_>>(),
+        [1, 2]
+    );
+
+    // Convex sees the push header and opaque bytes, nothing of the step.
+    for push in &pushes {
+        let on_the_wire = serde_json::to_value(push).unwrap().to_string();
+        for clear in ["commissioningStep", "discovering", "configuring_network"] {
+            assert!(!on_the_wire.contains(clear), "{on_the_wire}");
+        }
+    }
+
+    let discovering =
+        json!({ "type": "commissioningStep", "status": "active", "step": "discovering" });
+    let failed = json!({
+        "type": "commissioningStep",
+        "status": "failed",
+        "step": "configuring_network",
+        "reason": "network_rejected",
+    });
+    for (client, watching, pushes) in [
+        (&owner, &mut owner_watch, &on_owner),
+        (&member, &mut member_watch, &on_member),
+    ] {
+        assert_eq!(client.open_push(watching, pushes[0]), discovering);
+        assert_eq!(client.open_push(watching, pushes[1]), failed);
+    }
+
+    // Progress and capability changes share the watch's counter.
+    let event = change(&home);
+    let next = CapabilityPushes::new(home.state().clone())
+        .seal(&event)
+        .await;
+    let next = pushes_on(&next, &owner_watch);
+    assert_eq!(next[0].header.counter, 3);
+    assert_eq!(
+        owner.open_push(&mut owner_watch, next[0]),
+        serde_json::to_value(&event).unwrap()
+    );
+}
+
+/// The privacy check of `commissioning_progress.rs`, carried through to the
+/// Relay: whatever the adapter publishes, a watch only ever opens a step,
+/// a status and a reason.
+#[tokio::test]
+#[ignore = "requires the isolated PostgreSQL database created by the verification script"]
+async fn no_pairing_code_passcode_or_wifi_credential_reaches_a_watch() {
+    let _home = crate::db::HOME_TABLES.lock().await;
+    let home = Home::new().await;
+    let mut client = home.client("user_owner", "owner", 1).await;
+    let mut watching = client.watch(&home, "w1", None).await;
+    let mut sealed = push_loop(&home);
+
+    let secrets = [
+        ("code", "34970112332"),
+        ("pairingCode", "MT:Y.K9042C00KA0648G00"),
+        ("passcode", "20202021"),
+        ("wifiSsid", "home-ssid"),
+        ("wifiPassword", "hunter2"),
+        ("message", "pairing code 34970112332 refused"),
+    ];
+    for (key, value) in secrets {
+        let mut payload = json!({ "status": "active", "step": "configuring_network" });
+        payload[key] = json!(value);
+        // Refused at the MQTT boundary, so never an event to push.
+        assert!(parse_commissioning_progress(&payload.to_string()).is_err());
+    }
+    for progress in [
+        CommissioningProgress::Active {
+            step: CommissioningStep::ConfiguringNetwork,
+        },
+        CommissioningProgress::Completed {},
+        CommissioningProgress::Failed {
+            step: CommissioningStep::ConfiguringNetwork,
+            reason: CommissioningFailureReason::NetworkRejected,
+        },
+    ] {
+        home.state().emit(DeviceEvent::CommissioningStep(progress));
+        let push = next_push(&mut sealed).await;
+        let opened = client.open_push(&mut watching, &push);
+        let mut keys: Vec<_> = opened.as_object().unwrap().keys().cloned().collect();
+        keys.retain(|key| !["type", "status", "step", "reason"].contains(&key.as_str()));
+        assert!(keys.is_empty(), "{opened}");
+        let text = format!("{opened}{}", serde_json::to_string(&push).unwrap());
+        for (_, secret) in secrets {
+            assert!(!text.contains(secret), "{text}");
+        }
+    }
+}
