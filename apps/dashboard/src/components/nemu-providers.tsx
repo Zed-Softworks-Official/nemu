@@ -17,13 +17,14 @@ import {
 import { useMemo } from 'react'
 
 import { env } from '~/env'
+import { dashboardKeyStore } from '~/lib/access-client-keys'
 
 const convex = new ConvexReactClient(
     env.NEXT_PUBLIC_CONVEX_URL.replace(/\/$/, '')
 )
 
-// Sealed envelopes only (ADR-0001): RelayTransport seals with this client's
-// Access Client keys, which NEM-130 stores on each platform.
+// Sealed envelopes only (ADR-0001): RelayTransport seals every request with
+// this browser's Access Client keys.
 const relayApi: RelayApi = {
     send: api.relay.send,
     responses: api.relay.responses,
@@ -54,6 +55,7 @@ function PairedControllerProvider(props: { children: React.ReactNode }) {
 
     return (
         <ControllerProvider
+            accessClientKeyStore={dashboardKeyStore}
             convex={convex}
             lanCandidates={lanCandidates}
             relayAllowed={isAuthenticated}
