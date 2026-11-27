@@ -3,6 +3,7 @@ import { test } from 'node:test'
 import {
     applyScope,
     FULL_SCOPE,
+    includesStep,
     includesTopic,
     isFullScope,
     type ScopedStep,
@@ -66,4 +67,22 @@ test('matches a whole topic or a topic leaf, not a substring', () => {
 test('names steps the scenario does not have', () => {
     const scope = scopeFromEnv({ MATTER_HARNESS_STEPS: 'plug-on,plug-onn' })
     assert.deepEqual(unknownSteps(scope, ['plug-on']), ['plug-onn'])
+})
+
+test('runs unchecked steps but leaves them out of the comparison', () => {
+    const scope = scopeFromEnv({
+        MATTER_HARNESS_UNCHECKED_STEPS: 'plug-load-changes',
+    })
+    assert.ok(!isFullScope(scope))
+    assert.ok(includesStep(scope, 'plug-load-changes'))
+    assert.deepEqual(
+        applyScope(run, scope).map((step) => step.step),
+        ['commission-plug']
+    )
+    assert.deepEqual(
+        unknownSteps(scopeFromEnv({ MATTER_HARNESS_UNCHECKED_STEPS: 'nope' }), [
+            'plug-on',
+        ]),
+        ['nope']
+    )
 })

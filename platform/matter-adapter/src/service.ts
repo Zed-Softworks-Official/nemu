@@ -5,6 +5,11 @@
  *
  * Device state is published only from what a Device reports, never from what
  * was requested, so a Command is confirmed only once the Device confirms it.
+ *
+ * Devices come back after a restart from the fabric in the data directory, and
+ * names from the name store beside it (ADR-0014). A Home backup quiesces the
+ * adapter by pausing its container (ADR-0013); every store is written
+ * atomically, so the paused data directory is always a consistent copy.
  */
 import type { DeviceState } from '@nemu/protocol'
 import type { NodeId } from './attributes.ts'
@@ -13,31 +18,49 @@ import {
     commandsForSet,
     deviceDescriptor,
     type EndpointDevice,
-    mapNode,
+    isPlaceholder,
+    mapNodeOrPlaceholder,
     stateForDevice,
     targetEndpoints,
 } from './mapping/index.ts'
 import type { AttributeChanges, MatterSession } from './matter/session.ts'
-import type { MqttBus } from './mqtt/bus.ts'
+import type { MqttBus, Online } from './mqtt/bus.ts'
 import { type Incoming, type Payload, transactionOf } from './mqtt/topics.ts'
+
+/** Names given by rename, by Device ID. `NameStore` persists them. */
+export interface Names {
+    get(id: string): string | undefined
+    set(id: string, name: string): Promise<void>
+    retainOnly(keep: ReadonlySet<string>): Promise<void>
+}
+
+export interface Stores {
+    names: Names
+}
 
 export class Service {
     /** Device ID to its Device. */
     #devices = new Map<string, EndpointDevice>()
     /** Last state published per Device ID, to skip unchanged republishes. */
     #published = new Map<string, string>()
-    /** Friendly names set by rename. TODO(NEM-119): persist in the name store. */
-    #names = new Map<string, string>()
+    /** Last availability published per Device ID. */
+    #availability = new Map<string, Online>()
+    /** Nodes being removed: their reports and reachability are ignored. */
+    #removed = new Set<NodeId>()
     #commissioning: AbortController | undefined
 
     constructor(
         private readonly session: MatterSession,
         private readonly bus: MqttBus,
-        private readonly log: Log
+        private readonly log: Log,
+        private readonly stores: Stores
     ) {
         bus.onRequest((incoming) => this.#handle(incoming))
         session.onAttributes((nodeId, changes) =>
             this.#onAttributes(nodeId, changes)
+        )
+        session.onReachability((nodeId, reachable) =>
+            this.#onReachability(nodeId, reachable)
         )
     }
 
@@ -52,15 +75,20 @@ export class Service {
         const descriptors = [...this.#devices.values()].map((device) =>
             deviceDescriptor(
                 device,
-                this.#names.get(device.id) ?? device.defaultName,
+                this.stores.names.get(device.id) ?? device.defaultName,
                 this.session.snapshot(device.nodeId) ?? {}
             )
         )
         await this.bus.devices(descriptors)
         for (const device of this.#devices.values()) {
             await this.#publishState(device, true)
-            // TODO(NEM-119): offline when the node is unreachable, online when it recovers.
-            await this.bus.availability(device.id, 'online')
+            // Unknown reachability (not yet connected) keeps the Rust answer.
+            const online =
+                this.session.reachable(device.nodeId) === false
+                    ? 'offline'
+                    : 'online'
+            if (await this.bus.availability(device.id, online))
+                this.#availability.set(device.id, online)
         }
     }
 
@@ -73,9 +101,11 @@ export class Service {
             case 'set':
                 return this.#set(incoming.deviceId, incoming.payload)
             case 'rename':
+                return this.#rename(incoming.payload)
             case 'remove':
+                return this.#remove(incoming.payload)
             case 'capabilityIds':
-                // TODO(NEM-118, NEM-119): Capability IDs, rename and remove.
+                // TODO(NEM-118): Capability IDs.
                 this.log.info(`${incoming.kind} is not handled yet`)
                 return
             case 'health':
@@ -119,6 +149,7 @@ export class Service {
                 signal: attempt.signal,
             })
             this.log.info(`commissioned node ${nodeId}`)
+            this.#removed.delete(nodeId)
             this.#index(nodeId)
             await this.publishInventory()
         } catch (error) {
@@ -146,6 +177,107 @@ export class Service {
         await this.bus.respond('commission/cancel', transactionOf(payload), {
             status: 'ok',
         })
+    }
+
+    /** Like the Rust adapter, rename sends no response. */
+    async #rename(payload: Payload): Promise<void> {
+        const { from, to } = payload
+        if (typeof from !== 'string' || typeof to !== 'string' || !to) return
+        // Persist first, so a published name is never lost to a crash.
+        await this.stores.names.set(from, to)
+        await this.publishInventory()
+    }
+
+    /**
+     * Removes the Device's node from the inventory at once, then from the
+     * fabric: decommissioned when it answers, forgotten when it does not, so a
+     * dead Device can't stay in the Home.
+     */
+    async #remove(payload: Payload): Promise<void> {
+        const transaction = transactionOf(payload)
+        const id = payload.id
+        if (typeof id !== 'string' || !id) {
+            await this.bus.respond('device/remove', transaction, {
+                status: 'error',
+                error: 'device id is required',
+            })
+            return
+        }
+        const nodeId =
+            this.#devices.get(id)?.nodeId ?? (/^\d+$/.test(id) ? id : undefined)
+        if (nodeId !== undefined) {
+            this.#removed.add(nodeId)
+            await this.#dropNode(nodeId)
+            try {
+                const outcome = await this.session.remove(nodeId)
+                this.log.info(`removed node ${nodeId} (${outcome})`)
+            } catch (error) {
+                this.log.warn(
+                    `removing node ${nodeId} failed: ${String(error)}`
+                )
+            }
+        }
+        await this.bus.respond('device/remove', transaction, {
+            status: 'ok',
+            data: { id },
+        })
+    }
+
+    async #dropNode(nodeId: NodeId): Promise<void> {
+        for (const [id, device] of [...this.#devices]) {
+            if (device.nodeId !== nodeId) continue
+            this.#devices.delete(id)
+            this.#published.delete(id)
+            this.#availability.delete(id)
+            // Core tombstones the Device on device_leave (ADR-0017).
+            await this.bus.event({
+                type: 'device_leave',
+                data: { ieee_address: id },
+            })
+            await this.bus.clearDevice(id)
+        }
+        await this.stores.names.retainOnly(new Set(this.#devices.keys()))
+        await this.publishInventory()
+    }
+
+    /**
+     * Offline when a node stops answering. When it answers again it is read
+     * afresh and the whole inventory is republished, as the Rust adapter does
+     * on recovery.
+     */
+    async #onReachability(nodeId: NodeId, reachable: boolean): Promise<void> {
+        if (this.#removed.has(nodeId)) return
+        const devices = this.#devicesOf(nodeId)
+        // A node still being commissioned is published when that finishes.
+        if (devices.length === 0) return
+        if (!reachable) {
+            for (const device of devices)
+                await this.#publishAvailability(device.id, 'offline')
+            return
+        }
+        const recovered = devices.some(
+            (device) => this.#availability.get(device.id) === 'offline'
+        )
+        if (this.#reindex(nodeId) || recovered) await this.publishInventory()
+    }
+
+    /** Re-maps a node and says whether its Devices changed. */
+    #reindex(nodeId: NodeId): boolean {
+        const before = JSON.stringify(this.#devicesOf(nodeId))
+        this.#index(nodeId)
+        return JSON.stringify(this.#devicesOf(nodeId)) !== before
+    }
+
+    async #publishAvailability(id: string, online: Online): Promise<void> {
+        if (this.#availability.get(id) === online) return
+        if (await this.bus.availability(id, online))
+            this.#availability.set(id, online)
+    }
+
+    #devicesOf(nodeId: NodeId): EndpointDevice[] {
+        return [...this.#devices.values()].filter(
+            (device) => device.nodeId === nodeId
+        )
     }
 
     async #set(deviceId: string, payload: Payload): Promise<void> {
@@ -188,6 +320,16 @@ export class Service {
         nodeId: NodeId,
         _changes: AttributeChanges
     ): Promise<void> {
+        if (this.#removed.has(nodeId)) return
+        // A placeholder (a node restored before its attributes were stored)
+        // becomes its real Devices with the first report that maps.
+        if (
+            this.#devicesOf(nodeId).some(isPlaceholder) &&
+            this.#reindex(nodeId)
+        ) {
+            await this.publishInventory()
+            return
+        }
         for (const device of this.#devices.values()) {
             if (device.nodeId === nodeId)
                 await this.#publishState(device, false)
@@ -207,14 +349,18 @@ export class Service {
             this.#published.set(device.id, serialised)
     }
 
-    /** Maps a node's snapshot to its Devices, replacing what it was before. */
+    /**
+     * Maps a node's snapshot to its Devices, replacing what it was before. A
+     * node in the fabric always has at least a placeholder Device, so one that
+     * failed late in commissioning still shows up in the Home.
+     */
     #index(nodeId: NodeId): void {
         for (const [id, device] of this.#devices) {
             if (device.nodeId === nodeId) this.#devices.delete(id)
         }
         const snapshot = this.session.snapshot(nodeId)
         if (!snapshot) return
-        for (const device of mapNode(nodeId, snapshot))
+        for (const device of mapNodeOrPlaceholder(nodeId, snapshot))
             this.#devices.set(device.id, device)
     }
 }

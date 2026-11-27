@@ -11,4 +11,9 @@ export {
 } from './commands.ts'
 export { deviceDescriptor } from './descriptor.ts'
 export { type DeviceKind, type EndpointDevice, mapNode } from './node.ts'
+export {
+    isPlaceholder,
+    mapNodeOrPlaceholder,
+    placeholderDevice,
+} from './placeholder.ts'
 export { stateForDevice } from './state.ts'

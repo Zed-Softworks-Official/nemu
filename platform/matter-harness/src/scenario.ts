@@ -28,7 +28,12 @@ interface Step {
 }
 
 const QUIET_MS = Number(process.env.MATTER_HARNESS_QUIET_MS ?? 3_000)
-const OFFLINE_MS = Number(process.env.MATTER_HARNESS_OFFLINE_MS ?? 45_000)
+/**
+ * How long the plug stays off. matter.js notices a silent node only when its
+ * subscription times out (up to about 70 s with the adapter's 20 s ceiling), so
+ * a shorter outage would end before the plug could show as unavailable.
+ */
+const OFFLINE_MS = Number(process.env.MATTER_HARNESS_OFFLINE_MS ?? 90_000)
 
 const latest = (messages: readonly Received[], topic: string): unknown => {
     for (let index = messages.length - 1; index >= 0; index -= 1) {

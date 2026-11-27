@@ -8,6 +8,12 @@
  *   MATTER_HARNESS_IGNORE_TOPICS  comma-separated topics or topic leaves left
  *                                 out of the comparison, for example
  *                                 `capabilities,observations`
+ *   MATTER_HARNESS_UNCHECKED_STEPS
+ *                                 comma-separated steps that run, because later
+ *                                 steps need them, but are not compared: a step
+ *                                 another ticket still has to make match, or one
+ *                                 where the golden records a deliberate fix the
+ *                                 adapter under test does not have
  *
  * Recording (`--record`) always runs the whole scenario.
  */
@@ -17,6 +23,8 @@ export interface Scope {
     steps?: ReadonlySet<string>
     /** A topic is left out when it equals one of these or ends in `/<entry>`. */
     ignoredTopics: readonly string[]
+    /** Steps that run but are left out of the comparison. */
+    uncheckedSteps?: ReadonlySet<string>
 }
 
 export const FULL_SCOPE: Scope = { ignoredTopics: [] }
@@ -32,14 +40,20 @@ function list(raw: string | undefined): string[] {
 
 export function scopeFromEnv(env: Env): Scope {
     const steps = list(env.MATTER_HARNESS_STEPS)
+    const unchecked = list(env.MATTER_HARNESS_UNCHECKED_STEPS)
     const scope: Scope = {
         ignoredTopics: list(env.MATTER_HARNESS_IGNORE_TOPICS),
     }
+    if (unchecked.length > 0) scope.uncheckedSteps = new Set(unchecked)
     return steps.length > 0 ? { ...scope, steps: new Set(steps) } : scope
 }
 
 export function isFullScope(scope: Scope): boolean {
-    return scope.steps === undefined && scope.ignoredTopics.length === 0
+    return (
+        scope.steps === undefined &&
+        scope.ignoredTopics.length === 0 &&
+        (scope.uncheckedSteps?.size ?? 0) === 0
+    )
 }
 
 export function includesStep(scope: Scope, step: string): boolean {
@@ -63,7 +77,11 @@ export function applyScope<T extends ScopedStep>(
     scope: Scope
 ): T[] {
     return steps
-        .filter((step) => includesStep(scope, step.step))
+        .filter(
+            (step) =>
+                includesStep(scope, step.step) &&
+                !scope.uncheckedSteps?.has(step.step)
+        )
         .map((step) => ({
             ...step,
             messages: Object.fromEntries(
@@ -76,5 +94,7 @@ export function applyScope<T extends ScopedStep>(
 
 /** Names in the scope that the scenario does not have, so a typo fails loudly. */
 export function unknownSteps(scope: Scope, known: readonly string[]): string[] {
-    return [...(scope.steps ?? [])].filter((step) => !known.includes(step))
+    return [...(scope.steps ?? []), ...(scope.uncheckedSteps ?? [])].filter(
+        (step) => !known.includes(step)
+    )
 }

@@ -10,7 +10,8 @@
  * MATTER_HARNESS_GOLDEN        golden file (default: golden/matter-mqtt.json)
  * MATTER_HARNESS_OUTPUT        where this run's normalised output is written
  * MATTER_HARNESS_MQTT_URL      use this broker instead of starting Mosquitto
- * MATTER_HARNESS_STEPS, MATTER_HARNESS_IGNORE_TOPICS
+ * MATTER_HARNESS_STEPS, MATTER_HARNESS_IGNORE_TOPICS,
+ * MATTER_HARNESS_UNCHECKED_STEPS
  *                              check only part of the scenario (see scope.ts)
  */
 import assert from 'node:assert/strict'
@@ -62,7 +63,7 @@ async function main(): Promise<number> {
     }
     if (!isFullScope(scope))
         log(
-            `partial run: steps ${[...(scope.steps ?? ['(all)'])].join(', ')}; ignoring topics ${scope.ignoredTopics.join(', ') || '(none)'}`
+            `partial run: steps ${[...(scope.steps ?? ['(all)'])].join(', ')}; ignoring topics ${scope.ignoredTopics.join(', ') || '(none)'}; not comparing ${[...(scope.uncheckedSteps ?? [])].join(', ') || '(none)'}`
         )
     const runDir = await mkdtemp(join(tmpdir(), 'nemu-matter-harness-'))
     log(`run directory ${runDir}`)

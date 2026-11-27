@@ -99,4 +99,9 @@ describe('Protocol adapter bridge payloads', () => {
         }
         assert.deepEqual(bridgeEventSchema.parse(event), event)
     })
+
+    it('reads a device_leave event naming the removed Device', () => {
+        const event = { type: 'device_leave', data: { ieee_address: '3' } }
+        assert.deepEqual(bridgeEventSchema.parse(event), event)
+    })
 })

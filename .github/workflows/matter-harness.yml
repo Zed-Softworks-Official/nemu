@@ -8,7 +8,10 @@
 # The matter.js adapter replaces the Rust one ticket by ticket. Its job runs
 # only the steps it supports so far (MATTER_HARNESS_STEPS) and leaves out the
 # topics later tickets add (MATTER_HARNESS_IGNORE_TOPICS). Each ticket widens
-# that scope; the Rust job always runs the whole scenario.
+# that scope. Steps that must run for later ones but can't match yet are run
+# without being compared (MATTER_HARNESS_UNCHECKED_STEPS). The Rust job runs the
+# whole scenario and compares all of it except the deliberate fixes the golden
+# records over the Rust adapter.
 
 name: Matter harness
 
@@ -80,6 +83,9 @@ jobs:
       - name: Compare the Rust adapter with the golden payloads
         env:
           TMPDIR: ${{ runner.temp }}/matter-harness
+          # NEM-119: the golden has the plug publish offline, which the Rust
+          # adapter never does.
+          MATTER_HARNESS_UNCHECKED_STEPS: plug-goes-offline
         run: |
           mkdir -p "$TMPDIR"
           pnpm --filter @nemu/matter-harness harness
@@ -131,13 +137,25 @@ jobs:
         env:
           TMPDIR: ${{ runner.temp }}/matter-harness
           MATTER_HARNESS_ADAPTER_CMD: node ${{ github.workspace }}/platform/matter-adapter/dist/main.js
-          # NEM-115: commission, on/off and health check.
-          MATTER_HARNESS_STEPS: adapter-starts,commission-plug,plug-on,plug-off,health-check,commission-without-code
+          # NEM-115: commission, on/off and health check. NEM-119: rename,
+          # offline and recovery, cancel and remove.
+          MATTER_HARNESS_STEPS: adapter-starts,commission-plug,plug-on,plug-off,commission-light,rename-light,plug-goes-offline,plug-comes-back,health-check,commission-without-code,commission-cancel,remove-light
           # NEM-118 adds Capabilities and observations.
           MATTER_HARNESS_IGNORE_TOPICS: capabilities,observations
+          # NEM-116 adds the light's brightness and color temperature, which
+          # these steps publish.
+          MATTER_HARNESS_UNCHECKED_STEPS: commission-light,rename-light,plug-comes-back
         run: |
           mkdir -p "$TMPDIR"
           pnpm --filter @nemu/matter-harness harness
+
+      - name: Restart, restore and remove with the matter.js adapter
+        env:
+          TMPDIR: ${{ runner.temp }}/matter-harness
+          MATTER_HARNESS_ADAPTER_CMD: node ${{ github.workspace }}/platform/matter-adapter/dist/main.js
+        run: |
+          mkdir -p "$TMPDIR"
+          pnpm --filter @nemu/matter-harness harness:lifecycle
 
       - name: Upload the run on failure
         if: failure()

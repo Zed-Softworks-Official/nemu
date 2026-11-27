@@ -100,6 +100,24 @@ export class MqttBus {
         return this.#publish('bridge/event', bridgeEventSchema, event, false)
     }
 
+    /** Clears a removed Device's retained topics. */
+    async clearDevice(id: string): Promise<void> {
+        for (const rest of [
+            id,
+            `${id}/availability`,
+            `${id}/capabilities`,
+            `${id}/observations`,
+        ]) {
+            try {
+                await this.transport.publish(`${this.base}/${rest}`, '', {
+                    retain: true,
+                })
+            } catch (error) {
+                this.log.warn(`clearing ${rest} failed: ${String(error)}`)
+            }
+        }
+    }
+
     async #receive(topic: string, payload: string): Promise<void> {
         const incoming = parseIncoming(this.base, topic, payload)
         if (!incoming) return

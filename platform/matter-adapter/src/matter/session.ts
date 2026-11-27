@@ -13,7 +13,11 @@ import {
     Seconds,
     ServerNode,
 } from '@matter/main'
-import { ControllerBehavior, StateStream } from '@matter/main/node'
+import {
+    ControllerBehavior,
+    NodeConnectionState,
+    StateStream,
+} from '@matter/main/node'
 import { DclCertificateService } from '@matter/main/protocol'
 import { ManualPairingCodeCodec, QrPairingCodeCodec } from '@matter/main/types'
 import {
@@ -68,7 +72,33 @@ export interface MatterSession {
     onAttributes(
         listener: (nodeId: NodeId, changes: AttributeChanges) => void
     ): void
+    /**
+     * Whether the node answers: true once connected, false once a connection
+     * was lost or never came, undefined before the first attempt settles.
+     */
+    reachable(nodeId: NodeId): boolean | undefined
+    /** Each time a node becomes reachable or unreachable. */
+    onReachability(listener: (nodeId: NodeId, reachable: boolean) => void): void
+    /**
+     * Takes the node off the fabric. A reachable node is decommissioned; one
+     * that is unreachable, or does not confirm, is forgotten locally (it may
+     * then need a factory reset to join another fabric).
+     */
+    remove(nodeId: NodeId): Promise<'decommissioned' | 'forgotten'>
 }
+
+/** How long a reachable node gets to confirm it left the fabric. */
+const DECOMMISSION_TIMEOUT_MS = 20_000
+
+/**
+ * The longest a node may stay silent on its subscription. matter.js notices a
+ * node is gone only when the subscription times out (this plus two response
+ * times), and its default for a Wi-Fi node is a minute or more. A mains-powered
+ * Device that reboots within that window resumes its subscription unnoticed,
+ * so it would never show as unavailable (user stories 16 and 17).
+ */
+const SUBSCRIPTION_CEILING = Seconds(20)
+const DEFAULT_SUBSCRIPTION = { maxIntervalCeiling: SUBSCRIPTION_CEILING }
 
 export class PairingCodeError extends Error {}
 
@@ -114,6 +144,9 @@ class MatterJsSession implements MatterSession {
     #node: Controller | undefined
     #abort = new AbortController()
     #listeners: ((nodeId: NodeId, changes: AttributeChanges) => void)[] = []
+    #reachabilityListeners: ((nodeId: NodeId, reachable: boolean) => void)[] =
+        []
+    #watched = new WeakSet<Peer>()
 
     constructor(private readonly options: SessionOptions) {}
 
@@ -135,6 +168,11 @@ class MatterJsSession implements MatterSession {
             }
         )
         await this.#node.start()
+        for (const peer of this.#node.peers) {
+            this.#watch(peer)
+            await this.#useDefaultSubscription(peer)
+        }
+        this.#node.peers.added.on((peer) => this.#watch(peer))
         void this.#streamChanges(this.#node)
     }
 
@@ -172,6 +210,8 @@ class MatterJsSession implements MatterSession {
             ...identifier,
             timeout: Seconds(120),
             abort: request.signal,
+            // Options rather than a built request; matter.js merges them.
+            defaultSubscription: DEFAULT_SUBSCRIPTION as AnyEndpoint,
             onAttestationFailure: (findings: readonly Finding[]) => {
                 const decision = attestationDecision(
                     findings,
@@ -228,6 +268,65 @@ class MatterJsSession implements MatterSession {
         listener: (nodeId: NodeId, changes: AttributeChanges) => void
     ): void {
         this.#listeners.push(listener)
+    }
+
+    reachable(nodeId: NodeId): boolean | undefined {
+        const peer = this.#peer(nodeId)
+        return peer ? reachability(peer.lifecycle.connectionState) : false
+    }
+
+    onReachability(
+        listener: (nodeId: NodeId, reachable: boolean) => void
+    ): void {
+        this.#reachabilityListeners.push(listener)
+    }
+
+    async remove(nodeId: NodeId): Promise<'decommissioned' | 'forgotten'> {
+        const peer = this.#peer(nodeId)
+        if (!peer) return 'forgotten'
+        if (peer.lifecycle.isConnected) {
+            try {
+                await withTimeout(peer.decommission(), DECOMMISSION_TIMEOUT_MS)
+                return 'decommissioned'
+            } catch (error) {
+                this.options.log.warn(
+                    `node ${nodeId} did not confirm leaving the fabric (${String(error)}); forgetting it`
+                )
+            }
+        }
+        if (this.#peer(nodeId)) await peer.delete()
+        return 'forgotten'
+    }
+
+    /** Nodes commissioned before the ceiling was set get it on start. */
+    async #useDefaultSubscription(peer: Peer): Promise<void> {
+        const network = (peer as AnyEndpoint).state.network
+        const current = network?.defaultSubscription?.maxIntervalCeiling
+        if (current === SUBSCRIPTION_CEILING) return
+        try {
+            await (peer as AnyEndpoint).set({
+                network: { defaultSubscription: DEFAULT_SUBSCRIPTION },
+            })
+        } catch (error) {
+            this.options.log.warn(
+                `cannot set node ${nodeIdOf(peer)}'s subscription: ${String(error)}`
+            )
+        }
+    }
+
+    #watch(peer: Peer): void {
+        if (this.#watched.has(peer)) return
+        this.#watched.add(peer)
+        peer.lifecycle.connectionStateChanged.on((state) => {
+            const nodeId = nodeIdOf(peer)
+            const reachable = reachability(state)
+            this.options.log.info(
+                `node ${nodeId ?? '?'} is ${NodeConnectionState[state]}`
+            )
+            if (nodeId === undefined || reachable === undefined) return
+            for (const listener of this.#reachabilityListeners)
+                listener(nodeId, reachable)
+        })
     }
 
     async #streamChanges(node: Controller): Promise<void> {
@@ -319,6 +418,30 @@ async function derFiles(dir: string): Promise<Uint8Array[]> {
             async (name) => new Uint8Array(await readFile(join(dir, name)))
         )
     )
+}
+
+/** Disconnected means not started yet (or disabled), so it says nothing. */
+function reachability(state: NodeConnectionState): boolean | undefined {
+    if (state === NodeConnectionState.Connected) return true
+    if (state === NodeConnectionState.Disconnected) return undefined
+    return false
+}
+
+async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+    let timer: NodeJS.Timeout | undefined
+    try {
+        return await Promise.race([
+            promise,
+            new Promise<never>((_, reject) => {
+                timer = setTimeout(
+                    () => reject(new Error(`timed out after ${ms} ms`)),
+                    ms
+                )
+            }),
+        ])
+    } finally {
+        clearTimeout(timer)
+    }
 }
 
 function nodeIdOf(peer: Peer): NodeId | undefined {

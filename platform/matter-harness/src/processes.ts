@@ -174,6 +174,18 @@ export class Adapter implements Stoppable {
         logTo(this.#child, this.options.logFile)
     }
 
+    /**
+     * Freezes the adapter, as `docker compose pause` does when a Home backup
+     * quiesces it (ADR-0013), and thaws it again.
+     */
+    pause(): void {
+        this.#child?.kill('SIGSTOP')
+    }
+
+    resume(): void {
+        this.#child?.kill('SIGCONT')
+    }
+
     async stop(): Promise<void> {
         if (this.#child) await stopChild(this.#child)
         this.#child = undefined

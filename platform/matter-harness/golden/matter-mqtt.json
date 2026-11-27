@@ -867,7 +867,13 @@
         },
         {
             "step": "plug-goes-offline",
-            "messages": {}
+            "messages": {
+                "<plug>/availability": [
+                    {
+                        "state": "offline"
+                    }
+                ]
+            }
         },
         {
             "step": "plug-comes-back",
