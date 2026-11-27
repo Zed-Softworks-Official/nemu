@@ -38,12 +38,13 @@ use crate::state::AppState;
 /// Controller instance.
 pub const INITIAL_IDENTITY_EPOCH: u64 = 1;
 
-/// The settings key a Home restore will bump (not built yet).
-const IDENTITY_EPOCH_SETTING: &str = "identity_epoch";
+/// The settings key a Home restore will bump (not built yet). Changing it
+/// republishes every Membership routing projection (`pairing::routing`).
+pub(crate) const IDENTITY_EPOCH_SETTING: &str = "identity_epoch";
 
-/// The Controller's current identity epoch. Access Clients learn it from a
-/// signed `retired_epoch` reply until the signed Membership routing
-/// projection carries it (see the NEM-129 notes).
+/// The Controller's current identity epoch. Access Clients learn it from
+/// the signed Membership routing projection, with the signed
+/// `retired_epoch` reply as a backstop.
 pub async fn current_identity_epoch(state: &AppState) -> Result<u64, String> {
     let conn = state
         .db

@@ -22,3 +22,5 @@ pub mod zigbee;
 
 #[cfg(test)]
 mod local_access_tests;
+#[cfg(test)]
+mod routing_tests;

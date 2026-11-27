@@ -31,9 +31,9 @@ use crate::relay_crypto::session::{LocalSessionChallenge, sign_challenge};
 use crate::relay_crypto::wire::{b64url_decode, b64url_encode};
 use crate::state::{AppState, DbPool, HealthFlags};
 
-const CONTROLLER_ID: &str = "nemu_00000000feedbeef";
+pub(super) const CONTROLLER_ID: &str = "nemu_00000000feedbeef";
 
-async fn empty_home() -> DbPool {
+pub(super) async fn empty_home() -> DbPool {
     let pool = crate::db::test_pool();
     let conn = pool.get().await.unwrap();
     conn.interact(|conn| {
@@ -89,19 +89,19 @@ pub(crate) fn app_state(pool: DbPool) -> AppState {
     }
 }
 
-struct Home {
-    state: AppState,
+pub(super) struct Home {
+    pub(super) state: AppState,
     app: Router,
 }
 
 impl Home {
-    async fn new() -> Self {
+    pub(super) async fn new() -> Self {
         let state = app_state(empty_home().await);
         let app = crate::api::router::router(state.clone());
         Self { state, app }
     }
 
-    async fn call(
+    pub(super) async fn call(
         &self,
         method: &str,
         path: &str,
@@ -132,11 +132,11 @@ impl Home {
         (status, body)
     }
 
-    async fn pairing_code(&self) -> String {
+    pub(super) async fn pairing_code(&self) -> String {
         mint_pairing_code(&self.state.db).await.unwrap().code
     }
 
-    async fn member(
+    pub(super) async fn member(
         &self,
         user_id: Option<&str>,
         email: &str,
@@ -164,11 +164,11 @@ impl Home {
 }
 
 /// An Access Client: its keys, and what pairing gave it.
-struct Client {
+pub(super) struct Client {
     signing: SigningKey,
     keys: PartyKeys,
-    access_client_id: String,
-    membership_id: String,
+    pub(super) access_client_id: String,
+    pub(super) membership_id: String,
     grant: String,
     pinned: PartyKeys,
 }
@@ -182,7 +182,7 @@ fn new_keys(seed: u8) -> (SigningKey, PartyKeys) {
     (signing, keys)
 }
 
-fn identity_body(user_id: &str, email: &str) -> Value {
+pub(super) fn identity_body(user_id: &str, email: &str) -> Value {
     json!({ "clientLabel": "phone", "userId": user_id, "email": email })
 }
 
@@ -288,11 +288,14 @@ async fn try_pair(
     try_pair_with(home, code, "pairingCode", seed, identity).await
 }
 
-async fn pair(home: &Home, code: &str, seed: u8, identity: Value) -> Client {
+pub(super) async fn pair(home: &Home, code: &str, seed: u8, identity: Value) -> Client {
     try_pair(home, code, seed, identity).await.unwrap()
 }
 
-async fn open_session(home: &Home, client: &Client) -> Result<String, (StatusCode, String)> {
+pub(super) async fn open_session(
+    home: &Home,
+    client: &Client,
+) -> Result<String, (StatusCode, String)> {
     let (_, challenge) = home
         .call("POST", "/api/local-sessions/challenge", None, None)
         .await;
