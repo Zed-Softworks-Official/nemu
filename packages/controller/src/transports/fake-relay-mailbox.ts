@@ -3,6 +3,7 @@ import {
     EMPTY_REPLAY_WINDOW,
     ed25519PublicKey,
     ed25519Signer,
+    type MembershipProjection,
     openRequest,
     pushHeaderFor,
     RelayCryptoError,
@@ -15,8 +16,10 @@ import {
     type SealedPush,
     type SealedRequest,
     type SealedResponse,
+    type SignedMembershipProjection,
     sealPush,
     sealResponse,
+    signMembershipProjection,
     utf8Decode,
     utf8Encode,
     x25519PublicKey,
@@ -45,6 +48,7 @@ export const FAKE_RELAY_API = {
     send: 'relay:send',
     responses: 'relay:responses',
     acknowledge: 'relay:acknowledge',
+    membership: 'relay:membership',
 } as unknown as RelayApi
 
 export const FAKE_HOME_ID = 'nemu_00000000feedbeef'
@@ -92,6 +96,14 @@ export class FakeRelayMailbox {
     /** Signs replies with another key (an impostor Controller). */
     impostor = false
     failAcknowledge = false
+    /**
+     * The signed Membership routing projection Convex holds for this
+     * Access Client's Membership (NEM-133), or none. Convex routes `send`
+     * on it: without an active one, `send` is refused with `no_membership`.
+     */
+    projection: SignedMembershipProjection | null = null
+    /** Reads of `relay:membership`, by Membership ID. */
+    readonly membershipReads: string[] = []
     answer: FakeAnswer
     /** Live capability watches, oldest first. */
     readonly watches: FakeWatch[] = []
@@ -133,6 +145,34 @@ export class FakeRelayMailbox {
             },
         })
         return keys
+    }
+
+    /**
+     * Publishes a signed projection for the paired Membership, as Core's
+     * outbox does, signed by the Controller (or the impostor key).
+     */
+    async publishMembership(
+        overrides: Partial<MembershipProjection> = {},
+        { impostor = false }: { impostor?: boolean } = {}
+    ): Promise<SignedMembershipProjection> {
+        const signed = await signMembershipProjection(
+            {
+                controllerId: FAKE_HOME_ID,
+                identityEpoch: this.identityEpoch,
+                membershipId: 'membership-1',
+                accountId: 'user-1',
+                state: 'active',
+                sequence: (this.projection?.projection.sequence ?? 0) + 1,
+                ...overrides,
+            },
+            ed25519Signer(
+                impostor
+                    ? new Uint8Array(32).fill(9)
+                    : this.controllerSigningSecret
+            )
+        )
+        this.projection = signed
+        return signed
     }
 
     /** Answers a request left unanswered. */
@@ -289,6 +329,12 @@ export class FakeRelayMailbox {
             }
             if (ref !== FAKE_RELAY_API.send) throw new Error('unknown ref')
             if (!this.connected) return await new Promise(() => {})
+            if (this.projection?.projection.state === 'ended') {
+                // As Convex refuses an Account without an active Membership.
+                throw Object.assign(new Error('no_membership'), {
+                    data: { code: 'no_membership' },
+                })
+            }
             const sealed = args.sealed as SealedRequest
             // Convex keeps nothing but the sealed envelope.
             this.wire.push(structuredClone(sealed))
@@ -300,9 +346,19 @@ export class FakeRelayMailbox {
             args: {
                 controllerId: string
                 accessClientId: string
+                membershipId: string
                 requestIds: string[]
             }
         ) => {
+            if (ref === FAKE_RELAY_API.membership) {
+                this.membershipReads.push(args.membershipId)
+                const held = this.projection
+                return held &&
+                    held.projection.controllerId === args.controllerId &&
+                    held.projection.membershipId === args.membershipId
+                    ? structuredClone(held)
+                    : null
+            }
             if (ref !== FAKE_RELAY_API.responses) throw new Error('unknown ref')
             this.queried.push([...args.requestIds])
             return this.stored.filter(

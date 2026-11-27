@@ -18,13 +18,15 @@ import { RelayTransport } from './relay.ts'
 
 type Setup = FakeRelayMailboxOptions & {
     commandTimeoutMs?: number
+    membershipRefreshMs?: number
+    enrollment?: { identityEpoch?: number }
     pair?: boolean
     counterStart?: number
 }
 
 async function relayWith(setup: Setup = {}) {
     const mailbox = new FakeRelayMailbox(setup)
-    if (setup.pair ?? true) await mailbox.pair()
+    if (setup.pair ?? true) await mailbox.pair(setup.enrollment)
     const relay = new RelayTransport({
         convex: mailbox.convex,
         api: FAKE_RELAY_API,
@@ -33,6 +35,9 @@ async function relayWith(setup: Setup = {}) {
         counter: createMemoryRelayCounter(setup.counterStart ?? 0),
         pollIntervalMs: 1,
         commandTimeoutMs: setup.commandTimeoutMs ?? 2_000,
+        ...(setup.membershipRefreshMs === undefined
+            ? {}
+            : { membershipRefreshMs: setup.membershipRefreshMs }),
     })
     return { mailbox, relay }
 }
@@ -300,6 +305,138 @@ describe('RelayTransport recovers from signed refusals', () => {
                 code: 'unknown_access_client',
             })
         })
+    })
+})
+
+describe('RelayTransport reads the signed Membership routing projection', () => {
+    // Distinct epochs addressed, since the background watch sends too.
+    const epochsSent = (mailbox: FakeRelayMailbox) => [
+        ...new Set(mailbox.wire.map((s) => s.header.identityEpoch)),
+    ]
+
+    it('takes the identity epoch from the verified projection, so no refusal is needed', async () => {
+        const { mailbox, relay } = await relayWith({
+            answer: answering({ type: 'rooms', rooms }),
+            identityEpoch: 3,
+        })
+        await mailbox.publishMembership({ identityEpoch: 3 })
+        await relay.connect()
+        try {
+            assert.deepEqual(await relay.getRooms(), rooms)
+            assert.deepEqual(epochsSent(mailbox), [3])
+            const record = await mailbox.keyStore.load(FAKE_HOME_ID)
+            assert.equal(record?.enrollment.identityEpoch, 3)
+            assert.deepEqual(
+                [...new Set(mailbox.membershipReads)],
+                ['membership-1']
+            )
+        } finally {
+            relay.disconnect()
+        }
+    })
+
+    it('picks up a restored Home’s new epoch from a newer projection', async () => {
+        await withRelay(
+            {
+                answer: answering({ type: 'rooms', rooms }),
+                membershipRefreshMs: 0,
+            },
+            async ({ mailbox, relay }) => {
+                await mailbox.publishMembership()
+                await relay.getRooms()
+                mailbox.identityEpoch = 2
+                await mailbox.publishMembership({ identityEpoch: 2 })
+
+                mailbox.wire.length = 0
+                await relay.getRooms()
+                assert.deepEqual(epochsSent(mailbox), [2])
+            }
+        )
+    })
+
+    it('never trusts a projection it cannot verify or that is not its own', async () => {
+        await withRelay(
+            {
+                answer: answering({ type: 'rooms', rooms }),
+                membershipRefreshMs: 0,
+            },
+            async ({ mailbox, relay }) => {
+                await mailbox.publishMembership(
+                    { identityEpoch: 9 },
+                    { impostor: true }
+                )
+                mailbox.wire.length = 0
+                await relay.getRooms()
+                assert.deepEqual(epochsSent(mailbox), [1])
+
+                await mailbox.publishMembership({
+                    identityEpoch: 9,
+                    controllerId: 'nemu_fedcba9876543210',
+                })
+                mailbox.wire.length = 0
+                await relay.getRooms()
+                assert.deepEqual(epochsSent(mailbox), [1])
+            }
+        )
+    })
+
+    it('never moves back to an older epoch', async () => {
+        await withRelay(
+            {
+                answer: answering({ type: 'rooms', rooms }),
+                identityEpoch: 4,
+                enrollment: { identityEpoch: 4 },
+                membershipRefreshMs: 0,
+            },
+            async ({ mailbox, relay }) => {
+                await mailbox.publishMembership({ identityEpoch: 2 })
+                mailbox.wire.length = 0
+                await relay.getRooms()
+                assert.deepEqual(epochsSent(mailbox), [4])
+            }
+        )
+    })
+
+    it('keeps the signed refusal as a backstop when no projection is published', async () => {
+        await withRelay(
+            { answer: answering({ type: 'rooms', rooms }), identityEpoch: 2 },
+            async ({ mailbox, relay }) => {
+                assert.deepEqual(await relay.getRooms(), rooms)
+                assert.equal(mailbox.wire.at(-1)?.header.identityEpoch, 2)
+            }
+        )
+    })
+
+    it('says the Membership ended once the Controller signed it ended', async () => {
+        await withRelay(
+            { answer: answering({ type: 'rooms', rooms }) },
+            async ({ mailbox, relay }) => {
+                await mailbox.publishMembership()
+                await relay.getRooms()
+                // Convex now refuses the send; the client re-reads the
+                // projection to learn why.
+                await mailbox.publishMembership({ state: 'ended' })
+                await assert.rejects(relay.getRooms(), {
+                    code: 'membership_ended',
+                })
+            }
+        )
+    })
+
+    it('does not end anything on a refusal it cannot verify', async () => {
+        await withRelay(
+            { answer: answering({ type: 'rooms', rooms }) },
+            async ({ mailbox, relay }) => {
+                await mailbox.publishMembership(
+                    { state: 'ended' },
+                    { impostor: true }
+                )
+                await assert.rejects(relay.getRooms(), {
+                    code: 'no_membership',
+                })
+                assert.ok(await mailbox.keyStore.load(FAKE_HOME_ID))
+            }
+        )
     })
 })
 

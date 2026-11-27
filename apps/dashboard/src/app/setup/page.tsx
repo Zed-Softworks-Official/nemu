@@ -86,6 +86,8 @@ function pairAgainMessage(reason: string | null): string | null {
             'This browser was removed from your Home. Pair it again at home.',
         bad_signature:
             'Your Home did not accept this browser’s keys. Pair it again at home.',
+        membership_ended:
+            'You are no longer a Member of this Home. Ask an Owner for a new Invitation.',
     }
     return (
         known[reason as PairAgainReason] ?? 'Pair this browser again at home.'
