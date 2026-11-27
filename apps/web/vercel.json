@@ -3,6 +3,13 @@
     "framework": "nextjs",
     "installCommand": "cd ../.. && pnpm install",
     "buildCommand": "cd ../.. && bash scripts/vercel-build-web.sh",
+    "git": {
+        "deploymentEnabled": {
+            "**": false,
+            "canary": true,
+            "master": true
+        }
+    },
     "rewrites": [
         {
             "source": "/",
