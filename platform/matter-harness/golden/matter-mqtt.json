@@ -1314,6 +1314,449 @@
                     }
                 ]
             }
+        },
+        {
+            "step": "adapter-restarts",
+            "messages": {
+                "<plug>": [
+                    {
+                        "state": "OFF"
+                    }
+                ],
+                "<plug>/availability": [
+                    {
+                        "state": "online"
+                    }
+                ],
+                "<plug>/capabilities": [
+                    {
+                        "capabilities": [
+                            {
+                                "constraintRevisions": [
+                                    {
+                                        "bounds": {
+                                            "maximum": 9007199254740991,
+                                            "minimum": -9007199254740991
+                                        },
+                                        "declaredAt": "2026-01-01T00:00:00Z",
+                                        "effectiveAt": "2026-01-01T00:00:00Z",
+                                        "freshnessMs": 90000,
+                                        "historyAdmission": {
+                                            "intervalMs": 60000,
+                                            "maximumObservations": 60
+                                        },
+                                        "resolution": 1,
+                                        "revisionId": "matter-electrical-v1",
+                                        "scale": 3
+                                    }
+                                ],
+                                "directionality": "bidirectional",
+                                "identity": {
+                                    "componentPath": [],
+                                    "device": {
+                                        "externalId": "<plug>",
+                                        "protocol": "matter"
+                                    },
+                                    "kind": "power",
+                                    "physicalScope": {
+                                        "kind": "device"
+                                    }
+                                },
+                                "unit": "W"
+                            },
+                            {
+                                "constraintRevisions": [
+                                    {
+                                        "bounds": {
+                                            "maximum": 9007199254740991,
+                                            "minimum": 0
+                                        },
+                                        "declaredAt": "2026-01-01T00:00:00Z",
+                                        "effectiveAt": "2026-01-01T00:00:00Z",
+                                        "freshnessMs": 90000,
+                                        "historyAdmission": {
+                                            "intervalMs": 60000,
+                                            "maximumObservations": 60
+                                        },
+                                        "resolution": 1,
+                                        "revisionId": "matter-electrical-v1",
+                                        "scale": 3
+                                    }
+                                ],
+                                "directionality": "nonnegative",
+                                "identity": {
+                                    "componentPath": [],
+                                    "device": {
+                                        "externalId": "<plug>",
+                                        "protocol": "matter"
+                                    },
+                                    "kind": "voltage",
+                                    "physicalScope": {
+                                        "kind": "device"
+                                    }
+                                },
+                                "unit": "V"
+                            },
+                            {
+                                "constraintRevisions": [
+                                    {
+                                        "bounds": {
+                                            "maximum": 9007199254740991,
+                                            "minimum": 0
+                                        },
+                                        "declaredAt": "2026-01-01T00:00:00Z",
+                                        "effectiveAt": "2026-01-01T00:00:00Z",
+                                        "freshnessMs": 90000,
+                                        "historyAdmission": {
+                                            "intervalMs": 60000,
+                                            "maximumObservations": 60
+                                        },
+                                        "resolution": 1,
+                                        "revisionId": "matter-electrical-v1",
+                                        "scale": 3
+                                    }
+                                ],
+                                "directionality": "nonnegative",
+                                "identity": {
+                                    "componentPath": [],
+                                    "device": {
+                                        "externalId": "<plug>",
+                                        "protocol": "matter"
+                                    },
+                                    "kind": "current",
+                                    "physicalScope": {
+                                        "kind": "device"
+                                    }
+                                },
+                                "unit": "A"
+                            },
+                            {
+                                "constraintRevisions": [
+                                    {
+                                        "bounds": {
+                                            "maximum": 9007199254740991,
+                                            "minimum": 0
+                                        },
+                                        "declaredAt": "2026-01-01T00:00:00Z",
+                                        "effectiveAt": "2026-01-01T00:00:00Z",
+                                        "freshnessMs": 90000,
+                                        "historyAdmission": {
+                                            "intervalMs": 60000,
+                                            "maximumObservations": 60
+                                        },
+                                        "resolution": 1,
+                                        "revisionId": "matter-electrical-v1",
+                                        "scale": 3
+                                    }
+                                ],
+                                "directionality": "nonnegative",
+                                "identity": {
+                                    "componentPath": [],
+                                    "device": {
+                                        "externalId": "<plug>",
+                                        "protocol": "matter"
+                                    },
+                                    "kind": "importedEnergy",
+                                    "physicalScope": {
+                                        "kind": "device"
+                                    }
+                                },
+                                "unit": "Wh"
+                            }
+                        ],
+                        "device": {
+                            "externalId": "<plug>",
+                            "protocol": "matter"
+                        },
+                        "schemaVersion": 1,
+                        "supportedObservationEnvelopeVersions": []
+                    }
+                ],
+                "<plug>/observations": [
+                    {
+                        "observationId": "<observationId>",
+                        "observations": [
+                            {
+                                "identity": {
+                                    "componentPath": [],
+                                    "device": {
+                                        "externalId": "<plug>",
+                                        "protocol": "matter"
+                                    },
+                                    "kind": "power",
+                                    "physicalScope": {
+                                        "kind": "device"
+                                    }
+                                },
+                                "reading": {
+                                    "status": "value",
+                                    "value": {
+                                        "constraintRevisionId": "matter-electrical-v1",
+                                        "scale": 3,
+                                        "value": 60000
+                                    }
+                                }
+                            },
+                            {
+                                "identity": {
+                                    "componentPath": [],
+                                    "device": {
+                                        "externalId": "<plug>",
+                                        "protocol": "matter"
+                                    },
+                                    "kind": "voltage",
+                                    "physicalScope": {
+                                        "kind": "device"
+                                    }
+                                },
+                                "reading": {
+                                    "status": "value",
+                                    "value": {
+                                        "constraintRevisionId": "matter-electrical-v1",
+                                        "scale": 3,
+                                        "value": 120100
+                                    }
+                                }
+                            },
+                            {
+                                "identity": {
+                                    "componentPath": [],
+                                    "device": {
+                                        "externalId": "<plug>",
+                                        "protocol": "matter"
+                                    },
+                                    "kind": "current",
+                                    "physicalScope": {
+                                        "kind": "device"
+                                    }
+                                },
+                                "reading": {
+                                    "status": "value",
+                                    "value": {
+                                        "constraintRevisionId": "matter-electrical-v1",
+                                        "scale": 3,
+                                        "value": 500
+                                    }
+                                }
+                            },
+                            {
+                                "identity": {
+                                    "componentPath": [],
+                                    "device": {
+                                        "externalId": "<plug>",
+                                        "protocol": "matter"
+                                    },
+                                    "kind": "importedEnergy",
+                                    "physicalScope": {
+                                        "kind": "device"
+                                    }
+                                },
+                                "reading": {
+                                    "status": "value",
+                                    "value": {
+                                        "constraintRevisionId": "matter-electrical-v1",
+                                        "scale": 3,
+                                        "value": 1500000
+                                    }
+                                }
+                            }
+                        ],
+                        "observedAt": "<timestamp>",
+                        "timeTrust": "trustworthy"
+                    }
+                ],
+                "bridge/devices": [
+                    [
+                        {
+                            "definition": {
+                                "description": "Matter on/off plug-in unit (Nemu Harness)",
+                                "exposes": [
+                                    {
+                                        "features": [
+                                            {
+                                                "access": 7,
+                                                "name": "state",
+                                                "property": "state",
+                                                "type": "binary",
+                                                "value_off": "OFF",
+                                                "value_on": "ON"
+                                            }
+                                        ],
+                                        "type": "switch"
+                                    }
+                                ],
+                                "model": "Harness Plug"
+                            },
+                            "external_id": "<plug>",
+                            "friendly_name": "Harness Plug",
+                            "ieee_address": "<plug>",
+                            "supported": true,
+                            "type": "switch"
+                        }
+                    ]
+                ]
+            }
+        },
+        {
+            "step": "commission-strip",
+            "messages": {
+                "<plug>": [
+                    {
+                        "state": "OFF"
+                    }
+                ],
+                "<plug>/availability": [
+                    {
+                        "state": "online"
+                    }
+                ],
+                "<strip>": [
+                    {
+                        "outlets": [
+                            {
+                                "id": "1",
+                                "name": "Outlet 1",
+                                "state": "OFF"
+                            },
+                            {
+                                "id": "2",
+                                "name": "Outlet 2",
+                                "state": "OFF"
+                            }
+                        ]
+                    }
+                ],
+                "<strip>/availability": [
+                    {
+                        "state": "online"
+                    }
+                ],
+                "bridge/devices": [
+                    [
+                        {
+                            "definition": {
+                                "description": "Matter on/off plug-in unit (Nemu Harness)",
+                                "exposes": [
+                                    {
+                                        "features": [
+                                            {
+                                                "access": 7,
+                                                "name": "state",
+                                                "property": "state",
+                                                "type": "binary",
+                                                "value_off": "OFF",
+                                                "value_on": "ON"
+                                            }
+                                        ],
+                                        "type": "switch"
+                                    }
+                                ],
+                                "model": "Harness Plug"
+                            },
+                            "external_id": "<plug>",
+                            "friendly_name": "Harness Plug",
+                            "ieee_address": "<plug>",
+                            "supported": true,
+                            "type": "switch"
+                        },
+                        {
+                            "definition": {
+                                "description": "Matter smart strip (Nemu Harness)",
+                                "exposes": [
+                                    {
+                                        "features": [
+                                            {
+                                                "access": 7,
+                                                "name": "state",
+                                                "property": "state",
+                                                "type": "binary",
+                                                "value_off": "OFF",
+                                                "value_on": "ON"
+                                            }
+                                        ],
+                                        "type": "strip"
+                                    }
+                                ],
+                                "model": "Harness Strip"
+                            },
+                            "external_id": "<strip>",
+                            "friendly_name": "Harness Strip",
+                            "ieee_address": "<strip>",
+                            "supported": true,
+                            "type": "strip"
+                        }
+                    ]
+                ],
+                "bridge/response/commission": [
+                    {
+                        "status": "ok",
+                        "transaction": "commission-strip"
+                    }
+                ]
+            }
+        },
+        {
+            "step": "strip-outlet-2-on",
+            "messages": {
+                "<strip>": [
+                    {
+                        "outlets": [
+                            {
+                                "id": "1",
+                                "name": "Outlet 1",
+                                "state": "OFF"
+                            },
+                            {
+                                "id": "2",
+                                "name": "Outlet 2",
+                                "state": "ON"
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "step": "strip-outlet-1-on",
+            "messages": {
+                "<strip>": [
+                    {
+                        "outlets": [
+                            {
+                                "id": "1",
+                                "name": "Outlet 1",
+                                "state": "ON"
+                            },
+                            {
+                                "id": "2",
+                                "name": "Outlet 2",
+                                "state": "ON"
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "step": "strip-all-off",
+            "messages": {
+                "<strip>": [
+                    {
+                        "outlets": [
+                            {
+                                "id": "1",
+                                "name": "Outlet 1",
+                                "state": "OFF"
+                            },
+                            {
+                                "id": "2",
+                                "name": "Outlet 2",
+                                "state": "OFF"
+                            }
+                        ]
+                    }
+                ]
+            }
         }
     ]
 }

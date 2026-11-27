@@ -2,7 +2,9 @@
  * One simulated Matter Device, run as its own process so the harness can take
  * it offline (kill it) and bring it back (start it again on the same storage).
  *
- *   node dist/device.js <plug|light> <storageDir> <port> <discriminator> <passcode>
+ *   node dist/device.js <plug|light|strip> <storageDir> <port> <discriminator> <passcode>
+ *
+ * The strip is a node with one On/Off Plug-in Unit endpoint per outlet.
  *
  * Prints one JSON line `{"ready":true,"manualPairingCode":...}` on stdout once
  * it is advertising. Reads JSON lines on stdin:
@@ -26,11 +28,14 @@ import { ColorTemperatureLightDevice } from '@matter/main/devices/color-temperat
 import { OnOffPlugInUnitDevice } from '@matter/main/devices/on-off-plug-in-unit'
 import { ElectricalSensorEndpoint } from '@matter/main/endpoints/electrical-sensor'
 import { MeasurementType } from '@matter/main/types'
-import { DEVICE_FIXTURES, type DeviceKind } from './fixtures.ts'
+import { DEVICE_FIXTURES, type DeviceKind, STRIP_OUTLETS } from './fixtures.ts'
 
 const [kindArg, storageDir, portArg, discriminatorArg, passcodeArg] =
     process.argv.slice(2)
-if ((kindArg !== 'plug' && kindArg !== 'light') || storageDir === undefined) {
+if (
+    (kindArg !== 'plug' && kindArg !== 'light' && kindArg !== 'strip') ||
+    storageDir === undefined
+) {
     throw new Error(`unknown device kind ${kindArg}`)
 }
 const kind: DeviceKind = kindArg
@@ -170,6 +175,13 @@ if (kind === 'plug') {
                 )
             )
     })
+} else if (kind === 'strip') {
+    for (let outlet = 1; outlet <= STRIP_OUTLETS; outlet += 1) {
+        await node.add(OnOffPlugInUnitDevice, {
+            id: `outlet-${outlet}`,
+            onOff: { onOff: false },
+        })
+    }
 } else {
     const light = fixture.light
     await node.add(ColorTemperatureLightDevice, {
