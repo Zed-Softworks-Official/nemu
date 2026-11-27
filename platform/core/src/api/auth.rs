@@ -6,7 +6,10 @@ use uuid::Uuid;
 use crate::api::error::ApiError;
 use crate::db::models::ClientToken;
 use crate::pairing::access_clients::{count_access_clients, find_access_client};
+use crate::pairing::local_sessions::revoked;
 use crate::pairing::tokens::{count_client_tokens, verify_client_token};
+use crate::pairing::tombstones::access_client_status;
+use crate::relay_crypto::envelope::AccessClientStatus;
 use crate::state::{AppState, DbPool};
 
 /// The `Authorization` scheme for a Local session.
@@ -101,6 +104,13 @@ async fn authenticate_local_session(
         )
     };
     let id = state.local_sessions.resolve(session).ok_or_else(invalid)?;
+    let status = access_client_status(&state.db, &id.to_string())
+        .await
+        .map_err(ApiError::internal)?;
+    if status == AccessClientStatus::Tombstoned {
+        state.local_sessions.drop_access_client(id);
+        return Err(revoked());
+    }
     let Some((access_client, member)) = find_access_client(&state.db, id)
         .await
         .map_err(ApiError::internal)?

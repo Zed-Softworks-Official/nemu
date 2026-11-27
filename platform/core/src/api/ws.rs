@@ -6,11 +6,13 @@ use tokio::sync::broadcast::error::RecvError;
 use tracing::{debug, warn};
 use uuid::Uuid;
 
-use crate::api::auth::AuthenticatedClient;
+use crate::api::auth::{AuthenticatedClient, Credential};
 use crate::capabilities::history_query::{self, HistoryQueryError};
 use crate::capabilities::home_meter::{self, DesignationClientError};
 use crate::commands::execute_set;
 use crate::events::{ClientWsMessage, DeviceEvent};
+use crate::pairing::tombstones::access_client_status;
+use crate::relay_crypto::envelope::AccessClientStatus;
 use crate::state::AppState;
 
 pub async fn ws_handler(
@@ -25,6 +27,9 @@ async fn handle_socket(socket: WebSocket, state: AppState, auth: AuthenticatedCl
     let (mut sender, mut receiver) = socket.split();
     let mut events = state.events.subscribe();
     let mut capability_events = state.capabilities.subscribe();
+    let mut revocations = state.local_sessions.revocations();
+    let access_client = (auth.credential == Credential::AccessClient).then_some(auth.token_id);
+    let mut watching_revocations = access_client.is_some();
 
     // Prompt client to refetch full device list.
     if let Ok(payload) = serde_json::to_string(&DeviceEvent::Resync) {
@@ -103,6 +108,24 @@ async fn handle_socket(socket: WebSocket, state: AppState, auth: AuthenticatedCl
                         }
                     }
                     Err(RecvError::Closed) => break,
+                }
+            }
+            revoked = revocations.recv(), if watching_revocations => {
+                // A revoked Access Client's socket closes with its sessions.
+                let ended = match revoked {
+                    Ok(id) => Some(id) == access_client,
+                    Err(RecvError::Lagged(_)) => !matches!(
+                        access_client_status(&state.db, &auth.token_id.to_string()).await,
+                        Ok(AccessClientStatus::Active { .. })
+                    ),
+                    Err(RecvError::Closed) => {
+                        watching_revocations = false;
+                        false
+                    }
+                };
+                if ended {
+                    let _ = sender.send(Message::Close(None)).await;
+                    break;
                 }
             }
             msg = receiver.next() => {

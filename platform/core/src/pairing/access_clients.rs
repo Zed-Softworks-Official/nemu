@@ -1,6 +1,6 @@
 //! Access Clients paired with CPace (ADR-0037). Each row binds one Access
 //! Client's public keys to one Membership; deleting the Membership deletes
-//! its rows. Bearer-token Access Clients stay in `client_tokens` until
+//! its rows. Every deleted row leaves a tombstone (`pairing::tombstones`). Bearer-token Access Clients stay in `client_tokens` until
 //! NEM-131 removes them.
 
 use chrono::Utc;
@@ -10,6 +10,7 @@ use uuid::Uuid;
 use crate::audit::{self, AuditWrite};
 use crate::db::models::{AccessClient, Member, NewAccessClient};
 use crate::db::schema::{access_clients, members};
+use crate::pairing::tombstones::keys_tombstoned_on;
 use crate::state::DbPool;
 
 #[derive(Debug, Clone)]
@@ -25,6 +26,8 @@ pub struct AccessClientInput {
 pub enum AccessClientInsertError {
     /// Another Access Client already holds one of these public keys.
     KeysInUse,
+    /// A tombstoned Access Client held one of these public keys.
+    Tombstoned,
     Internal(String),
 }
 
@@ -48,6 +51,12 @@ pub async fn insert_access_client(
                     encryption_key: &input.encryption_key,
                 })
                 .get_result::<AccessClient>(conn)?;
+            // Checked after the insert: if a revocation of the same keys was
+            // in flight, the insert waited on the unique index for it to
+            // commit, and this read now sees its tombstone.
+            if keys_tombstoned_on(conn, &input.signing_key, &input.encryption_key)? {
+                return Err(diesel::result::Error::RollbackTransaction);
+            }
             if let Some(audit) = &audit {
                 audit::insert_on(conn, audit)?;
             }
@@ -58,6 +67,7 @@ pub async fn insert_access_client(
                 diesel::result::DatabaseErrorKind::UniqueViolation,
                 _,
             ) => AccessClientInsertError::KeysInUse,
+            diesel::result::Error::RollbackTransaction => AccessClientInsertError::Tombstoned,
             other => AccessClientInsertError::Internal(other.to_string()),
         })
     })

@@ -4,7 +4,7 @@ use axum::http::StatusCode;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::api::auth::{AuthenticatedClient, Credential, authenticate, count_access_credentials};
+use crate::api::auth::{AuthenticatedClient, authenticate, count_access_credentials};
 use crate::api::error::{ApiError, ApiResult};
 use crate::api::members::{pair_member_session, require_owner};
 use crate::audit::{AuditKind, AuditWrite};
@@ -198,10 +198,7 @@ pub async fn delete_current_token(
     State(state): State<AppState>,
     auth: AuthenticatedClient,
 ) -> ApiResult<StatusCode> {
-    crate::api::access::revoke_current(&state.db, &auth).await?;
-    if auth.credential == Credential::AccessClient {
-        state.local_sessions.drop_access_client(auth.token_id);
-    }
+    crate::api::access::revoke_current(&state, &auth).await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
