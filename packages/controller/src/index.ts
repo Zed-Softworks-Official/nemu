@@ -119,9 +119,9 @@ export type {
     AccessClientKeyDatabase,
     PersistentStorage,
     WebAccessClientKeyStoreOptions,
-    WebKeyProtection,
 } from './web-access-client-keys.ts'
 export {
     createWebAccessClientKeyStore,
     openIndexedDbKeyDatabase,
+    UNSUPPORTED_BROWSER_ERROR_CODE,
 } from './web-access-client-keys.ts'

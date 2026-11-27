@@ -4,6 +4,7 @@
 
 import assert from 'node:assert/strict'
 import { afterEach, describe, it } from 'node:test'
+import { ApiError } from '@nemu/protocol'
 import { ed25519Verify, utf8Encode } from '@nemu/protocol/relay-crypto'
 import {
     type AccessClientEnrollment,
@@ -11,6 +12,7 @@ import {
     type AccessClientSecretStorage,
     createMemoryAccessClientKeyStore,
     createSecretAccessClientKeyStore,
+    serializeEnrollment,
     stageAccessClientKeys,
 } from './access-client-keys.ts'
 import { FakeLanController } from './fake-lan-controller.ts'
@@ -20,6 +22,7 @@ import { LanTransport } from './transports/lan.ts'
 import {
     type AccessClientKeyDatabase,
     createWebAccessClientKeyStore,
+    UNSUPPORTED_BROWSER_ERROR_CODE,
 } from './web-access-client-keys.ts'
 
 function enrollment(
@@ -202,7 +205,6 @@ describe('Web Access Client key store (dashboard)', () => {
         const record = await signs(reloaded, 'lake')
         assert.deepEqual(record.keys.signingKey, keys.signingKey)
         assert.deepEqual(record.enrollment, enrollment('lake'))
-        assert.equal(await reloaded.protection('lake'), 'non-extractable')
         assert.deepEqual(persisted, ['persist'], 'asks for persistent storage')
 
         // What IndexedDB holds: CryptoKeys whose bytes nobody can export.
@@ -240,30 +242,65 @@ describe('Web Access Client key store (dashboard)', () => {
         )
     })
 
-    it('falls back to keys made in JS when Web Crypto lacks Ed25519', async () => {
-        const database = memoryDatabase()
-        const unsupported = {
+    it('refuses to make keys when Web Crypto lacks Ed25519 or X25519', async () => {
+        const noEd25519 = {
             generateKey: async () => {
                 throw new DOMException('Ed25519', 'NotSupportedError')
             },
         } as unknown as SubtleCrypto
-        const store = createWebAccessClientKeyStore({
-            database,
-            subtle: unsupported,
-            storage: null,
-        })
-        await store.save({
-            keys: await store.generate(),
-            enrollment: enrollment('lake'),
-        })
+        const noX25519 = {
+            generateKey: async (algorithm: { name: string }) => {
+                if (algorithm.name === 'X25519') {
+                    throw new DOMException('X25519', 'NotSupportedError')
+                }
+                return crypto.subtle.generateKey(algorithm, false, [
+                    'sign',
+                    'verify',
+                ])
+            },
+            exportKey: crypto.subtle.exportKey.bind(crypto.subtle),
+        } as unknown as SubtleCrypto
+        for (const subtle of [noEd25519, noX25519, null]) {
+            const database = memoryDatabase()
+            const store = createWebAccessClientKeyStore({
+                database,
+                subtle,
+                storage: null,
+            })
 
-        const reloaded = createWebAccessClientKeyStore({
-            database,
-            subtle: unsupported,
-            storage: null,
+            assert.equal(await store.supported(), false)
+            await assert.rejects(
+                store.generate(),
+                (err: unknown) =>
+                    err instanceof ApiError &&
+                    err.code === UNSUPPORTED_BROWSER_ERROR_CODE
+            )
+            assert.equal(database.values.size, 0)
+        }
+    })
+
+    it('reports support on a browser with Web Crypto Ed25519 and X25519', async () => {
+        const database = memoryDatabase()
+        const store = createWebAccessClientKeyStore({ database, storage: null })
+        assert.equal(await store.supported(), true)
+        assert.equal(database.values.size, 0, 'the check stores nothing')
+    })
+
+    it('loads a record with key bytes from the old fallback as unpaired, and clears it', async () => {
+        const database = memoryDatabase()
+        database.values.set('lake', {
+            version: 1,
+            protection: 'stored-bytes',
+            signingPrivateKey: new Uint8Array(32).fill(1),
+            encryptionPrivateKey: new Uint8Array(32).fill(2),
+            signingKey: new Uint8Array(32).fill(3),
+            encryptionKey: new Uint8Array(32).fill(4),
+            enrollment: serializeEnrollment(enrollment('lake')),
         })
-        await signs(reloaded, 'lake')
-        assert.equal(await reloaded.protection('lake'), 'stored-bytes')
+        const store = createWebAccessClientKeyStore({ database, storage: null })
+
+        assert.equal(await store.load('lake'), null)
+        assert.equal(database.values.has('lake'), false)
     })
 
     it('forgets a Home, and loads a cleared or foreign record as unpaired', async () => {

@@ -1,30 +1,17 @@
-import {
-    b64urlEncode,
-    type Ed25519Signer,
-    ed25519PublicKey,
-    ed25519Signer,
-    x25519PublicKey,
-} from '@nemu/protocol/relay-crypto'
+import { ApiError } from '@nemu/protocol'
+import { b64urlEncode, type Ed25519Signer } from '@nemu/protocol/relay-crypto'
 import {
     type AccessClientKeyStore,
     type AccessClientKeys,
     parseEnrollment,
-    randomSecret,
     serializeEnrollment,
 } from './access-client-keys.ts'
 
 /**
- * How a stored record holds its private keys.
- *
- * - `non-extractable`: Web Crypto `CryptoKey`s created with
- *   `extractable: false`. Page script can sign with them but can never read
- *   them (ADR-0001).
- * - `stored-bytes`: the browser has no Web Crypto Ed25519 or X25519 (older
- *   Safari and Firefox), so the key bytes are kept in IndexedDB and the crypto
- *   runs in JS. Script on the page could read them. This is the fallback, not
- *   the goal.
+ * Error code when this browser has no Web Crypto Ed25519 or X25519, so it
+ * cannot hold non-extractable Access Client keys and must not pair (ADR-0001).
  */
-export type WebKeyProtection = 'non-extractable' | 'stored-bytes'
+export const UNSUPPORTED_BROWSER_ERROR_CODE = 'unsupported_browser'
 
 /** The slice of IndexedDB the store uses: one object store, keyed by Home. */
 export type AccessClientKeyDatabase = {
@@ -41,28 +28,26 @@ export type PersistentStorage = {
 export type WebAccessClientKeyStoreOptions = {
     /** Defaults to IndexedDB database `nemu-access-clients`. */
     database?: AccessClientKeyDatabase
-    /** Defaults to `crypto.subtle`. */
-    subtle?: SubtleCrypto
+    /** Defaults to `crypto.subtle`; `null` means the browser has none. */
+    subtle?: SubtleCrypto | null
     /** Defaults to `navigator.storage`. */
     storage?: PersistentStorage | null
 }
 
-type PrivateKey = CryptoKey | Uint8Array
-
 type StoredWebRecord = {
     version: 1
-    protection: WebKeyProtection
-    signingPrivateKey: PrivateKey
-    encryptionPrivateKey: PrivateKey
+    /** Always `non-extractable`. Older builds also wrote `stored-bytes`. */
+    protection: 'non-extractable'
+    signingPrivateKey: CryptoKey
+    encryptionPrivateKey: CryptoKey
     signingKey: Uint8Array
     encryptionKey: Uint8Array
     enrollment: ReturnType<typeof serializeEnrollment>
 }
 
 type GeneratedKeys = {
-    protection: WebKeyProtection
-    signingPrivateKey: PrivateKey
-    encryptionPrivateKey: PrivateKey
+    signingPrivateKey: CryptoKey
+    encryptionPrivateKey: CryptoKey
     keys: AccessClientKeys
 }
 
@@ -133,12 +118,6 @@ function webSigner(subtle: SubtleCrypto, key: CryptoKey): Ed25519Signer {
     }
 }
 
-function signerFor(subtle: SubtleCrypto, key: PrivateKey): Ed25519Signer {
-    return key instanceof Uint8Array
-        ? ed25519Signer(key)
-        : webSigner(subtle, key)
-}
-
 async function generateWebKeys(subtle: SubtleCrypto): Promise<GeneratedKeys> {
     const signing = (await subtle.generateKey({ name: 'Ed25519' }, false, [
         'sign',
@@ -154,7 +133,6 @@ async function generateWebKeys(subtle: SubtleCrypto): Promise<GeneratedKeys> {
         await subtle.exportKey('raw', encryption.publicKey)
     )
     return {
-        protection: 'non-extractable',
         signingPrivateKey: signing.privateKey,
         encryptionPrivateKey: encryption.privateKey,
         keys: {
@@ -165,27 +143,18 @@ async function generateWebKeys(subtle: SubtleCrypto): Promise<GeneratedKeys> {
     }
 }
 
-function generateByteKeys(): GeneratedKeys {
-    const signingSecret = randomSecret()
-    const encryptionSecret = randomSecret()
-    return {
-        protection: 'stored-bytes',
-        signingPrivateKey: signingSecret,
-        encryptionPrivateKey: encryptionSecret,
-        keys: {
-            signingKey: ed25519PublicKey(signingSecret),
-            encryptionKey: x25519PublicKey(encryptionSecret),
-            signer: ed25519Signer(signingSecret),
-        },
-    }
-}
-
-function isPrivateKey(value: unknown): value is PrivateKey {
-    if (value instanceof Uint8Array) return value.length === 32
+function isPrivateKey(value: unknown): value is CryptoKey {
     return (
         typeof CryptoKey !== 'undefined' &&
         value instanceof CryptoKey &&
         value.type === 'private'
+    )
+}
+
+function unsupportedBrowser(): ApiError {
+    return new ApiError(
+        UNSUPPORTED_BROWSER_ERROR_CODE,
+        'This browser has no Web Crypto Ed25519 or X25519, so it cannot pair.'
     )
 }
 
@@ -199,21 +168,26 @@ function isKey32(value: unknown): value is Uint8Array {
  * exposing their bytes. Saving asks the browser for persistent storage so it
  * does not evict them; if they are lost anyway, the browser pairs again.
  *
- * Browsers without Web Crypto Ed25519 or X25519 fall back to keys made in JS
- * and kept as bytes (`stored-bytes`), which page script could read.
+ * Browsers without Web Crypto Ed25519 or X25519 cannot pair: `generate`
+ * throws `unsupported_browser`, and `supported()` says so up front. A record
+ * from older builds that kept key bytes (`stored-bytes`) loads as unpaired and
+ * is deleted.
  */
 export function createWebAccessClientKeyStore(
     options: WebAccessClientKeyStoreOptions = {}
 ): AccessClientKeyStore & {
-    /** How the record for this Home holds its private keys, if any. */
-    protection(controllerId: string): Promise<WebKeyProtection | null>
+    /** Whether this browser can make non-extractable Ed25519 and X25519 keys. */
+    supported(): Promise<boolean>
 } {
     let database = options.database ?? null
     const db = () => {
         database ??= openIndexedDbKeyDatabase()
         return database
     }
-    const subtle = options.subtle ?? globalThis.crypto?.subtle
+    const subtle =
+        options.subtle !== undefined
+            ? options.subtle
+            : (globalThis.crypto?.subtle ?? null)
     const storage =
         options.storage !== undefined
             ? options.storage
@@ -224,6 +198,7 @@ export function createWebAccessClientKeyStore(
               ).navigator?.storage ?? null)
     const pending = new Map<string, GeneratedKeys>()
     let askedToPersist = false
+    let support: Promise<boolean> | null = null
 
     const persist = async () => {
         if (askedToPersist) return
@@ -240,11 +215,15 @@ export function createWebAccessClientKeyStore(
     ): Promise<StoredWebRecord | null> => {
         const value = await db().get(controllerId)
         if (typeof value !== 'object' || value === null) return null
-        const v = value as Partial<StoredWebRecord>
+        const v = value as Partial<Record<keyof StoredWebRecord, unknown>>
+        if (v.protection === 'stored-bytes') {
+            // Keys page script could read: never use them, pair again.
+            await db().delete(controllerId)
+            return null
+        }
         if (
             v.version !== 1 ||
-            (v.protection !== 'non-extractable' &&
-                v.protection !== 'stored-bytes') ||
+            v.protection !== 'non-extractable' ||
             !isPrivateKey(v.signingPrivateKey) ||
             !isPrivateKey(v.encryptionPrivateKey) ||
             !isKey32(v.signingKey) ||
@@ -256,13 +235,25 @@ export function createWebAccessClientKeyStore(
     }
 
     return {
+        supported() {
+            support ??= (async () => {
+                if (!subtle) return false
+                try {
+                    await generateWebKeys(subtle)
+                    return true
+                } catch {
+                    return false
+                }
+            })()
+            return support
+        },
         async generate() {
+            if (!subtle) throw unsupportedBrowser()
             let generated: GeneratedKeys
             try {
-                if (!subtle) throw new Error('No Web Crypto')
                 generated = await generateWebKeys(subtle)
             } catch {
-                generated = generateByteKeys()
+                throw unsupportedBrowser()
             }
             pending.set(b64urlEncode(generated.keys.signingKey), generated)
             return generated.keys
@@ -275,7 +266,6 @@ export function createWebAccessClientKeyStore(
                 const stored = await readRecord(record.enrollment.controllerId)
                 if (stored && b64urlEncode(stored.signingKey) === id) {
                     generated = {
-                        protection: stored.protection,
                         signingPrivateKey: stored.signingPrivateKey,
                         encryptionPrivateKey: stored.encryptionPrivateKey,
                         keys: record.keys,
@@ -289,7 +279,7 @@ export function createWebAccessClientKeyStore(
             }
             const stored: StoredWebRecord = {
                 version: 1,
-                protection: generated.protection,
+                protection: 'non-extractable',
                 signingPrivateKey: generated.signingPrivateKey,
                 encryptionPrivateKey: generated.encryptionPrivateKey,
                 signingKey: record.keys.signingKey,
@@ -307,26 +297,18 @@ export function createWebAccessClientKeyStore(
             if (!enrollment || enrollment.controllerId !== controllerId) {
                 return null
             }
-            if (!(stored.signingPrivateKey instanceof Uint8Array) && !subtle) {
-                return null
-            }
+            if (!subtle) return null
             return {
                 keys: {
                     signingKey: stored.signingKey,
                     encryptionKey: stored.encryptionKey,
-                    signer: signerFor(
-                        subtle as SubtleCrypto,
-                        stored.signingPrivateKey
-                    ),
+                    signer: webSigner(subtle, stored.signingPrivateKey),
                 },
                 enrollment,
             }
         },
         async clear(controllerId) {
             await db().delete(controllerId)
-        },
-        async protection(controllerId) {
-            return (await readRecord(controllerId))?.protection ?? null
         },
     }
 }

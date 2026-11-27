@@ -18,6 +18,7 @@ import {
     setRememberedBaseUrl,
     setRememberedControllerId,
     TLS_TRUSTED_MESSAGE,
+    UNSUPPORTED_BROWSER_ERROR_CODE,
     useController,
     WRONG_HOME_ERROR_CODE,
 } from '@nemu/controller'
@@ -32,6 +33,9 @@ import { dashboardKeyStore } from '~/lib/access-client-keys'
 type Phase = 'discover' | 'pair' | 'saving' | 'done'
 
 const CONVEX_PAIR_TIMEOUT_MS = 15_000
+
+const UNSUPPORTED_BROWSER_MESSAGE =
+    'Use a current version of Chrome, Edge, Safari or Firefox to pair this browser.'
 
 function withTimeout<T>(
     promise: Promise<T>,
@@ -57,6 +61,9 @@ function withTimeout<T>(
 
 function formatPairingError(err: unknown): string {
     if (err instanceof ApiError) {
+        if (err.code === UNSUPPORTED_BROWSER_ERROR_CODE) {
+            return UNSUPPORTED_BROWSER_MESSAGE
+        }
         if (err.code === 'invalid_code') {
             return 'This pairing code was not accepted: it may be wrong, expired or already used, or another device answered for the controller. Get a new 6-digit code from the controller — restart it if no clients are paired yet, or mint one from Settings — and try again.'
         }
@@ -122,6 +129,26 @@ export default function SetupPage() {
     const [trustOpened, setTrustOpened] = useState(false)
     const [canFinish, setCanFinish] = useState(false)
     const [pairAgain, setPairAgain] = useState<string | null>(null)
+    // Pairing needs non-extractable Web Crypto Ed25519 and X25519 keys
+    // (ADR-0001); null while the check runs.
+    const [browserSupported, setBrowserSupported] = useState<boolean | null>(
+        null
+    )
+
+    useEffect(() => {
+        let live = true
+        void dashboardKeyStore.supported().then(
+            (supported) => {
+                if (live) setBrowserSupported(supported)
+            },
+            () => {
+                if (live) setBrowserSupported(false)
+            }
+        )
+        return () => {
+            live = false
+        }
+    }, [])
 
     const handleDiscover = useCallback(async () => {
         setBusy(true)
@@ -285,7 +312,16 @@ export default function SetupPage() {
                 </output>
             ) : null}
 
-            {phase === 'discover' ? (
+            {browserSupported === false ? (
+                <p
+                    className="rounded-xl border border-border/80 bg-muted/30 p-4 text-sm"
+                    role="alert"
+                >
+                    {UNSUPPORTED_BROWSER_MESSAGE}
+                </p>
+            ) : null}
+
+            {browserSupported && phase === 'discover' ? (
                 <div className="space-y-4">
                     <div className="space-y-2">
                         <label
@@ -331,7 +367,7 @@ export default function SetupPage() {
                 </div>
             ) : null}
 
-            {phase === 'pair' || phase === 'saving' ? (
+            {browserSupported && (phase === 'pair' || phase === 'saving') ? (
                 <div className="space-y-4">
                     <div className="rounded-xl border border-border/80 bg-muted/30 p-4 text-sm">
                         <p className="font-medium">
