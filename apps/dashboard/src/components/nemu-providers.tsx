@@ -22,14 +22,13 @@ const convex = new ConvexReactClient(
     env.NEXT_PUBLIC_CONVEX_URL.replace(/\/$/, '')
 )
 
-// Compile shim (NEM-128): Convex Relay now stores sealed envelopes only.
-// NEM-129 moves the Relay transport to them and NEM-131 deletes session
-// mints; until then these refs no longer match the old plaintext types.
-const relayApi = {
+// Sealed envelopes only (ADR-0001): RelayTransport seals with this client's
+// Access Client keys, which NEM-130 stores on each platform.
+const relayApi: RelayApi = {
     send: api.relay.send,
     responses: api.relay.responses,
     acknowledge: api.relay.acknowledge,
-} as unknown as RelayApi
+}
 
 export function NemuProvider(props: { children: React.ReactNode }) {
     return (

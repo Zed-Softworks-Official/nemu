@@ -32,6 +32,13 @@ export type AccessClientEnrollment = {
      */
     controllerSigningKey: Uint8Array
     controllerEncryptionKey: Uint8Array
+    /**
+     * The Controller identity epoch this client addresses Relay requests to;
+     * 1 until a signed refusal names a newer one (a Home restored onto a new
+     * Controller instance). The signed Membership routing projection will
+     * carry it instead (NEM-133).
+     */
+    identityEpoch?: number
 }
 
 export type AccessClientRecord = {

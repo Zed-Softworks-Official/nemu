@@ -369,6 +369,21 @@ pub fn open_request(
     })
 }
 
+/// The response and push keys of a request, from its HPKE encapsulation
+/// alone. Nothing is decrypted and nothing about the sender is checked, so
+/// these keys only let the Controller answer a request [`open_request`]
+/// rejected with a sealed, signed rejection. Only whoever sealed the request
+/// can open that answer.
+pub fn reply_keys(
+    sealed: &SealedRequest,
+    controller_encryption_secret: &[u8; 32],
+) -> Result<RequestKeys, RelayRejection> {
+    let enc = b64url_decode_32(&sealed.enc).ok_or(RelayRejection::Malformed)?;
+    let ctx = hpke::setup_base_receiver(&enc, controller_encryption_secret, HPKE_INFO)
+        .map_err(|_| RelayRejection::Malformed)?;
+    Ok(RequestKeys::export(&ctx))
+}
+
 // ---------------------------------------------------------------------------
 // Responses
 
@@ -569,6 +584,23 @@ mod tests {
             )
             .unwrap_err(),
             RelayRejection::Replayed
+        );
+    }
+
+    #[test]
+    fn reply_keys_match_the_senders_keys_without_opening() {
+        let f = fixture();
+        let controller_public = hpke::public_key(&f.controller_secret);
+        let (sealed, keys) =
+            seal_request(header(), b"x", &controller_public, &f.client_signing).unwrap();
+        assert_eq!(reply_keys(&sealed, &f.controller_secret).unwrap(), keys);
+        let garbled = SealedRequest {
+            enc: "not-base64!".into(),
+            ..sealed
+        };
+        assert_eq!(
+            reply_keys(&garbled, &f.controller_secret).unwrap_err(),
+            RelayRejection::Malformed
         );
     }
 

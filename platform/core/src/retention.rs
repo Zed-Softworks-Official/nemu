@@ -15,6 +15,9 @@ pub fn spawn(pool: DbPool) {
             if let Err(error) = crate::ledger::sweep(&pool, now).await {
                 warn!(%error, "command ledger sweep failed");
             }
+            if let Err(error) = crate::relay::store::sweep(&pool, now).await {
+                warn!(%error, "relay outcome sweep failed");
+            }
             if let Err(error) = crate::audit::sweep(&pool, now).await {
                 warn!(%error, "audit retention sweep failed");
             }

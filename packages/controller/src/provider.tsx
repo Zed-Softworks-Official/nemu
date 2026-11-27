@@ -48,6 +48,7 @@ import {
     useRef,
     useState,
 } from 'react'
+import type { AccessClientKeyStore } from './access-client-keys.ts'
 import {
     ControllerConnection,
     type ControllerConnectors,
@@ -139,6 +140,8 @@ export type ControllerProviderProps = {
     children: ReactNode
     convex?: ConvexReactClient
     relayApi?: RelayApi
+    /** Access Client keys; Relay seals every request with them. */
+    accessClientKeyStore?: AccessClientKeyStore
     lanCandidates?: string[]
     /** The selected Home. Scopes LAN discovery, Relay, and credentials. */
     controllerId?: string | null
@@ -158,6 +161,7 @@ export function ControllerProvider({
     children,
     convex,
     relayApi,
+    accessClientKeyStore,
     lanCandidates,
     controllerId,
     credentialStore,
@@ -175,6 +179,7 @@ export function ControllerProvider({
             new ControllerConnection({
                 convex,
                 relayApi,
+                accessClientKeyStore,
                 lanCandidates,
                 controllerId,
                 credentialStore,
@@ -185,6 +190,7 @@ export function ControllerProvider({
             providedConnection,
             convex,
             relayApi,
+            accessClientKeyStore,
             lanCandidates,
             controllerId,
             credentialStore,

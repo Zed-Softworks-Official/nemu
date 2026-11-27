@@ -17,7 +17,8 @@
 //! - [`session`]: the Local session challenge, and checks on Access Client
 //!   public keys before Core binds them into an Access grant.
 //!
-//! Nothing in Core calls these yet; NEM-126 onwards wires them in.
+//! Pairing (NEM-126) and sealed Relay requests (NEM-129) use them. Pushes
+//! are NEM-132's, so their sealing is still unused outside tests.
 #![cfg_attr(not(test), allow(dead_code))]
 
 pub mod cpace;

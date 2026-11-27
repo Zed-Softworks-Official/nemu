@@ -30,6 +30,7 @@ import {
     RelayCryptoError,
     type RequestHeader,
     type RequestKeys,
+    replyKeys,
     type SealedPush,
     type SealedRequest,
     type SealedResponse,
@@ -323,6 +324,14 @@ describe('sealed requests', () => {
             assert.equal(utf8Decode(opened.plaintext), v.plaintext)
             assert.deepEqual(opened.keys, keys)
             assert.equal(opened.window.highest, v.sealed.header.counter)
+            // A refusal is sealed to the same keys without opening.
+            assert.deepEqual(
+                replyKeys({
+                    sealed: v.sealed as SealedRequest,
+                    controllerEncryptionSecret: h(controller.encryptionSecret),
+                }),
+                keys
+            )
         })
     }
 
