@@ -74,7 +74,7 @@ type HomeSessionValue = {
     /**
      * Drop this phone's Access Client keys for the active Home only. Does not
      * revoke on the Controller: Settings offers it on its own only as
-     * "Forget on this phone" when the Controller is unreachable, and after
+     * "Remove this phone" when the Controller is unreachable, and after
      * the Controller has confirmed a revocation or a Leave. `notice` is
      * shown on the pairing screen that follows.
      */
