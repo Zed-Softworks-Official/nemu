@@ -1,4 +1,5 @@
 export * from './api.ts'
+export * from './bridge.ts'
 export * from './capability.ts'
 export * from './capability-state.ts'
 export * from './commands.ts'
