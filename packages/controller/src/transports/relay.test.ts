@@ -1227,3 +1227,95 @@ describe('RelayTransport capability pushes', () => {
         })
     })
 })
+
+const steps = (events: Array<{ type: string } & Record<string, unknown>>) =>
+    events.filter((e) => e.type === 'commissioningStep')
+
+describe('RelayTransport commissioning progress', () => {
+    const discovering = {
+        type: 'commissioningStep',
+        status: 'active',
+        step: 'discovering',
+    }
+    const failed = {
+        type: 'commissioningStep',
+        status: 'failed',
+        step: 'configuring_network',
+        reason: 'network_rejected',
+    }
+
+    it('emits each step sealed on the capability watch, in counter order', async () => {
+        await withWatch({}, async ({ mailbox, events }) => {
+            await mailbox.push(discovering)
+            await mailbox.push(capabilityChange(5))
+            await mailbox.push(failed)
+            // A retried commissioning repeats a step under a new counter.
+            await mailbox.push(discovering)
+            await until(() => events.length === 4)
+            assert.deepEqual(events, [
+                discovering,
+                capabilityChange(5),
+                failed,
+                discovering,
+            ])
+            await until(() => mailbox.storedPushes().length === 0)
+        })
+    })
+
+    it('leaves Convex only the push header and opaque bytes', async () => {
+        await withWatch({}, async ({ mailbox }) => {
+            await mailbox.push(failed)
+            const [push] = mailbox.storedPushes()
+            assert.ok(push)
+            assert.equal(push.header.counter, 1)
+            const wire = JSON.stringify(push)
+            for (const clear of [
+                'commissioningStep',
+                'configuring_network',
+                'network_rejected',
+            ]) {
+                assert.equal(wire.includes(clear), false, clear)
+            }
+        })
+    })
+
+    it('never emits a step that carries a pairing code, passcode or Wi‑Fi credential', async () => {
+        const secrets: Record<string, string> = {
+            code: '34970112332',
+            pairingCode: 'MT:Y.K9042C00KA0648G00',
+            passcode: '20202021',
+            wifiSsid: 'home-ssid',
+            wifiPassword: 'hunter2',
+            message: 'pairing code 34970112332 was refused',
+        }
+        await withWatch({}, async ({ mailbox, events }) => {
+            for (const [key, value] of Object.entries(secrets)) {
+                await mailbox.push({ ...discovering, [key]: value })
+            }
+            await mailbox.push({ ...discovering, step: '34970112332' })
+            await mailbox.push(failed)
+            await until(() => steps(events).length === 1)
+            await until(() => mailbox.storedPushes().length === 0)
+            assert.deepEqual(steps(events), [failed])
+            const emitted = JSON.stringify(events)
+            for (const secret of Object.values(secrets)) {
+                assert.equal(emitted.includes(secret), false, secret)
+            }
+        })
+    })
+
+    it('ignores a step Convex forged or an impostor signed', async () => {
+        await withWatch({}, async ({ mailbox, events }) => {
+            mailbox.impostor = true
+            const impostor = await mailbox.push(failed)
+            mailbox.impostor = false
+            await until(() =>
+                impostor.every((id) => mailbox.acks.flat().includes(id))
+            )
+            assert.deepEqual(steps(events), [])
+            await mailbox.push(discovering)
+            await until(() => steps(events).length === 1)
+            assert.deepEqual(steps(events), [discovering])
+        })
+    })
+})

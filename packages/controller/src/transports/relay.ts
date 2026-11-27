@@ -13,7 +13,6 @@ import {
     type Device,
     type DeviceCommand,
     type DeviceEvent,
-    deviceEventSchema,
     type HealthSummary,
     type HistoryQuery,
     type HistoryQueryRead,
@@ -33,12 +32,14 @@ import {
     patchRoomRequestSchema,
     permitJoinRequestSchema,
     permitJoinResponseSchema,
+    type RelayPushMessage,
     type RelayReplyMessage,
     type RelayRequestMessage,
     type ReleaseChannel,
     type RenameDeviceRequest,
     type RenameRoomRequest,
     type Room,
+    relayPushMessageSchema,
     relayReplyMessageSchema,
     relayRequestMessageSchema,
     renameDeviceRequestSchema,
@@ -1032,16 +1033,14 @@ export class RelayTransport implements ControllerTransport {
 }
 
 /**
- * A push's capability event, or `null` unless it is genuine and newer than
- * every push the watch has applied. Moves the watch's window on success.
+ * A push's event (a capability change or snapshot, or a commissioning step),
+ * or `null` unless it is genuine and newer than every push the watch has
+ * applied. Moves the watch's window on success.
  */
 function openWatchPush(
     watch: LiveWatch,
     sealed: SealedPush
-): Extract<
-    DeviceEvent,
-    { type: 'capabilityChange' | 'capabilitySnapshot' }
-> | null {
+): RelayPushMessage | null {
     const counter = sealed.header?.counter
     // A counter at or below the highest applied is a replay or arrived out
     // of order; applying it would roll the state back.
@@ -1058,14 +1057,10 @@ function openWatchPush(
         })
         const text = utf8Decode(opened.plaintext)
         if (text === null) return null
-        const parsed = deviceEventSchema.safeParse(JSON.parse(text))
-        if (
-            !parsed.success ||
-            (parsed.data.type !== 'capabilityChange' &&
-                parsed.data.type !== 'capabilitySnapshot')
-        ) {
-            return null
-        }
+        // Strict: a commissioning step with anything but its enums (a
+        // pairing code, passcode or Wi-Fi credential) is refused.
+        const parsed = relayPushMessageSchema.safeParse(JSON.parse(text))
+        if (!parsed.success) return null
         watch.window = opened.window
         return parsed.data
     } catch (error) {

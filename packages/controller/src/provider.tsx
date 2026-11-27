@@ -604,7 +604,7 @@ export function useDevicePairing(): {
     commissionProgress: CommissionProgress | null
     /**
      * The Protocol-neutral step commissioning has reached, or the step that
-     * failed. Arrives over LAN only until NEM-123 pushes it over Relay.
+     * failed. Arrives the same over LAN and over Relay.
      */
     commissioningStep: CommissioningProgress | null
     /** Connected over Relay, which never carries a Matter pairing code. */
@@ -763,8 +763,8 @@ export function useDevicePairing(): {
                     void absorbMatterJoins()
                 }
                 // A failed step ends the pairing view on its own, without
-                // waiting for the older failed interview. It arrives over LAN
-                // only until NEM-123.
+                // waiting for the older failed interview, which never comes
+                // over Relay.
                 if (
                     progress.status === 'failed' &&
                     discoveredDevicesRef.current.length === 0

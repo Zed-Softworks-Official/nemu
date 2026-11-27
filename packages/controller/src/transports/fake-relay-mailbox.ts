@@ -40,8 +40,9 @@ import type { RelayApi } from './relay.ts'
  * Access Client, signature, replay window), answers it, and seals and signs
  * the reply, as Core's Relay handler does. Refused requests are answered the
  * way Core answers them: a bad signature is dropped unanswered. A `watchCapabilityChanges` it acknowledges
- * becomes a live watch, which `push` seals capability events to under the
- * watch's exported key and next counter, as Core's push loop does.
+ * becomes a live watch, which `push` seals capability events and
+ * commissioning progress to under the watch's exported key and next counter,
+ * as Core's push loop does.
  */
 
 export const FAKE_RELAY_API = {
