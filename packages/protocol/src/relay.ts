@@ -121,12 +121,6 @@ const authenticatedRelayMessageSchema = z.union([
     z.object({ type: z.literal('revokeCurrent') }),
     /** Leaving a Home: ends the caller's own Membership. */
     z.object({ type: z.literal('leaveHome') }),
-    z.object({
-        type: z.literal('bootstrapOwner'),
-        userId: z.string(),
-        email: z.string(),
-        displayName: z.string().optional(),
-    }),
     z.object({ type: z.literal('getCapabilitySnapshot') }),
     z.object({ type: z.literal('watchCapabilityChanges') }),
     historyQueryMessageSchema,
