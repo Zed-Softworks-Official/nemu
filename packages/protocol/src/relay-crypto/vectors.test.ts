@@ -369,7 +369,7 @@ describe('sealed responses', () => {
         it(`seals and opens: ${v.name}`, async () => {
             const request = requestByName(v.request)
             const sealed = await sealResponse({
-                request: request.header,
+                request: request.sealed as SealedRequest,
                 keys: request.keys,
                 plaintext: utf8Encode(v.plaintext),
                 controllerSigner,
@@ -377,7 +377,7 @@ describe('sealed responses', () => {
             assert.deepEqual(sealed, v.sealed)
             const plaintext = openResponse({
                 sealed: v.sealed,
-                request: request.header,
+                request: request.sealed as SealedRequest,
                 keys: request.keys,
                 controllerSigningKey: h(controller.signingPublic),
             })
@@ -392,7 +392,7 @@ describe('sealed responses', () => {
                 errorCode(() =>
                     openResponse({
                         sealed: r.sealed as SealedResponse,
-                        request: request.header,
+                        request: request.sealed as SealedRequest,
                         keys: request.keys,
                         controllerSigningKey: h(controller.signingPublic),
                     })

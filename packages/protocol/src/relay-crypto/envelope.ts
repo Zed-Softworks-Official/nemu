@@ -1,6 +1,7 @@
 // Sealed Relay requests, responses and pushes. Twin of Core's
 // `relay_crypto::envelope`; see that module for the construction.
 
+import { sha256 } from '@noble/hashes/sha2.js'
 import { z } from 'zod'
 
 import {
@@ -25,7 +26,7 @@ import { type Ed25519Signer, ed25519Verify } from './signing.ts'
 
 export const HPKE_INFO = utf8Encode('nemu-relay-v1')
 const REQUEST_LABEL = utf8Encode('nemu-relay-request-v1')
-const RESPONSE_LABEL = utf8Encode('nemu-relay-response-v1')
+const RESPONSE_LABEL = utf8Encode('nemu-relay-response-v2')
 const PUSH_LABEL = utf8Encode('nemu-relay-push-v1')
 const RESPONSE_KEY_LABEL = utf8Encode('nemu-relay-response-key')
 const PUSH_KEY_LABEL = utf8Encode('nemu-relay-push-key')
@@ -128,13 +129,21 @@ export function encodeRequestHeader(header: RequestHeader): Uint8Array {
     )
 }
 
-export function encodeResponseHeader(header: ResponseHeader): Uint8Array {
+/**
+ * The bytes a response binds: its header and the digest of the exact request
+ * it answers (`requestDigest`).
+ */
+export function encodeResponseHeader(
+    header: ResponseHeader,
+    requestDigest: Uint8Array
+): Uint8Array {
     return lvCat(
         RESPONSE_LABEL,
         utf8Encode(header.controllerId),
         u64be(header.identityEpoch),
         utf8Encode(header.accessClientId),
-        utf8Encode(header.requestId)
+        utf8Encode(header.requestId),
+        requestDigest
     )
 }
 
@@ -356,11 +365,33 @@ export function openRequest(input: {
 }
 
 /**
+ * SHA-256 of `lvCat(header, enc, ciphertext, signature)`: the request exactly
+ * as sent. A response binds it, so a reply to a request Convex rewrote (a new
+ * counter, a flipped signature byte) never answers the one the client sent,
+ * although both share `enc` and so the response key.
+ */
+export function requestDigest(sealed: SealedRequest): Uint8Array {
+    const enc = b64urlDecodeLength(sealed.enc, 32)
+    const signature = b64urlDecodeLength(sealed.signature, 64)
+    if (enc === null || signature === null) {
+        throw new RelayCryptoError('malformed')
+    }
+    return sha256(
+        lvCat(
+            encodeRequestHeader(sealed.header),
+            enc,
+            decodeOrThrow(sealed.ciphertext),
+            signature
+        )
+    )
+}
+
+/**
  * The response and push keys of a request, from its HPKE encapsulation
  * alone. Nothing is decrypted or checked, so these keys only let the
  * Controller answer a request `openRequest` refused with a sealed, signed
- * refusal that only the request's sender can open. Twin of Core's
- * `reply_keys`.
+ * refusal that only the request's sender can open, bound to the request as
+ * received (`requestDigest`). Twin of Core's `reply_keys`.
  */
 export function replyKeys(input: {
     sealed: SealedRequest
@@ -380,14 +411,15 @@ export function replyKeys(input: {
 // ---------------------------------------------------------------------------
 // Responses
 
+/** Seals the response to `request`, exactly as the Controller received it. */
 export async function sealResponse(input: {
-    request: RequestHeader
+    request: SealedRequest
     keys: RequestKeys
     plaintext: Uint8Array
     controllerSigner: Ed25519Signer
 }): Promise<SealedResponse> {
-    const header = responseHeaderFor(input.request)
-    const aad = encodeResponseHeader(header)
+    const header = responseHeaderFor(input.request.header)
+    const aad = encodeResponseHeader(header, requestDigest(input.request))
     const ciphertext = aeadSeal(
         input.keys.responseKey,
         counterNonce(0),
@@ -404,22 +436,23 @@ export async function sealResponse(input: {
 
 /**
  * Opens a response as the Access Client, against the request it sent and
- * the Controller signing key pinned at pairing.
+ * the Controller signing key pinned at pairing. A reply the Controller
+ * sealed to any other request, however close, fails its signature check.
  */
 export function openResponse(input: {
     sealed: SealedResponse
-    request: RequestHeader
+    request: SealedRequest
     keys: RequestKeys
     controllerSigningKey: Uint8Array
 }): Uint8Array {
     const parsed = sealedResponseSchema.safeParse(input.sealed)
     if (!parsed.success) throw new RelayCryptoError('malformed')
     const { header } = parsed.data
-    if (!sameResponseHeader(header, responseHeaderFor(input.request))) {
+    if (!sameResponseHeader(header, responseHeaderFor(input.request.header))) {
         throw new RelayCryptoError('mismatched_header')
     }
     const ciphertext = decodeOrThrow(parsed.data.ciphertext)
-    const aad = encodeResponseHeader(header)
+    const aad = encodeResponseHeader(header, requestDigest(input.request))
     verifyOrThrow(
         input.controllerSigningKey,
         lvCat(aad, ciphertext),

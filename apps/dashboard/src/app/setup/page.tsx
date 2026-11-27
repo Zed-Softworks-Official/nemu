@@ -93,8 +93,6 @@ function pairAgainMessage(reason: string | null): string | null {
             'This browser no longer has access to your Home. It may have been removed. Pair it again at home.',
         tombstoned_access_client:
             'This browser was removed from your Home. Pair it again at home.',
-        bad_signature:
-            'Your Home did not accept this browser’s keys. Pair it again at home.',
         membership_ended:
             'You are no longer a Member of this Home. Ask an Owner for a new Invitation.',
     }

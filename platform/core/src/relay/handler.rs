@@ -15,8 +15,10 @@
 //! A request refused before decryption is still answered, sealed to the
 //! request's own HPKE encapsulation and signed, so the Access Client learns
 //! why (pair again, re-address to the current epoch, or move its counter
-//! past the window) and nobody else can read the answer. A malformed
-//! envelope, or one for another Controller, is dropped.
+//! past the window) and nobody else can read the answer. Every reply binds
+//! the request exactly as received, so a reply to a request Convex rewrote
+//! never answers the one its Access Client sent. A malformed envelope, one
+//! for another Controller, or one with a bad signature is dropped.
 
 use chrono::Utc;
 use serde_json::{Value as JsonValue, json};
@@ -137,7 +139,7 @@ async fn handle(
         }
         Err(rejection) => dispatch::rejection_reply(&rejection),
     };
-    Ok(Some(seal(state, &opened.header, &opened.keys, &reply)))
+    Ok(seal(state, sealed, &opened.keys, &reply))
 }
 
 /// The Access Client's status for `open_request`, and the caller to run its
@@ -224,10 +226,14 @@ fn rejection_reply(
 ) -> Option<JsonValue> {
     let pair_again = "This device is no longer paired with this Home. Pair it again at home.";
     let (code, message, details) = match rejection {
-        // Not ours, or not a request: nothing to answer.
+        // Not ours, or not a request: nothing to answer. A bad signature is
+        // not answered either: anyone can flip a byte in the mailbox, so the
+        // Access Client could not tell whose mistake it was, and a signed
+        // refusal must never be something Convex can earn for it.
         RelayRejection::Malformed
         | RelayRejection::WrongController
         | RelayRejection::MismatchedHeader
+        | RelayRejection::BadSignature
         | RelayRejection::DecryptFailed => return None,
         RelayRejection::RetiredEpoch => (
             "retired_epoch",
@@ -241,7 +247,6 @@ fn rejection_reply(
         ),
         RelayRejection::UnknownAccessClient => ("unknown_access_client", pair_again, None),
         RelayRejection::TombstonedAccessClient => ("tombstoned_access_client", pair_again, None),
-        RelayRejection::BadSignature => ("bad_signature", pair_again, None),
         RelayRejection::Replayed | RelayRejection::OutsideWindow => (
             if rejection == RelayRejection::Replayed {
                 "replayed"
@@ -266,18 +271,20 @@ fn internal_error() -> JsonValue {
     )
 }
 
+/// Seals `reply` to `request`, bound to it exactly as received.
 fn seal(
     state: &AppState,
-    header: &RequestHeader,
+    request: &SealedRequest,
     keys: &RequestKeys,
     reply: &JsonValue,
-) -> SealedResponse {
+) -> Option<SealedResponse> {
     seal_response(
-        header,
+        request,
         keys,
         reply.to_string().as_bytes(),
         &state.identity.keypair.signing_key,
     )
+    .ok()
 }
 
 /// Seals `reply` to a request that was not opened.
@@ -287,7 +294,7 @@ fn reply_without_opening(
     reply: &JsonValue,
 ) -> Option<SealedResponse> {
     let keys = reply_keys(sealed, &state.identity.encryption_key.secret_key).ok()?;
-    Some(seal(state, &sealed.header, &keys, reply))
+    seal(state, sealed, &keys, reply)
 }
 
 #[cfg(test)]

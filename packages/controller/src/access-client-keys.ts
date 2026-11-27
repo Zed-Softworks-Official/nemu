@@ -75,15 +75,16 @@ export const BEARER_TOKEN_RETIRED_ERROR_CODE = 'bearer_token_retired'
 /**
  * Error codes meaning this Access Client must pair again at home: it holds no
  * keys for the Home, it presented a retired bearer token, or the Controller
- * no longer knows or has revoked it. A bad signature means the Controller
- * does not hold the keys this client signs with, so the same applies.
+ * no longer knows or has revoked it. Each one that drops keys reaches the
+ * client only signed by the pinned Controller key and bound to a request or
+ * nonce of this client's, so Convex or the network can't fake one. A bad
+ * signature is never one: anyone in between can flip a byte.
  */
 export const PAIR_AGAIN_ERROR_CODES = [
     NOT_PAIRED_ERROR_CODE,
     BEARER_TOKEN_RETIRED_ERROR_CODE,
     'unknown_access_client',
     'tombstoned_access_client',
-    'bad_signature',
     /** The Controller signed this Membership's routing projection as ended. */
     'membership_ended',
 ] as const

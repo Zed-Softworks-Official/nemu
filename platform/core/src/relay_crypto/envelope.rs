@@ -8,11 +8,18 @@
 //! under the push key (nonce counter = push counter), and signs
 //! `lv_cat(header, ciphertext)`.
 //!
+//! A response header also binds the SHA-256 of the whole request as the
+//! Controller received it (header, `enc`, ciphertext and signature). The
+//! response key comes from `enc` alone, so without that binding a reply to a
+//! request Convex rewrote (a new counter, a flipped signature byte) would
+//! open as the reply to the one the client sent.
+//!
 //! The header encodings below are what both sides sign and bind; the JSON
 //! header is only how they travel.
 
 use ed25519_dalek::{Signature, Signer, SigningKey, VerifyingKey};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 use super::hpke;
 use super::replay::{ReplayRejection, ReplayWindow};
@@ -23,7 +30,7 @@ use super::wire::{
 
 pub const HPKE_INFO: &[u8] = b"nemu-relay-v1";
 const REQUEST_LABEL: &[u8] = b"nemu-relay-request-v1";
-const RESPONSE_LABEL: &[u8] = b"nemu-relay-response-v1";
+const RESPONSE_LABEL: &[u8] = b"nemu-relay-response-v2";
 const PUSH_LABEL: &[u8] = b"nemu-relay-push-v1";
 const RESPONSE_KEY_LABEL: &[u8] = b"nemu-relay-response-key";
 const PUSH_KEY_LABEL: &[u8] = b"nemu-relay-push-key";
@@ -149,13 +156,16 @@ impl RequestHeader {
 }
 
 impl ResponseHeader {
-    pub fn encode(&self) -> Vec<u8> {
+    /// The bytes a response binds: this header and the digest of the exact
+    /// request it answers ([`request_digest`]).
+    pub fn encode(&self, request_digest: &[u8; 32]) -> Vec<u8> {
         lv_cat(&[
             RESPONSE_LABEL,
             self.controller_id.as_bytes(),
             &u64_be(self.identity_epoch),
             self.access_client_id.as_bytes(),
             self.request_id.as_bytes(),
+            request_digest,
         ])
     }
 }
@@ -369,11 +379,27 @@ pub fn open_request(
     })
 }
 
+/// SHA-256 of `lv_cat(header, enc, ciphertext, signature)`: the request
+/// exactly as sent. A response binds it, so it answers that request only.
+pub fn request_digest(sealed: &SealedRequest) -> Result<[u8; 32], RelayRejection> {
+    let enc = b64url_decode_32(&sealed.enc).ok_or(RelayRejection::Malformed)?;
+    let ciphertext = b64url_decode(&sealed.ciphertext).ok_or(RelayRejection::Malformed)?;
+    let signature = b64url_decode_64(&sealed.signature).ok_or(RelayRejection::Malformed)?;
+    Ok(Sha256::digest(lv_cat(&[
+        &sealed.header.encode(),
+        &enc,
+        &ciphertext,
+        &signature,
+    ]))
+    .into())
+}
+
 /// The response and push keys of a request, from its HPKE encapsulation
 /// alone. Nothing is decrypted and nothing about the sender is checked, so
 /// these keys only let the Controller answer a request [`open_request`]
 /// rejected with a sealed, signed rejection. Only whoever sealed the request
-/// can open that answer.
+/// can open that answer, and the response binds the request as received
+/// ([`request_digest`]), so it does not answer a request it was not.
 pub fn reply_keys(
     sealed: &SealedRequest,
     controller_encryption_secret: &[u8; 32],
@@ -387,36 +413,38 @@ pub fn reply_keys(
 // ---------------------------------------------------------------------------
 // Responses
 
+/// Seals the response to `request`, exactly as the Controller received it.
 pub fn seal_response(
-    request: &RequestHeader,
+    request: &SealedRequest,
     keys: &RequestKeys,
     plaintext: &[u8],
     controller_signing_key: &SigningKey,
-) -> SealedResponse {
-    let header = request.response_header();
-    let aad = header.encode();
+) -> Result<SealedResponse, RelayRejection> {
+    let header = request.header.response_header();
+    let aad = header.encode(&request_digest(request)?);
     let ciphertext = hpke::aead_seal(&keys.response_key, &counter_nonce(0), &aad, plaintext);
     let signature = controller_signing_key.sign(&lv_cat(&[&aad, &ciphertext]));
-    SealedResponse {
+    Ok(SealedResponse {
         header,
         ciphertext: b64url_encode(&ciphertext),
         signature: b64url_encode(&signature.to_bytes()),
-    }
+    })
 }
 
 /// Opens a response on the Access Client, against the request it sent and the
-/// Controller signing key pinned at pairing.
+/// Controller signing key pinned at pairing. A reply the Controller sealed
+/// to any other request, however close, fails its signature check.
 pub fn open_response(
     sealed: &SealedResponse,
-    request: &RequestHeader,
+    request: &SealedRequest,
     keys: &RequestKeys,
     controller_signing_key: &[u8; 32],
 ) -> Result<Vec<u8>, RelayRejection> {
-    if sealed.header != request.response_header() {
+    if sealed.header != request.header.response_header() {
         return Err(RelayRejection::MismatchedHeader);
     }
     let ciphertext = b64url_decode(&sealed.ciphertext).ok_or(RelayRejection::Malformed)?;
-    let aad = sealed.header.encode();
+    let aad = sealed.header.encode(&request_digest(request)?);
     verify(
         controller_signing_key,
         &lv_cat(&[&aad, &ciphertext]),
@@ -545,15 +573,9 @@ mod tests {
         assert_eq!(opened.window.highest, 1);
 
         let controller_public_signing = f.controller_signing.verifying_key().to_bytes();
-        let response = seal_response(&opened.header, &opened.keys, b"ok", &f.controller_signing);
+        let response = seal_response(&sealed, &opened.keys, b"ok", &f.controller_signing).unwrap();
         assert_eq!(
-            open_response(
-                &response,
-                &sealed.header,
-                &client_keys,
-                &controller_public_signing
-            )
-            .unwrap(),
+            open_response(&response, &sealed, &client_keys, &controller_public_signing).unwrap(),
             b"ok"
         );
 
@@ -611,12 +633,42 @@ mod tests {
         let (sealed, keys) =
             seal_request(header(), b"x", &controller_public, &f.client_signing).unwrap();
         let impostor = SigningKey::from_bytes(&[9u8; 32]);
-        let response = seal_response(&sealed.header, &keys, b"ok", &impostor);
+        let response = seal_response(&sealed, &keys, b"ok", &impostor).unwrap();
         let pinned = f.controller_signing.verifying_key().to_bytes();
         assert_eq!(
-            open_response(&response, &sealed.header, &keys, &pinned).unwrap_err(),
+            open_response(&response, &sealed, &keys, &pinned).unwrap_err(),
             RelayRejection::BadSignature
         );
+    }
+
+    /// Convex rewrites a request; the Controller answers what it received
+    /// (as it may for a refusal it sends without opening). That answer must
+    /// not open as the reply to what the client sent.
+    #[test]
+    fn a_reply_to_a_rewritten_request_does_not_answer_the_original() {
+        let f = fixture();
+        let controller_public = hpke::public_key(&f.controller_secret);
+        let (sealed, keys) =
+            seal_request(header(), b"x", &controller_public, &f.client_signing).unwrap();
+        let pinned = f.controller_signing.verifying_key().to_bytes();
+        let mut recounted = sealed.clone();
+        recounted.header.counter += 1;
+        let mut extended = sealed.clone();
+        extended.header.expires_at += 1;
+        let mut resigned = sealed.clone();
+        let mut signature = b64url_decode(&resigned.signature).unwrap();
+        signature[63] ^= 1;
+        resigned.signature = b64url_encode(&signature);
+        for rewritten in [recounted, extended, resigned] {
+            let reply_keys = reply_keys(&rewritten, &f.controller_secret).unwrap();
+            assert_eq!(reply_keys, keys, "the keys come from enc alone");
+            let response =
+                seal_response(&rewritten, &reply_keys, b"refused", &f.controller_signing).unwrap();
+            assert_eq!(
+                open_response(&response, &sealed, &keys, &pinned).unwrap_err(),
+                RelayRejection::BadSignature
+            );
+        }
     }
 
     #[test]

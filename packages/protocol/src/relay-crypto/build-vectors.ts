@@ -383,13 +383,30 @@ export async function buildRelayCryptoVectors() {
     }
 
     const response = await sealResponse({
-        request: command.sealed.header,
+        request: command.sealed,
         keys: command.keys,
         plaintext: utf8Encode('{"ok":true,"outcome":"accepted"}'),
         controllerSigner: signer(controller),
     })
+    // The Controller's genuine answers to copies of `command` that Convex
+    // rewrote: they share its `enc`, so its response key.
+    const refusal = utf8Encode(
+        '{"type":"commandResult","ok":false,"error":{"code":"unknown_access_client","message":"pair again"}}'
+    )
+    const replyToRewritten = (request: SealedRequest) =>
+        sealResponse({
+            request,
+            keys: command.keys,
+            plaintext: refusal,
+            controllerSigner: signer(controller),
+        })
+    const replyToRecounted = await replyToRewritten(tamperedHeader)
+    const replyToResigned = await replyToRewritten({
+        ...command.sealed,
+        signature: tamper(command.sealed.signature),
+    })
     const forgedResponse = await sealResponse({
-        request: command.sealed.header,
+        request: command.sealed,
         keys: command.keys,
         plaintext: utf8Encode('{"ok":true,"outcome":"accepted"}'),
         controllerSigner: signer(impostor),
@@ -686,6 +703,18 @@ export async function buildRelayCryptoVectors() {
                         ...response,
                         ciphertext: tamper(response.ciphertext),
                     },
+                    expectedError: 'bad_signature',
+                },
+                {
+                    name: 'the Controller answering a copy with another counter',
+                    request: command.name,
+                    sealed: replyToRecounted,
+                    expectedError: 'bad_signature',
+                },
+                {
+                    name: 'the Controller answering a copy with another signature',
+                    request: command.name,
+                    sealed: replyToResigned,
                     expectedError: 'bad_signature',
                 },
             ],

@@ -256,8 +256,8 @@
                     "accessClientId": "ac_7f3a",
                     "requestId": "req_0001"
                 },
-                "ciphertext": "PYHWZ48S572fnEEli5zA31LbQesM_bDHG81eDT4r1RhhRXTONaSqgOUwkmLO8Flv",
-                "signature": "DSE1RDBoJ6LMiw_1huQAZW3CGS6MIHn88PNRsK0fyzorI-a6adZKrI7Ekcfr20yaKNFZOCzeCjXqtk1LaJVzBQ"
+                "ciphertext": "PYHWZ48S572fnEEli5zA31LbQesM_bDHG81eDT4r1RiWrB2fa6ctYx6bUMU6ImPu",
+                "signature": "bVu5EW3EcCvGldoIjViaXNhAfe8tP8xWHnX9n5rfTlTwIDHcasZd3NKp7KMqcASmYPFW7cZ4oRh_1uDBf_IvBw"
             }
         }
     ],
@@ -627,8 +627,8 @@
                         "accessClientId": "ac_7f3a",
                         "requestId": "req_0001"
                     },
-                    "ciphertext": "PYHWZ48S572fnEEli5zA31LbQesM_bDHG81eDT4r1RhhRXTONaSqgOUwkmLO8Flv",
-                    "signature": "COlIAHqKRFg7NQoJEH9UiUmLUrU-lg5kRxr3IvfydkB3EHKr4CWPMdiC_SlhJWMoAzsOVblgploqsmU3_NW5CQ"
+                    "ciphertext": "PYHWZ48S572fnEEli5zA31LbQesM_bDHG81eDT4r1RiWrB2fa6ctYx6bUMU6ImPu",
+                    "signature": "55O96UeoAFUlpEYd9TpVYrdAdlfTALk82fiPavRVw2UMHXVUvoke_NZ1d3_fMkNlaIVarmrqF1P5eBy_ACoNCw"
                 },
                 "expectedError": "bad_signature"
             },
@@ -642,8 +642,8 @@
                         "accessClientId": "ac_7f3a",
                         "requestId": "req_9999"
                     },
-                    "ciphertext": "PYHWZ48S572fnEEli5zA31LbQesM_bDHG81eDT4r1RhhRXTONaSqgOUwkmLO8Flv",
-                    "signature": "DSE1RDBoJ6LMiw_1huQAZW3CGS6MIHn88PNRsK0fyzorI-a6adZKrI7Ekcfr20yaKNFZOCzeCjXqtk1LaJVzBQ"
+                    "ciphertext": "PYHWZ48S572fnEEli5zA31LbQesM_bDHG81eDT4r1RiWrB2fa6ctYx6bUMU6ImPu",
+                    "signature": "bVu5EW3EcCvGldoIjViaXNhAfe8tP8xWHnX9n5rfTlTwIDHcasZd3NKp7KMqcASmYPFW7cZ4oRh_1uDBf_IvBw"
                 },
                 "expectedError": "mismatched_header"
             },
@@ -657,8 +657,38 @@
                         "accessClientId": "ac_7f3a",
                         "requestId": "req_0001"
                     },
-                    "ciphertext": "PYHWZ48S572fnEEli5zA31LbQesM_bDHG81eDT4r1RhhRXTONaSqgOUwkmLO8FAv",
-                    "signature": "DSE1RDBoJ6LMiw_1huQAZW3CGS6MIHn88PNRsK0fyzorI-a6adZKrI7Ekcfr20yaKNFZOCzeCjXqtk1LaJVzBQ"
+                    "ciphertext": "PYHWZ48S572fnEEli5zA31LbQesM_bDHG81eDT4r1RiWrB2fa6ctYx6bUMU6ImAu",
+                    "signature": "bVu5EW3EcCvGldoIjViaXNhAfe8tP8xWHnX9n5rfTlTwIDHcasZd3NKp7KMqcASmYPFW7cZ4oRh_1uDBf_IvBw"
+                },
+                "expectedError": "bad_signature"
+            },
+            {
+                "name": "the Controller answering a copy with another counter",
+                "request": "command",
+                "sealed": {
+                    "header": {
+                        "controllerId": "nemu_0123456789abcdef",
+                        "identityEpoch": 3,
+                        "accessClientId": "ac_7f3a",
+                        "requestId": "req_0001"
+                    },
+                    "ciphertext": "PYHNdd1NsfXImgJqiYja2G_TV7xaq_OIWsdFW2EplgmGohfQiqb_qTvirDUTASoMaUmiJWMDN_7buKkEWBCt-RjPzqBkyi4HW5MfWx-1STKhyVoFfOfnGH8lmqFwt4CsGKicipjsjveJdxPQm7X1MqKuHw",
+                    "signature": "09tPkCrC0GFTA3YONPOO4gMvoQfF1-SUP3ewJGSHpXX_iQ4F0phR3_BjF0BVrRqJY1EualtWiB4m6klQxYH5Dw"
+                },
+                "expectedError": "bad_signature"
+            },
+            {
+                "name": "the Controller answering a copy with another signature",
+                "request": "command",
+                "sealed": {
+                    "header": {
+                        "controllerId": "nemu_0123456789abcdef",
+                        "identityEpoch": 3,
+                        "accessClientId": "ac_7f3a",
+                        "requestId": "req_0001"
+                    },
+                    "ciphertext": "PYHNdd1NsfXImgJqiYja2G_TV7xaq_OIWsdFW2EplgmGohfQiqb_qTvirDUTASoMaUmiJWMDN_7buKkEWBCt-RjPzqBkyi4HW5MfWx-1STKhyVoFfOfnGH8lmqFwt4CsGKicNRJvOCjv4Porf_Z3xoCJBw",
+                    "signature": "z5kRxtk2dcUSBhvQdeH715-ijLamu9hqqQQwPstGMNM_BPLgpeqC3pmX78Piot58-PAR65ZtMG0l6RGXNkenBw"
                 },
                 "expectedError": "bad_signature"
             }

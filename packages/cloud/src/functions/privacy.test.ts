@@ -193,7 +193,7 @@ describe('A sealed Relay exchange', () => {
         expect(pending).toHaveLength(1)
         const reply = JSON.stringify({ type: 'session', role: 'owner' })
         const response = await sealResponse({
-            request: header,
+            request: sealed,
             keys,
             plaintext: utf8Encode(reply),
             controllerSigner: ed25519Signer(controllerSigningSecret),
@@ -214,7 +214,7 @@ describe('A sealed Relay exchange', () => {
             new TextDecoder().decode(
                 openResponse({
                     sealed: delivered.sealed as typeof response,
-                    request: header,
+                    request: sealed,
                     keys,
                     controllerSigningKey,
                 })

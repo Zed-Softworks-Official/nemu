@@ -1062,7 +1062,7 @@ async fn nothing_in_a_relay_envelope_authenticates_as_an_access_client() {
         .await
         .unwrap();
     let reply: Value = serde_json::from_slice(
-        &open_response(&response, &header, &keys, &phone.pinned.signing_key).unwrap(),
+        &open_response(&response, &sealed, &keys, &phone.pinned.signing_key).unwrap(),
     )
     .unwrap();
     assert_eq!(reply, json!({ "type": "session", "role": "owner" }));
@@ -1117,7 +1117,7 @@ async fn nothing_in_a_relay_envelope_authenticates_as_an_access_client() {
         .await
         .unwrap();
     let refusal: Value = serde_json::from_slice(
-        &open_response(&replayed, &header, &keys, &phone.pinned.signing_key).unwrap(),
+        &open_response(&replayed, &sealed, &keys, &phone.pinned.signing_key).unwrap(),
     )
     .unwrap();
     assert_eq!(refusal["ok"], json!(false), "{refusal}");

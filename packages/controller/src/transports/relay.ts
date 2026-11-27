@@ -154,7 +154,6 @@ const POLLED_WATCHES = 2
 const PAIR_AGAIN_CODES: ReadonlySet<string> = new Set([
     'unknown_access_client',
     'tombstoned_access_client',
-    'bad_signature',
 ])
 
 export type RelayTransportOptions = {
@@ -785,7 +784,7 @@ export class RelayTransport implements ControllerTransport {
             })
             await this.send(record, sealed, deadline)
             const reply = await this.waitForReply(
-                header,
+                sealed,
                 keys,
                 enrollment.controllerSigningKey,
                 deadline
@@ -964,11 +963,12 @@ export class RelayTransport implements ControllerTransport {
      * attempt, or one Convex forged or altered) is acknowledged and ignored.
      */
     private waitForReply(
-        header: RequestHeader,
+        request: SealedRequest,
         keys: RequestKeys,
         controllerSigningKey: Uint8Array,
         deadline: number
     ): Promise<RelayReply> {
+        const { header } = request
         const { requestId } = header
         return new Promise((resolve, reject) => {
             const tick = async () => {
@@ -991,7 +991,7 @@ export class RelayTransport implements ControllerTransport {
                         if (doc.kind !== 'response') continue
                         const message = openReply(
                             doc.sealed as SealedResponse,
-                            header,
+                            request,
                             keys,
                             controllerSigningKey
                         )
@@ -1069,7 +1069,7 @@ function openWatchPush(
 /** The reply's message, or `null` unless it is this request's and genuine. */
 function openReply(
     sealed: SealedResponse,
-    request: RequestHeader,
+    request: SealedRequest,
     keys: RequestKeys,
     controllerSigningKey: Uint8Array
 ): RelayReplyMessage | null {

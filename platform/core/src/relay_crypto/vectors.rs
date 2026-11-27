@@ -359,14 +359,16 @@ fn responses_seal_open_and_reject() {
     let vectors = vectors();
     let keys = keys(&vectors);
     for v in array(&vectors["responses"]) {
-        let (_, request, request_keys) = find_request(&vectors, s(&v["request"]));
+        let (request, _, request_keys) = find_request(&vectors, s(&v["request"]));
+        let request: SealedRequest = serde_json::from_value(request["sealed"].clone()).unwrap();
         let expected: SealedResponse = serde_json::from_value(v["sealed"].clone()).unwrap();
         let sealed = envelope::seal_response(
             &request,
             &request_keys,
             s(&v["plaintext"]).as_bytes(),
             &keys.controller.signing,
-        );
+        )
+        .unwrap();
         assert_eq!(sealed, expected);
         let plaintext = envelope::open_response(
             &expected,
@@ -378,7 +380,8 @@ fn responses_seal_open_and_reject() {
         assert_eq!(plaintext, s(&v["plaintext"]).as_bytes());
     }
     for r in array(&vectors["rejections"]["responses"]) {
-        let (_, request, request_keys) = find_request(&vectors, s(&r["request"]));
+        let (request, _, request_keys) = find_request(&vectors, s(&r["request"]));
+        let request: SealedRequest = serde_json::from_value(request["sealed"].clone()).unwrap();
         let sealed: SealedResponse = serde_json::from_value(r["sealed"].clone()).unwrap();
         let err = envelope::open_response(
             &sealed,
