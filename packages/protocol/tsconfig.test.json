@@ -31,6 +31,7 @@
         "src/commissioning.test.ts",
         "src/relay.test.ts",
         "src/session.test.ts",
-        "src/health.test.ts"
+        "src/health.test.ts",
+        "src/relay-crypto/*.ts"
     ]
 }

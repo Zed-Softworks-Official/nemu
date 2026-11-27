@@ -27,6 +27,7 @@ mod mqtt;
 mod pairing;
 mod registration;
 mod relay;
+mod relay_crypto;
 mod retention;
 mod setup;
 mod state;

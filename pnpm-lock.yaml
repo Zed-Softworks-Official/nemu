@@ -675,6 +675,15 @@ importers:
 
   packages/protocol:
     dependencies:
+      '@noble/ciphers':
+        specifier: ^2.4.0
+        version: 2.4.0
+      '@noble/curves':
+        specifier: ^2.4.0
+        version: 2.4.0
+      '@noble/hashes':
+        specifier: ^2.4.0
+        version: 2.4.0
       zod:
         specifier: 'catalog:'
         version: 4.3.6
