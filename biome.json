@@ -3,6 +3,6 @@
     "root": true,
     "extends": ["@nemu/biome-config/base"],
     "files": {
-        "includes": ["**", "!!.agents"]
+        "includes": ["**", "!!.agents", "!!platform/matter-harness/golden"]
     }
 }
