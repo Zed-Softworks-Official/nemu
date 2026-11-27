@@ -577,7 +577,7 @@ describe('Service', () => {
             })
         })
 
-        it('names the step reached when the error names none', async () => {
+        it('names the step reached before matter.js when an on-network error names none', async () => {
             const session = new FakeSession()
             session.failNetwork = new Error('something odd')
             const { transport } = await commission(session, {})
@@ -586,6 +586,62 @@ describe('Service', () => {
                 step: 'connecting',
                 reason: 'unreachable',
             })
+        })
+
+        it('does not blame the Wi-Fi step for a BLE error that names none', async () => {
+            // The wifi stage is announced before the one matter.js call, so
+            // it proves nothing about where that call failed.
+            const session = new FakeSession()
+            session.failBle = new Error('something odd')
+            session.failNetwork = new Error('something else odd')
+            const { transport } = await commission(session, WIFI)
+            assert.ok(
+                steps(transport).some(
+                    (p) =>
+                        (p as { step?: string }).step === 'configuring_network'
+                )
+            )
+            assert.deepEqual(steps(transport).at(-1), {
+                status: 'failed',
+                step: 'connecting',
+                reason: 'unreachable',
+            })
+        })
+
+        it('blames the step reached before matter.js when BLE times out', async () => {
+            const session = new FakeSession()
+            session.failBle = new Error('operation timed out')
+            session.failNetwork = new Error('something odd')
+            const { transport } = await commission(session, WIFI)
+            assert.deepEqual(steps(transport).at(-1), {
+                status: 'failed',
+                step: 'connecting',
+                reason: 'timed_out',
+            })
+        })
+
+        it('never names configuring_network for the on-network fallback', async () => {
+            // On-network commissioning sends no Wi-Fi, so it has no network
+            // step to fail, whatever the error text says.
+            for (const wifi of [{}, WIFI]) {
+                const session = new FakeSession()
+                session.ble = false
+                session.failNetwork = new Error('wifi network commissioning')
+                const { transport } = await commission(session, wifi)
+                assert.ok(
+                    steps(transport).every(
+                        (p) =>
+                            (p as { step?: string }).step !==
+                            'configuring_network'
+                    ),
+                    JSON.stringify(steps(transport))
+                )
+                assert.deepEqual(steps(transport).at(-1), {
+                    status: 'failed',
+                    step: 'connecting',
+                    reason: 'unreachable',
+                })
+            }
         })
 
         it('completes when the Device maps to nothing, as a placeholder', async () => {
