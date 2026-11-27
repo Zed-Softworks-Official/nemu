@@ -128,7 +128,15 @@ export const relayRequestMessageSchema = z.union([
     /** Leaving a Home: ends the caller's own Membership. */
     z.object({ type: z.literal('leaveHome') }),
     z.object({ type: z.literal('getCapabilitySnapshot') }),
-    z.object({ type: z.literal('watchCapabilityChanges') }),
+    /**
+     * Registers a capability watch. Its pushes are sealed with the key this
+     * request exports. `renews` names the watch it replaces, so each tab
+     * holds one live watch.
+     */
+    z.object({
+        type: z.literal('watchCapabilityChanges'),
+        renews: z.string().min(1).max(256).optional(),
+    }),
     historyQueryMessageSchema,
     historyCursorMessageSchema,
     designateHomeMeterMessageSchema,
