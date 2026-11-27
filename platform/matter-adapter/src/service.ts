@@ -8,6 +8,11 @@
  */
 import type { DeviceState } from '@nemu/protocol'
 import type { NodeId } from './attributes.ts'
+import {
+    commissionDevice,
+    type ProgressStage,
+    redact,
+} from './commissioning.ts'
 import type { Log } from './log.ts'
 import {
     commandsForSet,
@@ -17,7 +22,11 @@ import {
     stateForDevice,
     targetEndpoints,
 } from './mapping/index.ts'
-import type { AttributeChanges, MatterSession } from './matter/session.ts'
+import type {
+    AttributeChanges,
+    MatterSession,
+    WifiCredentials,
+} from './matter/session.ts'
 import type { MqttBus } from './mqtt/bus.ts'
 import { type Incoming, type Payload, transactionOf } from './mqtt/topics.ts'
 
@@ -101,44 +110,71 @@ export class Service {
             })
             return
         }
-        // TODO(NEM-120): wifiSsid/wifiPassword and BLE commissioning.
+        const wifi = wifiOf(payload)
         const attempt = new AbortController()
         this.#commissioning = attempt
         // Acknowledge first: commissioning takes seconds, and over BLE 20–40 s.
         await this.bus.respond('commission', transaction, { status: 'ok' })
-        void this.#runCommission(code, attempt)
+        await this.#progress('looking', 'Looking for your device')
+        void this.#runCommission(code, wifi, attempt)
     }
 
     async #runCommission(
         code: string,
+        wifi: WifiCredentials | undefined,
         attempt: AbortController
     ): Promise<void> {
         try {
-            const nodeId = await this.session.commission({
-                code,
-                signal: attempt.signal,
-            })
+            const nodeId = await commissionDevice(
+                this.session,
+                { code, wifi, signal: attempt.signal },
+                (stage, message) => this.#progress(stage, message),
+                this.log
+            )
             this.log.info(`commissioned node ${nodeId}`)
+            await this.#progress('setting_up', 'Setting up the device')
             this.#index(nodeId)
             await this.publishInventory()
+            if (![...this.#devices.values()].some((d) => d.nodeId === nodeId)) {
+                await this.#interviewFailed(
+                    'The device connected but did not appear on the controller.'
+                )
+                return
+            }
+            await this.#progress('connected', 'Connected')
         } catch (error) {
             if (attempt.signal.aborted) {
                 this.log.info('commissioning cancelled')
                 return
             }
-            this.log.warn(`commissioning failed: ${String(error)}`)
-            await this.bus.event({
-                type: 'device_interview',
-                data: {
-                    ieee_address: 'commissioning',
-                    status: 'failed',
-                    error:
-                        error instanceof Error ? error.message : String(error),
-                },
-            })
+            const message =
+                error instanceof Error ? error.message : String(error)
+            this.log.warn(
+                `commissioning failed: ${redact(message, { code, wifi })}`
+            )
+            await this.#interviewFailed(message)
         } finally {
             if (this.#commissioning === attempt) this.#commissioning = undefined
         }
+    }
+
+    /** The Rust adapter's `publish_progress`: both events, in this order. */
+    async #progress(stage: ProgressStage, message: string): Promise<void> {
+        await this.bus.event({
+            type: 'commission_progress',
+            data: { stage, message },
+        })
+        await this.bus.event({
+            type: 'device_interview',
+            data: { ieee_address: 'commissioning', status: 'started', message },
+        })
+    }
+
+    async #interviewFailed(error: string): Promise<void> {
+        await this.bus.event({
+            type: 'device_interview',
+            data: { ieee_address: 'commissioning', status: 'failed', error },
+        })
     }
 
     async #cancel(payload: Payload): Promise<void> {
@@ -217,4 +253,14 @@ export class Service {
         for (const device of mapNode(nodeId, snapshot))
             this.#devices.set(device.id, device)
     }
+}
+
+/** Home Wi-Fi from a commission request, as the Rust adapter read it. */
+function wifiOf(payload: Payload): WifiCredentials | undefined {
+    const ssid =
+        typeof payload.wifiSsid === 'string' ? payload.wifiSsid.trim() : ''
+    if (!ssid) return undefined
+    const password =
+        typeof payload.wifiPassword === 'string' ? payload.wifiPassword : ''
+    return { ssid, password }
 }
