@@ -1,12 +1,16 @@
 //! The Membership routing outbox (ADR-0005, NEM-133).
 //!
 //! Membership authority stays on the Controller; Convex holds only a routing
-//! projection, which it uses to decide which Accounts may post Relay
-//! envelopes for this Home. Every change to whether an Account holds an
-//! active Membership lands in `membership_routing_outbox` from a trigger on
-//! `members`, in the same transaction as the change. That covers pairing the
-//! first Owner, accepting an Invitation, removing a Member, Leaving a Home
-//! and anything else that writes `members`.
+//! projection, which it uses to decide which Accounts, and which of their
+//! Access Clients, may post Relay envelopes for this Home. Every change to
+//! whether an Account holds an active Membership lands in
+//! `membership_routing_outbox` from a trigger on `members`, and every Access
+//! Client paired or revoked under an active Membership from a trigger on
+//! `access_clients`, in the same transaction as the change. That covers
+//! pairing, accepting an Invitation, revoking an Access Client, removing a
+//! Member, Leaving a Home and anything else that writes those tables. An
+//! active projection names the Membership's Access Clients as they are when
+//! it is signed, so a later row never names fewer than are current.
 //!
 //! [`publish_pending`] signs each row with the Controller's Ed25519 identity
 //! key ([`crate::relay_crypto::projection`]) under the current identity epoch
@@ -29,11 +33,12 @@ use serde_json::json;
 use tracing::{info, warn};
 use uuid::Uuid;
 
-use crate::db::schema::{members, membership_routing_outbox as outbox};
+use crate::db::schema::{access_clients, members, membership_routing_outbox as outbox};
 use crate::identity::{get_string, set_string};
 use crate::relay::handler::{IDENTITY_EPOCH_SETTING, INITIAL_IDENTITY_EPOCH};
 use crate::relay_crypto::projection::{
-    MembershipProjection, MembershipRoutingState, SignedMembershipProjection, sign_projection,
+    MAX_ROUTED_ACCESS_CLIENTS, MembershipProjection, MembershipRoutingState,
+    SignedMembershipProjection, sign_projection,
 };
 use crate::state::AppState;
 
@@ -65,11 +70,35 @@ pub trait ProjectionSink {
 }
 
 #[derive(Debug, Queryable)]
-struct PendingChange {
+struct PendingRow {
     sequence: i64,
     membership_id: Uuid,
     account_id: String,
     state: String,
+}
+
+#[derive(Debug)]
+struct PendingChange {
+    row: PendingRow,
+    /// The Membership's Access Clients now, newest first up to
+    /// [`MAX_ROUTED_ACCESS_CLIENTS`], sorted by ID. Empty when ended.
+    access_client_ids: Vec<String>,
+}
+
+fn routed_access_clients_on(
+    conn: &mut PgConnection,
+    membership_id: Uuid,
+) -> Result<Vec<String>, String> {
+    let ids: Vec<Uuid> = access_clients::table
+        .filter(access_clients::member_id.eq(membership_id))
+        .order(access_clients::created_at.desc())
+        .limit(i64::try_from(MAX_ROUTED_ACCESS_CLIENTS).unwrap_or(i64::MAX))
+        .select(access_clients::id)
+        .load(conn)
+        .map_err(|e| format!("routing Access Client read failed: {e}"))?;
+    let mut ids: Vec<String> = ids.into_iter().map(|id| id.to_string()).collect();
+    ids.sort();
+    Ok(ids)
 }
 
 fn identity_epoch_on(conn: &mut PgConnection) -> Result<u64, String> {
@@ -141,8 +170,22 @@ async fn pending_changes(state: &AppState) -> Result<(u64, Vec<PendingChange>), 
                 outbox::account_id,
                 outbox::state,
             ))
-            .load::<PendingChange>(conn)
+            .load::<PendingRow>(conn)
             .map_err(|e| format!("routing outbox read failed: {e}"))?;
+        let pending = pending
+            .into_iter()
+            .map(|row| {
+                let access_client_ids = if row.state == "active" {
+                    routed_access_clients_on(conn, row.membership_id)?
+                } else {
+                    Vec::new()
+                };
+                Ok(PendingChange {
+                    row,
+                    access_client_ids,
+                })
+            })
+            .collect::<Result<Vec<_>, String>>()?;
         Ok((epoch, pending))
     })
     .await
@@ -183,7 +226,11 @@ pub async fn publish_pending(
 ) -> Result<usize, String> {
     let (epoch, pending) = pending_changes(state).await?;
     let mut published = 0;
-    for change in pending {
+    for PendingChange {
+        row: change,
+        access_client_ids,
+    } in pending
+    {
         let signed = routing_state(&change.state).ok_or(()).and_then(|routing| {
             sign_projection(
                 MembershipProjection {
@@ -193,6 +240,7 @@ pub async fn publish_pending(
                     account_id: change.account_id.clone(),
                     state: routing,
                     sequence: u64::try_from(change.sequence).unwrap_or(0),
+                    access_client_ids,
                 },
                 &state.identity.keypair.signing_key,
             )

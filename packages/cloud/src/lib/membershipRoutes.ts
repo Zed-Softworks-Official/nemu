@@ -29,6 +29,7 @@ export const signedMembershipProjectionValidator = v.object({
         accountId: v.string(),
         state: membershipRoutingStateValidator,
         sequence: v.number(),
+        accessClientIds: v.array(v.string()),
     }),
     signature: v.string(),
 })
@@ -84,6 +85,7 @@ export function toSignedProjection(
             accountId: route.accountId,
             state: route.state,
             sequence: route.sequence,
+            accessClientIds: route.accessClientIds,
         },
         signature: route.signature,
     }
@@ -166,13 +168,15 @@ async function currentEpoch(
 }
 
 /**
- * Whether the Account holds an active Membership in this Home, by the
- * latest signed projections. This is what Relay routes on.
+ * Whether the Account holds an active Membership in this Home that names
+ * this Access Client, by the latest signed projections. This is what Relay
+ * routes on: an Account can post or read only as its own Access Clients.
  */
-export async function hasActiveMembership(
+export async function routesAccessClient(
     ctx: QueryCtx,
     controllerId: string,
-    accountId: string
+    accountId: string,
+    accessClientId: string
 ): Promise<boolean> {
     const epoch = await currentEpoch(ctx, controllerId)
     if (epoch === null) return false
@@ -183,7 +187,10 @@ export async function hasActiveMembership(
         )
         .collect()
     return routes.some(
-        (route) => route.state === 'active' && route.identityEpoch === epoch
+        (route) =>
+            route.state === 'active' &&
+            route.identityEpoch === epoch &&
+            route.accessClientIds.includes(accessClientId)
     )
 }
 

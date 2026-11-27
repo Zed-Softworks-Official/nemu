@@ -2,9 +2,9 @@ import { v } from 'convex/values'
 import { requireControllerIdentity } from '../lib/auth'
 import { authedMutation, authedQuery } from '../lib/customFunctions'
 import {
-    hasActiveMembership,
     membershipFor,
     publishProjection,
+    routesAccessClient,
     signedMembershipProjectionValidator,
 } from '../lib/membershipRoutes'
 import {
@@ -54,13 +54,22 @@ type AuthedCtx = (QueryCtx | MutationCtx) & { identity: { subject: string } }
 /**
  * Relay routes on the signed Membership routing projection (NEM-133): only
  * an Account the Controller last said holds an active Membership may post
- * to or read from this Home's mailbox.
+ * to or read from this Home's mailbox, and only as an Access Client that
+ * projection names. A header's `accessClientId` is the sender's to write,
+ * so without this an Account could spend another's rate limit or read and
+ * acknowledge its replies.
  */
 async function isRoutedTo(
     ctx: AuthedCtx,
-    controllerId: string
+    controllerId: string,
+    accessClientId: string
 ): Promise<boolean> {
-    return await hasActiveMembership(ctx, controllerId, ctx.identity.subject)
+    return await routesAccessClient(
+        ctx,
+        controllerId,
+        ctx.identity.subject,
+        accessClientId
+    )
 }
 
 async function pendingRequests(
@@ -161,8 +170,9 @@ export const publishMembershipInternal = internalMutation({
 
 /**
  * An Access Client hands a sealed request to its Controller. Convex checks
- * only routing metadata: the Account's pairing, the header's shape and
- * expiry, and rate limits per Controller and per Access Client.
+ * only routing metadata: that the Account's projection names the Access
+ * Client, the header's shape and expiry, and rate limits per Controller,
+ * per Account and per Access Client.
  */
 export const send = authedMutation({
     args: {
@@ -172,9 +182,11 @@ export const send = authedMutation({
     handler: async (ctx, args) => {
         const sealed = checkSealedRequest(args.sealed)
         const { header } = sealed
-        // Routing metadata only: the projection names Accounts, not
-        // Access Clients, and Convex never sees which Access Client is whose.
-        if (!(await isRoutedTo(ctx, header.controllerId))) {
+        // Routing metadata only: the signed projection names this
+        // Account's Access Clients; the envelope stays opaque.
+        if (
+            !(await isRoutedTo(ctx, header.controllerId, header.accessClientId))
+        ) {
             throw relayError('no_membership')
         }
 
@@ -185,7 +197,11 @@ export const send = authedMutation({
         }
 
         // A failed limit throws, and the mutation rolls back any tokens the
-        // other limit already took.
+        // other limits already took.
+        await relayRateLimiter.limit(ctx, 'relayPerAccount', {
+            key: ctx.identity.subject,
+            throws: true,
+        })
         await relayRateLimiter.limit(ctx, 'relayPerAccessClient', {
             key: JSON.stringify([header.controllerId, header.accessClientId]),
             throws: true,
@@ -215,7 +231,7 @@ export const responses = authedQuery({
     },
     returns: v.array(toClientMessageValidator),
     handler: async (ctx, args) => {
-        if (!(await isRoutedTo(ctx, args.controllerId))) {
+        if (!(await isRoutedTo(ctx, args.controllerId, args.accessClientId))) {
             return []
         }
         const now = Date.now()
@@ -258,16 +274,24 @@ export const acknowledge = authedMutation({
     },
     returns: v.null(),
     handler: async (ctx, args) => {
-        const pairedByController = new Map<string, boolean>()
+        const routed = new Map<string, boolean>()
         for (const rawId of args.messageIds) {
             const messageId = ctx.db.normalizeId('relayMessages', rawId)
             if (!messageId) continue
             const message = await ctx.db.get(messageId)
             if (!message || message.kind === 'request') continue
-            let allowed = pairedByController.get(message.controllerId)
+            const key = JSON.stringify([
+                message.controllerId,
+                message.accessClientId,
+            ])
+            let allowed = routed.get(key)
             if (allowed === undefined) {
-                allowed = await isRoutedTo(ctx, message.controllerId)
-                pairedByController.set(message.controllerId, allowed)
+                allowed = await isRoutedTo(
+                    ctx,
+                    message.controllerId,
+                    message.accessClientId
+                )
+                routed.set(key, allowed)
             }
             if (allowed) {
                 await ctx.db.delete(messageId)

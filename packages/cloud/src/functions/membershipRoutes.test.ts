@@ -61,6 +61,7 @@ function projection(
         accountId: USER_ID,
         state: 'active',
         sequence: 1,
+        accessClientIds: overrides.state === 'ended' ? [] : ['access-client-1'],
         ...overrides,
     }
 }
@@ -130,6 +131,7 @@ describe('Publishing Membership routing projections', () => {
         expect(Object.keys(stored ?? {}).sort()).toEqual([
             '_creationTime',
             '_id',
+            'accessClientIds',
             'accountId',
             'controllerId',
             'identityEpoch',
@@ -155,7 +157,7 @@ describe('Publishing Membership routing projections', () => {
             })
         ).toEqual({ status: 403, body: { error: 'bad_signature' } })
         const tampered = await signed()
-        tampered.projection.state = 'ended'
+        tampered.projection.accessClientIds = ['someone-elses']
         expect(
             await publish(t, {
                 registrationSecret: REGISTRATION_SECRET,

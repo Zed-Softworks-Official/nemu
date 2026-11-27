@@ -59,6 +59,7 @@ const ALLOWED_FIELDS: Record<string, string[]> = {
         'accountId',
         'state',
         'sequence',
+        'accessClientIds',
         'signature',
     ],
     invites: ['controllerId', 'email', 'invitedByUserId', 'createdAt'],
@@ -160,6 +161,7 @@ describe('A sealed Relay exchange', () => {
                 accountId: USER_ID,
                 state: 'active',
                 sequence: 1,
+                accessClientIds: [ACCESS_CLIENT_ID],
                 signature: 'signature',
             })
         })

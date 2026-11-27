@@ -181,6 +181,8 @@ export class FakeRelayMailbox {
                 accountId: 'user-1',
                 state: 'active',
                 sequence: (this.projection?.projection.sequence ?? 0) + 1,
+                accessClientIds:
+                    overrides.state === 'ended' ? [] : [FAKE_ACCESS_CLIENT_ID],
                 ...overrides,
             },
             ed25519Signer(

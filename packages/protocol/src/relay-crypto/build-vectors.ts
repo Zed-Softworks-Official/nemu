@@ -492,11 +492,13 @@ export async function buildRelayCryptoVectors() {
         accountId: 'user_2abc',
         state: 'active',
         sequence: 7,
+        accessClientIds: [grant.accessClientId, 'ac_tablet'].sort(),
     }
     const endedProjection: MembershipProjection = {
         ...activeProjection,
         state: 'ended',
         sequence: 8,
+        accessClientIds: [],
     }
     const signedActive = await signMembershipProjection(
         activeProjection,
@@ -822,9 +824,38 @@ export async function buildRelayCryptoVectors() {
                     name: 'with its state rewritten',
                     signed: {
                         ...signedActive,
-                        projection: { ...activeProjection, state: 'ended' },
+                        projection: {
+                            ...activeProjection,
+                            state: 'ended',
+                            accessClientIds: [],
+                        },
                     },
                     expectedError: 'bad_signature',
+                },
+                {
+                    name: 'with an Access Client added',
+                    signed: {
+                        ...signedActive,
+                        projection: {
+                            ...activeProjection,
+                            accessClientIds: [
+                                ...activeProjection.accessClientIds,
+                                'ac_stranger',
+                            ],
+                        },
+                    },
+                    expectedError: 'bad_signature',
+                },
+                {
+                    name: 'ended but naming Access Clients',
+                    signed: {
+                        ...signedEnded,
+                        projection: {
+                            ...endedProjection,
+                            accessClientIds: ['ac_tablet'],
+                        },
+                    },
+                    expectedError: 'malformed',
                 },
                 {
                     name: 'with its identity epoch rewritten',

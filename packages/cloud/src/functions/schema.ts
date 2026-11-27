@@ -42,6 +42,12 @@ export default defineSchema({
         accountId: v.string(),
         state: v.union(v.literal('active'), v.literal('ended')),
         sequence: v.number(),
+        /**
+         * The Membership's Access Clients, which alone may use Relay for
+         * this Account. Access Client IDs already cross Convex in every
+         * envelope header; this binds them to the Account that posts them.
+         */
+        accessClientIds: v.array(v.string()),
         /** The Controller's Ed25519 signature, base64url. */
         signature: v.string(),
     })

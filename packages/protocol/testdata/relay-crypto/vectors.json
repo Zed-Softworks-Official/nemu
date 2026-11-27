@@ -321,9 +321,10 @@
                     "membershipId": "mem_42",
                     "accountId": "user_2abc",
                     "state": "active",
-                    "sequence": 7
+                    "sequence": 7,
+                    "accessClientIds": ["ac_7f3a", "ac_tablet"]
                 },
-                "signature": "ngkMGCcRY02XdFae8GISK8O8zx-1SDkGW3zLWFst-c0FxiBdb6GqZbN4Xp6t0bmluG7b8Sf_LS199OWiRUuCDw"
+                "signature": "ArroxOoRgAxjBtp4E8z4LIcy_TMPPjcGxeUVaOwAWvu-6JRkwvBzZyjTi9XQZRQJYQuvL2Cs6nuh3GvHP6XZCw"
             }
         },
         {
@@ -335,9 +336,10 @@
                     "membershipId": "mem_42",
                     "accountId": "user_2abc",
                     "state": "ended",
-                    "sequence": 8
+                    "sequence": 8,
+                    "accessClientIds": []
                 },
-                "signature": "s_AuCGZo7VaJnQ8svNMv69HUE29IHzcfY5ZrIob7dojGmjpGftFWKDEmRBN2MgMn0GcNNzjwmYhdxmbGjM_2AQ"
+                "signature": "FG4S-lBJmmO6pg37b-kad4OWtAS-4noTcFotGpWR6e-IYewDYaZ7RBkpvBHUq4a6Os_CiIevinU13h37Qb5SAA"
             }
         }
     ],
@@ -834,9 +836,10 @@
                         "membershipId": "mem_42",
                         "accountId": "user_2abc",
                         "state": "active",
-                        "sequence": 7
+                        "sequence": 7,
+                        "accessClientIds": ["ac_7f3a", "ac_tablet"]
                     },
-                    "signature": "eLBti3ANXOISvHnB5ZgJw474HdZURE7cR3-H1sG7Ij4riDArtmop1IOBdsHf_dia1FNScg5cGNFMwBbnnaASCw"
+                    "signature": "A_4kuglzE-GazUkixYprXtreOYTGVxmg1g5WPjDfcPnRHbqZzDLjv0z8JluSj5RgJW6S27XkcfJjdVSK4E6xCQ"
                 },
                 "expectedError": "bad_signature"
             },
@@ -849,9 +852,10 @@
                         "membershipId": "mem_42",
                         "accountId": "user_2abc",
                         "state": "active",
-                        "sequence": 7
+                        "sequence": 7,
+                        "accessClientIds": ["ac_7f3a", "ac_tablet"]
                     },
-                    "signature": "AP4umWWjpHpt0uvpotbDuEpBk4EysVyjc6S5j3kui1snzy9aQmIbnk4uVVN_CeEcxg_i5fTc68W8oHX4HT4QDw"
+                    "signature": "7J5ZywZwJ7DH1-J_GjkUHsYlU2pChmh6Fmw-hO-abqyiJrCWpCEq705ib7OhCtXIxSjExFHpa9PJmQyN0fgSAg"
                 },
                 "expectedError": "wrong_controller"
             },
@@ -864,11 +868,48 @@
                         "membershipId": "mem_42",
                         "accountId": "user_2abc",
                         "state": "ended",
-                        "sequence": 7
+                        "sequence": 7,
+                        "accessClientIds": []
                     },
-                    "signature": "ngkMGCcRY02XdFae8GISK8O8zx-1SDkGW3zLWFst-c0FxiBdb6GqZbN4Xp6t0bmluG7b8Sf_LS199OWiRUuCDw"
+                    "signature": "ArroxOoRgAxjBtp4E8z4LIcy_TMPPjcGxeUVaOwAWvu-6JRkwvBzZyjTi9XQZRQJYQuvL2Cs6nuh3GvHP6XZCw"
                 },
                 "expectedError": "bad_signature"
+            },
+            {
+                "name": "with an Access Client added",
+                "signed": {
+                    "projection": {
+                        "controllerId": "nemu_0123456789abcdef",
+                        "identityEpoch": 3,
+                        "membershipId": "mem_42",
+                        "accountId": "user_2abc",
+                        "state": "active",
+                        "sequence": 7,
+                        "accessClientIds": [
+                            "ac_7f3a",
+                            "ac_tablet",
+                            "ac_stranger"
+                        ]
+                    },
+                    "signature": "ArroxOoRgAxjBtp4E8z4LIcy_TMPPjcGxeUVaOwAWvu-6JRkwvBzZyjTi9XQZRQJYQuvL2Cs6nuh3GvHP6XZCw"
+                },
+                "expectedError": "bad_signature"
+            },
+            {
+                "name": "ended but naming Access Clients",
+                "signed": {
+                    "projection": {
+                        "controllerId": "nemu_0123456789abcdef",
+                        "identityEpoch": 3,
+                        "membershipId": "mem_42",
+                        "accountId": "user_2abc",
+                        "state": "ended",
+                        "sequence": 8,
+                        "accessClientIds": ["ac_tablet"]
+                    },
+                    "signature": "FG4S-lBJmmO6pg37b-kad4OWtAS-4noTcFotGpWR6e-IYewDYaZ7RBkpvBHUq4a6Os_CiIevinU13h37Qb5SAA"
+                },
+                "expectedError": "malformed"
             },
             {
                 "name": "with its identity epoch rewritten",
@@ -879,9 +920,10 @@
                         "membershipId": "mem_42",
                         "accountId": "user_2abc",
                         "state": "active",
-                        "sequence": 7
+                        "sequence": 7,
+                        "accessClientIds": ["ac_7f3a", "ac_tablet"]
                     },
-                    "signature": "ngkMGCcRY02XdFae8GISK8O8zx-1SDkGW3zLWFst-c0FxiBdb6GqZbN4Xp6t0bmluG7b8Sf_LS199OWiRUuCDw"
+                    "signature": "ArroxOoRgAxjBtp4E8z4LIcy_TMPPjcGxeUVaOwAWvu-6JRkwvBzZyjTi9XQZRQJYQuvL2Cs6nuh3GvHP6XZCw"
                 },
                 "expectedError": "bad_signature"
             },
@@ -894,9 +936,10 @@
                         "membershipId": "mem_42",
                         "accountId": "user_evil",
                         "state": "active",
-                        "sequence": 7
+                        "sequence": 7,
+                        "accessClientIds": ["ac_7f3a", "ac_tablet"]
                     },
-                    "signature": "ngkMGCcRY02XdFae8GISK8O8zx-1SDkGW3zLWFst-c0FxiBdb6GqZbN4Xp6t0bmluG7b8Sf_LS199OWiRUuCDw"
+                    "signature": "ArroxOoRgAxjBtp4E8z4LIcy_TMPPjcGxeUVaOwAWvu-6JRkwvBzZyjTi9XQZRQJYQuvL2Cs6nuh3GvHP6XZCw"
                 },
                 "expectedError": "bad_signature"
             },
@@ -910,9 +953,10 @@
                         "accountId": "user_2abc",
                         "state": "active",
                         "sequence": 7,
+                        "accessClientIds": ["ac_7f3a", "ac_tablet"],
                         "role": "owner"
                     },
-                    "signature": "ngkMGCcRY02XdFae8GISK8O8zx-1SDkGW3zLWFst-c0FxiBdb6GqZbN4Xp6t0bmluG7b8Sf_LS199OWiRUuCDw"
+                    "signature": "ArroxOoRgAxjBtp4E8z4LIcy_TMPPjcGxeUVaOwAWvu-6JRkwvBzZyjTi9XQZRQJYQuvL2Cs6nuh3GvHP6XZCw"
                 },
                 "expectedError": "malformed"
             },
@@ -925,9 +969,10 @@
                         "membershipId": "mem_42",
                         "accountId": "user_2abc",
                         "state": "active",
-                        "sequence": 7
+                        "sequence": 7,
+                        "accessClientIds": ["ac_7f3a", "ac_tablet"]
                     },
-                    "signature": "ngkMGCcRY02XdFae8GISK8O8zx-1SDkGW3zLWFst"
+                    "signature": "ArroxOoRgAxjBtp4E8z4LIcy_TMPPjcGxeUVaOwA"
                 },
                 "expectedError": "malformed"
             }
