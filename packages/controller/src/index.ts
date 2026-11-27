@@ -12,7 +12,6 @@ export {
     COMMISSIONING_STEP_LABELS,
     commissioningFailedStepLabel,
     commissioningFailureGuidance,
-    commissioningStepNumber,
 } from './commissioning-progress.ts'
 export type {
     ControllerConnectionOptions,

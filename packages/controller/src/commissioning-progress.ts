@@ -3,13 +3,12 @@
  * reasons are Protocol-neutral (`@nemu/protocol` commissioning-progress.ts),
  * so the same words serve Matter and, later, Zigbee.
  */
-import {
-    COMMISSIONING_STEPS,
-    type CommissioningFailureReason,
-    type CommissioningStep,
+import type {
+    CommissioningFailureReason,
+    CommissioningStep,
 } from '@nemu/protocol'
 
-/** What the Owner sees while a step runs. */
+/** What the Owner or Member sees while a step runs. */
 export const COMMISSIONING_STEP_LABELS: Record<CommissioningStep, string> = {
     discovering: 'Looking for your Device',
     connecting: 'Connecting securely',
@@ -19,12 +18,7 @@ export const COMMISSIONING_STEP_LABELS: Record<CommissioningStep, string> = {
     setting_up: 'Setting up the Device',
 }
 
-/** Where a step falls in the list, from 1. */
-export function commissioningStepNumber(step: CommissioningStep): number {
-    return COMMISSIONING_STEPS.indexOf(step) + 1
-}
-
-/** Which step failed, for the Owner. */
+/** Which step failed, for the Owner or Member. */
 export function commissioningFailedStepLabel(step: CommissioningStep): string {
     switch (step) {
         case 'discovering':
@@ -42,7 +36,7 @@ export function commissioningFailedStepLabel(step: CommissioningStep): string {
     }
 }
 
-/** What the Owner can do about a failed step. */
+/** What the Owner or Member can do about a failed step. */
 export function commissioningFailureGuidance(
     reason: CommissioningFailureReason
 ): string {
