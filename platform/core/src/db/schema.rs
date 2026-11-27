@@ -1,6 +1,15 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
+    access_client_tombstones (access_client_id) {
+        access_client_id -> Uuid,
+        signing_key -> Bytea,
+        encryption_key -> Bytea,
+        revoked_at -> Timestamptz,
+    }
+}
+
+diesel::table! {
     access_clients (id) {
         id -> Uuid,
         member_id -> Uuid,
@@ -429,6 +438,7 @@ diesel::joinable!(relay_outcomes -> access_clients (access_client_id));
 diesel::joinable!(relay_replay_windows -> access_clients (access_client_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
+    access_client_tombstones,
     access_clients,
     audit_records,
     capability_constraint_revisions,

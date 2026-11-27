@@ -8,6 +8,7 @@ use crate::api::auth::AuthenticatedClient;
 use crate::api::error::{ApiError, ApiResult};
 use crate::audit::{self, AuditKind, AuditWrite};
 use crate::db::models::Member;
+use crate::pairing::access_clients::list_access_clients;
 use crate::pairing::members::{
     activate_member, count_members, delete_member, find_member_by_email, find_member_by_user_id,
     get_member, insert_member, list_members, normalize_email,
@@ -106,7 +107,7 @@ pub async fn leave_home_handler(
     State(state): State<AppState>,
     auth: AuthenticatedClient,
 ) -> ApiResult<StatusCode> {
-    crate::api::access::leave_home(&state.db, &auth).await?;
+    crate::api::access::leave_home(&state, &auth).await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -210,6 +211,14 @@ pub async fn remove_member(
             .map_err(ApiError::internal)?;
     }
 
+    // Deleting the Member deletes (and tombstones) its Access Clients.
+    let access_clients: Vec<Uuid> = list_access_clients(&state.db)
+        .await
+        .map_err(ApiError::internal)?
+        .into_iter()
+        .filter(|(_, member)| member.id == target.id)
+        .map(|(access_client, _)| access_client.id)
+        .collect();
     let deleted = delete_member(
         &state.db,
         id,
@@ -227,6 +236,9 @@ pub async fn remove_member(
     )
     .await
     .map_err(ApiError::internal)?;
+    for access_client in access_clients {
+        state.local_sessions.drop_access_client(access_client);
+    }
     if deleted {
         Ok(())
     } else {

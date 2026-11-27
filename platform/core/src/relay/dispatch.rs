@@ -302,8 +302,8 @@ pub(crate) async fn dispatch(
         RelayAction::RevokeToken { token_id } => {
             done_outcome(revoke_household_token(state, auth, &token_id).await)
         }
-        RelayAction::RevokeCurrent => done_outcome(revoke_current(&state.db, auth).await),
-        RelayAction::LeaveHome => done_outcome(leave_home(&state.db, auth).await),
+        RelayAction::RevokeCurrent => done_outcome(revoke_current(state, auth).await),
+        RelayAction::LeaveHome => done_outcome(leave_home(state, auth).await),
         RelayAction::GetCapabilitySnapshot => {
             let event = DeviceEvent::from_capability_snapshot(state.capabilities.snapshot());
             serde_json::to_value(&event).unwrap_or(JsonValue::Null)

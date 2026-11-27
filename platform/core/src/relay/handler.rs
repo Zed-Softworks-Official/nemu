@@ -25,6 +25,7 @@ use uuid::Uuid;
 
 use crate::api::auth::{AuthenticatedClient, Credential};
 use crate::pairing::access_clients::find_access_client;
+use crate::pairing::tombstones::access_client_status;
 use crate::relay::dispatch::{self, RelayAction};
 use crate::relay::store::{self, Claim};
 use crate::relay_crypto::envelope::{
@@ -56,18 +57,6 @@ pub async fn current_identity_epoch(state: &AppState) -> Result<u64, String> {
     Ok(stored
         .and_then(|value| value.parse().ok())
         .unwrap_or(INITIAL_IDENTITY_EPOCH))
-}
-
-/// Whether this Access Client was revoked and tombstoned.
-///
-/// Hook for NEM-127, which writes Access Client tombstones. Until it lands a
-/// revoked Access Client's row is deleted, so it is already refused as
-/// unknown; this only changes which code the client gets back.
-pub async fn access_client_tombstoned(
-    _state: &AppState,
-    _access_client_id: Uuid,
-) -> Result<bool, String> {
-    Ok(false)
 }
 
 /// Handles one sealed request. Returns the sealed reply to post to the
@@ -141,20 +130,20 @@ async fn handle(
     Ok(Some(seal(state, &opened.header, &opened.keys, &reply)))
 }
 
+/// The Access Client's status for `open_request`, and the caller to run its
+/// action as. Tombstones (NEM-127) win over a live row.
 async fn lookup(
     state: &AppState,
     access_client_id: &str,
 ) -> Result<(AccessClientStatus, Option<Caller>), String> {
+    let status = access_client_status(&state.db, access_client_id).await?;
+    let AccessClientStatus::Active { .. } = status else {
+        return Ok((status, None));
+    };
     let Ok(id) = Uuid::parse_str(access_client_id) else {
         return Ok((AccessClientStatus::Unknown, None));
     };
-    if access_client_tombstoned(state, id).await? {
-        return Ok((AccessClientStatus::Tombstoned, None));
-    }
     let Some((access_client, member)) = find_access_client(&state.db, id).await? else {
-        return Ok((AccessClientStatus::Unknown, None));
-    };
-    let Ok(signing_key) = <[u8; 32]>::try_from(access_client.signing_key.as_slice()) else {
         return Ok((AccessClientStatus::Unknown, None));
     };
     // Same caller as over LAN, so every handler authorizes it the same way.
@@ -165,10 +154,7 @@ async fn lookup(
         user_id: member.user_id,
         credential: Credential::AccessClient,
     };
-    Ok((
-        AccessClientStatus::Active { signing_key },
-        Some(Caller { auth, id }),
-    ))
+    Ok((status, Some(Caller { auth, id })))
 }
 
 /// Runs the action, answering a write's retry from its stored outcome.

@@ -33,6 +33,8 @@ async fn empty_home() -> DbPool {
         // Replay windows and stored outcomes go with their Access Clients.
         diesel::delete(access_clients::table).execute(conn)?;
         diesel::delete(members::table).execute(conn)?;
+        // Deleting Access Clients tombstones them, and tests reuse key seeds.
+        diesel::sql_query("TRUNCATE access_client_tombstones").execute(conn)?;
         diesel::delete(settings::table.find(IDENTITY_EPOCH_SETTING)).execute(conn)
     })
     .await
@@ -346,7 +348,7 @@ const CLOCK_SKEW: u64 = crate::relay_crypto::envelope::CLOCK_SKEW_MS;
 
 #[tokio::test]
 #[ignore = "requires the isolated PostgreSQL database created by the verification script"]
-async fn unknown_and_revoked_access_clients_are_told_to_pair_again() {
+async fn unknown_and_tombstoned_access_clients_are_told_to_pair_again() {
     let _home = crate::db::HOME_TABLES.lock().await;
     let home = Home::new().await;
     let mut client = home.client("user_owner", "owner", 1).await;
@@ -361,10 +363,15 @@ async fn unknown_and_revoked_access_clients_are_told_to_pair_again() {
 
     let sent = client.seal("r2", json!({ "type": "revokeCurrent" }));
     assert_eq!(home.exchange(&client, &sent).await["ok"], true);
+    // Revocation tombstoned it, so it can never come back.
     let sent = client.seal("r3", json!({ "type": "getSession" }));
-    assert_eq!(
-        error_code(&home.exchange(&client, &sent).await),
-        "unknown_access_client"
+    let reply = home.exchange(&client, &sent).await;
+    assert_eq!(error_code(&reply), "tombstoned_access_client");
+    assert!(
+        reply["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("Pair it again")
     );
 }
 
