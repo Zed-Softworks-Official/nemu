@@ -4,10 +4,17 @@ export type {
     AccessClientKeyStore,
     AccessClientKeys,
     AccessClientRecord,
+    AccessClientSecretStorage,
+    PairAgainReason,
+    StagedAccessClientKeyStore,
 } from './access-client-keys.ts'
 export {
     accessClientKeysFromSecrets,
     createMemoryAccessClientKeyStore,
+    createSecretAccessClientKeyStore,
+    PAIR_AGAIN_ERROR_CODES,
+    pairAgainReason,
+    stageAccessClientKeys,
 } from './access-client-keys.ts'
 export type {
     AccessClientPairing,
@@ -21,6 +28,7 @@ export { createAccessClientPairing } from './access-client-pairing.ts'
 export type {
     ControllerConnectionOptions,
     ControllerConnectors,
+    PairingLoss,
 } from './connection.ts'
 export { ControllerConnection } from './connection.ts'
 export type { ProbeResult } from './discovery.ts'
@@ -107,3 +115,13 @@ export { LanTransport } from './transports/lan.ts'
 export type { RelayApi, RelayTransportOptions } from './transports/relay.ts'
 export { RelayTransport } from './transports/relay.ts'
 export type { ControllerTransport } from './transports/types.ts'
+export type {
+    AccessClientKeyDatabase,
+    PersistentStorage,
+    WebAccessClientKeyStoreOptions,
+    WebKeyProtection,
+} from './web-access-client-keys.ts'
+export {
+    createWebAccessClientKeyStore,
+    openIndexedDbKeyDatabase,
+} from './web-access-client-keys.ts'

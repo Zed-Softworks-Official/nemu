@@ -1,16 +1,19 @@
 import type { ConvexReactClient } from '@nemu/cloud'
 import {
+    type AccessClientKeyStore,
     type AccessClientPairing,
     type AccessClientPairingState,
     type ControllerConnectors,
-    type ControllerCredentialStore,
     ControllerProvider,
     createAccessClientPairing,
+    createMemoryCredentialStore,
     discoverController,
     identifyController,
     lanDiscoveryCandidates,
     lanUrlsFromHostnames,
+    type PairAgainReason,
     type RelayApi,
+    useController,
 } from '@nemu/controller'
 import {
     createContext,
@@ -37,19 +40,21 @@ export type MobileHome = {
  * Tests replace these with a fake Controller and in-memory stores.
  */
 export type HomeSessionServices = {
-    credentialStore: ControllerCredentialStore
+    /** This phone's Access Client keys, one record per Home. */
+    accessClientKeyStore: AccessClientKeyStore
     activeHomeStore: ActiveHomeStore
     /** Override Controller network access (tests only). */
     connectors?: Partial<ControllerConnectors>
+    /**
+     * CPace pairing on the home network (`pairWithController` with
+     * `keyStore: staging`). It also accepts an Invitation, or makes the
+     * first Owner of a new Controller.
+     */
     pairOnLan: (
         home: MobileHome,
         baseUrl: string,
         code: string,
-        staging: ControllerCredentialStore
-    ) => Promise<void>
-    mintOverRelay: (
-        home: MobileHome,
-        staging: ControllerCredentialStore
+        staging: AccessClientKeyStore
     ) => Promise<void>
     recordMembership: (controllerId: string) => Promise<void>
 }
@@ -68,7 +73,7 @@ type HomeSessionValue = {
     /** Called after the person acknowledges a successful pairing. */
     completePairing: () => void
     /**
-     * Drop this phone's stored credential for the active Home only. Does not
+     * Drop this phone's Access Client keys for the active Home only. Does not
      * revoke on the Controller: Settings offers it on its own only as
      * "Forget on this phone" when the Controller is unreachable, and after
      * the Controller has confirmed a revocation or a Leave. `notice` is
@@ -109,7 +114,7 @@ export function HomeSessionProvider({
     relayAllowed = true,
     children,
 }: HomeSessionProviderProps) {
-    const { credentialStore, activeHomeStore, connectors } = services
+    const { accessClientKeyStore, activeHomeStore, connectors } = services
     const [selectedId, setSelectedId] = useState(() => activeHomeStore.get())
     // This session's own pairing change, which outranks the stored read.
     const [pairingChange, setPairingChange] = useState<{
@@ -135,17 +140,36 @@ export function HomeSessionProvider({
         [selectedId, foundName, foundLanHostname]
     )
 
-    const storedCredential = useMemo(
-        () =>
-            activeHome ? credentialStore.get(activeHome.controllerId) : null,
-        [activeHome, credentialStore]
-    )
+    // Whether this phone holds keys for the active Home. Only keys count: a
+    // bearer-token credential from before them is unpaired.
+    const activeId = activeHome?.controllerId ?? null
+    const [stored, setStored] = useState<{
+        controllerId: string
+        paired: boolean
+    } | null>(null)
+    useEffect(() => {
+        if (!activeId) return
+        let live = true
+        const settle = (paired: boolean) => {
+            if (live) setStored({ controllerId: activeId, paired })
+        }
+        accessClientKeyStore.load(activeId).then(
+            (record) => settle(record !== null),
+            () => settle(false)
+        )
+        return () => {
+            live = false
+        }
+    }, [accessClientKeyStore, activeId])
+    const storedPaired =
+        stored && stored.controllerId === activeId ? stored.paired : null
+
     const ownChange =
         activeHome !== null &&
         pairingChange?.controllerId === activeHome.controllerId
             ? pairingChange
             : null
-    const paired = ownChange ? ownChange.paired : storedCredential !== null
+    const paired = ownChange ? ownChange.paired : storedPaired === true
     const pairingNotice =
         ownChange && !ownChange.paired ? (ownChange.notice ?? null) : null
 
@@ -154,9 +178,11 @@ export function HomeSessionProvider({
             ? 'loading'
             : !activeHome
               ? 'select-home'
-              : paired
-                ? 'app'
-                : 'pair'
+              : !ownChange && storedPaired === null
+                ? 'loading'
+                : paired
+                  ? 'app'
+                  : 'pair'
 
     const selectHome = useCallback(
         (controllerId: string) => {
@@ -179,23 +205,22 @@ export function HomeSessionProvider({
     const forgetPairing = useCallback(
         (notice?: string) => {
             if (!selectedId) return
-            credentialStore.clear(selectedId)
+            void accessClientKeyStore.clear(selectedId).catch(() => {})
             setPairingChange({
                 controllerId: selectedId,
                 paired: false,
                 notice,
             })
         },
-        [credentialStore, selectedId]
+        [accessClientKeyStore, selectedId]
     )
 
     const createPairing = useCallback(
         (home: MobileHome) =>
             createAccessClientPairing({
                 home,
-                isMember: true,
                 lanCandidates: lanCandidatesForHome(home),
-                credentialStore,
+                keyStore: accessClientKeyStore,
                 discover: (candidates) =>
                     connectors?.discover
                         ? connectors.discover(candidates, null)
@@ -206,11 +231,9 @@ export function HomeSessionProvider({
                         : identifyController(baseUrl),
                 pairOnLan: (baseUrl, code, staging) =>
                     services.pairOnLan(home, baseUrl, code, staging),
-                mintOverRelay: (staging) =>
-                    services.mintOverRelay(home, staging),
                 recordMembership: services.recordMembership,
             }),
-        [credentialStore, connectors, services]
+        [accessClientKeyStore, connectors, services]
     )
 
     const lanCandidates = useMemo(
@@ -248,21 +271,60 @@ export function HomeSessionProvider({
     return (
         <HomeSessionContext.Provider value={value}>
             <ControllerProvider
+                accessClientKeyStore={accessClientKeyStore}
                 // A new Home gets a new connection; nothing carries over.
                 autoStart={paired}
                 connectors={connectors}
                 controllerId={activeHome?.controllerId ?? null}
                 convex={convex}
-                credentialStore={credentialStore}
+                // Keys only: no bearer token is read or written (NEM-131
+                // removes the credential store).
+                credentialStore={noCredentials}
                 key={activeHome?.controllerId ?? 'no-home'}
                 lanCandidates={lanCandidates}
                 relayAllowed={relayAllowed}
                 relayApi={relayApi}
             >
+                {activeHome && paired ? (
+                    <PairAgainWatcher
+                        home={activeHome}
+                        onLost={forgetPairing}
+                    />
+                ) : null}
                 {children}
             </ControllerProvider>
         </HomeSessionContext.Provider>
     )
+}
+
+const noCredentials = createMemoryCredentialStore()
+
+/** What the pairing screen says after this phone lost access to a Home. */
+export function pairAgainNotice(
+    reason: PairAgainReason,
+    homeName: string
+): string {
+    if (reason === 'not_paired') {
+        return `This phone’s keys for ${homeName} are gone. Pair it again at home.`
+    }
+    return `This phone no longer has access to ${homeName}. It may have been removed. Pair it again at home.`
+}
+
+/**
+ * Sends the person to pairing, with the reason, when the Controller says
+ * this phone must pair again: its keys are lost, or it was revoked.
+ */
+function PairAgainWatcher(props: {
+    home: MobileHome
+    onLost: (notice: string) => void
+}) {
+    const { pairingLoss } = useController()
+    const { home, onLost } = props
+    useEffect(() => {
+        if (pairingLoss?.controllerId !== home.controllerId) return
+        onLost(pairAgainNotice(pairingLoss.reason, home.name))
+    }, [home, onLost, pairingLoss])
+    return null
 }
 
 export function useHomeSession(): HomeSessionValue {

@@ -1,4 +1,4 @@
-import { useController } from '@nemu/controller'
+import { PAIR_AGAIN_ERROR_CODES, useController } from '@nemu/controller'
 import { ApiError } from '@nemu/protocol'
 import { useState } from 'react'
 import { View } from 'react-native'
@@ -168,10 +168,12 @@ function Confirmation({
 }
 
 /** Refusals that mean the Controller no longer accepts this phone. */
-const REMOVED_CODES = new Set([
+const REMOVED_CODES = new Set<string>([
     'unauthorized',
     'not_found',
     'inactive_membership',
+    // The Controller no longer knows, or has revoked, this Access Client.
+    ...PAIR_AGAIN_ERROR_CODES,
 ])
 
 function credentialRejected(cause: unknown): boolean {

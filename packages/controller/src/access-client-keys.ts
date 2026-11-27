@@ -1,4 +1,7 @@
+import { ApiError } from '@nemu/protocol'
 import {
+    b64urlDecode,
+    b64urlEncode,
     type Ed25519Signer,
     ed25519PublicKey,
     ed25519Signer,
@@ -60,7 +63,31 @@ export interface AccessClientKeyStore {
     clear(controllerId: string): Promise<void>
 }
 
-function randomSecret(): Uint8Array {
+/** Error code when this Access Client holds no keys for the Home. */
+export const NOT_PAIRED_ERROR_CODE = 'not_paired'
+
+/**
+ * Error codes meaning this Access Client must pair again at home: it holds no
+ * keys for the Home, or the Controller no longer knows or has revoked it. A
+ * bad signature means the Controller does not hold the keys this client signs
+ * with, so the same applies.
+ */
+export const PAIR_AGAIN_ERROR_CODES = [
+    NOT_PAIRED_ERROR_CODE,
+    'unknown_access_client',
+    'tombstoned_access_client',
+    'bad_signature',
+] as const
+
+export type PairAgainReason = (typeof PAIR_AGAIN_ERROR_CODES)[number]
+
+/** The pair-again reason an error carries, or null for any other error. */
+export function pairAgainReason(error: unknown): PairAgainReason | null {
+    if (!(error instanceof ApiError)) return null
+    return PAIR_AGAIN_ERROR_CODES.find((code) => code === error.code) ?? null
+}
+
+export function randomSecret(): Uint8Array {
     return crypto.getRandomValues(new Uint8Array(32))
 }
 
@@ -88,6 +115,224 @@ export function createMemoryAccessClientKeyStore(): AccessClientKeyStore {
         load: async (controllerId) => records.get(controllerId) ?? null,
         clear: async (controllerId) => {
             records.delete(controllerId)
+        },
+    }
+}
+
+/**
+ * A key store for one pairing run. `generate` comes from the target store, so
+ * the target keeps whatever private material it made; `save` only holds the
+ * record until `commit`. Pairing that is cancelled, or fails after the
+ * Controller answered, keeps nothing.
+ */
+export type StagedAccessClientKeyStore = {
+    store: AccessClientKeyStore
+    /** The record pairing saved, if any. */
+    staged(): AccessClientRecord | null
+    /** Saves the staged record to the target store. */
+    commit(): Promise<AccessClientRecord>
+}
+
+export function stageAccessClientKeys(
+    target: AccessClientKeyStore
+): StagedAccessClientKeyStore {
+    let staged: AccessClientRecord | null = null
+    return {
+        store: {
+            generate: () => target.generate(),
+            save: async (record) => {
+                staged = record
+            },
+            load: async (controllerId) =>
+                staged?.enrollment.controllerId === controllerId
+                    ? staged
+                    : null,
+            clear: async (controllerId) => {
+                if (staged?.enrollment.controllerId === controllerId) {
+                    staged = null
+                }
+            },
+        },
+        staged: () => staged,
+        async commit() {
+            if (!staged) throw new Error('Pairing kept no Access Client keys')
+            await target.save(staged)
+            return staged
+        },
+    }
+}
+
+/** Serialized enrollment: byte fields as base64url. */
+type StoredEnrollment = {
+    controllerId: string
+    accessClientId: string
+    membershipId: string
+    grant: string
+    controllerSigningKey: string
+    controllerEncryptionKey: string
+    identityEpoch?: number
+}
+
+export function serializeEnrollment(
+    enrollment: AccessClientEnrollment
+): StoredEnrollment {
+    const stored: StoredEnrollment = {
+        controllerId: enrollment.controllerId,
+        accessClientId: enrollment.accessClientId,
+        membershipId: enrollment.membershipId,
+        grant: enrollment.grant,
+        controllerSigningKey: b64urlEncode(enrollment.controllerSigningKey),
+        controllerEncryptionKey: b64urlEncode(
+            enrollment.controllerEncryptionKey
+        ),
+    }
+    if (enrollment.identityEpoch !== undefined) {
+        stored.identityEpoch = enrollment.identityEpoch
+    }
+    return stored
+}
+
+function text(value: unknown): string | null {
+    return typeof value === 'string' && value.length > 0 ? value : null
+}
+
+function key32(value: unknown): Uint8Array | null {
+    if (typeof value !== 'string') return null
+    const bytes = b64urlDecode(value)
+    return bytes && bytes.length === 32 ? bytes : null
+}
+
+export function parseEnrollment(value: unknown): AccessClientEnrollment | null {
+    if (typeof value !== 'object' || value === null) return null
+    const v = value as Record<string, unknown>
+    const controllerId = text(v.controllerId)
+    const accessClientId = text(v.accessClientId)
+    const membershipId = text(v.membershipId)
+    const grant = text(v.grant)
+    const controllerSigningKey = key32(v.controllerSigningKey)
+    const controllerEncryptionKey = key32(v.controllerEncryptionKey)
+    if (
+        !controllerId ||
+        !accessClientId ||
+        !membershipId ||
+        !grant ||
+        !controllerSigningKey ||
+        !controllerEncryptionKey
+    ) {
+        return null
+    }
+    const enrollment: AccessClientEnrollment = {
+        controllerId,
+        accessClientId,
+        membershipId,
+        grant,
+        controllerSigningKey,
+        controllerEncryptionKey,
+    }
+    if (
+        typeof v.identityEpoch === 'number' &&
+        Number.isSafeInteger(v.identityEpoch) &&
+        v.identityEpoch > 0
+    ) {
+        enrollment.identityEpoch = v.identityEpoch
+    }
+    return enrollment
+}
+
+/**
+ * A secret key-value store the platform provides, such as the operating
+ * system's key store. Each Account gets its own; keys here are Controller IDs.
+ */
+export type AccessClientSecretStorage = {
+    get(controllerId: string): Promise<string | null> | string | null
+    set(controllerId: string, value: string): Promise<void> | void
+    delete(controllerId: string): Promise<void> | void
+}
+
+const SECRET_RECORD_VERSION = 1
+
+/**
+ * Keeps key bytes and the enrollment as one JSON value per Home, for stores
+ * that can only hold bytes (mobile: the Keychain or Keystore through
+ * expo-secure-store). The crypto runs in JS. Anything that is not a
+ * complete record, such as a bearer-token credential from before Access
+ * Client keys, loads as unpaired.
+ */
+export function createSecretAccessClientKeyStore(
+    storage: AccessClientSecretStorage
+): AccessClientKeyStore {
+    // Secrets of generated keys, until pairing saves them.
+    const pending = new Map<
+        string,
+        { signingSecret: Uint8Array; encryptionSecret: Uint8Array }
+    >()
+    return {
+        async generate() {
+            const signingSecret = randomSecret()
+            const encryptionSecret = randomSecret()
+            const keys = accessClientKeysFromSecrets(
+                signingSecret,
+                encryptionSecret
+            )
+            pending.set(b64urlEncode(keys.signingKey), {
+                signingSecret,
+                encryptionSecret,
+            })
+            return keys
+        },
+        async save(record) {
+            const secrets = pending.get(b64urlEncode(record.keys.signingKey))
+            if (!secrets) {
+                throw new Error(
+                    'These Access Client keys were not generated by this store'
+                )
+            }
+            await storage.set(
+                record.enrollment.controllerId,
+                JSON.stringify({
+                    version: SECRET_RECORD_VERSION,
+                    signingSecret: b64urlEncode(secrets.signingSecret),
+                    encryptionSecret: b64urlEncode(secrets.encryptionSecret),
+                    enrollment: serializeEnrollment(record.enrollment),
+                })
+            )
+        },
+        async load(controllerId) {
+            const raw = await storage.get(controllerId)
+            if (!raw) return null
+            let value: unknown
+            try {
+                value = JSON.parse(raw)
+            } catch {
+                return null
+            }
+            if (typeof value !== 'object' || value === null) return null
+            const v = value as Record<string, unknown>
+            if (v.version !== SECRET_RECORD_VERSION) return null
+            const signingSecret = key32(v.signingSecret)
+            const encryptionSecret = key32(v.encryptionSecret)
+            const enrollment = parseEnrollment(v.enrollment)
+            if (
+                !signingSecret ||
+                !encryptionSecret ||
+                !enrollment ||
+                enrollment.controllerId !== controllerId
+            ) {
+                return null
+            }
+            const keys = accessClientKeysFromSecrets(
+                signingSecret,
+                encryptionSecret
+            )
+            // Keep identity epoch updates working after a reload.
+            pending.set(b64urlEncode(keys.signingKey), {
+                signingSecret,
+                encryptionSecret,
+            })
+            return { keys, enrollment }
+        },
+        async clear(controllerId) {
+            await storage.delete(controllerId)
         },
     }
 }

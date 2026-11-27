@@ -1,9 +1,5 @@
 import { useController } from '@nemu/controller'
-import {
-    createMemoryCredentialStore,
-    FakeController,
-    fakeControllerConnectors,
-} from '@nemu/controller/testing'
+import { FakeController } from '@nemu/controller/testing'
 import type { SessionRole } from '@nemu/protocol'
 import {
     fireEvent,
@@ -12,12 +8,9 @@ import {
     waitFor,
 } from '@testing-library/react-native'
 
-import {
-    HomeSessionProvider,
-    type HomeSessionServices,
-    type MobileHome,
-} from '~/components/home-session'
+import { HomeSessionProvider, type MobileHome } from '~/components/home-session'
 import { Button } from '~/components/ui/button'
+import { pairedServices } from '~/test/home-session-services'
 import SettingsScreen from '../app/(app)/(tabs)/(home,devices,energy)/settings'
 
 // The header's menu button needs the drawer navigator, which isn't under test.
@@ -33,29 +26,7 @@ function Reprobe() {
 }
 
 async function renderSettings(controller: FakeController) {
-    const services: HomeSessionServices = {
-        credentialStore: createMemoryCredentialStore({
-            lake: { clientToken: 'phone' },
-        }),
-        activeHomeStore: {
-            get: () => 'lake',
-            set: () => {},
-            clear: () => {},
-        },
-        connectors: {
-            ...fakeControllerConnectors(controller),
-            discover: async () =>
-                controller.lanReachable
-                    ? {
-                          baseUrl: controller.baseUrl,
-                          health: { status: 'ok' },
-                      }
-                    : null,
-        },
-        pairOnLan: async () => {},
-        mintOverRelay: async () => {},
-        recordMembership: async () => {},
-    }
+    const { services } = await pairedServices(controller)
     await render(
         <HomeSessionProvider homes={[LAKE]} services={services}>
             <SettingsScreen />

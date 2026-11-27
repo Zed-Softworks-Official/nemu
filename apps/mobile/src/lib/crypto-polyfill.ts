@@ -1,18 +1,26 @@
 import * as Crypto from 'expo-crypto'
 
 /**
- * The shared Controller client mints request ids with
- * `crypto.randomUUID()`, which Hermes may not provide. Back it with
- * expo-crypto's secure generator. Never fall back to Math.random: Relay
- * request ids gate access to session-mint responses.
+ * Hermes may not provide Web Crypto. The shared Controller client needs two
+ * pieces of it: `crypto.randomUUID()` for request ids, and
+ * `crypto.getRandomValues()` for Access Client keys, CPace and HPKE
+ * (@noble, through `@nemu/protocol/relay-crypto`, reads it when it runs).
+ * Back both with expo-crypto's secure generator, and never fall back to
+ * Math.random. Import this first, before anything that uses them.
  */
-type CryptoLike = { randomUUID?: () => string }
+type CryptoLike = {
+    randomUUID?: () => string
+    getRandomValues?: <T extends ArrayBufferView | null>(array: T) => T
+}
 const target = globalThis as { crypto?: CryptoLike }
 
-if (typeof target.crypto?.randomUUID !== 'function') {
-    if (target.crypto) {
-        target.crypto.randomUUID = Crypto.randomUUID
-    } else {
-        target.crypto = { randomUUID: Crypto.randomUUID }
-    }
+const crypto: CryptoLike = target.crypto ?? {}
+if (typeof crypto.randomUUID !== 'function') {
+    crypto.randomUUID = Crypto.randomUUID
 }
+if (typeof crypto.getRandomValues !== 'function') {
+    crypto.getRandomValues = ((
+        array: Parameters<typeof Crypto.getRandomValues>[0]
+    ) => Crypto.getRandomValues(array)) as CryptoLike['getRandomValues']
+}
+if (!target.crypto) target.crypto = crypto
