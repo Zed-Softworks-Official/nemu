@@ -335,6 +335,14 @@ async fn the_first_owner_pairs_with_cpace_and_gets_a_local_session() {
     let home = Home::new().await;
     let code = home.pairing_code().await;
 
+    // Clients start a Pairing code run with no body at all.
+    let (status, run) = home.call("POST", "/api/pairing/runs", None, None).await;
+    assert_eq!(status, StatusCode::CREATED);
+    assert_eq!(
+        b64url_decode(run["sid"].as_str().unwrap()).unwrap().len(),
+        16
+    );
+
     let owner = pair(
         &home,
         &code,
