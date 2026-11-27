@@ -413,7 +413,7 @@ describe('Adding a Device while the connection changes', () => {
         await screen.findByRole('button', { name: 'Cancel' })
     })
 
-    it('shows each commissioning step, over LAN and then over Relay', async () => {
+    it('shows each commissioning step over LAN, and none over Relay until NEM-63', async () => {
         const controller = home(true)
         await renderDevicesTab(controller)
         await commissioningMatter(controller)
@@ -436,6 +436,8 @@ describe('Adding a Device while the connection changes', () => {
         expect(screen.getByText('✓ Looking for your Device')).toBeTruthy()
         expect(screen.getByText('○ Joining your Home')).toBeTruthy()
 
+        // Progress goes over the LAN WebSocket only (Relay pushes come back
+        // encrypted in NEM-63), so a step reached over Relay never shows.
         controller.lanReachable = false
         await act(() => reprobe())
         await screen.findByText('Connected over relay')
@@ -445,24 +447,22 @@ describe('Adding a Device while the connection changes', () => {
                 step: 'configuring_network',
             })
         )
-        await screen.findByText('Sending your Wi‑Fi details')
+        expect(screen.queryByText('Sending your Wi‑Fi details')).toBeNull()
+        expect(screen.getByText('Connecting securely')).toBeTruthy()
     })
 
-    it('names the step that failed, with guidance, even over Relay', async () => {
+    it('names the step that failed, with guidance, over LAN', async () => {
         const controller = home(true)
         await renderDevicesTab(controller)
         await commissioningMatter(controller)
 
-        controller.lanReachable = false
-        await act(() => reprobe())
-        await screen.findByText('Connected over relay')
         await act(async () => {
             controller.commissioningStep({
                 status: 'failed',
                 step: 'configuring_network',
                 reason: 'network_rejected',
             })
-            // On LAN the older failed interview follows; it changes nothing.
+            // The older failed interview follows; it changes nothing.
             controller.emit({
                 type: 'interview',
                 externalId: 'commissioning',
