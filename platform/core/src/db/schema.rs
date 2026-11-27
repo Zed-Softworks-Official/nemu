@@ -113,20 +113,6 @@ diesel::table! {
 }
 
 diesel::table! {
-    client_tokens (id) {
-        id -> Uuid,
-        #[max_length = 128]
-        token_hash -> Varchar,
-        #[max_length = 255]
-        label -> Varchar,
-        created_at -> Timestamptz,
-        last_seen_at -> Nullable<Timestamptz>,
-        #[max_length = 255]
-        user_id -> Nullable<Varchar>,
-    }
-}
-
-diesel::table! {
     command_outcomes (command_id) {
         #[max_length = 255]
         command_id -> Varchar,
@@ -459,7 +445,6 @@ diesel::allow_tables_to_appear_in_same_query!(
     capability_observation_keys,
     capability_observations,
     capability_recording_bounds,
-    client_tokens,
     command_outcomes,
     component_rooms,
     device_events,

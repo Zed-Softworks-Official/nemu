@@ -1,35 +1,19 @@
 use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use uuid::Uuid;
 
-use crate::api::auth::{AuthenticatedClient, authenticate, count_access_credentials};
+use crate::api::auth::{AuthenticatedClient, authenticate};
 use crate::api::error::{ApiError, ApiResult};
-use crate::api::members::{pair_member_session, require_owner};
+use crate::api::members::require_owner;
 use crate::audit::{AuditKind, AuditWrite};
-use crate::pairing::access_clients::{delete_access_client, list_access_clients};
-use crate::pairing::codes::{consume_pairing_code, mint_pairing_code};
+use crate::pairing::access_clients::{
+    count_access_clients, delete_access_client, list_access_clients,
+};
+use crate::pairing::codes::mint_pairing_code;
 use crate::pairing::members::count_members;
-use crate::pairing::tokens::{list_client_tokens, revoke_client_token};
 use crate::state::AppState;
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PairRequest {
-    pub code: String,
-    pub client_label: String,
-    pub user_id: String,
-    pub email: String,
-    pub display_name: Option<String>,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PairResponse {
-    pub client_token: String,
-    pub controller_id: String,
-}
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -38,9 +22,10 @@ pub struct PairingCodeResponse {
     pub expires_at: String,
 }
 
+/// One Access Client of the Home, named by its Access Client ID.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ClientTokenResource {
+pub struct AccessClientResource {
     pub id: String,
     pub label: String,
     pub created_at: String,
@@ -49,59 +34,9 @@ pub struct ClientTokenResource {
 }
 
 #[derive(Serialize)]
-pub struct TokensResponse {
-    pub tokens: Vec<ClientTokenResource>,
-}
-
-/// Exchange a pairing code for a long-lived client token (unauthenticated).
-pub async fn pair(
-    State(state): State<AppState>,
-    Json(body): Json<PairRequest>,
-) -> ApiResult<Json<PairResponse>> {
-    let label = body.client_label.trim();
-    if label.is_empty() {
-        return Err(ApiError::bad_request(
-            "invalid_label",
-            "clientLabel is required",
-        ));
-    }
-    if body.code.trim().len() != 6 {
-        return Err(ApiError::bad_request(
-            "invalid_code",
-            "Pairing code must be 6 digits",
-        ));
-    }
-    if body.user_id.trim().is_empty() {
-        return Err(ApiError::bad_request("invalid_user", "userId is required"));
-    }
-    if body.email.trim().is_empty() {
-        return Err(ApiError::bad_request("invalid_email", "email is required"));
-    }
-
-    let ok = consume_pairing_code(&state.db, body.code.trim())
-        .await
-        .map_err(ApiError::internal)?;
-    if !ok {
-        return Err(ApiError::new(
-            StatusCode::UNAUTHORIZED,
-            "invalid_code",
-            "Pairing code is invalid or expired",
-        ));
-    }
-
-    let issued = pair_member_session(
-        &state,
-        body.user_id.trim(),
-        body.email.trim(),
-        body.display_name.as_deref(),
-        label,
-    )
-    .await?;
-
-    Ok(Json(PairResponse {
-        client_token: issued.client_token,
-        controller_id: issued.controller_id,
-    }))
+#[serde(rename_all = "camelCase")]
+pub struct AccessClientsResponse {
+    pub access_clients: Vec<AccessClientResource>,
 }
 
 /// Mint a short-lived pairing code.
@@ -111,12 +46,12 @@ pub async fn create_pairing_code(
     headers: axum::http::HeaderMap,
     uri: axum::http::Uri,
 ) -> ApiResult<Json<PairingCodeResponse>> {
-    let credential_count = count_access_credentials(&state.db)
+    let access_client_count = count_access_clients(&state.db)
         .await
         .map_err(ApiError::internal)?;
     let member_count = count_members(&state.db).await.map_err(ApiError::internal)?;
 
-    if credential_count > 0 {
+    if access_client_count > 0 {
         let auth = authenticate(&state, &headers, &uri).await?;
         if member_count > 0 {
             require_owner(&state, &auth).await?;
@@ -133,42 +68,27 @@ pub async fn create_pairing_code(
     }))
 }
 
-pub async fn list_tokens(
+pub async fn list_access_clients_handler(
     State(state): State<AppState>,
     _auth: AuthenticatedClient,
-) -> ApiResult<Json<TokensResponse>> {
-    let tokens = list_household_tokens(&state).await?;
-    Ok(Json(TokensResponse { tokens }))
+) -> ApiResult<Json<AccessClientsResponse>> {
+    let access_clients = list_household_access_clients(&state).await?;
+    Ok(Json(AccessClientsResponse { access_clients }))
 }
 
-/// Every Access Client of the Home: CPace-paired ones and, until NEM-131,
-/// bearer tokens. Both revoke through [`revoke_household_token`].
-pub async fn list_household_tokens(state: &AppState) -> ApiResult<Vec<ClientTokenResource>> {
-    let tokens = list_client_tokens(&state.db)
-        .await
-        .map_err(ApiError::internal)?;
+/// Every Access Client of the Home, newest first.
+pub async fn list_household_access_clients(
+    state: &AppState,
+) -> ApiResult<Vec<AccessClientResource>> {
     let access_clients = list_access_clients(&state.db)
         .await
         .map_err(ApiError::internal)?;
-
-    let mut resources: Vec<(chrono::DateTime<chrono::Utc>, ClientTokenResource)> = tokens
+    let mut resources: Vec<_> = access_clients
         .into_iter()
-        .map(|t| {
-            (
-                t.created_at,
-                ClientTokenResource {
-                    id: t.id.to_string(),
-                    label: t.label,
-                    created_at: t.created_at.to_rfc3339(),
-                    last_seen_at: t.last_seen_at.map(|ts| ts.to_rfc3339()),
-                    user_id: t.user_id,
-                },
-            )
-        })
-        .chain(access_clients.into_iter().map(|(client, member)| {
+        .map(|(client, member)| {
             (
                 client.created_at,
-                ClientTokenResource {
+                AccessClientResource {
                     id: client.id.to_string(),
                     label: client.label,
                     created_at: client.created_at.to_rfc3339(),
@@ -176,7 +96,7 @@ pub async fn list_household_tokens(state: &AppState) -> ApiResult<Vec<ClientToke
                     user_id: member.user_id,
                 },
             )
-        }))
+        })
         .collect();
     resources.sort_by_key(|(created_at, _)| std::cmp::Reverse(*created_at));
     Ok(resources
@@ -185,16 +105,16 @@ pub async fn list_household_tokens(state: &AppState) -> ApiResult<Vec<ClientToke
         .collect())
 }
 
-pub async fn delete_token(
+pub async fn revoke_access_client_handler(
     State(state): State<AppState>,
     auth: AuthenticatedClient,
     Path(id): Path<String>,
 ) -> ApiResult<StatusCode> {
-    revoke_household_token(&state, &auth, &id).await?;
+    revoke_household_access_client(&state, &auth, &id).await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
-pub async fn delete_current_token(
+pub async fn revoke_current_handler(
     State(state): State<AppState>,
     auth: AuthenticatedClient,
 ) -> ApiResult<StatusCode> {
@@ -202,47 +122,51 @@ pub async fn delete_current_token(
     Ok(StatusCode::NO_CONTENT)
 }
 
-pub async fn revoke_household_token(
+/// Revokes one Access Client by its Access Client ID. The caller may revoke
+/// its own Membership's Access Clients; an Owner may revoke any.
+pub async fn revoke_household_access_client(
     state: &AppState,
     auth: &AuthenticatedClient,
-    token_id: &str,
+    access_client_id: &str,
 ) -> ApiResult<()> {
-    let id = Uuid::parse_str(token_id)
-        .map_err(|_| ApiError::bad_request("invalid_id", "token id must be a UUID"))?;
+    let not_found = || ApiError::not_found("not_found", "Access Client not found");
+    let id = Uuid::parse_str(access_client_id)
+        .map_err(|_| ApiError::bad_request("invalid_id", "The Access Client ID must be a UUID"))?;
 
-    let target = list_household_tokens(state)
+    let target = list_household_access_clients(state)
         .await?
         .into_iter()
-        .find(|token| token.id == id.to_string())
-        .ok_or_else(|| ApiError::not_found("not_found", "Token not found"))?;
+        .find(|client| client.id == id.to_string())
+        .ok_or_else(not_found)?;
 
-    let is_self = auth.token_id == id || (auth.user_id.is_some() && auth.user_id == target.user_id);
+    let is_self =
+        auth.access_client_id == id || (auth.user_id.is_some() && auth.user_id == target.user_id);
     if !is_self {
         require_owner(state, auth).await?;
     }
 
     let audit = Some(revocation_audit(auth, id, &target.label));
-    // The ID names a bearer token or a CPace Access Client; never both.
-    let deleted = revoke_client_token(&state.db, id, audit.clone())
+    let deleted = delete_access_client(&state.db, id, audit)
         .await
-        .map_err(ApiError::internal)?
-        || delete_access_client(&state.db, id, audit)
-            .await
-            .map_err(ApiError::internal)?;
+        .map_err(ApiError::internal)?;
     state.local_sessions.drop_access_client(id);
 
-    if deleted {
-        Ok(())
-    } else {
-        Err(ApiError::not_found("not_found", "Token not found"))
-    }
+    if deleted { Ok(()) } else { Err(not_found()) }
 }
 
-fn revocation_audit(auth: &AuthenticatedClient, token_id: Uuid, label: &str) -> AuditWrite {
+pub(crate) fn revocation_audit(
+    auth: &AuthenticatedClient,
+    access_client_id: Uuid,
+    label: &str,
+) -> AuditWrite {
     AuditWrite {
         kind: AuditKind::AccessClientRevoked,
         actor_user_id: auth.user_id.clone(),
         summary: format!("revoked access client {label}"),
-        detail: serde_json::json!({ "action": "revoke", "tokenId": token_id, "label": label }),
+        detail: serde_json::json!({
+            "action": "revoke",
+            "accessClientId": access_client_id,
+            "label": label,
+        }),
     }
 }

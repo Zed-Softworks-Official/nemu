@@ -11,7 +11,7 @@ use crate::api::access::{leave_home, revoke_current};
 use crate::api::auth::AuthenticatedClient;
 use crate::api::error::ApiError;
 use crate::api::members::{invite_member, list_household_members, remove_member};
-use crate::api::pairing::{list_household_tokens, revoke_household_token};
+use crate::api::pairing::{list_household_access_clients, revoke_household_access_client};
 use crate::api::rooms::load_rooms;
 use crate::commands::execute_set;
 use crate::events::DeviceEvent;
@@ -41,12 +41,12 @@ pub(crate) enum RelayAction {
         #[serde(rename = "memberId")]
         member_id: String,
     },
-    #[serde(rename = "listTokens")]
-    ListTokens,
-    #[serde(rename = "revokeToken")]
-    RevokeToken {
-        #[serde(rename = "tokenId")]
-        token_id: String,
+    #[serde(rename = "listAccessClients")]
+    ListAccessClients,
+    #[serde(rename = "revokeAccessClient")]
+    RevokeAccessClient {
+        #[serde(rename = "accessClientId")]
+        access_client_id: String,
     },
     #[serde(rename = "revokeCurrent")]
     RevokeCurrent,
@@ -162,7 +162,7 @@ impl RelayAction {
             RelayAction::GetDevices
                 | RelayAction::GetRooms
                 | RelayAction::ListMembers
-                | RelayAction::ListTokens
+                | RelayAction::ListAccessClients
                 | RelayAction::GetCapabilitySnapshot
                 | RelayAction::WatchCapabilityChanges { .. }
                 | RelayAction::HistoryQuery { .. }
@@ -298,12 +298,12 @@ pub(crate) async fn dispatch(
         RelayAction::RemoveMember { member_id } => {
             done_outcome(remove_member(state, auth, &member_id).await)
         }
-        RelayAction::ListTokens => typed_outcome(
-            list_household_tokens(state).await,
-            |tokens| json!({ "type": "tokens", "tokens": tokens }),
+        RelayAction::ListAccessClients => typed_outcome(
+            list_household_access_clients(state).await,
+            |access_clients| json!({ "type": "accessClients", "accessClients": access_clients }),
         ),
-        RelayAction::RevokeToken { token_id } => {
-            done_outcome(revoke_household_token(state, auth, &token_id).await)
+        RelayAction::RevokeAccessClient { access_client_id } => {
+            done_outcome(revoke_household_access_client(state, auth, &access_client_id).await)
         }
         RelayAction::RevokeCurrent => done_outcome(revoke_current(state, auth).await),
         RelayAction::LeaveHome => done_outcome(leave_home(state, auth).await),
@@ -316,7 +316,7 @@ pub(crate) async fn dispatch(
             // exported from this request.
             match crate::relay::watches::register(
                 state,
-                auth.token_id,
+                auth.access_client_id,
                 header,
                 keys,
                 renews.as_deref(),

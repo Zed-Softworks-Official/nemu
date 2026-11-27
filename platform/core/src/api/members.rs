@@ -13,7 +13,6 @@ use crate::pairing::members::{
     activate_member, count_members, delete_member, find_member_by_email, find_member_by_user_id,
     get_member, insert_member, list_members, normalize_email,
 };
-use crate::pairing::tokens::{mint_client_token, revoke_tokens_for_user};
 use crate::state::AppState;
 
 #[derive(Serialize, Clone)]
@@ -53,29 +52,6 @@ pub struct InviteMemberBody {
     pub email: String,
 }
 
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct BootstrapOwnerBody {
-    pub user_id: String,
-    pub email: String,
-    pub display_name: Option<String>,
-}
-
-#[derive(Clone)]
-pub struct SessionMintInput {
-    pub user_id: String,
-    pub email: String,
-    pub client_label: String,
-    pub display_name: Option<String>,
-}
-
-#[derive(Serialize, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct SessionMintResult {
-    pub client_token: String,
-    pub controller_id: String,
-}
-
 pub async fn list_members_handler(
     State(state): State<AppState>,
     _auth: AuthenticatedClient,
@@ -109,22 +85,6 @@ pub async fn leave_home_handler(
 ) -> ApiResult<StatusCode> {
     crate::api::access::leave_home(&state, &auth).await?;
     Ok(StatusCode::NO_CONTENT)
-}
-
-pub async fn bootstrap_owner_handler(
-    State(state): State<AppState>,
-    auth: AuthenticatedClient,
-    Json(body): Json<BootstrapOwnerBody>,
-) -> ApiResult<Json<MemberResource>> {
-    let member = bootstrap_owner(
-        &state,
-        &auth,
-        &body.user_id,
-        &body.email,
-        body.display_name.as_deref(),
-    )
-    .await?;
-    Ok(Json(member))
 }
 
 pub async fn list_household_members(state: &AppState) -> ApiResult<Vec<MemberResource>> {
@@ -205,12 +165,6 @@ pub async fn remove_member(
         }
     }
 
-    if let Some(user_id) = target.user_id.as_deref() {
-        let _ = revoke_tokens_for_user(&state.db, user_id)
-            .await
-            .map_err(ApiError::internal)?;
-    }
-
     // Deleting the Member deletes (and tombstones) its Access Clients.
     let access_clients: Vec<Uuid> = list_access_clients(&state.db)
         .await
@@ -246,84 +200,9 @@ pub async fn remove_member(
     }
 }
 
-pub async fn bootstrap_owner(
-    state: &AppState,
-    _auth: &AuthenticatedClient,
-    user_id: &str,
-    email: &str,
-    display_name: Option<&str>,
-) -> ApiResult<MemberResource> {
-    let user_id = user_id.trim();
-    if user_id.is_empty() {
-        return Err(ApiError::bad_request("invalid_user", "userId is required"));
-    }
-    let email = normalize_email(email)
-        .map_err(|message| ApiError::bad_request("invalid_email", message))?;
-
-    let existing = count_members(&state.db).await.map_err(ApiError::internal)?;
-    if existing > 0 {
-        return Err(ApiError::conflict(
-            "already_bootstrapped",
-            "This home already has household members",
-        ));
-    }
-
-    let member = insert_member(
-        &state.db,
-        Some(user_id),
-        &email,
-        display_name.map(str::trim).filter(|name| !name.is_empty()),
-        "owner",
-        "active",
-        Some(bootstrap_audit(user_id, &email)),
-    )
-    .await
-    .map_err(ApiError::internal)?;
-    Ok(MemberResource::from(&member))
-}
-
-/// No longer reachable: Relay carried session mints, and a sealed Relay
-/// envelope never carries a bearer token (NEM-129). NEM-131 deletes it.
-#[allow(dead_code)]
-pub async fn mint_session(
-    state: &AppState,
-    input: SessionMintInput,
-) -> ApiResult<SessionMintResult> {
-    let user_id = input.user_id.trim();
-    let label = input.client_label.trim();
-    if user_id.is_empty() {
-        return Err(ApiError::bad_request("invalid_user", "userId is required"));
-    }
-    if label.is_empty() {
-        return Err(ApiError::bad_request(
-            "invalid_label",
-            "clientLabel is required",
-        ));
-    }
-    let email = normalize_email(&input.email)
-        .map_err(|message| ApiError::bad_request("invalid_email", message))?;
-
-    let member =
-        resolve_or_activate_member(state, user_id, &email, input.display_name.as_deref()).await?;
-
-    let issued = mint_client_token(
-        &state.db,
-        label,
-        member.user_id.as_deref(),
-        Some(pairing_audit(user_id, label)),
-    )
-    .await
-    .map_err(ApiError::internal)?;
-
-    Ok(SessionMintResult {
-        client_token: issued.token,
-        controller_id: state.identity.controller_id.clone(),
-    })
-}
-
 /// The Membership a pairing binds to: the first Owner when the Home has no
 /// Members yet, else the caller's existing Membership or the Invitation it
-/// accepts (ADR-0020). Bearer-token pairing and CPace pairing share it.
+/// accepts (ADR-0020).
 pub async fn resolve_pairing_member(
     state: &AppState,
     user_id: &str,
@@ -351,30 +230,6 @@ pub async fn resolve_pairing_member(
     )
     .await
     .map_err(ApiError::internal)
-}
-
-pub async fn pair_member_session(
-    state: &AppState,
-    user_id: &str,
-    email: &str,
-    display_name: Option<&str>,
-    client_label: &str,
-) -> ApiResult<SessionMintResult> {
-    resolve_pairing_member(state, user_id, email, display_name).await?;
-
-    let issued = mint_client_token(
-        &state.db,
-        client_label,
-        Some(user_id.trim()),
-        Some(pairing_audit(user_id.trim(), client_label)),
-    )
-    .await
-    .map_err(ApiError::internal)?;
-
-    Ok(SessionMintResult {
-        client_token: issued.token,
-        controller_id: state.identity.controller_id.clone(),
-    })
 }
 
 /// The caller's Membership, which must be active. Owners and Members both pass.
@@ -415,15 +270,6 @@ fn bootstrap_audit(user_id: &str, email: &str) -> AuditWrite {
         actor_user_id: Some(user_id.to_string()),
         summary: format!("bootstrapped owner {email}"),
         detail: serde_json::json!({ "action": "bootstrap", "email": email, "role": "owner" }),
-    }
-}
-
-fn pairing_audit(user_id: &str, label: &str) -> AuditWrite {
-    AuditWrite {
-        kind: AuditKind::AccessClientPaired,
-        actor_user_id: Some(user_id.to_string()),
-        summary: format!("paired access client {label}"),
-        detail: serde_json::json!({ "action": "pair", "label": label }),
     }
 }
 

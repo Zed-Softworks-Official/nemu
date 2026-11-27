@@ -115,7 +115,7 @@ async fn main() {
     }
 
     // First-run bootstrap: mint a pairing code and print it when nobody is paired yet.
-    match api::auth::count_access_credentials(&pool).await {
+    match pairing::access_clients::count_access_clients(&pool).await {
         Ok(0) => match mint_pairing_code(&pool).await {
             Ok(code) => {
                 info!("================================================");

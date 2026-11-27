@@ -6,9 +6,8 @@ use crate::api::auth::authenticate;
 use crate::api::error::ApiError;
 use crate::state::AppState;
 
-/// Admits a Local session or, until NEM-131, a bearer token, and hands the
-/// caller to the handler.
-pub async fn require_client_token(
+/// Admits a Local session and hands the caller to the handler.
+pub async fn require_local_session(
     State(state): State<AppState>,
     mut request: Request,
     next: Next,
