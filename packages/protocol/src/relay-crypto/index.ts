@@ -70,7 +70,7 @@ export {
     issueGrant,
     verifyGrant,
 } from './grant.ts'
-export { x25519PublicKey } from './hpke.ts'
+export { acceptableEncryptionKey, x25519PublicKey } from './hpke.ts'
 export {
     encodeMembershipProjection,
     type MembershipProjection,
@@ -107,6 +107,7 @@ export {
     verifyLocalSessionChallenge,
 } from './session.ts'
 export {
+    acceptableSigningKey,
     type Ed25519Signer,
     ed25519PublicKey,
     ed25519Signer,

@@ -549,6 +549,43 @@ fn local_session_challenges_sign_verify_and_reject() {
 }
 
 #[test]
+fn ed25519_and_x25519_edge_cases_are_refused() {
+    let vectors = vectors();
+    let edge = &vectors["ed25519"];
+    let key = |v: &Value| -> [u8; 32] { h(&v["bytes"]).try_into().unwrap() };
+    for v in array(&edge["weakSigningKeys"]) {
+        assert!(
+            !session::acceptable_signing_key(&key(v)),
+            "{}",
+            s(&v["name"])
+        );
+    }
+    for v in array(&edge["weakEncryptionKeys"]) {
+        assert!(
+            !session::acceptable_encryption_key(&key(v)),
+            "{}",
+            s(&v["name"])
+        );
+    }
+    let keys = keys(&vectors);
+    for party in [&keys.controller, &keys.access_client] {
+        assert!(session::acceptable_signing_key(&party.signing_public));
+    }
+
+    let v = &edge["cofactoredOnly"];
+    let public: [u8; 32] = h(&v["signer"]).try_into().unwrap();
+    let signature: [u8; 64] = h(&v["signature"]).try_into().unwrap();
+    assert!(session::acceptable_signing_key(&public));
+    let verifying = ed25519_dalek::VerifyingKey::from_bytes(&public).unwrap();
+    let signature = ed25519_dalek::Signature::from_bytes(&signature);
+    assert!(
+        verifying
+            .verify_strict(&h(&v["message"]), &signature)
+            .is_err()
+    );
+}
+
+#[test]
 fn lan_refusals_sign_and_reject() {
     let vectors = vectors();
     let keys = keys(&vectors);

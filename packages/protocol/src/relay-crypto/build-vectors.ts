@@ -4,9 +4,17 @@
 // with NEMU_WRITE_VECTORS=1. Core's tests rebuild every case from the same
 // inputs and must produce the same bytes.
 
-import { sha256 } from '@noble/hashes/sha2.js'
+import { ed25519 } from '@noble/curves/ed25519.js'
+import { bytesToNumberLE, numberToBytesLE } from '@noble/curves/utils.js'
+import { sha256, sha512 } from '@noble/hashes/sha2.js'
 
-import { b64urlEncode, hexDecode, hexEncode, utf8Encode } from './bytes.ts'
+import {
+    b64urlEncode,
+    concatBytes,
+    hexDecode,
+    hexEncode,
+    utf8Encode,
+} from './bytes.ts'
 import {
     CpaceInitiator,
     CpaceResponder,
@@ -173,6 +181,84 @@ const CPACE_DRAFT = {
         result: '7c13645fe790a468f62c39beb7388e541d8405d1ade69d1778c5fe3e7f6b600e',
     },
     invalidPoints: [NON_CANONICAL_POINT, IDENTITY_POINT],
+}
+
+/**
+ * Ed25519 edge cases where verifiers disagree (small-order and torsion
+ * points, non-canonical encodings, cofactored vs cofactorless checks). Core
+ * (`verify_strict` plus its key checks) and `signing.ts` must refuse every
+ * one of them.
+ */
+function ed25519EdgeCases() {
+    const Point = ed25519.Point
+    const L = Point.Fn.ORDER
+    const P = Point.Fp.ORDER
+    // A point of order 8 (the standard torsion generator encoding).
+    const torsion = Point.fromHex(
+        'c7176a703d4dd84fba3c0b760d10670f2a2053fa2c39ccc64ec7fd7792ac037a'
+    )
+    const scalar = (name: string) =>
+        bytesToNumberLE(sha512(utf8Encode(`ed25519-edge/${name}`))) % L
+    const a = scalar('a')
+    const publicKey = Point.BASE.multiply(a)
+    // The y of a point of large order that has a second, non-canonical
+    // encoding (y + p still fits in 255 bits).
+    let nonCanonical = ''
+    for (let y = 2n; y < 19n && !nonCanonical; y++) {
+        try {
+            const point = Point.fromBytes(numberToBytesLE(y, 32), false)
+            if (!point.isSmallOrder()) {
+                nonCanonical = hexEncode(numberToBytesLE(y + P, 32))
+            }
+        } catch {
+            // not on the curve
+        }
+    }
+    // [S]B - [k]A equals R minus a torsion point: a cofactored verifier
+    // (noble's default) accepts this, a cofactorless one refuses it.
+    const message = utf8Encode('cofactored only')
+    const r = scalar('r')
+    const rPoint = Point.BASE.multiply(r).add(torsion)
+    const rBytes = rPoint.toBytes()
+    const k =
+        bytesToNumberLE(
+            sha512(concatBytes(rBytes, publicKey.toBytes(), message))
+        ) % L
+    const s = (r + k * a) % L
+    return {
+        weakSigningKeys: [
+            { name: 'the identity', bytes: `01${'00'.repeat(31)}` },
+            { name: 'of order 2', bytes: `ec${'ff'.repeat(30)}7f` },
+            { name: 'of order 4', bytes: '00'.repeat(32) },
+            { name: 'of order 8', bytes: hexEncode(torsion.toBytes()) },
+            { name: 'a non-canonical encoding', bytes: nonCanonical },
+            {
+                name: 'with a torsion part',
+                bytes: hexEncode(publicKey.add(torsion).toBytes()),
+            },
+        ],
+        weakEncryptionKeys: [
+            { name: 'zero', bytes: '00'.repeat(32) },
+            { name: 'one', bytes: `01${'00'.repeat(31)}` },
+            {
+                name: 'of order 8',
+                bytes: 'e0eb7a7c3b41b8ae1656e3faf19fc46ada098deb9c32b1fd866205165f49b800',
+            },
+            {
+                name: 'of order 8, the other one',
+                bytes: '5f9c95bca3508c24b1d0b1559c83ef5b04445cc4581c8e86d8224eddd09f1157',
+            },
+            { name: 'p - 1', bytes: `ec${'ff'.repeat(30)}7f` },
+            { name: 'p', bytes: `ed${'ff'.repeat(30)}7f` },
+            { name: 'p + 1', bytes: `ee${'ff'.repeat(30)}7f` },
+        ],
+        cofactoredOnly: {
+            name: 'R with a torsion part',
+            signer: hexEncode(publicKey.toBytes()),
+            message: hexEncode(message),
+            signature: hexEncode(concatBytes(rBytes, numberToBytesLE(s, 32))),
+        },
+    }
 }
 
 const CONTROLLER_ID = 'nemu_0123456789abcdef'
@@ -529,6 +615,7 @@ export async function buildRelayCryptoVectors() {
         hpkeRfc9180: HPKE_RFC9180,
         cpaceDraft: CPACE_DRAFT,
         keys: { controller, accessClient, impostor },
+        ed25519: ed25519EdgeCases(),
         pairing: pairingVectors(controller, accessClient),
         requests: [command, watch, toImpostor].map((v) => ({
             name: v.name,

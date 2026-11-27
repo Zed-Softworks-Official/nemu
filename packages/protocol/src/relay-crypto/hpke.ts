@@ -3,7 +3,8 @@
 // Pure JS on @noble so it runs on Hermes; twin of Core's `relay_crypto::hpke`.
 
 import { chacha20poly1305 } from '@noble/ciphers/chacha.js'
-import { x25519 } from '@noble/curves/ed25519.js'
+import { ed25519, x25519 } from '@noble/curves/ed25519.js'
+import { bytesToNumberLE, numberToBytesLE } from '@noble/curves/utils.js'
 import { expand } from '@noble/hashes/hkdf.js'
 import { hmac } from '@noble/hashes/hmac.js'
 import { sha256 } from '@noble/hashes/sha2.js'
@@ -74,6 +75,28 @@ function labeledExpand(
 
 export function x25519PublicKey(secretKey: Uint8Array): Uint8Array {
     return x25519.getPublicKey(secretKey)
+}
+
+/**
+ * An X25519 public key both sides bind: its Edwards form is a point not of
+ * small order, so a shared secret with it is never predictable. Twin of
+ * Core's `relay_crypto::session::acceptable_encryption_key`
+ * (`MontgomeryPoint::to_edwards(0)` then `is_small_order`).
+ */
+export function acceptableEncryptionKey(key: Uint8Array): boolean {
+    if (key.length !== 32) return false
+    const Fp = ed25519.Point.Fp
+    const masked = Uint8Array.from(key)
+    masked[31] = (masked[31] ?? 0) & 0x7f
+    const u = Fp.create(bytesToNumberLE(masked))
+    if (u === Fp.neg(Fp.ONE)) return false
+    const y = Fp.div(Fp.sub(u, Fp.ONE), Fp.add(u, Fp.ONE))
+    try {
+        const point = ed25519.Point.fromBytes(numberToBytesLE(y, 32), false)
+        return !point.isSmallOrder()
+    } catch {
+        return false
+    }
 }
 
 /** RFC 9180 section 7.1.3 `DeriveKeyPair` for X25519. */

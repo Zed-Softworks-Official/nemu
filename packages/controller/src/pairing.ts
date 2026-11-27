@@ -9,6 +9,8 @@ import {
     startPairingResponseSchema,
 } from '@nemu/protocol'
 import {
+    acceptableEncryptionKey,
+    acceptableSigningKey,
     b64urlDecode,
     b64urlEncode,
     CpaceError,
@@ -144,6 +146,14 @@ export async function pairWithController(
             )
         }
         throw error
+    }
+    // Core never makes a small-order or torsion key, and its verifier and
+    // ours must agree on every key we pin: anything else is an impostor.
+    if (
+        !acceptableSigningKey(outcome.controllerKeys.signingKey) ||
+        !acceptableEncryptionKey(outcome.controllerKeys.encryptionKey)
+    ) {
+        throw new ApiError('invalid_code', 'Pairing code is invalid or expired')
     }
 
     const { data: confirmed } = await http.post(`${runPath}/confirm`, {

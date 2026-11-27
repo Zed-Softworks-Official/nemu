@@ -108,6 +108,70 @@
             "encryptionPublic": "17ba35ca4e37384b8ff279603e8eb99c77f1442054be42948ae553fdd7d6950a"
         }
     },
+    "ed25519": {
+        "weakSigningKeys": [
+            {
+                "name": "the identity",
+                "bytes": "0100000000000000000000000000000000000000000000000000000000000000"
+            },
+            {
+                "name": "of order 2",
+                "bytes": "ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f"
+            },
+            {
+                "name": "of order 4",
+                "bytes": "0000000000000000000000000000000000000000000000000000000000000000"
+            },
+            {
+                "name": "of order 8",
+                "bytes": "c7176a703d4dd84fba3c0b760d10670f2a2053fa2c39ccc64ec7fd7792ac037a"
+            },
+            {
+                "name": "a non-canonical encoding",
+                "bytes": "f0ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f"
+            },
+            {
+                "name": "with a torsion part",
+                "bytes": "ee3841fea7469ce65c3f7e06a16dd1d187cedfd44c77c1591b6805bc1466ea29"
+            }
+        ],
+        "weakEncryptionKeys": [
+            {
+                "name": "zero",
+                "bytes": "0000000000000000000000000000000000000000000000000000000000000000"
+            },
+            {
+                "name": "one",
+                "bytes": "0100000000000000000000000000000000000000000000000000000000000000"
+            },
+            {
+                "name": "of order 8",
+                "bytes": "e0eb7a7c3b41b8ae1656e3faf19fc46ada098deb9c32b1fd866205165f49b800"
+            },
+            {
+                "name": "of order 8, the other one",
+                "bytes": "5f9c95bca3508c24b1d0b1559c83ef5b04445cc4581c8e86d8224eddd09f1157"
+            },
+            {
+                "name": "p - 1",
+                "bytes": "ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f"
+            },
+            {
+                "name": "p",
+                "bytes": "edffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f"
+            },
+            {
+                "name": "p + 1",
+                "bytes": "eeffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f"
+            }
+        ],
+        "cofactoredOnly": {
+            "name": "R with a torsion part",
+            "signer": "152a3a868b58b279f6ae568762836658a3ecaab91ce67b511c5a31c5f8c64046",
+            "message": "636f666163746f726564206f6e6c79",
+            "signature": "dac3e8e0f9fbf7dda0b4ccb63779428ffdbc0c6d6648011ba3165c22cf9595c1b8045638638dc7c0b3ee6ef75cf605d16669d8a29374469442a926158d32de0b"
+        }
+    },
     "pairing": {
         "accepted": {
             "code": "482019",

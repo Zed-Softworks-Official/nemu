@@ -6,6 +6,7 @@
 //! them into an Access grant, so the Rust and TypeScript verifiers never have
 //! to disagree about a small-order key.
 
+use curve25519_dalek::edwards::CompressedEdwardsY;
 use curve25519_dalek::montgomery::MontgomeryPoint;
 use ed25519_dalek::{Signature, Signer, SigningKey, VerifyingKey};
 
@@ -91,9 +92,14 @@ pub fn verify_challenge(
     .map_err(|_| SessionRejection::BadSignature)
 }
 
-/// An Ed25519 public key Core will bind: a valid point of large order.
+/// An Ed25519 public key Core will bind: the canonical encoding of a point
+/// in the prime-order subgroup (not of small order, no torsion part). The
+/// TypeScript twin is `signing.ts`'s `acceptableSigningKey`; with it, both
+/// sides' strict verifiers accept exactly the same signatures.
 pub fn acceptable_signing_key(key: &[u8; 32]) -> bool {
-    VerifyingKey::from_bytes(key).is_ok_and(|key| !key.is_weak())
+    CompressedEdwardsY(*key).decompress().is_some_and(|point| {
+        point.compress().to_bytes() == *key && !point.is_small_order() && point.is_torsion_free()
+    })
 }
 
 /// An X25519 public key Core will bind: not of small order, so a shared

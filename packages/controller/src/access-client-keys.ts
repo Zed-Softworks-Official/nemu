@@ -1,5 +1,7 @@
 import { ApiError } from '@nemu/protocol'
 import {
+    acceptableEncryptionKey,
+    acceptableSigningKey,
     b64urlDecode,
     b64urlEncode,
     type Ed25519Signer,
@@ -265,7 +267,10 @@ export function parseEnrollment(value: unknown): AccessClientEnrollment | null {
         !membershipId ||
         !grant ||
         !controllerSigningKey ||
-        !controllerEncryptionKey
+        !controllerEncryptionKey ||
+        // Only keys pairing would have pinned (see `pairWithController`).
+        !acceptableSigningKey(controllerSigningKey) ||
+        !acceptableEncryptionKey(controllerEncryptionKey)
     ) {
         return null
     }

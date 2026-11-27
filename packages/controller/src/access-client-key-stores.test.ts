@@ -5,7 +5,12 @@
 import assert from 'node:assert/strict'
 import { afterEach, describe, it } from 'node:test'
 import { ApiError } from '@nemu/protocol'
-import { ed25519Verify, utf8Encode } from '@nemu/protocol/relay-crypto'
+import {
+    ed25519PublicKey,
+    ed25519Verify,
+    utf8Encode,
+    x25519PublicKey,
+} from '@nemu/protocol/relay-crypto'
 import {
     type AccessClientEnrollment,
     type AccessClientKeyStore,
@@ -34,8 +39,8 @@ function enrollment(
         accessClientId: `ac-${controllerId}`,
         membershipId: `mem-${controllerId}`,
         grant: 'header.payload.signature',
-        controllerSigningKey: new Uint8Array(32).fill(7),
-        controllerEncryptionKey: new Uint8Array(32).fill(9),
+        controllerSigningKey: ed25519PublicKey(new Uint8Array(32).fill(7)),
+        controllerEncryptionKey: x25519PublicKey(new Uint8Array(32).fill(9)),
         ...extra,
     }
 }

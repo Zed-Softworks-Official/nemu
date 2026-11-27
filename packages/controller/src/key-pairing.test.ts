@@ -3,7 +3,12 @@
 
 import assert from 'node:assert/strict'
 import { afterEach, describe, it } from 'node:test'
-import { verifyGrant } from '@nemu/protocol/relay-crypto'
+import {
+    ed25519PublicKey,
+    hexDecode,
+    verifyGrant,
+    x25519PublicKey,
+} from '@nemu/protocol/relay-crypto'
 import { createMemoryAccessClientKeyStore } from './access-client-keys.ts'
 import { FakeLanController } from './fake-lan-controller.ts'
 import { pairWithController } from './pairing.ts'
@@ -98,8 +103,12 @@ describe('pairWithController with Access Client keys', () => {
     it('refuses a grant not signed by the key it pinned', async () => {
         const lan = await home({
             advertisedKeys: {
-                signingKey: crypto.getRandomValues(new Uint8Array(32)),
-                encryptionKey: crypto.getRandomValues(new Uint8Array(32)),
+                signingKey: ed25519PublicKey(
+                    crypto.getRandomValues(new Uint8Array(32))
+                ),
+                encryptionKey: x25519PublicKey(
+                    crypto.getRandomValues(new Uint8Array(32))
+                ),
             },
         })
         const keyStore = createMemoryAccessClientKeyStore()
@@ -114,6 +123,51 @@ describe('pairWithController with Access Client keys', () => {
         )
         assert.equal(await keyStore.load(lan.controllerId), null)
     })
+
+    // Rust's `verify_strict` and the clients must never disagree about a
+    // key, so a small-order or torsion key is refused before it is pinned.
+    const signingKey = ed25519PublicKey(new Uint8Array(32).fill(3))
+    const encryptionKey = x25519PublicKey(new Uint8Array(32).fill(4))
+    const weakKeys: Array<
+        [string, { signingKey: Uint8Array; encryptionKey: Uint8Array }]
+    > = [
+        [
+            'a small-order signing key',
+            { signingKey: hexDecode(`01${'00'.repeat(31)}`), encryptionKey },
+        ],
+        [
+            'a signing key of order 8',
+            {
+                signingKey: hexDecode(
+                    'c7176a703d4dd84fba3c0b760d10670f2a2053fa2c39ccc64ec7fd7792ac037a'
+                ),
+                encryptionKey,
+            },
+        ],
+        [
+            'a small-order encryption key',
+            { signingKey, encryptionKey: new Uint8Array(32) },
+        ],
+    ]
+    for (const [name, weak] of weakKeys) {
+        it(`refuses a Controller that pairs with ${name}`, async () => {
+            const lan = await home({ advertisedKeys: weak })
+            const keyStore = createMemoryAccessClientKeyStore()
+            await assert.rejects(
+                pairWithController(lan.baseUrl, {
+                    ...identity,
+                    code: CODE,
+                    keyStore,
+                }),
+                { code: 'invalid_code' }
+            )
+            assert.equal(await keyStore.load(lan.controllerId), null)
+            assert.ok(
+                !lan.requests.some((r) => r.path.endsWith('/confirm')),
+                'never confirms the exchange'
+            )
+        })
+    }
 
     it('refuses a Controller of another Home before pairing', async () => {
         const lan = await home()

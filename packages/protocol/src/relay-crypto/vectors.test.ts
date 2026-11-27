@@ -7,6 +7,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { describe, it } from 'node:test'
+import { ed25519 } from '@noble/curves/ed25519.js'
 
 import { buildRelayCryptoVectors } from './build-vectors.ts'
 import { hexDecode, hexEncode, utf8Decode, utf8Encode } from './bytes.ts'
@@ -39,7 +40,12 @@ import {
     sealResponse,
 } from './envelope.ts'
 import { GrantError, issueGrant, verifyGrant } from './grant.ts'
-import { deriveKeyPair, setupBaseReceiver, setupBaseSender } from './hpke.ts'
+import {
+    acceptableEncryptionKey,
+    deriveKeyPair,
+    setupBaseReceiver,
+    setupBaseSender,
+} from './hpke.ts'
 import {
     ProjectionError,
     signMembershipProjection,
@@ -57,7 +63,11 @@ import {
     verifyLanRefusal,
     verifyLocalSessionChallenge,
 } from './session.ts'
-import { ed25519Signer } from './signing.ts'
+import {
+    acceptableSigningKey,
+    ed25519Signer,
+    ed25519Verify,
+} from './signing.ts'
 
 const FIXTURE_URL = new URL(
     '../../../testdata/relay-crypto/vectors.json',
@@ -537,6 +547,35 @@ describe('Membership routing projections', () => {
         // A restore bumps the epoch and may rewind the outbox.
         assert.ok(supersedesProjection(at(2, 1), at(1, 90)))
         assert.ok(!supersedesProjection(at(1, 90), at(2, 1)))
+    })
+})
+
+describe('Ed25519 and X25519 edge cases, refused as Core refuses them', () => {
+    for (const v of fixture.ed25519.weakSigningKeys) {
+        it(`refuses a signing key ${v.name}`, () => {
+            assert.equal(acceptableSigningKey(h(v.bytes)), false)
+        })
+    }
+    for (const v of fixture.ed25519.weakEncryptionKeys) {
+        it(`refuses an encryption key: ${v.name}`, () => {
+            assert.equal(acceptableEncryptionKey(h(v.bytes)), false)
+        })
+    }
+    it('accepts the vector parties’ own keys', () => {
+        for (const party of [controller, accessClient]) {
+            assert.ok(acceptableSigningKey(h(party.signingPublic)))
+            assert.ok(acceptableEncryptionKey(h(party.encryptionPublic)))
+        }
+    })
+    it('refuses a signature only a cofactored verifier accepts', () => {
+        const v = fixture.ed25519.cofactoredOnly
+        const args = [h(v.signature), h(v.message), h(v.signer)] as const
+        // noble's own check is cofactored, so the vector really is the edge.
+        assert.equal(ed25519.verify(...args, { zip215: false }), true)
+        assert.equal(
+            ed25519Verify(h(v.signer), h(v.message), h(v.signature)),
+            false
+        )
     })
 })
 
