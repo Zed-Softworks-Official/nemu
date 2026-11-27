@@ -1,4 +1,5 @@
 import { httpRouter } from 'convex/server'
+import { ConvexError } from 'convex/values'
 import { parseSealedToClient } from '../lib/relay'
 import { internal } from './_generated/api'
 import { httpAction } from './_generated/server'
@@ -114,6 +115,63 @@ export const relayRespondHttp = httpAction(async (ctx, req) => {
         }
         return jsonError(500, 'Failed to respond')
     }
+})
+
+/**
+ * Body: `{ registrationSecret?, signed }`, a signed Membership routing
+ * projection from the Controller's outbox (NEM-133). 200 `{ outcome:
+ * 'stored' | 'stale' }`; both mean Core may mark it published.
+ */
+export const membershipPublishHttp = httpAction(async (ctx, req) => {
+    let body: {
+        signed?: unknown
+        registrationSecret?: string
+    }
+    try {
+        body = await req.json()
+    } catch {
+        return jsonError(400, 'Invalid JSON')
+    }
+
+    const authError = authorizeController(body)
+    if (authError) return authError
+
+    try {
+        const outcome = await ctx.runMutation(
+            internal.relay.publishMembershipInternal,
+            { signed: body.signed ?? null }
+        )
+        return new Response(JSON.stringify({ outcome }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+        })
+    } catch (error) {
+        // Privacy: codes only, never an echo of the projection.
+        const code =
+            error instanceof ConvexError &&
+            typeof error.data === 'object' &&
+            error.data !== null &&
+            'code' in error.data
+                ? String(error.data.code)
+                : null
+        switch (code) {
+            case 'malformed':
+                return jsonError(400, 'malformed')
+            case 'unknown_controller':
+                return jsonError(404, 'Controller not found')
+            case 'bad_signature':
+            case 'wrong_controller':
+                return jsonError(403, code)
+            default:
+                return jsonError(500, 'Failed to publish')
+        }
+    }
+})
+
+http.route({
+    path: '/membership/publish',
+    method: 'POST',
+    handler: membershipPublishHttp,
 })
 
 http.route({

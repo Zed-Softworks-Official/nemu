@@ -46,19 +46,48 @@ async function seedController(t: TestConvex, controllerId = CONTROLLER_ID) {
     })
 }
 
+/**
+ * The Account holds an active Membership by the latest signed routing
+ * projection, which is what Relay routes on (NEM-133). Seeded as a stored
+ * row; `membershipRoutes.test.ts` covers publishing and its signature check.
+ */
+type RouteSeed = {
+    controllerId?: string
+    userId?: string
+    membershipId?: string
+    state?: 'active' | 'ended'
+    identityEpoch?: number
+    sequence?: number
+}
+
+async function seedRoute(t: TestConvex, seed: RouteSeed = {}) {
+    const {
+        controllerId = CONTROLLER_ID,
+        userId = USER_ID,
+        membershipId = `membership-${userId}`,
+        state = 'active',
+        identityEpoch = 1,
+        sequence = 1,
+    } = seed
+    await t.run(async (ctx) => {
+        await ctx.db.insert('membershipRoutes', {
+            controllerId,
+            identityEpoch,
+            membershipId,
+            accountId: userId,
+            state,
+            sequence,
+            signature: 'signature',
+        })
+    })
+}
+
 async function seedPairing(
     t: TestConvex,
     { controllerId = CONTROLLER_ID, userId = USER_ID } = {}
 ) {
     await seedController(t, controllerId)
-    await t.run(async (ctx) => {
-        await ctx.db.insert('pairings', {
-            userId,
-            controllerId,
-            createdAt: Date.now(),
-            role: 'owner',
-        })
-    })
+    await seedRoute(t, { controllerId, userId })
 }
 
 // Opaque blobs: Convex must store and return them byte for byte and never
@@ -278,13 +307,52 @@ describe('Relay envelope storage', () => {
         ).rejects.toThrow('expired')
     })
 
-    test('send still requires the Account to be paired with the Controller', async () => {
+    test('send requires an active Membership by the signed routing projection', async () => {
         const { t, client } = setup()
         await seedController(t)
+        // A legacy pairing alone no longer routes.
+        await t.run(async (ctx) => {
+            await ctx.db.insert('pairings', {
+                userId: USER_ID,
+                controllerId: CONTROLLER_ID,
+                createdAt: Date.now(),
+                role: 'owner',
+            })
+        })
 
         await expect(
             client.mutation(api.relay.send, { sealed: sealedRequest() })
-        ).rejects.toThrow('Not paired with this controller')
+        ).rejects.toThrow('no_membership')
+    })
+
+    test('an Account whose Membership has ended can no longer send', async () => {
+        const { t, client } = setup()
+        await seedController(t)
+        await seedRoute(t, { state: 'ended', sequence: 2 })
+
+        await expect(
+            client.mutation(api.relay.send, { sealed: sealedRequest() })
+        ).rejects.toThrow('no_membership')
+        expect(
+            await client.query(api.relay.responses, responsesFor(['req']))
+        ).toEqual([])
+    })
+
+    test('routes from a retired identity epoch no longer count', async () => {
+        const { t, client } = setup()
+        await seedController(t)
+        // A restore republished the Home's Memberships under epoch 2, and
+        // this Account was not among them.
+        await seedRoute(t, { identityEpoch: 1, sequence: 9 })
+        await seedRoute(t, {
+            userId: 'user-2',
+            identityEpoch: 2,
+            sequence: 1,
+        })
+
+        await expect(
+            client.mutation(api.relay.send, { sealed: sealedRequest() })
+        ).rejects.toThrow('no_membership')
     })
 
     test('a Controller cannot answer for another Controller', async () => {
@@ -855,14 +923,7 @@ describe('Relay mailbox acknowledge', () => {
             subject: 'user-2',
             issuer: 'https://clerk.nemu.test',
         })
-        await t.run(async (ctx) => {
-            await ctx.db.insert('pairings', {
-                userId: 'user-2',
-                controllerId: 'controller-2',
-                createdAt: Date.now(),
-                role: 'owner',
-            })
-        })
+        await seedRoute(t, { userId: 'user-2', controllerId: 'controller-2' })
 
         const responseId = await controller.mutation(
             api.relay.respondAsController,
@@ -900,20 +961,20 @@ describe('Relay mailbox acknowledge', () => {
         const kept = await controller.mutation(api.relay.respondAsController, {
             sealed: sealedResponse({ requestId: 'other' }),
         })
-        const pairingId = await t.run(async (ctx) => {
-            const pairing = await ctx.db.query('pairings').first()
-            return pairing?._id ?? ''
+        const routeId = await t.run(async (ctx) => {
+            const route = await ctx.db.query('membershipRoutes').first()
+            return route?._id ?? ''
         })
 
         for (let attempt = 0; attempt < 2; attempt++) {
             await client.mutation(api.relay.acknowledge, {
-                messageIds: [responseId, 'not-an-id', pairingId],
+                messageIds: [responseId, 'not-an-id', routeId],
             })
         }
 
         expect(await storedIds(t)).toEqual([kept])
         expect(
-            await t.run((ctx) => ctx.db.query('pairings').collect())
+            await t.run((ctx) => ctx.db.query('membershipRoutes').collect())
         ).toHaveLength(1)
     })
 })

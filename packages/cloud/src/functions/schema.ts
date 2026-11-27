@@ -29,6 +29,26 @@ export default defineSchema({
         .index('by_user_and_controller', ['userId', 'controllerId'])
         .index('by_controller', ['controllerId']),
 
+    /**
+     * Signed Membership routing projections (ADR-0005, NEM-133): the latest
+     * one per Membership, as the Controller signed it. Routing facts only.
+     * Relay routes on these, not on `pairings`.
+     */
+    membershipRoutes: defineTable({
+        controllerId: v.string(),
+        identityEpoch: v.number(),
+        membershipId: v.string(),
+        /** The Account's identity reference (its Clerk subject). */
+        accountId: v.string(),
+        state: v.union(v.literal('active'), v.literal('ended')),
+        sequence: v.number(),
+        /** The Controller's Ed25519 signature, base64url. */
+        signature: v.string(),
+    })
+        .index('by_membership', ['controllerId', 'membershipId'])
+        .index('by_controller_and_account', ['controllerId', 'accountId'])
+        .index('by_controller_and_epoch', ['controllerId', 'identityEpoch']),
+
     invites: defineTable({
         controllerId: v.string(),
         email: v.string(),

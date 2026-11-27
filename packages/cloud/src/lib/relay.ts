@@ -109,7 +109,12 @@ export const relayKindValidator = v.union(
  * Error codes only. Messages never carry envelope fields, so a failure can't
  * leak contents into logs or back to a caller.
  */
-export type RelayErrorCode = 'malformed' | 'expired' | 'wrong_controller'
+export type RelayErrorCode =
+    | 'malformed'
+    | 'expired'
+    | 'wrong_controller'
+    /** The Account holds no active Membership in this Home (NEM-133). */
+    | 'no_membership'
 
 export function relayError(code: RelayErrorCode): ConvexError<{
     code: RelayErrorCode
