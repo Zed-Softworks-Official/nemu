@@ -328,6 +328,8 @@ async fn run_relay_loop(state: AppState) {
 
     info!(%cloud_url, "relay client started");
     spawn_capability_watch_pushes(state.clone(), site_url.clone());
+    // Commissioning progress stays on the LAN WebSocket until Relay pushes are
+    // encrypted. TODO(NEM-63): push it here over encrypted Relay.
 
     loop {
         match run_subscription_relay(&state, &site_url, &cloud_url).await {

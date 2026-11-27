@@ -8,6 +8,11 @@ export type {
     PairingMethod,
 } from './access-client-pairing.ts'
 export { createAccessClientPairing } from './access-client-pairing.ts'
+export {
+    COMMISSIONING_STEP_LABELS,
+    commissioningFailedStepLabel,
+    commissioningFailureGuidance,
+} from './commissioning-progress.ts'
 export type {
     ControllerConnectionOptions,
     ControllerConnectors,

@@ -29,8 +29,12 @@
         "src/rooms.test.ts",
         "src/setup.test.ts",
         "src/commissioning.test.ts",
+        "src/commissioning-progress.ts",
+        "src/commissioning-progress.test.ts",
         "src/relay.test.ts",
         "src/session.test.ts",
-        "src/health.test.ts"
+        "src/health.test.ts",
+        "src/bridge.ts",
+        "src/bridge.test.ts"
     ]
 }

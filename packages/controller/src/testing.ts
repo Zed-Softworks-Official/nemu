@@ -15,6 +15,7 @@ import {
     type AssignRoomRequest,
     type ClientToken,
     type CommandResult,
+    type CommissioningProgress,
     type CommissionRequest,
     type CommissionResponse,
     type CreateRoomRequest,
@@ -301,6 +302,17 @@ export class FakeController {
     /** Report Matter commissioning progress, as the Controller does. */
     commissionProgress(stage: string, message?: string): void {
         this.emit({ type: 'commissionProgress', stage, message })
+    }
+
+    /**
+     * Report a Protocol-neutral commissioning step, as the Controller does:
+     * over LAN only. Relay carries no progress until NEM-63 encrypts it.
+     */
+    commissioningStep(progress: CommissioningProgress): void {
+        const event: DeviceEvent = { type: 'commissioningStep', ...progress }
+        for (const transport of this.transports) {
+            if (transport.mode === 'lan') transport.deliver(event)
+        }
     }
 
     /** A new Device joins the Home, ending any commissioning in progress. */

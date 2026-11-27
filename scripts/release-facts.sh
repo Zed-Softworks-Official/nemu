@@ -12,13 +12,10 @@ set -euo pipefail
 work="$1"
 mkdir -p "$work"
 
-# Trees a Home installs. Dashboard and Convex changes do not move this.
-platform_tree() {
-  local platform infra
-  platform=$(git rev-parse -q --verify "$1:platform" || true)
-  infra=$(git rev-parse -q --verify "$1:infra/prod" || true)
-  printf '%s-%s' "${platform:-none}" "${infra:-none}"
-}
+# platform_tree: the trees a Home installs, including everything the
+# nemu-matter image is built from.
+# shellcheck source=scripts/platform-paths.sh
+source "$(dirname "${BASH_SOURCE[0]}")/platform-paths.sh"
 
 # The Platform version a channel serves, or null when it serves none.
 channel_version() {

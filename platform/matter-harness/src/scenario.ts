@@ -3,6 +3,7 @@ import { type DeviceKind, SECOND_LOAD } from './fixtures.ts'
 import { normaliseStep, type StepRecord } from './normalise.ts'
 import type { Adapter, SimulatedDevice } from './processes.ts'
 import type { Received, Recorder } from './recorder.ts'
+import { includesStep, includesTopic, type Scope } from './scope.ts'
 
 export interface Harness {
     recorder: Recorder
@@ -12,6 +13,8 @@ export interface Harness {
     names: Record<string, string>
     /** Device ID the adapter published for each simulated Device. */
     ids: Partial<Record<DeviceKind, string>>
+    /** The steps and topics this run checks. */
+    scope: Scope
 }
 
 interface Step {
@@ -25,7 +28,12 @@ interface Step {
 }
 
 const QUIET_MS = Number(process.env.MATTER_HARNESS_QUIET_MS ?? 3_000)
-const OFFLINE_MS = Number(process.env.MATTER_HARNESS_OFFLINE_MS ?? 45_000)
+/**
+ * How long the plug stays off. matter.js notices a silent node only when its
+ * subscription times out (up to about 70 s with the adapter's 20 s ceiling), so
+ * a shorter outage would end before the plug could show as unavailable.
+ */
+const OFFLINE_MS = Number(process.env.MATTER_HARNESS_OFFLINE_MS ?? 90_000)
 
 const latest = (messages: readonly Received[], topic: string): unknown => {
     for (let index = messages.length - 1; index >= 0; index -= 1) {
@@ -100,6 +108,41 @@ const set =
             transaction,
         })
 
+interface OutletState {
+    id: string
+    state?: string
+}
+
+const outletsOf = (
+    harness: Harness,
+    messages: readonly Received[]
+): OutletState[] => {
+    const outlets = stateOf(harness, 'strip', messages)?.outlets
+    return Array.isArray(outlets) ? (outlets as OutletState[]) : []
+}
+
+/** The strip's outlets report these states, in order. */
+const outletsAre =
+    (...expected: string[]) =>
+    (messages: readonly Received[], harness: Harness) => {
+        const outlets = outletsOf(harness, messages)
+        return (
+            outlets.length === expected.length &&
+            outlets.every((outlet, index) => outlet.state === expected[index])
+        )
+    }
+
+/** Sets one outlet, named by the ID the adapter published for it. */
+const setOutlet =
+    (index: number, transaction: string, payload: Record<string, unknown>) =>
+    (harness: Harness) => {
+        const outlet = outletsOf(harness, harness.recorder.messages)[index]
+        if (!outlet) throw new Error(`the strip has no outlet ${index + 1}`)
+        return set('strip', transaction, { ...payload, outlet: outlet.id })(
+            harness
+        )
+    }
+
 /** An absent Device, so a commission attempt is still running when it is cancelled. */
 const ABSENT_DEVICE_CODE = ManualPairingCodeCodec.encode({
     discriminator: 2304,
@@ -119,10 +162,14 @@ export const STEPS: Step[] = [
                 code: harness.devices.plug.manualPairingCode,
                 transaction: 'commission-plug',
             }),
-        until: (messages, harness) =>
-            commissioned('plug')(messages, harness) &&
-            latest(messages, `${deviceId(harness, 'plug')}/observations`) !==
-                undefined,
+        until: (messages, harness) => {
+            if (!commissioned('plug')(messages, harness)) return false
+            const id = deviceId(harness, 'plug')
+            // Wait for the first reading, unless this run leaves meters out.
+            return includesTopic(harness.scope, `${id}/observations`)
+                ? latest(messages, `${id}/observations`) !== undefined
+                : latest(messages, id) !== undefined
+        },
         timeoutMs: 120_000,
     },
     {
@@ -285,6 +332,53 @@ export const STEPS: Step[] = [
             responded('device/remove', 'remove-light')(messages) &&
             latest(messages, deviceId(harness, 'light')) === null,
     },
+    {
+        // The Rust adapter gives the next Device the removed light's node ID,
+        // and its controller keeps the light's cached operational record, so
+        // it would reach the light instead. The light leaves the network and
+        // a restart clears the cache, as it would for an Owner.
+        name: 'adapter-restarts',
+        act: async (harness) => {
+            await harness.devices.light.kill()
+            // Its Device ID may come back as the strip's.
+            delete harness.ids.light
+            await harness.adapter.stop()
+            harness.adapter.start()
+        },
+        until: (messages, harness) =>
+            latest(messages, 'bridge/devices') !== undefined &&
+            latest(messages, deviceId(harness, 'plug')) !== undefined,
+        timeoutMs: 120_000,
+    },
+    {
+        name: 'commission-strip',
+        act: async (harness) => {
+            await harness.devices.strip.start()
+            await harness.recorder.publish('bridge/request/commission', {
+                code: harness.devices.strip.manualPairingCode,
+                transaction: 'commission-strip',
+            })
+        },
+        until: (messages, harness) =>
+            commissioned('strip')(messages, harness) &&
+            outletsOf(harness, messages).length > 0,
+        timeoutMs: 120_000,
+    },
+    {
+        name: 'strip-outlet-2-on',
+        act: setOutlet(1, 'strip-outlet-2-on', { state: 'ON' }),
+        until: outletsAre('OFF', 'ON'),
+    },
+    {
+        name: 'strip-outlet-1-on',
+        act: setOutlet(0, 'strip-outlet-1-on', { state: 'ON' }),
+        until: outletsAre('ON', 'ON'),
+    },
+    {
+        name: 'strip-all-off',
+        act: set('strip', 'strip-all-off', { state: 'OFF' }),
+        until: outletsAre('OFF', 'OFF'),
+    },
 ]
 
 export interface StepResult {
@@ -300,6 +394,7 @@ export async function runScenario(
 ): Promise<StepResult[]> {
     const results: StepResult[] = []
     for (const step of STEPS) {
+        if (!includesStep(harness.scope, step.name)) continue
         const startIndex = harness.recorder.messages.length
         const startedAt = Date.now()
         const timeoutMs = step.timeoutMs ?? 60_000
