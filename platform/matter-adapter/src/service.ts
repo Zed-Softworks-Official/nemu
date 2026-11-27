@@ -18,6 +18,7 @@ import {
     commandsForSet,
     deviceDescriptor,
     type EndpointDevice,
+    isLimitAttribute,
     mapNode,
     stateForDevice,
     targetEndpoints,
@@ -29,6 +30,16 @@ import type {
 } from './matter/session.ts'
 import type { MqttBus } from './mqtt/bus.ts'
 import { type Incoming, type Payload, transactionOf } from './mqtt/topics.ts'
+
+/** Whether an `endpoint/cluster/attribute` key is a descriptor limit. */
+function isLimitPath(key: string): boolean {
+    const [, cluster, attribute] = key.split('/').map(Number)
+    return (
+        cluster !== undefined &&
+        attribute !== undefined &&
+        isLimitAttribute(cluster, attribute)
+    )
+}
 
 export class Service {
     /** Device ID to its Device. */
@@ -58,14 +69,7 @@ export class Service {
 
     /** Retained `bridge/devices`, then every Device's state and availability. */
     async publishInventory(): Promise<void> {
-        const descriptors = [...this.#devices.values()].map((device) =>
-            deviceDescriptor(
-                device,
-                this.#names.get(device.id) ?? device.defaultName,
-                this.session.snapshot(device.nodeId) ?? {}
-            )
-        )
-        await this.bus.devices(descriptors)
+        await this.#publishDescriptors()
         for (const device of this.#devices.values()) {
             await this.#publishState(device, true)
             // TODO(NEM-119): offline when the node is unreachable, online when it recovers.
@@ -222,12 +226,29 @@ export class Service {
 
     async #onAttributes(
         nodeId: NodeId,
-        _changes: AttributeChanges
+        changes: AttributeChanges
     ): Promise<void> {
+        let indexed = false
         for (const device of this.#devices.values()) {
-            if (device.nodeId === nodeId)
-                await this.#publishState(device, false)
+            if (device.nodeId !== nodeId) continue
+            indexed = true
+            await this.#publishState(device, false)
         }
+        // New brightness or color temperature limits change the descriptor.
+        if (indexed && Object.keys(changes).some(isLimitPath))
+            await this.#publishDescriptors()
+    }
+
+    async #publishDescriptors(): Promise<void> {
+        await this.bus.devices(
+            [...this.#devices.values()].map((device) =>
+                deviceDescriptor(
+                    device,
+                    this.#names.get(device.id) ?? device.defaultName,
+                    this.session.snapshot(device.nodeId) ?? {}
+                )
+            )
+        )
     }
 
     async #publishState(
