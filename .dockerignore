@@ -3,3 +3,5 @@
 **/.env.*
 **/target
 **/node_modules
+platform/matter-adapter/dist
+platform/matter-adapter/.run

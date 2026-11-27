@@ -38,7 +38,7 @@ pub enum PublishSource {
 pub struct CutRelease {
     pub platform_version: String,
     pub commit: String,
-    /// Identity of `platform/` and `infra/prod/` at `commit`.
+    /// Identity of the platform paths at `commit` (scripts/platform-paths.sh).
     pub platform_tree: String,
     /// The signed manifest's `hotfix` mark.
     pub hotfix: bool,
@@ -61,7 +61,7 @@ pub struct ReleaseRequest {
     pub source: PublishSource,
     pub branch: String,
     pub commit: String,
-    /// Identity of `platform/` and `infra/prod/` at `commit`.
+    /// Identity of the platform paths at `commit` (scripts/platform-paths.sh).
     pub platform_tree: String,
     /// A push skips when the platform trees did not change; an explicit run
     /// does not.

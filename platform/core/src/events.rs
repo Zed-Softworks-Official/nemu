@@ -68,6 +68,11 @@ pub enum DeviceEvent {
         revision: u64,
         state: crate::capabilities::CapabilityState,
     },
+    /// Commissioning progress in Protocol-neutral steps. Sent over the LAN
+    /// WebSocket only until NEM-63 encrypts Relay pushes; it carries only
+    /// enums (`commissioning_progress.rs`).
+    #[serde(rename = "commissioningStep")]
+    CommissioningStep(crate::commissioning_progress::CommissioningProgress),
 }
 
 impl DeviceEvent {

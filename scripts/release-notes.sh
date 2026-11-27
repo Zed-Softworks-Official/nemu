@@ -24,7 +24,10 @@ git log --no-merges --right-only --cherry-pick \
   --format='%(trailers:key=Release-note,valueonly,unfold,separator=%x0a)' "$range" \
   | awk 'NF && !seen[$0]++ { print "- " substr($0, 1, 300) }'
 
-git log --no-merges --right-only --cherry-pick --format='%s' "$range" -- platform infra/prod \
+# shellcheck source=scripts/platform-paths.sh
+source "$(dirname "${BASH_SOURCE[0]}")/platform-paths.sh"
+
+git log --no-merges --right-only --cherry-pick --format='%s' "$range" -- "${PLATFORM_SOURCE_PATHS[@]}" \
   | awk '
       /^(feat|fix|perf|security)(\([^)]*\))?!?: / && count < 40 {
         sub(/^[a-z]+(\([^)]*\))?!?: /, "")
