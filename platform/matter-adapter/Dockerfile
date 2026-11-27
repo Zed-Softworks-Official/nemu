@@ -20,6 +20,8 @@ RUN npm install --global --no-fund --no-audit pnpm@${PNPM_VERSION}
 
 WORKDIR /src
 
+# Every path copied here is a platform path in scripts/platform-paths.sh, so a
+# change to it alone cuts a Canary candidate (platform-paths.test.sh checks).
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
 COPY tooling/typescript-config tooling/typescript-config

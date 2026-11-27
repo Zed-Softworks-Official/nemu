@@ -19,12 +19,16 @@ on:
       - platform/matter-adapter/**
       - packages/protocol/**
       - platform/matter-harness/**
+      - scripts/platform-paths*.sh
+      - scripts/release-*.sh
       - .github/workflows/matter-harness.yml
   push:
     paths:
       - platform/matter-adapter/**
       - packages/protocol/**
       - platform/matter-harness/**
+      - scripts/platform-paths*.sh
+      - scripts/release-*.sh
       - .github/workflows/matter-harness.yml
   workflow_dispatch:
 
@@ -88,6 +92,9 @@ jobs:
         run: |
           mkdir -p "$TMPDIR"
           pnpm --filter @nemu/matter-harness harness:lifecycle
+
+      - name: Check the release trigger covers what the image copies
+        run: bash scripts/platform-paths.test.sh
 
       - name: Build the nemu-matter image
         run: docker build --file platform/matter-adapter/Dockerfile --tag nemu-matter:ci .

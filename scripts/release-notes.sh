@@ -16,7 +16,10 @@ commit="$2"
 range="$commit"
 [ -z "$previous" ] || range="${previous}...${commit}"
 
-git log --no-merges --right-only --cherry-pick --format='%s' "$range" -- platform infra/prod \
+# shellcheck source=scripts/platform-paths.sh
+source "$(dirname "${BASH_SOURCE[0]}")/platform-paths.sh"
+
+git log --no-merges --right-only --cherry-pick --format='%s' "$range" -- "${PLATFORM_SOURCE_PATHS[@]}" \
   | awk '
       /^(feat|fix|perf|security)(\([^)]*\))?!?: / && count < 40 {
         sub(/^[a-z]+(\([^)]*\))?!?: /, "")

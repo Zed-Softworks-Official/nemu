@@ -1,8 +1,10 @@
 # Publishes one platform Release.
 #
 # Canary publishes Release candidates, 0.MINOR.PATCH-canary.N. A push to canary
-# cuts one when platform/ or infra/prod/ differs from the newest candidate or
-# promoted Release; a dashboard-only push skips. An explicit run on canary
+# cuts one when a path a Home installs from (scripts/platform-paths.sh:
+# platform/, infra/prod/, and what the nemu-matter image copies, such as
+# packages/protocol) differs from the newest candidate or promoted Release; a
+# dashboard-only push skips. An explicit run on canary
 # ignores that skip, for example for a third-party digest refresh, but a commit
 # carries one candidate: the run finishes an unfinished one and is refused on a
 # finished one. N counts up within the next patch target. The minor_bump checkbox, or a commit message
