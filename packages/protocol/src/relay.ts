@@ -22,7 +22,6 @@ import {
     capabilityChangeEventSchema,
     capabilitySnapshotEventSchema,
 } from './capability.ts'
-import { commissioningStepEventSchema } from './commissioning-progress.ts'
 import { deviceSchema, deviceStateSchema, roomSchema } from './device.ts'
 import {
     designateHomeMeterMessageSchema,
@@ -203,7 +202,6 @@ export const relayToClientEnvelopeSchema = z.object({
         }),
         capabilitySnapshotEventSchema,
         capabilityChangeEventSchema,
-        commissioningStepEventSchema,
         z.object({ type: z.literal('capabilityWatchAck') }),
         historyQueryResultSchema,
         historyQueryRestartSchema,

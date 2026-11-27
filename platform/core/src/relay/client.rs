@@ -328,7 +328,8 @@ async fn run_relay_loop(state: AppState) {
 
     info!(%cloud_url, "relay client started");
     spawn_capability_watch_pushes(state.clone(), site_url.clone());
-    spawn_commissioning_pushes(state.clone(), site_url.clone());
+    // Commissioning progress stays on the LAN WebSocket until Relay pushes are
+    // encrypted. TODO(NEM-63): push it here over encrypted Relay.
 
     loop {
         match run_subscription_relay(&state, &site_url, &cloud_url).await {
@@ -1144,38 +1145,6 @@ fn spawn_capability_watch_pushes(state: AppState, site_url: String) {
     });
 }
 
-/// Pushes commissioning progress to every Access Client watching over Relay,
-/// on the same watch that carries Capability changes. Progress is only enums
-/// (`commissioning_progress.rs`): no pairing code, passcode, Wi-Fi credential
-/// or Device identifier.
-fn spawn_commissioning_pushes(state: AppState, site_url: String) {
-    tokio::spawn(async move {
-        let mut events = state.events.subscribe();
-        loop {
-            match events.recv().await {
-                Ok(event) => {
-                    if let Some(message) = commissioning_relay_message(&event) {
-                        push_capability_message(&state, &site_url, message).await;
-                    }
-                }
-                // Progress is transient: a skipped step is followed by the next.
-                Err(RecvError::Lagged(skipped)) => {
-                    debug!(skipped, "commissioning relay consumer lagged");
-                }
-                Err(RecvError::Closed) => break,
-            }
-        }
-    });
-}
-
-/// The Relay message for an event, when it is commissioning progress.
-fn commissioning_relay_message(event: &DeviceEvent) -> Option<JsonValue> {
-    match event {
-        DeviceEvent::CommissioningStep(_) => serde_json::to_value(event).ok(),
-        _ => None,
-    }
-}
-
 async fn push_capability_message(state: &AppState, site_url: &str, message: JsonValue) {
     for watch in live_capability_watches(state) {
         let payload = build_typed_response(state, &watch.request_id, message.clone());
@@ -1445,42 +1414,5 @@ mod tests {
         )
         .unwrap();
         assert!(matches!(revoke.message, ToControllerMessage::RevokeCurrent));
-    }
-
-    #[test]
-    fn pushes_only_commissioning_steps_over_relay() {
-        use crate::commissioning_progress::{
-            CommissioningFailureReason, CommissioningProgress, CommissioningStep,
-        };
-        use crate::events::InterviewStatus;
-
-        let failed = DeviceEvent::CommissioningStep(CommissioningProgress::Failed {
-            step: CommissioningStep::ConfiguringNetwork,
-            reason: CommissioningFailureReason::NetworkRejected,
-        });
-        assert_eq!(
-            commissioning_relay_message(&failed),
-            Some(json!({
-                "type": "commissioningStep",
-                "status": "failed",
-                "step": "configuring_network",
-                "reason": "network_rejected",
-            }))
-        );
-        // The older events carry free text and stay LAN-only.
-        for event in [
-            DeviceEvent::CommissionProgress {
-                stage: "wifi".into(),
-                message: Some("Sending your Wi-Fi details".into()),
-            },
-            DeviceEvent::Interview {
-                external_id: "commissioning".into(),
-                status: InterviewStatus::Failed,
-                error: Some("Use the 2.4 GHz network".into()),
-                message: None,
-            },
-        ] {
-            assert_eq!(commissioning_relay_message(&event), None);
-        }
     }
 }

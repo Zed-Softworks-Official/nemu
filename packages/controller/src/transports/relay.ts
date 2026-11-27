@@ -717,15 +717,6 @@ export class RelayTransport implements ControllerTransport {
                         this.emitCommandResultOnce(message, envelope)
                         continue
                     }
-                    // A retried commissioning repeats the same steps, so
-                    // each pushed message is told apart by its ID, not its
-                    // payload.
-                    if (envelope.message.type === 'commissioningStep') {
-                        if (this.seenResponses.has(message._id)) continue
-                        this.seenResponses.add(message._id)
-                        this.emit(envelope.message)
-                        continue
-                    }
                     if (this.seenResponses.has(key)) continue
                     this.seenResponses.add(key)
                     if (
