@@ -20,6 +20,8 @@ Public deployment docs remain in git:
 
 `master` is the default and Stable branch; `canary` is the development branch. Cut feature branches from `origin/canary` and open PRs with base `canary`, never `master`. Promote to `master` only through a `canary` → `master` PR after the change is verified on Canary. See `docs/deployment/github-release-protections.md`.
 
+Work that spans more than one ticket (`/implement-spec`, or several tickets in one session) lands on one **integration branch**, cut from `origin/canary` and named with the spec or parent ticket's `gitBranchName`. Each ticket gets its own local worktree and branch off the integration branch; merge finished ticket branches into the integration branch locally, then delete the worktree and branch. Push only the integration branch, and open exactly one PR from it to `canary`. Ticket branches stay local: they are never pushed and never get their own PR.
+
 ## Privacy (non-negotiable)
 
 Readable Home inventory, state, telemetry, Automations, History, and voice data stay on the Controller. Convex is limited to identity references, signed Membership routing projections, Controller public identity, invitations, ACME records, short-lived end-to-end encrypted Relay envelopes, and an Owner-enabled opaque encrypted Home backup. Convex receives no Controller, Access Client, TLS, or backup private keys and has no durable readable Home model or History.
@@ -31,6 +33,8 @@ Skills live in `.agents/skills/`. `.claude/skills/` and `.cursor/skills/` hold s
 ### Issue tracker
 
 Issues live in Linear (Nemu team), via Linear MCP. See `docs/agents/issue-tracker.md`.
+
+File every **follow-up** ticket (work found during `/implement`, `/implement-spec`, a code review, or any implementation that falls outside the ticket in hand) as a sub-issue of the standing **Follow-ups** parent issue. See "Follow-up tickets" in `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
