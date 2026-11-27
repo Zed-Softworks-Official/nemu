@@ -16,7 +16,9 @@ use uuid::Uuid;
 
 use crate::api::error::{ApiError, ApiResult};
 use crate::crypto::{random_token, sha256_hex};
-use crate::pairing::access_clients::{find_access_client, touch_access_client};
+use crate::pairing::access_clients::touch_access_client;
+use crate::pairing::tombstones::access_client_status;
+use crate::relay_crypto::envelope::AccessClientStatus;
 use crate::relay_crypto::session::{LocalSessionChallenge, NONCE_LEN, verify_challenge};
 use crate::state::AppState;
 
@@ -39,9 +41,20 @@ struct Inner {
     sessions: HashMap<String, Session>,
 }
 
-#[derive(Default)]
 pub struct LocalSessions {
     inner: Mutex<Inner>,
+    /// Access Clients whose sessions were just dropped, so open WebSockets
+    /// authorized by them close at once.
+    revoked: tokio::sync::broadcast::Sender<Uuid>,
+}
+
+impl Default for LocalSessions {
+    fn default() -> Self {
+        Self {
+            inner: Mutex::default(),
+            revoked: tokio::sync::broadcast::channel(64).0,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -122,16 +135,31 @@ impl LocalSessions {
             .map(|session| session.access_client_id)
     }
 
-    /// Ends every Local session of an Access Client.
+    /// Ends every Local session of an Access Client, and tells open
+    /// WebSockets it authorized to close.
     pub fn drop_access_client(&self, access_client_id: Uuid) {
         self.lock()
             .sessions
             .retain(|_, session| session.access_client_id != access_client_id);
+        let _ = self.revoked.send(access_client_id);
+    }
+
+    /// Access Client IDs as their sessions are dropped.
+    pub fn revocations(&self) -> tokio::sync::broadcast::Receiver<Uuid> {
+        self.revoked.subscribe()
     }
 }
 
 fn refused(code: &str, message: &str) -> ApiError {
     ApiError::new(StatusCode::UNAUTHORIZED, code, message)
+}
+
+/// A tombstoned Access Client, over LAN. Its keys never work again.
+pub fn revoked() -> ApiError {
+    refused(
+        "tombstoned_access_client",
+        "This Access Client was revoked. Create new keys and pair again at home.",
+    )
 }
 
 /// Opens a Local session for an Access Client that signed `nonce`.
@@ -155,15 +183,14 @@ pub async fn open_local_session(
         )
     };
     let id = Uuid::parse_str(access_client_id).map_err(|_| unknown())?;
-    let (access_client, _member) = find_access_client(&state.db, id)
+    let signing_key = match access_client_status(&state.db, access_client_id)
         .await
         .map_err(ApiError::internal)?
-        .ok_or_else(unknown)?;
-    let signing_key: [u8; 32] = access_client
-        .signing_key
-        .as_slice()
-        .try_into()
-        .map_err(|_| ApiError::internal("stored signing key is not 32 bytes"))?;
+    {
+        AccessClientStatus::Active { signing_key } => signing_key,
+        AccessClientStatus::Tombstoned => return Err(revoked()),
+        AccessClientStatus::Unknown => return Err(unknown()),
+    };
     verify_challenge(
         &signing_key,
         &LocalSessionChallenge {

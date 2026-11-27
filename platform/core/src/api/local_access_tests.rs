@@ -41,6 +41,7 @@ async fn empty_home() -> DbPool {
         diesel::delete(client_tokens::table).execute(conn)?;
         diesel::delete(members::table).execute(conn)?;
         diesel::delete(pairing_codes::table).execute(conn)?;
+        clear_tombstones(conn)?;
         diesel::delete(settings::table.find(RECOVERY_KEY_SETTING)).execute(conn)
     })
     .await
@@ -49,7 +50,13 @@ async fn empty_home() -> DbPool {
     pool
 }
 
-fn app_state(pool: DbPool) -> AppState {
+/// Tombstones are permanent: the table refuses DELETE. Tests start each
+/// Home from nothing with TRUNCATE, which the row trigger does not see.
+pub(crate) fn clear_tombstones(conn: &mut PgConnection) -> QueryResult<usize> {
+    diesel::sql_query("TRUNCATE access_client_tombstones").execute(conn)
+}
+
+pub(crate) fn app_state(pool: DbPool) -> AppState {
     AppState {
         db: pool.clone(),
         history_query_pool: pool.clone(),
@@ -774,9 +781,10 @@ async fn revoking_an_access_client_ends_its_local_sessions_at_once() {
         code_of(&response),
         (StatusCode::UNAUTHORIZED, "local_session_invalid")
     );
+    // Revoked, not unknown: the tombstone names it (NEM-127).
     assert_eq!(
         open_session(&home, &phone).await,
-        Err((StatusCode::UNAUTHORIZED, "unknown_access_client".into()))
+        Err((StatusCode::UNAUTHORIZED, "tombstoned_access_client".into()))
     );
     assert_eq!(
         home.call("GET", "/api/session", Some(&owner_session), None)
@@ -1000,4 +1008,344 @@ async fn the_recovery_key_authorizes_only_a_new_owner_access_client() {
             .1,
         json!({ "role": "owner" })
     );
+}
+
+// Access Client tombstones (NEM-127).
+
+use crate::db::schema::access_client_tombstones;
+use crate::pairing::tombstones::{
+    ArchivedAccessClientTombstone, access_client_status, restore_tombstones_on,
+};
+use crate::relay_crypto::envelope::AccessClientStatus;
+
+async fn status_of(home: &Home, access_client_id: &str) -> AccessClientStatus {
+    access_client_status(&home.state.db, access_client_id)
+        .await
+        .unwrap()
+}
+
+/// Pairing again with the keys of `seed` is refused, and the code it tried
+/// still pairs fresh keys (`fresh_seed`).
+async fn assert_keys_refused(home: &Home, seed: u8, fresh_seed: u8, identity: Value) {
+    let code = home.pairing_code().await;
+    assert_eq!(
+        try_pair(home, &code, seed, identity.clone()).await.err(),
+        Some(PairFailure::Refused(
+            StatusCode::FORBIDDEN,
+            "tombstoned_access_client".into()
+        ))
+    );
+    pair(home, &code, fresh_seed, identity).await;
+}
+
+#[tokio::test]
+#[ignore = "requires the isolated PostgreSQL database created by the verification script"]
+async fn revoking_an_access_client_tombstones_its_id_and_keys() {
+    let _home = crate::db::HOME_TABLES.lock().await;
+    let home = Home::new().await;
+    let code = home.pairing_code().await;
+    let owner = pair(
+        &home,
+        &code,
+        40,
+        identity_body("owner-1", "owner@example.com"),
+    )
+    .await;
+    let code = home.pairing_code().await;
+    let phone = pair(
+        &home,
+        &code,
+        41,
+        identity_body("owner-1", "owner@example.com"),
+    )
+    .await;
+    let owner_session = open_session(&home, &owner).await.unwrap();
+    assert!(matches!(
+        status_of(&home, &phone.access_client_id).await,
+        AccessClientStatus::Active { signing_key } if signing_key == phone.keys.signing_key
+    ));
+
+    let (status, _) = home
+        .call(
+            "DELETE",
+            &format!("/api/tokens/{}", phone.access_client_id),
+            Some(&owner_session),
+            None,
+        )
+        .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+
+    // The ID is refused over LAN and by the Relay check.
+    assert_eq!(
+        status_of(&home, &phone.access_client_id).await,
+        AccessClientStatus::Tombstoned
+    );
+    assert_eq!(
+        open_session(&home, &phone).await.err(),
+        Some((StatusCode::UNAUTHORIZED, "tombstoned_access_client".into()))
+    );
+    // Its keys never get a new grant, under any new ID.
+    assert_keys_refused(&home, 41, 42, identity_body("owner-1", "owner@example.com")).await;
+    // Others are unaffected; unknown IDs stay unknown.
+    assert!(matches!(
+        status_of(&home, &owner.access_client_id).await,
+        AccessClientStatus::Active { .. }
+    ));
+    assert_eq!(
+        status_of(&home, &uuid::Uuid::new_v4().to_string()).await,
+        AccessClientStatus::Unknown
+    );
+    assert_eq!(
+        status_of(&home, "not-a-uuid").await,
+        AccessClientStatus::Unknown
+    );
+}
+
+#[tokio::test]
+#[ignore = "requires the isolated PostgreSQL database created by the verification script"]
+async fn revoking_the_current_access_client_tombstones_it() {
+    let _home = crate::db::HOME_TABLES.lock().await;
+    let home = Home::new().await;
+    let code = home.pairing_code().await;
+    let phone = pair(
+        &home,
+        &code,
+        43,
+        identity_body("owner-1", "owner@example.com"),
+    )
+    .await;
+    let session = open_session(&home, &phone).await.unwrap();
+    let (status, _) = home
+        .call("DELETE", "/api/tokens/current", Some(&session), None)
+        .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    assert_eq!(
+        status_of(&home, &phone.access_client_id).await,
+        AccessClientStatus::Tombstoned
+    );
+    // The Home has no Access Client left, so the first-Owner path is open
+    // again, but not to the revoked keys.
+    assert_keys_refused(&home, 43, 44, identity_body("owner-1", "owner@example.com")).await;
+}
+
+#[tokio::test]
+#[ignore = "requires the isolated PostgreSQL database created by the verification script"]
+async fn revoking_over_relay_drops_local_sessions_at_once() {
+    use crate::api::auth::{AuthenticatedClient, Credential};
+
+    let _home = crate::db::HOME_TABLES.lock().await;
+    let home = Home::new().await;
+    let code = home.pairing_code().await;
+    let phone = pair(
+        &home,
+        &code,
+        45,
+        identity_body("owner-1", "owner@example.com"),
+    )
+    .await;
+    let session = open_session(&home, &phone).await.unwrap();
+    let token = session.strip_prefix("NemuSession ").unwrap().to_string();
+    let id = uuid::Uuid::parse_str(&phone.access_client_id).unwrap();
+    let mut revocations = home.state.local_sessions.revocations();
+
+    // The Relay handler calls the same function as the LAN route.
+    crate::api::access::revoke_current(
+        &home.state,
+        &AuthenticatedClient {
+            token_id: id,
+            label: "phone".into(),
+            user_id: Some("owner-1".into()),
+            credential: Credential::AccessClient,
+        },
+    )
+    .await
+    .unwrap();
+    assert_eq!(home.state.local_sessions.resolve(&token), None);
+    // Open WebSockets of the client hear about it and close.
+    assert_eq!(revocations.try_recv().unwrap(), id);
+}
+
+#[tokio::test]
+#[ignore = "requires the isolated PostgreSQL database created by the verification script"]
+async fn leaving_a_home_tombstones_every_access_client_of_the_membership() {
+    let _home = crate::db::HOME_TABLES.lock().await;
+    let home = Home::new().await;
+    home.member(Some("owner-1"), "owner@example.com", "owner", "active")
+        .await;
+    home.member(Some("member-1"), "member@example.com", "member", "active")
+        .await;
+    let code = home.pairing_code().await;
+    let phone = pair(
+        &home,
+        &code,
+        46,
+        identity_body("member-1", "member@example.com"),
+    )
+    .await;
+    let code = home.pairing_code().await;
+    let tablet = pair(
+        &home,
+        &code,
+        47,
+        identity_body("member-1", "member@example.com"),
+    )
+    .await;
+    let session = open_session(&home, &phone).await.unwrap();
+    let tablet_token = open_session(&home, &tablet).await.unwrap();
+
+    let (status, _) = home
+        .call("POST", "/api/members/leave", Some(&session), None)
+        .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    for client in [&phone, &tablet] {
+        assert_eq!(
+            status_of(&home, &client.access_client_id).await,
+            AccessClientStatus::Tombstoned
+        );
+    }
+    let token = tablet_token.strip_prefix("NemuSession ").unwrap();
+    assert_eq!(home.state.local_sessions.resolve(token), None);
+
+    // Invited back, the Account pairs only with new keys.
+    home.member(None, "member@example.com", "member", "pending")
+        .await;
+    assert_keys_refused(
+        &home,
+        47,
+        48,
+        identity_body("member-1", "member@example.com"),
+    )
+    .await;
+}
+
+#[tokio::test]
+#[ignore = "requires the isolated PostgreSQL database created by the verification script"]
+async fn removing_a_member_tombstones_its_access_clients() {
+    let _home = crate::db::HOME_TABLES.lock().await;
+    let home = Home::new().await;
+    let code = home.pairing_code().await;
+    let owner = pair(
+        &home,
+        &code,
+        49,
+        identity_body("owner-1", "owner@example.com"),
+    )
+    .await;
+    let member = home
+        .member(Some("member-1"), "member@example.com", "member", "active")
+        .await;
+    let code = home.pairing_code().await;
+    let phone = pair(
+        &home,
+        &code,
+        50,
+        identity_body("member-1", "member@example.com"),
+    )
+    .await;
+    let phone_session = open_session(&home, &phone).await.unwrap();
+    let owner_session = open_session(&home, &owner).await.unwrap();
+
+    let (status, _) = home
+        .call(
+            "DELETE",
+            &format!("/api/members/{member}"),
+            Some(&owner_session),
+            None,
+        )
+        .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    assert_eq!(
+        status_of(&home, &phone.access_client_id).await,
+        AccessClientStatus::Tombstoned
+    );
+    let token = phone_session.strip_prefix("NemuSession ").unwrap();
+    assert_eq!(home.state.local_sessions.resolve(token), None);
+}
+
+#[tokio::test]
+#[ignore = "requires the isolated PostgreSQL database created by the verification script"]
+async fn tombstones_are_never_deleted_or_changed() {
+    let _home = crate::db::HOME_TABLES.lock().await;
+    let home = Home::new().await;
+    let code = home.pairing_code().await;
+    let phone = pair(
+        &home,
+        &code,
+        51,
+        identity_body("owner-1", "owner@example.com"),
+    )
+    .await;
+    let session = open_session(&home, &phone).await.unwrap();
+    home.call("DELETE", "/api/tokens/current", Some(&session), None)
+        .await;
+
+    let conn = home.state.db.get().await.unwrap();
+    let (deleted, updated, count) = conn
+        .interact(|conn| {
+            let deleted = diesel::delete(access_client_tombstones::table).execute(conn);
+            let updated = diesel::update(access_client_tombstones::table)
+                .set(access_client_tombstones::revoked_at.eq(chrono::Utc::now()))
+                .execute(conn);
+            let count = access_client_tombstones::table
+                .count()
+                .get_result::<i64>(conn)
+                .unwrap();
+            (deleted.is_err(), updated.is_err(), count)
+        })
+        .await
+        .unwrap();
+    assert!(deleted && updated);
+    assert_eq!(count, 1);
+}
+
+#[tokio::test]
+#[ignore = "requires the isolated PostgreSQL database created by the verification script"]
+async fn restoring_tombstones_never_brings_a_revoked_access_client_back() {
+    let _home = crate::db::HOME_TABLES.lock().await;
+    let home = Home::new().await;
+    let code = home.pairing_code().await;
+    let phone = pair(
+        &home,
+        &code,
+        52,
+        identity_body("owner-1", "owner@example.com"),
+    )
+    .await;
+    // The backup's Home had revoked these keys; this Home still holds them.
+    let restored = ArchivedAccessClientTombstone {
+        access_client_id: uuid::Uuid::new_v4(),
+        signing_key: phone.keys.signing_key.to_vec(),
+        encryption_key: phone.keys.encryption_key.to_vec(),
+        revoked_at: chrono::Utc::now(),
+    };
+    let conn = home.state.db.get().await.unwrap();
+    let archived = restored.clone();
+    conn.interact(move |conn| {
+        conn.transaction(|conn| {
+            restore_tombstones_on(conn, std::slice::from_ref(&archived))?;
+            // Restoring the same backup twice changes nothing.
+            restore_tombstones_on(conn, std::slice::from_ref(&archived))
+        })
+    })
+    .await
+    .unwrap()
+    .unwrap();
+    assert_eq!(
+        status_of(&home, &restored.access_client_id.to_string()).await,
+        AccessClientStatus::Tombstoned
+    );
+    assert_ne!(
+        status_of(&home, &phone.access_client_id).await,
+        AccessClientStatus::Active {
+            signing_key: phone.keys.signing_key
+        }
+    );
+    assert_eq!(
+        open_session(&home, &phone)
+            .await
+            .err()
+            .map(|(status, _)| status),
+        Some(StatusCode::UNAUTHORIZED)
+    );
+    assert_keys_refused(&home, 52, 53, identity_body("owner-1", "owner@example.com")).await;
 }

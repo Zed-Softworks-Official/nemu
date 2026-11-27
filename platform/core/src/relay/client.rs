@@ -645,13 +645,11 @@ async fn handle_message(
         ToControllerMessage::RevokeCurrent => done_outcome(
             state,
             &message.request_id,
-            revoke_current(&state.db, &auth).await,
+            revoke_current(state, &auth).await,
         ),
-        ToControllerMessage::LeaveHome => done_outcome(
-            state,
-            &message.request_id,
-            leave_home(&state.db, &auth).await,
-        ),
+        ToControllerMessage::LeaveHome => {
+            done_outcome(state, &message.request_id, leave_home(state, &auth).await)
+        }
         ToControllerMessage::GetCapabilitySnapshot => {
             let event = DeviceEvent::from_capability_snapshot(state.capabilities.snapshot());
             let message_body = serde_json::to_value(&event).unwrap_or(JsonValue::Null);

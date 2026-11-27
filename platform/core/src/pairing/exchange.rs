@@ -31,6 +31,7 @@ use crate::pairing::access_clients::{
     AccessClientInput, AccessClientInsertError, insert_access_client,
 };
 use crate::pairing::codes::{begin_pairing_attempt, consume_pairing_code_by_id};
+use crate::pairing::tombstones::keys_tombstoned;
 use crate::relay_crypto::cpace::{
     InitiatorMessage, PairingContext, PartyKeys, Responder, ResponderMessage,
 };
@@ -196,6 +197,13 @@ fn invalid_code() -> ApiError {
     )
 }
 
+fn tombstoned_keys() -> ApiError {
+    ApiError::forbidden(
+        "tombstoned_access_client",
+        "These keys belong to a revoked Access Client. Create new keys and pair again.",
+    )
+}
+
 fn run_not_found() -> ApiError {
     ApiError::not_found(
         "pairing_run_not_found",
@@ -318,6 +326,13 @@ pub async fn confirm(
             "The Access Client's public keys are not usable",
         ));
     }
+    // Refused before the code is spent, so the same code still pairs fresh keys.
+    if keys_tombstoned(&state.db, keys.signing_key, keys.encryption_key)
+        .await
+        .map_err(ApiError::internal)?
+    {
+        return Err(tombstoned_keys());
+    }
 
     let member = match run.secret {
         PairingSecret::PairingCode => {
@@ -371,6 +386,7 @@ pub async fn confirm(
             "access_client_keys_in_use",
             "These keys already belong to an Access Client. Create new keys and pair again.",
         ),
+        AccessClientInsertError::Tombstoned => tombstoned_keys(),
         AccessClientInsertError::Internal(message) => ApiError::internal(message),
     })?;
 

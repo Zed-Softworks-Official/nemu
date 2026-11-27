@@ -16,6 +16,8 @@ use crate::db::models::Member;
 use crate::db::schema::{access_clients, client_tokens, members};
 use crate::pairing::access_clients::delete_access_client;
 use crate::pairing::tokens::revoke_client_token;
+use crate::state::AppState;
+#[cfg(test)]
 use crate::state::DbPool;
 
 /// The caller's Membership as the Controller sees it.
@@ -80,16 +82,20 @@ fn require_active(
 /// The caller's Membership is resolved from the Access Client. The Owner rows
 /// are locked so two Owners leaving at once cannot both pass the last-Owner
 /// check.
-pub async fn leave_home(pool: &DbPool, caller: &AuthenticatedClient) -> ApiResult<()> {
+///
+/// Each removed Access Client is tombstoned (see `pairing::tombstones`) and
+/// its Local sessions end at once.
+pub async fn leave_home(state: &AppState, caller: &AuthenticatedClient) -> ApiResult<()> {
     let user_id = caller.user_id.clone();
-    let conn = pool
+    let conn = state
+        .db
         .get()
         .await
         .map_err(|e| ApiError::internal(format!("db pool error: {e}")))?;
     let outcome = conn
         .interact(move |conn| {
             conn.transaction(
-                |conn| -> Result<Result<(), AccessExitError>, diesel::result::Error> {
+                |conn| -> Result<Result<Vec<Uuid>, AccessExitError>, diesel::result::Error> {
                     let owner_count = members::table
                         .filter(members::role.eq("owner"))
                         .filter(members::status.eq("active"))
@@ -116,15 +122,17 @@ pub async fn leave_home(pool: &DbPool, caller: &AuthenticatedClient) -> ApiResul
                         return Ok(Err(AccessExitError::Unauthenticated));
                     };
 
+                    let access_client_ids = diesel::delete(
+                        access_clients::table.filter(access_clients::member_id.eq(member.id)),
+                    )
+                    .returning(access_clients::id)
+                    .get_results::<Uuid>(conn)?;
                     let revoked = diesel::delete(
                         client_tokens::table
                             .filter(client_tokens::user_id.eq(member.user_id.clone())),
                     )
                     .execute(conn)?
-                        + diesel::delete(
-                            access_clients::table.filter(access_clients::member_id.eq(member.id)),
-                        )
-                        .execute(conn)?;
+                        + access_client_ids.len();
                     diesel::delete(members::table.find(member.id)).execute(conn)?;
                     audit::insert_on(
                         conn,
@@ -141,14 +149,18 @@ pub async fn leave_home(pool: &DbPool, caller: &AuthenticatedClient) -> ApiResul
                             }),
                         },
                     )?;
-                    Ok(Ok(()))
+                    Ok(Ok(access_client_ids))
                 },
             )
         })
         .await
         .map_err(|e| ApiError::internal(format!("db interact error: {e}")))?
         .map_err(|e| ApiError::internal(format!("leave failed: {e}")))?;
-    outcome.map_err(AccessExitError::into_api_error)
+    let access_client_ids = outcome.map_err(AccessExitError::into_api_error)?;
+    for id in access_client_ids {
+        state.local_sessions.drop_access_client(id);
+    }
+    Ok(())
 }
 
 /// Revokes only the caller's own Access Client. The Membership and its other
@@ -157,7 +169,10 @@ pub async fn leave_home(pool: &DbPool, caller: &AuthenticatedClient) -> ApiResul
 /// Any authenticated Access Client may revoke itself, whatever its Membership
 /// state (none, pending, or inactive): revoking yourself only reduces access,
 /// and a phone that was removed must still be able to clear itself.
-pub async fn revoke_current(pool: &DbPool, caller: &AuthenticatedClient) -> ApiResult<()> {
+///
+/// A revoked Access Client is tombstoned and its Local sessions end at once.
+pub async fn revoke_current(state: &AppState, caller: &AuthenticatedClient) -> ApiResult<()> {
+    let pool = &state.db;
     let audit = Some(AuditWrite {
         kind: AuditKind::AccessClientRevoked,
         actor_user_id: caller.user_id.clone(),
@@ -173,6 +188,9 @@ pub async fn revoke_current(pool: &DbPool, caller: &AuthenticatedClient) -> ApiR
         Credential::AccessClient => delete_access_client(pool, caller.token_id, audit).await,
     }
     .map_err(ApiError::internal)?;
+    if caller.credential == Credential::AccessClient {
+        state.local_sessions.drop_access_client(caller.token_id);
+    }
     if deleted {
         Ok(())
     } else {
@@ -238,12 +256,17 @@ mod tests {
     use crate::pairing::members::{get_member, insert_member};
     use crate::pairing::tokens::{list_client_tokens, mint_client_token, verify_client_token};
 
+    fn app(pool: &DbPool) -> AppState {
+        crate::api::local_access_tests::app_state(pool.clone())
+    }
+
     async fn empty_home() -> DbPool {
         let pool = crate::db::test_pool();
         let conn = pool.get().await.unwrap();
         conn.interact(|conn| {
             diesel::delete(client_tokens::table).execute(conn)?;
-            diesel::delete(members::table).execute(conn)
+            diesel::delete(members::table).execute(conn)?;
+            crate::api::local_access_tests::clear_tombstones(conn)
         })
         .await
         .unwrap()
@@ -311,7 +334,7 @@ mod tests {
         access_client(&pool, Some(&leaver_id), "dashboard browser").await;
         let owner_phone = access_client(&pool, Some("owner-1"), "owner phone").await;
 
-        leave_home(&pool, &phone).await.unwrap();
+        leave_home(&app(&pool), &phone).await.unwrap();
 
         assert!(get_member(&pool, member).await.unwrap().is_none());
         assert_eq!(token_ids(&pool).await, vec![owner_phone.token_id]);
@@ -331,7 +354,7 @@ mod tests {
         membership(&pool, "owner-1", "owner", "active").await;
         let second = membership(&pool, "owner-2", "owner", "active").await;
         let phone = access_client(&pool, Some("owner-2"), "phone").await;
-        leave_home(&pool, &phone).await.unwrap();
+        leave_home(&app(&pool), &phone).await.unwrap();
         assert!(get_member(&pool, second).await.unwrap().is_none());
 
         // The last Owner may not, and nothing changes.
@@ -339,7 +362,7 @@ mod tests {
         let owner = membership(&pool, "owner-1", "owner", "active").await;
         membership(&pool, "member-1", "member", "active").await;
         let phone = access_client(&pool, Some("owner-1"), "phone").await;
-        let error = leave_home(&pool, &phone).await.unwrap_err();
+        let error = leave_home(&app(&pool), &phone).await.unwrap_err();
         assert_eq!(error.code, "last_owner");
         assert!(get_member(&pool, owner).await.unwrap().is_some());
         assert_eq!(token_ids(&pool).await, vec![phone.token_id]);
@@ -349,7 +372,7 @@ mod tests {
         membership(&pool, "owner-1", "owner", "active").await;
         let pending = membership(&pool, "member-1", "member", "pending").await;
         let phone = access_client(&pool, Some("member-1"), "phone").await;
-        let error = leave_home(&pool, &phone).await.unwrap_err();
+        let error = leave_home(&app(&pool), &phone).await.unwrap_err();
         assert_eq!(error.code, "inactive_membership");
         assert!(get_member(&pool, pending).await.unwrap().is_some());
 
@@ -357,7 +380,7 @@ mod tests {
         let pool = empty_home().await;
         membership(&pool, "owner-1", "owner", "active").await;
         let orphan = access_client(&pool, None, "orphan").await;
-        let error = leave_home(&pool, &orphan).await.unwrap_err();
+        let error = leave_home(&app(&pool), &orphan).await.unwrap_err();
         assert_eq!(error.code, "unauthorized");
         assert_eq!(token_ids(&pool).await, vec![orphan.token_id]);
     }
@@ -373,7 +396,7 @@ mod tests {
         let browser = access_client(&pool, Some("member-1"), "browser").await;
         let owner_phone = access_client(&pool, Some("owner-1"), "owner phone").await;
 
-        revoke_current(&pool, &phone).await.unwrap();
+        revoke_current(&app(&pool), &phone).await.unwrap();
 
         let mut expected = vec![browser.token_id, owner_phone.token_id];
         expected.sort();
@@ -388,7 +411,7 @@ mod tests {
         );
 
         // The last Owner may revoke their own Access Client; the Membership stays.
-        revoke_current(&pool, &owner_phone).await.unwrap();
+        revoke_current(&app(&pool), &owner_phone).await.unwrap();
         assert_eq!(token_ids(&pool).await, vec![browser.token_id]);
         assert!(get_member(&pool, owner).await.unwrap().is_some());
     }
@@ -408,9 +431,9 @@ mod tests {
         let orphan = access_client(&pool, None, "orphan").await;
         let bystander = access_client(&pool, Some("member-2"), "browser").await;
 
-        revoke_current(&pool, &pending).await.unwrap();
-        revoke_current(&pool, &inactive).await.unwrap();
-        revoke_current(&pool, &orphan).await.unwrap();
+        revoke_current(&app(&pool), &pending).await.unwrap();
+        revoke_current(&app(&pool), &inactive).await.unwrap();
+        revoke_current(&app(&pool), &orphan).await.unwrap();
 
         assert_eq!(token_ids(&pool).await, vec![bystander.token_id]);
         assert!(get_member(&pool, pending_member).await.unwrap().is_some());
