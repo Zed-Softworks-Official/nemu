@@ -68,6 +68,10 @@ pub enum DeviceEvent {
         revision: u64,
         state: crate::capabilities::CapabilityState,
     },
+    /// Commissioning progress in Protocol-neutral steps. Sent over LAN and
+    /// Relay; it carries only enums (`commissioning_progress.rs`).
+    #[serde(rename = "commissioningStep")]
+    CommissioningStep(crate::commissioning_progress::CommissioningProgress),
 }
 
 impl DeviceEvent {

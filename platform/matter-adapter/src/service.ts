@@ -6,12 +6,15 @@
  * Device state is published only from what a Device reports, never from what
  * was requested, so a Command is confirmed only once the Device confirms it.
  */
-import type { DeviceState } from '@nemu/protocol'
+import type { CommissioningStep, DeviceState } from '@nemu/protocol'
 import type { NodeId } from './attributes.ts'
 import {
+    CommissionFailure,
     commissionDevice,
+    type FailedStep,
     type ProgressStage,
     redact,
+    stepOf,
 } from './commissioning.ts'
 import type { Log } from './log.ts'
 import {
@@ -49,6 +52,8 @@ export class Service {
     /** Friendly names set by rename. TODO(NEM-119): persist in the name store. */
     #names = new Map<string, string>()
     #commissioning: AbortController | undefined
+    /** The last step the commissioning in progress reached. */
+    #reached: CommissioningStep = 'discovering'
 
     constructor(
         private readonly session: MatterSession,
@@ -119,6 +124,7 @@ export class Service {
         this.#commissioning = attempt
         // Acknowledge first: commissioning takes seconds, and over BLE 20–40 s.
         await this.bus.respond('commission', transaction, { status: 'ok' })
+        this.#reached = 'discovering'
         await this.#progress('looking', 'Looking for your device')
         void this.#runCommission(code, wifi, attempt)
     }
@@ -141,7 +147,8 @@ export class Service {
             await this.publishInventory()
             if (![...this.#devices.values()].some((d) => d.nodeId === nodeId)) {
                 await this.#interviewFailed(
-                    'The device connected but did not appear on the controller.'
+                    'The device connected but did not appear on the controller.',
+                    { step: 'setting_up', reason: 'unknown' }
                 )
                 return
             }
@@ -156,13 +163,22 @@ export class Service {
             this.log.warn(
                 `commissioning failed: ${redact(message, { code, wifi })}`
             )
-            await this.#interviewFailed(message)
+            await this.#interviewFailed(
+                message,
+                error instanceof CommissionFailure
+                    ? error.failed
+                    : { step: this.#reached, reason: 'unknown' }
+            )
         } finally {
             if (this.#commissioning === attempt) this.#commissioning = undefined
         }
     }
 
-    /** The Rust adapter's `publish_progress`: both events, in this order. */
+    /**
+     * The Rust adapter's `publish_progress`: both events, in this order. Then
+     * the stage's Protocol-neutral step on `bridge/commissioning`, which
+     * carries only the step.
+     */
     async #progress(stage: ProgressStage, message: string): Promise<void> {
         await this.bus.event({
             type: 'commission_progress',
@@ -172,9 +188,20 @@ export class Service {
             type: 'device_interview',
             data: { ieee_address: 'commissioning', status: 'started', message },
         })
+        const step = stepOf(stage)
+        if (step) this.#reached = step
+        await this.bus.commissioning(
+            step ? { status: 'active', step } : { status: 'completed' }
+        )
     }
 
-    async #interviewFailed(error: string): Promise<void> {
+    /**
+     * The failed step on `bridge/commissioning`, then the Rust adapter's
+     * failed interview with its Owner-facing message. The step goes first so
+     * an Access Client has it when the failure ends its pairing view.
+     */
+    async #interviewFailed(error: string, failed: FailedStep): Promise<void> {
+        await this.bus.commissioning({ status: 'failed', ...failed })
         await this.bus.event({
             type: 'device_interview',
             data: { ieee_address: 'commissioning', status: 'failed', error },

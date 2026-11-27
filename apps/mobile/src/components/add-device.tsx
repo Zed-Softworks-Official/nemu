@@ -1,7 +1,17 @@
-import { useDevicePairing } from '@nemu/controller'
-import type { Device } from '@nemu/protocol'
+import {
+    COMMISSIONING_STEP_LABELS,
+    commissioningFailedStepLabel,
+    commissioningFailureGuidance,
+    useDevicePairing,
+} from '@nemu/controller'
+import {
+    COMMISSIONING_STEPS,
+    type CommissioningProgress,
+    type CommissioningStep,
+    type Device,
+} from '@nemu/protocol'
 import { useRouter, useSegments } from 'expo-router'
-import { type ComponentType, useState } from 'react'
+import { type ComponentType, type ReactNode, useState } from 'react'
 import { TextInput, View } from 'react-native'
 
 import { DevicesView } from '~/components/control-surface'
@@ -129,15 +139,30 @@ function AddDeviceSteps({
             )
         }
         if (phase === 'error') {
+            const failed =
+                pairing.commissioningStep?.status === 'failed'
+                    ? pairing.commissioningStep
+                    : null
             return (
                 <View accessibilityRole="alert" className="gap-3">
                     <Text className="font-medium text-foreground">
                         The Device wasn’t added
                     </Text>
-                    <Text className="text-muted-foreground text-sm leading-relaxed">
-                        {pairing.error?.message ??
-                            'Put the Device back in pairing mode and try again.'}
-                    </Text>
+                    {failed ? (
+                        <>
+                            <Text className="text-foreground text-sm leading-relaxed">
+                                {commissioningFailedStepLabel(failed.step)}
+                            </Text>
+                            <Text className="text-muted-foreground text-sm leading-relaxed">
+                                {commissioningFailureGuidance(failed.reason)}
+                            </Text>
+                        </>
+                    ) : (
+                        <Text className="text-muted-foreground text-sm leading-relaxed">
+                            {pairing.error?.message ??
+                                'Put the Device back in pairing mode and try again.'}
+                        </Text>
+                    )}
                     <View className="flex-row">
                         <Button
                             disabled={!reachable}
@@ -150,17 +175,25 @@ function AddDeviceSteps({
         }
         if (phase === 'discovering' && pairingKind === 'matter') {
             const progress = pairing.commissionProgress
+            const step = pairing.commissioningStep
             return (
                 <Working
                     detail="Keep the Device powered and near the Controller."
                     onCancel={cancel}
                     title={
-                        progress?.message ??
-                        (progress
-                            ? (MATTER_STAGES[progress.stage] ?? progress.stage)
-                            : 'Starting…')
+                        step?.status === 'active'
+                            ? COMMISSIONING_STEP_LABELS[step.step]
+                            : step?.status === 'completed'
+                              ? 'Connected'
+                              : (progress?.message ??
+                                (progress
+                                    ? (MATTER_STAGES[progress.stage] ??
+                                      progress.stage)
+                                    : 'Starting…'))
                     }
-                />
+                >
+                    {step ? <CommissioningSteps progress={step} /> : null}
+                </Working>
             )
         }
         if (phase === 'discovering' && pairingKind === 'zigbee') {
@@ -377,10 +410,12 @@ function Working({
     title,
     detail,
     onCancel,
+    children,
 }: {
     title: string
     detail: string
     onCancel: () => void
+    children?: ReactNode
 }) {
     const { reachable } = useControllerSheet()
 
@@ -392,6 +427,7 @@ function Working({
             >
                 {title}
             </Text>
+            {children}
             <Text className="text-muted-foreground text-sm leading-relaxed">
                 {detail}
             </Text>
@@ -403,6 +439,49 @@ function Working({
                     variant="outline"
                 />
             </View>
+        </View>
+    )
+}
+
+type StepState = 'done' | 'current' | 'upcoming'
+
+function stepState(
+    step: CommissioningStep,
+    progress: CommissioningProgress
+): StepState {
+    if (progress.status === 'completed') return 'done'
+    const at = COMMISSIONING_STEPS.indexOf(progress.step)
+    const index = COMMISSIONING_STEPS.indexOf(step)
+    if (index < at) return 'done'
+    return index === at ? 'current' : 'upcoming'
+}
+
+const STEP_MARK: Record<StepState, string> = {
+    done: '✓',
+    current: '•',
+    upcoming: '○',
+}
+
+/** Every commissioning step, with the ones reached so far marked. */
+function CommissioningSteps({ progress }: { progress: CommissioningProgress }) {
+    return (
+        <View accessibilityLabel="Commissioning steps" className="gap-1">
+            {COMMISSIONING_STEPS.map((step) => {
+                const state = stepState(step, progress)
+                return (
+                    <Text
+                        accessibilityState={{ selected: state === 'current' }}
+                        className={
+                            state === 'upcoming'
+                                ? 'text-muted-foreground text-sm'
+                                : 'text-foreground text-sm'
+                        }
+                        key={step}
+                    >
+                        {`${STEP_MARK[state]} ${COMMISSIONING_STEP_LABELS[step]}`}
+                    </Text>
+                )
+            })}
         </View>
     )
 }

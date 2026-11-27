@@ -15,6 +15,7 @@ import {
     type AssignRoomRequest,
     type ClientToken,
     type CommandResult,
+    type CommissioningProgress,
     type CommissionRequest,
     type CommissionResponse,
     type CreateRoomRequest,
@@ -301,6 +302,11 @@ export class FakeController {
     /** Report Matter commissioning progress, as the Controller does. */
     commissionProgress(stage: string, message?: string): void {
         this.emit({ type: 'commissionProgress', stage, message })
+    }
+
+    /** Report a Protocol-neutral commissioning step, as the Controller does. */
+    commissioningStep(progress: CommissioningProgress): void {
+        this.emit({ type: 'commissioningStep', ...progress })
     }
 
     /** A new Device joins the Home, ending any commissioning in progress. */

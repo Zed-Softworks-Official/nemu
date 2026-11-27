@@ -3,6 +3,7 @@ import {
     capabilityChangeEventSchema,
     capabilitySnapshotEventSchema,
 } from './capability.ts'
+import { commissioningStepEventSchema } from './commissioning-progress.ts'
 import { type DeviceState, deviceSchema, deviceStateSchema } from './device.ts'
 import {
     designateHomeMeterMessageSchema,
@@ -66,6 +67,7 @@ export const deviceEventSchema = z.discriminatedUnion('type', [
     }),
     capabilitySnapshotEventSchema,
     capabilityChangeEventSchema,
+    commissioningStepEventSchema,
 ])
 export type DeviceEvent = z.infer<typeof deviceEventSchema>
 

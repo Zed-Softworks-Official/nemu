@@ -7,6 +7,7 @@
  * so each change needs matching Core work.
  */
 import { z } from 'zod'
+import { commissioningProgressSchema } from './commissioning-progress.ts'
 import { deviceStateSchema } from './device.ts'
 
 const onlineSchema = z.enum(['online', 'offline'])
@@ -97,3 +98,11 @@ export const bridgeEventSchema = z.discriminatedUnion('type', [
     }),
 ])
 export type BridgeEvent = z.infer<typeof bridgeEventSchema>
+
+/**
+ * Non-retained `bridge/commissioning`: progress in Protocol-neutral steps
+ * (`commissioning-progress.ts`). Added alongside `bridge/event`, whose
+ * `commission_progress` and `device_interview` events stay as they are, so a
+ * Core that ignores this topic still works.
+ */
+export const bridgeCommissioningSchema = commissioningProgressSchema

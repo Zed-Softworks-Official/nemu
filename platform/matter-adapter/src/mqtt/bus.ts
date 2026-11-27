@@ -9,11 +9,13 @@ import {
     type BridgeEvent,
     type BridgeResponse,
     bridgeAvailabilitySchema,
+    bridgeCommissioningSchema,
     bridgeDeviceStateSchema,
     bridgeDevicesSchema,
     bridgeEventSchema,
     bridgeResponseSchema,
     bridgeStateSchema,
+    type CommissioningProgress,
     type DeviceState,
 } from '@nemu/protocol'
 import type { z } from 'zod'
@@ -98,6 +100,16 @@ export class MqttBus {
 
     event(event: BridgeEvent): Promise<boolean> {
         return this.#publish('bridge/event', bridgeEventSchema, event, false)
+    }
+
+    /** Commissioning progress in Protocol-neutral steps (NEM-110). */
+    commissioning(progress: CommissioningProgress): Promise<boolean> {
+        return this.#publish(
+            'bridge/commissioning',
+            bridgeCommissioningSchema,
+            progress,
+            false
+        )
     }
 
     async #receive(topic: string, payload: string): Promise<void> {

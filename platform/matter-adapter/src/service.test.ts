@@ -96,6 +96,10 @@ const stages = (transport: FakeTransport) =>
         .filter((event) => event.type === 'commission_progress')
         .map((event) => event.data.stage)
 
+/** Every `bridge/commissioning` payload, in order. */
+const steps = (transport: FakeTransport) =>
+    transport.on('matter/bridge/commissioning')
+
 /** A Log that keeps every line, to check what reaches the logs. */
 function capturedLog(): Log & { lines: string[] } {
     const lines: string[] = []
@@ -433,6 +437,185 @@ describe('Service', () => {
                 'hunter2-secret',
             ])
                 assert.ok(!output.includes(secret), `${secret} in: ${output}`)
+        })
+    })
+
+    describe('commissioning progress in Protocol-neutral steps', () => {
+        it('publishes each step it reaches, then completed', async () => {
+            const { transport } = await commission(new FakeSession(), {})
+            assert.deepEqual(steps(transport), [
+                { status: 'active', step: 'discovering' },
+                { status: 'active', step: 'connecting' },
+                { status: 'active', step: 'joining_network' },
+                { status: 'active', step: 'setting_up' },
+                { status: 'completed' },
+            ])
+            assert.ok(
+                transport.published
+                    .filter((m) => m.topic === 'matter/bridge/commissioning')
+                    .every((m) => !m.retain)
+            )
+        })
+
+        it('reports configuring the network when it sends Wi-Fi over BLE', async () => {
+            const { transport } = await commission(new FakeSession(), WIFI)
+            assert.deepEqual(
+                steps(transport).map((p) => (p as { step?: string }).step),
+                [
+                    'discovering',
+                    'connecting',
+                    'configuring_network',
+                    'joining_network',
+                    'setting_up',
+                    undefined,
+                ]
+            )
+        })
+
+        it('names verifying as the failed step when attestation fails, before the failed interview', async () => {
+            const session = new FakeSession()
+            session.failBle = new Error(
+                'device attestation failed: PaaNotTrusted: unknown root'
+            )
+            const { transport } = await commission(session, WIFI)
+            assert.deepEqual(steps(transport).at(-1), {
+                status: 'failed',
+                step: 'verifying',
+                reason: 'not_verified',
+            })
+            const order = transport.published
+                .filter(
+                    (m) =>
+                        m.topic === 'matter/bridge/commissioning' ||
+                        m.topic === 'matter/bridge/event'
+                )
+                .map(
+                    (m) =>
+                        m.payload as {
+                            status?: string
+                            data?: { status?: string }
+                        }
+                )
+                .filter(
+                    (p) => p.status === 'failed' || p.data?.status === 'failed'
+                )
+            assert.equal(order.length, 2)
+            assert.equal(order[0]?.status, 'failed')
+            assert.equal(order[1]?.data?.status, 'failed')
+        })
+
+        it('names the network step when the Device cannot join the Wi-Fi', async () => {
+            const session = new FakeSession()
+            session.failBle = new Error('Wi-Fi association failed: auth')
+            session.failNetwork = new Error('not discovered')
+            const { transport } = await commission(session, WIFI)
+            assert.deepEqual(steps(transport).at(-1), {
+                status: 'failed',
+                step: 'configuring_network',
+                reason: 'network_rejected',
+            })
+        })
+
+        it('names discovering when no Device is found', async () => {
+            const session = new FakeSession()
+            session.failNetwork = new Error('not discovered')
+            const { transport } = await commission(session, {})
+            assert.deepEqual(steps(transport).at(-1), {
+                status: 'failed',
+                step: 'discovering',
+                reason: 'unreachable',
+            })
+        })
+
+        it('names the step reached when the error names none', async () => {
+            const session = new FakeSession()
+            session.failNetwork = new Error('something odd')
+            const { transport } = await commission(session, {})
+            assert.deepEqual(steps(transport).at(-1), {
+                status: 'failed',
+                step: 'connecting',
+                reason: 'unreachable',
+            })
+        })
+
+        it('names setting up when the Device maps to nothing', async () => {
+            const session = new FakeSession()
+            session.joining = { '0/40/3': 'Bridge' }
+            const { transport } = await commission(session, {})
+            assert.deepEqual(steps(transport).at(-1), {
+                status: 'failed',
+                step: 'setting_up',
+                reason: 'unknown',
+            })
+        })
+
+        it('publishes no failure when the Owner cancels', async () => {
+            const session = new FakeSession()
+            let release: () => void = () => {}
+            session.commission = async (request) => {
+                await new Promise<void>((resolve) => {
+                    release = resolve
+                })
+                if (request.signal?.aborted) throw new Error('aborted')
+                return '1'
+            }
+            const { transport } = await commission(session, {})
+            await transport.deliver(
+                'matter/bridge/request/commission/cancel',
+                JSON.stringify({ transaction: 't2' })
+            )
+            release()
+            await settle()
+            assert.ok(
+                steps(transport).every(
+                    (p) => (p as { status: string }).status === 'active'
+                ),
+                JSON.stringify(steps(transport))
+            )
+        })
+
+        it('never carries the pairing code, passcode or Wi-Fi credentials', async () => {
+            const code = '3497-011-2332'
+            const secrets = [code, CODE, '20202021', 'Home', 'hunter2-secret']
+            for (const failures of [
+                {
+                    ble: `PASE failed for ${CODE} (passcode 20202021) on Home with hunter2-secret`,
+                    network: `${code} not discovered`,
+                },
+                {
+                    ble: `Wi-Fi Home rejected hunter2-secret`,
+                    network: `timed out after ${CODE}`,
+                },
+                {
+                    ble: `attestation failed for ${CODE} on Home/hunter2-secret`,
+                    network: '',
+                },
+            ]) {
+                const session = new FakeSession()
+                session.failBle = new Error(failures.ble)
+                if (failures.network)
+                    session.failNetwork = new Error(failures.network)
+                const { transport } = await commission(session, {
+                    ...WIFI,
+                    code,
+                })
+                const published = steps(transport)
+                assert.ok(published.length > 0)
+                for (const payload of published) {
+                    assert.deepEqual(
+                        Object.keys(payload as object).filter(
+                            (key) => !['status', 'step', 'reason'].includes(key)
+                        ),
+                        []
+                    )
+                    const text = JSON.stringify(payload)
+                    for (const secret of secrets)
+                        assert.ok(
+                            !text.includes(secret),
+                            `${secret} in ${text}`
+                        )
+                }
+            }
         })
     })
 })
