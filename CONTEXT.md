@@ -269,6 +269,10 @@ _Avoid_: Home backup, checkpoint
 **Product analytics**:
 Optional, cloud-bound usage and error reporting. Product analytics are disabled by default and require an explicit choice during setup.
 
+**Error reporting**:
+The Controller's part of Product analytics: scrubbed, pseudonymous runtime errors and crashes sent to the cloud only after an Owner consents for the Home.
+_Avoid_: Observability, telemetry, crash reporting
+
 **Controller health metrics**:
 Controller-local operational readings such as CPU temperature, memory and disk use, database size, History budget, and service health. They support maintenance and updates and are distinct from Product analytics.
 
