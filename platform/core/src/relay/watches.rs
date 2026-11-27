@@ -1,13 +1,21 @@
 //! Capability watches over Relay, and their sealed pushes (ADR-0001,
-//! NEM-132).
+//! NEM-132, NEM-123).
 //!
 //! An Access Client registers a watch with a sealed `watchCapabilityChanges`
 //! request. The watch keeps that request's header and the push key exported
 //! from its HPKE context, and is bound to the Access Client, not to a
-//! bearer token. Every capability change is then sealed once per live watch
-//! under its push key, with the watch's own counter as the nonce, and signed
-//! by the Controller, so Convex stores only the clear push header and an
-//! opaque ciphertext.
+//! bearer token. Every capability change, and every commissioning step, is
+//! then sealed once per live watch under its push key, with the watch's own
+//! counter as the nonce, and signed by the Controller, so Convex stores only
+//! the clear push header and an opaque ciphertext.
+//!
+//! Commissioning progress rides the capability watch rather than a watch of
+//! its own: every Access Client that follows the Home over Relay already
+//! holds one, so progress needs no extra registration, renewal or poll, and
+//! one counter orders progress and state changes together. Progress goes to
+//! every live watch, as it goes to every LAN WebSocket. It is only enums
+//! (`commissioning_progress.rs`), so it carries no pairing code, passcode or
+//! Wi-Fi credential. Starting commissioning stays LAN-only (NEM-98).
 //!
 //! A watch ends when its TTL passes, when the Access Client renews it (the
 //! renewal names the watch it replaces), and at once when the Access Client
@@ -21,9 +29,10 @@ use std::time::{Duration, Instant};
 use ed25519_dalek::SigningKey;
 use tokio::sync::broadcast::error::{RecvError, TryRecvError};
 use tokio::sync::{broadcast, mpsc};
-use tracing::warn;
+use tracing::{debug, warn};
 use uuid::Uuid;
 
+use crate::capabilities::CapabilityChange;
 use crate::events::DeviceEvent;
 use crate::pairing::tombstones::access_client_status;
 use crate::relay_crypto::envelope::{
@@ -154,17 +163,27 @@ pub(crate) async fn register(
     Ok(())
 }
 
-/// Seals capability changes for every live watch, ending the watches of
-/// revoked Access Clients first.
+/// Seals capability changes and commissioning progress for every live
+/// watch, ending the watches of revoked Access Clients first.
 pub struct CapabilityPushes {
     state: AppState,
     revocations: broadcast::Receiver<Uuid>,
+    changes: broadcast::Receiver<CapabilityChange>,
+    events: broadcast::Receiver<DeviceEvent>,
 }
 
 impl CapabilityPushes {
+    /// Subscribes at once, so nothing emitted after this is missed.
     pub fn new(state: AppState) -> Self {
         let revocations = state.local_sessions.revocations();
-        Self { state, revocations }
+        let changes = state.capabilities.subscribe();
+        let events = state.events.subscribe();
+        Self {
+            state,
+            revocations,
+            changes,
+            events,
+        }
     }
 
     /// The sealed pushes of `event`, one per live watch.
@@ -210,11 +229,12 @@ impl CapabilityPushes {
         }
     }
 
-    /// Seals every capability change until the service stops, handing each
-    /// push to `out` in order. A revocation ends its watches as it arrives.
+    /// Seals every capability change and commissioning step until the
+    /// service stops, handing each push to `out` in order. A revocation ends
+    /// its watches as it arrives.
     pub async fn run(mut self, out: mpsc::Sender<SealedPush>) {
-        let mut changes = self.state.capabilities.subscribe();
         let mut revocations_open = true;
+        let mut events_open = true;
         loop {
             let event = tokio::select! {
                 biased;
@@ -226,13 +246,26 @@ impl CapabilityPushes {
                     }
                     continue;
                 }
-                change = changes.recv() => match change {
+                change = self.changes.recv() => match change {
                     Ok(change) => DeviceEvent::from_capability_change(change),
                     Err(RecvError::Lagged(skipped)) => {
                         warn!(skipped, "capability pushes lagged; pushing a snapshot");
                         DeviceEvent::from_capability_snapshot(self.state.capabilities.snapshot())
                     }
                     Err(RecvError::Closed) => return,
+                },
+                event = self.events.recv(), if events_open => match event {
+                    Ok(event) if relay_pushes(&event) => event,
+                    Ok(_) => continue,
+                    // Progress is transient: a skipped step is followed by the next.
+                    Err(RecvError::Lagged(skipped)) => {
+                        debug!(skipped, "commissioning pushes lagged");
+                        continue;
+                    }
+                    Err(RecvError::Closed) => {
+                        events_open = false;
+                        continue;
+                    }
                 },
             };
             for push in self.seal(&event).await {
@@ -242,4 +275,12 @@ impl CapabilityPushes {
             }
         }
     }
+}
+
+/// Whether a Home event goes to the watches. Only the Protocol-neutral
+/// commissioning step does: capability changes come from their own
+/// subscription, and the older commissioning and interview events carry free
+/// text, so they stay on the LAN WebSocket.
+fn relay_pushes(event: &DeviceEvent) -> bool {
+    matches!(event, DeviceEvent::CommissioningStep(_))
 }

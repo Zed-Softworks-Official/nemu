@@ -318,13 +318,10 @@ export class FakeController {
 
     /**
      * Report a Protocol-neutral commissioning step, as the Controller does:
-     * over LAN only. Relay carries no progress until NEM-123.
+     * over the LAN WebSocket and as a sealed push on the Relay watch.
      */
     commissioningStep(progress: CommissioningProgress): void {
-        const event: DeviceEvent = { type: 'commissioningStep', ...progress }
-        for (const transport of this.transports) {
-            if (transport.mode === 'lan') transport.deliver(event)
-        }
+        this.emit({ type: 'commissioningStep', ...progress })
     }
 
     /** A new Device joins the Home, ending any commissioning in progress. */

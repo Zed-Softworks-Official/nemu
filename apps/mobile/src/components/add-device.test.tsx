@@ -414,7 +414,7 @@ describe('Adding a Device while the connection changes', () => {
         await screen.findByRole('button', { name: 'Cancel' })
     })
 
-    it('shows each commissioning step over LAN, and none over Relay until NEM-123', async () => {
+    it('shows each commissioning step, over LAN and then over Relay', async () => {
         const controller = home(true)
         await renderDevicesTab(controller)
         await commissioningMatter(controller)
@@ -437,8 +437,8 @@ describe('Adding a Device while the connection changes', () => {
         expect(screen.getByText('✓ Looking for your Device')).toBeTruthy()
         expect(screen.getByText('○ Joining your Home')).toBeTruthy()
 
-        // Progress goes over the LAN WebSocket only (NEM-123 pushes it over
-        // sealed Relay), so a step reached over Relay never shows.
+        // Over Relay the step arrives as a sealed push on the watch and
+        // shows the same way.
         controller.lanReachable = false
         await act(() => reprobe())
         await screen.findByText('Connected over relay')
@@ -448,14 +448,23 @@ describe('Adding a Device while the connection changes', () => {
                 step: 'configuring_network',
             })
         )
-        expect(screen.queryByText('Sending your Wi‑Fi details')).toBeNull()
-        expect(screen.getByText('Connecting securely')).toBeTruthy()
+        await screen.findByText('Sending your Wi‑Fi details')
+        expect(screen.getByText('✓ Connecting securely')).toBeTruthy()
+        expect(screen.getByText('○ Joining your Home')).toBeTruthy()
     })
 
-    it('names the step that failed, with guidance, over LAN', async () => {
+    it.each([
+        ['LAN', true],
+        ['Relay', false],
+    ])('names the step that failed, with guidance, over %s', async (_label, lanReachable) => {
         const controller = home(true)
         await renderDevicesTab(controller)
         await commissioningMatter(controller)
+        if (!lanReachable) {
+            controller.lanReachable = false
+            await act(() => reprobe())
+            await screen.findByText('Connected over relay')
+        }
 
         await act(async () => {
             controller.commissioningStep({
@@ -463,13 +472,15 @@ describe('Adding a Device while the connection changes', () => {
                 step: 'configuring_network',
                 reason: 'network_rejected',
             })
-            // The older failed interview follows; it changes nothing.
-            controller.emit({
-                type: 'interview',
-                externalId: 'commissioning',
-                status: 'failed',
-                error: 'Put the device back in pairing mode and try again.',
-            })
+            // On LAN the older failed interview follows; it changes nothing.
+            if (lanReachable) {
+                controller.emit({
+                    type: 'interview',
+                    externalId: 'commissioning',
+                    status: 'failed',
+                    error: 'Put the device back in pairing mode and try again.',
+                })
+            }
         })
 
         await screen.findByText('The Device wasn’t added')

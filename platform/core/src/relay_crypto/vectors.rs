@@ -437,6 +437,29 @@ fn pushes_seal_open_and_reject() {
     }
 }
 
+/// Commissioning progress rides the capability watch (NEM-123): Core's own
+/// serialization of the step is the vector's plaintext, byte for byte, so the
+/// TypeScript client opens exactly what Core seals.
+#[test]
+fn a_commissioning_step_push_is_cores_event_bytes() {
+    use crate::commissioning_progress::{
+        CommissioningFailureReason, CommissioningProgress, CommissioningStep,
+    };
+    use crate::events::DeviceEvent;
+
+    let vectors = vectors();
+    let v = array(&vectors["pushes"])
+        .iter()
+        .find(|v| s(&v["name"]) == "commissioning step")
+        .expect("a commissioning step push vector");
+    let event = DeviceEvent::CommissioningStep(CommissioningProgress::Failed {
+        step: CommissioningStep::ConfiguringNetwork,
+        reason: CommissioningFailureReason::NetworkRejected,
+    });
+    assert_eq!(serde_json::to_string(&event).unwrap(), s(&v["plaintext"]));
+    assert_eq!(s(&v["request"]), "watch");
+}
+
 #[test]
 fn grants_issue_verify_and_reject() {
     let vectors = vectors();
