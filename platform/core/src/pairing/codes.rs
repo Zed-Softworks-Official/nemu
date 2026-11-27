@@ -8,6 +8,17 @@ use crate::db::schema::pairing_codes;
 use crate::state::DbPool;
 
 const PAIRING_CODE_TTL_MINUTES: i64 = 5;
+/// Guesses allowed against one Pairing code. Each CPace run is one online
+/// guess (ADR-0037), and so is each wrong `POST /api/pair`. The code is
+/// spent once they are used up.
+pub const MAX_PAIRING_ATTEMPTS: i32 = 5;
+
+/// A live Pairing code a CPace run may use.
+#[derive(Debug, Clone)]
+pub struct PairingAttempt {
+    pub code_id: uuid::Uuid,
+    pub code: String,
+}
 
 #[derive(Debug, Clone)]
 pub struct IssuedPairingCode {
@@ -41,6 +52,7 @@ fn mint_pairing_code_sync(conn: &mut PgConnection) -> Result<IssuedPairingCode, 
         .values(NewPairingCode {
             code_hash: &code_hash,
             expires_at,
+            code: Some(&code),
         })
         .execute(conn)
         .map_err(|e| format!("failed to insert pairing code: {e}"))?;
@@ -49,38 +61,60 @@ fn mint_pairing_code_sync(conn: &mut PgConnection) -> Result<IssuedPairingCode, 
     Ok(IssuedPairingCode { code, expires_at })
 }
 
-pub async fn consume_pairing_code(pool: &DbPool, code: &str) -> Result<bool, String> {
+/// Takes one guess from the live Pairing code for a CPace run. `None` when no
+/// code is live or its guesses are used up.
+pub async fn begin_pairing_attempt(pool: &DbPool) -> Result<Option<PairingAttempt>, String> {
     let conn = pool
         .get()
         .await
         .map_err(|e| format!("db pool error: {e}"))?;
-    let code = code.to_string();
-    conn.interact(move |conn| consume_pairing_code_sync(conn, &code))
-        .await
-        .map_err(|e| format!("db interact error: {e}"))?
+    conn.interact(|conn| {
+        conn.transaction(|conn| {
+            let row: Option<PairingCode> = pairing_codes::table
+                .filter(pairing_codes::consumed.eq(false))
+                .filter(pairing_codes::expires_at.gt(Utc::now()))
+                .filter(pairing_codes::attempts.lt(MAX_PAIRING_ATTEMPTS))
+                .filter(pairing_codes::code.is_not_null())
+                .order(pairing_codes::created_at.desc())
+                .for_update()
+                .first(conn)
+                .optional()?;
+            let Some(row) = row else {
+                return Ok(None);
+            };
+            diesel::update(pairing_codes::table.find(row.id))
+                .set(pairing_codes::attempts.eq(pairing_codes::attempts + 1))
+                .execute(conn)?;
+            Ok(row.code.map(|code| PairingAttempt {
+                code_id: row.id,
+                code,
+            }))
+        })
+        .map_err(|e: diesel::result::Error| format!("pairing attempt failed: {e}"))
+    })
+    .await
+    .map_err(|e| format!("db interact error: {e}"))?
 }
 
-fn consume_pairing_code_sync(conn: &mut PgConnection, code: &str) -> Result<bool, String> {
-    let code_hash = sha256_hex(code);
-    let now = Utc::now();
-
-    let row: Option<PairingCode> = pairing_codes::table
-        .filter(pairing_codes::code_hash.eq(&code_hash))
-        .filter(pairing_codes::consumed.eq(false))
-        .filter(pairing_codes::expires_at.gt(now))
-        .order(pairing_codes::created_at.desc())
-        .first(conn)
-        .optional()
-        .map_err(|e| format!("pairing code lookup failed: {e}"))?;
-
-    let Some(row) = row else {
-        return Ok(false);
-    };
-
-    let updated = diesel::update(pairing_codes::table.find(row.id))
+/// Spends a Pairing code after a CPace run confirmed it. `false` when it was
+/// spent, replaced or expired in the meantime.
+pub async fn consume_pairing_code_by_id(pool: &DbPool, id: uuid::Uuid) -> Result<bool, String> {
+    let conn = pool
+        .get()
+        .await
+        .map_err(|e| format!("db pool error: {e}"))?;
+    conn.interact(move |conn| {
+        diesel::update(
+            pairing_codes::table
+                .find(id)
+                .filter(pairing_codes::consumed.eq(false))
+                .filter(pairing_codes::expires_at.gt(Utc::now())),
+        )
         .set(pairing_codes::consumed.eq(true))
         .execute(conn)
-        .map_err(|e| format!("failed to consume pairing code: {e}"))?;
-
-    Ok(updated > 0)
+        .map(|updated| updated > 0)
+        .map_err(|e| format!("failed to consume pairing code: {e}"))
+    })
+    .await
+    .map_err(|e| format!("db interact error: {e}"))?
 }

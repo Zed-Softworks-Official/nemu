@@ -28,6 +28,7 @@ mod mqtt;
 mod pairing;
 mod registration;
 mod relay;
+mod relay_crypto;
 mod retention;
 mod setup;
 mod state;
@@ -41,7 +42,6 @@ use devices::{DeviceRegistry, StateCache};
 use identity::load_or_create_identity;
 use mqtt::{create_client, spawn_mqtt_loop};
 use pairing::codes::mint_pairing_code;
-use pairing::tokens::count_client_tokens;
 use registration::register_with_retry;
 use relay::client::spawn_relay_loop;
 use state::{AppState, HealthFlags};
@@ -116,7 +116,7 @@ async fn main() {
     }
 
     // First-run bootstrap: mint a pairing code and print it when nobody is paired yet.
-    match count_client_tokens(&pool).await {
+    match pairing::access_clients::count_access_clients(&pool).await {
         Ok(0) => match mint_pairing_code(&pool).await {
             Ok(code) => {
                 info!("================================================");
@@ -127,7 +127,7 @@ async fn main() {
             Err(e) => warn!(error = %e, "failed to mint bootstrap pairing code"),
         },
         Ok(_) => {}
-        Err(e) => warn!(error = %e, "failed to count client tokens"),
+        Err(e) => warn!(error = %e, "failed to count access clients"),
     }
 
     let registry = Arc::new(DeviceRegistry::new());
@@ -173,7 +173,9 @@ async fn main() {
         convex_site_url: config.convex_site_url.clone(),
         registration_secret: config.registration_secret.clone(),
         lan_ip: lan_ip.clone(),
-        capability_watches: Arc::new(std::sync::Mutex::new(Vec::new())),
+        capability_watches: Arc::default(),
+        pairing_runs: Arc::default(),
+        local_sessions: Arc::default(),
         updater: Arc::new(SocketUpdater::new(config.updater_socket.clone())),
     };
 

@@ -16,7 +16,7 @@ const StyledSafeAreaView = styled(SafeAreaView)
 
 const CODE_LENGTH = 6
 
-/** Guides an unpaired installation through Access Client pairing. */
+/** Guides an installation that is not paired through Access Client pairing. */
 export function PairHomeScreen() {
     const { switchHome, completePairing, pairingNotice } = useHomeSession()
     const { home, state, pairing } = useAccessClientPairing()
@@ -78,14 +78,6 @@ export function PairHomeScreen() {
                                 size="lg"
                                 title="Pair"
                             />
-                            {state.canUseRelay ? (
-                                <Button
-                                    onPress={() => void pairing.pairOverRelay()}
-                                    size="lg"
-                                    title="Pair over the internet instead"
-                                    variant="outline"
-                                />
-                            ) : null}
                         </>
                     ) : null}
                     {state.phase === 'discovering' ||
@@ -166,23 +158,15 @@ function PairingBody({
         case 'idle':
             return (
                 <Message>
-                    This phone needs its own access to {homeName}. On the Home
-                    network you will enter a 6-digit code from the Controller.
-                    Away from home, a Member can pair over the internet.
+                    This phone needs its own access to {homeName}. Pair it at
+                    home: on the Home network, enter the 6-digit code from the
+                    Controller. Accepting an invitation works the same way.
                 </Message>
             )
         case 'discovering':
             return <Busy label={`Looking for ${homeName} on this network…`} />
         case 'pairing':
-            return (
-                <Busy
-                    label={
-                        state.method === 'relay'
-                            ? `Asking ${homeName} to approve this phone over the internet…`
-                            : `Pairing with ${homeName}…`
-                    }
-                />
-            )
+            return <Busy label={`Pairing with ${homeName}…`} />
         case 'awaitingCode':
             return (
                 <View className="gap-3">
@@ -209,10 +193,7 @@ function PairingBody({
         case 'paired':
             return (
                 <Message>
-                    This phone can now control {homeName}
-                    {state.method === 'relay'
-                        ? '. It will use the Home network whenever it is available.'
-                        : '.'}
+                    This phone can now control {homeName}, at home and away.
                 </Message>
             )
         case 'cancelled':

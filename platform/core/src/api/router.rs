@@ -4,10 +4,10 @@ use axum::middleware;
 use axum::routing::{delete, get, patch, post, put};
 use tower_http::cors::{AllowOrigin, CorsLayer};
 
-use crate::api::middleware::require_client_token;
+use crate::api::middleware::require_local_session;
 use crate::api::{
-    audit, devices, health, history_budget, history_health, identify, landing, matter, members,
-    pairing, rooms, session, updates, ws, zigbee,
+    audit, devices, health, history_budget, history_health, identify, landing, local_access,
+    matter, members, pairing, rooms, session, updates, ws, zigbee,
 };
 use crate::state::AppState;
 
@@ -51,8 +51,21 @@ pub fn router(state: AppState) -> Router {
         .route("/", get(landing::landing))
         .route("/api/health", get(health::health_check))
         .route("/api/identify", get(identify::identify))
-        .route("/api/pair", post(pairing::pair))
-        .route("/api/pairing-code", post(pairing::create_pairing_code));
+        .route("/api/pairing-code", post(pairing::create_pairing_code))
+        .route("/api/pairing/runs", post(local_access::start))
+        .route(
+            "/api/pairing/runs/{run_id}/exchange",
+            post(local_access::exchange_keys),
+        )
+        .route(
+            "/api/pairing/runs/{run_id}/confirm",
+            post(local_access::confirm),
+        )
+        .route(
+            "/api/local-sessions/challenge",
+            post(local_access::challenge),
+        )
+        .route("/api/local-sessions", post(local_access::open));
 
     let protected = Router::new()
         .route("/api/session", get(session::show))
@@ -87,16 +100,21 @@ pub fn router(state: AppState) -> Router {
             "/api/matter/wifi",
             get(matter::get_wifi).put(matter::put_wifi),
         )
-        .route("/api/tokens", get(pairing::list_tokens))
-        .route("/api/tokens/current", delete(pairing::delete_current_token))
-        .route("/api/tokens/{id}", delete(pairing::delete_token))
+        .route(
+            "/api/access-clients",
+            get(pairing::list_access_clients_handler),
+        )
+        .route(
+            "/api/access-clients/current",
+            delete(pairing::revoke_current_handler),
+        )
+        .route(
+            "/api/access-clients/{id}",
+            delete(pairing::revoke_access_client_handler),
+        )
         .route(
             "/api/members",
             get(members::list_members_handler).post(members::invite_member_handler),
-        )
-        .route(
-            "/api/members/bootstrap",
-            post(members::bootstrap_owner_handler),
         )
         .route("/api/members/leave", post(members::leave_home_handler))
         .route("/api/members/{id}", delete(members::delete_member_handler))
@@ -114,7 +132,7 @@ pub fn router(state: AppState) -> Router {
         .route("/ws", get(ws::ws_handler))
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
-            require_client_token,
+            require_local_session,
         ));
 
     public

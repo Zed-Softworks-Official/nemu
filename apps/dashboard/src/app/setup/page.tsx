@@ -4,27 +4,42 @@ import { useAuth, useUser } from '@clerk/nextjs'
 import { api, useMutation, useQuery } from '@nemu/cloud'
 import {
     buildTlsTrustUrl,
+    discardLegacyClientTokens,
     discoverController,
-    getClientToken,
     getRememberedBaseUrl,
     getRememberedControllerId,
+    INVALID_GRANT_ERROR_CODE,
     identifyController,
     isLanControllerOrigin,
     lanDiscoveryCandidates,
     lanUrlsFromHostnames,
+    type PairAgainReason,
     pairWithController,
+    setRememberedBaseUrl,
+    setRememberedControllerId,
     TLS_TRUSTED_MESSAGE,
+    UNSUPPORTED_BROWSER_ERROR_CODE,
     useController,
+    WRONG_HOME_ERROR_CODE,
 } from '@nemu/controller'
-import { ApiError } from '@nemu/protocol'
+import {
+    ApiError,
+    isPairAgainReason,
+    TOMBSTONED_ACCESS_CLIENT_ERROR_CODE,
+} from '@nemu/protocol'
 import { Button } from '@nemu/ui/components/button'
 import { Input } from '@nemu/ui/components/input'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
+import { dashboardKeyStore } from '~/lib/access-client-keys'
+
 type Phase = 'discover' | 'pair' | 'saving' | 'done'
 
 const CONVEX_PAIR_TIMEOUT_MS = 15_000
+
+const UNSUPPORTED_BROWSER_MESSAGE =
+    'Use a current version of Chrome, Edge, Safari or Firefox to pair this browser.'
 
 function withTimeout<T>(
     promise: Promise<T>,
@@ -49,11 +64,47 @@ function withTimeout<T>(
 }
 
 function formatPairingError(err: unknown): string {
-    if (err instanceof ApiError && err.code === 'invalid_code') {
-        return 'This pairing code was already used or expired. Get a new 6-digit code from the controller — restart it if no clients are paired yet, or mint one from Settings.'
+    if (err instanceof ApiError) {
+        if (err.code === UNSUPPORTED_BROWSER_ERROR_CODE) {
+            return UNSUPPORTED_BROWSER_MESSAGE
+        }
+        if (err.code === 'invalid_code') {
+            return 'This pairing code was not accepted: it may be wrong, expired or already used, or another device answered for the controller. Get a new 6-digit code from the controller — restart it if no clients are paired yet, or mint one from Settings — and try again.'
+        }
+        if (err.code === TOMBSTONED_ACCESS_CLIENT_ERROR_CODE) {
+            return 'The controller refused this browser’s keys because they were revoked. Reload the page and pair again with a new code.'
+        }
+        if (err.code === WRONG_HOME_ERROR_CODE) {
+            return 'The controller on this network belongs to a different Home.'
+        }
+        if (err.code === INVALID_GRANT_ERROR_CODE) {
+            return 'The controller answered with an Access grant that does not match this pairing. Try again.'
+        }
     }
     if (err instanceof Error) return err.message
     return 'Pairing failed'
+}
+
+/** What each reason to pair again tells the person, for every reason. */
+const PAIR_AGAIN_MESSAGES: Record<PairAgainReason, string> = {
+    not_paired:
+        'This browser’s keys for your Home are gone. Pair it again at home.',
+    bearer_token_retired:
+        'Nemu now pairs each browser with its own keys. Pair this browser again at home.',
+    unknown_access_client:
+        'This browser no longer has access to your Home. It may have been removed. Pair it again at home.',
+    tombstoned_access_client:
+        'This browser was removed from your Home. Pair it again at home.',
+    membership_ended:
+        'You are no longer a Member of this Home. Ask an Owner for a new Invitation.',
+}
+
+/** Why this browser was sent back to pair, from `?pairAgain=`. */
+function pairAgainMessage(reason: string | null): string | null {
+    if (!reason) return null
+    return isPairAgainReason(reason)
+        ? PAIR_AGAIN_MESSAGES[reason]
+        : 'Pair this browser again at home.'
 }
 
 export default function SetupPage() {
@@ -85,6 +136,27 @@ export default function SetupPage() {
     const [busy, setBusy] = useState(false)
     const [trustOpened, setTrustOpened] = useState(false)
     const [canFinish, setCanFinish] = useState(false)
+    const [pairAgain, setPairAgain] = useState<string | null>(null)
+    // Pairing needs non-extractable Web Crypto Ed25519 and X25519 keys
+    // (ADR-0001); null while the check runs.
+    const [browserSupported, setBrowserSupported] = useState<boolean | null>(
+        null
+    )
+
+    useEffect(() => {
+        let live = true
+        void dashboardKeyStore.supported().then(
+            (supported) => {
+                if (live) setBrowserSupported(supported)
+            },
+            () => {
+                if (live) setBrowserSupported(false)
+            }
+        )
+        return () => {
+            live = false
+        }
+    }, [])
 
     const handleDiscover = useCallback(async () => {
         setBusy(true)
@@ -124,14 +196,25 @@ export default function SetupPage() {
     }
 
     useEffect(() => {
-        const token = getClientToken()
+        const params = new URLSearchParams(window.location.search)
+        setPairAgain(pairAgainMessage(params.get('pairAgain')))
+        // Only keys count: a bearer token from before them is not paired.
         const rememberedId = getRememberedControllerId()
         const rememberedUrl = getRememberedBaseUrl()
-        if (token && rememberedId) {
-            setCanFinish(true)
-            setControllerId(rememberedId)
-            if (rememberedUrl) setBaseUrl(rememberedUrl)
-            setPhase('pair')
+        if (!rememberedId) return
+        let live = true
+        void dashboardKeyStore
+            .load(rememberedId)
+            .then((record) => {
+                if (!live || !record) return
+                setCanFinish(true)
+                setControllerId(rememberedId)
+                if (rememberedUrl) setBaseUrl(rememberedUrl)
+                setPhase('pair')
+            })
+            .catch(() => {})
+        return () => {
+            live = false
         }
     }, [])
 
@@ -174,14 +257,24 @@ export default function SetupPage() {
                         'This Google account did not share an email address.'
                     )
                 }
+                // CPace on the Pairing code (ADR-0037), safe over plain HTTP
+                // or a self-signed certificate. The Controller decides
+                // whether this makes the first Owner, accepts an Invitation
+                // or adds a browser to an existing Membership.
                 const result = await pairWithController(baseUrl, {
                     code: code.trim(),
                     clientLabel: label.trim(),
                     userId,
                     email,
                     displayName: user.fullName ?? undefined,
+                    expectedControllerId: controllerId ?? undefined,
+                    keyStore: dashboardKeyStore,
                 })
-                id = result.pair.controllerId || result.identity.controllerId
+                id = result.enrollment.controllerId
+                setRememberedControllerId(id)
+                setRememberedBaseUrl(result.baseUrl)
+                // A bearer token from before Access Client keys is dead.
+                discardLegacyClientTokens()
             }
 
             if (!id) {
@@ -217,11 +310,26 @@ export default function SetupPage() {
                 <p className="text-muted-foreground text-sm">
                     Pair this dashboard with your Nemu controller on the local
                     network. You&apos;ll need the 6-digit code from the
-                    controller.
+                    controller. Accepting an invitation works the same way.
                 </p>
             </div>
 
-            {phase === 'discover' ? (
+            {pairAgain ? (
+                <output className="block rounded-xl border border-border/80 bg-muted/30 p-4 text-sm">
+                    {pairAgain}
+                </output>
+            ) : null}
+
+            {browserSupported === false ? (
+                <p
+                    className="rounded-xl border border-border/80 bg-muted/30 p-4 text-sm"
+                    role="alert"
+                >
+                    {UNSUPPORTED_BROWSER_MESSAGE}
+                </p>
+            ) : null}
+
+            {browserSupported && phase === 'discover' ? (
                 <div className="space-y-4">
                     <div className="space-y-2">
                         <label
@@ -267,7 +375,7 @@ export default function SetupPage() {
                 </div>
             ) : null}
 
-            {phase === 'pair' || phase === 'saving' ? (
+            {browserSupported && (phase === 'pair' || phase === 'saving') ? (
                 <div className="space-y-4">
                     <div className="rounded-xl border border-border/80 bg-muted/30 p-4 text-sm">
                         <p className="font-medium">
@@ -282,8 +390,9 @@ export default function SetupPage() {
                     </div>
                     {canFinish ? (
                         <p className="text-muted-foreground text-sm">
-                            This browser already has a controller token. Finish
-                            pairing to create the cloud link and open home.
+                            This browser is already paired with this controller.
+                            Finish pairing to create the cloud link and open
+                            home.
                         </p>
                     ) : (
                         <>

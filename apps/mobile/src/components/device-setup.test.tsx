@@ -1,7 +1,7 @@
 import { ControllerProvider } from '@nemu/controller'
 import {
-    createMemoryCredentialStore,
     FakeController,
+    fakeAccessClientKeyStore,
     fakeControllerConnectors,
 } from '@nemu/controller/testing'
 import type { Device } from '@nemu/protocol'
@@ -31,13 +31,14 @@ async function renderSurface(
     controller: FakeController,
     view: React.ReactNode
 ) {
-    const credentialStore = createMemoryCredentialStore()
-    credentialStore.set(controller.controllerId, { clientToken: 'token' })
+    const accessClientKeyStore = fakeAccessClientKeyStore({
+        [controller.controllerId]: 'phone-access-client',
+    })
     await render(
         <ControllerProvider
+            accessClientKeyStore={accessClientKeyStore}
             connectors={fakeControllerConnectors(controller)}
             controllerId={controller.controllerId}
-            credentialStore={credentialStore}
             lanCandidates={[controller.baseUrl]}
         >
             <HomeControlProvider>{view}</HomeControlProvider>
@@ -64,7 +65,7 @@ describe('naming a Device and choosing its Room', () => {
     it('saves both in one step, for use after adding a Device', async () => {
         const controller = new FakeController({
             controllerId: 'lake',
-            acceptedTokens: ['token'],
+            acceptedAccessClients: ['phone-access-client'],
             devices: [structuredClone(PLUG)],
             rooms: [{ id: 'living', name: 'Living Room', sortOrder: 1 }],
         })

@@ -1,11 +1,10 @@
 import {
+    type AccessClient,
     ApiError,
     type ApplyUpdateResponse,
     type AssignRoomRequest,
-    type BootstrapOwnerRequest,
     CapabilitySession,
     type CapabilityView,
-    type ClientToken,
     type CommandResult,
     type CommissionRequest,
     type CommissionResponse,
@@ -38,21 +37,26 @@ import {
 } from '@nemu/protocol'
 import type { ConvexReactClient } from 'convex/react'
 import {
+    type AccessClientKeyStore,
+    keysRefused,
+    type PairAgainReason,
+    pairAgainReason,
+} from './access-client-keys.ts'
+import {
     discoverController,
     identifyController,
     isLocalDevDashboard,
     isLoopbackControllerUrl,
     type ProbeResult,
 } from './discovery.ts'
-import type { GetToken } from './http.ts'
+import type { LocalSessionAuth } from './http.ts'
+import { LocalSession } from './local-session.ts'
 import {
     type ReleaseUpdate,
     ReleaseUpdateFollower,
     type ReleaseUpdateKind,
 } from './release-update.ts'
 import {
-    type ControllerCredentialStore,
-    defaultCredentialStore,
     getRememberedBaseUrl,
     getRememberedControllerId,
     setRememberedBaseUrl,
@@ -82,18 +86,40 @@ export type ControllerConnectors = {
     identify: (baseUrl: string) => Promise<IdentifyResponse>
     createLanTransport: (options: {
         baseUrl: string
-        getToken: GetToken
+        /** The Local session for this Home's keys; absent without keys. */
+        localSession?: LocalSessionAuth
+        /** This client's Access Client ID, or null without keys. */
+        accessClientId: string | null
     }) => ControllerTransport
-    /** Returns null when Relay is not configured. */
+    /**
+     * Returns null when Relay is not configured. The default Relay
+     * transport seals with `accessClientKeyStore`.
+     */
     createRelayTransport: (options: {
         controllerId: string
-        getToken: GetToken
+        /** This client's Access Client ID. */
+        accessClientId: string
     }) => ControllerTransport | null
+}
+
+/**
+ * This client must pair again at home: it holds no keys for the Home, or the
+ * Controller no longer knows or has revoked its Access Client.
+ */
+export type PairingLoss = {
+    controllerId: string
+    reason: PairAgainReason
 }
 
 export type ControllerConnectionOptions = {
     convex?: ConvexReactClient
     relayApi?: RelayApi
+    /**
+     * This client's Access Client keys and pinned Controller keys. The
+     * connection authorizes with them only: Local sessions on LAN, sealed
+     * envelopes over Relay (ADR-0001). There are no bearer tokens.
+     */
+    accessClientKeyStore: AccessClientKeyStore
     /** Override discovery candidates (useful in tests / local core). */
     lanCandidates?: string[]
     /** How often to reprobe LAN while on relay. */
@@ -101,12 +127,10 @@ export type ControllerConnectionOptions = {
     /**
      * The selected Home. When set, the connection only attaches to a LAN
      * Controller that identifies as this Home and only uses this Home's
-     * credential. Without it the connection adopts whichever Controller
-     * answers (dashboard single-Home behavior).
+     * keys. Without it the connection adopts whichever Controller answers
+     * (dashboard single-Home behavior).
      */
     controllerId?: string | null
-    /** Per-Home Access Client credentials. Defaults to localStorage. */
-    credentialStore?: ControllerCredentialStore
     /**
      * When set, relay is skipped until this returns true. The local socket
      * still connects. Callers use it so `relay:send` waits for Convex auth.
@@ -116,6 +140,7 @@ export type ControllerConnectionOptions = {
 }
 
 type StatusListener = (status: ConnectionStatus) => void
+type PairingLossListener = (loss: PairingLoss | null) => void
 
 /**
  * Owns transport selection: probe LAN first, fall back to Convex relay,
@@ -132,29 +157,34 @@ export class ControllerConnection {
     private readonly options: ControllerConnectionOptions
     private started = false
     private readonly capabilitySession = new CapabilitySession()
-    private readonly credentialStore: ControllerCredentialStore
+    /** Last LAN address that answered for each selected Home. */
+    private readonly lanAddresses = new Map<string, string>()
     private readonly connectors: ControllerConnectors
     /** Controller adopted from LAN identify when no Home is selected. */
     private identifiedControllerId: string | null = null
     /** An update this client started and follows. */
     private readonly releaseUpdates: ReleaseUpdateFollower
+    private pairingLoss: PairingLoss | null = null
+    private readonly pairingLossListeners = new Set<PairingLossListener>()
+    /** Clearing refused keys, which `connect` waits for. */
+    private clearingKeys: Promise<void> | null = null
 
-    constructor(options: ControllerConnectionOptions = {}) {
+    constructor(options: ControllerConnectionOptions) {
         this.options = options
-        this.credentialStore = options.credentialStore ?? defaultCredentialStore
         this.connectors = {
             discover: (candidates, rememberedBaseUrl) =>
                 discoverController(candidates, rememberedBaseUrl),
             identify: (baseUrl) => identifyController(baseUrl),
-            createLanTransport: (lan) => new LanTransport(lan),
-            createRelayTransport: ({ controllerId, getToken }) => {
-                const { convex, relayApi } = this.options
+            createLanTransport: ({ baseUrl, localSession }) =>
+                new LanTransport({ baseUrl, localSession }),
+            createRelayTransport: ({ controllerId }) => {
+                const { convex, relayApi, accessClientKeyStore } = this.options
                 if (!convex || !relayApi) return null
                 return new RelayTransport({
                     convex,
                     api: relayApi,
                     controllerId,
-                    getToken,
+                    keyStore: accessClientKeyStore,
                 })
             },
             ...options.connectors,
@@ -182,16 +212,14 @@ export class ControllerConnection {
         )
     }
 
-    private readonly getToken: GetToken = () => {
-        const controllerId = this.activeControllerId()
-        if (!controllerId) return null
-        return this.credentialStore.get(controllerId)?.clientToken ?? null
+    private get keyStore(): AccessClientKeyStore {
+        return this.options.accessClientKeyStore
     }
 
     private rememberedBaseUrl(): string | null {
         const selected = this.selectedControllerId
         if (!selected) return getRememberedBaseUrl()
-        return this.credentialStore.get(selected)?.baseUrl ?? null
+        return this.lanAddresses.get(selected) ?? null
     }
 
     getStatus(): ConnectionStatus {
@@ -203,6 +231,19 @@ export class ControllerConnection {
         cb(this.status)
         return () => {
             this.statusListeners.delete(cb)
+        }
+    }
+
+    /** Why this client must pair again at home, or null. */
+    getPairingLoss(): PairingLoss | null {
+        return this.pairingLoss
+    }
+
+    subscribePairingLoss(cb: PairingLossListener): () => void {
+        this.pairingLossListeners.add(cb)
+        cb(this.pairingLoss)
+        return () => {
+            this.pairingLossListeners.delete(cb)
         }
     }
 
@@ -252,6 +293,11 @@ export class ControllerConnection {
     }
 
     private async connect(): Promise<void> {
+        if (!(await this.recoveredFromPairingLoss())) {
+            this.teardownTransport()
+            this.setStatus(statusFromMode('offline'))
+            return
+        }
         const probe = await this.discover()
         if (probe) {
             const ok = await this.tryLan(probe)
@@ -601,37 +647,38 @@ export class ControllerConnection {
         await transport.removeMember(memberId)
     }
 
-    async getTokens(): Promise<ClientToken[]> {
+    /** The Home's Access Clients, each named by its Access Client ID. */
+    async listAccessClients(): Promise<AccessClient[]> {
         const transport = this.requireConnectedTransport('Paired devices')
-        if (!transport.getTokens) {
+        if (!transport.listAccessClients) {
             throw new Error(
                 'Paired devices are not supported by this controller'
             )
         }
-        return await transport.getTokens()
+        return await transport.listAccessClients()
     }
 
-    async revokeToken(tokenId: string): Promise<void> {
+    async revokeAccessClient(accessClientId: string): Promise<void> {
         const transport = this.requireConnectedTransport('Revoking devices')
-        if (!transport.revokeToken) {
+        if (!transport.revokeAccessClient) {
             throw new Error(
                 'Revoking devices is not supported by this controller'
             )
         }
-        await transport.revokeToken(tokenId)
+        await transport.revokeAccessClient(accessClientId)
     }
 
     /** Access Client revocation: only this Access Client loses access. */
-    async revokeCurrentToken(): Promise<void> {
+    async revokeCurrentAccessClient(): Promise<void> {
         const transport = this.requireConnectedTransport(
             'Removing this Access Client'
         )
-        if (!transport.revokeCurrentToken) {
+        if (!transport.revokeCurrentAccessClient) {
             throw new Error(
                 'Removing this Access Client is not supported by this controller'
             )
         }
-        await transport.revokeCurrentToken()
+        await transport.revokeCurrentAccessClient()
     }
 
     /**
@@ -646,18 +693,6 @@ export class ControllerConnection {
             )
         }
         await transport.leaveHome()
-    }
-
-    async bootstrapOwner(
-        request: BootstrapOwnerRequest
-    ): Promise<HouseholdMember> {
-        const transport = this.requireConnectedTransport('Household setup')
-        if (!transport.bootstrapOwner) {
-            throw new Error(
-                'Household setup is not supported by this controller'
-            )
-        }
-        return await transport.bootstrapOwner(request)
     }
 
     /** Setup never queues: it needs a live LAN or Relay connection now. */
@@ -697,8 +732,9 @@ export class ControllerConnection {
     }
 
     private async tryLan(probe: ProbeResult): Promise<boolean> {
-        // Without a token we can still probe health, but authenticated APIs will fail.
-        // Prefer LAN when reachable; token acceptance is validated on first real call.
+        // Without keys we can still probe health, but authenticated APIs
+        // fail. Prefer LAN when reachable; the keys are checked on the first
+        // real call.
         try {
             const selected = this.selectedControllerId
             let controllerId = this.activeControllerId()
@@ -718,12 +754,25 @@ export class ControllerConnection {
                 if (selected) return false
                 // identify may not exist yet on core
             }
-            const token = this.getToken()
+            const keyStore = this.keyStore
+            const record = controllerId
+                ? await keyStore.load(controllerId)
+                : null
 
-            const lan = this.connectors.createLanTransport({
-                baseUrl: probe.baseUrl,
-                getToken: this.getToken,
-            })
+            const lan = this.watchAccess(
+                this.connectors.createLanTransport({
+                    baseUrl: probe.baseUrl,
+                    accessClientId: record?.enrollment.accessClientId ?? null,
+                    localSession:
+                        record && controllerId
+                            ? new LocalSession({
+                                  baseUrl: probe.baseUrl,
+                                  controllerId,
+                                  keyStore,
+                              })
+                            : undefined,
+                })
+            )
 
             // WS may fail if /ws isn't implemented yet — still allow REST-only LAN.
             try {
@@ -740,10 +789,10 @@ export class ControllerConnection {
                 controllerId: controllerId ?? null,
             })
 
-            // If we have a token, soft-check devices; failure drops to relay.
-            // On localhost that token is often the prod house — keep LAN so
+            // With keys, soft-check devices; failure drops to relay. On
+            // localhost those keys are often the prod house's — keep LAN so
             // setup can re-pair instead of jumping to nemu.local over relay.
-            if (token && !isLoopbackControllerUrl(probe.baseUrl)) {
+            if (record !== null && !isLoopbackControllerUrl(probe.baseUrl)) {
                 try {
                     await lan.getDevices()
                 } catch {
@@ -767,29 +816,28 @@ export class ControllerConnection {
             return
         }
         if (!controllerId) return
-        const credential = this.credentialStore.get(controllerId)
-        if (!credential || credential.baseUrl === baseUrl) return
-        this.credentialStore.set(controllerId, { ...credential, baseUrl })
+        this.lanAddresses.set(controllerId, baseUrl)
     }
 
     private async tryRelay(): Promise<boolean> {
         const controllerId = this.activeControllerId()
-        const token = this.getToken()
 
         if (this.options.relayAllowed && !this.options.relayAllowed()) {
             return false
         }
 
-        if (!controllerId || !token) {
-            return false
-        }
+        if (!controllerId) return false
+        if (this.pairingLoss) return false
+        const record = await this.keyStore.load(controllerId)
+        if (!record) return false
 
         try {
-            const relay = this.connectors.createRelayTransport({
+            const created = this.connectors.createRelayTransport({
                 controllerId,
-                getToken: this.getToken,
+                accessClientId: record.enrollment.accessClientId,
             })
-            if (!relay) return false
+            if (!created) return false
+            const relay = this.watchAccess(created)
             await relay.connect()
             this.attachTransport(relay)
             this.setStatus({
@@ -808,6 +856,59 @@ export class ControllerConnection {
         if (!ok) {
             this.setStatus(statusFromMode('offline'))
         }
+    }
+
+    /**
+     * Watches every call on `transport` for the errors that mean this client
+     * must pair again at home. The caller still gets the error; the
+     * connection clears refused keys and stays offline.
+     */
+    private watchAccess(transport: ControllerTransport): ControllerTransport {
+        const notice = (error: unknown) => this.noticeAccessError(error)
+        return new Proxy(transport, {
+            get(target, property) {
+                const value = Reflect.get(target, property, target)
+                if (typeof value !== 'function') return value
+                return (...args: unknown[]) => {
+                    const result = value.apply(target, args)
+                    if (result instanceof Promise) result.catch(notice)
+                    return result
+                }
+            },
+        })
+    }
+
+    private noticeAccessError(error: unknown): void {
+        const reason = pairAgainReason(error)
+        const keyStore = this.keyStore
+        const controllerId = this.activeControllerId()
+        if (!reason || !controllerId) return
+        // The Controller refused these keys, so they are worth nothing now.
+        if (keysRefused(reason)) {
+            this.clearingKeys = keyStore.clear(controllerId).catch(() => {})
+        }
+        this.setPairingLoss({ controllerId, reason })
+        this.teardownTransport()
+        this.setStatus(statusFromMode('offline'))
+    }
+
+    /**
+     * False while this client must still pair again. Pairing again (keys for
+     * the Home in the store) clears the loss.
+     */
+    private async recoveredFromPairingLoss(): Promise<boolean> {
+        const loss = this.pairingLoss
+        if (!loss) return true
+        await this.clearingKeys
+        const record = await this.keyStore.load(loss.controllerId)
+        if (!record) return false
+        this.setPairingLoss(null)
+        return true
+    }
+
+    private setPairingLoss(loss: PairingLoss | null): void {
+        this.pairingLoss = loss
+        for (const listener of this.pairingLossListeners) listener(loss)
     }
 
     private attachTransport(transport: ControllerTransport): void {
@@ -866,6 +967,8 @@ export class ControllerConnection {
     }
 
     private async upgradeToLanIfPossible(): Promise<void> {
+        // A client that must pair again stays offline, even on the LAN.
+        if (!(await this.recoveredFromPairingLoss())) return
         const probe = await this.discover()
         if (!this.started) return
         if (!probe) {

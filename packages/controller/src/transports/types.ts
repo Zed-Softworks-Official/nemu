@@ -1,8 +1,7 @@
 import type {
+    AccessClient,
     ApplyUpdateResponse,
     AssignRoomRequest,
-    BootstrapOwnerRequest,
-    ClientToken,
     CommandResult,
     CommissionRequest,
     CommissionResponse,
@@ -81,13 +80,13 @@ export interface ControllerTransport {
     getMembers?(): Promise<HouseholdMember[]>
     inviteMember?(email: string): Promise<HouseholdMember>
     removeMember?(memberId: string): Promise<void>
-    getTokens?(): Promise<ClientToken[]>
-    revokeToken?(tokenId: string): Promise<void>
+    /** The Home's Access Clients, by Access Client ID. */
+    listAccessClients?(): Promise<AccessClient[]>
+    revokeAccessClient?(accessClientId: string): Promise<void>
     /** Access Client revocation for the calling Access Client only. */
-    revokeCurrentToken?(): Promise<void>
+    revokeCurrentAccessClient?(): Promise<void>
     /** Leaving a Home: ends the caller's Membership and all its Access Clients. */
     leaveHome?(): Promise<void>
-    bootstrapOwner?(request: BootstrapOwnerRequest): Promise<HouseholdMember>
     getReleaseStatus?(): Promise<UpdateStatusResponse>
     getSession?(): Promise<SessionResponse>
     /** With `platformVersion`, no other Release is installed. */

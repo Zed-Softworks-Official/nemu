@@ -2,39 +2,17 @@ use axum::extract::{Request, State};
 use axum::middleware::Next;
 use axum::response::Response;
 
-use crate::api::auth::{extract_bearer, extract_query_token};
+use crate::api::auth::authenticate;
 use crate::api::error::ApiError;
-use crate::pairing::tokens::verify_client_token;
 use crate::state::AppState;
-use axum::http::StatusCode;
 
-pub async fn require_client_token(
+/// Admits a Local session and hands the caller to the handler.
+pub async fn require_local_session(
     State(state): State<AppState>,
-    request: Request,
+    mut request: Request,
     next: Next,
 ) -> Result<Response, ApiError> {
-    let token = extract_bearer(request.headers())
-        .or_else(|| extract_query_token(request.uri()))
-        .ok_or_else(|| {
-            ApiError::new(
-                StatusCode::UNAUTHORIZED,
-                "unauthorized",
-                "Missing client token",
-            )
-        })?;
-
-    let valid = verify_client_token(&state.db, &token)
-        .await
-        .map_err(ApiError::internal)?
-        .is_some();
-
-    if !valid {
-        return Err(ApiError::new(
-            StatusCode::UNAUTHORIZED,
-            "unauthorized",
-            "Invalid client token",
-        ));
-    }
-
+    let auth = authenticate(&state, request.headers(), request.uri()).await?;
+    request.extensions_mut().insert(auth);
     Ok(next.run(request).await)
 }

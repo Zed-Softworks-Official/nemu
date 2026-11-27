@@ -199,7 +199,7 @@ catalogs:
       version: 16.4.6
     postcss:
       specifier: ^8.5.3
-      version: 8.5.23
+      version: 8.5.16
     react:
       specifier: 19.3.0
       version: 19.3.0
@@ -601,6 +601,12 @@ importers:
 
   packages/cloud:
     dependencies:
+      '@convex-dev/rate-limiter':
+        specifier: ^0.4.3
+        version: 0.4.3(@standard-schema/spec@1.1.0)(convex@1.51.0(@clerk/react@6.12.5(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(bufferutil@4.1.0)(react@19.3.0)(utf-8-validate@5.0.10))(hono@4.12.27)(prettier@3.9.4)(react@19.3.0)(typescript@5.9.2)(zod@4.3.6)
+      '@nemu/protocol':
+        specifier: workspace:*
+        version: link:../protocol
       '@t3-oss/env-core':
         specifier: ^0.13.11
         version: 0.13.11(typescript@5.9.2)(zod@4.3.6)
@@ -653,6 +659,9 @@ importers:
       convex:
         specifier: ^1.51.0
         version: 1.51.0(@clerk/react@6.12.5(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(bufferutil@4.1.0)(react@19.3.0)(utf-8-validate@5.0.10)
+      zod:
+        specifier: 'catalog:'
+        version: 4.3.6
     devDependencies:
       '@nemu/biome-config':
         specifier: workspace:*
@@ -675,6 +684,15 @@ importers:
 
   packages/protocol:
     dependencies:
+      '@noble/ciphers':
+        specifier: ^2.4.0
+        version: 2.4.0
+      '@noble/curves':
+        specifier: ^2.4.0
+        version: 2.4.0
+      '@noble/hashes':
+        specifier: ^2.4.0
+        version: 2.4.0
       zod:
         specifier: 'catalog:'
         version: 4.3.6
@@ -1587,6 +1605,20 @@ packages:
   '@conventional-changelog/template@1.4.0':
     resolution: {integrity: sha512-aalGyl7dbB5PArRebDIX43ZvBlXrYm9uWzGJ26t+4SzJVPsOuvfILGGbw5X4yX7i50YEmJ8zvbiWnqH/AAnZqg==}
     engines: {node: '>=22'}
+
+  '@convex-dev/batch-worker@0.3.5':
+    resolution: {integrity: sha512-kTxLGy1TXRN6WLcENcoRWWnvPshv1sIZp2EpPqGqCB4FxDI7m8tEHUr+jCLdhGtSZT1UHkWtb1w8YYuEzTxHWQ==}
+    peerDependencies:
+      convex: ^1.51.0
+
+  '@convex-dev/rate-limiter@0.4.3':
+    resolution: {integrity: sha512-IXIEGbZBANC5B23pGmIui7p49kSiltNWyJ7wX7nFmkR396X/Oj9ebgScgxSJMAW7DkhpUtt1NAnQHhjB0v6a/A==}
+    peerDependencies:
+      convex: ^1.51.0
+      react: ^18.2.0 || ^19.0.0
+    peerDependenciesMeta:
+      react:
+        optional: true
 
   '@csstools/color-helpers@5.1.0':
     resolution: {integrity: sha512-S11EXWJyy0Mz5SYvRmY8nJYTFFd1LCNV+7cXyAgQtOOuzb4EsgfqDufL+9esx72/eLhsRdGZwaldu/h+E4t4BA==}
@@ -5485,6 +5517,31 @@ packages:
       '@standard-schema/spec':
         optional: true
       hono:
+        optional: true
+      react:
+        optional: true
+      typescript:
+        optional: true
+      zod:
+        optional: true
+
+  convex-helpers@0.1.137:
+    resolution: {integrity: sha512-J4E3bFVido5jDD4WXx0/TTUvVBXmPfH+yFP3dgVMBwi6Hs9gAE17YZYnAV4xMEsQYC5w3PeIXOOXXuMVTC72QQ==}
+    hasBin: true
+    peerDependencies:
+      '@standard-schema/spec': ^1.0.0
+      convex: ^1.51.0
+      hono: ^4.0.5
+      prettier: ^3.0.0
+      react: ^17.0.2 || ^18.0.0 || ^19.0.0
+      typescript: ^5.5 || ^6.0.0 || ^7.0.0
+      zod: ^3.25.0 || ^4.0.0
+    peerDependenciesMeta:
+      '@standard-schema/spec':
+        optional: true
+      hono:
+        optional: true
+      prettier:
         optional: true
       react:
         optional: true
@@ -10367,6 +10424,31 @@ snapshots:
 
   '@conventional-changelog/template@1.4.0': {}
 
+  '@convex-dev/batch-worker@0.3.5(@standard-schema/spec@1.1.0)(convex@1.51.0(@clerk/react@6.12.5(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(bufferutil@4.1.0)(react@19.3.0)(utf-8-validate@5.0.10))(hono@4.12.27)(prettier@3.9.4)(react@19.3.0)(typescript@5.9.2)(zod@4.3.6)':
+    dependencies:
+      convex: 1.51.0(@clerk/react@6.12.5(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(bufferutil@4.1.0)(react@19.3.0)(utf-8-validate@5.0.10)
+      convex-helpers: 0.1.137(@standard-schema/spec@1.1.0)(convex@1.51.0(@clerk/react@6.12.5(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(bufferutil@4.1.0)(react@19.3.0)(utf-8-validate@5.0.10))(hono@4.12.27)(prettier@3.9.4)(react@19.3.0)(typescript@5.9.2)(zod@4.3.6)
+    transitivePeerDependencies:
+      - '@standard-schema/spec'
+      - hono
+      - prettier
+      - react
+      - typescript
+      - zod
+
+  '@convex-dev/rate-limiter@0.4.3(@standard-schema/spec@1.1.0)(convex@1.51.0(@clerk/react@6.12.5(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(bufferutil@4.1.0)(react@19.3.0)(utf-8-validate@5.0.10))(hono@4.12.27)(prettier@3.9.4)(react@19.3.0)(typescript@5.9.2)(zod@4.3.6)':
+    dependencies:
+      '@convex-dev/batch-worker': 0.3.5(@standard-schema/spec@1.1.0)(convex@1.51.0(@clerk/react@6.12.5(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(bufferutil@4.1.0)(react@19.3.0)(utf-8-validate@5.0.10))(hono@4.12.27)(prettier@3.9.4)(react@19.3.0)(typescript@5.9.2)(zod@4.3.6)
+      convex: 1.51.0(@clerk/react@6.12.5(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(bufferutil@4.1.0)(react@19.3.0)(utf-8-validate@5.0.10)
+    optionalDependencies:
+      react: 19.3.0
+    transitivePeerDependencies:
+      - '@standard-schema/spec'
+      - hono
+      - prettier
+      - typescript
+      - zod
+
   '@csstools/color-helpers@5.1.0': {}
 
   '@csstools/css-calc@2.1.4(@csstools/css-parser-algorithms@3.0.5(@csstools/css-tokenizer@3.0.4))(@csstools/css-tokenizer@3.0.4)':
@@ -14739,6 +14821,17 @@ snapshots:
     optionalDependencies:
       '@standard-schema/spec': 1.1.0
       hono: 4.12.27
+      react: 19.3.0
+      typescript: 5.9.2
+      zod: 4.3.6
+
+  convex-helpers@0.1.137(@standard-schema/spec@1.1.0)(convex@1.51.0(@clerk/react@6.12.5(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(bufferutil@4.1.0)(react@19.3.0)(utf-8-validate@5.0.10))(hono@4.12.27)(prettier@3.9.4)(react@19.3.0)(typescript@5.9.2)(zod@4.3.6):
+    dependencies:
+      convex: 1.51.0(@clerk/react@6.12.5(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(bufferutil@4.1.0)(react@19.3.0)(utf-8-validate@5.0.10)
+    optionalDependencies:
+      '@standard-schema/spec': 1.1.0
+      hono: 4.12.27
+      prettier: 3.9.4
       react: 19.3.0
       typescript: 5.9.2
       zod: 4.3.6

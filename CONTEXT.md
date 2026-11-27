@@ -56,6 +56,13 @@ An Account ending its own Membership in a Home. Every Access Client of that Memb
 **Access grant**:
 A Controller-signed authorization that binds an Access Client's public keys to one Membership. The grant remains valid until the Controller revokes it.
 
+**Local session**:
+A short-lived authorization the Controller gives an Access Client on the home network after the Access Client proves it holds its keys.
+_Avoid_: LAN token, session token
+
+**Pairing code**:
+The short one-time code that proves, during local pairing, that an Access Client and a Controller are talking to each other and not to an impostor.
+
 **Invitation**:
 An Owner's request to add an Account to a Home. An Invitation identifies the Account but grants no access until the Account accepts it from the Home network.
 

@@ -189,20 +189,88 @@ export const patchOutletRequestSchema = z.object({
 })
 export type PatchOutletRequest = z.infer<typeof patchOutletRequestSchema>
 
-export const pairRequestSchema = z.object({
-    code: z.string(),
+// Verified local pairing with CPace (ADR-0037, NEM-126). Bytes are base64url
+// without padding. The Pairing code itself never goes over the wire.
+
+/** What a pairing run is keyed by. */
+export const pairingSecretSchema = z.enum(['pairingCode', 'recoveryKey'])
+export type PairingSecret = z.infer<typeof pairingSecretSchema>
+
+export const startPairingRequestSchema = z.object({
+    secret: pairingSecretSchema.optional(),
+})
+export type StartPairingRequest = z.infer<typeof startPairingRequestSchema>
+
+export const startPairingResponseSchema = z.object({
+    runId: z.string(),
+    sid: z.string(),
+    controllerId: z.string(),
+})
+export type StartPairingResponse = z.infer<typeof startPairingResponseSchema>
+
+export const pairingExchangeRequestSchema = z.object({
+    ya: z.string(),
+    adA: z.string(),
     clientLabel: z.string(),
     userId: z.string(),
     email: z.string(),
     displayName: z.string().optional(),
 })
-export type PairRequest = z.infer<typeof pairRequestSchema>
+export type PairingExchangeRequest = z.infer<
+    typeof pairingExchangeRequestSchema
+>
 
-export const pairResponseSchema = z.object({
-    clientToken: z.string(),
-    controllerId: z.string(),
+export const pairingExchangeResponseSchema = z.object({
+    yb: z.string(),
+    adB: z.string(),
+    tagB: z.string(),
 })
-export type PairResponse = z.infer<typeof pairResponseSchema>
+export type PairingExchangeResponse = z.infer<
+    typeof pairingExchangeResponseSchema
+>
+
+export const pairingConfirmRequestSchema = z.object({ tagA: z.string() })
+export type PairingConfirmRequest = z.infer<typeof pairingConfirmRequestSchema>
+
+export const pairingConfirmResponseSchema = z.object({
+    controllerId: z.string(),
+    accessClientId: z.string(),
+    membershipId: z.string(),
+    /** Controller-signed Access grant (EdDSA JWS). */
+    grant: z.string(),
+})
+export type PairingConfirmResponse = z.infer<
+    typeof pairingConfirmResponseSchema
+>
+
+export const localSessionChallengeResponseSchema = z.object({
+    nonce: z.string(),
+})
+export type LocalSessionChallengeResponse = z.infer<
+    typeof localSessionChallengeResponseSchema
+>
+
+export const openLocalSessionRequestSchema = z.object({
+    accessClientId: z.string(),
+    nonce: z.string(),
+    signature: z.string(),
+    /**
+     * The Access Client's fresh 32-byte nonce (base64url). A refusal that
+     * means "pair again" is signed over it (`relay-crypto` `LanRefusal`).
+     */
+    clientNonce: z.string(),
+})
+export type OpenLocalSessionRequest = z.infer<
+    typeof openLocalSessionRequestSchema
+>
+
+export const openLocalSessionResponseSchema = z.object({
+    session: z.string(),
+    expiresInSeconds: z.number().int().positive(),
+})
+export type OpenLocalSessionResponse = z.infer<
+    typeof openLocalSessionResponseSchema
+>
 
 export const pairingCodeResponseSchema = z.object({
     code: z.string(),
@@ -210,19 +278,21 @@ export const pairingCodeResponseSchema = z.object({
 })
 export type PairingCodeResponse = z.infer<typeof pairingCodeResponseSchema>
 
-export const clientTokenSchema = z.object({
+/** One Access Client of the Home. `id` is its Access Client ID. */
+export const accessClientSchema = z.object({
     id: z.string(),
     label: z.string(),
     createdAt: z.string(),
     lastSeenAt: z.string().nullable(),
     userId: z.string().nullable().optional(),
 })
-export type ClientToken = z.infer<typeof clientTokenSchema>
+export type AccessClient = z.infer<typeof accessClientSchema>
 
-export const tokensResponseSchema = z.object({
-    tokens: z.array(clientTokenSchema),
+/** `GET /api/access-clients`. */
+export const accessClientsResponseSchema = z.object({
+    accessClients: z.array(accessClientSchema),
 })
-export type TokensResponse = z.infer<typeof tokensResponseSchema>
+export type AccessClientsResponse = z.infer<typeof accessClientsResponseSchema>
 
 export const householdMemberSchema = z.object({
     id: z.string(),
@@ -244,19 +314,6 @@ export const inviteMemberRequestSchema = z.object({
     email: z.string().trim().min(1),
 })
 export type InviteMemberRequest = z.infer<typeof inviteMemberRequestSchema>
-
-export const bootstrapOwnerRequestSchema = z.object({
-    userId: z.string().trim().min(1),
-    email: z.string().trim().min(1),
-    displayName: z.string().optional(),
-})
-export type BootstrapOwnerRequest = z.infer<typeof bootstrapOwnerRequestSchema>
-
-export const sessionMintResultSchema = z.object({
-    clientToken: z.string(),
-    controllerId: z.string(),
-})
-export type SessionMintResult = z.infer<typeof sessionMintResultSchema>
 
 /** The caller's Membership role. Clients use it only to decide what to show. */
 export const sessionRoleSchema = z.enum(['owner', 'member'])

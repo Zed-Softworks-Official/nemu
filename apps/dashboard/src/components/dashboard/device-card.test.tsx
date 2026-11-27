@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { presentDevice } from '~/lib/device-presentation'
 import {
-    DASHBOARD_TOKEN,
+    DASHBOARD_ACCESS_CLIENT_ID,
     renderWithController,
 } from '~/test/render-with-controller'
 import { DeviceCard } from './device-card'
@@ -27,7 +27,7 @@ async function toggled() {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     const controller = new FakeController({
         controllerId: 'lake',
-        acceptedTokens: [DASHBOARD_TOKEN],
+        acceptedAccessClients: [DASHBOARD_ACCESS_CLIENT_ID],
     })
     controller.commandResult = () => ({
         requestId: 'cmd-1',

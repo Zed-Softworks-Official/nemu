@@ -8,7 +8,7 @@ import {
     commissioningStepEventSchema,
 } from './commissioning-progress.ts'
 import { deviceEventSchema } from './events.ts'
-import { relayToClientEnvelopeSchema } from './relay.ts'
+import { relayPushMessageSchema, relayReplyMessageSchema } from './relay.ts'
 
 const progress = [
     ...COMMISSIONING_STEPS.map((step) => ({ status: 'active', step })),
@@ -33,18 +33,15 @@ describe('Commissioning progress', () => {
     })
 
     for (const payload of progress) {
-        it(`reads ${JSON.stringify(payload)} from the adapter and over LAN only`, () => {
+        it(`reads ${JSON.stringify(payload)} from the adapter, over LAN and over Relay`, () => {
             assert.deepEqual(bridgeCommissioningSchema.parse(payload), payload)
             const event = { type: 'commissioningStep', ...payload }
             assert.deepEqual(deviceEventSchema.parse(event), event)
-            // Relay envelopes aren't encrypted yet, so progress stays off
-            // Relay until NEM-63 brings encrypted pushes.
+            // Over Relay, progress is a sealed push on the capability watch.
+            assert.deepEqual(relayPushMessageSchema.parse(event), event)
+            // It never answers a request, so it is never a reply.
             assert.equal(
-                relayToClientEnvelopeSchema.safeParse({
-                    requestId: 'watch-1',
-                    signature: 's',
-                    message: event,
-                }).success,
+                relayReplyMessageSchema.safeParse(event).success,
                 false
             )
         })
@@ -68,10 +65,10 @@ describe('Commissioning progress', () => {
 })
 
 /**
- * Progress reaches Access Clients, over Relay too once NEM-63 encrypts it, so
- * it must never carry a secret. The schemas are
- * strict and every field is an enum: a pairing code, passcode or Wi-Fi
- * credential has nowhere to go, under any name or as any value.
+ * Progress reaches Access Clients over LAN and over Relay, so it must never
+ * carry a secret. The schemas are strict and every field is an enum: a
+ * pairing code, passcode or Wi-Fi credential has nowhere to go, under any
+ * name or as any value.
  */
 describe('Commissioning progress carries no secrets', () => {
     const secrets: Record<string, string> = {
@@ -102,11 +99,11 @@ describe('Commissioning progress carries no secrets', () => {
                 )
                 assert.equal(deviceEventSchema.safeParse(event).success, false)
                 assert.equal(
-                    relayToClientEnvelopeSchema.safeParse({
-                        requestId: 'watch-1',
-                        signature: 's',
-                        message: event,
-                    }).success,
+                    relayReplyMessageSchema.safeParse(event).success,
+                    false
+                )
+                assert.equal(
+                    relayPushMessageSchema.safeParse(event).success,
                     false
                 )
             })

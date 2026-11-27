@@ -2,10 +2,7 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
 import { sessionResponseSchema } from './api.ts'
-import {
-    relayToClientEnvelopeSchema,
-    relayToControllerEnvelopeSchema,
-} from './relay.ts'
+import { relayReplyMessageSchema, relayRequestMessageSchema } from './relay.ts'
 
 describe('Role in the session (NEM-86)', () => {
     it('parses the LAN session response for Owners and Members', () => {
@@ -23,22 +20,17 @@ describe('Role in the session (NEM-86)', () => {
     })
 
     it('sends getSession over Relay with no arguments', () => {
-        const parsed = relayToControllerEnvelopeSchema.parse({
-            requestId: 'r1',
-            clientToken: 'token',
-            message: { type: 'getSession' },
-        })
-        assert.deepEqual(parsed.message, { type: 'getSession' })
+        const parsed = relayRequestMessageSchema.parse({ type: 'getSession' })
+        assert.deepEqual(parsed, { type: 'getSession' })
     })
 
     it('answers over Relay with the same shape as LAN', () => {
-        const parsed = relayToClientEnvelopeSchema.parse({
-            requestId: 'r1',
-            signature: 'sig',
-            message: { type: 'session', role: 'member' },
+        const parsed = relayReplyMessageSchema.parse({
+            type: 'session',
+            role: 'member',
         })
-        assert.deepEqual(parsed.message, { type: 'session', role: 'member' })
-        const { type: _type, ...body } = parsed.message as {
+        assert.deepEqual(parsed, { type: 'session', role: 'member' })
+        const { type: _type, ...body } = parsed as {
             type: string
             role: string
         }

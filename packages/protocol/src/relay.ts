@@ -1,9 +1,9 @@
 import { z } from 'zod'
 import {
+    accessClientSchema,
     applyUpdateRequestSchema,
     applyUpdateResponseSchema,
     assignRoomRequestSchema,
-    clientTokenSchema,
     commissionResponseSchema,
     createRoomRequestSchema,
     deleteRoomRequestSchema,
@@ -22,6 +22,7 @@ import {
     capabilityChangeEventSchema,
     capabilitySnapshotEventSchema,
 } from './capability.ts'
+import { commissioningStepEventSchema } from './commissioning-progress.ts'
 import { deviceSchema, deviceStateSchema, roomSchema } from './device.ts'
 import {
     designateHomeMeterMessageSchema,
@@ -61,14 +62,6 @@ const relaySnapshotMessageSchema = z.object({
     devices: z.array(z.unknown()),
 })
 
-const sessionMintMessageSchema = z.object({
-    type: z.literal('sessionMint'),
-    userId: z.string(),
-    email: z.string(),
-    clientLabel: z.string(),
-    displayName: z.string().optional(),
-})
-
 /** Device and Room setup. Same requests and outcomes as LAN (ADR-0023). */
 const setupRelayMessageSchemas = [
     renameDeviceRequestSchema.extend({ type: z.literal('renameDevice') }),
@@ -90,9 +83,10 @@ const setupRelayMessageSchemas = [
 /**
  * Commissioning every Membership may do over Relay (ADR-0034). Starting
  * Matter commissioning and reading or saving Matter Wi-Fi have no Relay
- * message: pairing codes and Wi-Fi credentials must not cross Relay until
- * its envelopes are encrypted end to end (NEM-63). Cancelling Matter carries
- * neither, so a commissioning started over LAN can still be stopped.
+ * message: ADR-0034's interim limit keeps pairing codes and Wi-Fi
+ * credentials off Relay until NEM-98 lifts it, even though envelopes are now
+ * sealed end to end. Cancelling Matter carries neither, so a commissioning
+ * started over LAN can still be stopped.
  */
 const commissioningRelayMessageSchemas = [
     z.object({ type: z.literal('cancelMatterCommission') }),
@@ -106,7 +100,12 @@ const commissioningRelayResultSchemas = [
     permitJoinResponseSchema.extend({ type: z.literal('permitJoin') }),
 ] as const
 
-const authenticatedRelayMessageSchema = z.union([
+/**
+ * One action, as a sealed Relay request's plaintext (`JSON.stringify` of
+ * it, encrypted to the Controller). The clear header carries the requestId;
+ * nothing else is in the clear (ADR-0001).
+ */
+export const relayRequestMessageSchema = z.union([
     ...setupRelayMessageSchemas,
     ...commissioningRelayMessageSchemas,
     relayCommandMessageSchema,
@@ -115,20 +114,27 @@ const authenticatedRelayMessageSchema = z.union([
     z.object({ type: z.literal('listMembers') }),
     z.object({ type: z.literal('inviteMember'), email: z.string() }),
     z.object({ type: z.literal('removeMember'), memberId: z.string() }),
-    z.object({ type: z.literal('listTokens') }),
-    z.object({ type: z.literal('revokeToken'), tokenId: z.string() }),
+    /** The Home's Access Clients, by Access Client ID. */
+    z.object({ type: z.literal('listAccessClients') }),
+    /** Revokes one Access Client by its Access Client ID. */
+    z.object({
+        type: z.literal('revokeAccessClient'),
+        accessClientId: z.string(),
+    }),
     /** Access Client revocation: only the calling Access Client loses access. */
     z.object({ type: z.literal('revokeCurrent') }),
     /** Leaving a Home: ends the caller's own Membership. */
     z.object({ type: z.literal('leaveHome') }),
-    z.object({
-        type: z.literal('bootstrapOwner'),
-        userId: z.string(),
-        email: z.string(),
-        displayName: z.string().optional(),
-    }),
     z.object({ type: z.literal('getCapabilitySnapshot') }),
-    z.object({ type: z.literal('watchCapabilityChanges') }),
+    /**
+     * Registers a capability watch. Its pushes are sealed with the key this
+     * request exports. `renews` names the watch it replaces, so each tab
+     * holds one live watch.
+     */
+    z.object({
+        type: z.literal('watchCapabilityChanges'),
+        renews: z.string().min(1).max(256).optional(),
+    }),
     historyQueryMessageSchema,
     historyCursorMessageSchema,
     designateHomeMeterMessageSchema,
@@ -146,90 +152,69 @@ const authenticatedRelayMessageSchema = z.union([
     z.object({ type: z.literal('getHealthSummary') }),
 ])
 
-export const relayToControllerEnvelopeSchema = z.union([
+export type RelayRequestMessage = z.infer<typeof relayRequestMessageSchema>
+
+/** One reply, as a sealed Relay response's plaintext. */
+export const relayReplyMessageSchema = z.union([
+    relayCommandResultMessageSchema,
+    relaySnapshotMessageSchema,
     z.object({
-        requestId: z.string(),
-        message: sessionMintMessageSchema,
+        type: z.literal('devices'),
+        devices: z.array(z.unknown()),
     }),
     z.object({
-        requestId: z.string(),
-        clientToken: z.string(),
-        /**
-         * Unix milliseconds after which the sender gave up on a write. The
-         * Controller refuses it from then on, so a write Convex held while
-         * disconnected does not run later. Older Controllers ignore it.
-         */
-        expiresAt: z.number().int().optional(),
-        message: authenticatedRelayMessageSchema,
+        type: z.literal('rooms'),
+        rooms: z.array(roomSchema),
     }),
+    z.object({ type: z.literal('device'), device: deviceSchema }),
+    z.object({ type: z.literal('room'), room: roomSchema }),
+    z.object({
+        type: z.literal('members'),
+        members: z.array(householdMemberSchema),
+    }),
+    z.object({
+        type: z.literal('member'),
+        member: householdMemberSchema,
+    }),
+    z.object({
+        type: z.literal('accessClients'),
+        accessClients: z.array(accessClientSchema),
+    }),
+    capabilitySnapshotEventSchema,
+    capabilityChangeEventSchema,
+    z.object({ type: z.literal('capabilityWatchAck') }),
+    historyQueryResultSchema,
+    historyQueryRestartSchema,
+    homeMeterDesignationResultSchema,
+    historyBackupResultSchema,
+    historyBackupRestoredSchema,
+    releaseStatusSchema.extend({
+        type: z.literal('releaseStatus'),
+    }),
+    applyUpdateResponseSchema.extend({
+        type: z.literal('installRelease'),
+    }),
+    applyUpdateResponseSchema.extend({
+        type: z.literal('rollbackRelease'),
+    }),
+    switchReleaseChannelResponseSchema.extend({
+        type: z.literal('switchReleaseChannel'),
+    }),
+    ...commissioningRelayResultSchemas,
+    sessionResponseSchema.extend({ type: z.literal('session') }),
+    ownerHealthSummarySchema.extend({ type: z.literal('healthSummary') }),
+    memberHealthSummarySchema.extend({ type: z.literal('healthSummary') }),
 ])
-export type RelayToControllerEnvelope = z.infer<
-    typeof relayToControllerEnvelopeSchema
->
+export type RelayReplyMessage = z.infer<typeof relayReplyMessageSchema>
 
-export const relayToClientEnvelopeSchema = z.object({
-    requestId: z.string(),
-    signature: z.string(),
-    message: z.union([
-        relayCommandResultMessageSchema,
-        relaySnapshotMessageSchema,
-        z.object({
-            type: z.literal('devices'),
-            devices: z.array(z.unknown()),
-        }),
-        z.object({
-            type: z.literal('rooms'),
-            rooms: z.array(roomSchema),
-        }),
-        z.object({ type: z.literal('device'), device: deviceSchema }),
-        z.object({ type: z.literal('room'), room: roomSchema }),
-        z.object({
-            type: z.literal('sessionMintResult'),
-            clientToken: z.string(),
-            controllerId: z.string(),
-        }),
-        z.object({
-            type: z.literal('members'),
-            members: z.array(householdMemberSchema),
-        }),
-        z.object({
-            type: z.literal('member'),
-            member: householdMemberSchema,
-        }),
-        z.object({
-            type: z.literal('tokens'),
-            tokens: z.array(clientTokenSchema),
-        }),
-        capabilitySnapshotEventSchema,
-        capabilityChangeEventSchema,
-        z.object({ type: z.literal('capabilityWatchAck') }),
-        historyQueryResultSchema,
-        historyQueryRestartSchema,
-        homeMeterDesignationResultSchema,
-        historyBackupResultSchema,
-        historyBackupRestoredSchema,
-        releaseStatusSchema.extend({
-            type: z.literal('releaseStatus'),
-        }),
-        applyUpdateResponseSchema.extend({
-            type: z.literal('installRelease'),
-        }),
-        applyUpdateResponseSchema.extend({
-            type: z.literal('rollbackRelease'),
-        }),
-        switchReleaseChannelResponseSchema.extend({
-            type: z.literal('switchReleaseChannel'),
-        }),
-        ...commissioningRelayResultSchemas,
-        sessionResponseSchema.extend({ type: z.literal('session') }),
-        ownerHealthSummarySchema.extend({ type: z.literal('healthSummary') }),
-        memberHealthSummarySchema.extend({ type: z.literal('healthSummary') }),
-    ]),
-})
-export type RelayToClientEnvelope = z.infer<typeof relayToClientEnvelopeSchema>
-
-export const relayEnvelopeSchema = z.union([
-    relayToControllerEnvelopeSchema,
-    relayToClientEnvelopeSchema,
+/**
+ * One push, as a sealed Relay push's plaintext. Pushes ride the capability
+ * watch: its changes and snapshots, and commissioning progress. Progress
+ * never answers a request, so it is not a reply.
+ */
+export const relayPushMessageSchema = z.union([
+    capabilityChangeEventSchema,
+    capabilitySnapshotEventSchema,
+    commissioningStepEventSchema,
 ])
-export type RelayEnvelope = z.infer<typeof relayEnvelopeSchema>
+export type RelayPushMessage = z.infer<typeof relayPushMessageSchema>

@@ -29,6 +29,32 @@ export default defineSchema({
         .index('by_user_and_controller', ['userId', 'controllerId'])
         .index('by_controller', ['controllerId']),
 
+    /**
+     * Signed Membership routing projections (ADR-0005, NEM-133): the latest
+     * one per Membership, as the Controller signed it. Routing facts only.
+     * Relay routes on these, not on `pairings`.
+     */
+    membershipRoutes: defineTable({
+        controllerId: v.string(),
+        identityEpoch: v.number(),
+        membershipId: v.string(),
+        /** The Account's identity reference (its Clerk subject). */
+        accountId: v.string(),
+        state: v.union(v.literal('active'), v.literal('ended')),
+        sequence: v.number(),
+        /**
+         * The Membership's Access Clients, which alone may use Relay for
+         * this Account. Access Client IDs already cross Convex in every
+         * envelope header; this binds them to the Account that posts them.
+         */
+        accessClientIds: v.array(v.string()),
+        /** The Controller's Ed25519 signature, base64url. */
+        signature: v.string(),
+    })
+        .index('by_membership', ['controllerId', 'membershipId'])
+        .index('by_controller_and_account', ['controllerId', 'accountId'])
+        .index('by_controller_and_epoch', ['controllerId', 'identityEpoch']),
+
     invites: defineTable({
         controllerId: v.string(),
         email: v.string(),
@@ -38,14 +64,35 @@ export default defineSchema({
         .index('by_email', ['email'])
         .index('by_controller_and_email', ['controllerId', 'email']),
 
+    /**
+     * Relay mailbox (ADR-0001). Each row is a sealed envelope's clear header
+     * plus its opaque sealed parts, and nothing else: Convex never sees an
+     * action, a result or authorization material.
+     */
     relayMessages: defineTable({
+        kind: v.union(
+            v.literal('request'),
+            v.literal('response'),
+            v.literal('push')
+        ),
+        // Clear header, signed by the sender and bound to the ciphertext.
         controllerId: v.string(),
-        direction: v.union(v.literal('toController'), v.literal('toClient')),
+        identityEpoch: v.number(),
+        accessClientId: v.string(),
         requestId: v.string(),
-        payload: v.string(),
-        expiresAt: v.number(),
+        /** Requests and pushes only. */
+        counter: v.optional(v.number()),
+        /** Requests only: the sender's signed expiry, in ms. */
+        expiresAt: v.optional(v.number()),
+        // Opaque sealed parts (base64url). Never parsed or logged.
+        /** Requests only: the HPKE encapsulated key. */
+        enc: v.optional(v.string()),
+        ciphertext: v.string(),
+        signature: v.string(),
+        /** Mailbox bookkeeping: when Convex drops the row, in ms. */
+        deleteAt: v.number(),
     })
-        .index('by_controller_and_direction', ['controllerId', 'direction'])
-        .index('by_request_id', ['requestId'])
-        .index('by_expiry', ['expiresAt']),
+        .index('by_controller_and_kind', ['controllerId', 'kind'])
+        .index('by_request', ['controllerId', 'accessClientId', 'requestId'])
+        .index('by_delete_at', ['deleteAt']),
 })

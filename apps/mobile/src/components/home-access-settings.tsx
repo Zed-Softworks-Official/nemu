@@ -1,4 +1,4 @@
-import { useController } from '@nemu/controller'
+import { PAIR_AGAIN_ERROR_CODES, useController } from '@nemu/controller'
 import { ApiError } from '@nemu/protocol'
 import { useState } from 'react'
 import { View } from 'react-native'
@@ -17,8 +17,8 @@ type Pending = 'remove' | 'leave'
  * as the Controller gave it.
  */
 export function HomeAccessSettings() {
-    const { activeHome, forgetPairing, switchHome } = useHomeSession()
-    const { status, revokeCurrentToken, leaveHome } = useController()
+    const { activeHome, clearPairing, switchHome } = useHomeSession()
+    const { status, revokeCurrentAccessClient, leaveHome } = useController()
     const [confirming, setConfirming] = useState<Pending | null>(null)
     const [busy, setBusy] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -32,14 +32,15 @@ export function HomeAccessSettings() {
             <View className="gap-3">
                 <Text accessibilityRole="alert" className="text-sm">
                     This phone can’t reach {home} on the Home network or
-                    remotely. Forgetting it only clears {home} from this phone.
+                    remotely. Removing it here only clears {home} from this
+                    phone.
                     {` ${home}`} still trusts this phone until an Owner revokes
                     it from the dashboard.
                 </Text>
                 <View className="flex-row">
                     <Button
-                        onPress={() => forgetPairing()}
-                        title="Forget on this phone"
+                        onPress={() => clearPairing()}
+                        title="Remove this phone"
                         variant="destructive"
                     />
                 </View>
@@ -52,23 +53,23 @@ export function HomeAccessSettings() {
         setError(null)
         try {
             if (action === 'remove') {
-                await revokeCurrentToken()
-                forgetPairing()
+                await revokeCurrentAccessClient()
+                clearPairing()
             } else {
                 await leaveHome()
-                forgetPairing()
+                clearPairing()
                 switchHome()
             }
         } catch (cause) {
             if (credentialRejected(cause)) {
                 // The Controller no longer accepts this phone: it was
-                // already removed. Revoke what may remain (a token whose
-                // Membership is inactive), then clear this Home's
-                // credentials on the phone.
+                // already removed. Revoke what may remain (an Access Client
+                // whose Membership is inactive), then clear this Home's
+                // keys on the phone.
                 if (action === 'leave') {
-                    await revokeCurrentToken().catch(() => {})
+                    await revokeCurrentAccessClient().catch(() => {})
                 }
-                forgetPairing(`This phone was already removed from ${home}.`)
+                clearPairing(`This phone was already removed from ${home}.`)
                 return
             }
             setError(describeRefusal(cause, home))
@@ -168,10 +169,12 @@ function Confirmation({
 }
 
 /** Refusals that mean the Controller no longer accepts this phone. */
-const REMOVED_CODES = new Set([
+const REMOVED_CODES = new Set<string>([
     'unauthorized',
     'not_found',
     'inactive_membership',
+    // The Controller no longer knows, or has revoked, this Access Client.
+    ...PAIR_AGAIN_ERROR_CODES,
 ])
 
 function credentialRejected(cause: unknown): boolean {

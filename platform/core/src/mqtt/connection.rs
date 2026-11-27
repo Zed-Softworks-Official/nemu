@@ -345,6 +345,18 @@ impl MqttHandle {
 
 const TIMEOUT_MARKER: &str = "__bridge_response_timeout__";
 
+/// A handle whose broker never answers, for tests that do not touch MQTT.
+#[cfg(test)]
+pub fn test_handle() -> MqttHandle {
+    let (client, _eventloop) = AsyncClient::new(MqttOptions::new("nemu-test", "127.0.0.1", 1), 8);
+    MqttHandle {
+        client,
+        bridges: Arc::new(Vec::new()),
+        pending_responses: Arc::new(Mutex::new(HashMap::new())),
+        refreshing_state: Arc::new(AtomicBool::new(false)),
+    }
+}
+
 pub fn create_client(config: &Config) -> (MqttHandle, rumqttc::EventLoop) {
     let mut opts = MqttOptions::new(
         config.mqtt_client_id.clone(),

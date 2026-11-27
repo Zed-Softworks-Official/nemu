@@ -3,7 +3,7 @@ import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import {
-    DASHBOARD_TOKEN,
+    DASHBOARD_ACCESS_CLIENT_ID,
     renderWithController,
 } from '~/test/render-with-controller'
 import { DevicePairingWizard } from './device-pairing-wizard'
@@ -16,7 +16,7 @@ describe('Adding a Matter Device from the dashboard', () => {
     it('is not offered over Relay, and sends nothing', async () => {
         const controller = new FakeController({
             controllerId: 'lake',
-            acceptedTokens: [DASHBOARD_TOKEN],
+            acceptedAccessClients: [DASHBOARD_ACCESS_CLIENT_ID],
             lanReachable: false,
         })
         renderWithController(<DevicePairingWizard />, controller)
@@ -33,7 +33,7 @@ describe('Adding a Matter Device from the dashboard', () => {
     it('starts on the Home network', async () => {
         const controller = new FakeController({
             controllerId: 'lake',
-            acceptedTokens: [DASHBOARD_TOKEN],
+            acceptedAccessClients: [DASHBOARD_ACCESS_CLIENT_ID],
         })
         renderWithController(<DevicePairingWizard />, controller)
         const user = userEvent.setup()

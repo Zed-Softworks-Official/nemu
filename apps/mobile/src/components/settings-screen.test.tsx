@@ -1,16 +1,9 @@
-import {
-    createMemoryCredentialStore,
-    FakeController,
-    fakeControllerConnectors,
-} from '@nemu/controller/testing'
+import { FakeController } from '@nemu/controller/testing'
 import type { SessionRole, UpdateStatusResponse } from '@nemu/protocol'
 import { render, screen } from '@testing-library/react-native'
 
-import {
-    HomeSessionProvider,
-    type HomeSessionServices,
-    type MobileHome,
-} from '~/components/home-session'
+import { HomeSessionProvider, type MobileHome } from '~/components/home-session'
+import { pairedServices } from '~/test/home-session-services'
 import SettingsScreen from '../app/(app)/(tabs)/(home,devices,energy)/settings'
 
 // Settings opens the update sheet; update-sheet.test.tsx covers the routes.
@@ -39,29 +32,7 @@ const OWNER_ONLY = 'Install update'
 const MEMBER_NOTE = 'An Owner of Lake House can install it.'
 
 async function renderSettings(controller: FakeController) {
-    const services: HomeSessionServices = {
-        credentialStore: createMemoryCredentialStore({
-            lake: { clientToken: 'phone' },
-        }),
-        activeHomeStore: {
-            get: () => 'lake',
-            set: () => {},
-            clear: () => {},
-        },
-        connectors: {
-            ...fakeControllerConnectors(controller),
-            discover: async () =>
-                controller.lanReachable
-                    ? {
-                          baseUrl: controller.baseUrl,
-                          health: { status: 'ok' },
-                      }
-                    : null,
-        },
-        pairOnLan: async () => {},
-        mintOverRelay: async () => {},
-        recordMembership: async () => {},
-    }
+    const { services } = await pairedServices(controller)
     await render(
         <HomeSessionProvider homes={[LAKE]} services={services}>
             <SettingsScreen />
@@ -78,7 +49,7 @@ describe.each([
             controllerId: 'lake',
             name: 'Lake House',
             lanReachable,
-            acceptedTokens: ['phone'],
+            acceptedAccessClients: ['phone'],
             role,
         })
         controller.releaseStatus = structuredClone(NEWER)
@@ -142,7 +113,7 @@ describe('Settings Release while offline', () => {
             name: 'Lake House',
             lanReachable: false,
             relayReachable: false,
-            acceptedTokens: ['phone'],
+            acceptedAccessClients: ['phone'],
             role: 'owner',
         })
         controller.releaseStatus = structuredClone(NEWER)

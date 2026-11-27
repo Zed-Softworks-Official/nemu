@@ -1,14 +1,16 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
+import { ApiError } from '@nemu/protocol'
 import {
     type AccessClientPairingOptions,
     type AccessClientPairingState,
     createAccessClientPairing,
 } from './access-client-pairing.ts'
 import {
-    createMemoryCredentialStore,
+    createMemoryAccessClientKeyStore,
     FakeController,
     fakeControllerConnectors,
+    pairFakeAccessClient,
 } from './testing.ts'
 
 function deferred<T>() {
@@ -26,28 +28,17 @@ function setup(
     overrides: Partial<AccessClientPairingOptions> = {},
     others: FakeController[] = []
 ) {
-    const credentialStore = createMemoryCredentialStore()
+    const keyStore = createMemoryAccessClientKeyStore()
     const connectors = fakeControllerConnectors(controller, ...others)
     const memberships: string[] = []
     const pairing = createAccessClientPairing({
         home: { controllerId: controller.controllerId, name: 'Beach House' },
-        isMember: true,
         lanCandidates: [controller.baseUrl],
-        credentialStore,
+        keyStore,
         discover: (candidates) => connectors.discover(candidates, null),
         identify: connectors.identify,
         pairOnLan: async (_baseUrl, code, staging) => {
-            const result = controller.pair(code)
-            staging.set(result.controllerId, {
-                clientToken: result.clientToken,
-                baseUrl: controller.baseUrl,
-            })
-        },
-        mintOverRelay: async (staging) => {
-            const result = controller.mintSession()
-            staging.set(result.controllerId, {
-                clientToken: result.clientToken,
-            })
+            await pairFakeAccessClient(controller, staging, { code })
         },
         recordMembership: async (controllerId) => {
             memberships.push(controllerId)
@@ -56,13 +47,13 @@ function setup(
     })
     const states: AccessClientPairingState[] = []
     pairing.subscribe((state) => states.push(state))
-    return { pairing, credentialStore, memberships, states }
+    return { pairing, keyStore, memberships, states }
 }
 
 describe('Access Client pairing for the selected Home', () => {
-    it('pairs on LAN with a code and stores that Home credential', async () => {
+    it('pairs on LAN with a code and keeps the Home Access Client keys', async () => {
         const home = new FakeController({ controllerId: 'home-a' })
-        const { pairing, credentialStore, memberships } = setup(home)
+        const { pairing, keyStore, memberships } = setup(home)
 
         await pairing.start()
         assert.equal(pairing.getState().phase, 'awaitingCode')
@@ -71,15 +62,15 @@ describe('Access Client pairing for the selected Home', () => {
 
         const state = pairing.getState()
         assert.equal(state.phase, 'paired')
-        const credential = credentialStore.get('home-a')
-        assert.ok(credential)
-        assert.ok(home.acceptsToken(credential.clientToken))
+        const record = await keyStore.load('home-a')
+        assert.ok(record)
+        assert.ok(home.accepts(record.enrollment.accessClientId))
         assert.deepEqual(memberships, ['home-a'])
     })
 
     it('reports a wrong code and lets the person try again', async () => {
         const home = new FakeController({ controllerId: 'home-a' })
-        const { pairing, credentialStore } = setup(home)
+        const { pairing, keyStore } = setup(home)
 
         await pairing.start()
         await pairing.submitCode('000000')
@@ -87,7 +78,7 @@ describe('Access Client pairing for the selected Home', () => {
         const state = pairing.getState()
         assert.equal(state.phase, 'failed')
         assert.equal(state.phase === 'failed' && state.reason, 'invalid_code')
-        assert.equal(credentialStore.get('home-a'), null)
+        assert.equal(await keyStore.load('home-a'), null)
 
         await pairing.retry()
         assert.equal(pairing.getState().phase, 'awaitingCode')
@@ -95,41 +86,47 @@ describe('Access Client pairing for the selected Home', () => {
         assert.equal(pairing.getState().phase, 'paired')
     })
 
-    it('mints over Relay for a Member when the Home is not on this network', async () => {
+    it('asks a Member to pair at home when the Home is not on this network', async () => {
         const home = new FakeController({
             controllerId: 'home-a',
             lanReachable: false,
         })
-        const { pairing, credentialStore, states } = setup(home)
+        const { pairing, keyStore, states } = setup(home)
 
         await pairing.start()
 
+        // Relay never pairs: a new Access Client pairs on the home network.
         assert.deepEqual(
             states.map((state) => state.phase),
-            ['idle', 'discovering', 'pairing', 'paired']
+            ['idle', 'discovering', 'failed']
         )
-        assert.ok(
-            home.acceptsToken(
-                credentialStore.get('home-a')?.clientToken ?? null
-            )
+        const state = pairing.getState()
+        assert.equal(
+            state.phase === 'failed' && state.reason,
+            'not_on_home_network'
         )
+        assert.match(state.phase === 'failed' ? state.message : '', /home/i)
+        assert.equal(await keyStore.load('home-a'), null)
     })
 
-    it('fails clearly when the Home cannot be reached at all', async () => {
-        const home = new FakeController({
-            controllerId: 'home-a',
-            lanReachable: false,
-            relayReachable: false,
+    it('reports a Controller that refuses this Access Client', async () => {
+        const home = new FakeController({ controllerId: 'home-a' })
+        const { pairing, keyStore } = setup(home, {
+            pairOnLan: async () => {
+                throw new ApiError(
+                    'tombstoned_access_client',
+                    'This Access Client was revoked',
+                    403
+                )
+            },
         })
-        const { pairing, credentialStore } = setup(home)
 
         await pairing.start()
+        await pairing.submitCode(home.pairingCode)
 
         const state = pairing.getState()
-        assert.equal(state.phase, 'failed')
-        assert.equal(state.phase === 'failed' && state.reason, 'unreachable')
-        assert.ok(state.phase === 'failed' && state.message.length > 0)
-        assert.equal(credentialStore.get('home-a'), null)
+        assert.equal(state.phase === 'failed' && state.reason, 'revoked')
+        assert.equal(await keyStore.load('home-a'), null)
     })
 
     it('requires the Home network when there is no Membership yet', async () => {
@@ -137,7 +134,7 @@ describe('Access Client pairing for the selected Home', () => {
             controllerId: 'home-a',
             lanReachable: false,
         })
-        const { pairing } = setup(home, { isMember: false })
+        const { pairing } = setup(home)
 
         await pairing.start()
 
@@ -162,7 +159,6 @@ describe('Access Client pairing for the selected Home', () => {
             selected,
             {
                 lanCandidates: ['http://nemu.local:6368'],
-                isMember: false,
             },
             [neighbour]
         )
@@ -173,16 +169,13 @@ describe('Access Client pairing for the selected Home', () => {
         assert.equal(state.phase === 'failed' && state.reason, 'wrong_home')
     })
 
-    it('cancels in-flight pairing without storing a credential', async () => {
+    it('cancels in-flight pairing without keeping keys', async () => {
         const home = new FakeController({ controllerId: 'home-a' })
         const gate = deferred<void>()
-        const { pairing, credentialStore, memberships } = setup(home, {
+        const { pairing, keyStore, memberships } = setup(home, {
             pairOnLan: async (_baseUrl, code, staging) => {
                 await gate.promise
-                const result = home.pair(code)
-                staging.set(result.controllerId, {
-                    clientToken: result.clientToken,
-                })
+                await pairFakeAccessClient(home, staging, { code })
             },
         })
 
@@ -197,13 +190,13 @@ describe('Access Client pairing for the selected Home', () => {
         await submitted
 
         assert.equal(pairing.getState().phase, 'cancelled')
-        assert.equal(credentialStore.get('home-a'), null)
+        assert.equal(await keyStore.load('home-a'), null)
         assert.deepEqual(memberships, [])
     })
 
-    it('does not keep a credential when recording the Membership fails', async () => {
+    it('does not keep keys when recording the Membership fails', async () => {
         const home = new FakeController({ controllerId: 'home-a' })
-        const { pairing, credentialStore } = setup(home, {
+        const { pairing, keyStore } = setup(home, {
             recordMembership: async () => {
                 throw new Error('Not invited to this home')
             },
@@ -215,6 +208,6 @@ describe('Access Client pairing for the selected Home', () => {
         const state = pairing.getState()
         assert.equal(state.phase, 'failed')
         assert.match(state.phase === 'failed' ? state.message : '', /invited/)
-        assert.equal(credentialStore.get('home-a'), null)
+        assert.equal(await keyStore.load('home-a'), null)
     })
 })

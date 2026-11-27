@@ -16,7 +16,6 @@ import type * as http from '../http.js'
 import type * as invites from '../invites.js'
 import type * as pairings from '../pairings.js'
 import type * as relay from '../relay.js'
-import type * as sessionMints from '../sessionMints.js'
 
 import type {
     ApiFromModules,
@@ -33,7 +32,6 @@ declare const fullApi: ApiFromModules<{
     invites: typeof invites
     pairings: typeof pairings
     relay: typeof relay
-    sessionMints: typeof sessionMints
 }>
 
 /**
@@ -62,4 +60,6 @@ export declare const internal: FilterApi<
     FunctionReference<any, 'internal'>
 >
 
-export declare const components: {}
+export declare const components: {
+    rateLimiter: import('@convex-dev/rate-limiter/_generated/component.js').ComponentApi<'rateLimiter'>
+}

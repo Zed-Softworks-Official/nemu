@@ -2,10 +2,7 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
 import { healthResponseSchema, healthSummarySchema } from './api.ts'
-import {
-    relayToClientEnvelopeSchema,
-    relayToControllerEnvelopeSchema,
-} from './relay.ts'
+import { relayReplyMessageSchema, relayRequestMessageSchema } from './relay.ts'
 
 const ownerSummary = {
     view: 'owner',
@@ -58,23 +55,19 @@ describe('Controller health summary', () => {
 
     it('is requested over Relay', () => {
         assert.equal(
-            relayToControllerEnvelopeSchema.safeParse({
-                requestId: 'r1',
-                clientToken: 'token',
-                message: { type: 'getHealthSummary' },
-            }).success,
+            relayRequestMessageSchema.safeParse({ type: 'getHealthSummary' })
+                .success,
             true
         )
     })
 
     it('answers over Relay with the same shape as LAN', () => {
         for (const summary of [ownerSummary, memberSummary]) {
-            const parsed = relayToClientEnvelopeSchema.parse({
-                requestId: 'r1',
-                signature: 'sig',
-                message: { type: 'healthSummary', ...summary },
+            const parsed = relayReplyMessageSchema.parse({
+                type: 'healthSummary',
+                ...summary,
             })
-            const { type, ...body } = parsed.message as {
+            const { type, ...body } = parsed as {
                 type: string
             } & Record<string, unknown>
             assert.equal(type, 'healthSummary')

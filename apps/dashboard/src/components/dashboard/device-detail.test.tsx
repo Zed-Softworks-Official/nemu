@@ -3,7 +3,7 @@ import type { Device } from '@nemu/protocol'
 import { act, fireEvent, screen } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
 import {
-    DASHBOARD_TOKEN,
+    DASHBOARD_ACCESS_CLIENT_ID,
     renderWithController,
 } from '~/test/render-with-controller'
 import { DeviceDetail } from './device-detail'
@@ -33,7 +33,7 @@ it.each([
     vi.useFakeTimers({ shouldAdvanceTime: true })
     const controller = new FakeController({
         controllerId: 'lake',
-        acceptedTokens: [DASHBOARD_TOKEN],
+        acceptedAccessClients: [DASHBOARD_ACCESS_CLIENT_ID],
         devices: [LAMP],
     })
     controller.commandResult = () => ({

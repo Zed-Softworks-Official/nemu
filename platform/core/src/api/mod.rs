@@ -8,6 +8,7 @@ pub mod history_budget;
 pub mod history_health;
 pub mod identify;
 pub mod landing;
+pub mod local_access;
 pub mod matter;
 pub mod members;
 pub mod middleware;
@@ -18,3 +19,8 @@ pub mod session;
 pub mod updates;
 pub mod ws;
 pub mod zigbee;
+
+#[cfg(test)]
+mod local_access_tests;
+#[cfg(test)]
+mod routing_tests;

@@ -12,19 +12,24 @@ import {
     ControllerProvider,
     lanDiscoveryCandidates,
     lanUrlsFromHostnames,
+    type RelayApi,
 } from '@nemu/controller'
 import { useMemo } from 'react'
 
 import { env } from '~/env'
+import { dashboardKeyStore } from '~/lib/access-client-keys'
 
 const convex = new ConvexReactClient(
     env.NEXT_PUBLIC_CONVEX_URL.replace(/\/$/, '')
 )
 
-const relayApi = {
+// Sealed envelopes only (ADR-0001): RelayTransport seals every request with
+// this browser's Access Client keys.
+const relayApi: RelayApi = {
     send: api.relay.send,
     responses: api.relay.responses,
     acknowledge: api.relay.acknowledge,
+    membership: api.relay.membership,
 }
 
 export function NemuProvider(props: { children: React.ReactNode }) {
@@ -51,6 +56,7 @@ function PairedControllerProvider(props: { children: React.ReactNode }) {
 
     return (
         <ControllerProvider
+            accessClientKeyStore={dashboardKeyStore}
             convex={convex}
             lanCandidates={lanCandidates}
             relayAllowed={isAuthenticated}

@@ -1,6 +1,6 @@
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
-use ed25519_dalek::{Signer, SigningKey, VerifyingKey};
+use ed25519_dalek::{SigningKey, VerifyingKey};
 use rand::{Rng, RngExt};
 use sha2::{Digest, Sha256};
 
@@ -64,9 +64,54 @@ impl ControllerKeypair {
             signing_key,
         }
     }
+}
 
-    pub fn sign_b64(&self, message: &[u8]) -> String {
-        let sig = self.signing_key.sign(message);
-        BASE64.encode(sig.to_bytes())
+/// The Controller's X25519 key. Access Clients encrypt Relay requests to it
+/// (ADR-0001) and pin its public half during pairing (ADR-0037).
+#[derive(Clone)]
+pub struct ControllerEncryptionKey {
+    pub secret_key: [u8; 32],
+    pub public_key: [u8; 32],
+}
+
+impl std::fmt::Debug for ControllerEncryptionKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ControllerEncryptionKey")
+            .field("public_key", &BASE64.encode(self.public_key))
+            .field("secret_key", &"***")
+            .finish()
+    }
+}
+
+impl ControllerEncryptionKey {
+    pub fn generate() -> Self {
+        let mut secret_key = [0u8; 32];
+        rand::rng().fill_bytes(&mut secret_key);
+        Self::from_secret_key(secret_key)
+    }
+
+    pub fn from_secret_key(secret_key: [u8; 32]) -> Self {
+        Self {
+            public_key: crate::relay_crypto::hpke::public_key(&secret_key),
+            secret_key,
+        }
+    }
+
+    pub fn from_private_key_b64(private_key_b64: &str) -> Result<Self, String> {
+        let bytes = BASE64
+            .decode(private_key_b64)
+            .map_err(|e| format!("invalid encryption key encoding: {e}"))?;
+        let secret_key: [u8; 32] = bytes
+            .try_into()
+            .map_err(|_| "encryption key must be 32 bytes".to_string())?;
+        Ok(Self::from_secret_key(secret_key))
+    }
+
+    pub fn private_key_b64(&self) -> String {
+        BASE64.encode(self.secret_key)
+    }
+
+    pub fn public_key_b64(&self) -> String {
+        BASE64.encode(self.public_key)
     }
 }

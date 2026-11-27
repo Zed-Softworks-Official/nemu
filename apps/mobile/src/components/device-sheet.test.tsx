@@ -1,7 +1,7 @@
 import { ControllerProvider, useController } from '@nemu/controller'
 import {
-    createMemoryCredentialStore,
     FakeController,
+    fakeAccessClientKeyStore,
     fakeControllerConnectors,
 } from '@nemu/controller/testing'
 import type { Device } from '@nemu/protocol'
@@ -74,14 +74,15 @@ function OnTab({ tab, children }: { tab: string; children: React.ReactNode }) {
  * the greeting, which needs Clerk.
  */
 function routes(controller: FakeController) {
-    const credentialStore = createMemoryCredentialStore()
-    credentialStore.set(controller.controllerId, { clientToken: 'token' })
+    const accessClientKeyStore = fakeAccessClientKeyStore({
+        [controller.controllerId]: 'phone-access-client',
+    })
     return {
         _layout: () => (
             <ControllerProvider
+                accessClientKeyStore={accessClientKeyStore}
                 connectors={fakeControllerConnectors(controller)}
                 controllerId={controller.controllerId}
-                credentialStore={credentialStore}
                 lanCandidates={[controller.baseUrl]}
             >
                 <CaptureReprobe />
@@ -134,7 +135,7 @@ describe.each([
     function home(): FakeController {
         return new FakeController({
             controllerId: 'lake',
-            acceptedTokens: ['token'],
+            acceptedAccessClients: ['phone-access-client'],
             lanReachable,
             devices: [structuredClone(LAMP), structuredClone(PLUG)],
             rooms: [
@@ -423,7 +424,7 @@ describe('the Device lists', () => {
     it('edit nothing inline: setup lives only in the Device sheet', async () => {
         const controller = new FakeController({
             controllerId: 'lake',
-            acceptedTokens: ['token'],
+            acceptedAccessClients: ['phone-access-client'],
             devices: [structuredClone(LAMP), structuredClone(PLUG)],
             rooms: [{ id: 'living', name: 'Living Room', sortOrder: 1 }],
         })
@@ -440,7 +441,7 @@ describe('the Device lists', () => {
     it('says when a Device sheet’s Device has left the Home', async () => {
         const controller = new FakeController({
             controllerId: 'lake',
-            acceptedTokens: ['token'],
+            acceptedAccessClients: ['phone-access-client'],
             devices: [structuredClone(LAMP)],
         })
         await renderRouter(routes(controller), { initialUrl: '/device/gone' })

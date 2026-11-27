@@ -25,6 +25,9 @@ use crate::api::auth::AuthenticatedClient;
 use crate::audit::{self, AuditKind, AuditWrite};
 use crate::identity::ControllerIdentity;
 use crate::pairing::members::find_member_by_user_id;
+use crate::pairing::tombstones::{
+    ArchivedAccessClientTombstone, load_tombstones_on, restore_tombstones_on,
+};
 use crate::state::AppState;
 
 use super::admission_journal::GapReason;
@@ -351,6 +354,11 @@ pub struct HistorySnapshot {
     pub timezone_periods: Vec<ArchivedTimezonePeriod>,
     pub designation_periods: Vec<ArchivedDesignation>,
     pub budget: Option<ArchivedBudget>,
+    /// Access Client tombstones ride in the only Home backup that exists
+    /// today, so a restore never brings a revoked Access Client back. They
+    /// are never filtered by retention. Absent in older archives.
+    #[serde(default)]
+    pub access_client_tombstones: Vec<ArchivedAccessClientTombstone>,
 }
 
 impl Default for HistorySnapshot {
@@ -370,6 +378,7 @@ impl Default for HistorySnapshot {
             timezone_periods: Vec::new(),
             designation_periods: Vec::new(),
             budget: None,
+            access_client_tombstones: Vec::new(),
         }
     }
 }
@@ -759,6 +768,16 @@ fn merge_snapshot(
 
     let observation_keys = keys_covering(&observations, &current.observation_keys);
 
+    let mut access_client_tombstones = current.access_client_tombstones.clone();
+    for tombstone in &archive.access_client_tombstones {
+        if !access_client_tombstones
+            .iter()
+            .any(|existing| existing.access_client_id == tombstone.access_client_id)
+        {
+            access_client_tombstones.push(tombstone.clone());
+        }
+    }
+
     HistorySnapshot {
         snapshot_at: resumed_at,
         capabilities,
@@ -774,6 +793,7 @@ fn merge_snapshot(
         timezone_periods,
         designation_periods,
         budget: archive.budget.clone().or(current.budget.clone()),
+        access_client_tombstones,
     }
 }
 
@@ -1234,6 +1254,7 @@ fn load_history_snapshot(
         timezone_periods: load_timezone_periods(conn)?,
         designation_periods: load_designations(conn)?,
         budget: load_budget(conn)?,
+        access_client_tombstones: load_tombstones_on(conn)?,
         capabilities,
     })
 }
@@ -1283,6 +1304,7 @@ fn apply_history_restore(
         if let Some(budget) = &snapshot.budget {
             insert_budget(conn, budget)?;
         }
+        restore_tombstones_on(conn, &snapshot.access_client_tombstones)?;
         audit::insert_on(conn, audit)?;
         Ok(())
     })
@@ -2421,7 +2443,76 @@ mod tests {
                 budget_bytes: 4096,
                 updated_at: backup,
             }),
+            // Revoked years ago: tombstones never age out.
+            access_client_tombstones: vec![tombstone(80, backup - Duration::days(3650))],
         }
+    }
+
+    fn tombstone(id: u128, revoked_at: DateTime<Utc>) -> ArchivedAccessClientTombstone {
+        ArchivedAccessClientTombstone {
+            access_client_id: Uuid::from_u128(id),
+            signing_key: vec![id as u8; 32],
+            encryption_key: vec![id as u8 + 1; 32],
+            revoked_at,
+        }
+    }
+
+    #[test]
+    fn access_client_tombstones_are_backed_up_and_restored_with_the_home() {
+        let backup = at_backup();
+        let source = rich_history();
+        let bytes = export_history("owner", "active", &source, &key(), backup).unwrap();
+        assert_eq!(
+            open_archive(&bytes, &key())
+                .unwrap()
+                .access_client_tombstones,
+            source.access_client_tombstones
+        );
+
+        // Restoring onto a Home with its own tombstones keeps both, once each.
+        let current = HistorySnapshot {
+            access_client_tombstones: vec![tombstone(81, backup)],
+            ..HistorySnapshot::default()
+        };
+        let restored = import_history(
+            "owner",
+            "active",
+            &current,
+            &bytes,
+            &key(),
+            backup + Duration::hours(1),
+            Some("owner-1"),
+        )
+        .unwrap();
+        let again = import_history(
+            "owner",
+            "active",
+            &restored.snapshot,
+            &bytes,
+            &key(),
+            backup + Duration::hours(2),
+            Some("owner-1"),
+        )
+        .unwrap();
+        let mut ids: Vec<_> = again
+            .snapshot
+            .access_client_tombstones
+            .iter()
+            .map(|tombstone| tombstone.access_client_id)
+            .collect();
+        ids.sort();
+        assert_eq!(ids, vec![Uuid::from_u128(80), Uuid::from_u128(81)]);
+    }
+
+    #[test]
+    fn archives_from_before_tombstones_still_open() {
+        let mut document = serde_json::to_value(&HistorySnapshot::default()).unwrap();
+        document
+            .as_object_mut()
+            .unwrap()
+            .remove("access_client_tombstones");
+        let snapshot: HistorySnapshot = serde_json::from_value(document).unwrap();
+        assert!(snapshot.access_client_tombstones.is_empty());
     }
 
     fn contains_text(haystack: &[u8], needle: &str) -> bool {

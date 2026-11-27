@@ -34,6 +34,8 @@
         "src/relay.test.ts",
         "src/session.test.ts",
         "src/health.test.ts",
+        "src/pair-again.ts",
+        "src/relay-crypto/*.ts",
         "src/bridge.ts",
         "src/bridge.test.ts"
     ]

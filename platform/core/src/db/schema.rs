@@ -1,6 +1,28 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
+    access_client_tombstones (access_client_id) {
+        access_client_id -> Uuid,
+        signing_key -> Bytea,
+        encryption_key -> Bytea,
+        revoked_at -> Timestamptz,
+    }
+}
+
+diesel::table! {
+    access_clients (id) {
+        id -> Uuid,
+        member_id -> Uuid,
+        #[max_length = 255]
+        label -> Varchar,
+        signing_key -> Bytea,
+        encryption_key -> Bytea,
+        created_at -> Timestamptz,
+        last_seen_at -> Nullable<Timestamptz>,
+    }
+}
+
+diesel::table! {
     audit_records (id) {
         id -> Int8,
         #[max_length = 64]
@@ -11,6 +33,25 @@ diesel::table! {
         summary -> Varchar,
         detail -> Jsonb,
         created_at -> Timestamptz,
+    }
+}
+
+diesel::table! {
+    capability_constraint_revisions (capability_id, revision_id) {
+        capability_id -> Uuid,
+        #[max_length = 255]
+        revision_id -> Varchar,
+        declared_at -> Timestamptz,
+        effective_at -> Timestamptz,
+        scale -> Int2,
+        bound_minimum -> Int8,
+        bound_maximum -> Int8,
+        resolution -> Int8,
+        freshness_ms -> Int8,
+        admission_maximum_observations -> Int8,
+        admission_interval_ms -> Int8,
+        accuracy_absolute_maximum_error -> Nullable<Int8>,
+        accuracy_relative_maximum_error_ppm -> Nullable<Int4>,
     }
 }
 
@@ -68,39 +109,6 @@ diesel::table! {
     capability_recording_bounds (capability_id) {
         capability_id -> Uuid,
         recording_since -> Timestamptz,
-    }
-}
-
-diesel::table! {
-    capability_constraint_revisions (capability_id, revision_id) {
-        capability_id -> Uuid,
-        #[max_length = 255]
-        revision_id -> Varchar,
-        declared_at -> Timestamptz,
-        effective_at -> Timestamptz,
-        scale -> Int2,
-        bound_minimum -> Int8,
-        bound_maximum -> Int8,
-        resolution -> Int8,
-        freshness_ms -> Int8,
-        admission_maximum_observations -> Int8,
-        admission_interval_ms -> Int8,
-        accuracy_absolute_maximum_error -> Nullable<Int8>,
-        accuracy_relative_maximum_error_ppm -> Nullable<Int4>,
-    }
-}
-
-diesel::table! {
-    client_tokens (id) {
-        id -> Uuid,
-        #[max_length = 128]
-        token_hash -> Varchar,
-        #[max_length = 255]
-        label -> Varchar,
-        created_at -> Timestamptz,
-        last_seen_at -> Nullable<Timestamptz>,
-        #[max_length = 255]
-        user_id -> Nullable<Varchar>,
     }
 }
 
@@ -183,29 +191,6 @@ diesel::table! {
 }
 
 diesel::table! {
-    gauge_rollups (capability_id, bucket_start) {
-        capability_id -> Uuid,
-        #[max_length = 16]
-        gauge_kind -> Varchar,
-        bucket_start -> Timestamptz,
-        bucket_end -> Timestamptz,
-        scale -> Int2,
-        mean_value -> Nullable<Int8>,
-        observed_min -> Nullable<Int8>,
-        observed_max -> Nullable<Int8>,
-        coverage_ns -> Int8,
-    }
-}
-
-diesel::table! {
-    history_budget (id) {
-        id -> Int2,
-        budget_bytes -> Int8,
-        updated_at -> Timestamptz,
-    }
-}
-
-diesel::table! {
     diagnostic_events (id, received_at) {
         id -> Uuid,
         received_at -> Timestamptz,
@@ -213,80 +198,6 @@ diesel::table! {
         kind -> Varchar,
         device_id -> Nullable<Uuid>,
         payload -> Jsonb,
-    }
-}
-
-diesel::table! {
-    history_retention_checkpoints (capability_id, step, resolution, range_start, range_end) {
-        capability_id -> Uuid,
-        #[max_length = 32]
-        kind -> Varchar,
-        #[max_length = 16]
-        step -> Varchar,
-        #[max_length = 16]
-        resolution -> Varchar,
-        range_start -> Timestamptz,
-        range_end -> Timestamptz,
-        verified -> Bool,
-    }
-}
-
-diesel::table! {
-    history_missing_intervals (capability_id, started_at, ended_at) {
-        capability_id -> Uuid,
-        started_at -> Timestamptz,
-        ended_at -> Timestamptz,
-    }
-}
-
-diesel::table! {
-    history_gaps (id) {
-        id -> Int8,
-        capability_id -> Nullable<Uuid>,
-        #[max_length = 32]
-        reason -> Varchar,
-        onset -> Timestamptz,
-        until -> Nullable<Timestamptz>,
-    }
-}
-
-diesel::table! {
-    home_meter_designation_periods (id) {
-        id -> Uuid,
-        effective_from -> Timestamptz,
-        effective_until -> Nullable<Timestamptz>,
-        power_capability_id -> Nullable<Uuid>,
-        imported_energy_capability_id -> Nullable<Uuid>,
-        exported_energy_capability_id -> Nullable<Uuid>,
-        #[max_length = 16]
-        protocol -> Varchar,
-        #[max_length = 255]
-        device_external_id -> Varchar,
-        component_path -> Array<Text>,
-        #[max_length = 16]
-        physical_scope_kind -> Varchar,
-        #[max_length = 255]
-        physical_scope_component_id -> Varchar,
-    }
-}
-
-diesel::table! {
-    home_timezone_periods (effective_from) {
-        #[max_length = 64]
-        timezone -> Varchar,
-        effective_from -> Timestamptz,
-        effective_until -> Nullable<Timestamptz>,
-    }
-}
-
-diesel::table! {
-    meter_epochs (id) {
-        id -> Int8,
-        capability_id -> Uuid,
-        started_at -> Timestamptz,
-        ended_at -> Nullable<Timestamptz>,
-        #[max_length = 32]
-        reason -> Varchar,
     }
 }
 
@@ -311,6 +222,92 @@ diesel::table! {
 }
 
 diesel::table! {
+    gauge_rollups (capability_id, bucket_start) {
+        capability_id -> Uuid,
+        #[max_length = 16]
+        gauge_kind -> Varchar,
+        bucket_start -> Timestamptz,
+        bucket_end -> Timestamptz,
+        scale -> Int2,
+        mean_value -> Nullable<Int8>,
+        observed_min -> Nullable<Int8>,
+        observed_max -> Nullable<Int8>,
+        coverage_ns -> Int8,
+    }
+}
+
+diesel::table! {
+    history_budget (id) {
+        id -> Int2,
+        budget_bytes -> Int8,
+        updated_at -> Timestamptz,
+    }
+}
+
+diesel::table! {
+    history_gaps (id) {
+        id -> Int8,
+        capability_id -> Nullable<Uuid>,
+        #[max_length = 32]
+        reason -> Varchar,
+        onset -> Timestamptz,
+        until -> Nullable<Timestamptz>,
+    }
+}
+
+diesel::table! {
+    history_missing_intervals (capability_id, started_at, ended_at) {
+        capability_id -> Uuid,
+        started_at -> Timestamptz,
+        ended_at -> Timestamptz,
+    }
+}
+
+diesel::table! {
+    history_retention_checkpoints (capability_id, step, resolution, range_start, range_end) {
+        capability_id -> Uuid,
+        #[max_length = 32]
+        kind -> Varchar,
+        #[max_length = 16]
+        step -> Varchar,
+        #[max_length = 16]
+        resolution -> Varchar,
+        range_start -> Timestamptz,
+        range_end -> Timestamptz,
+        verified -> Bool,
+    }
+}
+
+diesel::table! {
+    home_meter_designation_periods (id) {
+        id -> Uuid,
+        effective_from -> Timestamptz,
+        effective_until -> Nullable<Timestamptz>,
+        power_capability_id -> Nullable<Uuid>,
+        imported_energy_capability_id -> Nullable<Uuid>,
+        exported_energy_capability_id -> Nullable<Uuid>,
+        #[max_length = 16]
+        protocol -> Varchar,
+        #[max_length = 255]
+        device_external_id -> Varchar,
+        component_path -> Array<Nullable<Text>>,
+        #[max_length = 16]
+        physical_scope_kind -> Varchar,
+        #[max_length = 255]
+        physical_scope_component_id -> Varchar,
+    }
+}
+
+diesel::table! {
+    home_timezone_periods (effective_from) {
+        #[max_length = 64]
+        timezone -> Varchar,
+        effective_from -> Timestamptz,
+        effective_until -> Nullable<Timestamptz>,
+    }
+}
+
+diesel::table! {
     members (id) {
         id -> Uuid,
         #[max_length = 255]
@@ -328,6 +325,30 @@ diesel::table! {
 }
 
 diesel::table! {
+    membership_routing_outbox (sequence) {
+        sequence -> Int8,
+        membership_id -> Uuid,
+        #[max_length = 255]
+        account_id -> Varchar,
+        #[max_length = 16]
+        state -> Varchar,
+        created_at -> Timestamptz,
+        published_at -> Nullable<Timestamptz>,
+    }
+}
+
+diesel::table! {
+    meter_epochs (id) {
+        id -> Int8,
+        capability_id -> Uuid,
+        started_at -> Timestamptz,
+        ended_at -> Nullable<Timestamptz>,
+        #[max_length = 32]
+        reason -> Varchar,
+    }
+}
+
+diesel::table! {
     pairing_codes (id) {
         id -> Uuid,
         #[max_length = 128]
@@ -335,6 +356,9 @@ diesel::table! {
         expires_at -> Timestamptz,
         consumed -> Bool,
         created_at -> Timestamptz,
+        #[max_length = 16]
+        code -> Nullable<Varchar>,
+        attempts -> Int4,
     }
 }
 
@@ -351,6 +375,26 @@ diesel::table! {
         estimated_export -> Int8,
         coverage_ns -> Int8,
         gap_ns -> Int8,
+    }
+}
+
+diesel::table! {
+    relay_outcomes (access_client_id, request_id) {
+        access_client_id -> Uuid,
+        request_id -> Text,
+        body_sha256 -> Bytea,
+        response -> Nullable<Text>,
+        created_at -> Timestamptz,
+        retain_until -> Timestamptz,
+    }
+}
+
+diesel::table! {
+    relay_replay_windows (access_client_id) {
+        access_client_id -> Uuid,
+        highest -> Int8,
+        seen -> Int8,
+        updated_at -> Timestamptz,
     }
 }
 
@@ -372,9 +416,10 @@ diesel::table! {
     }
 }
 
+diesel::joinable!(access_clients -> members (member_id));
+diesel::joinable!(capability_constraint_revisions -> capability_identities (capability_id));
 diesel::joinable!(capability_observation_keys -> capability_identities (capability_id));
 diesel::joinable!(capability_observations -> capability_identities (capability_id));
-diesel::joinable!(capability_constraint_revisions -> capability_identities (capability_id));
 diesel::joinable!(capability_recording_bounds -> capability_identities (capability_id));
 diesel::joinable!(command_outcomes -> devices (device_id));
 diesel::joinable!(component_rooms -> devices (device_id));
@@ -388,21 +433,25 @@ diesel::joinable!(history_missing_intervals -> capability_identities (capability
 diesel::joinable!(history_retention_checkpoints -> capability_identities (capability_id));
 diesel::joinable!(meter_epochs -> capability_identities (capability_id));
 diesel::joinable!(power_rollups -> capability_identities (capability_id));
+diesel::joinable!(relay_outcomes -> access_clients (access_client_id));
+diesel::joinable!(relay_replay_windows -> access_clients (access_client_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
+    access_client_tombstones,
+    access_clients,
     audit_records,
+    capability_constraint_revisions,
     capability_identities,
     capability_observation_keys,
     capability_observations,
-    capability_constraint_revisions,
     capability_recording_bounds,
-    client_tokens,
     command_outcomes,
     component_rooms,
     device_events,
     device_tombstones,
     devices,
     diagnostic_events,
+    energy_counter_rollups,
     gauge_rollups,
     history_budget,
     history_gaps,
@@ -410,11 +459,13 @@ diesel::allow_tables_to_appear_in_same_query!(
     history_retention_checkpoints,
     home_meter_designation_periods,
     home_timezone_periods,
-    meter_epochs,
-    energy_counter_rollups,
     members,
+    membership_routing_outbox,
+    meter_epochs,
     pairing_codes,
     power_rollups,
+    relay_outcomes,
+    relay_replay_windows,
     rooms,
     settings,
 );

@@ -2,10 +2,7 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
 import { commissionRequestSchema } from './api.ts'
-import {
-    relayToClientEnvelopeSchema,
-    relayToControllerEnvelopeSchema,
-} from './relay.ts'
+import { relayReplyMessageSchema, relayRequestMessageSchema } from './relay.ts'
 
 describe('Commissioning requests over Relay', () => {
     for (const message of [
@@ -14,12 +11,8 @@ describe('Commissioning requests over Relay', () => {
         { type: 'permitJoin', seconds: 0 },
     ]) {
         it(`carries ${message.type} unchanged`, () => {
-            const envelope = relayToControllerEnvelopeSchema.parse({
-                requestId: 'r1',
-                clientToken: 't',
-                message,
-            })
-            assert.deepEqual(envelope.message, message)
+            const envelope = relayRequestMessageSchema.parse(message)
+            assert.deepEqual(envelope, message)
         })
     }
 
@@ -30,11 +23,7 @@ describe('Commissioning requests over Relay', () => {
     ]) {
         it(`has no envelope for ${message.type}`, () => {
             assert.equal(
-                relayToControllerEnvelopeSchema.safeParse({
-                    requestId: 'r1',
-                    clientToken: 't',
-                    message,
-                }).success,
+                relayRequestMessageSchema.safeParse(message).success,
                 false
             )
         })
@@ -47,12 +36,8 @@ describe('Commissioning outcomes over Relay', () => {
         { type: 'permitJoin', ok: true, seconds: 180 },
     ]) {
         it(`reads ${message.type} in the same shape as LAN`, () => {
-            const envelope = relayToClientEnvelopeSchema.parse({
-                requestId: 'r1',
-                signature: 's',
-                message,
-            })
-            assert.deepEqual(envelope.message, message)
+            const envelope = relayReplyMessageSchema.parse(message)
+            assert.deepEqual(envelope, message)
         })
     }
 })

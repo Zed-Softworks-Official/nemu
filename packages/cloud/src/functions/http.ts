@@ -1,4 +1,6 @@
 import { httpRouter } from 'convex/server'
+import { ConvexError } from 'convex/values'
+import { parseSealedToClient } from '../lib/relay'
 import { internal } from './_generated/api'
 import { httpAction } from './_generated/server'
 import { getTlsHttp, registerHttp, sessionHttp } from './controllers'
@@ -69,25 +71,16 @@ export const relayPendingHttp = httpAction(async (ctx, req) => {
         controllerId: body.controllerId,
     })
 
-    return new Response(
-        JSON.stringify({
-            messages: messages.map((message) => ({
-                requestId: message.requestId,
-                payload: message.payload,
-            })),
-        }),
-        {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' },
-        }
-    )
+    return new Response(JSON.stringify({ messages }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+    })
 })
 
+/** Body: `{ registrationSecret?, sealed }`, where `sealed` is a response or push. */
 export const relayRespondHttp = httpAction(async (ctx, req) => {
     let body: {
-        controllerId?: string
-        requestId?: string
-        payload?: string
+        sealed?: unknown
         registrationSecret?: string
     }
     try {
@@ -99,31 +92,86 @@ export const relayRespondHttp = httpAction(async (ctx, req) => {
     const authError = authorizeController(body)
     if (authError) return authError
 
-    if (!body.controllerId || !body.requestId || !body.payload) {
-        return jsonError(
-            400,
-            'controllerId, requestId, and payload are required'
-        )
+    // Privacy: a bad envelope gets a fixed message, never an echo of itself.
+    const sealed = parseSealedToClient(body.sealed)
+    if (!sealed) {
+        return jsonError(400, 'malformed')
     }
 
     try {
         const id = await ctx.runMutation(internal.relay.respondInternal, {
-            controllerId: body.controllerId,
-            requestId: body.requestId,
-            payload: body.payload,
+            sealed,
         })
         return new Response(JSON.stringify({ ok: true, id }), {
             status: 200,
             headers: { 'Content-Type': 'application/json' },
         })
     } catch (error) {
-        const message =
-            error instanceof Error ? error.message : 'Failed to respond'
-        if (message === 'Controller not found') {
-            return jsonError(404, message)
+        if (
+            error instanceof Error &&
+            error.message === 'Controller not found'
+        ) {
+            return jsonError(404, 'Controller not found')
         }
-        return jsonError(500, message)
+        return jsonError(500, 'Failed to respond')
     }
+})
+
+/**
+ * Body: `{ registrationSecret?, signed }`, a signed Membership routing
+ * projection from the Controller's outbox (NEM-133). 200 `{ outcome:
+ * 'stored' | 'stale' }`; both mean Core may mark it published.
+ */
+export const membershipPublishHttp = httpAction(async (ctx, req) => {
+    let body: {
+        signed?: unknown
+        registrationSecret?: string
+    }
+    try {
+        body = await req.json()
+    } catch {
+        return jsonError(400, 'Invalid JSON')
+    }
+
+    const authError = authorizeController(body)
+    if (authError) return authError
+
+    try {
+        const outcome = await ctx.runMutation(
+            internal.relay.publishMembershipInternal,
+            { signed: body.signed ?? null }
+        )
+        return new Response(JSON.stringify({ outcome }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+        })
+    } catch (error) {
+        // Privacy: codes only, never an echo of the projection.
+        const code =
+            error instanceof ConvexError &&
+            typeof error.data === 'object' &&
+            error.data !== null &&
+            'code' in error.data
+                ? String(error.data.code)
+                : null
+        switch (code) {
+            case 'malformed':
+                return jsonError(400, 'malformed')
+            case 'unknown_controller':
+                return jsonError(404, 'Controller not found')
+            case 'bad_signature':
+            case 'wrong_controller':
+                return jsonError(403, code)
+            default:
+                return jsonError(500, 'Failed to publish')
+        }
+    }
+})
+
+http.route({
+    path: '/membership/publish',
+    method: 'POST',
+    handler: membershipPublishHttp,
 })
 
 http.route({

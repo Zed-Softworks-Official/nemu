@@ -1,11 +1,10 @@
 'use client'
 
 import {
+    type AccessClient,
     type ApplyUpdateResponse,
     type AssignRoomRequest,
-    type BootstrapOwnerRequest,
     type CapabilityView,
-    type ClientToken,
     type CommandResult,
     type CommissioningProgress,
     type CommissionRequest,
@@ -49,6 +48,7 @@ import {
     useRef,
     useState,
 } from 'react'
+import type { AccessClientKeyStore } from './access-client-keys.ts'
 import {
     commissioningFailedStepLabel,
     commissioningFailureGuidance,
@@ -56,14 +56,19 @@ import {
 import {
     ControllerConnection,
     type ControllerConnectors,
+    type PairingLoss,
 } from './connection.ts'
 import type { ReleaseUpdate, ReleaseUpdateKind } from './release-update.ts'
-import type { ControllerCredentialStore } from './storage.ts'
 import type { RelayApi } from './transports/relay.ts'
 
 type ControllerContextValue = {
     connection: ControllerConnection
     status: ConnectionStatus
+    /**
+     * Set when this client must pair again at home: its keys are lost, or
+     * the Controller revoked or no longer knows it. Needs a key store.
+     */
+    pairingLoss: PairingLoss | null
     reprobe: () => Promise<void>
     getDevices: () => Promise<Device[]>
     queryHistory: (query: HistoryQuery) => Promise<HistoryQueryRead>
@@ -113,11 +118,12 @@ type ControllerContextValue = {
     getMembers: () => Promise<HouseholdMember[]>
     inviteMember: (email: string) => Promise<HouseholdMember>
     removeMember: (memberId: string) => Promise<void>
-    getTokens: () => Promise<ClientToken[]>
-    revokeToken: (tokenId: string) => Promise<void>
-    revokeCurrentToken: () => Promise<void>
+    /** The Home's Access Clients, each named by its Access Client ID. */
+    listAccessClients: () => Promise<AccessClient[]>
+    revokeAccessClient: (accessClientId: string) => Promise<void>
+    /** Revokes this Access Client only. */
+    revokeCurrentAccessClient: () => Promise<void>
     leaveHome: () => Promise<void>
-    bootstrapOwner: (request: BootstrapOwnerRequest) => Promise<HouseholdMember>
     getReleaseStatus: () => Promise<UpdateStatusResponse>
     /** The caller's Membership role, only for deciding what to show. */
     getSession: () => Promise<SessionResponse>
@@ -144,11 +150,14 @@ export type ControllerProviderProps = {
     children: ReactNode
     convex?: ConvexReactClient
     relayApi?: RelayApi
+    /**
+     * This client's Access Client keys. Local sessions and sealed Relay
+     * requests are made with them; they are the only credential.
+     */
+    accessClientKeyStore: AccessClientKeyStore
     lanCandidates?: string[]
-    /** The selected Home. Scopes LAN discovery, Relay, and credentials. */
+    /** The selected Home. Scopes LAN discovery, Relay, and keys. */
     controllerId?: string | null
-    /** Per-Home Access Client credentials (default: localStorage). */
-    credentialStore?: ControllerCredentialStore
     /** Replace network access, e.g. with `fakeControllerConnectors`. */
     connectors?: Partial<ControllerConnectors>
     /** Use a prebuilt connection instead of building one from props. */
@@ -163,9 +172,9 @@ export function ControllerProvider({
     children,
     convex,
     relayApi,
+    accessClientKeyStore,
     lanCandidates,
     controllerId,
-    credentialStore,
     connectors,
     connection: providedConnection,
     autoStart = true,
@@ -180,9 +189,9 @@ export function ControllerProvider({
             new ControllerConnection({
                 convex,
                 relayApi,
+                accessClientKeyStore,
                 lanCandidates,
                 controllerId,
-                credentialStore,
                 connectors,
                 relayAllowed: () => relayAllowedRef.current,
             }),
@@ -190,9 +199,9 @@ export function ControllerProvider({
             providedConnection,
             convex,
             relayApi,
+            accessClientKeyStore,
             lanCandidates,
             controllerId,
-            credentialStore,
             connectors,
         ]
     )
@@ -207,6 +216,12 @@ export function ControllerProvider({
 
     useEffect(
         () => connection.subscribeReleaseUpdate(setReleaseUpdate),
+        [connection]
+    )
+
+    const [pairingLoss, setPairingLoss] = useState<PairingLoss | null>(null)
+    useEffect(
+        () => connection.subscribePairingLoss(setPairingLoss),
         [connection]
     )
 
@@ -322,20 +337,20 @@ export function ControllerProvider({
         (memberId: string) => connection.removeMember(memberId),
         [connection]
     )
-    const getTokens = useCallback(() => connection.getTokens(), [connection])
-    const revokeToken = useCallback(
-        (tokenId: string) => connection.revokeToken(tokenId),
+    const listAccessClients = useCallback(
+        () => connection.listAccessClients(),
         [connection]
     )
-    const revokeCurrentToken = useCallback(
-        () => connection.revokeCurrentToken(),
+    const revokeAccessClient = useCallback(
+        (accessClientId: string) =>
+            connection.revokeAccessClient(accessClientId),
+        [connection]
+    )
+    const revokeCurrentAccessClient = useCallback(
+        () => connection.revokeCurrentAccessClient(),
         [connection]
     )
     const leaveHome = useCallback(() => connection.leaveHome(), [connection])
-    const bootstrapOwner = useCallback(
-        (request: BootstrapOwnerRequest) => connection.bootstrapOwner(request),
-        [connection]
-    )
     const getSession = useCallback(() => connection.getSession(), [connection])
     const getReleaseStatus = useCallback(
         () => connection.getReleaseStatus(),
@@ -372,6 +387,7 @@ export function ControllerProvider({
         () => ({
             connection,
             status,
+            pairingLoss,
             reprobe,
             getDevices,
             queryHistory,
@@ -397,11 +413,10 @@ export function ControllerProvider({
             getMembers,
             inviteMember,
             removeMember,
-            getTokens,
-            revokeToken,
-            revokeCurrentToken,
+            listAccessClients,
+            revokeAccessClient,
+            revokeCurrentAccessClient,
             leaveHome,
-            bootstrapOwner,
             getSession,
             getReleaseStatus,
             getHealthSummary,
@@ -415,6 +430,7 @@ export function ControllerProvider({
         [
             connection,
             status,
+            pairingLoss,
             reprobe,
             getDevices,
             queryHistory,
@@ -440,11 +456,10 @@ export function ControllerProvider({
             getMembers,
             inviteMember,
             removeMember,
-            getTokens,
-            revokeToken,
-            revokeCurrentToken,
+            listAccessClients,
+            revokeAccessClient,
+            revokeCurrentAccessClient,
             leaveHome,
-            bootstrapOwner,
             getSession,
             getReleaseStatus,
             getHealthSummary,
@@ -589,7 +604,7 @@ export function useDevicePairing(): {
     commissionProgress: CommissionProgress | null
     /**
      * The Protocol-neutral step commissioning has reached, or the step that
-     * failed. Arrives over LAN only until NEM-63 encrypts Relay pushes.
+     * failed. Arrives the same over LAN and over Relay.
      */
     commissioningStep: CommissioningProgress | null
     /** Connected over Relay, which never carries a Matter pairing code. */
@@ -748,8 +763,8 @@ export function useDevicePairing(): {
                     void absorbMatterJoins()
                 }
                 // A failed step ends the pairing view on its own, without
-                // waiting for the older failed interview. It arrives over LAN
-                // only until NEM-63.
+                // waiting for the older failed interview, which never comes
+                // over Relay.
                 if (
                     progress.status === 'failed' &&
                     discoveredDevicesRef.current.length === 0

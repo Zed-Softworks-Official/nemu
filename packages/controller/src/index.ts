@@ -1,5 +1,24 @@
 export type { CapabilityView } from '@nemu/protocol'
 export type {
+    AccessClientEnrollment,
+    AccessClientKeyStore,
+    AccessClientKeys,
+    AccessClientRecord,
+    AccessClientSecretStorage,
+    PairAgainReason,
+    StagedAccessClientKeyStore,
+} from './access-client-keys.ts'
+export {
+    accessClientKeysFromSecrets,
+    BEARER_TOKEN_RETIRED_ERROR_CODE,
+    createMemoryAccessClientKeyStore,
+    createSecretAccessClientKeyStore,
+    PAIR_AGAIN_ERROR_CODES,
+    pairAgainReason,
+    SignedRefusal,
+    stageAccessClientKeys,
+} from './access-client-keys.ts'
+export type {
     AccessClientPairing,
     AccessClientPairingOptions,
     AccessClientPairingState,
@@ -16,6 +35,7 @@ export {
 export type {
     ControllerConnectionOptions,
     ControllerConnectors,
+    PairingLoss,
 } from './connection.ts'
 export { ControllerConnection } from './connection.ts'
 export type { ProbeResult } from './discovery.ts'
@@ -36,13 +56,16 @@ export {
     TLS_TRUSTED_MESSAGE,
     upgradeToHttps,
 } from './discovery.ts'
+export type { ControllerHttpOptions, LocalSessionAuth } from './http.ts'
 export { createControllerHttp, toApiError } from './http.ts'
+export type { LocalSessionOptions } from './local-session.ts'
+export { LocalSession, NOT_PAIRED_ERROR_CODE } from './local-session.ts'
 export type {
     PairWithControllerInput,
     PairWithControllerResult,
 } from './pairing.ts'
 export {
-    mintSessionViaRelay,
+    INVALID_GRANT_ERROR_CODE,
     pairWithController,
     WRONG_HOME_ERROR_CODE,
 } from './pairing.ts'
@@ -61,28 +84,23 @@ export {
     useDevicePairing,
     useDevices,
 } from './provider.tsx'
+export {
+    createMemoryRelayCounter,
+    createWebRelayCounter,
+    type RelayCounter,
+    type WebRelayCounterOptions,
+} from './relay-counter.ts'
 export type {
     ReleaseUpdate,
     ReleaseUpdateKind,
     ReleaseUpdateOutcome,
 } from './release-update.ts'
-export type {
-    AccessClientCredential,
-    ControllerCredentialStore,
-} from './storage.ts'
 export {
-    clearClientToken,
     clearRememberedBaseUrl,
     clearRememberedControllerId,
-    createLocalStorageCredentialStore,
-    createMemoryCredentialStore,
-    defaultCredentialStore,
-    getClientToken,
+    discardLegacyClientTokens,
     getRememberedBaseUrl,
     getRememberedControllerId,
-    parseCredential,
-    serializeCredential,
-    setClientToken,
     setRememberedBaseUrl,
     setRememberedControllerId,
 } from './storage.ts'
@@ -90,3 +108,13 @@ export { LanTransport } from './transports/lan.ts'
 export type { RelayApi, RelayTransportOptions } from './transports/relay.ts'
 export { RelayTransport } from './transports/relay.ts'
 export type { ControllerTransport } from './transports/types.ts'
+export type {
+    AccessClientKeyDatabase,
+    PersistentStorage,
+    WebAccessClientKeyStoreOptions,
+} from './web-access-client-keys.ts'
+export {
+    createWebAccessClientKeyStore,
+    openIndexedDbKeyDatabase,
+    UNSUPPORTED_BROWSER_ERROR_CODE,
+} from './web-access-client-keys.ts'

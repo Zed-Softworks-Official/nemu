@@ -3,7 +3,7 @@ import type { HouseholdMember } from '@nemu/protocol'
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-    DASHBOARD_TOKEN,
+    DASHBOARD_ACCESS_CLIENT_ID,
     renderWithController,
 } from '~/test/render-with-controller'
 import SettingsPage from './page'
@@ -79,13 +79,13 @@ function home(options?: {
     const controller = new FakeController({
         controllerId: 'lake',
         name: 'Lake House',
-        acceptedTokens: [DASHBOARD_TOKEN],
+        acceptedAccessClients: [DASHBOARD_ACCESS_CLIENT_ID],
         lanReachable: options?.lanReachable ?? true,
     })
     controller.members = options?.members ?? [ADA, BEN]
     controller.accessClients = [
         {
-            id: 'token-laptop',
+            id: 'access-client-laptop',
             label: 'Ada’s laptop',
             createdAt: '2026-03-01T00:00:00.000Z',
             lastSeenAt: null,
@@ -152,6 +152,25 @@ describe('Settings page', () => {
             screen.getByText('Invite someone to this home')
         ).toBeInTheDocument()
         expect(screen.getByText('Add a device with a code')).toBeInTheDocument()
+    })
+
+    it('revokes a device by its Access Client ID', async () => {
+        const controller = home()
+        renderWithController(<SettingsPage />, controller)
+
+        const devices = await waitFor(() => card('Devices'))
+        await within(devices).findByText('Ada’s laptop')
+        fireEvent.click(within(devices).getByRole('button', { name: 'Revoke' }))
+
+        await waitFor(() =>
+            expect(controller.revokedAccessClients).toEqual([
+                'access-client-laptop',
+            ])
+        )
+        // Every request carried this browser's keys, never a token.
+        expect(new Set(controller.presentedAccessClientIds)).toEqual(
+            new Set([DASHBOARD_ACCESS_CLIENT_ID])
+        )
     })
 
     it('installs only the Release it read', async () => {

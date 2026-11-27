@@ -1,7 +1,7 @@
 import { ControllerProvider, useController } from '@nemu/controller'
 import {
-    createMemoryCredentialStore,
     FakeController,
+    fakeAccessClientKeyStore,
     fakeControllerConnectors,
 } from '@nemu/controller/testing'
 import { ApiError, type CommandResult, type Device } from '@nemu/protocol'
@@ -66,18 +66,19 @@ async function setup(options?: {
 }) {
     const controller = new FakeController({
         controllerId: 'lake',
-        acceptedTokens: ['token'],
+        acceptedAccessClients: ['phone-access-client'],
         devices: options?.devices ?? [LAMP, OFFLINE_LAMP],
         lanReachable: options?.lanReachable,
     })
     if (options?.commandResult) controller.commandResult = options.commandResult
-    const credentialStore = createMemoryCredentialStore()
-    credentialStore.set('lake', { clientToken: 'token' })
+    const accessClientKeyStore = fakeAccessClientKeyStore({
+        lake: 'phone-access-client',
+    })
     await render(
         <ControllerProvider
+            accessClientKeyStore={accessClientKeyStore}
             connectors={fakeControllerConnectors(controller)}
             controllerId="lake"
-            credentialStore={credentialStore}
             lanCandidates={[controller.baseUrl]}
         >
             <CaptureReprobe />

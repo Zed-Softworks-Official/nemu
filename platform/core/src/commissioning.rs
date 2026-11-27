@@ -82,7 +82,7 @@ pub fn relay_commissioning_audit(
         detail: json!({
             "membershipId": member.id,
             "role": member.role,
-            "accessClientId": client.token_id,
+            "accessClientId": client.access_client_id,
             "accessClientLabel": client.label,
             "protocol": protocol.as_str(),
             "via": "relay",
@@ -373,7 +373,7 @@ mod tests {
 
     fn client() -> AuthenticatedClient {
         AuthenticatedClient {
-            token_id: Uuid::new_v4(),
+            access_client_id: Uuid::new_v4(),
             label: "Kitchen phone".into(),
             user_id: Some("user-member".into()),
         }
@@ -389,7 +389,10 @@ mod tests {
             assert_eq!(entry.actor_user_id.as_deref(), Some("user-member"));
             assert_eq!(entry.detail["membershipId"], json!(member.id));
             assert_eq!(entry.detail["role"], "member");
-            assert_eq!(entry.detail["accessClientId"], json!(client.token_id));
+            assert_eq!(
+                entry.detail["accessClientId"],
+                json!(client.access_client_id)
+            );
             assert_eq!(entry.detail["accessClientLabel"], "Kitchen phone");
             assert_eq!(entry.detail["protocol"], protocol.as_str());
             let mut keys: Vec<_> = entry.detail.as_object().unwrap().keys().collect();
@@ -480,7 +483,7 @@ mod tests {
         assert_eq!(rows.len(), before + 1);
         let mine: Vec<_> = rows
             .iter()
-            .filter(|row| row.detail["accessClientId"] == json!(client.token_id))
+            .filter(|row| row.detail["accessClientId"] == json!(client.access_client_id))
             .collect();
         assert_eq!(mine.len(), 1);
         let row = mine[0];
