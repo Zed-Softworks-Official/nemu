@@ -17,21 +17,17 @@ describe('NameStore', () => {
         await rm(dir, { recursive: true, force: true })
     })
 
-    it('starts empty without a file', async () => {
-        const names = await NameStore.load(dir, quiet)
-        assert.equal(names.get('2'), undefined)
+    it('starts empty without a file', () => {
+        assert.equal(NameStore.load(dir, quiet).get('2'), undefined)
     })
 
-    it('keeps a name across a reload', async () => {
-        const names = await NameStore.load(dir, quiet)
-        await names.set('2', 'Desk Lamp')
-        const reloaded = await NameStore.load(dir, quiet)
-        assert.equal(reloaded.get('2'), 'Desk Lamp')
+    it('keeps a name across a reload', () => {
+        NameStore.load(dir, quiet).set('2', 'Desk Lamp')
+        assert.equal(NameStore.load(dir, quiet).get('2'), 'Desk Lamp')
     })
 
     it('writes the Rust adapter file shape and leaves no temporary file', async () => {
-        const names = await NameStore.load(dir, quiet)
-        await names.set('2', 'Desk Lamp')
+        NameStore.load(dir, quiet).set('2', 'Desk Lamp')
         assert.deepEqual(
             JSON.parse(await readFile(join(dir, NAMES_FILE), 'utf8')),
             { names: { '2': 'Desk Lamp' } }
@@ -41,33 +37,29 @@ describe('NameStore', () => {
 
     it('reads a file the Rust adapter wrote', async () => {
         await writeFile(join(dir, NAMES_FILE), '{"names":{"3:1":"Outlet A"}}')
-        const names = await NameStore.load(dir, quiet)
-        assert.equal(names.get('3:1'), 'Outlet A')
+        assert.equal(NameStore.load(dir, quiet).get('3:1'), 'Outlet A')
     })
 
-    it('ends with the latest name when renames overlap', async () => {
-        const names = await NameStore.load(dir, quiet)
-        void names.set('2', 'First')
-        await names.set('2', 'Second')
-        const reloaded = await NameStore.load(dir, quiet)
-        assert.equal(reloaded.get('2'), 'Second')
-    })
-
-    it('forgets names of Devices no longer in the inventory', async () => {
-        const names = await NameStore.load(dir, quiet)
-        await names.set('2', 'Desk Lamp')
-        await names.set('3', 'Kettle')
-        await names.retainOnly(new Set(['3']))
-        const reloaded = await NameStore.load(dir, quiet)
+    it('forgets names of Devices no longer in the inventory', () => {
+        const names = NameStore.load(dir, quiet)
+        names.set('2', 'Desk Lamp')
+        names.set('3', 'Kettle')
+        names.retainOnly(new Set(['3']))
+        const reloaded = NameStore.load(dir, quiet)
         assert.equal(reloaded.get('2'), undefined)
         assert.equal(reloaded.get('3'), 'Kettle')
     })
 
     it('leaves a malformed file untouched', async () => {
         await writeFile(join(dir, NAMES_FILE), '{not json')
-        const names = await NameStore.load(dir, quiet)
-        await names.set('2', 'Desk Lamp')
+        const names = NameStore.load(dir, quiet)
+        names.set('2', 'Desk Lamp')
         assert.equal(names.get('2'), 'Desk Lamp')
         assert.equal(await readFile(join(dir, NAMES_FILE), 'utf8'), '{not json')
+    })
+
+    it('keeps nothing on disk in memory', async () => {
+        NameStore.inMemory().set('2', 'Desk Lamp')
+        assert.deepEqual(await readdir(dir), [])
     })
 })

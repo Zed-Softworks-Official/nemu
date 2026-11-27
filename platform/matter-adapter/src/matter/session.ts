@@ -37,7 +37,14 @@ export interface SessionOptions {
     allowTestCertificates: boolean
     /** UDP port the controller listens on; 0 lets the OS choose. */
     port?: number
+    /** BLE commissioning on this HCI adapter; leave out to stay on-network only. */
+    ble?: { hciId: number }
     log: Log
+}
+
+export interface WifiCredentials {
+    ssid: string
+    password: string
 }
 
 export interface CommissionRequest {
@@ -45,6 +52,11 @@ export interface CommissionRequest {
     code: string
     /** Aborting it cancels the attempt. */
     signal?: AbortSignal
+    /**
+     * Home Wi-Fi to give the Device. With it the attempt discovers over BLE as
+     * well as on the network; without it, on the network only.
+     */
+    wifi?: WifiCredentials
 }
 
 /** Attribute values that changed, keyed `endpoint/cluster/attribute`. */
@@ -59,6 +71,8 @@ export interface MatterSession {
     snapshot(nodeId: NodeId): AttributeSnapshot | undefined
     /** Whether a pairing code decodes, so a bad one is refused before the ack. */
     isPairingCode(code: string): boolean
+    /** Whether a Bluetooth adapter is ready for commissioning. */
+    bleAvailable(): boolean
     /** Commissions a Device onto the fabric and returns its node ID. */
     commission(request: CommissionRequest): Promise<NodeId>
     invoke(
@@ -86,6 +100,9 @@ export interface MatterSession {
      */
     remove(nodeId: NodeId): Promise<'decommissioned' | 'forgotten'>
 }
+
+/** How long start waits for known nodes' endpoints to load from storage. */
+const SEED_TIMEOUT_MS = 10_000
 
 /** How long a reachable node gets to confirm it left the fabric. */
 const DECOMMISSION_TIMEOUT_MS = 20_000
@@ -158,13 +175,14 @@ class MatterJsSession implements MatterSession {
             join(this.options.dataDir, 'matter')
         )
         await this.#installTrustStore(environment)
+        const ble = await this.#installBle(environment)
         this.#node = await ServerNode.create(
             ServerNode.RootEndpoint.with(ControllerBehavior),
             {
                 id: 'nemu-matter',
                 network: { port: this.options.port ?? 5540 },
                 commissioning: { enabled: false },
-                controller: { adminFabricLabel: 'Nemu', ble: false },
+                controller: { adminFabricLabel: 'Nemu', ble },
             }
         )
         await this.#node.start()
@@ -172,7 +190,12 @@ class MatterJsSession implements MatterSession {
             this.#watch(peer)
             await this.#useDefaultSubscription(peer)
         }
+        await this.#seeded([...this.#node.peers])
         this.#node.peers.added.on((peer) => this.#watch(peer))
+        if (ble && !this.bleAvailable())
+            this.options.log.warn(
+                'BLE failed to start; commissioning on-network only'
+            )
         void this.#streamChanges(this.#node)
     }
 
@@ -202,12 +225,28 @@ class MatterJsSession implements MatterSession {
         }
     }
 
+    bleAvailable(): boolean {
+        return this.#node?.stateOf(ControllerBehavior).ble === true
+    }
+
     async commission(request: CommissionRequest): Promise<NodeId> {
         const node = this.#requireNode()
         const identifier = decodePairingCode(request.code)
         let refusal: string | undefined
+        const overBle = request.wifi !== undefined && this.bleAvailable()
         const peer = await node.peers.commission({
             ...identifier,
+            ...(overBle && request.wifi
+                ? {
+                      // BLE and mDNS discovery run side by side; a Device
+                      // already on the network skips the Wi-Fi steps.
+                      discoveryCapabilities: { ble: true },
+                      wifiNetwork: {
+                          wifiSsid: request.wifi.ssid,
+                          wifiCredentials: request.wifi.password,
+                      },
+                  }
+                : {}),
             timeout: Seconds(120),
             abort: request.signal,
             // Options rather than a built request; matter.js merges them.
@@ -298,6 +337,35 @@ class MatterJsSession implements MatterSession {
         return 'forgotten'
     }
 
+    /**
+     * matter.js installs a known node's endpoints from storage after start.
+     * Until it has, the node's snapshot holds only its root endpoint and would
+     * map to a placeholder, so start waits for that (for a while: a node that
+     * was never read has nothing to install).
+     */
+    async #seeded(peers: Peer[]): Promise<void> {
+        const pending = peers.filter((peer) => !peer.lifecycle.isSeeded)
+        if (pending.length === 0) return
+        await Promise.race([
+            Promise.all(
+                pending.map(
+                    (peer) =>
+                        new Promise<void>((resolve) => {
+                            peer.lifecycle.seeded.on(() => resolve())
+                            if (peer.lifecycle.isSeeded) resolve()
+                        })
+                )
+            ),
+            new Promise((resolve) => setTimeout(resolve, SEED_TIMEOUT_MS)),
+        ])
+        for (const peer of pending) {
+            if (!peer.lifecycle.isSeeded)
+                this.options.log.warn(
+                    `node ${nodeIdOf(peer)} has no stored structure yet; it maps once it reports`
+                )
+        }
+    }
+
     /** Nodes commissioned before the ceiling was set get it on start. */
     async #useDefaultSubscription(peer: Peer): Promise<void> {
         const network = (peer as AnyEndpoint).state.network
@@ -353,6 +421,29 @@ class MatterJsSession implements MatterSession {
                 this.options.log.error(
                     `matter state stream stopped: ${String(error)}`
                 )
+        }
+    }
+
+    /**
+     * Registers matter.js BLE (noble over HCI) when the host has an adapter.
+     * The import is dynamic so a host without Bluetooth never loads noble.
+     */
+    async #installBle(environment: Environment): Promise<boolean> {
+        const ble = this.options.ble
+        // matter.js also reads MATTER_BLE_ENABLE itself; this decision wins.
+        environment.vars.set('ble.enable', false)
+        if (!ble) return false
+        try {
+            await import('@matter/nodejs-ble')
+            environment.vars.set('ble.hci.id', ble.hciId)
+            environment.vars.set('ble.enable', true)
+            this.options.log.info(`BLE commissioning on hci${ble.hciId}`)
+            return true
+        } catch (error) {
+            this.options.log.warn(
+                `BLE is unavailable; commissioning on-network only: ${String(error)}`
+            )
+            return false
         }
     }
 

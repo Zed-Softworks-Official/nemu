@@ -3,17 +3,16 @@
  * the matter.js adapter. Unlike cli.ts there is no golden file: the Rust
  * adapter recorded no restart. Each check compares the adapter with itself.
  *
- *   1. Commission the plug and rename it.
+ *   1. Commission the plug, rename it, and assign its Capability IDs.
  *   2. Quiesce the adapter as a Home backup does (pause, ADR-0013), copy its
  *      data directory, and resume it.
- *   3. Restart the adapter: the same Devices and names come back from the
- *      data directory without commissioning, and the plug is controllable.
+ *   3. Restart the adapter: the same Devices, names and Capability IDs come
+ *      back from the data directory without commissioning, and the plug is
+ *      controllable.
  *   4. Restore: start an adapter on the copy taken while paused. The same
  *      fabric and Devices come back.
  *   5. Take the plug offline: it becomes unavailable. Remove it: it leaves
  *      `bridge/devices`, and stays gone after another restart.
- *
- * TODO(NEM-118): check that assigned Capability IDs survive the restart too.
  *
  *   node dist/lifecycle.js
  *
@@ -25,6 +24,7 @@ import { cp, mkdir, mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { isDeepStrictEqual } from 'node:util'
+import { SECOND_LOAD } from './fixtures.ts'
 import {
     Adapter,
     adapterCommand,
@@ -37,6 +37,10 @@ import { type Received, Recorder } from './recorder.ts'
 const BASE_TOPIC = 'matter'
 const NAME = 'Kitchen Kettle'
 const log = (line: string) => process.stderr.write(`[lifecycle] ${line}\n`)
+
+interface Observations {
+    observations: { capabilityId?: string; identity: { kind: string } }[]
+}
 
 interface Descriptor {
     external_id: string
@@ -159,6 +163,36 @@ async function main(): Promise<number> {
             to: NAME,
         })
         const before = await waitFor('the new name', () => named(from))
+        const manifest = await waitFor(
+            'the Capability manifest',
+            () =>
+                since(recorder, from, `${id}/capabilities`).at(-1) as
+                    | { capabilities: { identity: { kind: string } }[] }
+                    | undefined
+        )
+        const assigned = (kind: string) => `capability-lifecycle-${kind}`
+        await recorder.publish(`${id}/capability-ids`, {
+            capabilities: manifest.capabilities.map((capability) => ({
+                identity: capability.identity,
+                capabilityId: assigned(capability.identity.kind),
+            })),
+        })
+        /** Waits for a reading of `power` mW that carries the assigned IDs. */
+        const stamped = (from: number, power: number) =>
+            waitFor(`a reading of ${power} mW with the assigned IDs`, () => {
+                const report = since(recorder, from, `${id}/observations`).at(
+                    -1
+                ) as Observations | undefined
+                if (!report || !JSON.stringify(report).includes(String(power)))
+                    return undefined
+                return report.observations.every(
+                    (observation) =>
+                        observation.capabilityId ===
+                        assigned(observation.identity.kind)
+                )
+                    ? true
+                    : undefined
+            })
 
         log('2. quiesce, copy the data directory, resume')
         adapter?.pause()
@@ -177,6 +211,8 @@ async function main(): Promise<number> {
             availability(from, id) === 'online' ? true : undefined
         )
         await control(from, id, 'OFF')
+        plug.setPower(SECOND_LOAD)
+        await stamped(from, SECOND_LOAD.activePower)
 
         log('4. restore: the copy taken while quiesced brings back the fabric')
         await adapter?.stop()

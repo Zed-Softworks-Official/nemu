@@ -137,14 +137,10 @@ jobs:
         env:
           TMPDIR: ${{ runner.temp }}/matter-harness
           MATTER_HARNESS_ADAPTER_CMD: node ${{ github.workspace }}/platform/matter-adapter/dist/main.js
-          # NEM-115: commission, on/off and health check. NEM-119: rename,
-          # offline and recovery, cancel and remove.
-          MATTER_HARNESS_STEPS: adapter-starts,commission-plug,plug-on,plug-off,commission-light,rename-light,plug-goes-offline,plug-comes-back,health-check,commission-without-code,commission-cancel,remove-light
-          # NEM-118 adds Capabilities and observations.
-          MATTER_HARNESS_IGNORE_TOPICS: capabilities,observations
-          # NEM-116 adds the light's brightness and color temperature, which
-          # these steps publish.
-          MATTER_HARNESS_UNCHECKED_STEPS: commission-light,rename-light,plug-comes-back
+          # NEM-115: commission, on/off and health check. NEM-116: light brightness, color temp.
+          # NEM-118: Capabilities, observations and assigned Capability IDs.
+          # NEM-120: commission-cancel. NEM-119: rename, offline and recovery, remove.
+          MATTER_HARNESS_STEPS: adapter-starts,commission-plug,assign-plug-capability-ids,plug-on,plug-off,plug-load-changes,commission-light,light-on,light-brightness,light-brightness-below-minimum,light-brightness-above-maximum,light-color-temperature,light-color-temperature-above-maximum,light-off,rename-light,plug-goes-offline,plug-comes-back,health-check,commission-without-code,commission-cancel,remove-light
         run: |
           mkdir -p "$TMPDIR"
           pnpm --filter @nemu/matter-harness harness

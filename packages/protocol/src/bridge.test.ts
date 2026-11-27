@@ -3,12 +3,95 @@ import { describe, it } from 'node:test'
 
 import {
     bridgeAvailabilitySchema,
+    bridgeCapabilityManifestSchema,
     bridgeDeviceSchema,
     bridgeDevicesSchema,
     bridgeEventSchema,
+    bridgeObservationReportSchema,
     bridgeResponseSchema,
     bridgeStateSchema,
 } from './bridge.ts'
+
+/** A plug's power Capability as the Rust Matter adapter publishes it (golden). */
+const powerIdentity = {
+    componentPath: [],
+    device: { externalId: '2', protocol: 'matter' },
+    kind: 'power',
+    physicalScope: { kind: 'device' },
+}
+
+describe('bridge Capability payloads', () => {
+    it('accepts the golden manifest with no envelope versions', () => {
+        const manifest = {
+            schemaVersion: 1,
+            supportedObservationEnvelopeVersions: [],
+            device: { externalId: '2', protocol: 'matter' },
+            capabilities: [
+                {
+                    identity: powerIdentity,
+                    unit: 'W',
+                    directionality: 'bidirectional',
+                    constraintRevisions: [
+                        {
+                            revisionId: 'matter-electrical-v1',
+                            declaredAt: '2026-01-01T00:00:00Z',
+                            effectiveAt: '2026-01-01T00:00:00Z',
+                            scale: 3,
+                            bounds: {
+                                minimum: -9007199254740991,
+                                maximum: 9007199254740991,
+                            },
+                            resolution: 1,
+                            freshnessMs: 90000,
+                            historyAdmission: {
+                                maximumObservations: 60,
+                                intervalMs: 60000,
+                            },
+                        },
+                    ],
+                },
+            ],
+        }
+        assert.deepEqual(
+            bridgeCapabilityManifestSchema.parse(manifest),
+            manifest
+        )
+    })
+
+    it('accepts the golden observation report and rejects an unknown kind', () => {
+        const report = {
+            observationId: '2:1:1',
+            observedAt: '2026-10-09T12:00:00Z',
+            timeTrust: 'trustworthy',
+            observations: [
+                {
+                    capabilityId: 'capability-plug-power',
+                    identity: powerIdentity,
+                    reading: {
+                        status: 'value',
+                        value: {
+                            constraintRevisionId: 'matter-electrical-v1',
+                            scale: 3,
+                            value: 60000,
+                        },
+                    },
+                },
+            ],
+        }
+        assert.deepEqual(bridgeObservationReportSchema.parse(report), report)
+        const unknown = {
+            ...report,
+            observations: report.observations.map((entry) => ({
+                ...entry,
+                identity: { ...powerIdentity, kind: 'frequency' },
+            })),
+        }
+        assert.equal(
+            bridgeObservationReportSchema.safeParse(unknown).success,
+            false
+        )
+    })
+})
 
 /** What the Rust Matter adapter publishes for a plug (golden/matter-mqtt.json). */
 const plug = {

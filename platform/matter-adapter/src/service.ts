@@ -7,35 +7,54 @@
  * was requested, so a Command is confirmed only once the Device confirms it.
  *
  * Devices come back after a restart from the fabric in the data directory, and
- * names from the name store beside it (ADR-0014). A Home backup quiesces the
- * adapter by pausing its container (ADR-0013); every store is written
- * atomically, so the paused data directory is always a consistent copy.
+ * names, meter identities and Capability IDs from the stores beside it
+ * (ADR-0014). A Home backup quiesces the adapter by pausing its container
+ * (ADR-0013). Every store is written atomically, so the paused data directory
+ * is a consistent copy.
  */
 import type { DeviceState } from '@nemu/protocol'
 import type { NodeId } from './attributes.ts'
+import {
+    commissionDevice,
+    type ProgressStage,
+    redact,
+} from './commissioning.ts'
 import type { Log } from './log.ts'
 import {
     commandsForSet,
     deviceDescriptor,
     type EndpointDevice,
+    isLimitAttribute,
     isPlaceholder,
     mapNodeOrPlaceholder,
     stateForDevice,
     targetEndpoints,
 } from './mapping/index.ts'
-import type { AttributeChanges, MatterSession } from './matter/session.ts'
+import type {
+    AttributeChanges,
+    MatterSession,
+    WifiCredentials,
+} from './matter/session.ts'
+import { isMeterAttribute, Meters } from './meters/index.ts'
 import type { MqttBus, Online } from './mqtt/bus.ts'
 import { type Incoming, type Payload, transactionOf } from './mqtt/topics.ts'
+import { NameStore } from './stores/names.ts'
 
 /** Names given by rename, by Device ID. `NameStore` persists them. */
 export interface Names {
     get(id: string): string | undefined
-    set(id: string, name: string): Promise<void>
-    retainOnly(keep: ReadonlySet<string>): Promise<void>
+    set(id: string, name: string): void
+    retainOnly(keep: ReadonlySet<string>): void
 }
 
-export interface Stores {
-    names: Names
+/** Whether an `endpoint/cluster/attribute` key is a descriptor limit. */
+function isLimitPath(key: string): boolean {
+    const [, cluster, attribute] = key.split('/').map(Number)
+    return (
+        cluster !== undefined &&
+        attribute !== undefined &&
+        isLimitAttribute(cluster, attribute)
+    )
 }
 
 export class Service {
@@ -53,7 +72,8 @@ export class Service {
         private readonly session: MatterSession,
         private readonly bus: MqttBus,
         private readonly log: Log,
-        private readonly stores: Stores
+        private readonly meters: Meters = new Meters(),
+        private readonly names: Names = NameStore.inMemory()
     ) {
         bus.onRequest((incoming) => this.#handle(incoming))
         session.onAttributes((nodeId, changes) =>
@@ -72,16 +92,10 @@ export class Service {
 
     /** Retained `bridge/devices`, then every Device's state and availability. */
     async publishInventory(): Promise<void> {
-        const descriptors = [...this.#devices.values()].map((device) =>
-            deviceDescriptor(
-                device,
-                this.stores.names.get(device.id) ?? device.defaultName,
-                this.session.snapshot(device.nodeId) ?? {}
-            )
-        )
-        await this.bus.devices(descriptors)
+        await this.#publishDescriptors()
         for (const device of this.#devices.values()) {
             await this.#publishState(device, true)
+            await this.#publishMeter(device, false)
             // Unknown reachability (not yet connected) keeps the Rust answer.
             const online =
                 this.session.reachable(device.nodeId) === false
@@ -100,14 +114,12 @@ export class Service {
                 return this.#cancel(incoming.payload)
             case 'set':
                 return this.#set(incoming.deviceId, incoming.payload)
+            case 'capabilityIds':
+                return this.#capabilityIds(incoming.deviceId, incoming.payload)
             case 'rename':
                 return this.#rename(incoming.payload)
             case 'remove':
                 return this.#remove(incoming.payload)
-            case 'capabilityIds':
-                // TODO(NEM-118): Capability IDs.
-                this.log.info(`${incoming.kind} is not handled yet`)
-                return
             case 'health':
                 return
         }
@@ -131,45 +143,72 @@ export class Service {
             })
             return
         }
-        // TODO(NEM-120): wifiSsid/wifiPassword and BLE commissioning.
+        const wifi = wifiOf(payload)
         const attempt = new AbortController()
         this.#commissioning = attempt
         // Acknowledge first: commissioning takes seconds, and over BLE 20–40 s.
         await this.bus.respond('commission', transaction, { status: 'ok' })
-        void this.#runCommission(code, attempt)
+        await this.#progress('looking', 'Looking for your device')
+        void this.#runCommission(code, wifi, attempt)
     }
 
     async #runCommission(
         code: string,
+        wifi: WifiCredentials | undefined,
         attempt: AbortController
     ): Promise<void> {
         try {
-            const nodeId = await this.session.commission({
-                code,
-                signal: attempt.signal,
-            })
+            const nodeId = await commissionDevice(
+                this.session,
+                { code, wifi, signal: attempt.signal },
+                (stage, message) => this.#progress(stage, message),
+                this.log
+            )
             this.log.info(`commissioned node ${nodeId}`)
             this.#removed.delete(nodeId)
+            await this.#progress('setting_up', 'Setting up the device')
             this.#index(nodeId)
             await this.publishInventory()
+            if (![...this.#devices.values()].some((d) => d.nodeId === nodeId)) {
+                await this.#interviewFailed(
+                    'The device connected but did not appear on the controller.'
+                )
+                return
+            }
+            await this.#progress('connected', 'Connected')
         } catch (error) {
             if (attempt.signal.aborted) {
                 this.log.info('commissioning cancelled')
                 return
             }
-            this.log.warn(`commissioning failed: ${String(error)}`)
-            await this.bus.event({
-                type: 'device_interview',
-                data: {
-                    ieee_address: 'commissioning',
-                    status: 'failed',
-                    error:
-                        error instanceof Error ? error.message : String(error),
-                },
-            })
+            const message =
+                error instanceof Error ? error.message : String(error)
+            this.log.warn(
+                `commissioning failed: ${redact(message, { code, wifi })}`
+            )
+            await this.#interviewFailed(message)
         } finally {
             if (this.#commissioning === attempt) this.#commissioning = undefined
         }
+    }
+
+    /** The Rust adapter's `publish_progress`: both events, in this order. */
+    async #progress(stage: ProgressStage, message: string): Promise<void> {
+        await this.bus.event({
+            type: 'commission_progress',
+            data: { stage, message },
+        })
+        await this.bus.event({
+            type: 'device_interview',
+            data: { ieee_address: 'commissioning', status: 'started', message },
+        })
+    }
+
+    async #interviewFailed(error: string): Promise<void> {
+        await this.bus.event({
+            type: 'device_interview',
+            data: { ieee_address: 'commissioning', status: 'failed', error },
+        })
     }
 
     async #cancel(payload: Payload): Promise<void> {
@@ -183,8 +222,8 @@ export class Service {
     async #rename(payload: Payload): Promise<void> {
         const { from, to } = payload
         if (typeof from !== 'string' || typeof to !== 'string' || !to) return
-        // Persist first, so a published name is never lost to a crash.
-        await this.stores.names.set(from, to)
+        // Stored first, so a published name is never lost to a crash.
+        this.names.set(from, to)
         await this.publishInventory()
     }
 
@@ -223,9 +262,10 @@ export class Service {
         })
     }
 
+    /** The Rust adapter's `drop_node`. */
     async #dropNode(nodeId: NodeId): Promise<void> {
-        for (const [id, device] of [...this.#devices]) {
-            if (device.nodeId !== nodeId) continue
+        for (const device of this.#devicesOf(nodeId)) {
+            const { id } = device
             this.#devices.delete(id)
             this.#published.delete(id)
             this.#availability.delete(id)
@@ -234,9 +274,16 @@ export class Service {
                 type: 'device_leave',
                 data: { ieee_address: id },
             })
-            await this.bus.clearDevice(id)
+            for (const topic of [
+                id,
+                `${id}/availability`,
+                `${id}/capabilities`,
+                `${id}/observations`,
+            ])
+                await this.bus.clearRetained(topic)
+            this.meters.forget(id)
         }
-        await this.stores.names.retainOnly(new Set(this.#devices.keys()))
+        this.names.retainOnly(new Set(this.#devices.keys()))
         await this.publishInventory()
     }
 
@@ -318,7 +365,7 @@ export class Service {
 
     async #onAttributes(
         nodeId: NodeId,
-        _changes: AttributeChanges
+        changes: AttributeChanges
     ): Promise<void> {
         if (this.#removed.has(nodeId)) return
         // A placeholder (a node restored before its attributes were stored)
@@ -330,10 +377,68 @@ export class Service {
             await this.publishInventory()
             return
         }
-        for (const device of this.#devices.values()) {
-            if (device.nodeId === nodeId)
-                await this.#publishState(device, false)
+        const freshMeter = Object.keys(changes).some(isMeterAttribute)
+        let indexed = false
+        for (const device of [...this.#devices.values()]) {
+            if (device.nodeId !== nodeId) continue
+            indexed = true
+            // A meter report republishes the unchanged state too, as Rust's
+            // `publish_state` does (golden plug-load-changes).
+            await this.#publishState(device, freshMeter)
+            await this.#publishMeter(device, freshMeter)
         }
+        // New brightness or color temperature limits change the descriptor.
+        if (indexed && Object.keys(changes).some(isLimitPath))
+            await this.#publishDescriptors()
+    }
+
+    /**
+     * Stores the Capability IDs Core assigned. Like the Rust adapter, they are
+     * stamped from the next fresh reading on: the unchanged envelope is not
+     * republished (golden quirk 4). The Device state is, as in Rust.
+     */
+    async #capabilityIds(deviceId: string, payload: Payload): Promise<void> {
+        if (!this.meters.assign(deviceId, payload)) return
+        const device = this.#devices.get(deviceId)
+        if (!device) return
+        await this.#publishState(device, true)
+        await this.#publishMeter(device, false)
+    }
+
+    async #publishMeter(device: EndpointDevice, fresh: boolean): Promise<void> {
+        const snapshot = this.session.snapshot(device.nodeId)
+        if (!snapshot) return
+        const update = this.meters.update(device, snapshot, fresh)
+        switch (update.kind) {
+            case 'publish':
+                await this.bus.capabilities(device.id, update.manifest)
+                await this.bus.observations(device.id, update.report)
+                return
+            case 'manifest':
+                this.log.warn(
+                    `skipped a meter observation for ${device.id}: the clock is unavailable`
+                )
+                await this.bus.capabilities(device.id, update.manifest)
+                return
+            case 'clear':
+                await this.bus.clearRetained(`${device.id}/capabilities`)
+                await this.bus.clearRetained(`${device.id}/observations`)
+                return
+            case 'none':
+                return
+        }
+    }
+
+    async #publishDescriptors(): Promise<void> {
+        await this.bus.devices(
+            [...this.#devices.values()].map((device) =>
+                deviceDescriptor(
+                    device,
+                    this.names.get(device.id) ?? device.defaultName,
+                    this.session.snapshot(device.nodeId) ?? {}
+                )
+            )
+        )
     }
 
     async #publishState(
@@ -363,4 +468,14 @@ export class Service {
         for (const device of mapNodeOrPlaceholder(nodeId, snapshot))
             this.#devices.set(device.id, device)
     }
+}
+
+/** Home Wi-Fi from a commission request, as the Rust adapter read it. */
+function wifiOf(payload: Payload): WifiCredentials | undefined {
+    const ssid =
+        typeof payload.wifiSsid === 'string' ? payload.wifiSsid.trim() : ''
+    if (!ssid) return undefined
+    const password =
+        typeof payload.wifiPassword === 'string' ? payload.wifiPassword : ''
+    return { ssid, password }
 }
