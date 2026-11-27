@@ -359,6 +359,23 @@
                 "ciphertext": "y66fv6Aea0agZO58vCcfowesjeWglyFt5Ck2mNM-8JtDDpEQ2GCQE3TOun4-6Lvibsl52BkAFD8tDGBVjsmAT5JwrOE",
                 "signature": "wJWTBRM7uBc6_c5BxZdkPPY4ixwIqz5X5pvn3cVMSHtQuqDCjtnrgTcu84i-GxTjizkdwFxNF4L2bFQvw6TTCQ"
             }
+        },
+        {
+            "name": "commissioning step",
+            "request": "watch",
+            "counter": 3,
+            "plaintext": "{\"type\":\"commissioningStep\",\"status\":\"failed\",\"step\":\"configuring_network\",\"reason\":\"network_rejected\"}",
+            "sealed": {
+                "header": {
+                    "controllerId": "nemu_0123456789abcdef",
+                    "identityEpoch": 3,
+                    "accessClientId": "ac_7f3a",
+                    "requestId": "req_0002",
+                    "counter": 3
+                },
+                "ciphertext": "MJ1usbmohpmAuWYcEBRssYiC5fjBvLbSc2Gvx0cHudFp4MehcI7TSjagdGBQg3jk-p5JFJ8La2p9UJyvfgj9y79zWZFYz-wOLKlD1nTAA0NeWX4gEQo-DDYlKYREFcyWLE93qCBgHK7L-Ip7oe14Qz4pGDR3MCQ",
+                "signature": "NCR6RdIV1t9x-17Zf9fQfw1GwpL47I5k81nwN89IdB9bCZaSrnjsXynOZhDPpiVFzgYE2_xwJdlV1SSDS17vBg"
+            }
         }
     ],
     "grants": [

@@ -22,6 +22,7 @@ import {
     capabilityChangeEventSchema,
     capabilitySnapshotEventSchema,
 } from './capability.ts'
+import { commissioningStepEventSchema } from './commissioning-progress.ts'
 import { deviceSchema, deviceStateSchema, roomSchema } from './device.ts'
 import {
     designateHomeMeterMessageSchema,
@@ -205,3 +206,15 @@ export const relayReplyMessageSchema = z.union([
     memberHealthSummarySchema.extend({ type: z.literal('healthSummary') }),
 ])
 export type RelayReplyMessage = z.infer<typeof relayReplyMessageSchema>
+
+/**
+ * One push, as a sealed Relay push's plaintext. Pushes ride the capability
+ * watch: its changes and snapshots, and commissioning progress. Progress
+ * never answers a request, so it is not a reply.
+ */
+export const relayPushMessageSchema = z.union([
+    capabilityChangeEventSchema,
+    capabilitySnapshotEventSchema,
+    commissioningStepEventSchema,
+])
+export type RelayPushMessage = z.infer<typeof relayPushMessageSchema>

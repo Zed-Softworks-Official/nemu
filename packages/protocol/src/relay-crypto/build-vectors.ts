@@ -497,18 +497,38 @@ export async function buildRelayCryptoVectors() {
         plaintext: utf8Encode('{"ok":true,"outcome":"accepted"}'),
         controllerSigner: signer(impostor),
     })
+    const pushPlaintexts = [
+        {
+            name: 'capability change 1',
+            plaintext: '{"deviceId":"dev_1","capability":"on","value":true}',
+        },
+        {
+            name: 'capability change 2',
+            plaintext: '{"deviceId":"dev_1","capability":"on","value":false}',
+        },
+        {
+            // Commissioning progress rides the capability watch (NEM-123):
+            // the same key and the next counter. Core's serialization of
+            // this step must produce these exact bytes.
+            name: 'commissioning step',
+            plaintext:
+                '{"type":"commissioningStep","status":"failed","step":"configuring_network","reason":"network_rejected"}',
+        },
+    ]
     const pushes = await Promise.all(
-        [1, 2].map((counter) =>
-            sealPush({
+        pushPlaintexts.map(async ({ name, plaintext }, index) => ({
+            name,
+            request: watch.name,
+            counter: index + 1,
+            plaintext,
+            sealed: await sealPush({
                 watch: watch.sealed.header,
                 keys: watch.keys,
-                counter,
-                plaintext: utf8Encode(
-                    `{"deviceId":"dev_1","capability":"on","value":${counter === 1}}`
-                ),
+                counter: index + 1,
+                plaintext: utf8Encode(plaintext),
                 controllerSigner: signer(controller),
-            })
-        )
+            }),
+        }))
     )
     const forgedPush = await sealPush({
         watch: watch.sealed.header,
@@ -519,9 +539,9 @@ export async function buildRelayCryptoVectors() {
         ),
         controllerSigner: signer(impostor),
     })
-    const [push1, push2] = pushes as [
-        (typeof pushes)[number],
-        (typeof pushes)[number],
+    const [push1, push2] = pushes.map((push) => push.sealed) as [
+        (typeof pushes)[number]['sealed'],
+        (typeof pushes)[number]['sealed'],
     ]
 
     const grant: AccessGrant = {
@@ -634,13 +654,7 @@ export async function buildRelayCryptoVectors() {
                 sealed: response,
             },
         ],
-        pushes: [push1, push2].map((sealed, index) => ({
-            name: `capability change ${index + 1}`,
-            request: watch.name,
-            counter: index + 1,
-            plaintext: `{"deviceId":"dev_1","capability":"on","value":${index === 0}}`,
-            sealed,
-        })),
+        pushes,
         grants: [
             {
                 name: 'Access grant',
