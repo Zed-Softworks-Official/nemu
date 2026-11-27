@@ -12,7 +12,7 @@ import axios, {
 
 /** A Local session source; see `LocalSession`. */
 export type LocalSessionAuth = {
-    token(): Promise<string>
+    session(): Promise<string>
     invalidate(): void
 }
 
@@ -52,7 +52,7 @@ export function createControllerHttp(
 
     client.interceptors.request.use(async (config) => {
         if (localSession) {
-            config.headers.Authorization = `NemuSession ${await localSession.token()}`
+            config.headers.Authorization = `NemuSession ${await localSession.session()}`
         }
         return config
     })

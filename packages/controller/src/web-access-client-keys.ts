@@ -174,7 +174,7 @@ function unsupportedBrowser(): ApiError {
  *
  * Browsers without Web Crypto Ed25519 or X25519 cannot pair: `generate`
  * throws `unsupported_browser`, and `supported()` says so up front. A record
- * from older builds that kept key bytes (`stored-bytes`) loads as unpaired and
+ * from older builds that kept key bytes (`stored-bytes`) loads as not paired and
  * is deleted.
  */
 export function createWebAccessClientKeyStore(

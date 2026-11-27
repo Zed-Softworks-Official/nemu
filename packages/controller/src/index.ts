@@ -98,7 +98,7 @@ export type {
 export {
     clearRememberedBaseUrl,
     clearRememberedControllerId,
-    forgetLegacyClientTokens,
+    discardLegacyClientTokens,
     getRememberedBaseUrl,
     getRememberedControllerId,
     setRememberedBaseUrl,

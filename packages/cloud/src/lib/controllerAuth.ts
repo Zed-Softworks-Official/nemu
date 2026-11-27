@@ -6,7 +6,7 @@ export const CONTROLLER_JWT_ISSUER = 'https://nemu.sh/controller'
 /** Audience / applicationID for controller session JWTs. */
 export const CONTROLLER_JWT_AUDIENCE = 'nemu-controller'
 
-/** Session token lifetime in seconds (~1 hour). */
+/** Controller JWT lifetime in seconds (~1 hour). */
 export const CONTROLLER_JWT_TTL_SECONDS = 60 * 60
 
 export function isControllerIssuer(issuer: string): boolean {

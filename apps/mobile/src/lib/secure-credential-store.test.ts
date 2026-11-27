@@ -42,7 +42,7 @@ describe('Access Client keys in the secure store', () => {
         expect(await reopened.load('city')).toBeNull()
     })
 
-    it('treats an alpha bearer token as unpaired and deletes it', async () => {
+    it('treats an alpha bearer token as not paired and deletes it', async () => {
         // Where alpha builds kept the token for this Account and Home.
         const legacy = 'nemu.user_alice.access-client.lake'
         SecureStore.setItem(legacy, JSON.stringify({ clientToken: 'nemu_old' }))

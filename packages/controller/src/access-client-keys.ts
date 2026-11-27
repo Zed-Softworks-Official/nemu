@@ -290,7 +290,7 @@ const secretRecordSchema = z.object({
  * that can only hold bytes (mobile: the Keychain or Keystore through
  * expo-secure-store). The crypto runs in JS. Anything that is not a
  * complete record, such as a bearer-token credential from before Access
- * Client keys, loads as unpaired.
+ * Client keys, loads as not paired.
  */
 export function createSecretAccessClientKeyStore(
     storage: AccessClientSecretStorage

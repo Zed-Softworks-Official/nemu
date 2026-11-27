@@ -78,7 +78,7 @@ type HomeSessionValue = {
      * the Controller has confirmed a revocation or a Leave. `notice` is
      * shown on the pairing screen that follows.
      */
-    forgetPairing: (notice?: string) => void
+    clearPairing: (notice?: string) => void
     /** Why this Home's pairing was cleared, when the phone should say so. */
     pairingNotice: string | null
 }
@@ -140,7 +140,7 @@ export function HomeSessionProvider({
     )
 
     // Whether this phone holds keys for the active Home. Only keys count: a
-    // bearer-token credential from before them is unpaired.
+    // bearer-token credential from before them is not paired.
     const activeId = activeHome?.controllerId ?? null
     const [stored, setStored] = useState<{
         controllerId: string
@@ -201,7 +201,7 @@ export function HomeSessionProvider({
         setPairingChange({ controllerId: selectedId, paired: true })
     }, [selectedId])
 
-    const forgetPairing = useCallback(
+    const clearPairing = useCallback(
         (notice?: string) => {
             if (!selectedId) return
             void accessClientKeyStore.clear(selectedId).catch(() => {})
@@ -250,7 +250,7 @@ export function HomeSessionProvider({
             switchHome,
             createPairing,
             completePairing,
-            forgetPairing,
+            clearPairing,
             pairingNotice,
         }),
         [
@@ -262,7 +262,7 @@ export function HomeSessionProvider({
             switchHome,
             createPairing,
             completePairing,
-            forgetPairing,
+            clearPairing,
             pairingNotice,
         ]
     )
@@ -282,10 +282,7 @@ export function HomeSessionProvider({
                 relayApi={relayApi}
             >
                 {activeHome && paired ? (
-                    <PairAgainWatcher
-                        home={activeHome}
-                        onLost={forgetPairing}
-                    />
+                    <PairAgainWatcher home={activeHome} onLost={clearPairing} />
                 ) : null}
                 {children}
             </ControllerProvider>

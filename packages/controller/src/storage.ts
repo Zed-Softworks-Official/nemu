@@ -52,7 +52,7 @@ export function clearRememberedControllerId(): void {
  * longer work (the Controller answers `bearer_token_retired`), and nothing
  * reads them.
  */
-export function forgetLegacyClientTokens(): void {
+export function discardLegacyClientTokens(): void {
     if (!canUseStorage()) return
     localStorage.removeItem(LEGACY_TOKEN_KEY)
     const legacy: string[] = []

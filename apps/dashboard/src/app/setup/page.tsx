@@ -4,8 +4,8 @@ import { useAuth, useUser } from '@clerk/nextjs'
 import { api, useMutation, useQuery } from '@nemu/cloud'
 import {
     buildTlsTrustUrl,
+    discardLegacyClientTokens,
     discoverController,
-    forgetLegacyClientTokens,
     getRememberedBaseUrl,
     getRememberedControllerId,
     INVALID_GRANT_ERROR_CODE,
@@ -198,7 +198,7 @@ export default function SetupPage() {
     useEffect(() => {
         const params = new URLSearchParams(window.location.search)
         setPairAgain(pairAgainMessage(params.get('pairAgain')))
-        // Only keys count: a bearer token from before them is unpaired.
+        // Only keys count: a bearer token from before them is not paired.
         const rememberedId = getRememberedControllerId()
         const rememberedUrl = getRememberedBaseUrl()
         if (!rememberedId) return
@@ -274,7 +274,7 @@ export default function SetupPage() {
                 setRememberedControllerId(id)
                 setRememberedBaseUrl(result.baseUrl)
                 // A bearer token from before Access Client keys is dead.
-                forgetLegacyClientTokens()
+                discardLegacyClientTokens()
             }
 
             if (!id) {

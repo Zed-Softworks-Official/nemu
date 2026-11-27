@@ -42,7 +42,7 @@ struct Session {
 #[derive(Default)]
 struct Inner {
     challenges: HashMap<[u8; NONCE_LEN], Instant>,
-    /// Keyed by the SHA-256 of the session token.
+    /// Keyed by the SHA-256 of the Local session's bearer string.
     sessions: HashMap<String, Session>,
 }
 
@@ -126,7 +126,7 @@ impl LocalSessions {
         }
     }
 
-    /// The Access Client a live session token names.
+    /// The Access Client a live Local session names.
     pub fn resolve(&self, token: &str) -> Option<Uuid> {
         self.resolve_at(token, Instant::now())
     }

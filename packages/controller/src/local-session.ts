@@ -53,7 +53,7 @@ export class LocalSession {
     private readonly keyStore: AccessClientKeyStore
     private readonly now: () => number
     private readonly renewBeforeMs: number
-    private current: { token: string; expiresAt: number } | null = null
+    private current: { session: string; expiresAt: number } | null = null
     private opening: Promise<string> | null = null
 
     constructor(options: LocalSessionOptions) {
@@ -64,13 +64,13 @@ export class LocalSession {
         this.renewBeforeMs = options.renewBeforeMs ?? 60_000
     }
 
-    /** A live Local session token, opening one when needed. */
-    async token(): Promise<string> {
+    /** A live Local session, opening one when needed. */
+    async session(): Promise<string> {
         if (
             this.current &&
             this.now() < this.current.expiresAt - this.renewBeforeMs
         ) {
-            return this.current.token
+            return this.current.session
         }
         this.opening ??= this.open().finally(() => {
             this.opening = null
@@ -127,7 +127,7 @@ export class LocalSession {
         }
         const opened = openLocalSessionResponseSchema.parse(data)
         this.current = {
-            token: opened.session,
+            session: opened.session,
             expiresAt: started + opened.expiresInSeconds * 1000,
         }
         return opened.session

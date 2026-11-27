@@ -161,7 +161,7 @@ describe('LanTransport with a Local session', () => {
                         },
                     },
                 })
-                    .token()
+                    .session()
                     .catch(() => {})
             }
             lan.refusals = refusals
