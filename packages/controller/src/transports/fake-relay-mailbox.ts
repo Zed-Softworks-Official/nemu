@@ -4,6 +4,7 @@ import {
     ed25519PublicKey,
     ed25519Signer,
     openRequest,
+    pushHeaderFor,
     RelayCryptoError,
     type RelayRejection,
     type ReplayWindow,
@@ -11,8 +12,10 @@ import {
     type RequestKeys,
     replyKeys,
     responseHeaderFor,
+    type SealedPush,
     type SealedRequest,
     type SealedResponse,
+    sealPush,
     sealResponse,
     utf8Decode,
     utf8Encode,
@@ -33,7 +36,9 @@ import type { RelayApi } from './relay.ts'
  * with the real `@nemu/protocol/relay-crypto` checks (Home, epoch, expiry,
  * Access Client, signature, replay window), answers it, and seals and signs
  * the reply, as Core's Relay handler does. Refused requests are answered the
- * way Core answers them.
+ * way Core answers them. A `watchCapabilityChanges` it acknowledges
+ * becomes a live watch, which `push` seals capability events to under the
+ * watch's exported key and next counter, as Core's push loop does.
  */
 
 export const FAKE_RELAY_API = {
@@ -45,11 +50,12 @@ export const FAKE_RELAY_API = {
 export const FAKE_HOME_ID = 'nemu_00000000feedbeef'
 export const FAKE_ACCESS_CLIENT_ID = '11111111-2222-4333-8444-555555555555'
 
-type Stored = {
-    _id: string
-    kind: 'response'
-    sealed: SealedResponse
-}
+type Stored =
+    | { _id: string; kind: 'response'; sealed: SealedResponse }
+    | { _id: string; kind: 'push'; sealed: SealedPush }
+
+/** A capability watch the Controller holds, as Core does. */
+type FakeWatch = { header: RequestHeader; keys: RequestKeys; counter: number }
 
 export type FakeAnswer = (
     message: { type: string } & Record<string, unknown>,
@@ -73,6 +79,8 @@ export class FakeRelayMailbox {
     /** Actions the Controller opened, in order. */
     readonly opened: Array<{ type: string } & Record<string, unknown>> = []
     readonly acks: string[][] = []
+    /** The requestIds of each `relay:responses` query, in order. */
+    readonly queried: string[][] = []
     readonly stored: Stored[] = []
     identityEpoch: number
     connected: boolean
@@ -85,6 +93,8 @@ export class FakeRelayMailbox {
     impostor = false
     failAcknowledge = false
     answer: FakeAnswer
+    /** Live capability watches, oldest first. */
+    readonly watches: FakeWatch[] = []
     private nextId = 0
     private pending: Array<{
         header: RequestHeader
@@ -133,7 +143,109 @@ export class FakeRelayMailbox {
         const pending = this.pending[index]
         if (!pending) throw new Error(`no pending request ${requestId}`)
         this.pending.splice(index, 1)
+        this.registerWatch(pending.message, pending.header, pending.keys, reply)
         return await this.store(pending.header, pending.keys, reply)
+    }
+
+    /** Request IDs of the live watches, oldest first. */
+    watchRequestIds(): string[] {
+        return this.watches.map((w) => w.header.requestId)
+    }
+
+    /**
+     * Seals `event` once per live watch, under each watch's key and next
+     * counter, and stores the pushes. Returns their message IDs.
+     */
+    async push(event: unknown): Promise<string[]> {
+        const ids: string[] = []
+        for (const watch of this.watches) {
+            ids.push(this.deliver(await this.sealPush(event, watch)))
+        }
+        return ids
+    }
+
+    /**
+     * Seals `event` on one watch (the newest by default) without storing it,
+     * taking its next counter unless `counter` is given.
+     */
+    async sealPush(
+        event: unknown,
+        watch: FakeWatch | string | undefined = this.watches.at(-1),
+        counter?: number
+    ): Promise<SealedPush> {
+        const target =
+            typeof watch === 'string'
+                ? this.watches.find((w) => w.header.requestId === watch)
+                : watch
+        if (!target) throw new Error('no live watch')
+        if (counter === undefined) {
+            target.counter += 1
+        }
+        return await sealPush({
+            watch: target.header,
+            keys: target.keys,
+            counter: counter ?? target.counter,
+            plaintext: utf8Encode(JSON.stringify(event)),
+            controllerSigner: ed25519Signer(
+                this.impostor
+                    ? new Uint8Array(32).fill(9)
+                    : this.controllerSigningSecret
+            ),
+        })
+    }
+
+    /** Stores a sealed push, as Core's `respondAsController` would. */
+    deliver(sealed: SealedPush): string {
+        const _id = `msg-${this.nextId++}`
+        this.stored.push({ _id, kind: 'push', sealed: structuredClone(sealed) })
+        return _id
+    }
+
+    /** A push Convex made up on the newest watch: right header, junk bytes. */
+    forgePush(counter: number): string {
+        const watch = this.watches.at(-1)
+        if (!watch) throw new Error('no live watch')
+        return this.deliver({
+            header: pushHeaderFor(watch.header, counter),
+            ciphertext: b64urlEncode(new Uint8Array(40).fill(3)),
+            signature: b64urlEncode(new Uint8Array(64).fill(4)),
+        })
+    }
+
+    /** Pushes still in the mailbox. */
+    storedPushes(): SealedPush[] {
+        return this.stored.flatMap((m) => (m.kind === 'push' ? [m.sealed] : []))
+    }
+
+    /**
+     * Revokes the Access Client: its watches end at once, and its requests
+     * are refused from now on.
+     */
+    revoke(): void {
+        this.paired = false
+        this.watches.length = 0
+    }
+
+    private registerWatch(
+        message: { type: string } & Record<string, unknown>,
+        header: RequestHeader,
+        keys: RequestKeys,
+        reply: unknown
+    ): void {
+        if (message.type !== 'watchCapabilityChanges') return
+        if (
+            (reply as { type?: string } | null)?.type !== 'capabilityWatchAck'
+        ) {
+            return
+        }
+        const renews = message.renews
+        for (let i = this.watches.length - 1; i >= 0; i--) {
+            const id = this.watches[i]?.header.requestId
+            if (id === renews || id === header.requestId) {
+                this.watches.splice(i, 1)
+            }
+        }
+        this.watches.push({ header, keys, counter: 0 })
     }
 
     /**
@@ -192,6 +304,7 @@ export class FakeRelayMailbox {
             }
         ) => {
             if (ref !== FAKE_RELAY_API.responses) throw new Error('unknown ref')
+            this.queried.push([...args.requestIds])
             return this.stored.filter(
                 (m) =>
                     m.sealed.header.controllerId === args.controllerId &&
@@ -239,6 +352,7 @@ export class FakeRelayMailbox {
         const message = JSON.parse(utf8Decode(opened.plaintext) ?? 'null')
         this.opened.push(message)
         const reply = this.answer(message, opened.header)
+        this.registerWatch(message, opened.header, opened.keys, reply)
         if (reply === undefined) {
             this.pending.push({
                 header: opened.header,

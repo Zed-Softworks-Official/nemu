@@ -731,3 +731,255 @@ describe('RelayTransport acknowledges Relay replies', () => {
         )
     })
 })
+
+// Capability-watch pushes (NEM-132): sealed by the Controller with the key
+// exported from the watch request and a counter nonce, opened here against
+// the pinned Controller key.
+
+const capabilityReading = {
+    capabilityId: '6f1d7c6a-6a2e-4d0a-9c3e-3d6c1b9a4e21',
+    device: { protocol: 'matter', externalId: 'plug-1' },
+    physicalScope: { kind: 'device' },
+    kind: 'power',
+    value: { value: 1500, scale: 3, constraintRevisionId: 'limits-1' },
+    availability: { status: 'available' },
+    observedAt: '2026-10-09T18:00:00.000Z',
+    receivedAt: '2026-10-09T18:00:01.000Z',
+    revision: 4,
+}
+
+const capabilityChange = (revision: number) => ({
+    type: 'capabilityChange',
+    epoch: '2b7e1c4a-8f3d-4a6b-9c1e-5d8a7b6c4e32',
+    revision,
+    state: { ...capabilityReading, revision },
+})
+
+const watching: FakeAnswer = (message) => {
+    if (message.type === 'watchCapabilityChanges') {
+        return { type: 'capabilityWatchAck' }
+    }
+    if (message.type === 'getCapabilitySnapshot') {
+        return {
+            type: 'capabilitySnapshot',
+            epoch: '2b7e1c4a-8f3d-4a6b-9c1e-5d8a7b6c4e32',
+            revision: 9,
+            capabilities: [],
+        }
+    }
+    return undefined
+}
+
+/** A connected transport with a live watch, recording what it emits. */
+async function withWatch(
+    setup: Setup & { watchRenewalMs?: number },
+    body: (
+        ctx: Awaited<ReturnType<typeof relayWith>> & {
+            events: Array<{ type: string } & Record<string, unknown>>
+        }
+    ) => Promise<void>
+) {
+    const ctx = await relayWith({ answer: watching, ...setup })
+    const relay = new RelayTransport({
+        convex: ctx.mailbox.convex,
+        api: FAKE_RELAY_API,
+        controllerId: FAKE_HOME_ID,
+        keyStore: ctx.mailbox.keyStore,
+        counter: createMemoryRelayCounter(0),
+        pollIntervalMs: 1,
+        commandTimeoutMs: 2_000,
+        watchRenewalMs: setup.watchRenewalMs,
+    })
+    const events: Array<{ type: string } & Record<string, unknown>> = []
+    relay.subscribeEvents((event) => {
+        events.push(event as never)
+    })
+    await relay.connect()
+    try {
+        await until(() => ctx.mailbox.watches.length === 1)
+        await body({ ...ctx, relay, events })
+    } finally {
+        relay.disconnect()
+    }
+}
+
+const changes = (events: Array<{ type: string } & Record<string, unknown>>) =>
+    events.filter((e) => e.type === 'capabilityChange').map((e) => e.revision)
+
+describe('RelayTransport capability pushes', () => {
+    it('emits each sealed push and acknowledges it', async () => {
+        await withWatch({}, async ({ mailbox, events }) => {
+            const [first] = await mailbox.push(capabilityChange(5))
+            const [second] = await mailbox.push(capabilityChange(6))
+            await until(() => changes(events).length === 2)
+            assert.deepEqual(changes(events), [5, 6])
+            assert.deepEqual(events[0], capabilityChange(5))
+            await until(() => mailbox.storedPushes().length === 0)
+            assert.ok(mailbox.acks.flat().includes(first ?? ''))
+            assert.ok(mailbox.acks.flat().includes(second ?? ''))
+        })
+    })
+
+    it('leaves Convex only the push header and opaque bytes', async () => {
+        await withWatch({}, async ({ mailbox }) => {
+            await mailbox.push(capabilityChange(5))
+            const [push] = mailbox.storedPushes()
+            assert.ok(push)
+            assert.deepEqual(Object.keys(push).sort(), [
+                'ciphertext',
+                'header',
+                'signature',
+            ])
+            assert.deepEqual(Object.keys(push.header).sort(), [
+                'accessClientId',
+                'controllerId',
+                'counter',
+                'identityEpoch',
+                'requestId',
+            ])
+            const wire = JSON.stringify(push)
+            for (const secret of ['capabilityChange', 'plug-1', 'power']) {
+                assert.equal(wire.includes(secret), false, secret)
+            }
+        })
+    })
+
+    it('ignores pushes Convex forged or an impostor signed', async () => {
+        await withWatch({}, async ({ mailbox, events }) => {
+            const forged = mailbox.forgePush(1)
+            mailbox.impostor = true
+            const impostor = await mailbox.push(capabilityChange(5))
+            mailbox.impostor = false
+            await until(() =>
+                [forged, ...impostor].every((id) =>
+                    mailbox.acks.flat().includes(id)
+                )
+            )
+            assert.deepEqual(changes(events), [])
+            // The genuine push after them still arrives.
+            await mailbox.push(capabilityChange(6))
+            await until(() => changes(events).length === 1)
+            assert.deepEqual(changes(events), [6])
+        })
+    })
+
+    it('rejects a replayed push counter', async () => {
+        await withWatch({}, async ({ mailbox, events }) => {
+            const sealed = await mailbox.sealPush(capabilityChange(5))
+            mailbox.deliver(sealed)
+            await until(() => changes(events).length === 1)
+            const replay = mailbox.deliver(sealed)
+            await until(() => mailbox.acks.flat().includes(replay))
+            await tick()
+            assert.deepEqual(changes(events), [5])
+        })
+    })
+
+    it('rejects a push older than one it already applied', async () => {
+        await withWatch({}, async ({ mailbox, events }) => {
+            const first = await mailbox.sealPush(capabilityChange(5))
+            const second = await mailbox.sealPush(capabilityChange(6))
+            mailbox.deliver(second)
+            await until(() => changes(events).length === 1)
+            const late = mailbox.deliver(first)
+            await until(() => mailbox.acks.flat().includes(late))
+            await tick()
+            // Counter 1 after counter 2 would roll the state back.
+            assert.deepEqual(changes(events), [6])
+        })
+    })
+
+    it('applies pushes listed out of order in counter order', async () => {
+        await withWatch({}, async ({ mailbox, events }) => {
+            const first = await mailbox.sealPush(capabilityChange(5))
+            const second = await mailbox.sealPush(capabilityChange(6))
+            // One poll lists both, newest first.
+            mailbox.deliver(second)
+            mailbox.deliver(first)
+            await until(() => changes(events).length === 2)
+            assert.deepEqual(changes(events), [5, 6])
+        })
+    })
+
+    it('re-reads the snapshot when a push counter skips', async () => {
+        await withWatch({}, async ({ mailbox, events }) => {
+            await mailbox.sealPush(capabilityChange(5)) // lost on the way
+            await mailbox.push(capabilityChange(6))
+            await until(() =>
+                events.some((e) => e.type === 'capabilitySnapshot')
+            )
+            assert.deepEqual(changes(events), [6])
+            assert.ok(
+                mailbox.opened.some((m) => m.type === 'getCapabilitySnapshot')
+            )
+        })
+    })
+
+    it('renews by naming its watch, and reads leftovers of the old one', async () => {
+        await withWatch({ watchRenewalMs: 60 }, async ({ mailbox, events }) => {
+            const firstWatch = mailbox.watchRequestIds()[0] ?? ''
+            // Sealed on the first watch before the renewal reached Core.
+            const leftover = await mailbox.sealPush(
+                capabilityChange(5),
+                firstWatch
+            )
+            await until(() => !mailbox.watchRequestIds().includes(firstWatch))
+            const renewal = mailbox.opened.find(
+                (m) =>
+                    m.type === 'watchCapabilityChanges' &&
+                    m.renews === firstWatch
+            )
+            assert.ok(renewal, 'the renewal names the watch it renews')
+            assert.equal(mailbox.watches.length, 1)
+            mailbox.deliver(leftover)
+            await mailbox.push(capabilityChange(6))
+            await until(() => changes(events).length === 2)
+            assert.deepEqual(changes(events), [5, 6])
+        })
+    })
+
+    it('gives two tabs of one Access Client a watch each', async () => {
+        await withWatch({}, async ({ mailbox, events }) => {
+            const tab = new RelayTransport({
+                convex: mailbox.convex,
+                api: FAKE_RELAY_API,
+                controllerId: FAKE_HOME_ID,
+                keyStore: mailbox.keyStore,
+                counter: createMemoryRelayCounter(1_000),
+                pollIntervalMs: 1,
+            })
+            const tabEvents: unknown[] = []
+            tab.subscribeEvents((event) => {
+                tabEvents.push(event)
+            })
+            await tab.connect()
+            try {
+                await until(() => mailbox.watches.length === 2)
+                await mailbox.push(capabilityChange(5))
+                await until(
+                    () => changes(events).length === 1 && tabEvents.length === 1
+                )
+            } finally {
+                tab.disconnect()
+            }
+        })
+    })
+
+    it('stops watching once the Controller says to pair again', async () => {
+        await withWatch({ watchRenewalMs: 20 }, async ({ mailbox, events }) => {
+            const watch = mailbox.watchRequestIds()[0] ?? ''
+            const pollsOfWatch = () =>
+                mailbox.queried.filter((ids) => ids.includes(watch)).length
+            mailbox.revoke()
+            // The next renewal is refused, signed: pair again at home.
+            await until(() =>
+                mailbox.wire.some((sealed) => sealed.header.requestId !== watch)
+            )
+            await tick(40)
+            const polls = pollsOfWatch()
+            await tick(40)
+            assert.equal(pollsOfWatch(), polls)
+            assert.deepEqual(changes(events), [])
+        })
+    })
+})

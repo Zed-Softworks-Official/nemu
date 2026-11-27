@@ -667,6 +667,57 @@
                 },
                 "acceptedCounters": [],
                 "expectedError": "mismatched_header"
+            },
+            {
+                "name": "signed by a key other than the pinned one",
+                "request": "watch",
+                "sealed": {
+                    "header": {
+                        "controllerId": "nemu_0123456789abcdef",
+                        "identityEpoch": 3,
+                        "accessClientId": "ac_7f3a",
+                        "requestId": "req_0002",
+                        "counter": 1
+                    },
+                    "ciphertext": "VUgfXmd4gBDCTGXuZB2XX8u4J0_RzvrfyqgUHY5VHgOEO-ZOhWRWK--mZWEhaVkVbQLnhjGoULbt4fCm83euFvJRHQ",
+                    "signature": "ExWbcYEfp_EZeZ-tCAghLrHe5xL26JUmxAsWw-yMyWuFBfccpNKtTE0LJpdYod1P2OsWA7boSxO6TcmxH3NjDQ"
+                },
+                "acceptedCounters": [],
+                "expectedError": "bad_signature"
+            },
+            {
+                "name": "with a tampered ciphertext",
+                "request": "watch",
+                "sealed": {
+                    "header": {
+                        "controllerId": "nemu_0123456789abcdef",
+                        "identityEpoch": 3,
+                        "accessClientId": "ac_7f3a",
+                        "requestId": "req_0002",
+                        "counter": 1
+                    },
+                    "ciphertext": "VUgfXmd4gBDCTGXuZB2XX8u4J0_RzvrfyqgUHY5VHgOEO-ZOhWRWK--mZWEhaVkVbQLnhjGoULbt4fCm83euFvJRAQ",
+                    "signature": "oQvtatEH2tJaEEsTZvEOOs3zpBCHsJCU7i8iwDS9856TqvI994lfnf15lTE9G450nzc1Zf2POCZxGg8Wfg0WDw"
+                },
+                "acceptedCounters": [],
+                "expectedError": "bad_signature"
+            },
+            {
+                "name": "with its counter rewritten",
+                "request": "watch",
+                "sealed": {
+                    "header": {
+                        "controllerId": "nemu_0123456789abcdef",
+                        "identityEpoch": 3,
+                        "accessClientId": "ac_7f3a",
+                        "requestId": "req_0002",
+                        "counter": 3
+                    },
+                    "ciphertext": "VUgfXmd4gBDCTGXuZB2XX8u4J0_RzvrfyqgUHY5VHgOEO-ZOhWRWK--mZWEhaVkVbQLnhjGoULbt4fCm83euFvJRHQ",
+                    "signature": "oQvtatEH2tJaEEsTZvEOOs3zpBCHsJCU7i8iwDS9856TqvI994lfnf15lTE9G450nzc1Zf2POCZxGg8Wfg0WDw"
+                },
+                "acceptedCounters": [],
+                "expectedError": "bad_signature"
             }
         ],
         "grants": [

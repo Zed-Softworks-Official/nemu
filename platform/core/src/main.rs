@@ -172,7 +172,7 @@ async fn main() {
         convex_site_url: config.convex_site_url.clone(),
         registration_secret: config.registration_secret.clone(),
         lan_ip: lan_ip.clone(),
-        capability_watches: Arc::new(std::sync::Mutex::new(Vec::new())),
+        capability_watches: Arc::default(),
         pairing_runs: Arc::default(),
         local_sessions: Arc::default(),
         updater: Arc::new(SocketUpdater::new(config.updater_socket.clone())),
