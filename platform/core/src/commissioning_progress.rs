@@ -4,9 +4,8 @@
 //! A Protocol adapter publishes progress on `{base}/bridge/commissioning`.
 //! Core reads it strictly, so a payload with any field beyond the step,
 //! status and reason is dropped, and forwards it to Access Clients as the
-//! `commissioningStep` event over the LAN WebSocket only. Relay envelopes
-//! aren't encrypted yet, so progress stays off Relay until NEM-63 brings
-//! encrypted pushes. Every field is an enum: a pairing code, passcode or
+//! `commissioningStep` event over the LAN WebSocket only. Progress stays off
+//! Relay until NEM-123 pushes it sealed on the capability watch. Every field is an enum: a pairing code, passcode or
 //! Wi-Fi credential has nowhere to go, so none can reach a client once
 //! progress does cross Relay. The older `bridge/event` `commission_progress`
 //! and `device_interview` events are read as before.
@@ -101,7 +100,7 @@ mod tests {
         }
     }
 
-    /// Progress will cross Relay once NEM-63 encrypts it: a payload that
+    /// Progress will cross Relay once NEM-123 pushes it: a payload that
     /// carries a secret, under any name, is dropped rather than forwarded
     /// without it.
     #[test]

@@ -317,7 +317,7 @@ export class FakeController {
 
     /**
      * Report a Protocol-neutral commissioning step, as the Controller does:
-     * over LAN only. Relay carries no progress until NEM-63 encrypts it.
+     * over LAN only. Relay carries no progress until NEM-123.
      */
     commissioningStep(progress: CommissioningProgress): void {
         const event: DeviceEvent = { type: 'commissioningStep', ...progress }

@@ -6,8 +6,8 @@
  *
  * Progress travels from the adapter to Core on `{base}/bridge/commissioning`,
  * and from Core to Access Clients over the LAN WebSocket as the
- * `commissioningStep` event. It stays off Relay until NEM-63 encrypts Relay
- * pushes. It carries no pairing code, passcode, Wi-Fi
+ * `commissioningStep` event. It stays off Relay until NEM-123 pushes it
+ * sealed on the capability watch. It carries no pairing code, passcode, Wi-Fi
  * credential, free text or Device identifier: every field is one of the enums
  * below, and the objects are strict, so anything else is refused.
  */

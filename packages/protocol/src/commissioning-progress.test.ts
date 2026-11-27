@@ -8,7 +8,7 @@ import {
     commissioningStepEventSchema,
 } from './commissioning-progress.ts'
 import { deviceEventSchema } from './events.ts'
-import { relayToClientEnvelopeSchema } from './relay.ts'
+import { relayReplyMessageSchema } from './relay.ts'
 
 const progress = [
     ...COMMISSIONING_STEPS.map((step) => ({ status: 'active', step })),
@@ -37,14 +37,10 @@ describe('Commissioning progress', () => {
             assert.deepEqual(bridgeCommissioningSchema.parse(payload), payload)
             const event = { type: 'commissioningStep', ...payload }
             assert.deepEqual(deviceEventSchema.parse(event), event)
-            // Relay envelopes aren't encrypted yet, so progress stays off
-            // Relay until NEM-63 brings encrypted pushes.
+            // Progress stays off Relay until NEM-123 pushes it sealed on
+            // the capability watch.
             assert.equal(
-                relayToClientEnvelopeSchema.safeParse({
-                    requestId: 'watch-1',
-                    signature: 's',
-                    message: event,
-                }).success,
+                relayReplyMessageSchema.safeParse(event).success,
                 false
             )
         })
@@ -68,7 +64,7 @@ describe('Commissioning progress', () => {
 })
 
 /**
- * Progress reaches Access Clients, over Relay too once NEM-63 encrypts it, so
+ * Progress reaches Access Clients, over Relay too once NEM-123 pushes it, so
  * it must never carry a secret. The schemas are
  * strict and every field is an enum: a pairing code, passcode or Wi-Fi
  * credential has nowhere to go, under any name or as any value.
@@ -102,11 +98,7 @@ describe('Commissioning progress carries no secrets', () => {
                 )
                 assert.equal(deviceEventSchema.safeParse(event).success, false)
                 assert.equal(
-                    relayToClientEnvelopeSchema.safeParse({
-                        requestId: 'watch-1',
-                        signature: 's',
-                        message: event,
-                    }).success,
+                    relayReplyMessageSchema.safeParse(event).success,
                     false
                 )
             })
