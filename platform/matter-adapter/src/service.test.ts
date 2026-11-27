@@ -198,3 +198,81 @@ describe('Service', () => {
         assert.deepEqual(transport.on('matter/1'), [{ state: 'OFF' }])
     })
 })
+
+const LIGHT: AttributeSnapshot = {
+    '0/40/1': 'Nemu Harness',
+    '0/40/3': 'Harness Light',
+    '0/29/0': [{ deviceType: 22, revision: 1 }],
+    '1/29/0': [{ deviceType: 268, revision: 1 }],
+    '1/6/0': true,
+    '1/8/0': 100,
+    '1/8/2': 1,
+    '1/8/3': 254,
+    '1/768/7': 250,
+    '1/768/16395': 200,
+    '1/768/16396': 400,
+}
+
+async function commissionedLight() {
+    const session = new FakeSession()
+    session.joining = LIGHT
+    const harness = await started(session)
+    await harness.transport.deliver(
+        'matter/bridge/request/commission',
+        JSON.stringify({ code: '34970112332', transaction: 't1' })
+    )
+    await settle()
+    return harness
+}
+
+describe('Service with a light', () => {
+    it('sends brightness clamped to 254 and publishes only what the light reports', async () => {
+        const { session, transport } = await commissionedLight()
+        await transport.deliver(
+            'matter/1/set',
+            JSON.stringify({ brightness: 300 })
+        )
+        await settle()
+        assert.deepEqual(session.invoked, [
+            [
+                '1',
+                1,
+                8,
+                0x04,
+                {
+                    transitionTime: 0,
+                    optionsMask: {},
+                    optionsOverride: {},
+                    level: 254,
+                },
+            ],
+        ])
+        assert.deepEqual(transport.on('matter/1'), [
+            { state: 'ON', brightness: 100, color_temp: 250 },
+        ])
+        session.report('1', { '1/8/0': 254 })
+        await settle()
+        assert.deepEqual(transport.on('matter/1').at(-1), {
+            state: 'ON',
+            brightness: 254,
+            color_temp: 250,
+        })
+    })
+
+    it('republishes the descriptor when the light changes its limits', async () => {
+        const { session, transport } = await commissionedLight()
+        const before = transport.on('matter/bridge/devices').length
+        session.report('1', { '1/8/0': 120 })
+        await settle()
+        assert.equal(transport.on('matter/bridge/devices').length, before)
+        session.report('1', { '1/768/16396': 370 })
+        await settle()
+        const devices = transport.on('matter/bridge/devices').at(-1) as {
+            definition: { exposes: { features: { value_max?: number }[] }[] }
+        }[]
+        assert.equal(
+            devices[0]?.definition.exposes[0]?.features[2]?.value_max,
+            370
+        )
+    })
+})
