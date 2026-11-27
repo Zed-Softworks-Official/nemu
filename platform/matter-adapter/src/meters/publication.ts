@@ -298,9 +298,22 @@ interface Subject {
 }
 
 function endpointSubjects(device: EndpointDevice): Subject[] {
-    // TODO(NEM-117): a strip measures each outlet as a `component` subject
-    // (componentId = the outlet's endpoint), plus a separate energy endpoint
-    // as `device`, as the Rust adapter's `endpoint_subjects` does.
+    // A strip measures each outlet as its Component, and a separate energy
+    // endpoint as the Device.
+    const { outlets, energyEndpoint } = device
+    if (outlets) {
+        const subjects: Subject[] = outlets.map((outlet) => ({
+            endpoint: outlet.endpoint,
+            scopeKind: 'component',
+            componentId: String(outlet.endpoint),
+        }))
+        if (
+            energyEndpoint !== undefined &&
+            outlets.every((outlet) => outlet.endpoint !== energyEndpoint)
+        )
+            subjects.push({ endpoint: energyEndpoint, scopeKind: 'device' })
+        return subjects
+    }
     if (device.energyEndpoint === undefined)
         return [{ endpoint: device.endpoint, scopeKind: 'device' }]
     const subjects: Subject[] = [

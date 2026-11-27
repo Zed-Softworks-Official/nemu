@@ -69,3 +69,34 @@ export const HARNESS_LIGHT: AttributeSnapshot = {
     '1/768/16395': 200,
     '1/768/16396': 400,
 }
+
+/** The Rust adapter's `strip_attrs`: three outlets and an aggregator meter. */
+export const STRIP: AttributeSnapshot = {
+    '0/29/0': deviceTypes(DEVICE_TYPE_ROOT_NODE),
+    '0/40/1': 'Acme',
+    '0/40/3': 'Power Strip S3',
+    '0/40/5': 'Kitchen strip',
+    '1/29/0': deviceTypes(DEVICE_TYPE_AGGREGATOR),
+    '1/144/8': 12_500,
+    '1/144/4': 230_100,
+    '1/144/5': 54,
+    '1/145/1': { '0': 1_234_000 },
+    '2/29/0': deviceTypes(DEVICE_TYPE_ON_OFF_PLUG),
+    '2/6/0': true,
+    '3/29/0': deviceTypes(DEVICE_TYPE_ON_OFF_PLUG),
+    '3/6/0': false,
+    '4/29/0': deviceTypes(DEVICE_TYPE_ON_OFF_PLUG),
+    '4/6/0': false,
+}
+
+/** The harness strip as the matter.js session reports it: two outlets. */
+export const HARNESS_STRIP: AttributeSnapshot = {
+    '0/29/0': [{ deviceType: DEVICE_TYPE_ROOT_NODE, revision: 5 }],
+    '0/40/1': 'Nemu Harness',
+    '0/40/3': 'Harness Strip',
+    '0/40/5': '',
+    '1/29/0': [{ deviceType: DEVICE_TYPE_ON_OFF_PLUG, revision: 5 }],
+    '1/6/0': false,
+    '2/29/0': [{ deviceType: DEVICE_TYPE_ON_OFF_PLUG, revision: 5 }],
+    '2/6/0': true,
+}

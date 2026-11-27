@@ -62,6 +62,8 @@ function features(
 ): Feature[] {
     const { endpoint } = device
     const features = [STATE_FEATURE]
+    // A strip's outlets are on/off only.
+    if (device.kind === 'strip') return features
     if (device.kind === 'light') {
         features.push(brightnessFeature(snapshot, endpoint))
         const colorTemp = colorTempFeature(snapshot, endpoint)
