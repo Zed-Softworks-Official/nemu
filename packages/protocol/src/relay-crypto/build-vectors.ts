@@ -27,6 +27,10 @@ import {
 } from './envelope.ts'
 import { type AccessGrant, issueGrant } from './grant.ts'
 import { x25519PublicKey } from './hpke.ts'
+import {
+    type MembershipProjection,
+    signMembershipProjection,
+} from './projection.ts'
 import { signLocalSessionChallenge } from './session.ts'
 import { ed25519PublicKey, ed25519Signer } from './signing.ts'
 
@@ -444,6 +448,36 @@ export async function buildRelayCryptoVectors() {
         sessionChallenge
     )
 
+    const activeProjection: MembershipProjection = {
+        controllerId: CONTROLLER_ID,
+        identityEpoch: IDENTITY_EPOCH,
+        membershipId: grant.membershipId,
+        accountId: 'user_2abc',
+        state: 'active',
+        sequence: 7,
+    }
+    const endedProjection: MembershipProjection = {
+        ...activeProjection,
+        state: 'ended',
+        sequence: 8,
+    }
+    const signedActive = await signMembershipProjection(
+        activeProjection,
+        signer(controller)
+    )
+    const signedEnded = await signMembershipProjection(
+        endedProjection,
+        signer(controller)
+    )
+    const forgedProjection = await signMembershipProjection(
+        activeProjection,
+        signer(impostor)
+    )
+    const otherControllerProjection = await signMembershipProjection(
+        { ...activeProjection, controllerId: 'nemu_fedcba9876543210' },
+        signer(controller)
+    )
+
     const policy = {
         controllerId: CONTROLLER_ID,
         identityEpoch: IDENTITY_EPOCH,
@@ -494,6 +528,11 @@ export async function buildRelayCryptoVectors() {
                 },
                 jws: grantJws,
             },
+        ],
+        /** Signed by `keys.controller` (NEM-133). */
+        membershipProjections: [
+            { name: 'active Membership', signed: signedActive },
+            { name: 'ended Membership', signed: signedEnded },
         ],
         /** Signed by `keys.accessClient` (NEM-126). */
         localSessions: [
@@ -692,6 +731,64 @@ export async function buildRelayCryptoVectors() {
                 },
             ],
             /** Verified against `controllerId` and the Controller's key. */
+            membershipProjections: [
+                {
+                    name: 'signed by a key other than the Controller',
+                    signed: forgedProjection,
+                    expectedError: 'bad_signature',
+                },
+                {
+                    name: 'signed by another Controller',
+                    signed: otherControllerProjection,
+                    expectedError: 'wrong_controller',
+                },
+                {
+                    name: 'with its state rewritten',
+                    signed: {
+                        ...signedActive,
+                        projection: { ...activeProjection, state: 'ended' },
+                    },
+                    expectedError: 'bad_signature',
+                },
+                {
+                    name: 'with its identity epoch rewritten',
+                    signed: {
+                        ...signedActive,
+                        projection: {
+                            ...activeProjection,
+                            identityEpoch: IDENTITY_EPOCH + 1,
+                        },
+                    },
+                    expectedError: 'bad_signature',
+                },
+                {
+                    name: 'with its Account rewritten',
+                    signed: {
+                        ...signedActive,
+                        projection: {
+                            ...activeProjection,
+                            accountId: 'user_evil',
+                        },
+                    },
+                    expectedError: 'bad_signature',
+                },
+                {
+                    name: 'with an extra field',
+                    signed: {
+                        ...signedActive,
+                        projection: { ...activeProjection, role: 'owner' },
+                    },
+                    expectedError: 'malformed',
+                },
+                {
+                    name: 'with a short signature',
+                    signed: {
+                        ...signedActive,
+                        signature: signedActive.signature.slice(0, 40),
+                    },
+                    expectedError: 'malformed',
+                },
+            ],
             grants: [
                 {
                     name: 'signed by a key other than the Controller',

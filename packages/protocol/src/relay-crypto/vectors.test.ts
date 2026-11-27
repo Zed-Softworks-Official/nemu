@@ -41,6 +41,12 @@ import {
 import { GrantError, issueGrant, verifyGrant } from './grant.ts'
 import { deriveKeyPair, setupBaseReceiver, setupBaseSender } from './hpke.ts'
 import {
+    ProjectionError,
+    signMembershipProjection,
+    supersedesProjection,
+    verifyMembershipProjection,
+} from './projection.ts'
+import {
     acceptCounter,
     EMPTY_REPLAY_WINDOW,
     type ReplayWindow,
@@ -102,6 +108,7 @@ function errorCode(fn: () => unknown): string {
         if (
             error instanceof RelayCryptoError ||
             error instanceof GrantError ||
+            error instanceof ProjectionError ||
             error instanceof CpaceError
         ) {
             return error.code
@@ -480,6 +487,55 @@ describe('Access grants', () => {
             )
         })
     }
+})
+
+describe('Membership routing projections', () => {
+    for (const v of fixture.membershipProjections) {
+        it(`signs and verifies: ${v.name}`, async () => {
+            const signed = await signMembershipProjection(
+                v.signed.projection as never,
+                ed25519Signer(h(controller.signingSecret))
+            )
+            assert.deepEqual(signed, v.signed)
+            assert.deepEqual(
+                verifyMembershipProjection(
+                    v.signed,
+                    v.signed.projection.controllerId,
+                    h(controller.signingPublic)
+                ),
+                v.signed.projection
+            )
+        })
+    }
+
+    for (const r of fixture.rejections.membershipProjections) {
+        it(`rejects a projection ${r.name}`, () => {
+            assert.equal(
+                errorCode(() =>
+                    verifyMembershipProjection(
+                        r.signed,
+                        fixture.pairing.accepted.controllerId,
+                        h(controller.signingPublic)
+                    )
+                ),
+                r.expectedError
+            )
+        })
+    }
+
+    it('orders by identity epoch, then sequence', () => {
+        const at = (identityEpoch: number, sequence: number) => ({
+            identityEpoch,
+            sequence,
+        })
+        assert.ok(supersedesProjection(at(1, 1), null))
+        assert.ok(supersedesProjection(at(1, 2), at(1, 1)))
+        assert.ok(!supersedesProjection(at(1, 1), at(1, 1)))
+        assert.ok(!supersedesProjection(at(1, 1), at(1, 2)))
+        // A restore bumps the epoch and may rewind the outbox.
+        assert.ok(supersedesProjection(at(2, 1), at(1, 90)))
+        assert.ok(!supersedesProjection(at(1, 90), at(2, 1)))
+    })
 })
 
 describe('Local session challenges', () => {
