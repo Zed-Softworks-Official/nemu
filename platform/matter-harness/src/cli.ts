@@ -10,6 +10,8 @@
  * MATTER_HARNESS_GOLDEN        golden file (default: golden/matter-mqtt.json)
  * MATTER_HARNESS_OUTPUT        where this run's normalised output is written
  * MATTER_HARNESS_MQTT_URL      use this broker instead of starting Mosquitto
+ * MATTER_HARNESS_STEPS, MATTER_HARNESS_IGNORE_TOPICS
+ *                              check only part of the scenario (see scope.ts)
  */
 import assert from 'node:assert/strict'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
@@ -23,7 +25,19 @@ import {
     startBroker,
 } from './processes.ts'
 import { Recorder } from './recorder.ts'
-import { type Harness, runScenario } from './scenario.ts'
+import {
+    type Harness,
+    runScenario,
+    STEPS,
+    type StepResult,
+} from './scenario.ts'
+import {
+    applyScope,
+    FULL_SCOPE,
+    isFullScope,
+    scopeFromEnv,
+    unknownSteps,
+} from './scope.ts'
 
 const BASE_TOPIC = 'matter'
 const packageDir = new URL('..', import.meta.url).pathname
@@ -33,10 +47,23 @@ const goldenPath =
 const outputPath =
     process.env.MATTER_HARNESS_OUTPUT ?? join(packageDir, '.run/last-run.json')
 const record = process.argv.includes('--record')
+const scope = record ? FULL_SCOPE : scopeFromEnv(process.env)
 
 const log = (line: string) => process.stderr.write(`[harness] ${line}\n`)
 
 async function main(): Promise<number> {
+    const unknown = unknownSteps(
+        scope,
+        STEPS.map((step) => step.name)
+    )
+    if (unknown.length > 0) {
+        log(`unknown steps in MATTER_HARNESS_STEPS: ${unknown.join(', ')}`)
+        return 1
+    }
+    if (!isFullScope(scope))
+        log(
+            `partial run: steps ${[...(scope.steps ?? ['(all)'])].join(', ')}; ignoring topics ${scope.ignoredTopics.join(', ') || '(none)'}`
+        )
     const runDir = await mkdtemp(join(tmpdir(), 'nemu-matter-harness-'))
     log(`run directory ${runDir}`)
     log(`adapter ${adapterCommand()}`)
@@ -83,6 +110,7 @@ async function main(): Promise<number> {
             devices,
             names: {},
             ids: {},
+            scope,
         }
         const steps = await runScenario(harness, log)
         const output = { steps }
@@ -96,10 +124,12 @@ async function main(): Promise<number> {
             log(`recorded ${goldenPath}`)
             return 0
         }
-        const golden = JSON.parse(await readFile(goldenPath, 'utf8')) as unknown
+        const golden = JSON.parse(await readFile(goldenPath, 'utf8')) as {
+            steps: StepResult[]
+        }
         assert.deepStrictEqual(
-            output,
-            golden,
+            { steps: applyScope(steps, scope) },
+            { steps: applyScope(golden.steps, scope) },
             `MQTT output differs from ${goldenPath}`
         )
         log('MQTT output matches the golden payloads')

@@ -3,6 +3,7 @@ import { type DeviceKind, SECOND_LOAD } from './fixtures.ts'
 import { normaliseStep, type StepRecord } from './normalise.ts'
 import type { Adapter, SimulatedDevice } from './processes.ts'
 import type { Received, Recorder } from './recorder.ts'
+import { includesStep, includesTopic, type Scope } from './scope.ts'
 
 export interface Harness {
     recorder: Recorder
@@ -12,6 +13,8 @@ export interface Harness {
     names: Record<string, string>
     /** Device ID the adapter published for each simulated Device. */
     ids: Partial<Record<DeviceKind, string>>
+    /** The steps and topics this run checks. */
+    scope: Scope
 }
 
 interface Step {
@@ -119,10 +122,14 @@ export const STEPS: Step[] = [
                 code: harness.devices.plug.manualPairingCode,
                 transaction: 'commission-plug',
             }),
-        until: (messages, harness) =>
-            commissioned('plug')(messages, harness) &&
-            latest(messages, `${deviceId(harness, 'plug')}/observations`) !==
-                undefined,
+        until: (messages, harness) => {
+            if (!commissioned('plug')(messages, harness)) return false
+            const id = deviceId(harness, 'plug')
+            // Wait for the first reading, unless this run leaves meters out.
+            return includesTopic(harness.scope, `${id}/observations`)
+                ? latest(messages, `${id}/observations`) !== undefined
+                : latest(messages, id) !== undefined
+        },
         timeoutMs: 120_000,
     },
     {
@@ -300,6 +307,7 @@ export async function runScenario(
 ): Promise<StepResult[]> {
     const results: StepResult[] = []
     for (const step of STEPS) {
+        if (!includesStep(harness.scope, step.name)) continue
         const startIndex = harness.recorder.messages.length
         const startedAt = Date.now()
         const timeoutMs = step.timeoutMs ?? 60_000
